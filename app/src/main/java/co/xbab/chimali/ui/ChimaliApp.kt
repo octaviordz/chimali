@@ -15,6 +15,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import co.xbab.chimali.R
 import co.xbab.chimali.ui.navigation.AppNavHost
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,8 +24,11 @@ fun ChimaliApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val isTopLevelDestination = currentDestination?.hierarchy?.any { it.route == "transform" || it.route == "reflow" || it.route == "slideshow" } == true
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.app_name)) },
@@ -33,7 +37,7 @@ fun ChimaliApp() {
                         IconButton(onClick = { navController.navigateUp() }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_arrow_back),
-                                contentDescription = stringResource(id = R.string.action_bar_navigate_up_description)
+                                contentDescription = stringResource(id = R.string.abc_action_bar_up_description)
                             )
                         }
                     }
@@ -64,6 +68,17 @@ fun ChimaliApp() {
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { 
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Email sent")
+                    }
+                 }
+            ) {
+                Icon(painter = painterResource(id = android.R.drawable.ic_dialog_email), contentDescription = stringResource(id = R.string.send_email))
+            }
         },
         bottomBar = {
             NavigationBar {

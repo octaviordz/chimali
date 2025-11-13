@@ -4,5 +4,6 @@
     <string name="title_reflow">Reflow</string>
     <string name="title_slideshow">Slideshow</string>
     <string name="title_settings">Settings</string>
-    <string name="action_bar_navigate_up_description">Navigate up</string>
+    <string name="abc_action_bar_up_description">Navigate up</string>
+    <string name="send_email">Send email</string>
 </resources>
