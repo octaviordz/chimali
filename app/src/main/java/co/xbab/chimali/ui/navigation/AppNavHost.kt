@@ -1,8 +1,8 @@
 package co.xbab.chimali.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,16 +22,16 @@ fun AppNavHost(
         modifier = modifier
     ) {
         composable("transform") {
-            TransformScreen()
+            TransformScreen(modifier = Modifier.fillMaxSize())
         }
         composable("reflow") {
-            ReflowScreen()
+            ReflowScreen(modifier = Modifier.fillMaxSize())
         }
         composable("slideshow") {
-            SlideshowScreen()
+            SlideshowScreen(modifier = Modifier.fillMaxSize())
         }
         composable("settings") {
-            SettingsScreen()
+            SettingsScreen(modifier = Modifier.fillMaxSize())
         }
     }
 }
