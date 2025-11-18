@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import co.xbab.chimali.R
@@ -64,13 +63,12 @@ fun ChimaliApp(windowSizeClass: WindowSizeClass) {
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { }
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(id = R.string.title_settings)) },
                                 onClick = {
                                     navController.navigate("settings")
-                                    showMenu = false
                                 }
                             )
                         }
