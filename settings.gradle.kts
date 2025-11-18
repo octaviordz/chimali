@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Chimali"
 include(":app")
- 
+include(":responsiveviews")
