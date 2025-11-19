@@ -1,76 +1,112 @@
 package co.xbab.chimali.ui
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import co.xbab.chimali.R
 import co.xbab.chimali.ui.navigation.AppNavHost
-import co.xbab.chimali.ui.navigation.ChimaliNavigation
+import co.xbab.chimali.ui.navigation.BottomBarContent
+import co.xbab.chimali.ui.navigation.NavigationDrawerContent
+import co.xbab.chimali.ui.theme.ChimaliTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChimaliApp(windowSizeClass: WindowSizeClass) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val widthSizeClass = windowSizeClass.widthSizeClass
     val isExpandedScreen = widthSizeClass == WindowWidthSizeClass.Expanded
     val isMediumScreen = widthSizeClass == WindowWidthSizeClass.Medium
 
-    val isTopLevelDestination = currentDestination?.hierarchy?.any {
-        it.route == "transform" || it.route == "reflow" || it.route == "slideshow"
-    } == true
+    if (isExpandedScreen) {
+        // Expanded layout: Permanent Navigation Drawer
+        PermanentNavigationDrawer(
+            drawerContent = {
+                PermanentDrawerSheet(Modifier.width(240.dp)) {
+                    NavigationDrawerContent(navController) { /* No action needed to close */ }
+                }
+            }
+        ) {
+            AppContent(navController, snackbarHostState, isExpandedOrMedium = true)
+        }
+    } else if (isMediumScreen) {
+        // Medium layout: Modal Navigation Drawer
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    NavigationDrawerContent(navController) { scope.launch { drawerState.close() } }
+                }
+            },
+        ) {
+            AppContent(navController, snackbarHostState, isExpandedOrMedium = true) {
+                // Hamburger icon to open drawer
+                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                    Icon(painterResource(id = R.drawable.ic_menu), contentDescription = stringResource(R.string.title_settings))
+                }
+            }
+        }
+    } else {
+        // Compact layout: Bottom Navigation + Kebab menu
+        AppContent(navController, snackbarHostState, isExpandedOrMedium = false)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppContent(
+    navController: NavHostController,
+    snackbarHostState: SnackbarHostState,
+    isExpandedOrMedium: Boolean,
+    navigationIcon: @Composable () -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.app_name)) },
-                navigationIcon = {
-                    if (!isTopLevelDestination) {
-                        IconButton(onClick = { navController.navigateUp() }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_arrow_back),
-                                contentDescription = stringResource(id = R.string.abc_action_bar_up_description)
-                            )
-                        }
-                    }
-                },
+                navigationIcon = navigationIcon,
                 actions = {
-                    if (isTopLevelDestination) {
-                        var showMenu by remember { mutableStateOf(false) }
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_more_vert),
-                                contentDescription = stringResource(id = R.string.title_settings)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(id = R.string.title_settings)) },
-                                onClick = {
-                                    navController.navigate("settings")
-                                }
-                            )
+                    // Show kebab menu only on compact screens
+                    if (!isExpandedOrMedium) {
+                        Box(modifier = Modifier.wrapContentSize(Alignment.TopStart)) {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_more_vert),
+                                    contentDescription = stringResource(id = R.string.title_settings)
+                                )
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(id = R.string.title_settings)) },
+                                    onClick = {
+                                        navController.navigate("settings")
+                                        showMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -79,9 +115,7 @@ fun ChimaliApp(windowSizeClass: WindowSizeClass) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Email sent")
-                    }
+                    scope.launch { snackbarHostState.showSnackbar("Email sent") }
                 }
             ) {
                 Icon(
@@ -91,31 +125,24 @@ fun ChimaliApp(windowSizeClass: WindowSizeClass) {
             }
         },
         bottomBar = {
-            if (!isExpandedScreen && !isMediumScreen) { // Only for Compact screens
-                ChimaliNavigation(
-                    navController = navController,
-                    isExpandedScreen = false,
-                    isMediumScreen = false
-                )
+            // Show bottom bar only on compact screens
+            if (!isExpandedOrMedium) {
+                BottomBarContent(navController)
             }
         }
     ) { innerPadding ->
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isExpandedScreen || isMediumScreen) {
-                ChimaliNavigation(
-                    navController = navController,
-                    isExpandedScreen = isExpandedScreen,
-                    isMediumScreen = isMediumScreen
-                )
-            }
-            AppNavHost(
-                navController = navController,
-                modifier = Modifier.weight(1f) // This is critical
-            )
-        }
+        AppNavHost(
+            navController = navController,
+            modifier = Modifier.padding(innerPadding)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+@Preview(showBackground = true)
+@Composable
+fun ChimaliAppPreview() {
+    ChimaliTheme {
+        ChimaliApp(windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(400.dp, 800.dp)))
     }
 }

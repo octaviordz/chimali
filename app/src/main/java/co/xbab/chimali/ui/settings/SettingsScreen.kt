@@ -7,7 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import co.xbab.chimali.R
+import co.xbab.chimali.ui.theme.ChimaliTheme
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
@@ -16,5 +18,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(text = stringResource(id = R.string.title_settings))
+    }
+}
+
+@PreviewScreenSizes
+@Composable
+fun SettingsScreenPreview() {
+    ChimaliTheme {
+        SettingsScreen()
     }
 }

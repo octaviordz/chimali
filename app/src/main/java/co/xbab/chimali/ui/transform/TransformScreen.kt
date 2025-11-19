@@ -11,7 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.xbab.chimali.ui.theme.ChimaliTheme
@@ -35,7 +35,7 @@ fun TransformScreen(modifier: Modifier = Modifier, viewModel: TransformViewModel
     }
 }
 
-@Preview(showBackground = true)
+@PreviewScreenSizes
 @Composable
 fun TransformScreenPreview() {
     ChimaliTheme {
