@@ -6,10 +6,10 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import co.xbab.chimali.responsive.ui.ResponsiveReflowScreen
-import co.xbab.chimali.responsive.ui.ResponsiveSettingsScreen
-import co.xbab.chimali.responsive.ui.ResponsiveSlideshowScreen
-import co.xbab.chimali.responsive.ui.ResponsiveTransformScreen
+import co.xbab.chimali.ui.reflow.ReflowScreen
+import co.xbab.chimali.ui.settings.SettingsScreen
+import co.xbab.chimali.ui.slideshow.SlideshowScreen
+import co.xbab.chimali.ui.transform.TransformScreen
 
 @Composable
 fun AppNavHost(
@@ -22,16 +22,16 @@ fun AppNavHost(
         modifier = modifier
     ) {
         composable("transform") {
-            ResponsiveTransformScreen(isExpanded = false, modifier = Modifier.fillMaxSize())
+            TransformScreen(modifier = Modifier.fillMaxSize())
         }
         composable("reflow") {
-            ResponsiveReflowScreen(modifier = Modifier.fillMaxSize())
+            ReflowScreen(modifier = Modifier.fillMaxSize())
         }
         composable("slideshow") {
-            ResponsiveSlideshowScreen(modifier = Modifier.fillMaxSize())
+            SlideshowScreen(modifier = Modifier.fillMaxSize())
         }
         composable("settings") {
-            ResponsiveSettingsScreen(modifier = Modifier.fillMaxSize())
+            SettingsScreen(modifier = Modifier.fillMaxSize())
         }
     }
 }

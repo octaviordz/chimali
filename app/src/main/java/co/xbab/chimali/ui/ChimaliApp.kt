@@ -27,10 +27,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChimaliApp(
-    windowSizeClass: WindowSizeClass,
-    onLaunchResponsiveApp: () -> Unit = {}
-) {
+fun ChimaliApp(windowSizeClass: WindowSizeClass) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -49,7 +46,7 @@ fun ChimaliApp(
                 }
             }
         ) {
-            AppContent(navController, snackbarHostState, isExpandedOrMedium = true, onLaunchResponsiveApp = onLaunchResponsiveApp)
+            AppContent(navController, snackbarHostState, isExpandedOrMedium = true)
         }
     } else if (isMediumScreen) {
         // Medium layout: Modal Navigation Drawer
@@ -61,7 +58,7 @@ fun ChimaliApp(
                 }
             },
         ) {
-            AppContent(navController, snackbarHostState, isExpandedOrMedium = true, onLaunchResponsiveApp = onLaunchResponsiveApp) {
+            AppContent(navController, snackbarHostState, isExpandedOrMedium = true) {
                 // Hamburger icon to open drawer
                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                     Icon(painterResource(id = R.drawable.ic_menu), contentDescription = stringResource(R.string.title_settings))
@@ -70,7 +67,7 @@ fun ChimaliApp(
         }
     } else {
         // Compact layout: Bottom Navigation + Kebab menu
-        AppContent(navController, snackbarHostState, isExpandedOrMedium = false, onLaunchResponsiveApp = onLaunchResponsiveApp)
+        AppContent(navController, snackbarHostState, isExpandedOrMedium = false)
     }
 }
 
@@ -80,7 +77,6 @@ fun AppContent(
     navController: NavHostController,
     snackbarHostState: SnackbarHostState,
     isExpandedOrMedium: Boolean,
-    onLaunchResponsiveApp: () -> Unit = {},
     navigationIcon: @Composable () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -93,14 +89,6 @@ fun AppContent(
                 title = { Text(text = stringResource(id = R.string.app_name)) },
                 navigationIcon = navigationIcon,
                 actions = {
-                    // Button to launch Responsive App
-                    IconButton(onClick = onLaunchResponsiveApp) {
-                        Icon(
-                            painter = painterResource(id = android.R.drawable.ic_menu_view), // Using a standard icon
-                            contentDescription = "Responsive App"
-                        )
-                    }
-
                     // Show kebab menu only on compact screens
                     if (!isExpandedOrMedium) {
                         Box(modifier = Modifier.wrapContentSize(Alignment.TopStart)) {
