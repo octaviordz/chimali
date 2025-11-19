@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews.ui.settings
+package co.xbab.responsiveviews.ui.settings
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

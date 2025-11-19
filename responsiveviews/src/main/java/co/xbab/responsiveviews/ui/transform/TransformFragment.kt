@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews.ui.transform
+package co.xbab.responsiveviews.ui.transform
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,9 +12,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import co.xbab.adapativexmlviews.R
-import co.xbab.adapativexmlviews.databinding.FragmentTransformBinding
-import co.xbab.adapativexmlviews.databinding.ItemTransformBinding
+import co.xbab.responsiveviews.R
+import co.xbab.responsiveviews.databinding.FragmentTransformBinding
+import co.xbab.responsiveviews.databinding.ItemTransformBinding
 
 /**
  * Fragment that demonstrates a responsive layout pattern where the format of the content

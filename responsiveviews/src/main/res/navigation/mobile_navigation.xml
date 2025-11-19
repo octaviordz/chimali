@@ -7,25 +7,25 @@
 
     <fragment
         android:id="@+id/nav_transform"
-        android:name="co.xbab.adapativexmlviews.ui.transform.TransformFragment"
+        android:name="co.xbab.responsiveviews.ui.transform.TransformFragment"
         android:label="@string/menu_transform"
         tools:layout="@layout/fragment_transform" />
 
     <fragment
         android:id="@+id/nav_reflow"
-        android:name="co.xbab.adapativexmlviews.ui.reflow.ReflowFragment"
+        android:name="co.xbab.responsiveviews.ui.reflow.ReflowFragment"
         android:label="@string/menu_reflow"
         tools:layout="@layout/fragment_reflow" />
 
     <fragment
         android:id="@+id/nav_slideshow"
-        android:name="co.xbab.adapativexmlviews.ui.slideshow.SlideshowFragment"
+        android:name="co.xbab.responsiveviews.ui.slideshow.SlideshowFragment"
         android:label="@string/menu_slideshow"
         tools:layout="@layout/fragment_slideshow" />
 
     <fragment
         android:id="@+id/nav_settings"
-        android:name="co.xbab.adapativexmlviews.ui.settings.SettingsFragment"
+        android:name="co.xbab.responsiveviews.ui.settings.SettingsFragment"
         android:label="@string/menu_settings"
         tools:layout="@layout/fragment_settings" />
 </navigation>

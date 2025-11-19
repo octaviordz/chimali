@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews.ui.slideshow
+package co.xbab.responsiveviews.ui.slideshow
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

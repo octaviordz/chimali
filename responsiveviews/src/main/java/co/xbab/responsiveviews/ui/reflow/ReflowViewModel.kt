@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews.ui.reflow
+package co.xbab.responsiveviews.ui.reflow
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

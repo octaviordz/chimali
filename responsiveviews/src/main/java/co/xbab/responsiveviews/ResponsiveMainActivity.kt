@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews
+package co.xbab.responsiveviews
 
 import android.os.Bundle
 import android.view.Menu
@@ -12,7 +12,7 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import androidx.appcompat.app.AppCompatActivity
-import co.xbab.adapativexmlviews.databinding.ActivityResponsiveMainBinding
+import co.xbab.responsiveviews.databinding.ActivityResponsiveMainBinding
 
 class ResponsiveMainActivity : AppCompatActivity() {
 

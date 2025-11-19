@@ -1,4 +1,4 @@
-package co.xbab.adapativexmlviews.ui.reflow
+package co.xbab.responsiveviews.ui.reflow
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import co.xbab.adapativexmlviews.databinding.FragmentReflowBinding
+import co.xbab.responsiveviews.databinding.FragmentReflowBinding
 
 class ReflowFragment : Fragment() {
 
