@@ -6,6 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.DrawableRes
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -14,7 +17,6 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import co.xbab.chimali.R
 import co.xbab.chimali.databinding.FragmentTransformBinding
-import co.xbab.chimali.databinding.ItemTransformBinding
 
 /**
  * Fragment that demonstrates a responsive layout pattern where the format of the content
@@ -83,22 +85,22 @@ class TransformFragment : Fragment() {
         )
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransformViewHolder {
-            val binding = ItemTransformBinding.inflate(LayoutInflater.from(parent.context))
-            return TransformViewHolder(binding)
+            return TransformViewHolder(ComposeView(parent.context))
         }
 
         override fun onBindViewHolder(holder: TransformViewHolder, position: Int) {
-            holder.textView.text = getItem(position)
-            holder.imageView.setImageDrawable(
-                ResourcesCompat.getDrawable(holder.imageView.resources, drawables[position], null)
-            )
+            holder.bind(getItem(position), drawables[position])
         }
     }
 
-    class TransformViewHolder(binding: ItemTransformBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    class TransformViewHolder(val composeView: ComposeView) :
+        RecyclerView.ViewHolder(composeView) {
 
-        val imageView: ImageView = binding.imageViewItemTransform
-        val textView: TextView = binding.textViewItemTransform
+        fun bind(text: String, @DrawableRes imageRes: Int) {
+            composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            composeView.setContent {
+                TransformItem(text, imageRes)
+            }
+        }
     }
 }
