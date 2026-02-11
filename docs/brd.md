@@ -53,33 +53,34 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.4 Authentication & Security
 - **FR10**: Mandatory Authentication using Biometrics (Fingerprint/Face) or Device PIN, defaulting to the user's device settings.
 - **FR11**: Automatic lock on app backgrounding or device inactivity.
-- **FR12**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing) (future scope).
+- **FR12**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing). The backup will be based on a **Master Seed**, ensuring that all credentials can be restored from a single recovery point.
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
 - **NFR1**: All sensitive data must be encrypted with AES-256-GCM. If the device supports Quantum-Resistant (Post-Quantum Cryptography) algorithms (e.g., ML-KEM/Kyber), the application must utilize these as the primary encryption method.
 - **NFR2**: Sensitive keys must be stored in the Android KeyStore (strongbox encouraged).
 - **NFR3**: Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
+- **NFR4: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. All individual credential keys must be derived using **Hierarchical Deterministic (HD) Key Derivation** (following standards such as BIP32/BIP39/BIP44). This allows for a single point of recovery and secure watch-only wallet capabilities.
 
 ### 5.2 Performance & Reliability
-- **NFR4: Startup Performance** (Android Vitals Targets):
+- **NFR5: Startup Performance** (Android Vitals Targets):
     - **Cold Start**: < 2 seconds (Time to initial display).
     - **Warm Start**: < 1 second.
     - **Hot Start**: < 500 milliseconds.
-- **NFR5: Rendering Smoothness**:
+- **NFR6: Rendering Smoothness**:
     - Maintain a consistent **60 FPS** (16.6ms per frame) during UI interactions.
     - Zero "Frozen Frames" (render time > 700ms) and < 1% "Slow Frames" (render time > 16ms).
-- **NFR6: Bluetooth HID Latency**:
+- **NFR7: Bluetooth HID Latency**:
     - Target end-to-end latency for virtual authenticator actions (from tap on phone to execution on host) should be **< 200ms** on supported hardware to ensure a responsive user experience.
-- **NFR7: Resource Optimization**:
+- **NFR8: Resource Optimization**:
     - Zero memory leaks detected via Profiler or LeakCanary.
     - "Excessive Wake Locks" must remain below 0.1% to minimize battery impact.
 
 ### 5.3 Maintainability
-- **NFR8: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.
-- **NFR9: Dependency Injection**: Use **Hilt** for standardized, compile-time safe dependency management.
-- **NFR10: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
-- **NFR11: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
+- **NFR9: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.
+- **NFR10: Dependency Injection**: Use **Hilt** for standardized, compile-time safe dependency management.
+- **NFR11: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
+- **NFR12: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
 
 ## 6. User Interface & Experience (UI/UX)
 - **Design System**: Material Design 3 (M3).

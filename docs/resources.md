@@ -1,6 +1,7 @@
 # Chimali - Project Resources & References
 
 - **MFA Fatigue Considerations**: [Allthenticate Knowledge Base](https://www.allthenticate.com/knowledge/mfafatigue).
+- **Master Key & Rescue Missions**: [Google Share Link](https://share.google/aimode/nLv21SkunZSpz8a9v) - Advanced cryptographic patterns for key management and recovery.
 
 This file contains links, tools, and research materials that are useful for the development of Chimali but are not direct business requirements.
 
