@@ -1,0 +1,56 @@
+# Built artifacts
+build/
+bin/
+gen/
+out/
+.gradle/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/assetWizardSettings.xml
+.idea/navEditor.xml
+.idea/caches/
+.idea/dataSources/
+.idea/indexLayout.xml
+.idea/vcs.xml
+.idea/deploymentTargetDropDown.xml
+.idea/render.experimental.xml
+
+# Android Studio / IntelliJ specific
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# Local configuration
+local.properties
+.DS_Store
+
+# Gradle
+.gradle/
+build/
+captures/
+
+# Signing files
+*.jks
+*.keystore
+*.pk8
+*.p12
+google-services.json
+
+# Specialized ignores for multi-module
+**/build/
+
+# Kotlin
+*.kotlin_module
+
+# OS specific
+Thumbs.db
+Desktop.ini
+
+# Crashlytics / Firebase logic
+com_google_firebase_crashlytics_*.properties
+
+# Secret files
+secrets.properties
