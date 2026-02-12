@@ -19,16 +19,16 @@ class Bip32HDKeyDerivatorTest {
 
     @Test
     fun `deriveKey should be deterministic for same path`() {
-        val key1 = derivator.deriveKey(testSeed, "m/44'/0'/0'/0/0")
-        val key2 = derivator.deriveKey(testSeed, "m/44'/0'/0'/0/0")
+        val key1 = derivator.deriveKey(testSeed, "m/44'/0'/0'")
+        val key2 = derivator.deriveKey(testSeed, "m/44'/0'/0'")
         
         assertArrayEquals(key1, key2)
     }
 
     @Test
     fun `deriveKey should return different keys for different paths`() {
-        val key1 = derivator.deriveKey(testSeed, "m/44'/0'/0'/0/0")
-        val key2 = derivator.deriveKey(testSeed, "m/44'/0'/0'/0/1")
+        val key1 = derivator.deriveKey(testSeed, "m/44'/0'/0'")
+        val key2 = derivator.deriveKey(testSeed, "m/44'/0'/1'")
         
         assertNotNull(key1)
         assertNotNull(key2)

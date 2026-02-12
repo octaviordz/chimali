@@ -1,5 +1,5 @@
 [versions]
-agp = "8.5.0"
+agp = "8.13.2"
 kotlin = "1.9.22"
 compose = "1.5.12"
 compose-bom = "2024.02.00"
@@ -14,6 +14,7 @@ coroutines = "1.8.0"
 detekt = "1.23.5"
 ktlint = "12.1.0"
 ksp = "1.9.22-1.0.17"
+junit = "4.13.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-ktx" }
@@ -36,6 +37,8 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
