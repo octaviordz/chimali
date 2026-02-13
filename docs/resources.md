@@ -12,6 +12,9 @@ This file contains links, tools, and research materials that are useful for the 
 - **USBHIDTerminal**: [GitHub Repository](https://github.com/452/USBHIDTerminal) - Useful for testing HID communications and understanding endpoint interactions.
 - **HidPeripheral**: [GitHub Repository](https://github.com/LiangLuDev/HidPeripheral) - Android app demo for Bluetooth HID peripheral emulation (Mouse/Keyboard).
 
+## Decentralized Identity & SSI
+- **walt.id Identity SDK**: [GitHub Repository](https://github.com/walt-id/waltid-identity) - Open-source Decentralized Identity (SSI) and Wallet solutions for developers.
+
 ## Cryptography & HD Keys
 - **Deterministic Key Derivation for Ed25519 and Ed448**: [IETF Draft](https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-01.html) - Research on applying HD key patterns to modern curves like Ed25519.
 
