@@ -17,6 +17,7 @@ This file contains links, tools, and research materials that are useful for the 
 
 ## Cryptography & HD Keys
 - **HD Keys beyond Bitcoin**: [Google Share Link](https://share.google/aimode/7zIX8QRB2KWH6asT3) - Discussion on the broader applications of Hierarchical Deterministic keys.
+- **Hybrid Hierarchical Deterministic Derivation (HHD)**: [Blogpost](https://hackmd.io/abYfydDxRMGkwguLiAqVbg) - A proposal for a hybrid derivation design supporting both classical (ECDSA) and quantum-resistant (Falcon) signature schemes from a single seed.
 - **Deterministic Key Derivation for Ed25519 and Ed448**: [IETF Draft](https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-01.html) - Research on applying HD key patterns to modern curves like Ed25519.
 
 ## Backup & Recovery (Future Scope)
