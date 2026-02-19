@@ -1,11 +1,11 @@
 package com.chimali.core.security.di
 
 import com.chimali.core.security.api.EncryptionManager
-import com.chimali.core.security.api.HDKeyDerivator
+import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.impl.AesEncryptionManager
-import com.chimali.core.security.impl.Bip32HDKeyDerivator
 import com.chimali.core.security.impl.Bip39MasterSeedGenerator
+import com.chimali.core.security.hdkeys.HdkEcdhP256
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -30,7 +30,8 @@ abstract class SecurityModule {
 
     @Binds
     @Singleton
-    abstract fun bindHDKeyDerivator(
-        bip32Derivator: Bip32HDKeyDerivator
-    ): HDKeyDerivator
+    abstract fun bindHdkManager(
+        hdkEcdhP256: HdkEcdhP256
+    ): HdkManager
 }
+

@@ -60,7 +60,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - **NFR1**: All sensitive data must be encrypted with AES-256-GCM. If the device supports Quantum-Resistant (Post-Quantum Cryptography) algorithms (e.g., ML-KEM/Kyber), the application must utilize these as the primary encryption method.
 - **NFR2**: Sensitive keys must be stored in the Android KeyStore (strongbox encouraged).
 - **NFR3**: Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
-- **NFR4: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. All individual credential keys must be derived using **Hierarchical Deterministic (HD) Key Derivation** (following standards such as BIP32/BIP39/BIP44). This allows for a single point of recovery and secure watch-only wallet capabilities.
+- **NFR4: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management with key blinding. BIP39 is used for mnemonic seed generation.
 
 ### 5.2 Performance & Reliability
 - **NFR5: Startup Performance** (Android Vitals Targets):
