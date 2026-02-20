@@ -91,7 +91,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ## 7. Technical Constraints
 - **Platform**: Android Only (initial release).
 - **Minimum SDK**: Android 9.0 (API 28) for `BluetoothHidDevice` support.
-- **Language**: 100% Kotlin.
+- **Language**: Primary language is Kotlin (100% for UI/Android layers). Languages that produce native code (e.g., Rust) are allowed under special cases (e.g., core cryptography, shared low-level logic).
 - **UI Framework**: Jetpack Compose Multiplatform.
 - **Hardware Requirement**: Device must support Bluetooth HID Device Profile.
 - **AI Constraints**: Optional on-device AI features require compatible hardware (e.g., AICore/Gemini Nano support) or specialized ML Kit models.
