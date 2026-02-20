@@ -11,7 +11,7 @@
 
 As a user, I want to securely add and view passwords so that I don't have to remember them.
 
-**Why this priority**: Password storage is the fundamental core of any password manager. It is the primary reason users install the app.
+**Why this priority**: Password storage is the fundamental core of any Wallet Secure Cryptographic Application (WSCA). It is the primary reason users install the app.
 
 **Independent Test**: Can be fully tested by creating a mock vault, adding a new password entry, verifying it encrypts cleanly, and retrieving it for viewing, delivering the primary store-and-retrieve capability.
 

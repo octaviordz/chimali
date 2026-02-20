@@ -8,7 +8,7 @@
 ---
 
 ## 1. Executive Summary
-Chimali is a modern, robust Android password manager built on proven security standards and best practices. It is designed to bridge the gap between traditional credential management and modern passwordless authentication by leveraging Bluetooth HID capabilities to transform the Android device into a secure virtual authenticator while providing full support for Passkeys.
+Chimali is a modern, robust Android Wallet Secure Cryptographic Application (WSCA) built on proven security standards and best practices. It is designed to bridge the gap between traditional credential management and modern passwordless authentication by leveraging Bluetooth HID capabilities to transform the Android device into a secure virtual authenticator while providing full support for Passkeys.
 
 ## 2. Project Overview
 ### 2.1 Mission Statement
