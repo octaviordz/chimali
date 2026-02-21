@@ -74,18 +74,20 @@ As a user, I want to organize my saved items into logical groups so I can find t
 ### Dependencies & Assumptions
 
 - **Assumptions**: Users will authenticate into the app (FR10/FR11) before being able to view or edit the vault, so vault access inherently implies the user is authorized.
-- **Dependencies**: Depends on the foundation of the Master Seed architecture being available to derive the encryption keys for the vault items.
+- **Dependencies**: Depends on the foundation of the Master Seed architecture being available to derive the encryption keys for the vault items. Backup logic depends on a Shamir's Secret Sharing (SSS) implementation.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST allow users to create, read, update, and delete (CRUD) Password entries consisting at least of: Title, Username, Password, and URL.
+- **FR-001**: System MUST allow users to create, read, update, and delete (CRUD) Password entries consisting at least of: Title, Username, Password, and URI.
 - **FR-002**: System MUST allow users to create, read, update, and delete (CRUD) Credit Card entries consisting at least of: Cardholder Name, Card Number, Expiration Date, and CVV.
 - **FR-003**: System MUST allow users to create, read, update, and delete (CRUD) Secure Notes consisting of a Title and a Body Text field.
-- **FR-004**: System MUST allow users to assign user-defined labels/folders to organize any stored item.
+- **FR-004**: System MUST allow users to assign multiple user-defined labels/folders to organize any stored item.
 - **FR-005**: System MUST provide a unified vault list UI that displays all stored items.
 - **FR-006**: System MUST securely clear the clipboard after a user copies an item or after a set timeout (e.g., 60 seconds).
+- **FR-007**: System MUST track the backup status of each vault item to support future shared-secret backup synchronization.
+- **FR-008**: System MUST support multiple concurrent backup mechanisms for the Master Seed (e.g., both Mnemonic and SSS) and track the status/metadata of each backup independently.
 
 ### Non-Functional Requirements *(must align with Constitution)*
 
@@ -95,9 +97,9 @@ As a user, I want to organize my saved items into logical groups so I can find t
 
 ### Key Entities
 
-- **VaultItem**: Base abstract entity for anything stored in the vault, containing an ID, Encrypted Payload, Date Created, Date Modified, and assigned Label ID(s).
+- **VaultItem**: Base abstract entity for anything stored in the vault, containing an ID, Encrypted Payload, Date Created, Date Modified, Label ID(s), and a Backup Status descriptor (e.g., Last Backed Up Timestamp).
 - **Label**: User-defined tag used for organization.
-- **Password**: Extends VaultItem with parsed properties for Username, Password, URL, and Title.
+- **Password**: Extends VaultItem with parsed properties for Username, Password, URI, and Title.
 - **CreditCard**: Extends VaultItem with parsed properties for Name, Date, Number, and CVV.
 - **SecureNote**: Extends VaultItem with parsed properties for Title and Content.
 
