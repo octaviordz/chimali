@@ -1,11 +1,11 @@
 # Implementation Plan: Secure Credentials Vault (FR1)
 
-**Branch**: `001-store-credentials` | **Date**: 2026-02-20 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-store-credentials` | **Date**: 2026-02-23 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `specs/001-store-credentials/spec.md`
 
 ## Summary
 
-Implement a secure local vault for storing passwords, credit cards, and secure notes. This feature follows the "Security First" and "Master Seed" architecture principles, using AES-256-GCM for encryption and SQLDelight/SQLCipher for persistence. The design includes future-proofing for shared-secret backups (Shamir's Secret Sharing for the Master Seed and Loro.dev for item synchronization) by tracking the backup state of the seed and individual vault items. The UI will be built with Jetpack Compose following Material Design 3.
+Implement a secure local vault for storing passwords, credit cards, and secure notes (including custom fields). This feature follows the "Security First" and "Master Seed" architecture principles, using AES-256-GCM for encryption and SQLDelight/SQLCipher for persistence. The design includes future-proofing for shared-secret backups (Shamir's Secret Sharing for the Master Seed and Loro.dev for item synchronization) by tracking the backup state of the seed and individual vault items. The UI will be built with Jetpack Compose following Material Design 3.
 
 ## Technical Context
 
@@ -39,6 +39,7 @@ specs/001-store-credentials/
 ├── research.md          # Phase 0 results
 ├── data-model.md        # Phase 1 design
 ├── quickstart.md        # Phase 1 usage
+├── contracts/           # Phase 1 output
 └── tasks.md             # Phase 2 tasks (future)
 ```
 
@@ -60,11 +61,6 @@ feature/
     │   └── ui/          # Compose screens and components
     └── tests/
 ```
-
-- **Generate API contracts** from functional requirements:
-  - For each user action → interface method
-  - Use Generic Markdown interface definitions
-  - Output contract to `/contracts/`
 
 **Structure Decision**: Multi-module architecture with a dedicated `feature:vault` module and shared `core` modules for security and database persistence.
 

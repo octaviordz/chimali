@@ -86,8 +86,10 @@ As a user, I want to organize my saved items into logical groups so I can find t
 - **FR-004**: System MUST allow users to assign multiple user-defined labels/folders to organize any stored item.
 - **FR-005**: System MUST provide a unified vault list UI that displays all stored items.
 - **FR-006**: System MUST securely clear the clipboard after a user copies an item or after a set timeout (e.g., 60 seconds).
-- **FR-007**: System MUST track the backup status of each vault item to support future shared-secret backup synchronization.
-- **FR-008**: System MUST support multiple concurrent backup mechanisms for the Master Seed (e.g., both Mnemonic and SSS) and track the status/metadata of each backup independently.
+
+### Out of Scope / Future Features (e.g., `002-backup-mechanisms`)
+- **Future-FR**: System MUST track the backup status of each vault item to support future shared-secret backup synchronization.
+- **Future-FR**: System MUST support multiple concurrent backup mechanisms for the Master Seed (e.g., both Mnemonic and SSS) and track the status/metadata of each backup independently.
 
 ### Non-Functional Requirements *(must align with Constitution)*
 
