@@ -80,9 +80,9 @@ As a user, I want to organize my saved items into logical groups so I can find t
 
 ### Functional Requirements
 
-- **FR-001**: System MUST allow users to create, read, update, and delete (CRUD) Password entries consisting at least of: Title, Username, Password, and URI.
-- **FR-002**: System MUST allow users to create, read, update, and delete (CRUD) Credit Card entries consisting at least of: Cardholder Name, Card Number, Expiration Date, and CVV.
-- **FR-003**: System MUST allow users to create, read, update, and delete (CRUD) Secure Notes consisting of a Title and a Body Text field.
+- **FR-001**: System MUST allow users to create, read, update, and delete (CRUD) Password entries consisting at least of: Title, Username, Password, URI, Notes, and Custom Fields (e.g., Security Questions).
+- **FR-002**: System MUST allow users to create, read, update, and delete (CRUD) Credit Card entries consisting at least of: Cardholder Name, Card Number, Expiration Date, CVV, Notes, and Custom Fields.
+- **FR-003**: System MUST allow users to create, read, update, and delete (CRUD) Secure Notes consisting of a Title, Body Text, and optional Custom Fields.
 - **FR-004**: System MUST allow users to assign multiple user-defined labels/folders to organize any stored item.
 - **FR-005**: System MUST provide a unified vault list UI that displays all stored items.
 - **FR-006**: System MUST securely clear the clipboard after a user copies an item or after a set timeout (e.g., 60 seconds).
@@ -99,9 +99,9 @@ As a user, I want to organize my saved items into logical groups so I can find t
 
 - **VaultItem**: Base abstract entity for anything stored in the vault, containing an ID, Encrypted Payload, Date Created, Date Modified, Label ID(s), and a Backup Status descriptor (e.g., Last Backed Up Timestamp).
 - **Label**: User-defined tag used for organization.
-- **Password**: Extends VaultItem with parsed properties for Username, Password, URI, and Title.
-- **CreditCard**: Extends VaultItem with parsed properties for Name, Date, Number, and CVV.
-- **SecureNote**: Extends VaultItem with parsed properties for Title and Content.
+- **Password**: Extends VaultItem with parsed properties for Username, Password, URI, Title, Notes, and Custom Fields.
+- **CreditCard**: Extends VaultItem with parsed properties for Name, Date, Number, CVV, Notes, and Custom Fields.
+- **SecureNote**: Extends VaultItem with parsed properties for Title, Content, and Custom Fields.
 
 ## Success Criteria *(mandatory)*
 

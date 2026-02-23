@@ -58,20 +58,29 @@ This proposal uses a **Hybrid Granularity** approach:
 
 ## Sub-Type Payloads (Encrypted)
 
+### CustomField
+- name: `String`
+- value: `CharArray`
+- is_concealed: `Boolean` (e.g., true for security question answers, false for regular text)
+
 ### PasswordPayload
 - username: `CharArray`
 - password: `CharArray`
 - uri: `String`
 - notes: `CharArray?`
+- custom_fields: `List<CustomField>?`
 
 ### CreditCardPayload
 - cardholder_name: `CharArray`
 - card_number: `CharArray`
 - expiration_date: `String` (MM/YY)
 - cvv: `CharArray`
+- notes: `CharArray?`
+- custom_fields: `List<CustomField>?`
 
 ### SecureNotePayload
 - content: `CharArray`
+- custom_fields: `List<CustomField>?`
 
 ## State Transitions (MVI)
 
