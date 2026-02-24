@@ -1,0 +1,1 @@
+uniffi::build_main();

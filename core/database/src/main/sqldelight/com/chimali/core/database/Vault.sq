@@ -1,0 +1,109 @@
+import kotlin.String;
+
+CREATE TABLE Identity (
+    id TEXT NOT NULL PRIMARY KEY,
+    alias TEXT NOT NULL
+);
+
+CREATE TABLE IdentityBackup (
+    id TEXT NOT NULL PRIMARY KEY,
+    identity_id TEXT NOT NULL,
+    last_backed_up_at TEXT NOT NULL,
+    backup_method TEXT NOT NULL,
+    configuration_json TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES Identity(id) ON DELETE CASCADE
+);
+
+CREATE TABLE VaultEntry (
+    id TEXT NOT NULL PRIMARY KEY,
+    doc_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    encrypted_payload BLOB NOT NULL,
+    crdt_state BLOB NOT NULL,
+    date_created TEXT NOT NULL,
+    date_modified TEXT NOT NULL,
+    last_backed_up_at TEXT,
+    identity_id TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES Identity(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Label (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    color_hex TEXT NOT NULL
+);
+
+CREATE TABLE VaultEntryLabel (
+    entry_id TEXT NOT NULL,
+    label_id TEXT NOT NULL,
+    PRIMARY KEY (entry_id, label_id),
+    FOREIGN KEY(entry_id) REFERENCES VaultEntry(id) ON DELETE CASCADE,
+    FOREIGN KEY(label_id) REFERENCES Label(id) ON DELETE CASCADE
+);
+
+-- Identity Queries
+insertIdentity:
+INSERT OR REPLACE INTO Identity(id, alias)
+VALUES (?, ?);
+
+getIdentities:
+SELECT * FROM Identity;
+
+getIdentityById:
+SELECT * FROM Identity WHERE id = ?;
+
+deleteIdentity:
+DELETE FROM Identity WHERE id = ?;
+
+-- IdentityBackup Queries
+insertIdentityBackup:
+INSERT OR REPLACE INTO IdentityBackup(id, identity_id, last_backed_up_at, backup_method, configuration_json)
+VALUES (?, ?, ?, ?, ?);
+
+getIdentityBackups:
+SELECT * FROM IdentityBackup WHERE identity_id = ?;
+
+deleteIdentityBackup:
+DELETE FROM IdentityBackup WHERE id = ?;
+
+-- VaultEntry Queries
+insertVaultEntry:
+INSERT OR REPLACE INTO VaultEntry(id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getVaultEntries:
+SELECT * FROM VaultEntry;
+
+getVaultEntriesByIdentity:
+SELECT * FROM VaultEntry WHERE identity_id = ?;
+
+getVaultEntryById:
+SELECT * FROM VaultEntry WHERE id = ?;
+
+deleteVaultEntry:
+DELETE FROM VaultEntry WHERE id = ?;
+
+-- Label Queries
+insertLabel:
+INSERT OR REPLACE INTO Label(id, name, color_hex)
+VALUES (?, ?, ?);
+
+getLabels:
+SELECT * FROM Label;
+
+deleteLabel:
+DELETE FROM Label WHERE id = ?;
+
+-- VaultEntryLabel Queries
+insertVaultEntryLabel:
+INSERT OR REPLACE INTO VaultEntryLabel(entry_id, label_id)
+VALUES (?, ?);
+
+deleteVaultEntryLabels:
+DELETE FROM VaultEntryLabel WHERE entry_id = ?;
+
+getVaultEntriesByLabel:
+SELECT VaultEntry.* FROM VaultEntry
+INNER JOIN VaultEntryLabel ON VaultEntry.id = VaultEntryLabel.entry_id
+WHERE VaultEntryLabel.label_id = ?;

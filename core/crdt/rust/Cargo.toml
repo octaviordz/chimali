@@ -1,0 +1,16 @@
+[package]
+name = "crdt-bridge"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+loro = "0.16.0"
+uniffi = { version = "0.27.1", features = ["cli"] }
+thiserror = "1.0"
+
+[build-dependencies]
+uniffi = { version = "0.27.1", features = ["build"] }
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+name = "crdt_bridge"

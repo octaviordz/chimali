@@ -6,6 +6,11 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased]
 
 ### Added
+- **Secure Credentials Vault (FR1)**: Initial implementation of local-first encrypted storage for passwords, cards, and notes.
+    - Hybrid **SQLCipher** + **Loro.dev CRDT** storage architecture.
+    - Hardware-backed key management (Android Keystore).
+    - Support for dynamic **Custom Fields** and **Labels**.
+    - Full details: [2026-02-23-vault-implementation.md](docs/changelogs/2026-02-23-vault-implementation.md)
 - **HDKeys Implementation**: New hierarchical deterministic key system based on IETF draft-dijkhuis-cfrg-hdkeys-06 (HDK-ECDH-P256).
     - Multiplicative key blinding for enhanced privacy.
     - RFC 9380 (Hash-to-Curve/Field) support.
@@ -20,4 +25,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-02-18*
+*Last Updated: 2026-02-23*

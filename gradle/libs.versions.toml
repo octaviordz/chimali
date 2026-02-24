@@ -11,6 +11,8 @@ androidx-lifecycle = "2.7.0"
 androidx-activity-compose = "1.8.2"
 androidx-navigation = "2.7.7"
 room = "2.6.1"
+sqldelight = "2.0.1"
+sqlcipher = "4.5.4"
 coroutines = "1.8.0"
 detekt = "1.23.5"
 ktlint = "12.1.0"
@@ -43,6 +45,10 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 bouncycastle-provider = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 
+sqldelight-android = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqldelight" }
+sqldelight-coroutines = { group = "app.cash.sqldelight", name = "coroutines-extensions", version.ref = "sqldelight" }
+sqlcipher = { group = "net.zetetic", name = "android-database-sqlcipher", version.ref = "sqlcipher" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
@@ -52,3 +58,4 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }

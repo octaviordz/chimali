@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.sqldelight)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -19,11 +20,21 @@ android {
     }
 }
 
+sqldelight {
+    databases {
+        create("ChimaliDatabase") {
+            packageName.set("com.chimali.core.database")
+        }
+    }
+}
+
 dependencies {
     implementation(project(":core:common"))
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
+    implementation(libs.sqldelight.android)
+    implementation(libs.sqldelight.coroutines)
+    implementation(libs.sqlcipher)
+    
+    // Hilt for dependency injection
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 }
