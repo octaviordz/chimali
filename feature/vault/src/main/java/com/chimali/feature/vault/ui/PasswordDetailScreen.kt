@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 
@@ -69,4 +70,22 @@ fun DetailRow(label: String, value: String) {
         Text(text = label, style = MaterialTheme.typography.labelMedium)
         Text(text = value, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PasswordDetailScreenPreview() {
+    PasswordDetailScreen(
+        payload = PasswordPayload(
+            title = "Sample Login",
+            username = "user@example.com".toCharArray(),
+            password = "password".toCharArray(),
+            uri = "https://example.com",
+            notes = "This is a sample note.".toCharArray(),
+            customFields = emptyList()
+        ),
+        onEdit = {},
+        onDelete = {},
+        onBack = {}
+    )
 }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.CreditCardPayload
 
@@ -64,4 +65,23 @@ fun CreditCardDetailScreen(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CreditCardDetailScreenPreview() {
+    CreditCardDetailScreen(
+        payload = CreditCardPayload(
+            title = "Personal Visa",
+            cardholderName = "John Doe".toCharArray(),
+            cardNumber = "1234567890123456".toCharArray(),
+            expirationDate = "12/26",
+            cvv = "123".toCharArray(),
+            notes = "Sample card notes".toCharArray(),
+            customFields = emptyList()
+        ),
+        onEdit = {},
+        onDelete = {},
+        onBack = {}
+    )
 }

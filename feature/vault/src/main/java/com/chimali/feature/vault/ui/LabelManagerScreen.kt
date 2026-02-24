@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.util.UUID
 
@@ -86,4 +87,27 @@ fun LabelManagerScreen(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LabelManagerScreenPreview() {
+    val sampleLabels = remember {
+        mutableStateListOf(
+            LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
+            LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50"),
+            LabelUiModel(UUID.randomUUID(), "Social", "#2196F3")
+        )
+    }
+
+    LabelManagerScreen(
+        labels = sampleLabels,
+        onCreateLabel = { name, color ->
+            sampleLabels.add(LabelUiModel(UUID.randomUUID(), name, color))
+        },
+        onDeleteLabel = { id ->
+            sampleLabels.removeIf { it.id == id }
+        },
+        onBack = {}
+    )
 }

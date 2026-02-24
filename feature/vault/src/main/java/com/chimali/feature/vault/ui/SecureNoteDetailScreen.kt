@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.SecureNotePayload
 
@@ -55,4 +56,19 @@ fun SecureNoteDetailScreen(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SecureNoteDetailScreenPreview() {
+    SecureNoteDetailScreen(
+        payload = SecureNotePayload(
+            title = "Secret Recipe",
+            content = "This is the secret recipe for the best cookies.".toCharArray(),
+            customFields = emptyList()
+        ),
+        onEdit = {},
+        onDelete = {},
+        onBack = {}
+    )
 }

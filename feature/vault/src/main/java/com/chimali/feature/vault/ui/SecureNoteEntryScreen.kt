@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.SecureNotePayload
@@ -95,4 +96,13 @@ fun SecureNoteEntryScreen(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SecureNoteEntryScreenPreview() {
+    SecureNoteEntryScreen(
+        onSave = {},
+        onCancel = {}
+    )
 }

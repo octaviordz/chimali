@@ -10,8 +10,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.api.VaultItem
+import com.chimali.feature.vault.api.VaultType
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,4 +97,47 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
             Text(text = item.type.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun VaultListScreenPreview() {
+    val sampleItems = listOf(
+        VaultItem(
+            id = UUID.randomUUID(),
+            type = VaultType.PASSWORD,
+            title = "Sample Login",
+            payload = "payload".toByteArray(),
+            crdtState = "crdt".toByteArray(),
+            dateCreated = "2023-01-01",
+            dateModified = "2023-01-01",
+            lastBackedUpAt = null,
+            identityId = UUID.randomUUID()
+        ),
+        VaultItem(
+            id = UUID.randomUUID(),
+            type = VaultType.NOTE,
+            title = "Sample Note",
+            payload = "payload".toByteArray(),
+            crdtState = "crdt".toByteArray(),
+            dateCreated = "2023-01-01",
+            dateModified = "2023-01-01",
+            lastBackedUpAt = null,
+            identityId = UUID.randomUUID()
+        )
+    )
+    val sampleLabels = listOf(
+        LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
+        LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50")
+    )
+
+    VaultListScreen(
+        items = sampleItems,
+        labels = sampleLabels,
+        selectedLabelId = null,
+        onItemClick = {},
+        onAddClick = {},
+        onLabelFilterClick = {},
+        onManageLabelsClick = {}
+    )
 }
