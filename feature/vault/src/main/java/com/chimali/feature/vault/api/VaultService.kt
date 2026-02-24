@@ -53,7 +53,7 @@ data class VaultItem(
 }
 
 interface VaultService {
-    suspend fun getItems(labelId: UUID? = null): List<VaultItem>
+    suspend fun getItems(labelId: UUID?): List<VaultItem>
     suspend fun saveItem(item: VaultItem)
     suspend fun deleteItem(id: UUID)
 }

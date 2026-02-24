@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
-class VaultRepositoryImpl @Inject constructor(
+class VaultRepositoryImpl(
     private val database: ChimaliDatabase
 ) : VaultService {
 

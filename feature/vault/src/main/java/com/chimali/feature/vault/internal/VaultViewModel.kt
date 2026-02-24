@@ -50,7 +50,7 @@ class VaultViewModel @Inject constructor(
             try {
                 vaultService.saveItem(intent.item)
                 // Reload items after saving
-                val items = vaultService.getItems()
+                val items = vaultService.getItems(null)
                 _state.update { it.copy(isLoading = false, items = items) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to save item") }
@@ -64,7 +64,7 @@ class VaultViewModel @Inject constructor(
             try {
                 vaultService.deleteItem(intent.id)
                 // Reload items after deletion
-                val items = vaultService.getItems()
+                val items = vaultService.getItems(null)
                 _state.update { it.copy(isLoading = false, items = items) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to delete item") }

@@ -48,10 +48,10 @@ INSERT OR REPLACE INTO Identity(id, alias)
 VALUES (?, ?);
 
 getIdentities:
-SELECT * FROM Identity;
+SELECT id, alias FROM Identity;
 
 getIdentityById:
-SELECT * FROM Identity WHERE id = ?;
+SELECT id, alias FROM Identity WHERE id = ?;
 
 deleteIdentity:
 DELETE FROM Identity WHERE id = ?;
@@ -62,7 +62,7 @@ INSERT OR REPLACE INTO IdentityBackup(id, identity_id, last_backed_up_at, backup
 VALUES (?, ?, ?, ?, ?);
 
 getIdentityBackups:
-SELECT * FROM IdentityBackup WHERE identity_id = ?;
+SELECT id, identity_id, last_backed_up_at, backup_method, configuration_json FROM IdentityBackup WHERE identity_id = ?;
 
 deleteIdentityBackup:
 DELETE FROM IdentityBackup WHERE id = ?;
@@ -73,13 +73,13 @@ INSERT OR REPLACE INTO VaultEntry(id, doc_id, type, title, encrypted_payload, cr
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getVaultEntries:
-SELECT * FROM VaultEntry;
+SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry;
 
 getVaultEntriesByIdentity:
-SELECT * FROM VaultEntry WHERE identity_id = ?;
+SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry WHERE identity_id = ?;
 
 getVaultEntryById:
-SELECT * FROM VaultEntry WHERE id = ?;
+SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry WHERE id = ?;
 
 deleteVaultEntry:
 DELETE FROM VaultEntry WHERE id = ?;
@@ -90,7 +90,7 @@ INSERT OR REPLACE INTO Label(id, name, color_hex)
 VALUES (?, ?, ?);
 
 getLabels:
-SELECT * FROM Label;
+SELECT id, name, color_hex FROM Label;
 
 deleteLabel:
 DELETE FROM Label WHERE id = ?;
@@ -104,6 +104,6 @@ deleteVaultEntryLabels:
 DELETE FROM VaultEntryLabel WHERE entry_id = ?;
 
 getVaultEntriesByLabel:
-SELECT VaultEntry.* FROM VaultEntry
+SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry
 INNER JOIN VaultEntryLabel ON VaultEntry.id = VaultEntryLabel.entry_id
 WHERE VaultEntryLabel.label_id = ?;
