@@ -12,7 +12,7 @@ androidx-activity-compose = "1.8.2"
 androidx-navigation = "2.7.7"
 room = "2.6.1"
 sqldelight = "2.0.1"
-sqlcipher = "4.5.4"
+sqlcipher = "4.13.0"
 coroutines = "1.8.0"
 detekt = "1.23.5"
 ktlint = "12.1.0"
@@ -47,7 +47,7 @@ bouncycastle-provider = { group = "org.bouncycastle", name = "bcprov-jdk18on", v
 
 sqldelight-android = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqldelight" }
 sqldelight-coroutines = { group = "app.cash.sqldelight", name = "coroutines-extensions", version.ref = "sqldelight" }
-sqlcipher = { group = "net.zetetic", name = "android-database-sqlcipher", version.ref = "sqlcipher" }
+sqlcipher = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
