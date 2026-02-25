@@ -33,27 +33,28 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ## 4. Functional Requirements
 ### 4.1 Core Credential Management
 - **FR1**: Securely store and organize passwords, notes, and credit cards.
-- **FR2**: Auto-fill credentials in Android apps and mobile browsers.
-- **FR3**: Secure search and categorization of accounts.
+- **FR2: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.
+- **FR3**: Auto-fill credentials in Android apps and mobile browsers.
+- **FR4**: Secure search and categorization of accounts.
     - Implement on-device AI for automated categorization (e.g., via ML Kit or Gemini Nano) for privacy-first organization.
     - Fallback to manual/rule-based categorization if on-device AI is not supported by the hardware.
-- **FR4**: Smart Contextualization via Geolocation.
+- **FR5**: Smart Contextualization via Geolocation.
     - Surface relevant accounts based on the user's current location (e.g., prioritize "Work" accounts when at the office).
     - All location processing must be performed locally (on-device geofencing) to maintain user privacy.
 
 ### 4.2 Virtual Authenticator & Bluetooth HID
-- **FR5**: Act as a FIDO2 Virtual Authenticator via `BluetoothHidDevice`.
-- **FR6**: Support pairing and connection management for multiple desktop devices.
-- **FR7**: Trigger authentication "confirmations" on the phone to release credentials to the host.
+- **FR6**: Act as a FIDO2 Virtual Authenticator via `BluetoothHidDevice`.
+- **FR7**: Support pairing and connection management for multiple desktop devices.
+- **FR8**: Trigger authentication "confirmations" on the phone to release credentials to the host.
 
 ### 4.3 Passkey Support
-- **FR8**: Create, store, and manage Passkeys using the Android Credential Manager.
-- **FR9**: Support cross-device sign-in (scanning a QR code from another device to use a Passkey on Android).
+- **FR9**: Create, store, and manage Passkeys using the Android Credential Manager.
+- **FR10**: Support cross-device sign-in (scanning a QR code from another device to use a Passkey on Android).
 
 ### 4.4 Authentication & Security
-- **FR10**: Mandatory Authentication using Biometrics (Fingerprint/Face) or Device PIN, defaulting to the user's device settings.
-- **FR11**: Automatic lock on app backgrounding or device inactivity.
-- **FR12**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing). The backup will be based on a **Master Seed**, ensuring that all credentials can be restored from a single recovery point.
+- **FR11**: Mandatory Authentication using Biometrics (Fingerprint/Face) or Device PIN, defaulting to the user's device settings.
+- **FR12**: Automatic lock on app backgrounding or device inactivity.
+- **FR13**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing). The backup will be based on a **Master Seed**, ensuring that all credentials can be restored from a single recovery point.
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
