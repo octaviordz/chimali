@@ -1,26 +1,46 @@
 # Tasks: Password Legibility and Confusion Prevention
 
 **Input**: Design documents from `/specs/002-password-legibility/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing.
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- [ ] T001 [P] Configure Atkinson Hyperlegible as a primary font in `core:ui` module
-- [ ] T002 [P] Configure JetBrains Mono as a monospaced font option in `core:ui` module
-- [ ] T003 [P] Define `LegibilitySettings` data model in `feature:vault/src/main/java/com/chimali/feature/vault/ui/model/LegibilitySettings.kt`
-- [ ] T004 Define `LegibilityColors` with orange semantic tokens in `feature:vault/src/main/java/com/chimali/feature/vault/ui/theme/LegibilityColors.kt`
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2)
+- Include exact file paths in descriptions
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure
+
+- [ ] T001 [P] Configure Atkinson Hyperlegible Font in `feature/vault/src/main/res/font/atkinson_hyperlegible.xml`
+- [ ] T002 [P] Configure JetBrains Mono Font in `feature/vault/src/main/res/font/jetbrains_mono.xml`
+- [ ] T003 [P] Add Google Fonts dependency to `feature/vault/build.gradle.kts`
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+- [ ] T004 [P] Define `LegibilitySettings` and `LegibilityFont` enum in `feature/vault/src/main/java/com/chimali/feature/vault/ui/model/LegibilitySettings.kt`
+- [ ] T005 [P] Define `LegibilityColors` with orange semantic tokens in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/LegibilityColors.kt`
+- [ ] T006 [P] Implement `AtkinsonFontFamily` and `JetBrainsMonoFontFamily` definitions in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/Type.kt`
+
+**Checkpoint**: Foundation ready - user story implementation can now begin
+
+---
 
 ## Phase 3: User Story 1 - Distinguishing characters (Priority: P1) 🎯 MVP
 
 **Goal**: Ensure ambiguous characters like 'O/0' and 'I/l/1' are unmistakable.
 
-**Independent Test**: Display "Il1O0" and verify each character is visually distinct using the legibility font.
+**Independent Test**: Display "Il1O0" in the app and verify each character is visually distinct using the legibility font.
 
-- [ ] T005 [P] [US1] Implement `AtkinsonFontFamily` in `core:ui` common assets
-- [ ] T006 [P] [US1] Implement `LegibleCredentialText` Composable foundation in `feature:vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
-- [ ] T007 [US1] Update `CredentialDetailScreen.kt` to replace standard Text with `LegibleCredentialText` (depends on T006)
+- [ ] T007 [US1] Implement `LegibleSecretText` Composable foundation with font switching logic in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
+- [ ] T008 [US1] Update `CredentialDetailScreen.kt` to replace standard Text with `LegibleSecretText` for password display (depends on T007)
 
 ---
 
@@ -28,22 +48,34 @@
 
 **Goal**: Highlight digits (numbers) in orange within the secret text.
 
-**Independent Test**: Input "Pass123" and verify "123" is rendered in orange.
+**Independent Test**: Input "Pass123" and verify "123" is rendered in orange with bold weight.
 
-- [ ] T008 [P] [US2] Implement regex-based `AnnotatedString` builder for digit highlighting in `feature:vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
-- [ ] T009 [US2] Integrate Orange semantic color for digits in `LegibleCredentialText` (depends on T004, T008)
+- [ ] T009 [US2] Implement regex-based `AnnotatedString` builder for digit highlighting in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
+- [ ] T010 [US2] Add colorblind-friendly support (e.g., subtle weighting or pattern) to digit highlighting in `LegibleCredentialText.kt` (depends on T009)
 
 ---
 
-## Phase 5: Polish & Cross-Cutting Concerns
+## Phase N: Polish & Cross-Cutting Concerns
 
-- [ ] T010 [P] Verify WCAG 2.1 AA contrast for the orange digit highlighting (>= 4.5:1)
-- [ ] T011 [P] Verify Screen Reader (TalkBack) reads the secrets correctly regardless of styling
-- [ ] T012 Update project documentation (README.md) with accessibility guidelines
+**Purpose**: Final validation and accessibility checks
+
+- [ ] T011 [P] Perform WCAG 2.1 AA contrast check for orange highlighting in `LegibilityColors.kt`
+- [ ] T012 [P] Verify Screen Reader (TalkBack) compatibility for `LegibleSecretText`
+- [ ] T013 Update `docs/quickstart.md` with instructions for testing legibility mode
+
+---
 
 ## Dependencies & Execution Order
 
-1. **Foundational (T001-T004)**: MUST complete first.
-2. **User Story 1 (T005-T007)**: P1 priority, delivers the most critical legibility value.
-3. **User Story 2 (T008-T009)**: P2 priority, enhances secondary visual parsing.
-4. **Polish (T010-T012)**: Final validation and docs.
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies.
+- **Foundational (Phase 2)**: Depends on Setup.
+- **User Stories (Phase 3+)**: All depend on Foundational completion.
+- **Polish (Final Phase)**: Depends on all user stories.
+
+### Parallel Opportunities
+
+- T001, T002, T003 can run in parallel.
+- T004, T005, T006 can run in parallel.
+- T011 and T012 can run in parallel.
