@@ -49,7 +49,7 @@ feature/vault/
 ├── src/main/java/com/chimali/feature/vault/
 │   ├── ui/
 │   │   ├── components/
-│   │   │   └── LegibleCredentialText.kt  # New reusable component
+│   │   │   └── LegibleSecretText.kt  # New reusable component
 │   │   └── theme/
 │   │       └── LegibilityColors.kt       # Custom orange/semantic tokens
 ```

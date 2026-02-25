@@ -39,7 +39,7 @@
 
 **Independent Test**: Display "Il1O0" in the app and verify each character is visually distinct using the legibility font.
 
-- [ ] T007 [US1] Implement `LegibleSecretText` Composable foundation with font switching logic in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
+- [ ] T007 [US1] Implement `LegibleSecretText` Composable foundation with font switching logic in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`. Ensure proper wrapping for extreme password lengths.
 - [ ] T008 [US1] Update `CredentialDetailScreen.kt` to replace standard Text with `LegibleSecretText` for password display (depends on T007)
 
 ---
@@ -61,7 +61,9 @@
 
 - [ ] T011 [P] Perform WCAG 2.1 AA contrast check for orange highlighting in `LegibilityColors.kt`
 - [ ] T012 [P] Verify Screen Reader (TalkBack) compatibility for `LegibleSecretText`
-- [ ] T013 Update `docs/quickstart.md` with instructions for testing legibility mode
+- [ ] T013 [P] Verify UI integrity with **Dynamic Text Scaling** (Principle VI)
+- [ ] T014 [P] Verify visibility in **High-Contrast Mode** (Principle VI)
+- [ ] T015 Update `docs/quickstart.md` with instructions for testing legibility mode
 
 ---
 
