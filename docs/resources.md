@@ -24,3 +24,5 @@ This file contains links, tools, and research materials that are useful for the 
 - **Shamir's Secret Sharing (Rust)**: [sss-rs GitHub](https://github.com/dsprenkels/sss-rs) - Practical implementation of Shamir's secret sharing.
 - **Rescue Missions / Secret Sharing**: [Allthenticate Rescue Mission](https://www.allthenticate.com/why-allthenticate#rescue-mission) - Explanation of its use in recovery scenarios.
 
+## User Interface & Accessibility
+- **Atkinson Hyperlegible Font**: [Braille Institute](https://brailleinstitute.org/atkinson-hyperlegible-font) - A font designed specifically to improve character recognition and legibility for low-vision readers, ideal for distinguishing ambiguous characters in passwords (ref: FR2).
