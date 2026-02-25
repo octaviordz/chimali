@@ -15,9 +15,9 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 [P] Configure Atkinson Hyperlegible Font in `feature/vault/src/main/res/font/atkinson_hyperlegible.xml`
-- [ ] T002 [P] Configure JetBrains Mono Font in `feature/vault/src/main/res/font/jetbrains_mono.xml`
-- [ ] T003 [P] Add Google Fonts dependency to `feature/vault/build.gradle.kts`
+- [x] T001 [P] Configure Atkinson Hyperlegible Font in `feature/vault/src/main/res/font/atkinson_hyperlegible.xml`
+- [x] T002 [P] Configure JetBrains Mono Font in `feature/vault/src/main/res/font/jetbrains_mono.xml`
+- [x] T003 [P] Add Google Fonts dependency to `feature/vault/build.gradle.kts`
 
 ---
 
@@ -25,9 +25,9 @@
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T004 [P] Define `LegibilitySettings` and `LegibilityFont` enum in `feature/vault/src/main/java/com/chimali/feature/vault/ui/model/LegibilitySettings.kt`
-- [ ] T005 [P] Define `LegibilityColors` with orange semantic tokens in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/LegibilityColors.kt`
-- [ ] T006 [P] Implement `AtkinsonFontFamily` and `JetBrainsMonoFontFamily` definitions in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/Type.kt`
+- [x] T004 [P] Define `LegibilitySettings` and `LegibilityFont` enum in `feature/vault/src/main/java/com/chimali/feature/vault/ui/model/LegibilitySettings.kt`
+- [x] T005 [P] Define `LegibilityColors` with orange semantic tokens in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/LegibilityColors.kt`
+- [x] T006 [P] Implement `AtkinsonFontFamily` and `JetBrainsMonoFontFamily` definitions in `feature/vault/src/main/java/com/chimali/feature/vault/ui/theme/Type.kt`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -39,8 +39,8 @@
 
 **Independent Test**: Display "Il1O0" in the app and verify each character is visually distinct using the legibility font.
 
-- [ ] T007 [US1] Implement `LegibleSecretText` Composable foundation with font switching logic in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`. Ensure proper wrapping for extreme password lengths.
-- [ ] T008 [US1] Update `CredentialDetailScreen.kt` to replace standard Text with `LegibleSecretText` for password display (depends on T007)
+- [x] T007 [US1] Implement `LegibleSecretText` Composable foundation with font switching logic in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`. Ensure proper wrapping for extreme password lengths.
+- [x] T008 [US1] Update `PasswordDetailScreen.kt` to replace standard Text with `LegibleSecretText` for password display (depends on T007)
 
 ---
 
@@ -52,9 +52,9 @@
 
 - [x] T009 [US2] Implement regex-based `AnnotatedString` builder for digit highlighting in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`
 - [x] T010 [US2] Add colorblind-friendly support (e.g., subtle weighting or pattern) to digit highlighting in `LegibleSecretText.kt` (depends on T009)
-- [ ] T016 [US2] Implement symbol character highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
-- [ ] T017 [US2] Implement uppercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
-- [ ] T018 [US2] Implement lowercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+- [x] T016 [US2] Implement symbol character highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+- [x] T017 [US2] Implement uppercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+- [x] T018 [US2] Implement lowercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
 
 ---
 
@@ -62,8 +62,8 @@
 
 **Purpose**: Handle non-standard symbols and extreme password lengths
 
-- [ ] T019 [P] Implement Unicode symbol fallback handling in `LegibleSecretText.kt` for obscure characters
-- [ ] T020 [P] Implement proper text wrapping and highlighting preservation for passwords 100+ characters in `LegibleSecretText.kt`
+- [x] T019 [P] Implement Unicode symbol fallback handling in `LegibleSecretText.kt` for obscure characters
+- [x] T020 [P] Implement proper text wrapping and highlighting preservation for passwords 100+ characters in `LegibleSecretText.kt`
 
 ---
 
@@ -71,11 +71,11 @@
 
 **Purpose**: Final validation and accessibility checks
 
-- [ ] T011 [P] Perform WCAG 2.1 AA contrast check for orange highlighting in `LegibilityColors.kt`
-- [ ] T012 [P] Verify Screen Reader (TalkBack) compatibility for `LegibleSecretText`
-- [ ] T013 [P] Verify UI integrity with **Dynamic Text Scaling** (Principle VI)
-- [ ] T014 [P] Verify visibility in **High-Contrast Mode** (Principle VI)
-- [ ] T015 Update `docs/quickstart.md` with instructions for testing legibility mode
+- [x] T011 [P] Perform WCAG 2.1 AA contrast check for orange highlighting in `LegibilityColors.kt`
+- [x] T012 [P] Verify Screen Reader (TalkBack) compatibility for `LegibleSecretText`
+- [x] T013 [P] Verify UI integrity with **Dynamic Text Scaling** (Principle VI)
+- [x] T014 [P] Verify visibility in **High-Contrast Mode** (Principle VI)
+- [x] T015 Update `docs/quickstart.md` with instructions for testing legibility mode
 
 ---
 

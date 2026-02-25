@@ -35,4 +35,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation("androidx.compose.material:material-icons-extended")
+    
+    // Google Fonts for legibility fonts
+    implementation("androidx.compose.ui:ui-text-google-fonts")
 }
