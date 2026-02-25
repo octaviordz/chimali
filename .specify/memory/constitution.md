@@ -1,3 +1,13 @@
+<!--
+SYNC IMPACT REPORT
+- Version change: 0.1.0 → 0.2.0
+- List of modified principles: None
+- Added sections: VI. Inclusion & Universal Accessibility
+- Removed sections: None
+- Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md (Logic aligned, no textual changes needed)
+- Follow-up TODOs: None
+-->
+
 # Chimali Constitution
 
 ## Core Principles
@@ -21,6 +31,9 @@ The application must adhere to strict Android Vitals targets:
 ### V. Cross-Platform Utility & Modern UX
 The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidDevice` to support cross-platform authentication (Windows, macOS, Linux). The UI must follow Material Design 3 (M3) with dynamic coloring, ensuring a premium user experience.
 
+### VI. Inclusion & Universal Accessibility
+Accessibility is a core functional and security requirement. The application MUST support screen readers (TalkBack), high-contrast modes, and dynamic text scaling. Legibility is treated as a security feature to prevent user error during credential management: credentials MUST be displayed using high-legibility fonts (e.g., [Atkinson Hyperlegible](https://brailleinstitute.org/atkinson-hyperlegible-font)) with clear character differentiation.
+
 ## Technical Constraints
 
 - **Platform**: Android Native Application (Minimum SDK 28).
@@ -40,4 +53,4 @@ The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidD
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-19
+**Version**: 0.2.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-24
