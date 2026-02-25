@@ -46,9 +46,9 @@ As a user, I want to see different types of characters (numbers, symbols, upperc
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST use a specialized high-legibility font for password display. (Recommendation: Atkinson Hyperlegible or a similar monospaced font).
+- **FR-001**: The system MUST use a specialized high-legibility font for password display. **Font Priority**: 1) Atkinson Hyperlegible (primary), 2) JetBrains Mono (fallback if Atkinson unavailable), 3) System monospace (final fallback). Font selection must be automatic based on availability.
 - **FR-002**: The system MUST clearly distinguish between 'O' (letter) and '0' (digit), 'I' (uppercase letter), 'l' (lowercase letter), and '1' (digit).
-- **FR-003**: The system MUST provide semantic highlighting or indicators for different character classes: Digits, Symbols, Uppercase, and Lowercase letters.
+- **FR-003**: The system MUST provide semantic highlighting or indicators for all character classes: Digits, Symbols, Uppercase letters, and Lowercase letters. Each class must have distinct visual treatment.
 - **FR-004**: All visual indicators for character types MUST be colorblind-friendly, utilizing contrast or secondary markers (e.g., underlines or subtle shapes) in addition to color.
 - **FR-005**: The legibility font MUST be applied to all screens where a password or secret is displayed in plain text (after user authentication).
 

@@ -50,8 +50,20 @@
 
 **Independent Test**: Input "Pass123" and verify "123" is rendered in orange with bold weight.
 
-- [ ] T009 [US2] Implement regex-based `AnnotatedString` builder for digit highlighting in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleCredentialText.kt`
-- [ ] T010 [US2] Add colorblind-friendly support (e.g., subtle weighting or pattern) to digit highlighting in `LegibleCredentialText.kt` (depends on T009)
+- [x] T009 [US2] Implement regex-based `AnnotatedString` builder for digit highlighting in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`
+- [x] T010 [US2] Add colorblind-friendly support (e.g., subtle weighting or pattern) to digit highlighting in `LegibleSecretText.kt` (depends on T009)
+- [ ] T016 [US2] Implement symbol character highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+- [ ] T017 [US2] Implement uppercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+- [ ] T018 [US2] Implement lowercase letter highlighting with distinct visual treatment in `LegibleSecretText.kt` (depends on T009)
+
+---
+
+## Phase 5: Edge Case Handling
+
+**Purpose**: Handle non-standard symbols and extreme password lengths
+
+- [ ] T019 [P] Implement Unicode symbol fallback handling in `LegibleSecretText.kt` for obscure characters
+- [ ] T020 [P] Implement proper text wrapping and highlighting preservation for passwords 100+ characters in `LegibleSecretText.kt`
 
 ---
 
