@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.chimali.core.bluetooth"
+    namespace = "com.chimali.core.fido2"
     compileSdk = 34
     defaultConfig { minSdk = 28 }
 
@@ -26,8 +26,12 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     
-    // Bluetooth HID support
-    implementation("androidx.bluetooth:bluetooth:1.0.0-alpha02")
+    // FIDO2/WebAuthn support
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    
+    // Cryptography
+    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
     
     // Coroutines for async operations
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")

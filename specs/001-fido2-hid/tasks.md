@@ -29,11 +29,11 @@ description: "Task list for FIDO2 Virtual Authenticator implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create multi-module Android project structure per plan.md
-- [ ] T002 Initialize Kotlin project with Jetpack Compose and Hilt dependencies
-- [ ] T003 [P] Configure Detekt and Ktlint for static analysis
-- [ ] T004 [P] Setup build.gradle.kts files for all modules
-- [ ] T005 [P] Configure AndroidManifest.xml with required permissions
+- [X] T001 Create multi-module Android project structure per plan.md
+- [X] T002 Initialize Kotlin project with Jetpack Compose and Hilt dependencies
+- [X] T003 [P] Configure Detekt and Ktlint for static analysis
+- [X] T004 [P] Setup build.gradle.kts files for all modules
+- [X] T005 [P] Configure AndroidManifest.xml with required permissions
 
 ---
 
@@ -43,13 +43,13 @@ description: "Task list for FIDO2 Virtual Authenticator implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Setup Room database with entities from data-model.md
-- [ ] T007 [P] Implement secure key management with Android KeyStore integration
-- [ ] T008 [P] Setup Hilt dependency injection modules
-- [ ] T009 [P] Create base repository interfaces and implementations
-- [ ] T010 [P] Implement error handling and logging infrastructure
-- [ ] T011 [P] Setup Bluetooth permissions and service framework
-- [ ] T012 [P] Create base UI components and theme (Material Design 3)
+- [X] T006 Setup Room database with entities from data-model.md
+- [X] T007 [P] Implement secure key management with Android KeyStore integration
+- [X] T008 [P] Setup Hilt dependency injection modules
+- [X] T009 [P] Create base repository interfaces and implementations
+- [X] T010 [P] Implement error handling and logging infrastructure
+- [X] T011 [P] Setup Bluetooth permissions and service framework
+- [X] T012 [P] Create base UI components and theme (Material Design 3)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -70,14 +70,14 @@ description: "Task list for FIDO2 Virtual Authenticator implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T015 [P] [US1] Create PairedDevice entity in feature/authenticator/src/main/kotlin/com/chimali/authenticator/domain/model/PairedDevice.kt
-- [ ] T016 [P] [US1] Create BluetoothHidConnection entity in feature/authenticator/src/main/kotlin/com/chimali/authenticator/domain/model/BluetoothHidConnection.kt
-- [ ] T017 [US1] Implement BluetoothHidService in core/bluetooth/src/main/kotlin/com/chimali/bluetooth/hid/BluetoothHidService.kt (depends on T015, T016)
-- [ ] T018 [US1] Implement BluetoothHidDevice wrapper in core/bluetooth/src/main/kotlin/com/chimali/bluetooth/hid/BluetoothHidDevice.kt
-- [ ] T019 [US1] Create pairing repository in feature/authenticator/src/main/kotlin/com/chimali/authenticator/data/repository/PairingRepository.kt
-- [ ] T020 [US1] Implement pairing UI screen in feature/authenticator/src/main/kotlin/com/chimali/authenticator/presentation/screens/PairingScreen.kt
-- [ ] T021 [US1] Add pairing validation and error handling
-- [ ] T022 [US1] Add logging for pairing operations per FR-014
+- [X] T015 [P] [US1] Create PairedDevice entity in feature/authenticator/src/main/kotlin/com/chimali/authenticator/domain/model/PairedDevice.kt
+- [X] T016 [P] [US1] Create BluetoothHidConnection entity in feature/authenticator/src/main/kotlin/com/chimali/authenticator/domain/model/BluetoothHidConnection.kt
+- [X] T017 [US1] Implement BluetoothHidService in core/bluetooth/src/main/kotlin/com/chimali/bluetooth/hid/BluetoothHidService.kt (depends on T015, T016)
+- [X] T018 [US1] Implement BluetoothHidDevice wrapper in core/bluetooth/src/main/kotlin/com/chimali/bluetooth/hid/BluetoothHidDevice.kt
+- [X] T019 [US1] Create pairing repository in feature/authenticator/src/main/kotlin/com/chimali/authenticator/data/repository/PairingRepository.kt
+- [X] T020 [US1] Implement pairing UI screen in feature/authenticator/src/main/kotlin/com/chimali/authenticator/presentation/screens/PairingScreen.kt
+- [X] T021 [US1] Add pairing validation and error handling
+- [X] T022 [US1] Add logging for pairing operations per FR-014
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
