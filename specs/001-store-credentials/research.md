@@ -8,19 +8,19 @@
 
 ## Decision: Secret Key Management
 **Decision**: Use **Android KeyStore** to protect the AES-256-GCM master encryption key.
-**Rationale**: Adheres to NFR2 (Hardware Security Module/Strongbox encouraged). The Master Seed will be used to derive sub-keys, which will then be used for individual vault item encryption.
+**Rationale**: Adheres to NFR-SEC-020 (Hardware Security Module/Strongbox encouraged). The Master Seed will be used to derive sub-keys, which will then be used for individual vault item encryption.
 **Alternatives considered**: 
 - **PBKDF2 from password**: Less secure than hardware-backed storage for persistence.
 
 ## Decision: Memory Security (Zeroing)
 **Decision**: Use `CharArray` or `ByteArray` for all sensitive fields (passwords, CVVs) and explicitly call `.fill(0)` immediately after use.
-**Rationale**: Fulfills NFR3 and Constitution requirements. `String` is immutable and cannot be zeroed out in memory, leading to potential leaks in heap dumps.
+**Rationale**: Fulfills NFR-SEC-030 and Constitution requirements. `String` is immutable and cannot be zeroed out in memory, leading to potential leaks in heap dumps.
 **Alternatives considered**: 
 - **String wrapping**: Insecure as the underlying char array is still handled by the GC.
 
 ## Decision: Architecture Pattern
 **Decision**: **MVI (Model-View-Intent)** with Unidirectional Data Flow using a library like **Orbit-MVI** or a manual implementation with Kotlin Flows.
-**Rationale**: Explicitly required by NFR9 and the Constitution.
+**Rationale**: Explicitly required by NFR-ARCH-010 and the Constitution.
 **Alternatives considered**: 
 - **MVVM**: Rejected per Constitution requirement.
 ## Decision: Multi-Device Synchronization (CRDT)

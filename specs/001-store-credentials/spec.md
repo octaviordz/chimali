@@ -1,9 +1,9 @@
-# Feature Specification: Secure Credentials Vault (FR1)
+# Feature Specification: Secure Credentials Vault (FR-VAULT-010)
 
 **Feature Branch**: `001-store-credentials`  
 **Created**: 2026-02-19  
 **Status**: Draft  
-**Input**: User description: "Create a feature spec based from @[docs/brd.md]specific to **FR1**: Securely store and organize passwords, notes, and credit cards. consider that there will be a spec file for future features."
+**Input**: User description: "Create a feature spec based from @[docs/brd.md]specific to **FR-VAULT-010**: Securely store and organize passwords, notes, and credit cards. consider that there will be a spec file for future features."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -55,7 +55,7 @@ As a user, I want to create freeform secure notes for data that doesn't fit stan
 
 As a user, I want to organize my saved items into logical groups so I can find them easily later.
 
-**Why this priority**: As the vault grows, basic organization is required for usability, even before automated categorization (FR3) is implemented.
+**Why this priority**: As the vault grows, basic organization is required for usability, even before automated categorization (FR-VAULT-020) is implemented.
 
 **Independent Test**: Can be tested by creating a folder label, assigning it to multiple items, and filtering the list by that label.
 
@@ -73,7 +73,7 @@ As a user, I want to organize my saved items into logical groups so I can find t
 
 ### Dependencies & Assumptions
 
-- **Assumptions**: Users will authenticate into the app (FR10/FR11) before being able to view or edit the vault, so vault access inherently implies the user is authorized.
+- **Assumptions**: Users will authenticate into the app (FR-AUTH-010/FR-AUTH-020) before being able to view or edit the vault, so vault access inherently implies the user is authorized.
 - **Dependencies**: Depends on the foundation of the Master Seed architecture being available to derive the encryption keys for the vault items. Backup logic depends on a Shamir's Secret Sharing (SSS) implementation.
 
 ## Requirements *(mandatory)*

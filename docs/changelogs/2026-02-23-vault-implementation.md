@@ -1,11 +1,11 @@
-# Changelog: Secure Credentials Vault Implementation (FR1)
+# Changelog: Secure Credentials Vault Implementation (FR-VAULT-010)
 
 - **Date**: 2026-02-23
 - **Feature**: Secure Credentials Vault
 - **Status**: Completed
 
 ## Overview
-Implemented the first version of the Secure Credentials Vault (FR1), providing a local-first, hardware-encrypted storage system for passwords, credit cards, and secure notes. The system uses a hybrid storage architecture for both efficiency and synchronization capability.
+Implemented the first version of the Secure Credentials Vault (FR-VAULT-010), providing a local-first, hardware-encrypted storage system for passwords, credit cards, and secure notes. The system uses a hybrid storage architecture for both efficiency and synchronization capability.
 
 ## Technical Details
 

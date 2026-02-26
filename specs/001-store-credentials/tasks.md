@@ -1,4 +1,4 @@
-# Tasks: Secure Credentials Vault (FR1)
+# Tasks: Secure Credentials Vault (FR-VAULT-010)
 
 **Input**: Design documents from `/specs/001-store-credentials/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/

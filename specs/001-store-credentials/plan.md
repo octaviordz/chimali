@@ -1,4 +1,4 @@
-# Implementation Plan: Secure Credentials Vault (FR1)
+# Implementation Plan: Secure Credentials Vault (FR-VAULT-010)
 
 **Branch**: `001-store-credentials` | **Date**: 2026-02-23 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `specs/001-store-credentials/spec.md`

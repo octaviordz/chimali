@@ -1,4 +1,4 @@
-# Feature: Secure Credentials Vault (FR1)
+# Feature: Secure Credentials Vault (FR-VAULT-010)
 
 ## Overview
 The Secure Credentials Vault provides a secure, local-first storage for sensitive information including passwords, credit cards, and secure notes. It uses a hybrid storage model combining SQLite for indexing and Loro.dev CRDTs for individual item history and synchronization.

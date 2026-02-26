@@ -1,4 +1,4 @@
-# Data Model: Secure Credentials Vault (FR1)
+# Data Model: Secure Credentials Vault (FR-VAULT-010)
 
 ## Overview
 This proposal uses a **Hybrid Granularity** approach:

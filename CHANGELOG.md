@@ -6,7 +6,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased]
 
 ### Added
-- **Secure Credentials Vault (FR1)**: Initial implementation of local-first encrypted storage for passwords, cards, and notes.
+- **Secure Credentials Vault (FR-VAULT-010)**: Initial implementation of local-first encrypted storage for passwords, cards, and notes.
     - Hybrid **SQLCipher** + **Loro.dev CRDT** storage architecture.
     - Hardware-backed key management (Android Keystore).
     - Support for dynamic **Custom Fields** and **Labels**.

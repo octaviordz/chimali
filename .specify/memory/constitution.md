@@ -1,8 +1,8 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.1.0 → 0.2.0
+- Version change: 0.2.0 → 0.3.0
 - List of modified principles: None
-- Added sections: VI. Inclusion & Universal Accessibility
+- Added sections: VII. Documentation Standards
 - Removed sections: None
 - Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md (Logic aligned, no textual changes needed)
 - Follow-up TODOs: None
@@ -34,6 +34,9 @@ The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidD
 ### VI. Inclusion & Universal Accessibility
 Accessibility is a core functional and security requirement. The application MUST support screen readers (TalkBack), high-contrast modes, and dynamic text scaling. Legibility is treated as a security feature to prevent user error during credential management: credentials MUST be displayed using high-legibility fonts (e.g., [Atkinson Hyperlegible](https://brailleinstitute.org/atkinson-hyperlegible-font)) with clear character differentiation.
 
+### VII. Documentation Standards
+All project documentation must be kept up to date and aligned with the codebase at all times. Requirements documentation follows **IEEE 830 (SRS)** principles for clarity, traceability, and unambiguity, combined with **modern Agile documentation** practices (lightweight, living documents, close to the code). Requirement identifiers use a **stable mnemonic path format** (`[TYPE]-[CATEGORY]-[NNN]`, e.g., `FR-VAULT-010`, `NFR-SEC-020`) to prevent re-indexing cascades when requirements are added, moved, or removed. Once assigned, a requirement ID is never reused; deprecated requirements are marked as `[DEPRECATED]` rather than deleted.
+
 ## Technical Constraints
 
 - **Platform**: Android Native Application (Minimum SDK 28).
@@ -53,4 +56,4 @@ Accessibility is a core functional and security requirement. The application MUS
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.2.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-24
+**Version**: 0.3.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-25

@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Secure Credentials Vault (FR1)
+# Specification Quality Checklist: Secure Credentials Vault (FR-VAULT-010)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-02-19
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- All validation checks pass. The specification is clean, concise, and aligned completely with FR1 of the business requirements. Ready for planning.
+- All validation checks pass. The specification is clean, concise, and aligned completely with FR-VAULT-010 of the business requirements. Ready for planning.
