@@ -42,7 +42,6 @@ class AndroidKeyStoreManager : KeyStoreManager {
                 )
                     .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                     .setDigests(KeyProperties.DIGEST_SHA256)
-                    .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_NONE)
                     .setUserAuthenticationRequired(false)
                     .build()
                 else -> throw IllegalArgumentException("Unsupported algorithm: $algorithm")
