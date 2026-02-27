@@ -83,6 +83,11 @@ class HidManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
+    fun getPairedDevices(): List<BluetoothDevice> {
+        return adapter?.bondedDevices?.toList() ?: emptyList()
+    }
+
+    @SuppressLint("MissingPermission")
     fun connectDevice(device: BluetoothDevice): Boolean {
         return bluetoothHidDevice?.connect(device) ?: false
     }

@@ -12,6 +12,18 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.navigation.compose.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.chimali.feature.fido2.api.FidoIntent
+import com.chimali.feature.fido2.internal.FidoViewModel
 import com.chimali.feature.fido2.ui.DeviceManagerScreen
 import com.chimali.feature.fido2.ui.PairedDevice
 import dagger.hilt.android.AndroidEntryPoint
@@ -22,6 +34,28 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val navController = rememberNavController()
+            val context = LocalContext.current
+            
+            // Required permissions for Bluetooth on Android 12+
+            val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            } else {
+                emptyArray()
+            }
+
+            // Launcher for requesting permissions
+            val launcher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions()
+            ) { matches ->
+                if (matches.values.all { it }) {
+                    navController.navigate("fido_manager")
+                }
+            }
+
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -30,18 +64,27 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = "home") {
                         composable("home") {
                             HomeScreen(
-                                onNavigateToFido = { navController.navigate("fido_manager") }
+                                onNavigateToFido = {
+                                    if (bluetoothPermissions.isEmpty() || 
+                                        bluetoothPermissions.all { 
+                                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED 
+                                        }
+                                    ) {
+                                        navController.navigate("fido_manager")
+                                    } else {
+                                        launcher.launch(bluetoothPermissions)
+                                    }
+                                }
                             )
                         }
                         composable("fido_manager") {
-                            // Placeholder for real device list from HidManager/ViewModel
+                            val viewModel: FidoViewModel = hiltViewModel()
+                            val state by viewModel.state.collectAsState()
+                            
                             DeviceManagerScreen(
-                                devices = listOf(
-                                    PairedDevice("00:11:22:33:44:55", "Laptop-Office", true),
-                                    PairedDevice("AA:BB:CC:DD:EE:FF", "Home-PC", false)
-                                ),
-                                onDisconnect = { /* TODO */ },
-                                onUnpair = { /* TODO */ }
+                                devices = state.pairedDevices,
+                                onDisconnect = { viewModel.onIntent(FidoIntent.DisconnectDevice(it.address)) },
+                                onUnpair = { viewModel.onIntent(FidoIntent.UnpairDevice(it.address)) }
                             )
                         }
                     }

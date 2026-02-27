@@ -1,5 +1,6 @@
 package com.chimali.feature.fido2.internal
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.feature.fido2.api.*
@@ -11,7 +12,8 @@ import javax.inject.Inject
 @HiltViewModel
 class FidoViewModel @Inject constructor(
     private val repository: CredentialRepository,
-    private val requestQueue: RequestQueue
+    private val requestQueue: RequestQueue,
+    private val hidManager: com.chimali.core.bluetooth.HidManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FidoState())
@@ -20,12 +22,56 @@ class FidoViewModel @Inject constructor(
     private val _effect = MutableSharedFlow<FidoEffect>()
     val effect: SharedFlow<FidoEffect> = _effect.asSharedFlow()
 
+    init {
+        loadDevices()
+    }
+
     fun onIntent(intent: FidoIntent) {
         when (intent) {
             is FidoIntent.AuthRequestReceived -> handleAuthRequest(intent)
             FidoIntent.UserConfirmed -> approveRequest()
             FidoIntent.UserCancelled -> cancelRequest()
             FidoIntent.ConnectionStatusRequested -> checkConnection()
+            FidoIntent.RefreshDevices -> loadDevices()
+            is FidoIntent.DisconnectDevice -> disconnectDevice(intent.address)
+            is FidoIntent.UnpairDevice -> unpairDevice(intent.address)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun loadDevices() {
+        viewModelScope.launch {
+            val connectedAddresses = hidManager.getConnectedDevices().map { it.address }.toSet()
+            val paired = hidManager.getPairedDevices().map { device ->
+                com.chimali.feature.fido2.ui.PairedDevice(
+                    address = device.address,
+                    name = device.name ?: "Unknown Device",
+                    isConnected = connectedAddresses.contains(device.address)
+                )
+            }
+            _state.update { it.copy(pairedDevices = paired) }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun disconnectDevice(address: String) {
+        viewModelScope.launch {
+            val device = hidManager.getConnectedDevices().find { it.address == address }
+            if (device != null) {
+                hidManager.disconnectDevice(device)
+                loadDevices()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun unpairDevice(address: String) {
+        viewModelScope.launch {
+            val device = hidManager.getPairedDevices().find { it.address == address }
+            if (device != null) {
+                hidManager.unpairDevice(device)
+                loadDevices()
+            }
         }
     }
 
