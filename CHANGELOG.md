@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-02-26
+
+### Added
+- **FIDO2 HID Virtual Authenticator (FR-HID-010)**: Android device now acts as a hardware security key over Bluetooth HID.
+    - Rust-based **CTAP2** implementation via `passkey-authenticator`.
+    - **UniFFI** bindings for high-performance Rust-Kotlin communication.
+    - Foreground service for reliable Bluetooth HID report handling.
+    - Full details: [2026-02-26-fido2-hid-implementation.md](docs/changelogs/2026-02-26-fido2-hid-implementation.md)
+
 ## [Unreleased] - 2026-02-25
 
 ### Added
