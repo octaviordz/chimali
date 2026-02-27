@@ -1,10 +1,10 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.2.0 → 0.3.0
-- List of modified principles: None
-- Added sections: VII. Documentation Standards
+- Version change: 0.3.0 → 0.4.0
+- List of modified principles: IV, Technical Constraints, Development Workflow & Testing
+- Added sections: None
 - Removed sections: None
-- Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md (Logic aligned, no textual changes needed)
+- Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md
 - Follow-up TODOs: None
 -->
 
@@ -27,6 +27,8 @@ The application must adhere to strict Android Vitals targets:
 - Smoothness: Maintain 60 FPS during interactions.
 - Latency: Bluetooth HID Virtual Authenticator actions must be < 200ms end-to-end.
 - Resources: Zero memory leaks and minimal battery impact (< 0.1% excessive wake locks).
+- Clipboard: Sensitive data mustache be explicitly cleared from the system clipboard within 60 seconds of copy action.
+- Scalability: The system must be designed to handle 10,000+ vault items with negligible performance degradation.
 
 ### V. Cross-Platform Utility & Modern UX
 The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidDevice` to support cross-platform authentication (Windows, macOS, Linux). The UI must follow Material Design 3 (M3) with dynamic coloring, ensuring a premium user experience.
@@ -40,15 +42,17 @@ All project documentation must be kept up to date and aligned with the codebase 
 ## Technical Constraints
 
 - **Platform**: Android Native Application (Minimum SDK 28).
-- **Language**: Primary language is Kotlin (100% for UI/Android layers). Languages that produce native code (e.g., Rust) are allowed under special cases (e.g., core cryptography, shared low-level logic).
-- **UI Framework**: Jetpack Compose Multiplatform.
+- **Language**: Primary language is Kotlin (100% for UI/Android layers). Languages that produce native code (e.g., Rust) are allowed under special cases (e.g., core cryptography, shared low-level logic, Loro.dev CRDT integration via UniFFI).
+- **Architecture**: Kotlin Multiplatform (KMP) ready module structure must be maintained to facilitate future expansion.
+- **Storage**: Standardized encrypted persistence using **SQLCipher** and **SQLDelight**.
+- **UI Framework**: Jetpack Compose (Material Design 3).
 - **Hardware Integration**: Mandatory support for Bluetooth HID Device Profile for virtual authenticator features.
 - **Privacy Focus**: On-device AI only (e.g., ML Kit, Gemini Nano) for credential categorization; no cloud processing of plain-text data.
 
 ## Development Workflow & Testing
 
-- **Testing Methodology**: Test-Driven Development (TDD) where feasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable.
-- **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers.
+- **Testing Methodology**: Test-Driven Development (TDD) where feasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **JUnit 5** and **MockK**.
+- **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components must be verified using **Compose UI Testing**.
 
 ## Governance
 
@@ -56,4 +60,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.3.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-25
+**Version**: 0.4.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-26
