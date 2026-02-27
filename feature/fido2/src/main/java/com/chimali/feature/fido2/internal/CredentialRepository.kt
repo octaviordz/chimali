@@ -2,8 +2,8 @@ package com.chimali.feature.fido2.internal
 
 import com.chimali.core.database.ChimaliDatabase
 import com.chimali.core.database.Fido2Credential
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToList
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,7 +15,7 @@ class CredentialRepository @Inject constructor(
     private val queries = database.vaultQueries
 
     fun getCredentialsByIdentity(identityId: String): Flow<List<Fido2Credential>> {
-        return queries.getFido2CredentialsByIdentity(identityId).asFlow().mapToList()
+        return queries.getFido2CredentialsByIdentity(identityId).asFlow().mapToList(kotlinx.coroutines.Dispatchers.IO)
     }
 
     fun getCredentialById(credentialId: ByteArray): Fido2Credential? {

@@ -9,13 +9,14 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class HidManager @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val bluetoothManager: BluetoothManager
 ) {
     private var bluetoothHidDevice: BluetoothHidDevice? = null
@@ -105,22 +106,22 @@ class HidManager @Inject constructor(
     companion object {
         // Simplified FIDO HID Descriptor
         private val descriptor = byteArrayOf(
-            0x06, 0xD0.toByte(), 0xF1.toByte(), // Usage Page (FIDO Alliance)
-            0x09, 0x01,                         // Usage (U2F Authenticator)
-            0xA1.toByte(), 0x01,                // Collection (Application)
-            0x09, 0x20,                         //   Usage (Data Out)
-            0x15, 0x00,                         //   Logical Minimum (0)
-            0x26, 0xFF.toByte(), 0x00,          //   Logical Maximum (255)
-            0x75, 0x08,                         //   Report Size (8)
-            0x95, 0x40,                         //   Report Count (64)
-            0x81, 0x02,                         //   Input (Data, Absolute, Variable)
-            0x09, 0x21,                         //   Usage (Data In)
-            0x15, 0x00,                         //   Logical Minimum (0)
-            0x26, 0xFF.toByte(), 0x00,          //   Logical Maximum (255)
-            0x75, 0x08,                         //   Report Size (8)
-            0x95, 0x40,                         //   Report Count (64)
-            0x91, 0x02,                         //   Output (Data, Absolute, Variable)
-            0xC0.toByte()                       // End Collection
+            0x06.toByte(), 0xD0.toByte(), 0xF1.toByte(), // Usage Page (FIDO Alliance)
+            0x09.toByte(), 0x01.toByte(),                 // Usage (U2F Authenticator)
+            0xA1.toByte(), 0x01.toByte(),                 // Collection (Application)
+            0x09.toByte(), 0x20.toByte(),                 //   Usage (Data Out)
+            0x15.toByte(), 0x00.toByte(),                 //   Logical Minimum (0)
+            0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),  //   Logical Maximum (255)
+            0x75.toByte(), 0x08.toByte(),                 //   Report Size (8)
+            0x95.toByte(), 0x40.toByte(),                 //   Report Count (64)
+            0x81.toByte(), 0x02.toByte(),                 //   Input (Data, Absolute, Variable)
+            0x09.toByte(), 0x21.toByte(),                 //   Usage (Data In)
+            0x15.toByte(), 0x00.toByte(),                 //   Logical Minimum (0)
+            0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),  //   Logical Maximum (255)
+            0x75.toByte(), 0x08.toByte(),                 //   Report Size (8)
+            0x95.toByte(), 0x40.toByte(),                 //   Report Count (64)
+            0x91.toByte(), 0x02.toByte(),                 //   Output (Data, Absolute, Variable)
+            0xC0.toByte()                                 // End Collection
         )
     }
 }

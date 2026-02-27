@@ -57,6 +57,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":feature:vault"))
     implementation(project(":feature:authenticator"))
+    implementation(project(":feature:fido2"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

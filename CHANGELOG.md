@@ -12,6 +12,10 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
     - Foreground service for reliable Bluetooth HID report handling.
     - Full details: [2026-02-26-fido2-hid-implementation.md](docs/changelogs/2026-02-26-fido2-hid-implementation.md)
 
+### Fixed
+- **Build System & DSL Modernization**: Resolved compilation errors related to AGP 9.0+, Kotlin 2.0+, and SQLDelight 2.x strictness. Restructured source sets for Android module compliance.
+    - Full details: [2026-02-26-build-fixes.md](docs/changelogs/2026-02-26-build-fixes.md)
+
 ## [Unreleased] - 2026-02-25
 
 ### Added
