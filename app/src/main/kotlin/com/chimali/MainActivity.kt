@@ -83,6 +83,11 @@ class MainActivity : ComponentActivity() {
                             
                             DeviceManagerScreen(
                                 devices = state.pairedDevices,
+                                availableDevices = state.discoveredDevices,
+                                isRefreshing = state.isRefreshing,
+                                onRefresh = { viewModel.onIntent(FidoIntent.RefreshDevices) },
+                                onPair = { viewModel.onIntent(FidoIntent.PairDevice(it.address)) },
+                                onConnect = { viewModel.onIntent(FidoIntent.ConnectDevice(it.address)) },
                                 onDisconnect = { viewModel.onIntent(FidoIntent.DisconnectDevice(it.address)) },
                                 onUnpair = { viewModel.onIntent(FidoIntent.UnpairDevice(it.address)) }
                             )

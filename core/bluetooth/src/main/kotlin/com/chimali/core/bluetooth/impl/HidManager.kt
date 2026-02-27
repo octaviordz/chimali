@@ -10,6 +10,9 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,6 +64,18 @@ class HidManager @Inject constructor(
                     Log.d("HidManager", "Registration status: $registered")
                 }
 
+                override fun onConnectionStateChanged(device: BluetoothDevice?, state: Int) {
+                    val stateStr = when(state) {
+                        BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED"
+                        BluetoothProfile.STATE_CONNECTING -> "CONNECTING"
+                        BluetoothProfile.STATE_CONNECTED -> "CONNECTED"
+                        BluetoothProfile.STATE_DISCONNECTING -> "DISCONNECTING"
+                        else -> "UNKNOWN ($state)"
+                    }
+                    Log.d("HidManager", "Connection state changed: ${device?.address} is now $stateStr")
+                    // TODO: Notify ViewModel to refresh device list
+                }
+
                 override fun onSetReport(device: BluetoothDevice?, type: Byte, id: Byte, data: ByteArray?) {
                     Log.d("HidManager", "Received report: ${data?.size} bytes")
                     data?.let { packet ->
@@ -85,6 +100,70 @@ class HidManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun getPairedDevices(): List<BluetoothDevice> {
         return adapter?.bondedDevices?.toList() ?: emptyList()
+    }
+
+    private val _discoveredDevices = MutableStateFlow<Set<BluetoothDevice>>(emptySet())
+    val discoveredDevices: StateFlow<Set<BluetoothDevice>> = _discoveredDevices.asStateFlow()
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    private val receiver = object : android.content.BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    if (device != null && device.name != null) {
+                        _discoveredDevices.value = _discoveredDevices.value + device
+                    }
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                    _isScanning.value = true
+                    _discoveredDevices.value = emptySet()
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    _isScanning.value = false
+                    try {
+                        context.unregisterReceiver(this)
+                    } catch (e: Exception) {
+                        // Already unregistered
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startDiscovery() {
+        if (adapter?.isDiscovering == true) {
+            adapter.cancelDiscovery()
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        }
+        context.registerReceiver(receiver, filter)
+        adapter?.startDiscovery()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun stopDiscovery() {
+        if (adapter?.isDiscovering == true) {
+            adapter.cancelDiscovery()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun pairDevice(address: String): Boolean {
+        return try {
+            val device = adapter?.getRemoteDevice(address)
+            device?.createBond() ?: false
+        } catch (e: Exception) {
+            Log.e("HidManager", "Failed to initiate pairing: ${e.message}")
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")

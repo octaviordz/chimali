@@ -12,6 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.foundation.clickable
+
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+
 data class PairedDevice(
     val address: String,
     val name: String,
@@ -22,35 +26,68 @@ data class PairedDevice(
 @Composable
 fun DeviceManagerScreen(
     devices: List<PairedDevice>,
+    availableDevices: List<PairedDevice>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onPair: (PairedDevice) -> Unit,
+    onConnect: (PairedDevice) -> Unit,
     onDisconnect: (PairedDevice) -> Unit,
     onUnpair: (PairedDevice) -> Unit
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Paired Devices") })
+            TopAppBar(title = { Text("Device Manager") })
         }
     ) { padding ->
-        if (devices.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No paired devices",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(devices) { device ->
-                    DeviceCard(device, onDisconnect, onUnpair)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (devices.isEmpty() && availableDevices.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No devices found. Pull to scan.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (devices.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Paired Devices",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        items(devices) { device ->
+                            DeviceCard(device, onConnect, onDisconnect, onUnpair)
+                        }
+                    }
+                    
+                    if (availableDevices.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Available Devices",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                            )
+                        }
+                        items(availableDevices) { device ->
+                            AvailableDeviceCard(device, onPair)
+                        }
+                    }
                 }
             }
         }
@@ -60,11 +97,12 @@ fun DeviceManagerScreen(
 @Composable
 private fun DeviceCard(
     device: PairedDevice,
+    onConnect: (PairedDevice) -> Unit,
     onDisconnect: (PairedDevice) -> Unit,
     onUnpair: (PairedDevice) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().clickable { if (!device.isConnected) onConnect(device) }
     ) {
         Row(
             modifier = Modifier
@@ -90,9 +128,48 @@ private fun DeviceCard(
                 TextButton(onClick = { onDisconnect(device) }) {
                     Text("Disconnect")
                 }
+            } else {
+                TextButton(onClick = { onConnect(device) }) {
+                    Text("Connect")
+                }
             }
             TextButton(onClick = { onUnpair(device) }) {
                 Text("Unpair", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvailableDeviceCard(
+    device: PairedDevice,
+    onPair: (PairedDevice) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onPair(device) }
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bluetooth,
+                contentDescription = "Available",
+                tint = MaterialTheme.colorScheme.outline
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = device.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = device.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = { onPair(device) }) {
+                Text("Pair")
             }
         }
     }

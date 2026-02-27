@@ -6,6 +6,11 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-02-26
 
 ### Added
+- **Bluetooth Device Discovery & Management**: Full UI and backend implementation for scanning and pairing new Bluetooth devices.
+    - Android 12+ Runtime Permission guards (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`).
+    - Material 3 Pull-to-Refresh integration for active device scanning.
+    - Split UI for Paired vs Available devices.
+    - Full details: [2026-02-26-device-discovery.md](docs/changelogs/2026-02-26-device-discovery.md)
 - **FIDO2 HID Virtual Authenticator (FR-HID-010)**: Android device now acts as a hardware security key over Bluetooth HID.
     - Rust-based **CTAP2** implementation via `passkey-authenticator`.
     - **UniFFI** bindings for high-performance Rust-Kotlin communication.

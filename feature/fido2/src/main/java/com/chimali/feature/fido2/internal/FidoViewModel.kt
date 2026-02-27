@@ -24,6 +24,25 @@ class FidoViewModel @Inject constructor(
 
     init {
         loadDevices()
+        viewModelScope.launch {
+            hidManager.discoveredDevices.collect { devices ->
+                val available = devices.map { device ->
+                    @SuppressLint("MissingPermission")
+                    val name = device.name ?: "Unknown Device"
+                    com.chimali.feature.fido2.ui.PairedDevice(
+                        address = device.address,
+                        name = name,
+                        isConnected = false
+                    )
+                }
+                _state.update { it.copy(discoveredDevices = available) }
+            }
+        }
+        viewModelScope.launch {
+            hidManager.isScanning.collect { scanning ->
+                _state.update { it.copy(isScanning = scanning, isRefreshing = scanning) }
+            }
+        }
     }
 
     fun onIntent(intent: FidoIntent) {
@@ -32,15 +51,34 @@ class FidoViewModel @Inject constructor(
             FidoIntent.UserConfirmed -> approveRequest()
             FidoIntent.UserCancelled -> cancelRequest()
             FidoIntent.ConnectionStatusRequested -> checkConnection()
-            FidoIntent.RefreshDevices -> loadDevices()
+            FidoIntent.RefreshDevices -> {
+                loadDevices()
+                hidManager.startDiscovery()
+            }
+            FidoIntent.StartScan -> hidManager.startDiscovery()
+            FidoIntent.StopScan -> hidManager.stopDiscovery()
+            is FidoIntent.PairDevice -> hidManager.pairDevice(intent.address)
+            is FidoIntent.ConnectDevice -> connectDevice(intent.address)
             is FidoIntent.DisconnectDevice -> disconnectDevice(intent.address)
             is FidoIntent.UnpairDevice -> unpairDevice(intent.address)
         }
     }
 
     @SuppressLint("MissingPermission")
+    private fun connectDevice(address: String) {
+        viewModelScope.launch {
+            val device = hidManager.getPairedDevices().find { it.address == address }
+            if (device != null) {
+                hidManager.connectDevice(device)
+                loadDevices()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
     private fun loadDevices() {
         viewModelScope.launch {
+            _state.update { it.copy(isRefreshing = true) }
             val connectedAddresses = hidManager.getConnectedDevices().map { it.address }.toSet()
             val paired = hidManager.getPairedDevices().map { device ->
                 com.chimali.feature.fido2.ui.PairedDevice(
@@ -49,7 +87,7 @@ class FidoViewModel @Inject constructor(
                     isConnected = connectedAddresses.contains(device.address)
                 )
             }
-            _state.update { it.copy(pairedDevices = paired) }
+            _state.update { it.copy(pairedDevices = paired, isRefreshing = false) }
         }
     }
 
