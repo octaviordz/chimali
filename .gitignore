@@ -54,3 +54,10 @@ com_google_firebase_crashlytics_*.properties
 
 # Secret files
 secrets.properties
+
+# Rust
+target/
+debug/
+release/
+*.rs.bk
+*.rlib

@@ -1,0 +1,126 @@
+package com.chimali.core.bluetooth
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppSdpSettings
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.content.Context
+import android.util.Log
+import java.util.concurrent.Executor
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class HidManager @Inject constructor(
+    private val context: Context,
+    private val bluetoothManager: BluetoothManager
+) {
+    private var bluetoothHidDevice: BluetoothHidDevice? = null
+    private val adapter: BluetoothAdapter? = bluetoothManager.adapter
+
+    private val profileListener = object : BluetoothProfile.ServiceListener {
+        override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
+            if (profile == BluetoothProfile.HID_DEVICE) {
+                bluetoothHidDevice = proxy as BluetoothHidDevice
+                registerApp()
+            }
+        }
+
+        override fun onServiceDisconnected(profile: Int) {
+            if (profile == BluetoothProfile.HID_DEVICE) {
+                bluetoothHidDevice = null
+            }
+        }
+    }
+
+    init {
+        adapter?.getProfileProxy(context, profileListener, BluetoothProfile.HID_DEVICE)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun registerApp() {
+        val sdpSettings = BluetoothHidDeviceAppSdpSettings(
+            "Chimali Authenticator",
+            "Virtual FIDO2 Token",
+            "Chimali",
+            BluetoothHidDevice.SUBCLASS1_COMBO,
+            descriptor
+        )
+
+        bluetoothHidDevice?.registerApp(
+            sdpSettings,
+            null,
+            null,
+            context.mainExecutor,
+            object : BluetoothHidDevice.Callback() {
+                override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
+                    Log.d("HidManager", "Registration status: $registered")
+                }
+
+                override fun onSetReport(device: BluetoothDevice?, type: Byte, id: Byte, data: ByteArray?) {
+                    Log.d("HidManager", "Received report: ${data?.size} bytes")
+                    data?.let { packet ->
+                        if (packet.isNotEmpty()) {
+                            // T014: Distinguish between GetAssertion (0x02) and MakeCredential (0x01)
+                            // This is a simplified check of the first byte of the CTAP packet
+                            val command = packet[0]
+                            Log.d("HidManager", "CTAP Command: $command")
+                            // Forward to RequestQueue and notify Service/ViewModel
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getConnectedDevices(): List<BluetoothDevice> {
+        return bluetoothHidDevice?.connectedDevices ?: emptyList()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun connectDevice(device: BluetoothDevice): Boolean {
+        return bluetoothHidDevice?.connect(device) ?: false
+    }
+
+    @SuppressLint("MissingPermission")
+    fun disconnectDevice(device: BluetoothDevice): Boolean {
+        return bluetoothHidDevice?.disconnect(device) ?: false
+    }
+
+    @SuppressLint("MissingPermission")
+    fun unpairDevice(device: BluetoothDevice): Boolean {
+        return try {
+            val method = device.javaClass.getMethod("removeBond")
+            method.invoke(device) as Boolean
+        } catch (e: Exception) {
+            Log.e("HidManager", "Failed to unpair device: ${e.message}")
+            false
+        }
+    }
+
+    companion object {
+        // Simplified FIDO HID Descriptor
+        private val descriptor = byteArrayOf(
+            0x06, 0xD0.toByte(), 0xF1.toByte(), // Usage Page (FIDO Alliance)
+            0x09, 0x01,                         // Usage (U2F Authenticator)
+            0xA1.toByte(), 0x01,                // Collection (Application)
+            0x09, 0x20,                         //   Usage (Data Out)
+            0x15, 0x00,                         //   Logical Minimum (0)
+            0x26, 0xFF.toByte(), 0x00,          //   Logical Maximum (255)
+            0x75, 0x08,                         //   Report Size (8)
+            0x95, 0x40,                         //   Report Count (64)
+            0x81, 0x02,                         //   Input (Data, Absolute, Variable)
+            0x09, 0x21,                         //   Usage (Data In)
+            0x15, 0x00,                         //   Logical Minimum (0)
+            0x26, 0xFF.toByte(), 0x00,          //   Logical Maximum (255)
+            0x75, 0x08,                         //   Report Size (8)
+            0x95, 0x40,                         //   Report Count (64)
+            0x91, 0x02,                         //   Output (Data, Absolute, Variable)
+            0xC0.toByte()                       // End Collection
+        )
+    }
+}

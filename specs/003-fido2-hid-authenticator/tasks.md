@@ -22,10 +22,10 @@
 
 **Purpose**: Project initialization and Rust/UniFFI integration.
 
-- [ ] T001 Create `core/fido2/` and `feature/fido2/` module structures per `plan.md`
-- [ ] T002 Initialize Rust project in `core/fido2/rust/` and add `passkey-rs` dependency
-- [ ] T003 Configure UniFFI bindings in `core/fido2/rust/src/lib.rs` and `core/fido2/kotlin/`
-- [ ] T004 [P] Configure Hilt modules for FIDO2 and Bluetooth in `feature/fido2/src/internal/di/`
+- [x] T001 Create `core/fido2/` and `feature/fido2/` module structures per `plan.md`
+- [x] T002 Initialize Rust project in `core/fido2/rust/` and add `passkey-rs` dependency
+- [x] T003 Configure UniFFI bindings in `core/fido2/rust/src/lib.rs` and `core/fido2/kotlin/`
+- [x] T004 [P] Configure Hilt modules for FIDO2 and Bluetooth in `feature/fido2/src/internal/di/`
 
 ---
 
@@ -33,11 +33,11 @@
 
 **Purpose**: Core protocol logic and database schema.
 
-- [ ] T005 Implement FIDO2 credential schema in `core/database/` using SQLDelight
-- [ ] T006 [P] Implement transport-agnostic CTAP2 wrapper in `core/fido2/rust/src/ctap_wrapper.rs`
-- [ ] T007 [P] Implement Bluetooth HID Profile registration logic in `core/bluetooth/src/HidManager.kt`
-- [ ] T008 Setup MVI State and Intent definitions in `feature/fido2/src/api/`
-- [ ] T008a [P] Implement concurrent request queuing logic in `feature/fido2/src/internal/RequestQueue.kt` (ref: FR-006)
+- [x] T005 Implement FIDO2 credential schema in `core/database/` using SQLDelight
+- [x] T006 [P] Implement transport-agnostic CTAP2 wrapper in `core/fido2/rust/src/ctap_wrapper.rs`
+- [x] T007 [P] Implement Bluetooth HID Profile registration logic in `core/bluetooth/src/HidManager.kt`
+- [x] T008 Setup MVI State and Intent definitions in `feature/fido2/src/api/`
+- [x] T008a [P] Implement concurrent request queuing logic in `feature/fido2/src/internal/RequestQueue.kt` (ref: FR-006)
 
 **Checkpoint**: Foundation ready - Protocol logic and HID registration are possible.
 
@@ -51,11 +51,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement HID Interrupt service to receive CTAP reports in `feature/fido2/src/internal/HidService.kt`
-- [ ] T010 [US1] Implement Credential Lookup logic (Resident Key) in `feature/fido2/src/internal/CredentialRepository.kt`
-- [ ] T011 [US1] Create User Confirmation UI in `feature/fido2/src/ui/ConfirmationScreen.kt`
-- [ ] T012 [US1] Bridge CTAP signature request to Rust `passkey-authenticator` in `core/fido2/rust/`
-- [ ] T013 [US1] Wire MVI ViewModel to handle authentication lifecycle in `feature/fido2/src/internal/FidoViewModel.kt`
+- [x] T009 [US1] Implement HID Interrupt service to receive CTAP reports in `feature/fido2/src/internal/HidService.kt`
+- [x] T010 [US1] Implement Credential Lookup logic (Resident Key) in `feature/fido2/src/internal/CredentialRepository.kt`
+- [x] T011 [US1] Create User Confirmation UI in `feature/fido2/src/ui/ConfirmationScreen.kt`
+- [x] T012 [US1] Bridge CTAP signature request to Rust `passkey-authenticator` in `core/fido2/rust/`
+- [x] T013 [US1] Wire MVI ViewModel to handle authentication lifecycle in `feature/fido2/src/internal/FidoViewModel.kt`
 
 **Checkpoint**: User Story 1 (MVP) functional - Signed response sent via HID.
 
@@ -69,10 +69,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `MakeCredential` report handling in `feature/fido2/src/internal/HidService.kt`
-- [ ] T015 [US2] Create Passkey Creation UI/Dialog in `feature/fido2/src/ui/CreatePasskeyScreen.kt`
-- [ ] T016 [US2] Implement credential persistence logic in `feature/fido2/src/internal/CredentialRepository.kt`
-- [ ] T017 [US2] Implement Self-Attestation generation in `core/fido2/rust/`
+- [x] T014 [US2] Implement `MakeCredential` report handling in `feature/fido2/src/internal/HidService.kt`
+- [x] T015 [US2] Create Passkey Creation UI/Dialog in `feature/fido2/src/ui/CreatePasskeyScreen.kt`
+- [x] T016 [US2] Implement credential persistence logic in `feature/fido2/src/internal/CredentialRepository.kt`
+- [x] T017 [US2] Implement Self-Attestation generation in `core/fido2/rust/`
 
 **Checkpoint**: User Story 2 functional - New credentials saved to vault.
 
@@ -86,9 +86,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Create device list UI in `feature/fido2/src/ui/DeviceManagerScreen.kt`
-- [ ] T019 [US3] Implement Bluetooth pairing/unpairing logic in `core/bluetooth/src/HidManager.kt`
-- [ ] T020 [P] [US3] Store paired device metadata in `core/database/`
+- [x] T018 [US3] Create device list UI in `feature/fido2/src/ui/DeviceManagerScreen.kt`
+- [x] T019 [US3] Implement Bluetooth pairing/unpairing logic in `core/bluetooth/src/HidManager.kt`
+- [x] T020 [P] [US3] Store paired device metadata in `core/database/`
 
 **Checkpoint**: All user stories functional.
 
@@ -96,11 +96,11 @@
 
 ## Phase N: Polish & Cross-Cutting Concerns
 
-- [ ] T021 [P] Ensure persistent notification is shown when HID service is active
-- [ ] T022 Implement error handling for Bluetooth disconnects in `feature/fido2/src/internal/`
-- [ ] T023 [P] Add high-legibility font support to confirmation screens (ref: FR-UI-010)
-- [ ] T023a [P] Audit and implement explicit memory zeroing-out for sensitive data in volatile memory (Constitution Principle I)
-- [ ] T024 Validate full end-to-end flow and SC-003 latency targets (< 200ms) using `quickstart.md`
+- [x] T021 [P] Ensure persistent notification is shown when HID service is active
+- [x] T022 Implement error handling for Bluetooth disconnects in `feature/fido2/src/internal/`
+- [x] T023 [P] Add high-legibility font support to confirmation screens (ref: FR-UI-010)
+- [x] T023a [P] Audit and implement explicit memory zeroing-out for sensitive data in volatile memory (Constitution Principle I)
+- [x] T024 Validate full end-to-end flow and SC-003 latency targets (< 200ms) using `quickstart.md`
 
 ---
 
