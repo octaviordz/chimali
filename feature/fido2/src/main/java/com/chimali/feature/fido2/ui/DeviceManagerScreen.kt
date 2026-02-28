@@ -56,13 +56,13 @@ fun DeviceManagerScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (devices.isEmpty() && availableDevices.isEmpty()) {
+            if (devices.isEmpty() && availableDevices.isEmpty() && recentDevices.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No devices found. Pull to scan.",
+                        text = "No devices or recent connections found. Pull to scan.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

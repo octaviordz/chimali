@@ -73,6 +73,15 @@ class FidoViewModel @Inject constructor(
         viewModelScope.launch {
             bleGattManager.connectionEvents.collect { (address, isConnected) ->
                 Log.d("FidoViewModel", "Connection event for $address: $isConnected")
+                if (isConnected) {
+                    try {
+                        val device = bleGattManager.getConnectedDevices().find { it.address == address }
+                        val name = device?.name ?: "Unknown Device"
+                        deviceHistoryRepository.recordConnection(address, name)
+                    } catch (e: Exception) {
+                        Log.e("FidoViewModel", "Failed to record recent device for $address", e)
+                    }
+                }
                 loadDevices()
             }
         }
@@ -121,13 +130,16 @@ class FidoViewModel @Inject constructor(
             val connectedAddresses = bleGattManager.getConnectedDevices().map { it.address }.toSet()
             val bondedDevices = bleGattManager.getBondedDevices()
             
-            val paired = bondedDevices.map { device ->
-                com.chimali.feature.fido2.ui.PairedDevice(
-                    address = device.address,
-                    name = device.name ?: "Unknown Device",
-                    isConnected = connectedAddresses.contains(device.address)
-                )
-            }
+            val recentAddresses = _state.value.recentDevices.map { it.address }.toSet()
+            val paired = bondedDevices
+                .filter { !recentAddresses.contains(it.address) }
+                .map { device ->
+                    com.chimali.feature.fido2.ui.PairedDevice(
+                        address = device.address,
+                        name = device.name ?: "Unknown Device",
+                        isConnected = connectedAddresses.contains(device.address)
+                    )
+                }
             
             // Also update connection status of recent devices
             val updatedRecent = _state.value.recentDevices.map { recent ->
