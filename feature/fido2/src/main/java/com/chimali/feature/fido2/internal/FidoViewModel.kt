@@ -20,10 +20,9 @@ class FidoViewModel @Inject constructor(
     private val requestQueue: RequestQueue,
     private val bleGattManager: com.chimali.core.bluetooth.impl.BleGattManager,
     private val deviceHistoryRepository: DeviceHistoryRepository,
+    private val ctapProcessor: CtapProcessor,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-
-    private val ctapProcessor = CtapProcessor()
 
     private val _state = MutableStateFlow(FidoState())
     val state: StateFlow<FidoState> = _state.asStateFlow()

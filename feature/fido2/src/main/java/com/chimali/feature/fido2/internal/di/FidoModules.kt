@@ -1,5 +1,7 @@
 package com.chimali.feature.fido2.internal.di
 
+import com.chimali.core.fido2.CtapProcessor
+import com.chimali.feature.fido2.internal.CredentialRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -9,7 +11,17 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object FidoModule {
-    // Providers for FIDO2 logic will go here
+
+    @Provides
+    @Singleton
+    fun provideCtapProcessor(
+        credentialRepository: CredentialRepository
+    ): CtapProcessor {
+        // The CTAP engine is wired to a transport-agnostic CredentialStore
+        // implemented by CredentialRepository. This keeps CTAP independent
+        // of the feature/database layer while still allowing persistence.
+        return CtapProcessor(credentialRepository)
+    }
 }
 
 @Module
