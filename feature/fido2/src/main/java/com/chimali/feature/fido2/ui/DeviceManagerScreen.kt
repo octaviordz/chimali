@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ data class PairedDevice(
 fun DeviceManagerScreen(
     devices: List<PairedDevice>,
     availableDevices: List<PairedDevice>,
+    recentDevices: List<PairedDevice>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onPair: (PairedDevice) -> Unit,
@@ -37,6 +39,13 @@ fun DeviceManagerScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Device Manager") })
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onRefresh,
+                icon = { Icon(Icons.Default.Search, contentDescription = "Scan") },
+                text = { Text(if (isRefreshing) "Scanning..." else "Scan for Devices") }
+            )
         }
     ) { padding ->
         PullToRefreshBox(
@@ -63,6 +72,18 @@ fun DeviceManagerScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (recentDevices.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Recent Devices",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        items(recentDevices) { device ->
+                            DeviceCard(device, onConnect, onDisconnect, onUnpair)
+                        }
+                    }
                     if (devices.isNotEmpty()) {
                         item {
                             Text(

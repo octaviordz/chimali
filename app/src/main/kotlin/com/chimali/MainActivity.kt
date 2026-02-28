@@ -36,15 +36,20 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val context = LocalContext.current
             
-            // Required permissions for Bluetooth on Android 12+
+            // Required permissions for Bluetooth scanning and connectivity
             val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 arrayOf(
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.BLUETOOTH_ADVERTISE,
-                    Manifest.permission.BLUETOOTH_CONNECT
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             } else {
-                emptyArray()
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
             }
 
             // Launcher for requesting permissions
@@ -84,6 +89,7 @@ class MainActivity : ComponentActivity() {
                             DeviceManagerScreen(
                                 devices = state.pairedDevices,
                                 availableDevices = state.discoveredDevices,
+                                recentDevices = state.recentDevices,
                                 isRefreshing = state.isRefreshing,
                                 onRefresh = { viewModel.onIntent(FidoIntent.RefreshDevices) },
                                 onPair = { viewModel.onIntent(FidoIntent.PairDevice(it.address)) },

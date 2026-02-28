@@ -20,6 +20,7 @@ data class FidoState(
     val isScanning: Boolean = false,
     val pairedDevices: List<com.chimali.feature.fido2.ui.PairedDevice> = emptyList(),
     val discoveredDevices: List<com.chimali.feature.fido2.ui.PairedDevice> = emptyList(),
+    val recentDevices: List<com.chimali.feature.fido2.ui.PairedDevice> = emptyList(),
     val connectedDeviceName: String? = null,
     val pendingAuthRequest: PendingAuthRequest? = null,
     val error: String? = null
@@ -28,8 +29,31 @@ data class FidoState(
 data class PendingAuthRequest(
     val deviceAddress: String,
     val relyingPartyId: String,
-    val userName: String
-)
+    val userName: String,
+    val payload: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as PendingAuthRequest
+
+        if (deviceAddress != other.deviceAddress) return false
+        if (relyingPartyId != other.relyingPartyId) return false
+        if (userName != other.userName) return false
+        if (!payload.contentEquals(other.payload)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = deviceAddress.hashCode()
+        result = 31 * result + relyingPartyId.hashCode()
+        result = 31 * result + userName.hashCode()
+        result = 31 * result + payload.contentHashCode()
+        return result
+    }
+}
 
 sealed interface FidoEffect {
     data class ShowToast(val message: String) : FidoEffect

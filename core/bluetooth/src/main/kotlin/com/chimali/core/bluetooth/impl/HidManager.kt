@@ -10,8 +10,11 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executor
 import javax.inject.Inject
@@ -81,10 +84,10 @@ class HidManager @Inject constructor(
                     data?.let { packet ->
                         if (packet.isNotEmpty()) {
                             // T014: Distinguish between GetAssertion (0x02) and MakeCredential (0x01)
-                            // This is a simplified check of the first byte of the CTAP packet
                             val command = packet[0]
                             Log.d("HidManager", "CTAP Command: $command")
-                            // Forward to RequestQueue and notify Service/ViewModel
+                            val address = device?.address ?: return@let
+                            _incomingRequests.tryEmit(address to packet)
                         }
                     }
                 }
@@ -107,6 +110,9 @@ class HidManager @Inject constructor(
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    private val _incomingRequests = MutableSharedFlow<Pair<String, ByteArray>>(extraBufferCapacity = 10)
+    val incomingRequests: SharedFlow<Pair<String, ByteArray>> = _incomingRequests.asSharedFlow()
 
     private val receiver = object : android.content.BroadcastReceiver() {
         @SuppressLint("MissingPermission")
@@ -185,6 +191,12 @@ class HidManager @Inject constructor(
             Log.e("HidManager", "Failed to unpair device: ${e.message}")
             false
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun sendReport(device: BluetoothDevice, data: ByteArray): Boolean {
+        // ID 2 corresponds to the Data In report ID defined in the descriptor
+        return bluetoothHidDevice?.replyReport(device, BluetoothHidDevice.REPORT_TYPE_INPUT, 2.toByte(), data) ?: false
     }
 
     companion object {

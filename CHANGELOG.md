@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-02-27
+
+### Added
+- **Recent Devices History**: Implemented 15-day rolling connection history using `ChimaliDatabase` to surface frequently used host machines at the top of the Device Manager.
+    - Full details: [2026-02-27-recent-devices.md](docs/changelogs/2026-02-27-recent-devices.md)
+- **CTAP2 Pipeline MVP Wiring**: Mocked FIDO2 Authentication layer to bridge the `HidManager` to the `FidoViewModel` without requiring Rust JNI builds.
+    - Full details: [2026-02-27-ctap2-pipeline.md](docs/changelogs/2026-02-27-ctap2-pipeline.md)
+
 ## [Unreleased] - 2026-02-26
 
 ### Added
