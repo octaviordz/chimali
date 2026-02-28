@@ -2,7 +2,7 @@ package com.chimali.feature.fido2.internal
 
 import android.bluetooth.BluetoothDevice
 import android.util.Log
-import com.chimali.core.bluetooth.HidManager
+import com.chimali.core.bluetooth.impl.BleGattManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,7 +12,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class BluetoothErrorHandler @Inject constructor(
-    private val hidManager: HidManager,
+    private val bleGattManager: BleGattManager,
     private val requestQueue: RequestQueue
 ) {
     fun onConnectionLost(device: BluetoothDevice?) {

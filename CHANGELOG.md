@@ -8,6 +8,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Added
 - **Recent Devices History**: Implemented 15-day rolling connection history using `ChimaliDatabase` to surface frequently used host machines at the top of the Device Manager.
     - Full details: [2026-02-27-recent-devices.md](docs/changelogs/2026-02-27-recent-devices.md)
+- **FIDO2 BLE Transport (UUID 0xFFFD)**: Full migration from Classic HID to BLE GATT. Optimized for Windows discovery with mandatory Service Data, MTU fragmentation fixes, and "Security Key" appearance tags.
+    - Full details: [2026-02-27-ble-gatt-migration.md](docs/changelogs/2026-02-27-ble-gatt-migration.md)
 - **CTAP2 Pipeline MVP Wiring**: Mocked FIDO2 Authentication layer to bridge the `HidManager` to the `FidoViewModel` without requiring Rust JNI builds.
     - Full details: [2026-02-27-ctap2-pipeline.md](docs/changelogs/2026-02-27-ctap2-pipeline.md)
 
@@ -63,4 +65,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-02-23*
+*Last Updated: 2026-02-27*

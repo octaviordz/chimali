@@ -2,8 +2,8 @@ package com.chimali.core.bluetooth.di
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
-import com.chimali.core.bluetooth.impl.BluetoothHidAuthenticatorImpl
+// import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
+// import com.chimali.core.bluetooth.impl.BluetoothHidAuthenticatorImpl
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -16,11 +16,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class BluetoothModule {
 
-    @Binds
-    @Singleton
-    abstract fun bindBluetoothHidAuthenticator(
-        authenticator: BluetoothHidAuthenticatorImpl
-    ): BluetoothHidAuthenticator
+    // @Binds
+    // @Singleton
+    // abstract fun bindBluetoothHidAuthenticator(
+    //     authenticator: BluetoothHidAuthenticatorImpl
+    // ): BluetoothHidAuthenticator
 
     companion object {
         @Provides

@@ -1,5 +1,6 @@
 package com.chimali
 
+import android.widget.Toast
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -86,11 +87,25 @@ class MainActivity : ComponentActivity() {
                             val viewModel: FidoViewModel = hiltViewModel()
                             val state by viewModel.state.collectAsState()
                             
+                            LaunchedEffect(Unit) {
+                                viewModel.effect.collect { effect ->
+                                    when (effect) {
+                                        is com.chimali.feature.fido2.api.FidoEffect.ShowToast -> {
+                                            Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
+                                        }
+                                        com.chimali.feature.fido2.api.FidoEffect.RequestBiometric -> {
+                                            // TODO: Implement biometric prompt
+                                        }
+                                    }
+                                }
+                            }
+
                             DeviceManagerScreen(
                                 devices = state.pairedDevices,
                                 availableDevices = state.discoveredDevices,
                                 recentDevices = state.recentDevices,
                                 isRefreshing = state.isRefreshing,
+                                isBlePeripheralSupported = state.isBlePeripheralSupported,
                                 onRefresh = { viewModel.onIntent(FidoIntent.RefreshDevices) },
                                 onPair = { viewModel.onIntent(FidoIntent.PairDevice(it.address)) },
                                 onConnect = { viewModel.onIntent(FidoIntent.ConnectDevice(it.address)) },

@@ -30,7 +30,7 @@
         </activity>
 
         <service
-            android:name="com.chimali.feature.fido2.internal.HidService"
+            android:name="com.chimali.feature.fido2.internal.FidoBleService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />

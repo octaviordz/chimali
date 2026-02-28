@@ -30,6 +30,7 @@ fun DeviceManagerScreen(
     availableDevices: List<PairedDevice>,
     recentDevices: List<PairedDevice>,
     isRefreshing: Boolean,
+    isBlePeripheralSupported: Boolean,
     onRefresh: () -> Unit,
     onPair: (PairedDevice) -> Unit,
     onConnect: (PairedDevice) -> Unit,
@@ -72,6 +73,29 @@ fun DeviceManagerScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (!isBlePeripheralSupported) {
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        "Hardware Limited",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Text(
+                                        "This phone does not support BLE Peripheral mode, which is required for FIDO2 over Bluetooth. Only USB mode will work.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
                     if (recentDevices.isNotEmpty()) {
                         item {
                             Text(

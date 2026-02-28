@@ -23,6 +23,7 @@ data class FidoState(
     val recentDevices: List<com.chimali.feature.fido2.ui.PairedDevice> = emptyList(),
     val connectedDeviceName: String? = null,
     val pendingAuthRequest: PendingAuthRequest? = null,
+    val isBlePeripheralSupported: Boolean = true,
     val error: String? = null
 )
 
