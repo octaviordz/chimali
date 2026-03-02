@@ -1,18 +1,45 @@
 package com.chimali.fido2.domain.service.impl
 
+import com.chimali.fido2.domain.model.AttestationObject
+import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.service.Fido2Service
+import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * T070 — Wires [Fido2Service] to [RegisterCredentialUseCase] so the presentation layer
+ * has a single entry-point for all FIDO2 operations.
+ */
 @Singleton
 class Fido2ServiceImpl @Inject constructor(
-    private val fido2Repository: Fido2Repository
+    private val fido2Repository: Fido2Repository,
+    private val registerCredentialUseCase: RegisterCredentialUseCase
 ) : Fido2Service {
 
-    override suspend fun registerNewCredential(rpId: String, userName: String, userDisplayName: String): Result<String> {
+    /**
+     * T070 — Full FIDO2 registration via CTAP2 MakeCredential.
+     *
+     * Delegates to [RegisterCredentialUseCase] which handles:
+     * - Options validation
+     * - User verification (biometric / PIN)
+     * - Consent recording (T075)
+     * - Key-pair generation & KeyStore storage
+     * - AttestationObject construction
+     * - Credential persistence
+     */
+    override suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject> {
+        return registerCredentialUseCase(options)
+    }
+
+    override suspend fun registerNewCredential(
+        rpId: String,
+        userName: String,
+        userDisplayName: String
+    ): Result<String> {
         return fido2Repository.registerCredential(rpId, userName, userDisplayName)
     }
 
@@ -28,8 +55,5 @@ class Fido2ServiceImpl @Inject constructor(
         return fido2Repository.deleteCredential(credentialId)
     }
 
-    override suspend fun isSupported(): Boolean {
-        // TODO: Check if FIDO2 is supported on this device
-        return true
-    }
+    override suspend fun isSupported(): Boolean = true
 }

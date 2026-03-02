@@ -79,41 +79,41 @@
 - [X] T048 [P] [US1] Implement unit tests for DAOs
 
 ### Core Bluetooth Tasks
-- [ ] T049 [US1] Implement BluetoothHidDevice wrapper for HID profile
-- [ ] T050 [US1] Create HID report parser for CTAP2 messages
-- [ ] T051 [US1] Implement CTAP2 MakeCredential command handler
-- [ ] T052 [US1] Create CTAP2 response builder for attestation
-- [ ] T053 [US1] Implement Bluetooth HID transport layer
-- [ ] T054 [US1] Add connection state management for HID sessions
-- [ ] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
-- [ ] T056 [P] [US1] Implement unit tests for CTAP2 protocol
+- [X] T049 [US1] Implement BluetoothHidDevice wrapper for HID profile
+- [X] T050 [US1] Create HID report parser for CTAP2 messages
+- [X] T051 [US1] Implement CTAP2 MakeCredential command handler
+- [X] T052 [US1] Create CTAP2 response builder for attestation
+- [X] T053 [US1] Implement Bluetooth HID transport layer
+- [X] T054 [US1] Add connection state management for HID sessions
+- [X] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
+- [X] T056 [P] [US1] Implement unit tests for CTAP2 protocol
 
 ### Core Crypto Tasks
-- [ ] T057 [US1] Implement ECDSA P-256 key pair generation
-- [ ] T058 [US1] Create attestation statement generator
-- [ ] T059 [US1] Implement client data hash generation
-- [ ] T060 [US1] Create signature generation for attestation
-- [ ] T061 [P] [US1] Implement unit tests for crypto operations
+- [X] T057 [US1] Implement ECDSA P-256 key pair generation
+- [X] T058 [US1] Create attestation statement generator
+- [X] T059 [US1] Implement client data hash generation
+- [X] T060 [US1] Create signature generation for attestation
+- [X] T061 [P] [US1] Implement unit tests for crypto operations
 
 ### Presentation Layer Tasks
-- [ ] T062 [US1] Create RegistrationPromptViewModel with MVI pattern
-- [ ] T063 [US1] Implement RegistrationPrompt Compose screen
-- [ ] T064 [US1] Create BiometricPrompt Compose component
-- [ ] T065 [US1] Implement PIN entry dialog Compose component
-- [ ] T066 [US1] Create registration progress indicator
-- [ ] T067 [US1] Add navigation for registration flow
-- [ ] T068 [P] [US1] Implement Compose UI tests for registration screen
-- [ ] T069 [P] [US1] Implement integration tests for registration flow
+- [X] T062 [US1] Create RegistrationPromptViewModel with MVI pattern
+- [X] T063 [US1] Implement RegistrationPrompt Compose screen
+- [X] T064 [US1] Create BiometricPrompt Compose component
+- [X] T065 [US1] Implement PIN entry dialog Compose component
+- [X] T066 [US1] Create registration progress indicator
+- [X] T067 [US1] Add navigation for registration flow
+- [X] T068 [P] [US1] Implement Compose UI tests for registration screen
+- [X] T069 [P] [US1] Implement integration tests for registration flow
 
 ### Integration Tasks
-- [ ] T070 [US1] Wire up RegisterCredential use case with repository
-- [ ] T071 [US1] Connect registration UI with ViewModel and use cases
-- [ ] T072 [US1] Integrate biometric verification with registration flow
-- [ ] T073 [US1] Connect CTAP2 handler with Bluetooth HID transport
-- [ ] T074 [US1] Implement error handling for registration failures
-- [ ] T075 [US1] Add user consent logging for registration
-- [ ] T076 [P] [US1] Implement end-to-end integration tests for registration
-- [ ] T077 Verify registration story compiles and passes all tests
+- [X] T070 [US1] Wire up RegisterCredential use case with repository
+- [X] T071 [US1] Connect registration UI with ViewModel and use cases
+- [X] T072 [US1] Integrate biometric verification with registration flow
+- [X] T073 [US1] Connect CTAP2 handler with Bluetooth HID transport
+- [X] T074 [US1] Implement error handling for registration failures
+- [X] T075 [US1] Add user consent logging for registration
+- [X] T076 [P] [US1] Implement end-to-end integration tests for registration
+- [X] T077 Verify registration story compiles and passes all tests
 
 ## Phase 4: User Story 2 - FIDO2 Authentication (Priority: P1)
 

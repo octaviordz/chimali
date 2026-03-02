@@ -189,8 +189,38 @@ interface CredentialRepository {
     suspend fun getCredentialStatistics(): CredentialStatistics
     
     /**
+     * T083 — Retrieves all credentials for a specific RP as a list (not Flow).
+     * Used by GetAssertionUseCase for synchronous candidate resolution.
+     *
+     * @param rpId The ID of the relying party
+     * @return Result containing list of matching credentials
+     */
+    suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>>
+
+    /**
+     * T084 — Retrieves the current sign count for a credential.
+     *
+     * @param credentialId  ID of the credential
+     * @return Result containing the sign count (0 if not found)
+     */
+    suspend fun getSignCount(credentialId: String): Result<Long>
+
+    /**
+     * T085 — Retrieves a batch of credentials by their IDs.
+     * Used by SelectCredentialUseCase to filter an allow-list efficiently.
+     *
+     * @param credentialIds Set of credential IDs to look up
+     * @param rpId          Optional RP filter for additional scoping
+     * @return Result containing list of matching credentials
+     */
+    suspend fun getCredentialsByIds(
+        credentialIds: Set<String>,
+        rpId: String? = null
+    ): Result<List<PasskeyCredential>>
+
+    /**
      * Performs cleanup of expired credentials.
-     * 
+     *
      * @param maxAgeDays Maximum age in days before deletion
      * @return Result with count of deleted credentials
      */

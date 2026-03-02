@@ -8,7 +8,7 @@ enum class AttestationConveyancePreference {
     NONE,
     INDIRECT,
     DIRECT,
-    ENTERPRISE,
+    ENTERPRISE;
     
     /**
      * Returns a description of the preference.

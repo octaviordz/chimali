@@ -157,5 +157,66 @@ data class PasskeyCredential(
                 credentialId = credentialId
             )
         }
+        /**
+         * T071 — Creates a lightweight display-only [PasskeyCredential] from [MakeCredentialOptions].
+         *
+         * This is used by the ViewModel to surface a usable credential object to the UI immediately
+         * after successful registration, while the full credential is persisted by the use case.
+         * A synthetic no-op [PublicKey] is used since the real key is stored in Android KeyStore.
+         */
+        fun fromMakeCredentialOptions(options: MakeCredentialOptions): PasskeyCredential {
+            val now = java.time.Instant.now()
+            val syntheticPubKey = object : java.security.PublicKey {
+                override fun getAlgorithm(): String = "EC"
+                override fun getFormat(): String = "X.509"
+                override fun getEncoded(): ByteArray = ByteArray(0)
+            }
+            val credentialId = "cred_${now.toEpochMilli()}"
+            return PasskeyCredential(
+                id               = credentialId,
+                rpId             = options.rp.id,
+                userId           = String(options.user.id),
+                userName         = options.user.name,
+                userDisplayName  = options.user.displayName ?: options.user.name,
+                publicKey        = syntheticPubKey,
+                privateKeyAlias  = "fido2_cred_$credentialId",
+                signCount        = 0L,
+                createdAt        = now,
+                lastUsedAt       = now,
+                aaguid           = ByteArray(16),
+                credentialId     = credentialId.toByteArray()
+            )
+        }
+
+        /**
+         * Test-only factory — creates a minimal valid [PasskeyCredential] without a real [PublicKey].
+         * Must NOT be called in production code.
+         */
+        fun createTest(
+            id: String,
+            rpId: String,
+            userName: String
+        ): PasskeyCredential {
+            val now = java.time.Instant.now()
+            val syntheticPubKey = object : java.security.PublicKey {
+                override fun getAlgorithm(): String = "EC"
+                override fun getFormat(): String = "X.509"
+                override fun getEncoded(): ByteArray = ByteArray(0)
+            }
+            return PasskeyCredential(
+                id               = id,
+                rpId             = rpId,
+                userId           = "user_$id",
+                userName         = userName,
+                userDisplayName  = userName,
+                publicKey        = syntheticPubKey,
+                privateKeyAlias  = "fido2_cred_$id",
+                signCount        = 0L,
+                createdAt        = now,
+                lastUsedAt       = now,
+                aaguid           = ByteArray(16),
+                credentialId     = id.toByteArray()
+            )
+        }
     }
 }

@@ -1,0 +1,209 @@
+package com.chimali.fido2.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.VerificationMethod
+import com.chimali.fido2.presentation.error.RegistrationErrorHandler
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+// ── MVI: Intent ───────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationIntent {
+    data class InitAuthentication(val options: GetAssertionOptions) : AuthenticationIntent
+    data object ConfirmAuthentication   : AuthenticationIntent
+    data object CancelAuthentication    : AuthenticationIntent
+    data object UseBiometric            : AuthenticationIntent
+    data class UsePinVerification(val pin: String) : AuthenticationIntent
+    data class SelectCredential(val credentialId: String) : AuthenticationIntent
+    data object Retry                   : AuthenticationIntent
+}
+
+// ── MVI: State ────────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationState {
+    data object Idle : AuthenticationState
+
+    data class AwaitingUserConsent(
+        val rpId: String,
+        val rpName: String,
+        val availableMethod: VerificationMethod,
+        val credentialCount: Int
+    ) : AuthenticationState
+
+    data class SelectingCredential(
+        val rpId: String,
+        val credentials: List<PasskeyCredential>
+    ) : AuthenticationState
+
+    data object AwaitingBiometric : AuthenticationState
+    data object AwaitingPin       : AuthenticationState
+    data object Processing        : AuthenticationState
+
+    data class Success(val assertion: AssertionObject) : AuthenticationState
+    data class Error(val message: String, val isRetryable: Boolean = true) : AuthenticationState
+    data object Cancelled : AuthenticationState
+}
+
+// ── MVI: Effects ─────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationEffect {
+    data object NavigateToBiometricPrompt  : AuthenticationEffect
+    data object NavigateToPinEntry         : AuthenticationEffect
+    data class NavigateToSuccess(val assertion: AssertionObject) : AuthenticationEffect
+    data object NavigateBack               : AuthenticationEffect
+    data class ShowSnackbar(val message: String) : AuthenticationEffect
+}
+
+// ── ViewModel ─────────────────────────────────────────────────────────────────
+
+/**
+ * T095 — MVI ViewModel for the FIDO2 Authentication Prompt.
+ *
+ * Mirrors the structure of [RegistrationPromptViewModel] for consistency.
+ * Drives [GetAssertionUseCase] via intents and emits state/effects.
+ */
+@HiltViewModel
+class AuthenticationPromptViewModel @Inject constructor(
+    private val getAssertionUseCase: GetAssertionUseCase,
+    private val userVerificationService: UserVerificationService
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<AuthenticationState>(AuthenticationState.Idle)
+    val state: StateFlow<AuthenticationState> = _state.asStateFlow()
+
+    private val _effects = Channel<AuthenticationEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
+
+    private var pendingOptions: GetAssertionOptions? = null
+
+    // ── Intent dispatch ───────────────────────────────────────────────────────
+
+    fun handleIntent(intent: AuthenticationIntent) {
+        when (intent) {
+            is AuthenticationIntent.InitAuthentication  -> initAuthentication(intent.options)
+            is AuthenticationIntent.ConfirmAuthentication -> confirmAuthentication()
+            is AuthenticationIntent.CancelAuthentication  -> cancel()
+            is AuthenticationIntent.UseBiometric          -> startBiometric()
+            is AuthenticationIntent.UsePinVerification    -> startPin(intent.pin)
+            is AuthenticationIntent.SelectCredential      -> onCredentialSelected(intent.credentialId)
+            is AuthenticationIntent.Retry                 -> retry()
+        }
+    }
+
+    // ── Handlers ──────────────────────────────────────────────────────────────
+
+    private fun initAuthentication(options: GetAssertionOptions) {
+        pendingOptions = options
+        viewModelScope.launch {
+            val availability = userVerificationService.getUserVerificationAvailability()
+            _state.value = AuthenticationState.AwaitingUserConsent(
+                rpId            = options.rpId,
+                rpName          = options.rpId,          // RP name resolved from repo in a future pass
+                availableMethod = availability.getBestAvailableMethod(),
+                credentialCount = options.allowCredentials?.size ?: 0
+            )
+        }
+    }
+
+    private fun confirmAuthentication() {
+        val options = pendingOptions ?: run {
+            _state.value = AuthenticationState.Error("No pending authentication request", false); return
+        }
+        viewModelScope.launch {
+            val availability = userVerificationService.getUserVerificationAvailability()
+            when (availability.getBestAvailableMethod()) {
+                VerificationMethod.BIOMETRIC -> {
+                    _state.value = AuthenticationState.AwaitingBiometric
+                    emit(AuthenticationEffect.NavigateToBiometricPrompt)
+                }
+                VerificationMethod.PIN -> {
+                    _state.value = AuthenticationState.AwaitingPin
+                    emit(AuthenticationEffect.NavigateToPinEntry)
+                }
+                else -> performAuthentication(options)
+            }
+        }
+    }
+
+    private fun startBiometric() {
+        val options = pendingOptions ?: return
+        viewModelScope.launch {
+            _state.value = AuthenticationState.AwaitingBiometric
+            val result = userVerificationService.verifyBiometric(
+                prompt = "Sign in with passkey for ${options.rpId}",
+                rpId   = options.rpId
+            )
+            if (result.isSuccess) {
+                performAuthentication(options)
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: "Biometric verification failed"
+                _state.value = AuthenticationState.Error(msg)
+                emit(AuthenticationEffect.ShowSnackbar(msg))
+            }
+        }
+    }
+
+    private fun startPin(pin: String) {
+        val options = pendingOptions ?: return
+        viewModelScope.launch {
+            val result = userVerificationService.verifyPin("Enter PIN to sign in", options.rpId)
+            if (result.isSuccess) {
+                performAuthentication(options)
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: "PIN verification failed"
+                _state.value = AuthenticationState.Error(msg)
+                emit(AuthenticationEffect.ShowSnackbar(msg))
+            }
+        }
+    }
+
+    private fun onCredentialSelected(credentialId: String) {
+        // Re-run with updated allow-list that only contains selected credential
+        val options = pendingOptions ?: return
+        val filtered = options.allowCredentials?.filter { it.id == credentialId }
+        pendingOptions = options.copy(allowCredentials = filtered)
+        confirmAuthentication()
+    }
+
+    private fun cancel() {
+        pendingOptions = null
+        _state.value = AuthenticationState.Cancelled
+        viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
+    }
+
+    private fun retry() {
+        val options = pendingOptions ?: run {
+            _state.value = AuthenticationState.Error("No pending request", false); return
+        }
+        initAuthentication(options)
+    }
+
+    private fun performAuthentication(options: GetAssertionOptions) {
+        _state.value = AuthenticationState.Processing
+        viewModelScope.launch {
+            getAssertionUseCase(options)
+                .onSuccess { assertion ->
+                    _state.value = AuthenticationState.Success(assertion)
+                    emit(AuthenticationEffect.NavigateToSuccess(assertion))
+                }
+                .onFailure { error ->
+                    val ui = RegistrationErrorHandler.handle(error)   // reuse error handler
+                    _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
+                }
+        }
+    }
+
+    private suspend fun emit(effect: AuthenticationEffect) = _effects.send(effect)
+}

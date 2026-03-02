@@ -152,8 +152,8 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         }
 
         /** Called when the host sends data over the HID interrupt channel. */
-        override fun onIntrData(device: BluetoothDevice, reportId: Byte, data: ByteArray) {
-            Log.d(TAG, "onIntrData reportId=$reportId len=${data.size}")
+        override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) {
+            Log.d(TAG, "onInterruptData reportId=$reportId len=${data.size}")
             incomingReports.trySend(ensureReportSize(data))
         }
 
@@ -230,7 +230,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
                 hidCallback.onAppStatusChanged(pluggedDevice, registered)
                 if (registered) {
-                    if (cont.isActive) cont.resume(Unit)
+                    if (cont.isActive) cont.resume(Result.success(Unit))
                 } else {
                     if (cont.isActive) cont.resumeWithException(
                         Fido2Exception.BluetoothException("HID app registration failed")
@@ -244,8 +244,8 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) =
                 hidCallback.onSetReport(device, type, id, data)
 
-            override fun onIntrData(device: BluetoothDevice, reportId: Byte, data: ByteArray) =
-                hidCallback.onIntrData(device, reportId, data)
+            override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) =
+                hidCallback.onInterruptData(device, reportId, data)
 
             override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) =
                 hidCallback.onGetReport(device, type, id, bufferSize)
