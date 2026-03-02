@@ -1,0 +1,99 @@
+insert:
+INSERT INTO UserConsentRecord (id, operationType, rpId, credentialId, timestamp, biometricUsed, pinUsed, ipAddress, userAgent, deviceId)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectById:
+SELECT * FROM UserConsentRecord WHERE id = ?;
+
+selectByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = ? ORDER BY timestamp DESC LIMIT :limit;
+
+selectByOperationType:
+SELECT * FROM UserConsentRecord WHERE operationType = ? ORDER BY timestamp DESC LIMIT :limit;
+
+selectAll:
+SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
+
+getSummaryByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = ?;
+
+deleteById:
+DELETE FROM UserConsentRecord WHERE id = ?;
+
+deleteByRpId:
+DELETE FROM UserConsentRecord WHERE rpId = ?;
+
+deleteOlderThan:
+DELETE FROM UserConsentRecord WHERE timestamp < ?;
+
+selectRecentByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId ORDER BY timestamp DESC LIMIT :limit;
+selectRecent:
+SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
+selectByCredentialId:
+SELECT * FROM UserConsentRecord WHERE credentialId = :credentialId ORDER BY timestamp DESC LIMIT :limit;
+selectByOperationAndRpId:
+SELECT * FROM UserConsentRecord WHERE operationType = :operationType AND rpId = :rpId ORDER BY timestamp DESC LIMIT :limit;
+selectByDateRangeAndRpId:
+SELECT * FROM UserConsentRecord WHERE timestamp >= :start AND timestamp <= :end AND rpId = :rpId;
+selectByDateRange:
+SELECT * FROM UserConsentRecord WHERE timestamp >= :start AND timestamp <= :end;
+selectByDeviceId:
+SELECT * FROM UserConsentRecord WHERE rpId = :deviceId LIMIT :limit;
+selectByIpAddress:
+SELECT * FROM UserConsentRecord WHERE rpId = :ipAddress LIMIT :limit;
+selectBiometricByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 LIMIT :limit;
+selectBiometric:
+SELECT * FROM UserConsentRecord WHERE biometricUsed > 0 LIMIT :limit;
+selectPinByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND pinUsed > 0 LIMIT :limit;
+selectPin:
+SELECT * FROM UserConsentRecord WHERE pinUsed > 0 LIMIT :limit;
+selectCombinedByRpId:
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 AND pinUsed > 0 LIMIT :limit;
+selectCombined:
+SELECT * FROM UserConsentRecord WHERE biometricUsed > 0 AND pinUsed > 0 LIMIT :limit;
+selectByTimestamp:
+SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
+search:
+SELECT * FROM UserConsentRecord WHERE rpId LIKE :query LIMIT :limit;
+selectOldConsent:
+SELECT * FROM UserConsentRecord WHERE timestamp < :before;
+deleteOldConsent:
+DELETE FROM UserConsentRecord WHERE timestamp < :before;
+deleteByCredentialId:
+DELETE FROM UserConsentRecord WHERE credentialId = :credentialId;
+deleteByDeviceId:
+DELETE FROM UserConsentRecord WHERE rpId = :deviceId;
+countAll:
+SELECT count(*) FROM UserConsentRecord;
+countByOperationType:
+SELECT count(*) FROM UserConsentRecord WHERE operationType = :operationType;
+countByRpId:
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId;
+countByCredentialId:
+SELECT count(*) FROM UserConsentRecord WHERE credentialId = :credentialId;
+countBiometricByRpId:
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0;
+countBiometric:
+SELECT count(*) FROM UserConsentRecord WHERE biometricUsed > 0;
+countPinByRpId:
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND pinUsed > 0;
+countPin:
+SELECT count(*) FROM UserConsentRecord WHERE pinUsed > 0;
+countCombinedByRpId:
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 AND pinUsed > 0;
+countCombined:
+SELECT count(*) FROM UserConsentRecord WHERE biometricUsed > 0 AND pinUsed > 0;
+existsById:
+SELECT count(*) > 0 FROM UserConsentRecord WHERE id = :id;
+getStatisticsByOperation:
+SELECT operationType, count(*) FROM UserConsentRecord GROUP BY operationType;
+getStatisticsByRpId:
+SELECT rpId, count(*) FROM UserConsentRecord GROUP BY rpId LIMIT :limit;
+changes:
+SELECT changes();
+
+countByOperationAndRpId:
+SELECT count(*) FROM UserConsentRecord WHERE operationType = :operationType AND rpId = :rpId;

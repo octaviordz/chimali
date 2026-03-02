@@ -18,7 +18,7 @@ data class PublicKeyCredentialDescriptor(
      * Validates the PublicKeyCredentialDescriptor according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(id.isNotEmpty()) { "Credential ID cannot be empty" }
         require(id.size <= 1023) { "Credential ID cannot exceed 1023 bytes" }

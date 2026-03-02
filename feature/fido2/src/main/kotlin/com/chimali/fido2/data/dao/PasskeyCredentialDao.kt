@@ -1,9 +1,11 @@
 package com.chimali.fido2.data.dao
 
-import com.chimali.fido2.data.database.PasskeyCredentialEntity
+import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEntity
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.data.database.Fido2Database
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import app.cash.sqldelight.coroutines.asFlow
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,6 +26,7 @@ class PasskeyCredentialDao @Inject constructor(
         database.passkeyCredentialQueries.insert(
             id = credential.id,
             rpId = credential.rpId,
+            rpName = credential.rpId, // fallback
             userId = credential.userId,
             userName = credential.userName,
             userDisplayName = credential.userDisplayName,
@@ -31,9 +34,9 @@ class PasskeyCredentialDao @Inject constructor(
             signCount = credential.signCount,
             createdAt = credential.createdAt.toEpochMilli(),
             lastUsedAt = credential.lastUsedAt.toEpochMilli(),
-            aaguid = credential.aaguid,
-            credentialId = credential.credentialId,
-            publicKeyEncoded = credential.publicKey.encoded
+            aaguid = java.util.Base64.getEncoder().encodeToString(credential.aaguid),
+            credentialId = java.util.Base64.getEncoder().encodeToString(credential.credentialId),
+            publicKey = java.util.Base64.getEncoder().encodeToString(credential.publicKey.encoded)
         )
     }
     
@@ -77,14 +80,12 @@ class PasskeyCredentialDao @Inject constructor(
      */
     suspend fun updateCredential(credential: PasskeyCredential) {
         database.passkeyCredentialQueries.update(
-            id = credential.id,
-            rpId = credential.rpId,
-            userId = credential.userId,
+            rpName = credential.rpId, // fallback
             userName = credential.userName,
             userDisplayName = credential.userDisplayName,
-            privateKeyAlias = credential.privateKeyAlias,
             signCount = credential.signCount,
-            lastUsedAt = credential.lastUsedAt.toEpochMilli()
+            lastUsedAt = credential.lastUsedAt.toEpochMilli(),
+            id = credential.id
         )
     }
     
@@ -93,9 +94,8 @@ class PasskeyCredentialDao @Inject constructor(
      */
     suspend fun updateSignCount(credentialId: String, signCount: Long) {
         database.passkeyCredentialQueries.updateSignCount(
-            credentialId = credentialId,
             signCount = signCount,
-            lastUsedAt = Instant.now().toEpochMilli()
+            credentialId = credentialId
         )
     }
     
@@ -104,9 +104,17 @@ class PasskeyCredentialDao @Inject constructor(
      */
     suspend fun updateLastUsedAt(credentialId: String) {
         database.passkeyCredentialQueries.updateLastUsedAt(
-            credentialId = credentialId,
-            lastUsedAt = Instant.now().toEpochMilli()
+            lastUsedAt = Instant.now().toEpochMilli(),
+            credentialId = credentialId
         )
+    }
+
+    /**
+     * Retrieves the sign count for a specific credential.
+     */
+    suspend fun getSignCount(credentialId: String): Long {
+        return database.passkeyCredentialQueries.getSignCount(credentialId)
+            .executeAsOneOrNull() ?: 0L
     }
     
     /**
@@ -171,7 +179,7 @@ class PasskeyCredentialDao @Inject constructor(
      * Retrieves credentials sorted by last used date (most recent first).
      */
     fun getCredentialsByLastUsed(limit: Int = 50): Flow<List<PasskeyCredentialEntity>> {
-        return database.passkeyCredentialQueries.selectByLastUsed(limit)
+        return database.passkeyCredentialQueries.selectByLastUsed(limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -180,7 +188,7 @@ class PasskeyCredentialDao @Inject constructor(
      * Retrieves credentials sorted by creation date (newest first).
      */
     fun getCredentialsByCreationDate(limit: Int = 50): Flow<List<PasskeyCredentialEntity>> {
-        return database.passkeyCredentialQueries.selectByCreationDate(limit)
+        return database.passkeyCredentialQueries.selectByCreationDate(limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -221,7 +229,8 @@ class PasskeyCredentialDao @Inject constructor(
      * Retrieves credentials with specific AAGUID.
      */
     fun getCredentialsByAaguid(aaguid: ByteArray): Flow<List<PasskeyCredentialEntity>> {
-        return database.passkeyCredentialQueries.selectByAaguid(aaguid)
+        val aaguidStr = java.util.Base64.getEncoder().encodeToString(aaguid)
+        return database.passkeyCredentialQueries.selectByAaguid(aaguidStr)
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -241,7 +250,14 @@ class PasskeyCredentialDao @Inject constructor(
     suspend fun updateCredentials(credentials: List<PasskeyCredential>) {
         database.transaction {
             credentials.forEach { credential ->
-                updateCredential(credential)
+                database.passkeyCredentialQueries.update(
+                    rpName = credential.rpId, // fallback
+                    userName = credential.userName,
+                    userDisplayName = credential.userDisplayName,
+                    signCount = credential.signCount,
+                    lastUsedAt = credential.lastUsedAt.toEpochMilli(),
+                    id = credential.id
+                )
             }
         }
     }
@@ -253,7 +269,7 @@ class PasskeyCredentialDao @Inject constructor(
         var deletedCount = 0
         database.transaction {
             credentialIds.forEach { credentialId ->
-                deleteCredential(credentialId)
+                database.passkeyCredentialQueries.deleteById(credentialId)
                 deletedCount++
             }
         }
@@ -265,7 +281,7 @@ class PasskeyCredentialDao @Inject constructor(
      */
     private suspend fun getChangesCount(): Int {
         return database.passkeyCredentialQueries.changes()
-            .executeAsOne()
+            .executeAsOne().toInt()
     }
     
     /**
@@ -275,10 +291,10 @@ class PasskeyCredentialDao @Inject constructor(
         val total = countAllCredentials()
         val byRp = database.passkeyCredentialQueries.getStatisticsByRpId()
             .executeAsList()
-            .associate { it.rp_id to it.count }
+            .associate { it.rpId to it.count }
         val byUser = database.passkeyCredentialQueries.getStatisticsByUserId()
             .executeAsList()
-            .associate { it.user_id to it.count }
+            .associate { it.userId to it.count }
         
         return CredentialStatistics(
             totalCredentials = total.toInt(),

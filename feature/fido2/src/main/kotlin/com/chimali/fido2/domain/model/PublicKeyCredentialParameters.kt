@@ -19,7 +19,7 @@ data class PublicKeyCredentialParameters(
      * Validates the PublicKeyCredentialParameters according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(algorithm.isNotBlank()) { "Algorithm cannot be blank" }
         require(type != PublicKeyCredentialType.UNKNOWN) { "Credential type must be specified" }

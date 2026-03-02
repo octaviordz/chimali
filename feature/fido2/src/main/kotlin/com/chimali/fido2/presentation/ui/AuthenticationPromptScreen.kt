@@ -7,7 +7,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.viewmodel.*
 import kotlinx.coroutines.flow.collectLatest
 
@@ -65,7 +65,7 @@ internal fun AuthenticationPromptContent(
     onCancel: () -> Unit,
     onBiometric: () -> Unit,
     onPinSubmit: (String) -> Unit,
-    onSelectCredential: (String) -> Unit,
+    onSelectCredential: (PasskeyCredential) -> Unit,
     onRetry: () -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -88,7 +88,7 @@ internal fun AuthenticationPromptContent(
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(96.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.Key, contentDescription = "Passkey", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Icon(Icons.Filled.Lock, contentDescription = "Passkey", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
                         Spacer(Modifier.height(24.dp))

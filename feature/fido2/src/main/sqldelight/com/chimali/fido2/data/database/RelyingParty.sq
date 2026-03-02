@@ -1,0 +1,80 @@
+insert:
+INSERT INTO RelyingParty (id, name, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE RelyingParty
+SET name = ?, iconUrl = ?, credentialCount = ?, lastUsedAt = ?, isBlocked = ?
+WHERE id = ?;
+
+selectById:
+SELECT * FROM RelyingParty WHERE id = ?;
+
+selectAll:
+SELECT * FROM RelyingParty;
+
+searchByName:
+SELECT * FROM RelyingParty WHERE name LIKE :query;
+
+deleteById:
+DELETE FROM RelyingParty WHERE id = ?;
+
+deleteStats:
+DELETE FROM RelyingPartyStats WHERE id = ?;
+
+getStats:
+SELECT * FROM RelyingPartyStats WHERE id = ?;
+
+getAllStats:
+SELECT * FROM RelyingPartyStats;
+
+updateCredentialCount:
+UPDATE RelyingParty SET credentialCount = :credentialCount, lastUsedAt = :lastUsedAt WHERE id = :id;
+
+isBlocked:
+SELECT isBlocked FROM RelyingParty WHERE id = :id; 
+
+selectWithCredentials:
+SELECT * FROM RelyingParty WHERE credentialCount > 0;
+selectWithoutCredentials:
+SELECT * FROM RelyingParty WHERE credentialCount = 0;
+selectBlocked:
+SELECT * FROM RelyingParty WHERE 1=0;
+selectUnblocked:
+SELECT * FROM RelyingParty;
+selectByCredentialCount:
+SELECT * FROM RelyingParty ORDER BY credentialCount DESC LIMIT :limit;
+selectByLastUsed:
+SELECT * FROM RelyingParty LIMIT :limit;
+selectByCreationDate:
+SELECT * FROM RelyingParty ORDER BY createdAt DESC LIMIT :limit;
+selectByDateRange:
+SELECT * FROM RelyingParty WHERE createdAt >= :start AND createdAt <= :end;
+selectUnused:
+SELECT * FROM RelyingParty WHERE createdAt < :cutoffDate;
+countAll:
+SELECT count(*) FROM RelyingParty;
+countWithCredentials:
+SELECT count(*) FROM RelyingParty WHERE credentialCount > 0;
+countBlocked:
+SELECT 0;
+existsById:
+SELECT count(*) > 0 FROM RelyingParty WHERE id = :id;
+selectByDomain:
+SELECT * FROM RelyingParty WHERE id LIKE :domain;
+selectByCredentialCountRange:
+SELECT * FROM RelyingParty WHERE credentialCount >= :min AND credentialCount <= :max;
+deleteEmptyRelyingParties:
+DELETE FROM RelyingParty WHERE credentialCount = 0;
+changes:
+SELECT changes();
+getTopRelyingParties:
+SELECT * FROM RelyingParty ORDER BY credentialCount DESC LIMIT :limit;
+incrementCredentialCount:
+UPDATE RelyingParty SET credentialCount = credentialCount + 1, lastUsedAt = :lastUsedAt WHERE id = :id;
+decrementCredentialCount:
+UPDATE RelyingParty SET credentialCount = credentialCount - 1, lastUsedAt = :lastUsedAt WHERE id = :id;
+updateLastUsedAt:
+UPDATE RelyingParty SET lastUsedAt = :lastUsedAt WHERE id = :id;
+updateBlockedStatus:
+UPDATE RelyingParty SET isBlocked = :isBlocked WHERE id = :id;

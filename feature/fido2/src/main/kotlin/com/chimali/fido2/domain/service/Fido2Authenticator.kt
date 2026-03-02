@@ -327,7 +327,7 @@ data class BiometricSettings(
      * Returns the strongest enabled biometric type.
      */
     fun getStrongestType(): BiometricType? {
-        return enabledTypes.maxByOrNull { it.strength.level }
+        return enabledTypes.maxByOrNull { it.level }
     }
 }
 

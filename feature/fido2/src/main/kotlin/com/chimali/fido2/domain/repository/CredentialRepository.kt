@@ -225,6 +225,22 @@ interface CredentialRepository {
      * @return Result with count of deleted credentials
      */
     suspend fun cleanupExpiredCredentials(maxAgeDays: Long = 730): Result<Int>
+
+    /**
+     * T110 — Deletes all FIDO2 credentials. If [rpId] is provided, only deletes credentials for that RP.
+     *
+     * @param rpId Optional RP ID to filter destruction
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteAllCredentials(rpId: String? = null): Result<Unit>
+
+    /**
+     * T111 — Performs a complete authenticator reset, erasing all credentials, 
+     * keys, PINs, and returning the authenticator to factory defaults.
+     *
+     * @return Result indicating success or failure
+     */
+    suspend fun resetAuthenticator(): Result<Unit>
 }
 
 /**

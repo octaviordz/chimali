@@ -144,7 +144,7 @@ data class BiometricEnrollmentStatus(
      * Returns the strongest enrolled biometric type.
      */
     fun getStrongestType(): BiometricType? {
-        return enrolledTypes.maxByOrNull { it.strength.level }
+        return enrolledTypes.maxByOrNull { it.level }
     }
 }
 

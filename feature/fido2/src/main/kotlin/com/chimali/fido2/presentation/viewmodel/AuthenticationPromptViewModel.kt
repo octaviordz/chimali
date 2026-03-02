@@ -26,7 +26,7 @@ sealed interface AuthenticationIntent {
     data object CancelAuthentication    : AuthenticationIntent
     data object UseBiometric            : AuthenticationIntent
     data class UsePinVerification(val pin: String) : AuthenticationIntent
-    data class SelectCredential(val credentialId: String) : AuthenticationIntent
+    data class SelectCredential(val credential: PasskeyCredential) : AuthenticationIntent
     data object Retry                   : AuthenticationIntent
 }
 
@@ -97,7 +97,7 @@ class AuthenticationPromptViewModel @Inject constructor(
             is AuthenticationIntent.CancelAuthentication  -> cancel()
             is AuthenticationIntent.UseBiometric          -> startBiometric()
             is AuthenticationIntent.UsePinVerification    -> startPin(intent.pin)
-            is AuthenticationIntent.SelectCredential      -> onCredentialSelected(intent.credentialId)
+            is AuthenticationIntent.SelectCredential      -> onCredentialSelected(intent.credential)
             is AuthenticationIntent.Retry                 -> retry()
         }
     }
@@ -169,10 +169,10 @@ class AuthenticationPromptViewModel @Inject constructor(
         }
     }
 
-    private fun onCredentialSelected(credentialId: String) {
+    private fun onCredentialSelected(credential: PasskeyCredential) {
         // Re-run with updated allow-list that only contains selected credential
         val options = pendingOptions ?: return
-        val filtered = options.allowCredentials?.filter { it.id == credentialId }
+        val filtered = listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credential.credentialId))
         pendingOptions = options.copy(allowCredentials = filtered)
         confirmAuthentication()
     }

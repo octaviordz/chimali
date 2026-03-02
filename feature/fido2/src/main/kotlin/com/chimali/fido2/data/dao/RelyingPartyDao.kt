@@ -1,9 +1,11 @@
 package com.chimali.fido2.data.dao
 
-import com.chimali.fido2.data.database.RelyingPartyEntity
+import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.data.database.Fido2Database
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import app.cash.sqldelight.coroutines.asFlow
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,7 +30,7 @@ class RelyingPartyDao @Inject constructor(
             credentialCount = rp.credentialCount.toLong(),
             createdAt = rp.createdAt.toEpochMilli(),
             lastUsedAt = rp.lastUsedAt?.toEpochMilli(),
-            isBlocked = rp.isBlocked
+            isBlocked = if (rp.isBlocked) 1L else 0L
         )
     }
     
@@ -59,7 +61,7 @@ class RelyingPartyDao @Inject constructor(
             iconUrl = rp.iconUrl,
             credentialCount = rp.credentialCount.toLong(),
             lastUsedAt = rp.lastUsedAt?.toEpochMilli(),
-            isBlocked = rp.isBlocked
+            isBlocked = if (rp.isBlocked) 1L else 0L
         )
     }
     
@@ -68,7 +70,7 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun updateCredentialCount(rpId: String, count: Int) {
         database.relyingPartyQueries.updateCredentialCount(
-            rpId = rpId,
+            id = rpId,
             credentialCount = count.toLong(),
             lastUsedAt = Instant.now().toEpochMilli()
         )
@@ -79,7 +81,7 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun incrementCredentialCount(rpId: String) {
         database.relyingPartyQueries.incrementCredentialCount(
-            rpId = rpId,
+            id = rpId,
             lastUsedAt = Instant.now().toEpochMilli()
         )
     }
@@ -89,7 +91,7 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun decrementCredentialCount(rpId: String) {
         database.relyingPartyQueries.decrementCredentialCount(
-            rpId = rpId,
+            id = rpId,
             lastUsedAt = Instant.now().toEpochMilli()
         )
     }
@@ -99,7 +101,7 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun updateLastUsedAt(rpId: String) {
         database.relyingPartyQueries.updateLastUsedAt(
-            rpId = rpId,
+            id = rpId,
             lastUsedAt = Instant.now().toEpochMilli()
         )
     }
@@ -109,8 +111,8 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun updateBlockedStatus(rpId: String, isBlocked: Boolean) {
         database.relyingPartyQueries.updateBlockedStatus(
-            rpId = rpId,
-            isBlocked = isBlocked
+            id = rpId,
+            isBlocked = if (isBlocked) 1L else 0L
         )
     }
     
@@ -171,7 +173,7 @@ class RelyingPartyDao @Inject constructor(
      * Retrieves relying parties sorted by credential count (most first).
      */
     fun getRelyingPartiesByCredentialCount(limit: Int = 50): Flow<List<RelyingPartyEntity>> {
-        return database.relyingPartyQueries.selectByCredentialCount(limit)
+        return database.relyingPartyQueries.selectByCredentialCount(limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -180,7 +182,7 @@ class RelyingPartyDao @Inject constructor(
      * Retrieves relying parties sorted by last used date (most recent first).
      */
     fun getRelyingPartiesByLastUsed(limit: Int = 50): Flow<List<RelyingPartyEntity>> {
-        return database.relyingPartyQueries.selectByLastUsed(limit)
+        return database.relyingPartyQueries.selectByLastUsed(limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -189,7 +191,7 @@ class RelyingPartyDao @Inject constructor(
      * Retrieves relying parties sorted by creation date (newest first).
      */
     fun getRelyingPartiesByCreationDate(limit: Int = 50): Flow<List<RelyingPartyEntity>> {
-        return database.relyingPartyQueries.selectByCreationDate(limit)
+        return database.relyingPartyQueries.selectByCreationDate(limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -202,8 +204,8 @@ class RelyingPartyDao @Inject constructor(
         endDate: Instant
     ): Flow<List<RelyingPartyEntity>> {
         return database.relyingPartyQueries.selectByDateRange(
-            startDate = startDate.toEpochMilli(),
-            endDate = endDate.toEpochMilli()
+            start = startDate.toEpochMilli(),
+            end = endDate.toEpochMilli()
         ).asFlow().map { query -> query.executeAsList() }
     }
     
@@ -254,7 +256,7 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun isRelyingPartyBlocked(rpId: String): Boolean {
         return database.relyingPartyQueries.isBlocked(rpId)
-            .executeAsOne()
+            .executeAsOne() > 0L
     }
     
     /**
@@ -274,8 +276,8 @@ class RelyingPartyDao @Inject constructor(
         maxCount: Int
     ): Flow<List<RelyingPartyEntity>> {
         return database.relyingPartyQueries.selectByCredentialCountRange(
-            minCount = minCount.toLong(),
-            maxCount = maxCount.toLong()
+            min = minCount.toLong(),
+            max = maxCount.toLong()
         ).asFlow().map { query -> query.executeAsList() }
     }
     
@@ -285,7 +287,14 @@ class RelyingPartyDao @Inject constructor(
     suspend fun updateRelyingParties(rps: List<RelyingParty>) {
         database.transaction {
             rps.forEach { rp ->
-                updateRelyingParty(rp)
+                database.relyingPartyQueries.update(
+                    id = rp.id,
+                    name = rp.name,
+                    iconUrl = rp.iconUrl,
+                    credentialCount = rp.credentialCount.toLong(),
+                    lastUsedAt = rp.lastUsedAt?.toEpochMilli(),
+                    isBlocked = if (rp.isBlocked) 1L else 0L
+                )
             }
         }
     }
@@ -297,7 +306,7 @@ class RelyingPartyDao @Inject constructor(
         var deletedCount = 0
         database.transaction {
             rpIds.forEach { rpId ->
-                deleteRelyingParty(rpId)
+                database.relyingPartyQueries.deleteById(rpId)
                 deletedCount++
             }
         }
@@ -317,7 +326,7 @@ class RelyingPartyDao @Inject constructor(
      */
     private suspend fun getChangesCount(): Int {
         return database.relyingPartyQueries.changes()
-            .executeAsOne()
+            .executeAsOne().toInt()
     }
     
     /**
@@ -338,7 +347,7 @@ class RelyingPartyDao @Inject constructor(
                 TopRelyingParty(
                     id = it.id,
                     name = it.name,
-                    credentialCount = it.credential_count
+                    credentialCount = it.credentialCount
                 )
             }
         )

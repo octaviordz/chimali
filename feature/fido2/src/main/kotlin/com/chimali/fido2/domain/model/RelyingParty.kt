@@ -1,6 +1,7 @@
 package com.chimali.fido2.domain.model
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.net.URI
 
 /**
@@ -13,7 +14,8 @@ data class RelyingParty(
     val iconUrl: String?,
     val credentialCount: Int,
     val createdAt: Instant,
-    val lastUsedAt: Instant?
+    val lastUsedAt: Instant? = null,
+    val isBlocked: Boolean = false
 ) {
     
     init {
@@ -24,7 +26,7 @@ data class RelyingParty(
      * Validates the RelyingParty according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(id.isNotBlank()) { "RP ID cannot be blank" }
         require(name.isNotBlank()) { "RP name cannot be blank" }
@@ -100,7 +102,7 @@ data class RelyingParty(
      * Returns the age of this RP in days.
      */
     fun getAgeInDays(): Long {
-        return createdAt.until(Instant.now()).toDays()
+        return ChronoUnit.DAYS.between(createdAt, Instant.now())
     }
     
     /**

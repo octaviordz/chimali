@@ -2,6 +2,7 @@ package com.chimali.fido2.domain.model
 
 import java.security.PublicKey
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /**
  * Domain model representing a FIDO2 passkey credential.
@@ -100,7 +101,7 @@ data class PasskeyCredential(
      * Returns the credential age in days.
      */
     fun getAgeInDays(): Long {
-        return createdAt.until(Instant.now()).toDays()
+        return ChronoUnit.DAYS.between(createdAt, Instant.now())
     }
     
     /**

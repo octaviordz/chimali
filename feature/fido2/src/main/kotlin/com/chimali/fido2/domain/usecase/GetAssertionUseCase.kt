@@ -4,6 +4,7 @@ import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -55,8 +56,9 @@ class GetAssertionUseCase @Inject constructor(
         }
 
         // 3 — select one credential (may involve UI, but here we auto-select or delegate)
-        val selectedId = selectCredentialUseCase(candidates, options)
+        val selectedCred = selectCredentialUseCase(candidates, options)
             .getOrElse { throw it }
+        val selectedId = selectedCred.id
 
         // 4 — build authenticatorData
         val rpIdHash = ClientDataHashService.rpIdHash(options.rpId)
@@ -82,7 +84,7 @@ class GetAssertionUseCase @Inject constructor(
             .getOrElse { e -> Log.w(TAG, "Failed to update sign count: ${e.message}") }
 
         // 7 — build the response descriptor
-        val credDesc = candidates.firstOrNull { it.id == selectedId }
+        val credDesc = PublicKeyCredentialDescriptor.create(id = selectedCred.credentialId)
 
         Log.d(TAG, "Assertion complete: credId=$selectedId signCount=$newSignCount")
         AssertionObject(
@@ -117,9 +119,9 @@ class GetAssertionUseCase @Inject constructor(
                             prompt = "Enter PIN to sign in",
                             rpId   = options.rpId
                         )
-                    else -> Result.failure(Fido2Exception.NoVerificationMethodAvailable())
+                    else -> Result.failure(Fido2Exception.NoVerificationMethodAvailable("No method available"))
                 }
-                result.getOrElse { throw Fido2Exception.UserVerificationFailed(it.message) }
+                result.getOrElse { throw Fido2Exception.UserVerificationFailed(it.message ?: "Verification failed") }
             }
             UserVerificationRequirement.PREFERRED -> {
                 val availability = userVerificationService.getUserVerificationAvailability()
@@ -136,19 +138,17 @@ class GetAssertionUseCase @Inject constructor(
 
     private suspend fun findCandidateCredentials(
         options: GetAssertionOptions
-    ): List<PublicKeyCredentialDescriptor> {
+    ): List<PasskeyCredential> {
         return if (options.isDiscoverableFlow()) {
             // Discoverable: any resident credential for this RP
             credentialRepository.getCredentialsForRp(options.rpId)
                 .getOrDefault(emptyList())
-                .map { PublicKeyCredentialDescriptor.create(it.id) }
         } else {
             // Non-discoverable: filter by the allow-list
-            val allowIds = options.allowCredentials!!.map { it.id }.toSet()
+            val allowIds = options.allowCredentials!!.map { it.id }
             credentialRepository.getCredentialsForRp(options.rpId)
                 .getOrDefault(emptyList())
-                .filter { it.id in allowIds }
-                .map { PublicKeyCredentialDescriptor.create(it.id) }
+                .filter { cred -> allowIds.any { it.contentEquals(cred.credentialId) } }
         }
     }
 

@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,13 +27,13 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 @Composable
 fun CredentialSelectionDialog(
     credentials: List<PasskeyCredential>,
-    onSelect: (credentialId: String) -> Unit,
+    onSelect: (credential: PasskeyCredential) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            Icon(imageVector = Icons.Filled.Key, contentDescription = "Select passkey")
+            Icon(imageVector = Icons.Filled.Lock, contentDescription = "Select passkey")
         },
         title = { Text("Choose a Passkey") },
         text = {
@@ -65,12 +65,12 @@ fun CredentialSelectionDialog(
 @Composable
 private fun CredentialItem(
     credential: PasskeyCredential,
-    onSelect: (String) -> Unit
+    onSelect: (PasskeyCredential) -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelect(credential.id) }
+            .clickable { onSelect(credential) }
             .semantics { contentDescription = "Select credential ${credential.userDisplayName}" },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(

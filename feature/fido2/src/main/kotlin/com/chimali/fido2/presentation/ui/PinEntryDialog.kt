@@ -6,8 +6,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,8 +122,8 @@ fun PinEntryDialog(
                             }
                         ) {
                             Icon(
-                                imageVector = if (showPin) Icons.Filled.VisibilityOff
-                                              else Icons.Filled.Visibility,
+                                imageVector = if (showPin) Icons.Filled.Clear
+                                              else Icons.Filled.CheckCircle,
                                 contentDescription = null
                             )
                         }

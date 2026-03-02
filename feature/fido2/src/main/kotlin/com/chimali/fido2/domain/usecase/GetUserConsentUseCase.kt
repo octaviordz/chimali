@@ -1,13 +1,18 @@
 package com.chimali.fido2.domain.usecase
 
 import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.model.VerificationMethod
+import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
-import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.exception.Fido2Exception
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.toList
 import java.time.Instant
+import javax.inject.Inject
 
 /**
  * Use case for managing user consent in FIDO2 operations.
@@ -52,18 +57,18 @@ class GetUserConsentUseCase @Inject constructor(
             )
             
             // If verification is required, perform user verification
-            val verificationResult = if (requireVerification && consentRequired == UserVerificationRequirement.REQUIRED) {
+            val verificationResult = if (requireVerification && consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED) {
                 performUserVerificationForConsent(rpId, operationType, prompt)
             } else {
                 Result.success(ConsentVerificationResult(
                     biometricUsed = false,
                     pinUsed = false,
-                    verificationMethod = VerificationMethod.NONE
+                    verificationMethod = null
                 ))
             }
             
             if (verificationResult.isFailure) {
-                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed())
+                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))
             }
             
             val verification = verificationResult.getOrThrow()
@@ -83,7 +88,7 @@ class GetUserConsentUseCase @Inject constructor(
             // Save consent record
             val saveResult = credentialRepository.saveUserConsent(consentRecord)
             if (saveResult.isFailure) {
-                return Result.failure(saveResult.exceptionOrNull() ?: Fido2Exception.ConsentStorageFailed())
+                return Result.failure(saveResult.exceptionOrNull() ?: Fido2Exception.ConsentStorageFailed("Failed to save consent"))
             }
             
             Result.success(consentRecord)
@@ -187,6 +192,7 @@ class GetUserConsentUseCase @Inject constructor(
         minutes: Long = 5
     ): Boolean {
         return getConsentRecordsByOperationType(operationType, rpId, 10)
+            .toList()
             .filter { it.isRecent(minutes) }
             .any { it.isRegistrationConsent() || it.isAuthenticationConsent() }
     }
@@ -198,7 +204,7 @@ class GetUserConsentUseCase @Inject constructor(
      * @return Consent statistics for the specified RP or all RPs
      */
     suspend fun getConsentStatistics(rpId: String? = null): ConsentStatistics {
-        val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE)
+        val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE).toList()
         
         val totalConsents = consentRecords.count()
         val registrationConsents = consentRecords.count { it.isRegistrationConsent() }
@@ -293,7 +299,7 @@ class GetUserConsentUseCase @Inject constructor(
                                 verificationMethod = VerificationMethod.PIN
                             ))
                         } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message))
+                            Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
                         }
                     } else {
                         Result.failure(Fido2Exception.NoVerificationMethodAvailable())
@@ -312,7 +318,7 @@ class GetUserConsentUseCase @Inject constructor(
                         verificationMethod = VerificationMethod.PIN
                     ))
                 } else {
-                    Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message))
+                    Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
                 }
             }
             else -> {
@@ -325,13 +331,13 @@ class GetUserConsentUseCase @Inject constructor(
      * Calculates the average number of consents per day.
      */
     private suspend fun calculateAverageConsentsPerDay(
-        consentRecords: Flow<UserConsentRecord>
+        consentRecords: List<UserConsentRecord>
     ): Double {
-        val consents = consentRecords.toList()
+        val consents = consentRecords
         if (consents.isEmpty()) return 0.0
         
-        val oldestTimestamp = consents.minOfOrNull { it.timestamp }?.timestamp
-        val newestTimestamp = consents.maxOfOrNull { it.timestamp }?.timestamp
+        val oldestTimestamp: java.time.Instant? = consents.minByOrNull { it.timestamp }?.timestamp
+        val newestTimestamp: java.time.Instant? = consents.maxByOrNull { it.timestamp }?.timestamp
         
         return if (oldestTimestamp != null && newestTimestamp != null) {
             val daysBetween = java.time.Duration.between(oldestTimestamp, newestTimestamp).toDays()
@@ -352,7 +358,7 @@ class GetUserConsentUseCase @Inject constructor(
 data class ConsentVerificationResult(
     val biometricUsed: Boolean,
     val pinUsed: Boolean,
-    val verificationMethod: VerificationMethod
+    val verificationMethod: VerificationMethod?
 )
 
 /**

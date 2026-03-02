@@ -18,7 +18,7 @@ data class PublicKeyCredentialRpEntity(
      * Validates the PublicKeyCredentialRpEntity according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(id.isNotBlank()) { "RP ID cannot be blank" }
         require(name.isNotBlank()) { "RP name cannot be blank" }

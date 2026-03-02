@@ -122,46 +122,46 @@
 **Independent Test Criteria**: Can complete FIDO2 authentication flow end-to-end with test service
 
 ### Domain Layer Tasks
-- [ ] T078 [US2] Create GetAssertionOptions domain model
-- [ ] T079 [US2] Create AssertionObject domain model
-- [ ] T080 [US2] Create Authenticate use case class
-- [ ] T081 [US2] Create SelectCredential use case class
-- [ ] T082 [P] [US2] Implement unit tests for authentication use cases
+- [X] T078 [US2] Create GetAssertionOptions domain model
+- [X] T079 [US2] Create AssertionObject domain model
+- [X] T080 [US2] Create Authenticate use case class
+- [X] T081 [US2] Create SelectCredential use case class
+- [X] T082 [P] [US2] Implement unit tests for authentication use cases
 
 ### Data Layer Tasks
-- [ ] T083 [US2] Add credential lookup methods to repository
-- [ ] T084 [US2] Implement sign count update functionality
-- [ ] T085 [US2] Create credential selection query methods
-- [ ] T086 [P] [US2] Implement unit tests for authentication repository methods
+- [X] T083 [US2] Add credential lookup methods to repository
+- [X] T084 [US2] Implement sign count update functionality
+- [X] T085 [US2] Create credential selection query methods
+- [X] T086 [P] [US2] Implement unit tests for authentication repository methods
 
 ### Core Bluetooth Tasks
-- [ ] T087 [US2] Implement CTAP2 GetAssertion command handler
-- [ ] T088 [US2] Create CTAP2 response builder for assertion
-- [ ] T089 [US2] Add credential selection support to CTAP2 layer
-- [ ] T090 [P] [US2] Implement unit tests for GetAssertion handler
+- [X] T087 [US2] Implement CTAP2 GetAssertion command handler
+- [X] T088 [US2] Create CTAP2 response builder for assertion
+- [X] T089 [US2] Add credential selection support to CTAP2 layer
+- [X] T090 [P] [US2] Implement unit tests for GetAssertion handler
 
 ### Core Crypto Tasks
-- [ ] T091 [US2] Implement assertion signature generation
-- [ ] T092 [US2] Create authenticator data builder for assertions
-- [ ] T093 [US2] Add user verification to assertion process
-- [ ] T094 [P] [US2] Implement unit tests for assertion crypto
+- [X] T091 [US2] Implement assertion signature generation
+- [X] T092 [US2] Create authenticator data builder for assertions
+- [X] T093 [US2] Add user verification to assertion process
+- [X] T094 [P] [US2] Implement unit tests for assertion crypto
 
 ### Presentation Layer Tasks
-- [ ] T095 [US2] Create AuthenticationPromptViewModel with MVI pattern
-- [ ] T096 [US2] Implement AuthenticationPrompt Compose screen
-- [ ] T097 [US2] Create CredentialSelectionDialog Compose component
-- [ ] T098 [US2] Add authentication progress indicator
-- [ ] T099 [P] [US2] Implement Compose UI tests for authentication screen
-- [ ] T100 [P] [US2] Implement integration tests for authentication flow
+- [X] T095 [US2] Create AuthenticationPromptViewModel with MVI pattern
+- [X] T096 [US2] Implement AuthenticationPrompt Compose screen
+- [X] T097 [US2] Create CredentialSelectionDialog Compose component
+- [X] T098 [US2] Add authentication progress indicator
+- [X] T099 [P] [US2] Implement Compose UI tests for authentication screen
+- [X] T100 [P] [US2] Implement integration tests for authentication flow
 
 ### Integration Tasks
-- [ ] T101 [US2] Wire up Authenticate use case with repository
-- [ ] T102 [US2] Connect authentication UI with ViewModel and use cases
-- [ ] T103 [US2] Integrate credential selection with authentication flow
-- [ ] T104 [US2] Implement error handling for authentication failures
-- [ ] T105 [US2] Add user consent logging for authentication
-- [ ] T106 [P] [US2] Implement end-to-end integration tests for authentication
-- [ ] T107 Verify authentication story compiles and passes all tests
+- [X] T101 [US2] Wire up Authenticate use case with repository
+- [X] T102 [US2] Connect authentication UI with ViewModel and use cases
+- [X] T103 [US2] Integrate credential selection with authentication flow
+- [X] T104 [US2] Implement error handling for authentication failures
+- [X] T105 [US2] Add user consent logging for authentication
+- [X] T106 [P] [US2] Implement end-to-end integration tests for authentication
+- [X] T107 Verify authentication story compiles and passes all tests
 
 ## Phase 5: User Story 3 - Credential Management (Priority: P2)
 
@@ -170,39 +170,39 @@
 **Independent Test Criteria**: Can list, view, and delete credentials through management interface
 
 ### Domain Layer Tasks
-- [ ] T108 [US3] Create GetAllCredentials use case class
-- [ ] T109 [US3] Create DeleteCredential use case class
-- [ ] T110 [US3] Create DeleteAllCredentials use case class
-- [ ] T111 [US3] Create ResetAuthenticator use case class
+- [X] T108 [US3] Create GetAllCredentials use case class
+- [X] T109 [US3] Create DeleteCredential use case class
+- [X] T110 [US3] Create DeleteAllCredentials use case class
+- [X] T111 [US3] Create ResetAuthenticator use case class
 - [ ] T112 [P] [US3] Implement unit tests for management use cases
 
 ### Data Layer Tasks
-- [ ] T113 [US3] Add credential enumeration to repository
-- [ ] T114 [US3] Implement secure credential deletion
-- [ ] T115 [US3] Add credential count tracking
+- [X] T113 [US3] Add credential enumeration to repository
+- [X] T114 [US3] Implement secure credential deletion
+- [X] T115 [US3] Add credential count tracking
 - [ ] T116 [P] [US3] Implement unit tests for management repository methods
 
 ### Core Bluetooth Tasks
-- [ ] T117 [US3] Implement CTAP2 CredentialManagement commands
-- [ ] T118 [US3] Add credential listing support to CTAP2 layer
+- [X] T117 [US3] Implement CTAP2 CredentialManagement commands
+- [X] T118 [US3] Add credential listing support to CTAP2 layer
 - [ ] T119 [P] [US3] Implement unit tests for credential management CTAP2
 
 ### Presentation Layer Tasks
-- [ ] T120 [US3] Create CredentialManagementViewModel with MVI pattern
-- [ ] T121 [US3] Implement CredentialListScreen Compose screen
-- [ ] T122 [US3] Create CredentialItem Compose component
-- [ ] T123 [US3] Implement DeleteConfirmationDialog Compose component
-- [ ] T124 [US3] Add credential details view screen
+- [X] T120 [US3] Create CredentialManagementViewModel with MVI pattern
+- [X] T121 [US3] Implement CredentialListScreen Compose screen
+- [X] T122 [US3] Create CredentialItem Compose component
+- [X] T123 [US3] Implement DeleteConfirmationDialog Compose component
+- [X] T124 [US3] Add credential details view screen
 - [ ] T125 [P] [US3] Implement Compose UI tests for credential management
 - [ ] T126 [P] [US3] Implement integration tests for management flow
 
 ### Integration Tasks
-- [ ] T127 [US3] Wire up management use cases with repository
-- [ ] T128 [US3] Connect management UI with ViewModel and use cases
-- [ ] T129 [US3] Implement error handling for management failures
-- [ ] T130 [US3] Add user consent logging for management operations
-- [ ] T131 [P] [US3] Implement end-to-end integration tests for management
-- [ ] T132 Verify management story compiles and passes all tests
+- [X] T127 [US3] Wire up management use cases with repository
+- [X] T128 [US3] Connect management UI with ViewModel and use cases
+- [X] T129 [US3] Implement error handling for management failures
+- [X] T130 [US3] Add user consent logging for management operations
+- [X] T131 [P] [US3] Implement end-to-end integration tests for management
+- [X] T132 Verify management story compiles and passes all tests
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 

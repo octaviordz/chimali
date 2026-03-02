@@ -140,7 +140,7 @@ class CredentialEncryptionService @Inject constructor(
             val combined = Base64.getDecoder().decode(encryptedValue)
             
             if (combined.size < GCM_IV_LENGTH) {
-                return@withContext Result.failure(Fido2Exception.InvalidEncryptedData("Data too short"))
+                return Result.failure(Fido2Exception.InvalidEncryptedData("Data too short"))
             }
             
             val iv = combined.sliceArray(0 until GCM_IV_LENGTH)
@@ -203,7 +203,7 @@ class CredentialEncryptionService @Inject constructor(
             // Verify RP ID hash
             val expectedHash = hashRpId(expectedRpId)
             if (encryptedMetadata.rpIdHash != expectedHash) {
-                return Result.failure(Fido2Exception.RpIdMismatch("RP ID hash mismatch"))
+                return Result.failure(Fido2Exception.RpIdMismatch(expectedRpId, encryptedMetadata.rpIdHash))
             }
             
             val encryptedData = Base64.getDecoder().decode(encryptedMetadata.encryptedData)

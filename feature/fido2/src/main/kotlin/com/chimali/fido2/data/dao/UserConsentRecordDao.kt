@@ -1,10 +1,11 @@
 package com.chimali.fido2.data.dao
 
-import com.chimali.fido2.data.database.UserConsentRecordEntity
+import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.ConsentOperationType
 import com.chimali.fido2.data.database.Fido2Database
 import kotlinx.coroutines.flow.Flow
+import app.cash.sqldelight.coroutines.asFlow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import javax.inject.Inject
@@ -29,8 +30,8 @@ class UserConsentRecordDao @Inject constructor(
             rpId = consent.rpId,
             credentialId = consent.credentialId,
             timestamp = consent.timestamp.toEpochMilli(),
-            biometricUsed = consent.biometricUsed,
-            pinUsed = consent.pinUsed,
+            biometricUsed = if (consent.biometricUsed) 1L else 0L,
+            pinUsed = if (consent.pinUsed) 1L else 0L,
             ipAddress = consent.ipAddress,
             userAgent = consent.userAgent,
             deviceId = consent.deviceId
@@ -102,14 +103,14 @@ class UserConsentRecordDao @Inject constructor(
     ): Flow<List<UserConsentRecordEntity>> {
         return if (rpId != null) {
             database.userConsentRecordQueries.selectByDateRangeAndRpId(
-                startDate = startDate.toEpochMilli(),
-                endDate = endDate.toEpochMilli(),
+                start = startDate.toEpochMilli(),
+                end = endDate.toEpochMilli(),
                 rpId = rpId
             ).asFlow().map { query -> query.executeAsList() }
         } else {
             database.userConsentRecordQueries.selectByDateRange(
-                startDate = startDate.toEpochMilli(),
-                endDate = endDate.toEpochMilli()
+                start = startDate.toEpochMilli(),
+                end = endDate.toEpochMilli()
             ).asFlow().map { query -> query.executeAsList() }
         }
     }
@@ -356,10 +357,10 @@ class UserConsentRecordDao @Inject constructor(
         val total = countAllConsent()
         val byOperation = database.userConsentRecordQueries.getStatisticsByOperation()
             .executeAsList()
-            .associate { it.operation_type to it.count }
+            .associate { it.operationType to it.count }
         val byRp = database.userConsentRecordQueries.getStatisticsByRpId(20)
             .executeAsList()
-            .associate { it.rp_id to it.count }
+            .associate { it.rpId to it.count }
         val biometric = countBiometricConsent()
         val pin = countPinConsent()
         val combined = countCombinedConsent()
@@ -379,7 +380,7 @@ class UserConsentRecordDao @Inject constructor(
      */
     private suspend fun getChangesCount(): Int {
         return database.userConsentRecordQueries.changes()
-            .executeAsOne()
+            .executeAsOne().toInt()
     }
     
     /**

@@ -1,13 +1,15 @@
 package com.chimali.fido2.domain.usecase
 
 import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
-import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.fido2.domain.service.Fido2Authenticator
+import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.exception.Fido2Exception
 import kotlinx.coroutines.flow.Flow
 import java.security.SecureRandom
 import java.util.Base64
+import javax.inject.Inject
 
 /**
  * Use case for registering new FIDO2 credentials.
@@ -38,17 +40,17 @@ class RegisterCredentialUseCase @Inject constructor(
             )
             
             // Get user consent if required
-            if (consentRequired == UserVerificationRequirement.REQUIRED) {
+            if (consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED) {
                 val consentResult = getUserConsentForRegistration(options)
                 if (consentResult.isFailure) {
-                    return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied())
+                    return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied("User consent denied"))
                 }
             }
             
             // Verify user identity if required
             val verificationResult = performUserVerification(options)
             if (verificationResult.isFailure) {
-                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed())
+                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))
             }
             
             // Validate credential creation with repository
@@ -57,19 +59,19 @@ class RegisterCredentialUseCase @Inject constructor(
                 userId = String(options.user.id)
             )
             if (validationResult.isFailure) {
-                return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed())
+                return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"))
             }
             
             // Generate the credential
             val credentialGenerationResult = generateCredential(options)
             if (credentialGenerationResult.isFailure) {
-                return Result.failure(credentialGenerationResult.exceptionOrNull() ?: Fido2Exception.CredentialGenerationFailed())
+                return Result.failure(credentialGenerationResult.exceptionOrNull() ?: Fido2Exception.CredentialGenerationFailed("Credential generation failed"))
             }
             
             // Store the credential
             val storageResult = credentialRepository.saveCredential(credentialGenerationResult.getOrThrow())
             if (storageResult.isFailure) {
-                return Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed())
+                return Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"))
             }
             
             // Update relying party information
@@ -139,7 +141,7 @@ class RegisterCredentialUseCase @Inject constructor(
             deviceId = null // Will be populated by actual implementation
         )
         
-        return userVerificationService.recordUserConsent(consentRecord)
+        return userVerificationService.recordUserConsent(consentRecord).map { consentRecord }
     }
     
     /**
@@ -163,7 +165,7 @@ class RegisterCredentialUseCase @Inject constructor(
                         if (result.isSuccess) {
                             Result.success(Unit)
                         } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message))
+                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
                         }
                     }
                     availability.pinAvailable -> {
@@ -174,7 +176,7 @@ class RegisterCredentialUseCase @Inject constructor(
                         if (result.isSuccess) {
                             Result.success(Unit)
                         } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message))
+                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
                         }
                     }
                     else -> {
@@ -202,7 +204,7 @@ class RegisterCredentialUseCase @Inject constructor(
                             if (pinResult.isSuccess) {
                                 Result.success(Unit)
                             } else {
-                                Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message))
+                                Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
                             }
                         } else {
                             Result.failure(Fido2Exception.NoVerificationMethodAvailable())
@@ -216,18 +218,14 @@ class RegisterCredentialUseCase @Inject constructor(
                     if (result.isSuccess) {
                         Result.success(Unit)
                     } else {
-                        Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message))
+                        Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
                     }
                 } else {
                     Result.failure(Fido2Exception.NoVerificationMethodAvailable())
                 }
             }
             UserVerificationRequirement.DISCOURAGED -> {
-                // User verification is discouraged but may be available
-                Result.success(Unit)
-            }
-            UserVerificationRequirement.NOT_REQUIRED -> {
-                // No user verification required
+                // User verification is discouraged or not required
                 Result.success(Unit)
             }
         }
@@ -246,7 +244,7 @@ class RegisterCredentialUseCase @Inject constructor(
             // Generate key pair
             val keyPairResult = generateKeyPair(options.pubKeyCredParams)
             if (keyPairResult.isFailure) {
-                return Result.failure(keyPairResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed())
+                return Result.failure(keyPairResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
             }
             
             val keyPair = keyPairResult.getOrThrow()
@@ -304,16 +302,14 @@ class RegisterCredentialUseCase @Inject constructor(
      */
     private fun generateECKeyPair(curve: String): Result<java.security.KeyPair> {
         return try {
+            val curveName = when (curve) {
+                "secp256r1" -> "secp256r1"
+                "secp384r1" -> "secp384r1"
+                "secp521r1" -> "secp521r1"
+                else         -> return Result.failure(Fido2Exception.UnsupportedCurve(curve))
+            }
             val keyPairGenerator = java.security.KeyPairGenerator.getInstance("EC")
-            val ecSpec = java.security.spec.ECGenParameterSpec(
-                curve = when (curve) {
-                    "secp256r1" -> java.security.spec.NamedCurveSpec("secp256r1")
-                    "secp384r1" -> java.security.spec.NamedCurveSpec("secp384r1")
-                    "secp521r1" -> java.security.spec.NamedCurveSpec("secp521r1")
-                    else -> return Result.failure(Fido2Exception.UnsupportedCurve(curve))
-                }
-            )
-            keyPairGenerator.initialize(ecSpec)
+            keyPairGenerator.initialize(java.security.spec.ECGenParameterSpec(curveName))
             Result.success(keyPairGenerator.generateKeyPair())
         } catch (e: Exception) {
             Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
@@ -328,7 +324,7 @@ class RegisterCredentialUseCase @Inject constructor(
             val keyPairGenerator = java.security.KeyPairGenerator.getInstance("RSA")
             keyPairGenerator.initialize(java.security.spec.RSAKeyGenParameterSpec(
                 keySize,
-                java.security.SecureRandom()
+                java.math.BigInteger.valueOf(65537)
             ))
             Result.success(keyPairGenerator.generateKeyPair())
         } catch (e: Exception) {

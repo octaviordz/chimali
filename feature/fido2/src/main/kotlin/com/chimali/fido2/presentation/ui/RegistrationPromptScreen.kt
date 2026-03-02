@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -111,7 +109,7 @@ internal fun RegistrationPromptContent(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Icon(
-                                imageVector        = Icons.Filled.Security,
+                                imageVector        = Icons.Filled.Lock,
                                 contentDescription = "Biometric",
                                 modifier           = Modifier.size(72.dp),
                                 tint               = MaterialTheme.colorScheme.primary
@@ -155,7 +153,7 @@ internal fun RegistrationPromptContent(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Filled.Key,
+                                        Icons.Filled.Lock,
                                         contentDescription = "Success",
                                         modifier           = Modifier.size(40.dp),
                                         tint               = MaterialTheme.colorScheme.onPrimaryContainer

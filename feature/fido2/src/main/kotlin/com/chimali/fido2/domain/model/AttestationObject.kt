@@ -22,7 +22,7 @@ data class AttestationObject(
      * Validates the AttestationObject according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(fmt.isNotBlank()) { "Format cannot be blank" }
         require(fmt in setOf("packed", "fido-u2f", "none", "android-safetynet", "android-key")) { 
@@ -129,7 +129,7 @@ data class AuthenticatorData(
     /**
      * Validates the AuthenticatorData according to FIDO2 specifications.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(rpIdHash.size == 32) { "RP ID hash must be exactly 32 bytes" }
         require(flags.size == 1) { "Flags must be exactly 1 byte" }
@@ -175,7 +175,7 @@ data class AuthenticatorData(
          */
         fun create(
             rpIdHash: ByteArray,
-            flags: ByteArray = byteOf(0x00),
+            flags: ByteArray = byteArrayOf(0x00),
             counter: Long = 0L,
             aaguid: ByteArray,
             credentialId: ByteArray,
@@ -212,7 +212,7 @@ data class AttestationStatement(
     /**
      * Validates the AttestationStatement according to FIDO2 specifications.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(alg.isNotBlank()) { "Algorithm cannot be blank" }
         require(fmt.isNotBlank()) { "Format cannot be blank" }
@@ -323,7 +323,7 @@ data class ClientData(
     /**
      * Validates the ClientData according to FIDO2 specifications.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(type.isNotBlank()) { "Type cannot be blank" }
         require(challenge.isNotEmpty()) { "Challenge cannot be empty" }

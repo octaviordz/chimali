@@ -193,8 +193,14 @@ sealed class Fido2Exception(
         Fido2Exception(message, cause, "USER_VERIFICATION_FAILED")
 
     /** Alias used by GetUserConsentUseCase / RegisterCredentialUseCase. */
-    class NoVerificationMethodAvailable(message: String, cause: Throwable? = null) :
-        Fido2Exception(message, cause, "NO_VERIFICATION_METHOD")
+    class NoVerificationMethodAvailable(override val message: String = "No applicable user verification method") :
+        Fido2Exception(message, null, "NO_VERIFICATION_METHOD")
+
+    class InvalidParameter(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "INVALID_PARAMETER")
+
+    class InvalidFormatException(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "INVALID_FORMAT")
 
     class BiometricException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "BIOMETRIC_ERROR")
@@ -207,6 +213,10 @@ sealed class Fido2Exception(
     /** Alias used by RegisterCredentialUseCase. */
     class RegistrationFailed(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "REGISTRATION_FAILED")
+
+    /** Alias used by GetAssertionUseCase. */
+    class AuthenticationFailed(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "AUTHENTICATION_FAILED")
 
     class AuthenticationException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "AUTH_ERROR")
@@ -235,4 +245,10 @@ sealed class Fido2Exception(
     /** Used by CredentialRepositoryImpl. */
     class RepositoryStatistics(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "REPO_STATS_ERROR")
+
+    // ── Protocol ──────────────────────────────────────────────────────────────
+
+    /** Used by HidReportParser for framing/protocol-level errors. */
+    class ProtocolException(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "PROTOCOL_ERROR")
 }

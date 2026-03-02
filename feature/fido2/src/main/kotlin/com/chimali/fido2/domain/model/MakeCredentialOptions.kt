@@ -82,8 +82,8 @@ data class MakeCredentialOptions(
      * Checks if this request allows resident keys.
      */
     fun allowsResidentKeys(): Boolean {
-        return authenticatorSelection?.residentKey == ResidentKeyRequirement.REQUIRED ||
-               authenticatorSelection?.residentKey == ResidentKeyRequirement.PREFERRED
+        return authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.REQUIRED ||
+               authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.PREFERRED
     }
     
     /**

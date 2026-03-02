@@ -97,7 +97,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
         val allowCredentials = allowListRaw?.mapNotNull { descriptor ->
             (descriptor as? Map<*, *>)?.let { map ->
                 val id   = map["id"] as? String ?: return@mapNotNull null
-                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id)
+                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = id.toByteArray())
             }
         }
 
@@ -127,7 +127,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
         assertion.credential?.let { desc ->
             responseMap["1"] = mapOf(
                 "type" to "public-key",
-                "id"   to Base64.getUrlEncoder().withoutPadding().encodeToString(desc.id.toByteArray())
+                "id"   to desc.getIdBase64Url()
             )
         }
 

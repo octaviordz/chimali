@@ -6,7 +6,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -113,7 +113,7 @@ fun BiometricPromptComponent(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector        = Icons.Filled.Fingerprint,
+                        imageVector        = Icons.Filled.Face,
                         contentDescription = "Fingerprint icon",
                         modifier           = Modifier.size(56.dp),
                         tint               = MaterialTheme.colorScheme.onPrimaryContainer

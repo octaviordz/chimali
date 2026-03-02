@@ -19,7 +19,7 @@ data class PublicKeyCredentialUserEntity(
      * Validates the PublicKeyCredentialUserEntity according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate required fields
         require(id.isNotEmpty()) { "User ID cannot be empty" }
         require(id.size <= 64) { "User ID cannot exceed 64 bytes" }

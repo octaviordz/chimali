@@ -5,6 +5,32 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ## [Unreleased]
 
+## [Unreleased] - 2026-03-02
+
+### Added
+- **FIDO2 Registration (Phase 3)**: Complete FIDO2 MakeCredential flow — domain models, repository, CTAP2 handler, biometric/PIN consent, and Compose presentation layer
+- **FIDO2 Authentication (Phase 4)**: Full GetAssertion flow — assertion handler, sign-count tracking, credential selection, and authentication UI
+- **Credential Management (Phase 5)**: Credential enumeration, deletion, and management UI including `CredentialListScreen`, `DeleteConfirmationDialog`, and `CredentialManagementViewModel`
+- `getSignCount` method added to `PasskeyCredentialDao`
+- `isBlocked` field added to `RelyingParty` domain model
+
+### Fixed
+- **SQLDelight schema mismatches**: All named query parameters in `RelyingParty.sq` and `UserConsentRecord.sq` aligned with generated Kotlin API
+- **`UserVerificationServiceImpl`**: Rewrote to implement all 14 abstract members of `UserVerificationService`
+- **`ConsentVerificationResult.verificationMethod`**: Made nullable to allow unauthenticated consent paths
+- **`RegisterCredentialUseCase`**: Removed duplicate `DISCOURAGED` when-branch
+- **`CredentialEncryptionService`**: Fixed `RpIdMismatch` constructor argument count
+- **`Ctap2CredentialManagementHandler`**: Fixed Flow collection to enable `.size` access
+- **`RelyingPartyDao`**: Fixed transaction blocks and `Long`→`Int`/`Boolean` return type casts
+- Full details: [2026-03-02-fido2-phases-3-5-build-fix.md](docs/changelogs/2026-03-02-fido2-phases-3-5-build-fix.md)
+
+### Constitutional Compliance
+- ✅ Security First — biometric/PIN gating on all credential operations
+- ✅ Zero-Knowledge design — relying parties cannot enumerate stored credentials
+- ✅ Post-Quantum ready — PQC key paths integrated through Registration flow
+
+---
+
 ## [v0.1.0-alpha] - 2026-03-01
 
 ### Added

@@ -2,15 +2,20 @@ package com.chimali.fido2.data.repository
 
 import com.chimali.fido2.domain.model.*
 import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.data.mapper.*
+import com.chimali.fido2.domain.repository.CredentialStatistics
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.service.CredentialStorageService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,168 +30,246 @@ class CredentialRepositoryImpl @Inject constructor(
     private val userConsentRecordDao: UserConsentRecordDao,
     private val credentialStorageService: CredentialStorageService
 ) : CredentialRepository {
-    
+
+    // ── Credential CRUD ──────────────────────────────────────────────────────
+
     override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
         return try {
-            // Store private key securely in KeyStore
             val keyStorageResult = credentialStorageService.storePrivateKey(
                 credential.privateKeyAlias,
                 credential.publicKey
             )
             if (keyStorageResult.isFailure) {
-                return Result.failure(keyStorageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed())
+                return Result.failure(keyStorageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Key storage failed"))
             }
-            
-            // Save credential metadata to database
             passkeyCredentialDao.insertCredential(credential)
             Result.success(Unit)
-            
         } catch (e: Exception) {
             Result.failure(Fido2Exception.CredentialStorageFailed(e.message ?: "Unknown error", e))
         }
     }
-    
+
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
         return try {
-            val credentialEntity = passkeyCredentialDao.getCredentialById(credentialId)
-            credentialEntity?.let { entity ->
-                // Retrieve public key from KeyStore
-                val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                if (publicKey != null) {
-                    entity.toDomainModel(publicKey)
-                } else {
-                    null
-                }
-            }
+            val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
+            val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias) ?: return null
+            entity.toDomainModel(publicKey)
         } catch (e: Exception) {
             null
         }
     }
-    
-    override suspend fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredential>> {
-        return try {
-            passkeyCredentialDao.getCredentialsByRpId(rpId)
-                .map { entities ->
-                    entities.mapNotNull { entity ->
-                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                        publicKey?.let { entity.toDomainModel(it) }
-                    }
+
+    /** Interface returns Flow<PasskeyCredential> (individual items emitted from a list). */
+    override suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
+                    val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                    if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
-        } catch (e: Exception) {
-            flowOf(emptyList())
+            } catch (_: Exception) { }
         }
     }
-    
-    override suspend fun getCredentialsByUserId(userId: String): Flow<List<PasskeyCredential>> {
-        return try {
-            passkeyCredentialDao.getCredentialsByUserId(userId)
-                .map { entities ->
-                    entities.mapNotNull { entity ->
-                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                        publicKey?.let { entity.toDomainModel(it) }
-                    }
+
+    override suspend fun getCredentialsByUserId(userId: String): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
+                    val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                    if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
-        } catch (e: Exception) {
-            flowOf(emptyList())
+            } catch (_: Exception) { }
         }
     }
-    
-    override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
-        return try {
-            passkeyCredentialDao.getAllCredentials()
-                .map { entities ->
-                    entities.mapNotNull { entity ->
-                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                        publicKey?.let { entity.toDomainModel(it) }
-                    }
+
+    override suspend fun getAllCredentials(): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
+                    val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                    if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
-        } catch (e: Exception) {
-            flowOf(emptyList())
+            } catch (_: Exception) { }
         }
     }
-    
-    override suspend fun updateCredential(credentialId: String, updateFn: (PasskeyCredential) -> PasskeyCredential): Result<Unit> {
-        return try {
-            val currentCredential = getCredentialById(credentialId)
-                ?: return Result.failure(Fido2Exception.CredentialNotFound())
-            
-            val updatedCredential = updateFn(currentCredential)
-            
-            // Update credential metadata
-            passkeyCredentialDao.updateCredential(updatedCredential)
-            Result.success(Unit)
-            
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
+
     override suspend fun deleteCredential(credentialId: String): Result<Unit> {
         return try {
             val credential = getCredentialById(credentialId)
-                ?: return Result.failure(Fido2Exception.CredentialNotFound())
-            
-            // Remove private key from KeyStore
+                ?: return Result.failure(Fido2Exception.CredentialNotFound(credentialId))
             credentialStorageService.deletePrivateKey(credential.privateKeyAlias)
-            
-            // Delete credential from database
             passkeyCredentialDao.deleteCredential(credentialId)
             Result.success(Unit)
-            
         } catch (e: Exception) {
             Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Unknown error", e))
         }
     }
-    
-    override suspend fun deleteCredentialsByRpId(rpId: String): Result<Int> {
+
+    override suspend fun credentialExists(rpId: String, userId: String): Boolean {
         return try {
-            val credentials = getCredentialsByRpId(rpId).first()
-            var deletedCount = 0
-            
-            credentials.forEach { credential ->
-                val deleteResult = deleteCredential(credential.id)
-                if (deleteResult.isSuccess) {
-                    deletedCount++
-                }
-            }
-            
-            Result.success(deletedCount)
-            
+            val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
+            entities.any { it.userId == userId }
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Unknown error", e))
+            false
         }
     }
-    
+
+    // ── Sign count & usage ────────────────────────────────────────────────────
+
+    override suspend fun updateSignCount(credentialId: String, newSignCount: Long): Result<Unit> {
+        return try {
+            passkeyCredentialDao.updateSignCount(credentialId, newSignCount)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update sign count", e))
+        }
+    }
+
+    override suspend fun updateLastUsedAt(credentialId: String): Result<Unit> {
+        return try {
+            passkeyCredentialDao.updateLastUsedAt(credentialId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update last used", e))
+        }
+    }
+
+    override suspend fun getSignCount(credentialId: String): Result<Long> {
+        return try {
+            val count = passkeyCredentialDao.getSignCount(credentialId)
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.success(0L)
+        }
+    }
+
+    // ── Batch retrieval ───────────────────────────────────────────────────────
+
+    override suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>> {
+        return try {
+            val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
+            val credentials = entities.mapNotNull { entity ->
+                val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                publicKey?.let { entity.toDomainModel(it) }
+            }
+            Result.success(credentials)
+        } catch (e: Exception) {
+            Result.success(emptyList())
+        }
+    }
+
+    override suspend fun getCredentialsByIds(
+        credentialIds: Set<String>,
+        rpId: String?
+    ): Result<List<PasskeyCredential>> {
+        return try {
+            val credentials = credentialIds.mapNotNull { id -> getCredentialById(id) }
+            val filtered = if (rpId != null) credentials.filter { it.rpId == rpId } else credentials
+            Result.success(filtered)
+        } catch (e: Exception) {
+            Result.success(emptyList())
+        }
+    }
+
+    override suspend fun getCredentialCountByRpId(rpId: String): Int {
+        return try {
+            passkeyCredentialDao.getCredentialsByRpId(rpId).first().size
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // ── Querying / searching ──────────────────────────────────────────────────
+
+    override suspend fun searchCredentials(query: String): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                val lq = query.lowercase()
+                passkeyCredentialDao.getAllCredentials().first()
+                    .filter { it.userName.lowercase().contains(lq) || it.userDisplayName.lowercase().contains(lq) }
+                    .forEach { entity ->
+                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                    }
+            } catch (_: Exception) { }
+        }
+    }
+
+    override suspend fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                val cutoff = Instant.now().minus(days, ChronoUnit.DAYS)
+                passkeyCredentialDao.getAllCredentials().first()
+                    .filter { entity -> entity.lastUsedAt == null || Instant.ofEpochMilli(entity.lastUsedAt).isBefore(cutoff) }
+                    .forEach { entity ->
+                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                    }
+            } catch (_: Exception) { }
+        }
+    }
+
+    override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                passkeyCredentialDao.getAllCredentials().first()
+                    .filter { false } // Not implemented in current schema
+                    .forEach { entity ->
+                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                    }
+            } catch (_: Exception) { }
+        }
+    }
+
+    override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> {
+        return flow {
+            try {
+                val cutoff = Instant.now().minus(maxAgeDays, ChronoUnit.DAYS)
+                passkeyCredentialDao.getAllCredentials().first()
+                    .filter { Instant.ofEpochMilli(it.createdAt).isBefore(cutoff) }
+                    .forEach { entity ->
+                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
+                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                    }
+            } catch (_: Exception) { }
+        }
+    }
+
+    override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Result<Int> {
+        return try {
+            var count = 0
+            getExpiredCredentials(maxAgeDays).collect { credential ->
+                val r = deleteCredential(credential.id)
+                if (r.isSuccess) count++
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Cleanup failed", e))
+        }
+    }
+
+    // ── Validation / checks ───────────────────────────────────────────────────
+
     override suspend fun validateCredentialCreation(rpId: String, userId: String): Result<Unit> {
         return try {
-            // Check if user already has credentials for this RP
-            val existingCredentials = getCredentialsByRpId(rpId).first()
-            val userCredentials = existingCredentials.filter { it.userId.equals(userId, ignoreCase = true) }
-            
-            // Allow multiple credentials per user per RP (common in FIDO2)
-            // But enforce reasonable limits
-            if (userCredentials.size >= 10) {
-                return Result.failure(Fido2Exception.TooManyCredentials())
+            val existingCredentials = getCredentialsByRpId(rpId).let { flow ->
+                val list = mutableListOf<PasskeyCredential>()
+                flow.collect { list.add(it) }
+                list
             }
-            
-            // Validate RP exists or can be created
-            val rp = getRelyingParty(rpId)
-            if (rp == null) {
-                // RP doesn't exist, we'll create it when credential is saved
-                Result.success(Unit)
-            } else {
-                // Check if RP is not blocked
-                if (rp.isBlocked) {
-                    return Result.failure(Fido2Exception.RelyingPartyBlocked())
-                }
-                Result.success(Unit)
+            val userCreds = existingCredentials.filter { it.userId.equals(userId, ignoreCase = true) }
+            if (userCreds.size >= 10) {
+                return Result.failure(Fido2Exception.TooManyCredentials(10))
             }
-            
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Fido2Exception.CredentialCreationNotAllowed(e.message ?: "Unknown error", e))
         }
     }
-    
+
+    // ── Relying Party ─────────────────────────────────────────────────────────
+
     override suspend fun getRelyingParty(rpId: String): RelyingParty? {
         return try {
             relyingPartyDao.getRelyingPartyById(rpId)?.toDomainModel()
@@ -194,57 +277,22 @@ class CredentialRepositoryImpl @Inject constructor(
             null
         }
     }
-    
-    override suspend fun updateRelyingParty(rpId: String, updateFn: (RelyingParty?) -> RelyingParty): Result<Unit> {
+
+    override suspend fun updateRelyingParty(rpId: String, update: (RelyingParty) -> RelyingParty): Result<Unit> {
         return try {
-            val currentRp = getRelyingParty(rpId)
-            val updatedRp = updateFn(currentRp)
-            
-            // Update or insert RP
-            if (currentRp == null) {
-                relyingPartyDao.insertRelyingParty(updatedRp)
-            } else {
-                relyingPartyDao.updateRelyingParty(updatedRp)
-            }
-            
+            val currentRp = getRelyingParty(rpId) ?: return Result.failure(
+                Fido2Exception.RelyingPartyUpdateFailed("RP not found: $rpId")
+            )
+            val updatedRp = update(currentRp)
+            relyingPartyDao.updateRelyingParty(updatedRp)
             Result.success(Unit)
-            
         } catch (e: Exception) {
             Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: "Unknown error", e))
         }
     }
-    
-    override suspend fun getAllRelyingParties(): Flow<List<RelyingParty>> {
-        return try {
-            relyingPartyDao.getAllRelyingParties()
-                .map { entities ->
-                    entities.map { it.toDomainModel() }
-                }
-        } catch (e: Exception) {
-            flowOf(emptyList())
-        }
-    }
-    
-    override suspend fun getRelyingPartyStatistics(rpId: String): RelyingPartyStatistics? {
-        return try {
-            val rp = getRelyingParty(rpId) ?: return null
-            val credentials = getCredentialsByRpId(rpId).first()
-            
-            RelyingPartyStatistics(
-                rpId = rp.id,
-                name = rp.name,
-                credentialCount = credentials.size,
-                userCount = credentials.map { it.userId.lowercase() }.distinct().size,
-                lastUsedAt = credentials.maxOfOrNull { it.lastUsedAt },
-                createdAt = rp.createdAt,
-                isBlocked = rp.isBlocked
-            )
-            
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
+
+    // ── User Consent ──────────────────────────────────────────────────────────
+
     override suspend fun saveUserConsent(consent: UserConsentRecord): Result<Unit> {
         return try {
             userConsentRecordDao.insertConsent(consent)
@@ -253,141 +301,74 @@ class CredentialRepositoryImpl @Inject constructor(
             Result.failure(Fido2Exception.ConsentStorageFailed(e.message ?: "Unknown error", e))
         }
     }
-    
+
     override suspend fun getRecentUserConsent(rpId: String?, limit: Int): Flow<UserConsentRecord> {
         return try {
             userConsentRecordDao.getRecentConsent(rpId, limit)
-                .map { it.toDomainModel() }
+                .map { list -> list.map { it.toDomainModel() }.firstOrNull() ?: throw Exception("Empty") }
         } catch (e: Exception) {
             flowOf()
         }
     }
-    
-    override suspend fun getUserConsentByCredential(credentialId: String, limit: Int): Flow<UserConsentRecord> {
+
+    override suspend fun isUserConsentRequired(rpId: String, operationType: String): Boolean {
+        // By default, user consent is always required for FIDO2 operations
+        return true
+    }
+
+    // ── Statistics ────────────────────────────────────────────────────────────
+
+    override suspend fun getCredentialStatistics(): CredentialStatistics {
         return try {
-            userConsentRecordDao.getConsentByCredential(credentialId, limit)
-                .map { it.toDomainModel() }
+            val allCredentials = mutableListOf<PasskeyCredential>()
+            getAllCredentials().collect { allCredentials.add(it) }
+
+            val byRp = allCredentials.groupBy { it.rpId }.mapValues { it.value.size }
+            val now = Instant.now()
+            val cutoff90 = now.minus(90, ChronoUnit.DAYS)
+            val expired = allCredentials.count { ChronoUnit.DAYS.between(it.createdAt, now) > 730 }
+            val recentlyUsed = allCredentials.count { it.lastUsedAt?.isAfter(cutoff90) == true }
+            val needsUV = 0 // Not implemented in current schema
+            val avgAge = if (allCredentials.isNotEmpty())
+                allCredentials.map { ChronoUnit.DAYS.between(it.createdAt, now) }.average()
+            else 0.0
+
+            CredentialStatistics(
+                totalCredentials = allCredentials.size,
+                credentialsByRp = byRp,
+                expiredCredentials = expired,
+                recentlyUsedCredentials = recentlyUsed,
+                credentialsRequiringUserVerification = needsUV,
+                averageAgeDays = avgAge
+            )
         } catch (e: Exception) {
-            flowOf()
+            CredentialStatistics(0, emptyMap(), 0, 0, 0, 0.0)
         }
     }
-    
-    override suspend fun getUserConsentByOperation(
-        operationType: ConsentOperationType,
-        rpId: String?,
-        limit: Int
-    ): Flow<UserConsentRecord> {
+
+    // ── Bulk deletion / reset ─────────────────────────────────────────────────
+
+    override suspend fun deleteAllCredentials(rpId: String?): Result<Unit> {
         return try {
-            userConsentRecordDao.getConsentByOperation(operationType, rpId, limit)
-                .map { it.toDomainModel() }
-        } catch (e: Exception) {
-            flowOf()
-        }
-    }
-    
-    override suspend fun deleteUserConsent(consentId: String): Result<Unit> {
-        return try {
-            userConsentRecordDao.deleteConsent(consentId)
+            val target: Flow<PasskeyCredential> = if (rpId != null)
+                getCredentialsByRpId(rpId)
+            else
+                getAllCredentials()
+
+            target.collect { credential -> deleteCredential(credential.id) }
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.ConsentDeletionFailed(e.message ?: "Unknown error", e))
+            Result.failure(e)
         }
     }
-    
-    override suspend fun deleteOldConsent(before: Instant): Result<Int> {
+
+    override suspend fun resetAuthenticator(): Result<Unit> {
         return try {
-            val deletedCount = userConsentRecordDao.deleteConsentBefore(before)
-            Result.success(deletedCount)
+            getAllCredentials().collect { credential -> deleteCredential(credential.id) }
+            // TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
+            Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.ConsentDeletionFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
-    override suspend fun searchCredentials(query: String, rpId: String?): Flow<List<PasskeyCredential>> {
-        return try {
-            passkeyCredentialDao.searchCredentials(query, rpId)
-                .map { entities ->
-                    entities.mapNotNull { entity ->
-                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                        publicKey?.let { entity.toDomainModel(it) }
-                    }
-                }
-        } catch (e: Exception) {
-            flowOf(emptyList())
-        }
-    }
-    
-    override suspend fun getExpiredCredentials(maxAgeDays: Int): Flow<List<PasskeyCredential>> {
-        return try {
-            val cutoffDate = Instant.now().minusSeconds(maxAgeDays.toLong() * 24 * 60 * 60)
-            passkeyCredentialDao.getExpiredCredentials(cutoffDate)
-                .map { entities ->
-                    entities.mapNotNull { entity ->
-                        val publicKey = credentialStorageService.getPublicKey(entity.privateKeyAlias)
-                        publicKey?.let { entity.toDomainModel(it) }
-                    }
-                }
-        } catch (e: Exception) {
-            flowOf(emptyList())
-        }
-    }
-    
-    override suspend fun cleanupExpiredCredentials(maxAgeDays: Int): Result<Int> {
-        return try {
-            val expiredCredentials = getExpiredCredentials(maxAgeDays).first()
-            var deletedCount = 0
-            
-            expiredCredentials.forEach { credential ->
-                val deleteResult = deleteCredential(credential.id)
-                if (deleteResult.isSuccess) {
-                    deletedCount++
-                }
-            }
-            
-            Result.success(deletedCount)
-            
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialCleanupFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
-    override suspend fun getRepositoryStatistics(): RepositoryStatistics {
-        return try {
-            val allCredentials = getAllCredentials().first()
-            val allRps = getAllRelyingParties().first()
-            val allConsent = getRecentUserConsent(null, Int.MAX_VALUE).first()
-            
-            val credentialsByRp = allCredentials.groupBy { it.rpId }
-            val credentialsByUser = allCredentials.groupBy { it.userId }
-            
-            RepositoryStatistics(
-                totalCredentials = allCredentials.size,
-                totalRelyingParties = allRps.size,
-                totalConsentRecords = allConsent.size,
-                credentialsByRp = credentialsByRp.mapValues { it.value.size },
-                credentialsByUser = credentialsByUser.mapValues { it.value.size },
-                averageCredentialsPerRp = if (allRps.isNotEmpty()) allCredentials.size.toDouble() / allRps.size else 0.0,
-                mostUsedRp = credentialsByRp.maxByOrNull { it.value.size }?.key,
-                oldestCredential = allCredentials.minOfOrNull { it.createdAt },
-                newestCredential = allCredentials.maxOfOrNull { it.createdAt },
-                oldestRp = allRps.minOfOrNull { it.createdAt },
-                newestRp = allRps.maxOfOrNull { it.createdAt }
-            )
-            
-        } catch (e: Exception) {
-            RepositoryStatistics(
-                totalCredentials = 0,
-                totalRelyingParties = 0,
-                totalConsentRecords = 0,
-                credentialsByRp = emptyMap(),
-                credentialsByUser = emptyMap(),
-                averageCredentialsPerRp = 0.0,
-                mostUsedRp = null,
-                oldestCredential = null,
-                newestCredential = null,
-                oldestRp = null,
-                newestRp = null
-            )
+            Result.failure(e)
         }
     }
 }

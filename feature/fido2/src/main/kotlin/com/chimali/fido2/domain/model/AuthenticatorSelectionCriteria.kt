@@ -20,7 +20,7 @@ data class AuthenticatorSelectionCriteria(
      * Validates the AuthenticatorSelectionCriteria according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    private fun validate() {
+    internal fun validate() {
         // Validate timeout if present
         timeoutSeconds?.let { timeout ->
             require(timeout > 0) { "Timeout must be positive" }

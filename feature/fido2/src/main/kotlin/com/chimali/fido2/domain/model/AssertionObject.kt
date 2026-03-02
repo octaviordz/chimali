@@ -42,7 +42,7 @@ data class AssertionObject(
     val timestamp: Instant = Instant.now(),
 
     /** ID of the credential that was used. Convenience field derived from [credential]. */
-    val credentialId: String = credential?.id ?: ""
+    val credentialId: String = credential?.getIdBase64Url() ?: ""
 ) {
     init {
         require(authData.size >= 37) {
@@ -98,7 +98,7 @@ data class AssertionObject(
             val counter = byteArrayOf(0, 0, 0, 1)
             val authData = rpIdHash + flags + counter // 37 bytes
             return AssertionObject(
-                credential = PublicKeyCredentialDescriptor.create(credentialId),
+                credential = PublicKeyCredentialDescriptor.create(id = credentialId.toByteArray()),
                 authData   = authData,
                 signature  = ByteArray(64) { it.toByte() },
                 user       = null

@@ -9,7 +9,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import com.chimali.fido2.data.database.Fido2DatabaseWrapper
+import com.chimali.fido2.data.database.Fido2Database
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.chimali.fido2.data.repository.Fido2RepositoryImpl
 import com.chimali.fido2.data.repository.PasskeyCredentialRepositoryImpl
 import com.chimali.fido2.data.repository.RelyingPartyRepositoryImpl
@@ -48,9 +49,9 @@ object Fido2Module {
     @Singleton
     fun provideFido2Database(
         @ApplicationContext context: Context
-    ): Fido2DatabaseWrapper {
-        // Simplified database setup for now
-        return Fido2DatabaseWrapper(context)
+    ): Fido2Database {
+        val driver = AndroidSqliteDriver(Fido2Database.Schema, context, "fido2.db")
+        return Fido2Database(driver)
     }
 
     @Provides
