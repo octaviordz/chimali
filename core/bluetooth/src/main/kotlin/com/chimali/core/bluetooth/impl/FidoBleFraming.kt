@@ -82,7 +82,9 @@ object FidoBleFraming {
         val fragments = mutableListOf<ByteArray>()
         
         // FIDO BLE Spec: The maximum length of a FIDO BLE packet is (MTU - 3) bytes.
-        val maxPacketSize = mtu - 3
+        // We ensure a minimum maxPacketSize of 3 to avoid negative array sizes and infinite loops
+        // when MTU is unexpectedly small (e.g., during negotiation or from a buggy client).
+        val maxPacketSize = (mtu - 3).coerceAtLeast(3)
         
         // Note: In FIDO BLE, the first fragment has 3 bytes of header (CMD, LEN_H, LEN_L)
         // Subsequent fragments have 1 byte of header (SEQ)

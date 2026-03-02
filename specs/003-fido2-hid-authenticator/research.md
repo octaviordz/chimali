@@ -31,10 +31,31 @@
 - **Decision**: Follow the FIDO HID protocol specification.
 - **Rationale**: Ensures compatibility with standard HID drivers on Windows/macOS/Linux.
 
+## Detailed Integration from Research
+
+Following analysis of `rauth-android` and `wiokey-android`, the following components are identified for reuse/porting:
+
+### 1. HID Report Descriptor (from `wiokey-android/Constants.java`)
+- **Action**: Replace the skeleton keyboard descriptor in `BluetoothHidConstants.kt` with the verified FIDO-compliant HID descriptor.
+- **Benefit**: Ensures immediate compatibility with Windows, macOS, and Linux built-in FIDO HID drivers.
+
+### 2. Bluetooth HID Registration & SDP (from `wiokey-android/HidDeviceApp.java`)
+- **Action**: Port the registration logic and SDP settings (Service Name, Description, Provider, Subclass).
+- **Benefit**: Correctly identifies the device as a "Virtual FIDO Key" to the host OS.
+
+### 3. FIDO HID Framing logic (from `rauth-android/Framing.java`)
+- **Action**: Implement the `Framing` logic to handle HID report fragmentation (Init, Continuation packets) and Channel ID management.
+- **Benefit**: Correctly reassembles raw HID reports into complete CTAP2/U2F messages before passing them to the Authenticator.
+
+### 4. Transaction Dispatch (from `rauth-android/TransactionManager.java`)
+- **Action**: Use the `TransactionManager`'s approach to dispatching `Msg` (U2F), `Cbor` (CTAP2), and `Ping` commands.
+- **Integration**: Unlike `rauth-android`, we will dispatch these messages to the **Bitwarden `passkey-rs`** library instead of a custom Kotlin authenticator.
+
 ## Resources & References
 
 ### Inspiration & Core Logic
-- **wiokey-android**: Port virtual HID authenticator logic from Java to Kotlin.
+- **[rauth-android](https://github.com/WIOsense/rauth-android)**: Core library for FIDO2 HID framing and transaction management.
+- **[wiokey-android](https://github.com/octaviordz/wiokey-android)**: Reference application for Bluetooth HID configuration and user-facing pairing logic.
 - **HidPeripheral**: Demo for Android Bluetooth HID peripheral emulation.
 - **Allthenticate**: Inspiration for mobile-to-desktop authentication.
 

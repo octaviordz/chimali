@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-02
+
+### Added
+- **FIDO2 HID Transport**: Implemented core Bluetooth HID transport layer for virtual security key emulation.
+    - FIDO-compliant HID Report Descriptor (Usage Page 0xF1D0).
+    - FIDO HID Framing logic (CID management, packet reassembly).
+    - Android Bluetooth HID Profile integration with race-condition handling and reliability fixes.
+    - Full details: [2026-03-02-fido-hid-transport.md](docs/changelogs/2026-03-02-fido-hid-transport.md)
+
 ## [Unreleased] - 2026-02-27
 
 ### Added
@@ -65,4 +74,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-02-27*
+*Last Updated: 2026-03-02*
