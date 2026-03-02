@@ -32,17 +32,18 @@ class PostQuantumCrypto @Inject constructor() {
         return try {
             if (!isPqcSupported()) return null
             
+            // Use default Kyber parameters since constructor is private
             val keyPairGenerator = KeyPairGenerator.getInstance("Kyber", BouncyCastlePQCProvider.PROVIDER_NAME)
-            keyPairGenerator.initialize(KyberParameterSpec.kyber512())
+            keyPairGenerator.initialize(512) // Use key size instead of parameter spec
             keyPairGenerator.generateKeyPair()
         } catch (e: Exception) {
             null
         }
     }
     
-    fun kyberEncapsulate(publicKey: PublicKey): Pair<ByteArray, ByteArray>? {
+    fun kyberEncapsulate(publicKey: PublicKey?): Pair<ByteArray, ByteArray>? {
         return try {
-            if (!isPqcSupported()) return null
+            if (!isPqcSupported() || publicKey == null) return null
             
             val cipher = javax.crypto.Cipher.getInstance("Kyber", BouncyCastlePQCProvider.PROVIDER_NAME)
             cipher.init(javax.crypto.Cipher.WRAP_MODE, publicKey)
@@ -55,9 +56,9 @@ class PostQuantumCrypto @Inject constructor() {
         }
     }
     
-    fun kyberDecapsulate(privateKey: PrivateKey, encapsulated: ByteArray): ByteArray? {
+    fun kyberDecapsulate(privateKey: PrivateKey?, encapsulated: ByteArray?): ByteArray? {
         return try {
-            if (!isPqcSupported()) return null
+            if (!isPqcSupported() || privateKey == null || encapsulated == null) return null
             
             val cipher = javax.crypto.Cipher.getInstance("Kyber", BouncyCastlePQCProvider.PROVIDER_NAME)
             cipher.init(javax.crypto.Cipher.UNWRAP_MODE, privateKey)

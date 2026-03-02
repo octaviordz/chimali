@@ -1,0 +1,298 @@
+package com.chimali.fido2.data.dao
+
+import com.chimali.fido2.data.database.PasskeyCredentialEntity
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.data.database.Fido2Database
+import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Data Access Object for PasskeyCredential entities using SQLDelight.
+ * Provides database operations for credential metadata storage.
+ */
+@Singleton
+class PasskeyCredentialDao @Inject constructor(
+    private val database: Fido2Database
+) {
+    
+    /**
+     * Inserts a new credential into the database.
+     */
+    suspend fun insertCredential(credential: PasskeyCredential) {
+        database.passkeyCredentialQueries.insert(
+            id = credential.id,
+            rpId = credential.rpId,
+            userId = credential.userId,
+            userName = credential.userName,
+            userDisplayName = credential.userDisplayName,
+            privateKeyAlias = credential.privateKeyAlias,
+            signCount = credential.signCount,
+            createdAt = credential.createdAt.toEpochMilli(),
+            lastUsedAt = credential.lastUsedAt.toEpochMilli(),
+            aaguid = credential.aaguid,
+            credentialId = credential.credentialId,
+            publicKeyEncoded = credential.publicKey.encoded
+        )
+    }
+    
+    /**
+     * Retrieves a credential by its ID.
+     */
+    suspend fun getCredentialById(credentialId: String): PasskeyCredentialEntity? {
+        return database.passkeyCredentialQueries.selectById(credentialId)
+            .executeAsOneOrNull()
+    }
+    
+    /**
+     * Retrieves all credentials for a specific relying party.
+     */
+    fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectByRpId(rpId)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves all credentials for a specific user.
+     */
+    fun getCredentialsByUserId(userId: String): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectByUserId(userId)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves all credentials from the database.
+     */
+    fun getAllCredentials(): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectAll()
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Updates an existing credential.
+     */
+    suspend fun updateCredential(credential: PasskeyCredential) {
+        database.passkeyCredentialQueries.update(
+            id = credential.id,
+            rpId = credential.rpId,
+            userId = credential.userId,
+            userName = credential.userName,
+            userDisplayName = credential.userDisplayName,
+            privateKeyAlias = credential.privateKeyAlias,
+            signCount = credential.signCount,
+            lastUsedAt = credential.lastUsedAt.toEpochMilli()
+        )
+    }
+    
+    /**
+     * Updates the sign count for a credential.
+     */
+    suspend fun updateSignCount(credentialId: String, signCount: Long) {
+        database.passkeyCredentialQueries.updateSignCount(
+            credentialId = credentialId,
+            signCount = signCount,
+            lastUsedAt = Instant.now().toEpochMilli()
+        )
+    }
+    
+    /**
+     * Updates the last used timestamp for a credential.
+     */
+    suspend fun updateLastUsedAt(credentialId: String) {
+        database.passkeyCredentialQueries.updateLastUsedAt(
+            credentialId = credentialId,
+            lastUsedAt = Instant.now().toEpochMilli()
+        )
+    }
+    
+    /**
+     * Deletes a credential by its ID.
+     */
+    suspend fun deleteCredential(credentialId: String) {
+        database.passkeyCredentialQueries.deleteById(credentialId)
+    }
+    
+    /**
+     * Deletes all credentials for a specific relying party.
+     */
+    suspend fun deleteCredentialsByRpId(rpId: String): Int {
+        database.passkeyCredentialQueries.deleteByRpId(rpId)
+        return getChangesCount()
+    }
+    
+    /**
+     * Deletes all credentials for a specific user.
+     */
+    suspend fun deleteCredentialsByUserId(userId: String): Int {
+        database.passkeyCredentialQueries.deleteByUserId(userId)
+        return getChangesCount()
+    }
+    
+    /**
+     * Searches credentials by user name or display name.
+     */
+    fun searchCredentials(query: String, rpId: String?): Flow<List<PasskeyCredentialEntity>> {
+        val searchPattern = "%${query.trim()}%"
+        return if (rpId != null) {
+            database.passkeyCredentialQueries.searchByRpId(
+                query = searchPattern,
+                rpId = rpId
+            ).asFlow().map { query -> query.executeAsList() }
+        } else {
+            database.passkeyCredentialQueries.searchAll(query = searchPattern)
+                .asFlow().map { query -> query.executeAsList() }
+        }
+    }
+    
+    /**
+     * Retrieves credentials that were created before a specific date.
+     */
+    fun getExpiredCredentials(cutoffDate: Instant): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectExpired(cutoffDate.toEpochMilli())
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves credentials that haven't been used in a specified number of days.
+     */
+    fun getUnusedCredentials(days: Int): Flow<List<PasskeyCredentialEntity>> {
+        val cutoffDate = Instant.now().minusSeconds(days.toLong() * 24 * 60 * 60)
+        return database.passkeyCredentialQueries.selectUnused(cutoffDate.toEpochMilli())
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves credentials sorted by last used date (most recent first).
+     */
+    fun getCredentialsByLastUsed(limit: Int = 50): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectByLastUsed(limit)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves credentials sorted by creation date (newest first).
+     */
+    fun getCredentialsByCreationDate(limit: Int = 50): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectByCreationDate(limit)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Counts credentials for a specific relying party.
+     */
+    suspend fun countCredentialsByRpId(rpId: String): Long {
+        return database.passkeyCredentialQueries.countByRpId(rpId)
+            .executeAsOne()
+    }
+    
+    /**
+     * Counts credentials for a specific user.
+     */
+    suspend fun countCredentialsByUserId(userId: String): Long {
+        return database.passkeyCredentialQueries.countByUserId(userId)
+            .executeAsOne()
+    }
+    
+    /**
+     * Counts all credentials in the database.
+     */
+    suspend fun countAllCredentials(): Long {
+        return database.passkeyCredentialQueries.countAll()
+            .executeAsOne()
+    }
+    
+    /**
+     * Checks if a credential exists.
+     */
+    suspend fun credentialExists(credentialId: String): Boolean {
+        return database.passkeyCredentialQueries.existsById(credentialId)
+            .executeAsOne()
+    }
+    
+    /**
+     * Retrieves credentials with specific AAGUID.
+     */
+    fun getCredentialsByAaguid(aaguid: ByteArray): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectByAaguid(aaguid)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Retrieves credentials with sign count above a threshold.
+     */
+    fun getCredentialsWithHighSignCount(threshold: Long): Flow<List<PasskeyCredentialEntity>> {
+        return database.passkeyCredentialQueries.selectBySignCountAbove(threshold)
+            .asFlow()
+            .map { query -> query.executeAsList() }
+    }
+    
+    /**
+     * Updates multiple credentials in a transaction.
+     */
+    suspend fun updateCredentials(credentials: List<PasskeyCredential>) {
+        database.transaction {
+            credentials.forEach { credential ->
+                updateCredential(credential)
+            }
+        }
+    }
+    
+    /**
+     * Deletes multiple credentials in a transaction.
+     */
+    suspend fun deleteCredentials(credentialIds: List<String>): Int {
+        var deletedCount = 0
+        database.transaction {
+            credentialIds.forEach { credentialId ->
+                deleteCredential(credentialId)
+                deletedCount++
+            }
+        }
+        return deletedCount
+    }
+    
+    /**
+     * Gets the number of changes from the last operation.
+     */
+    private suspend fun getChangesCount(): Int {
+        return database.passkeyCredentialQueries.changes()
+            .executeAsOne()
+    }
+    
+    /**
+     * Retrieves credential statistics.
+     */
+    suspend fun getCredentialStatistics(): CredentialStatistics {
+        val total = countAllCredentials()
+        val byRp = database.passkeyCredentialQueries.getStatisticsByRpId()
+            .executeAsList()
+            .associate { it.rp_id to it.count }
+        val byUser = database.passkeyCredentialQueries.getStatisticsByUserId()
+            .executeAsList()
+            .associate { it.user_id to it.count }
+        
+        return CredentialStatistics(
+            totalCredentials = total.toInt(),
+            credentialsByRp = byRp,
+            credentialsByUser = byUser
+        )
+    }
+    
+    /**
+     * Data class for credential statistics.
+     */
+    data class CredentialStatistics(
+        val totalCredentials: Int,
+        val credentialsByRp: Map<String, Long>,
+        val credentialsByUser: Map<String, Long>
+    )
+}

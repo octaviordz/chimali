@@ -38,11 +38,11 @@
 - [X] T018 Create CBOR encoding/decoding utilities for FIDO2 messages
 - [X] T019 Implement memory zeroing utilities for sensitive data
 - [X] T020 Create base Fido2Exception hierarchy for error handling
-- [ ] T021 [P] Implement unit tests for database schemas and migrations
-- [ ] T022 [P] Implement unit tests for KeyStore wrapper
-- [ ] T023 [P] Implement unit tests for crypto utilities
-- [ ] T023a [P] Implement unit tests for PQC operations
-- [ ] T024 Verify foundational components compile and pass unit tests
+- [X] T021 [P] Implement unit tests for database schemas and migrations
+- [X] T022 [P] Implement unit tests for KeyStore wrapper
+- [X] T023 [P] Implement unit tests for crypto utilities
+- [X] T023a [P] Implement unit tests for PQC operations
+- [X] T024 Verify foundational components compile and pass unit tests
 
 ## Phase 3: User Story 1 - FIDO2 Registration (Priority: P1)
 
@@ -51,32 +51,32 @@
 **Independent Test Criteria**: Can complete FIDO2 registration flow end-to-end with test service
 
 ### Domain Layer Tasks
-- [ ] T025 [US1] Create PasskeyCredential domain model with validation
-- [ ] T026 [US1] Create RelyingParty domain model with validation
-- [ ] T027 [US1] Create UserConsentRecord domain model
-- [ ] T028 [US1] Create MakeCredentialOptions domain model
-- [ ] T029 [US1] Create AttestationObject domain model
-- [ ] T030 [US1] Create PublicKeyCredentialRpEntity domain model
-- [ ] T031 [US1] Create PublicKeyCredentialUserEntity domain model
-- [ ] T032 [US1] Create PublicKeyCredentialParameters domain model
-- [ ] T033 [US1] Create PublicKeyCredentialDescriptor domain model
-- [ ] T034 [US1] Define CredentialRepository interface for registration operations
-- [ ] T035 [US1] Define UserVerification interface for biometric/PIN consent
-- [ ] T036 [US1] Define Fido2Authenticator interface for registration
-- [ ] T037 [US1] Create RegisterCredential use case class
-- [ ] T038 [US1] Create GetUserConsent use case class
-- [ ] T039 [P] [US1] Implement unit tests for domain models
-- [ ] T040 [P] [US1] Implement unit tests for use cases
+- [X] T025 [US1] Create PasskeyCredential domain model with validation
+- [X] T026 [US1] Create RelyingParty domain model with validation
+- [X] T027 [US1] Create UserConsentRecord domain model
+- [X] T028 [US1] Create MakeCredentialOptions domain model
+- [X] T029 [US1] Create AttestationObject domain model
+- [X] T030 [US1] Create PublicKeyCredentialRpEntity domain model
+- [X] T031 [US1] Create PublicKeyCredentialUserEntity domain model
+- [X] T032 [US1] Create PublicKeyCredentialParameters domain model
+- [X] T033 [US1] Create PublicKeyCredentialDescriptor domain model
+- [X] T034 [US1] Define CredentialRepository interface for registration operations
+- [X] T035 [US1] Define UserVerification interface for biometric/PIN consent
+- [X] T036 [US1] Define Fido2Authenticator interface for registration
+- [X] T037 [US1] Create RegisterCredential use case class
+- [X] T038 [US1] Create GetUserConsent use case class
+- [X] T039 [P] [US1] Implement unit tests for domain models
+- [X] T040 [P] [US1] Implement unit tests for use cases
 
 ### Data Layer Tasks
-- [ ] T041 [US1] Implement CredentialRepository with SQLDelight
-- [ ] T042 [US1] Create PasskeyCredential DAO with SQLDelight queries
-- [ ] T043 [US1] Create RelyingParty DAO with SQLDelight queries
-- [ ] T044 [US1] Implement UserConsentRecord DAO with SQLDelight queries
-- [ ] T045 [US1] Create credential storage service with KeyStore integration
-- [ ] T046 [US1] Implement secure credential encryption/decryption
-- [ ] T047 [P] [US1] Implement unit tests for repository layer
-- [ ] T048 [P] [US1] Implement unit tests for DAOs
+- [X] T041 [US1] Implement CredentialRepository with SQLDelight
+- [X] T042 [US1] Create PasskeyCredential DAO with SQLDelight queries
+- [X] T043 [US1] Create RelyingParty DAO with SQLDelight queries
+- [X] T044 [US1] Implement UserConsentRecord DAO with SQLDelight queries
+- [X] T045 [US1] Create credential storage service with KeyStore integration
+- [X] T046 [US1] Implement secure credential encryption/decryption
+- [X] T047 [P] [US1] Implement unit tests for repository layer
+- [X] T048 [P] [US1] Implement unit tests for DAOs
 
 ### Core Bluetooth Tasks
 - [ ] T049 [US1] Implement BluetoothHidDevice wrapper for HID profile

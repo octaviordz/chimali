@@ -1,10 +1,9 @@
 package com.chimali.fido2.data.crypto
 
-import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -19,29 +18,15 @@ class CborCodec @Inject constructor() {
     }
     
     fun encodeToFido2Format(data: Map<String, Any>): ByteArray {
-        // Convert to JSON first, then to CBOR-like format
-        val jsonObject = JsonObject(
-            data.mapValues { entry ->
-                when (val value = entry.value) {
-                    is String -> Json.encodeToJsonElement(value)
-                    is Int -> Json.encodeToJsonElement(value)
-                    is ByteArray -> Json.encodeToJsonElement(value.toList())
-                    is Boolean -> Json.encodeToJsonElement(value)
-                    else -> Json.encodeToJsonElement(value.toString())
-                }
-            }
-        )
-        return json.encodeToByteArray(jsonObject)
+        return json.encodeToString(data).toByteArray()
     }
     
     fun decodeFromFido2Format(data: ByteArray): Map<String, Any> {
         return try {
-            val jsonElement = json.decodeFromByteArray<JsonElement>(data)
+            val jsonString = String(data)
+            val jsonElement = json.parseToJsonElement(jsonString)
             jsonElement.jsonObject.mapValues { entry ->
-                when (val value = entry.value) {
-                    is JsonObject.MapEntry -> value.jsonPrimitive.content
-                    else -> value.toString()
-                }
+                entry.value.jsonPrimitive.content
             }
         } catch (e: Exception) {
             emptyMap()

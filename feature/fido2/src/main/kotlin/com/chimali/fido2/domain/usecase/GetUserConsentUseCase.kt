@@ -1,0 +1,409 @@
+package com.chimali.fido2.domain.usecase
+
+import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.exception.Fido2Exception
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filter
+import java.time.Instant
+
+/**
+ * Use case for managing user consent in FIDO2 operations.
+ * Handles consent recording, retrieval, and validation.
+ */
+class GetUserConsentUseCase @Inject constructor(
+    private val credentialRepository: CredentialRepository,
+    private val userVerificationService: UserVerificationService
+) {
+    
+    /**
+     * Records user consent for a specific operation.
+     * 
+     * @param rpId The ID of the relying party
+     * @param operationType The type of operation
+     * @param credentialId Optional ID of the credential involved
+     * @param requireVerification Whether user verification is required
+     * @param prompt Custom prompt message for the user
+     * @return Result containing the consent record on success, error on failure
+     */
+    suspend operator fun invoke(
+        rpId: String,
+        operationType: ConsentOperationType,
+        credentialId: String? = null,
+        requireVerification: Boolean = false,
+        prompt: String? = null
+    ): Result<UserConsentRecord> {
+        return try {
+            // Validate inputs
+            validateConsentRequest(rpId, operationType, credentialId)
+            
+            // Check if consent is required for this operation
+            val consentRequired = userVerificationService.isUserVerificationRequired(
+                rpId = rpId,
+                operationType = operationType.name,
+                context = when (operationType) {
+                    ConsentOperationType.REGISTRATION -> VerificationContext.CREDENTIAL_CREATION
+                    ConsentOperationType.AUTHENTICATION -> VerificationContext.AUTHENTICATION
+                    ConsentOperationType.CREDENTIAL_DELETION -> VerificationContext.CREDENTIAL_DELETION
+                    ConsentOperationType.CREDENTIAL_UPDATE -> VerificationContext.CREDENTIAL_UPDATE
+                }
+            )
+            
+            // If verification is required, perform user verification
+            val verificationResult = if (requireVerification && consentRequired == UserVerificationRequirement.REQUIRED) {
+                performUserVerificationForConsent(rpId, operationType, prompt)
+            } else {
+                Result.success(ConsentVerificationResult(
+                    biometricUsed = false,
+                    pinUsed = false,
+                    verificationMethod = VerificationMethod.NONE
+                ))
+            }
+            
+            if (verificationResult.isFailure) {
+                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed())
+            }
+            
+            val verification = verificationResult.getOrThrow()
+            
+            // Create consent record
+            val consentRecord = UserConsentRecord.create(
+                operationType = operationType,
+                rpId = rpId,
+                credentialId = credentialId,
+                biometricUsed = verification.biometricUsed,
+                pinUsed = verification.pinUsed,
+                ipAddress = null, // Will be populated by actual implementation
+                userAgent = null, // Will be populated by actual implementation
+                deviceId = null // Will be populated by actual implementation
+            )
+            
+            // Save consent record
+            val saveResult = credentialRepository.saveUserConsent(consentRecord)
+            if (saveResult.isFailure) {
+                return Result.failure(saveResult.exceptionOrNull() ?: Fido2Exception.ConsentStorageFailed())
+            }
+            
+            Result.success(consentRecord)
+            
+        } catch (e: Exception) {
+            Result.failure(Fido2Exception.ConsentOperationFailed(e.message ?: "Unknown error", e))
+        }
+    }
+    
+    /**
+     * Retrieves recent user consent records.
+     * 
+     * @param rpId Optional filter by relying party ID
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of recent consent records
+     */
+    suspend fun getRecentConsentRecords(
+        rpId: String? = null,
+        limit: Int = 50
+    ): Flow<UserConsentRecord> {
+        return credentialRepository.getRecentUserConsent(rpId, limit)
+    }
+    
+    /**
+     * Retrieves consent records for a specific operation type.
+     * 
+     * @param operationType The type of operation to filter by
+     * @param rpId Optional filter by relying party ID
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the operation type
+     */
+    suspend fun getConsentRecordsByOperationType(
+        operationType: ConsentOperationType,
+        rpId: String? = null,
+        limit: Int = 50
+    ): Flow<UserConsentRecord> {
+        return getRecentConsentRecords(rpId, limit)
+            .filter { it.operationType == operationType }
+    }
+    
+    /**
+     * Retrieves consent records for a specific credential.
+     * 
+     * @param credentialId The ID of the credential to filter by
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the credential
+     */
+    suspend fun getConsentRecordsByCredential(
+        credentialId: String,
+        limit: Int = 50
+    ): Flow<UserConsentRecord> {
+        return getRecentConsentRecords(null, limit)
+            .filter { it.isForCredential(credentialId) }
+    }
+    
+    /**
+     * Retrieves consent records for a specific relying party.
+     * 
+     * @param rpId The ID of the relying party to filter by
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the RP
+     */
+    suspend fun getConsentRecordsByRpId(
+        rpId: String,
+        limit: Int = 50
+    ): Flow<UserConsentRecord> {
+        return getRecentConsentRecords(rpId, limit)
+            .filter { it.isForRelyingParty(rpId) }
+    }
+    
+    /**
+     * Retrieves recent consent records within a time range.
+     * 
+     * @param startTime Start of the time range
+     * @param endTime End of the time range
+     * @param rpId Optional filter by relying party ID
+     * @return Flow of consent records within the time range
+     */
+    suspend fun getConsentRecordsByTimeRange(
+        startTime: Instant,
+        endTime: Instant,
+        rpId: String? = null
+    ): Flow<UserConsentRecord> {
+        return getRecentConsentRecords(rpId, Int.MAX_VALUE)
+            .filter { 
+                it.timestamp.isAfter(startTime) && it.timestamp.isBefore(endTime)
+            }
+    }
+    
+    /**
+     * Checks if consent was recently granted for a specific operation.
+     * 
+     * @param rpId The ID of the relying party
+     * @param operationType The type of operation
+     * @param minutes Number of minutes to consider as "recent"
+     * @return True if consent was granted recently, false otherwise
+     */
+    suspend fun isRecentConsentGranted(
+        rpId: String,
+        operationType: ConsentOperationType,
+        minutes: Long = 5
+    ): Boolean {
+        return getConsentRecordsByOperationType(operationType, rpId, 10)
+            .filter { it.isRecent(minutes) }
+            .any { it.isRegistrationConsent() || it.isAuthenticationConsent() }
+    }
+    
+    /**
+     * Retrieves consent statistics.
+     * 
+     * @param rpId Optional filter by relying party ID
+     * @return Consent statistics for the specified RP or all RPs
+     */
+    suspend fun getConsentStatistics(rpId: String? = null): ConsentStatistics {
+        val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE)
+        
+        val totalConsents = consentRecords.count()
+        val registrationConsents = consentRecords.count { it.isRegistrationConsent() }
+        val authenticationConsents = consentRecords.count { it.isAuthenticationConsent() }
+        val biometricConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC }
+        val pinConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.PIN }
+        val combinedConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC_AND_PIN }
+        
+        val consentsByRp = if (rpId != null) {
+            mapOf(rpId to totalConsents)
+        } else {
+            consentRecords
+                .filter { it.rpId.isNotBlank() }
+                .groupBy { it.rpId }
+                .mapValues { it.value.size }
+        }
+        
+        val recentConsents = consentRecords.count { it.isRecent(minutes = 60) }
+        
+        return ConsentStatistics(
+            totalConsents = totalConsents,
+            registrationConsents = registrationConsents,
+            authenticationConsents = authenticationConsents,
+            biometricConsents = biometricConsents,
+            pinConsents = pinConsents,
+            combinedConsents = combinedConsents,
+            consentsByRp = consentsByRp,
+            recentConsents = recentConsents,
+            averageConsentsPerDay = calculateAverageConsentsPerDay(consentRecords)
+        )
+    }
+    
+    /**
+     * Validates consent request parameters.
+     */
+    private fun validateConsentRequest(
+        rpId: String,
+        operationType: ConsentOperationType,
+        credentialId: String?
+    ) {
+        require(rpId.isNotBlank()) { "RP ID cannot be blank" }
+        require(rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))) { 
+            "RP ID must be a valid HTTPS origin" 
+        }
+        
+        credentialId?.let { credId ->
+            require(credId.isNotBlank()) { "Credential ID cannot be blank if provided" }
+            require(credId.length <= 1023) { "Credential ID cannot exceed 1023 bytes" }
+        }
+    }
+    
+    /**
+     * Performs user verification for consent operations.
+     */
+    private suspend fun performUserVerificationForConsent(
+        rpId: String,
+        operationType: ConsentOperationType,
+        customPrompt: String?
+    ): Result<ConsentVerificationResult> {
+        val prompt = customPrompt ?: when (operationType) {
+            ConsentOperationType.REGISTRATION -> "Verify your identity to register new passkey"
+            ConsentOperationType.AUTHENTICATION -> "Verify your identity to sign in"
+            ConsentOperationType.CREDENTIAL_DELETION -> "Verify your identity to delete passkey"
+            ConsentOperationType.CREDENTIAL_UPDATE -> "Verify your identity to update passkey"
+        }
+        
+        val availability = userVerificationService.getUserVerificationAvailability()
+        
+        return when {
+            availability.biometricAvailable -> {
+                val result = userVerificationService.verifyBiometric(
+                    prompt = prompt,
+                    rpId = rpId
+                )
+                if (result.isSuccess) {
+                    Result.success(ConsentVerificationResult(
+                        biometricUsed = true,
+                        pinUsed = false,
+                        verificationMethod = VerificationMethod.BIOMETRIC
+                    ))
+                } else {
+                    // Try PIN fallback
+                    if (availability.pinAvailable) {
+                        val pinResult = userVerificationService.verifyPin(
+                            prompt = prompt,
+                            rpId = rpId
+                        )
+                        if (pinResult.isSuccess) {
+                            Result.success(ConsentVerificationResult(
+                                biometricUsed = false,
+                                pinUsed = true,
+                                verificationMethod = VerificationMethod.PIN
+                            ))
+                        } else {
+                            Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message))
+                        }
+                    } else {
+                        Result.failure(Fido2Exception.NoVerificationMethodAvailable())
+                    }
+                }
+            }
+            availability.pinAvailable -> {
+                val result = userVerificationService.verifyPin(
+                    prompt = prompt,
+                    rpId = rpId
+                )
+                if (result.isSuccess) {
+                    Result.success(ConsentVerificationResult(
+                        biometricUsed = false,
+                        pinUsed = true,
+                        verificationMethod = VerificationMethod.PIN
+                    ))
+                } else {
+                    Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message))
+                }
+            }
+            else -> {
+                Result.failure(Fido2Exception.NoVerificationMethodAvailable())
+            }
+        }
+    }
+    
+    /**
+     * Calculates the average number of consents per day.
+     */
+    private suspend fun calculateAverageConsentsPerDay(
+        consentRecords: Flow<UserConsentRecord>
+    ): Double {
+        val consents = consentRecords.toList()
+        if (consents.isEmpty()) return 0.0
+        
+        val oldestTimestamp = consents.minOfOrNull { it.timestamp }?.timestamp
+        val newestTimestamp = consents.maxOfOrNull { it.timestamp }?.timestamp
+        
+        return if (oldestTimestamp != null && newestTimestamp != null) {
+            val daysBetween = java.time.Duration.between(oldestTimestamp, newestTimestamp).toDays()
+            if (daysBetween > 0) {
+                consents.size.toDouble() / daysBetween
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        }
+    }
+}
+
+/**
+ * Data class representing consent verification result.
+ */
+data class ConsentVerificationResult(
+    val biometricUsed: Boolean,
+    val pinUsed: Boolean,
+    val verificationMethod: VerificationMethod
+)
+
+/**
+ * Data class representing consent statistics.
+ */
+data class ConsentStatistics(
+    val totalConsents: Int,
+    val registrationConsents: Int,
+    val authenticationConsents: Int,
+    val biometricConsents: Int,
+    val pinConsents: Int,
+    val combinedConsents: Int,
+    val consentsByRp: Map<String, Int>,
+    val recentConsents: Int,
+    val averageConsentsPerDay: Double
+) {
+    
+    /**
+     * Returns the most used consent method.
+     */
+    fun getMostUsedMethod(): ConsentMethod {
+        return when {
+            biometricConsents > pinConsents && biometricConsents > combinedConsents -> ConsentMethod.BIOMETRIC
+            pinConsents > biometricConsents && pinConsents > combinedConsents -> ConsentMethod.PIN
+            combinedConsents > biometricConsents && combinedConsents > pinConsents -> ConsentMethod.BIOMETRIC_AND_PIN
+            else -> ConsentMethod.NONE
+        }
+    }
+    
+    /**
+     * Returns the total number of verification methods used.
+     */
+    fun getTotalVerificationMethods(): Int {
+        return setOfNotNull(
+            if (biometricConsents > 0) ConsentMethod.BIOMETRIC else null,
+            if (pinConsents > 0) ConsentMethod.PIN else null,
+            if (combinedConsents > 0) ConsentMethod.BIOMETRIC_AND_PIN else null
+        ).size
+    }
+    
+    /**
+     * Returns a summary of the statistics.
+     */
+    fun getSummary(): String {
+        val methods = mutableListOf<String>()
+        if (biometricConsents > 0) methods.add("Biometric: $biometricConsents")
+        if (pinConsents > 0) methods.add("PIN: $pinConsents")
+        if (combinedConsents > 0) methods.add("Combined: $combinedConsents")
+        
+        val methodSummary = if (methods.isNotEmpty()) methods.joinToString(", ") else "None"
+        
+        return "Total: $totalConsents consents (Registration: $registrationConsents, Authentication: $authenticationConsents, Recent: $recentConsents, Avg/day: ${"%.2f".format(averageConsentsPerDay)}) - Methods: $methodSummary"
+    }
+}
