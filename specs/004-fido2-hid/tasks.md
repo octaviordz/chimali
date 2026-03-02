@@ -1,0 +1,333 @@
+# Implementation Tasks: FIDO2 Virtual Authenticator via BluetoothHidDevice
+
+**Branch**: `004-fido2-hid` | **Date**: 2026-03-01 | **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)
+
+## Phase 1: Setup Tasks
+
+**Goal**: Initialize project structure and dependencies for FIDO2 Virtual Authenticator feature
+
+**Independent Test Criteria**: Project compiles successfully with all dependencies configured
+
+- [X] T001 Create feature/fido2 module structure per implementation plan
+- [X] T002 Add FIDO2 dependencies to feature module build.gradle.kts
+- [X] T003 Add required permissions to AndroidManifest.xml
+- [X] T004 Create Hilt module for FIDO2 dependency injection
+- [X] T005 Configure SQLDelight database setup for credential storage
+- [X] T006 Set up ProGuard rules for FIDO2 and crypto libraries
+- [X] T007 Create base package structure for domain, data, presentation layers
+- [X] T008 [P] Set up unit test structure with JUnit5 and MockK
+- [X] T009 [P] Set up integration test structure with Compose UI Testing
+- [X] T010 Verify project compilation and dependency resolution
+
+## Phase 2: Foundational Tasks
+
+**Goal**: Implement core infrastructure and shared components required by all user stories
+
+**Independent Test Criteria**: Core infrastructure components compile and can be instantiated
+
+- [X] T011 Create SQLDelight database schema for PasskeyCredential entity
+- [X] T012 Create SQLDelight database schema for RelyingParty entity
+- [X] T013 Create SQLDelight database schema for UserConsentRecord entity
+- [X] T014 Create SQLDelight database schema for BluetoothHidSession entity
+- [X] T015 Implement SQLCipher encryption wrapper for secure database access
+- [X] T016 Create Android KeyStore wrapper for private key storage
+- [X] T017 Implement hierarchical deterministic key derivation (HDK-ECDH-P256)
+- [X] T017a [US1] Research and integrate ML-KEM/Kyber PQC library for quantum-resistant cryptography
+- [X] T017b [US1] Implement PQC key generation and management alongside ECDSA
+- [X] T017c [US1] Add PQC fallback logic for devices without quantum support
+- [X] T018 Create CBOR encoding/decoding utilities for FIDO2 messages
+- [X] T019 Implement memory zeroing utilities for sensitive data
+- [X] T020 Create base Fido2Exception hierarchy for error handling
+- [ ] T021 [P] Implement unit tests for database schemas and migrations
+- [ ] T022 [P] Implement unit tests for KeyStore wrapper
+- [ ] T023 [P] Implement unit tests for crypto utilities
+- [ ] T023a [P] Implement unit tests for PQC operations
+- [ ] T024 Verify foundational components compile and pass unit tests
+
+## Phase 3: User Story 1 - FIDO2 Registration (Priority: P1)
+
+**Goal**: Enable users to register new passkey credentials using the device as a FIDO2 authenticator
+
+**Independent Test Criteria**: Can complete FIDO2 registration flow end-to-end with test service
+
+### Domain Layer Tasks
+- [ ] T025 [US1] Create PasskeyCredential domain model with validation
+- [ ] T026 [US1] Create RelyingParty domain model with validation
+- [ ] T027 [US1] Create UserConsentRecord domain model
+- [ ] T028 [US1] Create MakeCredentialOptions domain model
+- [ ] T029 [US1] Create AttestationObject domain model
+- [ ] T030 [US1] Create PublicKeyCredentialRpEntity domain model
+- [ ] T031 [US1] Create PublicKeyCredentialUserEntity domain model
+- [ ] T032 [US1] Create PublicKeyCredentialParameters domain model
+- [ ] T033 [US1] Create PublicKeyCredentialDescriptor domain model
+- [ ] T034 [US1] Define CredentialRepository interface for registration operations
+- [ ] T035 [US1] Define UserVerification interface for biometric/PIN consent
+- [ ] T036 [US1] Define Fido2Authenticator interface for registration
+- [ ] T037 [US1] Create RegisterCredential use case class
+- [ ] T038 [US1] Create GetUserConsent use case class
+- [ ] T039 [P] [US1] Implement unit tests for domain models
+- [ ] T040 [P] [US1] Implement unit tests for use cases
+
+### Data Layer Tasks
+- [ ] T041 [US1] Implement CredentialRepository with SQLDelight
+- [ ] T042 [US1] Create PasskeyCredential DAO with SQLDelight queries
+- [ ] T043 [US1] Create RelyingParty DAO with SQLDelight queries
+- [ ] T044 [US1] Implement UserConsentRecord DAO with SQLDelight queries
+- [ ] T045 [US1] Create credential storage service with KeyStore integration
+- [ ] T046 [US1] Implement secure credential encryption/decryption
+- [ ] T047 [P] [US1] Implement unit tests for repository layer
+- [ ] T048 [P] [US1] Implement unit tests for DAOs
+
+### Core Bluetooth Tasks
+- [ ] T049 [US1] Implement BluetoothHidDevice wrapper for HID profile
+- [ ] T050 [US1] Create HID report parser for CTAP2 messages
+- [ ] T051 [US1] Implement CTAP2 MakeCredential command handler
+- [ ] T052 [US1] Create CTAP2 response builder for attestation
+- [ ] T053 [US1] Implement Bluetooth HID transport layer
+- [ ] T054 [US1] Add connection state management for HID sessions
+- [ ] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
+- [ ] T056 [P] [US1] Implement unit tests for CTAP2 protocol
+
+### Core Crypto Tasks
+- [ ] T057 [US1] Implement ECDSA P-256 key pair generation
+- [ ] T058 [US1] Create attestation statement generator
+- [ ] T059 [US1] Implement client data hash generation
+- [ ] T060 [US1] Create signature generation for attestation
+- [ ] T061 [P] [US1] Implement unit tests for crypto operations
+
+### Presentation Layer Tasks
+- [ ] T062 [US1] Create RegistrationPromptViewModel with MVI pattern
+- [ ] T063 [US1] Implement RegistrationPrompt Compose screen
+- [ ] T064 [US1] Create BiometricPrompt Compose component
+- [ ] T065 [US1] Implement PIN entry dialog Compose component
+- [ ] T066 [US1] Create registration progress indicator
+- [ ] T067 [US1] Add navigation for registration flow
+- [ ] T068 [P] [US1] Implement Compose UI tests for registration screen
+- [ ] T069 [P] [US1] Implement integration tests for registration flow
+
+### Integration Tasks
+- [ ] T070 [US1] Wire up RegisterCredential use case with repository
+- [ ] T071 [US1] Connect registration UI with ViewModel and use cases
+- [ ] T072 [US1] Integrate biometric verification with registration flow
+- [ ] T073 [US1] Connect CTAP2 handler with Bluetooth HID transport
+- [ ] T074 [US1] Implement error handling for registration failures
+- [ ] T075 [US1] Add user consent logging for registration
+- [ ] T076 [P] [US1] Implement end-to-end integration tests for registration
+- [ ] T077 Verify registration story compiles and passes all tests
+
+## Phase 4: User Story 2 - FIDO2 Authentication (Priority: P1)
+
+**Goal**: Enable users to authenticate to services using stored passkey credentials
+
+**Independent Test Criteria**: Can complete FIDO2 authentication flow end-to-end with test service
+
+### Domain Layer Tasks
+- [ ] T078 [US2] Create GetAssertionOptions domain model
+- [ ] T079 [US2] Create AssertionObject domain model
+- [ ] T080 [US2] Create Authenticate use case class
+- [ ] T081 [US2] Create SelectCredential use case class
+- [ ] T082 [P] [US2] Implement unit tests for authentication use cases
+
+### Data Layer Tasks
+- [ ] T083 [US2] Add credential lookup methods to repository
+- [ ] T084 [US2] Implement sign count update functionality
+- [ ] T085 [US2] Create credential selection query methods
+- [ ] T086 [P] [US2] Implement unit tests for authentication repository methods
+
+### Core Bluetooth Tasks
+- [ ] T087 [US2] Implement CTAP2 GetAssertion command handler
+- [ ] T088 [US2] Create CTAP2 response builder for assertion
+- [ ] T089 [US2] Add credential selection support to CTAP2 layer
+- [ ] T090 [P] [US2] Implement unit tests for GetAssertion handler
+
+### Core Crypto Tasks
+- [ ] T091 [US2] Implement assertion signature generation
+- [ ] T092 [US2] Create authenticator data builder for assertions
+- [ ] T093 [US2] Add user verification to assertion process
+- [ ] T094 [P] [US2] Implement unit tests for assertion crypto
+
+### Presentation Layer Tasks
+- [ ] T095 [US2] Create AuthenticationPromptViewModel with MVI pattern
+- [ ] T096 [US2] Implement AuthenticationPrompt Compose screen
+- [ ] T097 [US2] Create CredentialSelectionDialog Compose component
+- [ ] T098 [US2] Add authentication progress indicator
+- [ ] T099 [P] [US2] Implement Compose UI tests for authentication screen
+- [ ] T100 [P] [US2] Implement integration tests for authentication flow
+
+### Integration Tasks
+- [ ] T101 [US2] Wire up Authenticate use case with repository
+- [ ] T102 [US2] Connect authentication UI with ViewModel and use cases
+- [ ] T103 [US2] Integrate credential selection with authentication flow
+- [ ] T104 [US2] Implement error handling for authentication failures
+- [ ] T105 [US2] Add user consent logging for authentication
+- [ ] T106 [P] [US2] Implement end-to-end integration tests for authentication
+- [ ] T107 Verify authentication story compiles and passes all tests
+
+## Phase 5: User Story 3 - Credential Management (Priority: P2)
+
+**Goal**: Enable users to view and manage stored passkey credentials
+
+**Independent Test Criteria**: Can list, view, and delete credentials through management interface
+
+### Domain Layer Tasks
+- [ ] T108 [US3] Create GetAllCredentials use case class
+- [ ] T109 [US3] Create DeleteCredential use case class
+- [ ] T110 [US3] Create DeleteAllCredentials use case class
+- [ ] T111 [US3] Create ResetAuthenticator use case class
+- [ ] T112 [P] [US3] Implement unit tests for management use cases
+
+### Data Layer Tasks
+- [ ] T113 [US3] Add credential enumeration to repository
+- [ ] T114 [US3] Implement secure credential deletion
+- [ ] T115 [US3] Add credential count tracking
+- [ ] T116 [P] [US3] Implement unit tests for management repository methods
+
+### Core Bluetooth Tasks
+- [ ] T117 [US3] Implement CTAP2 CredentialManagement commands
+- [ ] T118 [US3] Add credential listing support to CTAP2 layer
+- [ ] T119 [P] [US3] Implement unit tests for credential management CTAP2
+
+### Presentation Layer Tasks
+- [ ] T120 [US3] Create CredentialManagementViewModel with MVI pattern
+- [ ] T121 [US3] Implement CredentialListScreen Compose screen
+- [ ] T122 [US3] Create CredentialItem Compose component
+- [ ] T123 [US3] Implement DeleteConfirmationDialog Compose component
+- [ ] T124 [US3] Add credential details view screen
+- [ ] T125 [P] [US3] Implement Compose UI tests for credential management
+- [ ] T126 [P] [US3] Implement integration tests for management flow
+
+### Integration Tasks
+- [ ] T127 [US3] Wire up management use cases with repository
+- [ ] T128 [US3] Connect management UI with ViewModel and use cases
+- [ ] T129 [US3] Implement error handling for management failures
+- [ ] T130 [US3] Add user consent logging for management operations
+- [ ] T131 [P] [US3] Implement end-to-end integration tests for management
+- [ ] T132 Verify management story compiles and passes all tests
+
+## Phase 6: Polish & Cross-Cutting Concerns
+
+**Goal**: Complete implementation with performance optimization, accessibility, and production readiness
+
+**Independent Test Criteria**: All features work smoothly with performance targets met
+
+### Performance Optimization Tasks
+- [ ] T133 Implement performance monitoring for HID operations
+- [ ] T133a Implement clipboard monitoring for sensitive data
+- [ ] T133b Add automatic clipboard clearing after 60 seconds
+- [ ] T133c [P] Implement clipboard security tests
+- [ ] T134 Add memory leak detection and prevention
+- [ ] T135 Optimize database queries for credential operations
+- [ ] T136 Implement background thread processing for crypto operations
+- [ ] T137 Add caching for frequently accessed credentials
+- [ ] T138 [P] Implement performance tests for all operations
+
+### Accessibility Tasks
+- [ ] T139 Add TalkBack support to all Compose screens
+- [ ] T140 Implement high-contrast theme support
+- [ ] T141 Add dynamic text scaling support
+- [ ] T142 Use Atkinson Hyperlegible font for security text
+- [ ] T143 [P] Implement accessibility tests for all screens
+
+### Security Hardening Tasks
+- [ ] T144 Add certificate pinning for FIDO2 communications
+- [ ] T145 Implement rate limiting for PIN attempts
+- [ ] T146 Add secure backup verification
+- [ ] T147 Implement audit logging for security events
+- [ ] T148 [P] Implement security tests for all components
+
+### Error Handling & Logging Tasks
+- [ ] T149 Add comprehensive error reporting
+- [ ] T150 Implement crash reporting for production
+- [ ] T151 Add debug logging for development
+- [ ] T152 Create user-friendly error messages
+- [ ] T153 [P] Implement error handling tests
+
+### Documentation & Deployment Tasks
+- [ ] T154 Update API documentation with examples
+- [ ] T155 Create user guide for FIDO2 setup
+- [ ] T156 Add troubleshooting documentation
+- [ ] T157 Prepare release notes and changelog
+- [ ] T158 [P] Implement documentation tests
+
+### Final Integration & Verification Tasks
+- [ ] T159 Run full integration test suite
+- [ ] T160 Verify performance targets are met
+- [ ] T161 Test on multiple Android devices
+- [ ] T162 Validate FIDO2 compliance with test tools
+- [ ] T163 Verify BRD requirements compliance
+- [ ] T164 Final compilation check and code review
+- [ ] T165 Prepare feature for merge to main branch
+
+## Dependencies
+
+### Story Completion Order
+1. **Phase 1** (Setup) → **Phase 2** (Foundational) → **Phase 3** (US1: Registration) → **Phase 4** (US2: Authentication) → **Phase 5** (US3: Management) → **Phase 6** (Polish)
+
+### Critical Path Dependencies
+- T001-T010 must complete before any other tasks
+- T011-T024 must complete before any user story tasks
+- T077 must complete before Phase 4 tasks
+- T107 must complete before Phase 5 tasks
+- T132 must complete before Phase 6 tasks
+
+## Parallel Execution Opportunities
+
+### Within Phase 1 (Setup)
+- T002, T003, T004 can be done in parallel
+- T008, T009 can be done in parallel with setup tasks
+
+### Within Phase 2 (Foundational)
+- T011-T014 can be done in parallel (different entities)
+- T021-T024 can be done in parallel with implementation
+- T016, T017, T018 can be done in parallel
+
+### Within User Story Phases
+- Domain model tasks (T025-T040) can be done in parallel with data layer setup
+- UI tasks (T062-T069) can be done in parallel with backend implementation
+- Unit tests (T039, T040, T047, T048) can be done in parallel with implementation
+
+### Cross-Story Parallelism
+- Phase 4 (Authentication) core tasks can start once Phase 3 registration infrastructure is stable
+- Phase 5 (Management) can be partially implemented in parallel with Phase 4 authentication UI work
+
+## Implementation Strategy
+
+### MVP Scope (Phase 1-3)
+Focus on User Story 1 (FIDO2 Registration) to deliver minimum viable product:
+- Complete T001-T077 for basic registration functionality
+- Ensure registration flow works with at least one test service
+- Target: 2-3 week development cycle
+
+### Incremental Delivery
+1. **Sprint 1**: Setup + Foundational + Registration (T001-T077)
+2. **Sprint 2**: Authentication (T078-T107) 
+3. **Sprint 3**: Management (T108-T132)
+4. **Sprint 4**: Polish & Production Readiness (T133-T165)
+
+### Risk Mitigation
+- Start with Bluetooth HID implementation (highest technical risk)
+- Implement comprehensive unit tests before integration
+- Use reference implementations as validation baseline
+- Test on multiple Android versions early
+
+## Compilation Verification
+
+Every task includes specific file paths and clear completion criteria to ensure the project compiles at each checkpoint:
+- **Phase 1**: Basic project structure and dependencies
+- **Phase 2**: Core infrastructure components
+- **Phase 3-5**: Each user story independently compilable
+- **Phase 6**: Full feature compilation and optimization
+
+## Total Task Count
+
+**Summary**: 165 total tasks
+- **Setup**: 10 tasks (T001-T010)
+- **Foundational**: 14 tasks (T011-T024)
+- **User Story 1**: 53 tasks (T025-T077)
+- **User Story 2**: 30 tasks (T078-T107)
+- **User Story 3**: 25 tasks (T108-T132)
+- **Polish**: 33 tasks (T133-T165)
+
+**Parallel Tasks**: 42 tasks marked with [P] for parallel execution
+**Independent Test Criteria**: Each phase has clear verification requirements
+**MVP Focus**: First 77 tasks deliver core registration functionality

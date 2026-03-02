@@ -1,0 +1,76 @@
+CREATE TABLE PasskeyCredential (
+    id TEXT NOT NULL PRIMARY KEY,
+    rpId TEXT NOT NULL,
+    rpName TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    userName TEXT NOT NULL,
+    userDisplayName TEXT NOT NULL,
+    publicKey TEXT NOT NULL,
+    privateKeyAlias TEXT NOT NULL,
+    signCount INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL,
+    lastUsedAt INTEGER,
+    aaguid TEXT NOT NULL,
+    credentialId TEXT NOT NULL,
+    UNIQUE(rpId, userId)
+);
+
+CREATE TABLE RelyingParty (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    iconUrl TEXT,
+    credentialCount INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL
+);
+
+CREATE TABLE UserConsentRecord (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    operationType TEXT NOT NULL,
+    rpId TEXT NOT NULL,
+    credentialId TEXT,
+    timestamp INTEGER NOT NULL,
+    biometricUsed INTEGER NOT NULL DEFAULT 0,
+    pinUsed INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(rpId) REFERENCES RelyingParty(id) ON DELETE CASCADE
+);
+
+CREATE TABLE BluetoothHidSession (
+    sessionId TEXT NOT NULL PRIMARY KEY,
+    hostDeviceAddress TEXT NOT NULL,
+    startTime INTEGER NOT NULL,
+    lastActivityTime INTEGER NOT NULL,
+    protocolVersion TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1
+);
+
+-- Indexes for performance
+CREATE INDEX idx_passkey_credential_rpId ON PasskeyCredential(rpId);
+CREATE INDEX idx_passkey_credential_userId ON PasskeyCredential(userId);
+CREATE INDEX idx_user_consent_rpId ON UserConsentRecord(rpId);
+CREATE INDEX idx_user_consent_timestamp ON UserConsentRecord(timestamp);
+CREATE INDEX idx_bluetooth_session_active ON BluetoothHidSession(isActive);
+
+-- Views for common queries
+CREATE VIEW CredentialSummary AS
+SELECT 
+    pc.id,
+    pc.rpId,
+    rp.name AS rpName,
+    pc.userName,
+    pc.userDisplayName,
+    pc.createdAt,
+    pc.lastUsedAt,
+    pc.signCount
+FROM PasskeyCredential pc
+JOIN RelyingParty rp ON pc.rpId = rp.id;
+
+CREATE VIEW RelyingPartyStats AS
+SELECT 
+    rp.id,
+    rp.name,
+    rp.credentialCount,
+    COUNT(ucr.id) AS consentCount,
+    MAX(ucr.timestamp) AS lastConsentTime
+FROM RelyingParty rp
+LEFT JOIN UserConsentRecord ucr ON rp.id = ucr.rpId
+GROUP BY rp.id, rp.name, rp.credentialCount;
