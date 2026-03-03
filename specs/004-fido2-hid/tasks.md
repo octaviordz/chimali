@@ -195,7 +195,7 @@
 - [X] T123 [US3] Implement DeleteConfirmationDialog Compose component
 - [X] T124 [US3] Add credential details view screen
 - [x] T125 [P] [US3] Implement Compose UI tests for credential management
-- [ ] T126 [P] [US3] Implement integration tests for management flow
+- [x] T126 [P] [US3] Implement integration tests for management flow
 
 ### Integration Tasks
 - [X] T127 [US3] Wire up management use cases with repository
