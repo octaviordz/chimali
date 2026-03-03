@@ -88,7 +88,7 @@ object RegistrationErrorHandler {
         is Fido2Exception.StorageException,
         is Fido2Exception.DatabaseException -> ErrorUi(
             title       = "Storage error",
-            message     = "Could not save your passkey. Please check available storage and try again.",
+            message     = "Could not save your passkey. ${error.message ?: "Please check available storage and try again."}",
             isRetryable = true,
             ctap2ErrorCode = 0x27 // CTAP2_ERR_PIN_POLICY_VIOLATION
         )

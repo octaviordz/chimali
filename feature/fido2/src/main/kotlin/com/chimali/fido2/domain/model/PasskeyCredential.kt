@@ -41,8 +41,8 @@ data class PasskeyCredential(
         require(privateKeyAlias.isNotBlank()) { "Private key alias cannot be blank" }
         
         // Validate formats
-        require(rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))) { 
-            "RP ID must be a valid HTTPS origin" 
+        require(rpId.matches(Regex("^(https?://)?[a-zA-Z0-9.-]+[a-zA-Z0-9./:-]*$"))) { 
+            "RP ID must be a valid domain or HTTPS origin" 
         }
         require(userId.length <= 64) { "User ID cannot exceed 64 bytes" }
         require(userName.length <= 64) { "User name cannot exceed 64 bytes" }

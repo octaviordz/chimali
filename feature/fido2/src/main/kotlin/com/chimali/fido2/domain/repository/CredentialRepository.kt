@@ -133,6 +133,14 @@ interface CredentialRepository {
     suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential>
     
     /**
+     * T156b — Saves a new relying party or updates an existing one.
+     * 
+     * @param rp The relying party to save
+     * @return Result indicating success or failure
+     */
+    suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit>
+
+    /**
      * Updates the relying party information for all credentials belonging to an RP.
      * 
      * @param rpId The ID of the relying party

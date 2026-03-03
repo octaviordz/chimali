@@ -5,6 +5,22 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ## [Unreleased]
 
+## [Unreleased] - 2026-03-03
+
+### Fixed
+- **Passkey Storage Error**: Fixed `SQLiteConstraintException` by ensuring Relying Party persistence before consent/credential creation.
+- **UI Responsiveness**: Fixed infinite loading screen and biometric prompt triggers in FIDO2 registration/authentication flows.
+- **Predictive Back**: Enabled `android:enableOnBackInvokedCallback` to support modern Android back gestures.
+
+### Changed
+- **Validation**: Relaxed RP ID validation to support optional protocol prefixes.
+- **Test Data**: Randomized mock user IDs in test UI to prevent database collisions.
+- **Error Handling**: Enhanced UI error messages with underlying diagnostic details.
+
+### Added
+- **Repository**: Added `saveRelyingParty` to handle both insert and update operations for RPs.
+- Full details: [2026-03-03-fido2-registration-fix.md](docs/changelogs/2026-03-03-fido2-registration-fix.md)
+
 ## [Unreleased] - 2026-03-02
 
 ### Added

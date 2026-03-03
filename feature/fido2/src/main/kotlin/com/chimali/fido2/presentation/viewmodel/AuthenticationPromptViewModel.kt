@@ -125,8 +125,7 @@ class AuthenticationPromptViewModel @Inject constructor(
             val availability = userVerificationService.getUserVerificationAvailability()
             when (availability.getBestAvailableMethod()) {
                 VerificationMethod.BIOMETRIC -> {
-                    _state.value = AuthenticationState.AwaitingBiometric
-                    emit(AuthenticationEffect.NavigateToBiometricPrompt)
+                    startBiometric()
                 }
                 VerificationMethod.PIN -> {
                     _state.value = AuthenticationState.AwaitingPin

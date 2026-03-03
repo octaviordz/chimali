@@ -9,12 +9,12 @@ import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.error.RegistrationErrorHandler
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -104,7 +104,8 @@ sealed interface RegistrationEffect {
 @HiltViewModel
 class RegistrationPromptViewModel @Inject constructor(
     private val fido2Service: Fido2Service,
-    private val userVerificationService: UserVerificationService
+    private val userVerificationService: UserVerificationService,
+    private val uiEventBus: Fido2UiEventBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RegistrationState>(RegistrationState.Idle)
@@ -114,6 +115,25 @@ class RegistrationPromptViewModel @Inject constructor(
     val effects = _effects.receiveAsFlow()
 
     private var pendingOptions: MakeCredentialOptions? = null
+    private var pendingDeferred: CompletableDeferred<*>? = null
+
+    init {
+        // Observe event bus for incoming registration requests from transport
+        uiEventBus.events
+            .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
+            .onEach { event ->
+                pendingDeferred = event.deferred
+                initRegistration(event.options)
+            }
+            .launchIn(viewModelScope)
+
+        // Consume any already-pending event that was emitted before this ViewModel was created
+        uiEventBus.currentRegistrationRequest?.let { event ->
+            pendingDeferred = event.deferred
+            initRegistration(event.options)
+            uiEventBus.currentRegistrationRequest = null
+        }
+    }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────
 
@@ -153,8 +173,7 @@ class RegistrationPromptViewModel @Inject constructor(
             val availability = userVerificationService.getUserVerificationAvailability()
             when (availability.getBestAvailableMethod()) {
                 VerificationMethod.BIOMETRIC -> {
-                    _state.value = RegistrationState.AwaitingBiometric
-                    emit(RegistrationEffect.NavigateToBiometricPrompt)
+                    startBiometricVerification()
                 }
                 VerificationMethod.PIN -> {
                     _state.value = RegistrationState.AwaitingPin
@@ -206,7 +225,11 @@ class RegistrationPromptViewModel @Inject constructor(
     }
 
     private fun cancelRegistration() {
+        @Suppress("UNCHECKED_CAST")
+        val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
+        deferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
         pendingOptions = null
+        pendingDeferred = null
         _state.value = RegistrationState.Cancelled
         viewModelScope.launch { emit(RegistrationEffect.NavigateBack) }
     }
@@ -223,6 +246,12 @@ class RegistrationPromptViewModel @Inject constructor(
         _state.value = RegistrationState.Processing
         viewModelScope.launch {
             val result = fido2Service.makeCredential(options)
+            
+            // Complete transport's deferred
+            @Suppress("UNCHECKED_CAST")
+            val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
+            deferred?.complete(result)
+
             result.onSuccess { attestation ->
                 // Build a lightweight display credential from the attestation metadata
                 val credential = PasskeyCredential.fromMakeCredentialOptions(options)
@@ -234,6 +263,10 @@ class RegistrationPromptViewModel @Inject constructor(
                 val ui = RegistrationErrorHandler.handle(error)
                 _state.value = RegistrationState.Error(ui.message, ui.isRetryable)
             }
+            
+            // Clear pending
+            pendingOptions = null
+            pendingDeferred = null
         }
     }
 

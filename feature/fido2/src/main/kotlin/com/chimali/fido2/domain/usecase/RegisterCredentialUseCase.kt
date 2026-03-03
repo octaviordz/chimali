@@ -32,6 +32,12 @@ class RegisterCredentialUseCase @Inject constructor(
             // Validate registration options
             validateRegistrationOptions(options)
             
+            // Ensure relying party exists before creating consent records or credentials
+            val rpResult = updateRelyingParty(options.rp)
+            if (rpResult.isFailure) {
+                return Result.failure(Fido2Exception.CredentialStorageFailed("Failed to register relying party: ${rpResult.exceptionOrNull()?.message}"))
+            }
+            
             // Check if user consent is required
             val consentRequired = userVerificationService.isUserVerificationRequired(
                 rpId = options.rp.id,
@@ -73,9 +79,6 @@ class RegisterCredentialUseCase @Inject constructor(
             if (storageResult.isFailure) {
                 return Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"))
             }
-            
-            // Update relying party information
-            updateRelyingParty(options.rp)
             
             // Create attestation object
             val attestationObject = createAttestationObject(
@@ -359,17 +362,14 @@ class RegisterCredentialUseCase @Inject constructor(
     /**
      * Updates relying party information in the repository.
      */
-    private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity) {
+    private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity): Result<Unit> {
         val existingRp = credentialRepository.getRelyingParty(rp.id)
-        if (existingRp != null) {
-            // Update existing RP with new credential count
-            val updatedRp = existingRp.withCredentialCount(existingRp.credentialCount + 1)
-            credentialRepository.updateRelyingParty(rp.id) { updatedRp }
+        val rpToSave = if (existingRp != null) {
+            existingRp.withCredentialCount(existingRp.credentialCount + 1)
         } else {
-            // Create new RP entry
-            val newRp = RelyingParty.create(rp.id, rp.name, rp.icon)
-            credentialRepository.updateRelyingParty(rp.id) { newRp }
+            RelyingParty.create(rp.id, rp.name, rp.icon)
         }
+        return credentialRepository.saveRelyingParty(rpToSave)
     }
     
     /**

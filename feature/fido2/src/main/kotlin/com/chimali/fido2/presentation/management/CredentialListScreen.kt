@@ -16,14 +16,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
 
+import androidx.hilt.navigation.compose.hiltViewModel
+
 /**
  * T121 — List Screen to show all FIDO2 Passkeys.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CredentialListScreen(
-    viewModel: CredentialManagementViewModel,
-    onNavigateUp: () -> Unit
+    onNavigateUp: () -> Unit,
+    viewModel: CredentialManagementViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 

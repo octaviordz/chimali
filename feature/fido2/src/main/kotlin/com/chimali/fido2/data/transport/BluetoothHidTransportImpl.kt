@@ -298,5 +298,5 @@ class BluetoothHidTransportImpl @Inject constructor(
         joinToString("") { "%02x".format(it) }
 
     /** Expose connection state for observing by the presentation layer. */
-    val connectionState: StateFlow<HidConnectionState> = hidWrapper.connectionState
+    override val connectionState: StateFlow<HidConnectionState> = hidWrapper.connectionState
 }

@@ -25,6 +25,7 @@ import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
 import com.chimali.fido2.domain.repository.UserConsentRepository
+import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.impl.Fido2ServiceImpl
@@ -101,6 +102,11 @@ abstract class Fido2BindingModule {
     abstract fun bindFido2Service(
         impl: Fido2ServiceImpl
     ): Fido2Service
+
+    @Binds
+    abstract fun bindFido2Authenticator(
+        impl: com.chimali.fido2.domain.service.impl.Fido2AuthenticatorImpl
+    ): Fido2Authenticator
 
     @Binds
     abstract fun bindUserVerificationService(

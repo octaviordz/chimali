@@ -36,8 +36,8 @@ data class UserConsentRecord(
         }
         
         // Validate RP ID format
-        require(rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))) { 
-            "RP ID must be a valid HTTPS origin" 
+        require(rpId.matches(Regex("^(https?://)?[a-zA-Z0-9.-]+[a-zA-Z0-9./:-]*$"))) { 
+            "RP ID must be a valid domain or HTTPS origin" 
         }
         
         // Validate credential ID if present

@@ -15,6 +15,9 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import kotlinx.coroutines.CompletableDeferred
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -73,7 +76,8 @@ class Ctap2MakeCredentialHandler @Inject constructor(
     private val userVerificationService: UserVerificationService,
     private val fido2Authenticator: Fido2Authenticator,
     private val cborCodec: CborCodec,
-    private val hidReportParser: HidReportParser
+    private val hidReportParser: HidReportParser,
+    private val uiEventBus: Fido2UiEventBus
 ) {
 
     private val secureRandom = SecureRandom()
@@ -175,43 +179,9 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         cid: ByteArray,
         req: MakeCredentialRequest
     ): List<ByteArray> {
-
-        // Select preferred algorithm — prefer ES256
-        val algorithm = selectAlgorithm(req.algorithms)
-            ?: throw Fido2Exception.UnsupportedAlgorithmException(
-                "None of the requested algorithms are supported: ${req.algorithms}"
-            )
-
-        // User verification
-        if (req.requireUV) {
-            val availability = userVerificationService.getUserVerificationAvailability()
-            if (!availability.hasAnyVerificationMethod()) {
-                return errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
-            }
-            val verifyResult = when {
-                availability.biometricAvailable ->
-                    userVerificationService.verifyBiometric(
-                        prompt = "Register passkey for ${req.rpId}",
-                        rpId = req.rpId
-                    )
-                availability.pinAvailable ->
-                    userVerificationService.verifyPin(
-                        prompt = "Enter PIN to register passkey for ${req.rpId}",
-                        rpId = req.rpId
-                    )
-                else -> Result.failure(
-                    Fido2Exception.UserVerificationException("No verification method available")
-                )
-            }
-            if (verifyResult.isFailure) {
-                return errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
-            }
-        }
-
-        // Build MakeCredentialOptions and delegate
+        // Build options
         val rp = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
         val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
-        val params = listOf(PublicKeyCredentialParameters.createES256P256())
         val makeCredentialOptions = MakeCredentialOptions.create(
             rp = rp,
             user = user,
@@ -219,12 +189,18 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
         )
 
-        val attestationResult = fido2Authenticator.makeCredential(makeCredentialOptions)
+        // Dispatch to UI and wait
+        val deferred = CompletableDeferred<Result<AttestationObject>>()
+        uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
+
+        val attestationResult = deferred.await()
+        
         if (attestationResult.isFailure) {
             val ex = attestationResult.exceptionOrNull()
-            Log.e(TAG, "makeCredential failed: ${ex?.message}")
+            Log.e(TAG, "Registration failed or cancelled: ${ex?.message}")
             return when (ex) {
                 is Fido2Exception.CredentialException -> errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
+                is Fido2Exception.UserVerificationException -> errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
                 else -> errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
             }
         }

@@ -22,8 +22,10 @@ import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
  * transport receives a CTAP2 MakeCredential request.
  */
 object Fido2Destinations {
+    const val HOME_ROUTE = "fido2/home"
     const val REGISTRATION_ROUTE = "fido2/register"
     const val REGISTRATION_SUCCESS_ROUTE = "fido2/register/success"
+    const val MANAGEMENT_ROUTE = "fido2/management"
 }
 
 /**
@@ -40,7 +42,7 @@ fun Fido2RegistrationNavGraph(
     onRegistrationComplete: (credentialId: String) -> Unit,
     onRegistrationCancelled: () -> Unit,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Fido2Destinations.REGISTRATION_ROUTE,
+    startDestination: String = Fido2Destinations.HOME_ROUTE,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -48,6 +50,17 @@ fun Fido2RegistrationNavGraph(
         startDestination = startDestination,
         modifier         = modifier
     ) {
+        composable(Fido2Destinations.HOME_ROUTE) {
+            com.chimali.fido2.presentation.ui.Fido2HomeScreen(
+                onManageCredentials = {
+                    navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
+                },
+                onRegisterRequest = {
+                    navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
+                }
+            )
+        }
+
         composable(Fido2Destinations.REGISTRATION_ROUTE) {
             RegistrationPromptScreen(
                 onSuccess = { credentialId ->
@@ -55,6 +68,14 @@ fun Fido2RegistrationNavGraph(
                 },
                 onCancel = {
                     onRegistrationCancelled()
+                }
+            )
+        }
+
+        composable(Fido2Destinations.MANAGEMENT_ROUTE) {
+            com.chimali.fido2.presentation.management.CredentialListScreen(
+                onNavigateUp = {
+                    navController.popBackStack()
                 }
             )
         }
