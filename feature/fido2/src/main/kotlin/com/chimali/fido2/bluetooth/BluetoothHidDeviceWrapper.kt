@@ -29,6 +29,9 @@ private const val TAG = "BluetoothHidWrapper"
  * Usage Page 0xF1D0 (FIDO Alliance), Usage 0x01 (U2F Authenticator Device).
  * Reports are 64 bytes (report ID 0).
  */
+// Android's Classic BT HID L2CAP MTU is hard-capped at 64 bytes total.
+// The HIDP layer consumes 2 bytes (protocol header + report ID), leaving
+// only 62 bytes available for the actual HID payload. Per wiokey-android.
 private val FIDO_HID_REPORT_DESCRIPTOR = byteArrayOf(
     0x06.toByte(), 0xD0.toByte(), 0xF1.toByte(), // Usage Page (FIDO Alliance)
     0x09.toByte(), 0x01.toByte(),                  // Usage (U2F Authenticator Device)
@@ -37,19 +40,24 @@ private val FIDO_HID_REPORT_DESCRIPTOR = byteArrayOf(
     0x15.toByte(), 0x00.toByte(),                  //   Logical Minimum (0)
     0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),   //   Logical Maximum (255)
     0x75.toByte(), 0x08.toByte(),                  //   Report Size (8)
-    0x95.toByte(), 0x40.toByte(),                  //   Report Count (64)
+    0x95.toByte(), 0x3E.toByte(),                  //   Report Count (62) — MTU cap
     0x81.toByte(), 0x02.toByte(),                  //   Input (Data, Var, Abs)
     0x09.toByte(), 0x21.toByte(),                  //   Usage (Output Report Data)
     0x15.toByte(), 0x00.toByte(),                  //   Logical Minimum (0)
     0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),   //   Logical Maximum (255)
     0x75.toByte(), 0x08.toByte(),                  //   Report Size (8)
-    0x95.toByte(), 0x40.toByte(),                  //   Report Count (64)
+    0x95.toByte(), 0x3E.toByte(),                  //   Report Count (62) — MTU cap
     0x91.toByte(), 0x02.toByte(),                  //   Output (Data, Var, Abs)
     0xC0.toByte()                                   // End Collection
 )
 
-/** Fixed 64-byte HID report size per FIDO CTAP HID spec §8.1 */
-const val FIDO_HID_REPORT_SIZE = 64
+/**
+ * HID report payload size — 62 bytes (not 64) due to Android L2CAP MTU cap.
+ * Android's Classic HID over L2CAP SCO has a hard 64-byte MTU. The HIDP
+ * layer consumes 2 bytes for the protocol header and report ID, leaving
+ * exactly 62 bytes for the FIDO HID payload. Per wiokey-android reference.
+ */
+const val FIDO_HID_REPORT_SIZE = 62
 
 /** Report ID 0 — FIDO2 HID uses no report ID prefix (report ID 0 means bare data) */
 private const val FIDO_REPORT_ID: Byte = 0
@@ -245,14 +253,15 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             FIDO_HID_REPORT_DESCRIPTOR
         )
 
-        // QoS: latency-optimised for HID (matches reference wiokey values)
-        val inQos = BluetoothHidDeviceAppQosSettings(
-            BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-            800, 9, 0, 11250, BluetoothHidDeviceAppQosSettings.MAX
-        )
+        // QoS: wiokey-android values — inQos null (host-driven), outQos tightly
+        // bounded to 62-byte token bucket at 1000 token/s, 2 Mbps peak.
         val outQos = BluetoothHidDeviceAppQosSettings(
             BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-            800, 9, 0, 11250, BluetoothHidDeviceAppQosSettings.MAX
+            1000,                    // token rate (bytes/s)
+            FIDO_HID_REPORT_SIZE + 1, // token bucket size (63)
+            2000,                    // peak bandwidth (bytes/s)
+            5000,                    // latency (μs)
+            BluetoothHidDeviceAppQosSettings.MAX
         )
 
         // Wrap the existing callback to capture registration result
@@ -287,7 +296,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         val registered = try {
             hid.registerApp(
                 sdp,
-                inQos,
+                null,   // inQos — let the host dictate inbound QoS
                 outQos,
                 Executors.newSingleThreadExecutor(),
                 registrationCallback

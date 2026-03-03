@@ -11,24 +11,27 @@ private const val TAG = "HidReportParser"
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
+// Android Classic HID L2CAP MTU = 64 bytes total. HIDP consumes 2 bytes
+// (protocol header + report ID), leaving 62 bytes for FIDO HID payload.
+//
 // Init packet (first in sequence):
-//   [CID 4B] [CMD 1B (bit7=1)] [BCNTH 1B] [BCNTL 1B] [DATA up to 57B]
+//   [CID 4B] [CMD 1B (bit7=1)] [BCNTH 1B] [BCNTL 1B] [DATA up to 55B]
 //
 // Continuation packet:
-//   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 59B]
+//   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 57B]
 //
-// Total packet size = 64 bytes (FIDO_HID_REPORT_SIZE)
+// Total packet size = 62 bytes (FIDO_HID_REPORT_SIZE per wiokey-android)
 
-private const val HID_PACKET_SIZE = 64
+private const val HID_PACKET_SIZE = 62
 private const val CID_SIZE = 4
 private const val INIT_CMD_OFFSET = 4
 private const val INIT_BCNTH_OFFSET = 5
 private const val INIT_BCNTL_OFFSET = 6
 private const val INIT_DATA_OFFSET = 7
-private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 57
+private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 55
 private const val CONT_SEQ_OFFSET = 4
 private const val CONT_DATA_OFFSET = 5
-private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 59
+private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 57
 
 private const val CMD_FLAG = 0x80  // bit7 set → init packet
 private const val CMD_MASK = 0x7F
@@ -77,13 +80,16 @@ data class CtapHidMessage(
 }
 
 /**
- * Parses 64-byte raw HID reports and reassembles multi-packet CTAP2 HID messages.
+ * Parses 62-byte raw HID reports and reassembles multi-packet CTAP2 HID messages.
  *
- * Per FIDO CTAP HID spec §8: each 64-byte report is either an *init* packet
+ * Per FIDO CTAP HID spec §8, each report is either an *init* packet
  * (MSB of byte[4] == 1) or a *continuation* packet (MSB == 0). This parser
  * accumulates packets per channel ID until the full payload is received.
  *
- * Usage: feed each 64-byte report from [BluetoothHidDeviceWrapper.incomingReports]
+ * Android-specific: report size is 62 (not the spec's 64) due to the L2CAP
+ * MTU cap. See [FIDO_HID_REPORT_SIZE] and the wiokey-android reference.
+ *
+ * Usage: feed each report from [BluetoothHidDeviceWrapper.incomingReports]
  * to [processReport]. When a result is non-null the full message is ready.
  */
 @Singleton

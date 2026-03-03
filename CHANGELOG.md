@@ -12,6 +12,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **Validation Refinement**: Relaxed HTTPS origin requirement and added support for `"none"` algorithm in attestation statements.
 - **UI Responsiveness**: Fixed infinite loading screen and biometric prompt triggers in FIDO2 registration/authentication flows.
 - **Predictive Back**: Enabled `android:enableOnBackInvokedCallback` to support modern Android back gestures.
+- **Bluetooth Init**: Made `initialize()` suspending so "Start Authenticator" requires only one click.
+- **HID MTU Fix**: Reduced HID report size from 64 to 62 bytes (Android L2CAP cap), updated QoS to WIOKey reference values — enables Windows pairing via Classic HID.
 
 ### Changed
 - **Validation**: Relaxed RP ID validation to support optional protocol prefixes.
