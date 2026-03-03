@@ -32,8 +32,8 @@ data class RelyingParty(
         require(name.isNotBlank()) { "RP name cannot be blank" }
         
         // Validate formats
-        require(id.matches(Regex("^(https?://)?[a-zA-Z0-9.-]+[a-zA-Z0-9./:-]*$"))) { 
-            "RP ID must be a valid domain or HTTPS origin" 
+        require(isValidRpId(id)) { 
+            "RP ID must be a valid domain or HTTPS origin: $id" 
         }
         require(name.length <= 64) { "RP name cannot exceed 64 characters" }
         require(credentialCount >= 0) { "Credential count cannot be negative" }
@@ -158,13 +158,11 @@ data class RelyingParty(
          */
         fun isValidRpId(rpId: String): Boolean {
             return try {
-                val uri = URI.create(rpId)
+                val uri = java.net.URI(if (rpId.contains("://")) rpId else "https://$rpId")
                 val scheme = uri.scheme?.lowercase()
                 val host = uri.host
                 
-                scheme in setOf("https", "http") && 
-                host != null && 
-                host.matches(Regex("^[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))
+                scheme in setOf("https", "http") && host != null && host.isNotBlank()
             } catch (e: Exception) {
                 false
             }

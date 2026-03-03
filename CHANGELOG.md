@@ -9,6 +9,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ### Fixed
 - **Passkey Storage Error**: Fixed `SQLiteConstraintException` by ensuring Relying Party persistence before consent/credential creation.
+- **Validation Refinement**: Relaxed HTTPS origin requirement and added support for `"none"` algorithm in attestation statements.
 - **UI Responsiveness**: Fixed infinite loading screen and biometric prompt triggers in FIDO2 registration/authentication flows.
 - **Predictive Back**: Enabled `android:enableOnBackInvokedCallback` to support modern Android back gestures.
 

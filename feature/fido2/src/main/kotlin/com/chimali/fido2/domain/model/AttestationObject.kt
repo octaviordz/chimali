@@ -218,7 +218,7 @@ data class AttestationStatement(
         require(fmt.isNotBlank()) { "Format cannot be blank" }
         
         // Validate algorithm
-        require(alg in setOf("ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA")) { 
+        require(alg in setOf("ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "none")) { 
             "Algorithm must be a valid signature algorithm" 
         }
         
@@ -329,8 +329,8 @@ data class ClientData(
         require(challenge.isNotEmpty()) { "Challenge cannot be empty" }
         require(challenge.size <= 64) { "Challenge cannot exceed 64 bytes" }
         require(origin.isNotBlank()) { "Origin cannot be blank" }
-        require(origin.matches(Regex("^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))) { 
-            "Origin must be a valid HTTPS origin" 
+        require(RelyingParty.isValidRpId(origin)) { 
+            "Origin must be a valid domain or HTTPS origin: $origin" 
         }
         
         // Validate timestamp

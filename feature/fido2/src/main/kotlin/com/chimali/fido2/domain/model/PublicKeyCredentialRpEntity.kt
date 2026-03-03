@@ -24,8 +24,8 @@ data class PublicKeyCredentialRpEntity(
         require(name.isNotBlank()) { "RP name cannot be blank" }
         
         // Validate formats
-        require(id.matches(Regex("^(https?://)?[a-zA-Z0-9.-]+[a-zA-Z0-9./:-]*$"))) { 
-            "RP ID must be a valid domain or HTTPS origin" 
+        require(RelyingParty.isValidRpId(id)) {
+            "RP ID must be a valid domain or HTTPS origin: $id" 
         }
         require(name.length <= 64) { "RP name cannot exceed 64 characters" }
         

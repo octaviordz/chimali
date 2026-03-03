@@ -246,8 +246,8 @@ class GetUserConsentUseCase @Inject constructor(
         credentialId: String?
     ) {
         require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9./]*$"))) { 
-            "RP ID must be a valid HTTPS origin" 
+        require(RelyingParty.isValidRpId(rpId)) { 
+            "RP ID must be a valid domain or HTTPS origin: $rpId" 
         }
         
         credentialId?.let { credId ->

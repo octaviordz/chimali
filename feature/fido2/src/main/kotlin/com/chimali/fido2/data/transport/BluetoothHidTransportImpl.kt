@@ -80,8 +80,8 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     override suspend fun connect(): Result<Unit> {
         return try {
-            hidWrapper.initialize()
-            hidWrapper.registerApp()
+            hidWrapper.initialize().getOrThrow()
+            hidWrapper.registerApp().getOrThrow()
             startReceiving()
             observeConnectionState()
             Log.i(TAG, "BluetoothHidTransport connected and advertising")

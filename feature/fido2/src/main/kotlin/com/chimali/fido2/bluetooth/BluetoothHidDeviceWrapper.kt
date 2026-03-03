@@ -99,11 +99,15 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
     // ── Callbacks ─────────────────────────────────────────────────────────────
 
+    private var initContinuation: kotlinx.coroutines.CancellableContinuation<Result<Unit>>? = null
+
     private val serviceListener = object : BluetoothProfile.ServiceListener {
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = proxy as BluetoothHidDevice
                 Log.d(TAG, "HID_DEVICE profile proxy acquired")
+                initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
+                initContinuation = null
             }
         }
 
@@ -181,14 +185,24 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Must be called once (e.g. from Application.onCreate or a Hilt entry-point)
-     * to acquire the BluetoothHidDevice profile proxy from the system.
+     * Must be called once to acquire the BluetoothHidDevice profile proxy from the system.
+     * This suspends until the proxy is delivered.
      */
-    fun initialize() {
-        try {
-            bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
-        } catch (e: SecurityException) {
-            Log.e(TAG, "initialize: Bluetooth permission denied", e)
+    suspend fun initialize(): Result<Unit> {
+        if (hidDevice != null) return Result.success(Unit)
+        
+        return suspendCancellableCoroutine { cont ->
+            initContinuation = cont
+            try {
+                val success = bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE) ?: false
+                if (!success) {
+                    cont.resumeWithException(Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"))
+                    initContinuation = null
+                }
+            } catch (e: SecurityException) {
+                cont.resumeWithException(Fido2Exception.BluetoothPermissionDenied("Bluetooth permission denied", e))
+                initContinuation = null
+            }
         }
     }
 

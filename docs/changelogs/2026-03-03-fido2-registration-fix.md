@@ -7,6 +7,8 @@ Resolved a persistent "Could not save your passkey" error during FIDO2 registrat
 
 ### 🛠 Fixed
 - **Passkey Storage Failure**: Resolved a `SQLiteConstraintException` caused by a foreign key violation. The system now ensures that the `RelyingParty` (RP) is persisted in the database *before* attempting to save associated user consent records or credentials.
+- **Origin Validation**: Relaxed strict HTTPS origin validation and refactored logic to use `java.net.URI` across all models. This ensures robust, standard-compliant validation without platform dependencies.
+- **Algorithm Validation**: Added `"none"` to the allowed signature algorithms in `AttestationStatement` to support self-attested credentials.
 - **Infinite Loading Screen**: Fixed a race condition where the `RegistrationPromptViewModel` could miss the initial request event because it was emitted before the ViewModel was fully initialized. The `Fido2UiEventBus` now retains the last pending request.
 - **Biometric Prompt Triggers**: Corrected an issue where the biometric verification prompt would not appear automatically. The ViewModels now directly invoke the verification service instead of relying on ignored UI effects.
 - **Predictive Back Gesture**: Resolved a Logcat warning by enabling `android:enableOnBackInvokedCallback` in the manifest.
