@@ -226,8 +226,11 @@ sealed class Fido2Exception(
     class TransportException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "TRANSPORT_ERROR")
 
-    class BluetoothException(message: String, cause: Throwable? = null) :
+    open class BluetoothException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "BLUETOOTH_ERROR")
+
+    class BluetoothPermissionDenied(message: String, cause: Throwable? = null) :
+        BluetoothException(message, cause)
 
     class ConnectionException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "CONNECTION_ERROR")

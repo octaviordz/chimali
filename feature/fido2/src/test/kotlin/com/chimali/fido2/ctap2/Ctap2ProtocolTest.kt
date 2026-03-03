@@ -148,7 +148,7 @@ class Ctap2ProtocolTest {
             aaguid = aaguid,
             version = "1.0",
             supportedAlgorithms = listOf("ES256"),
-            supportedTransports = listOf(AuthenticatorTransport.BLUETOOTH),
+            supportedTransports = listOf(AuthenticatorTransport.BLE),
             supportsResidentKeys = true,
             supportsUserVerification = true,
             maxCredentialCount = 50,

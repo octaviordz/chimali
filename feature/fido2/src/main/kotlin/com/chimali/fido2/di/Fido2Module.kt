@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.chimali.fido2.data.database.Fido2Database
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.chimali.fido2.data.repository.CredentialRepositoryImpl
 import com.chimali.fido2.data.repository.Fido2RepositoryImpl
 import com.chimali.fido2.data.repository.PasskeyCredentialRepositoryImpl
 import com.chimali.fido2.data.repository.RelyingPartyRepositoryImpl
@@ -19,6 +20,7 @@ import com.chimali.fido2.data.storage.AndroidKeyStoreWrapper
 import com.chimali.fido2.data.storage.KeyStoreWrapper
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
@@ -64,6 +66,11 @@ object Fido2Module {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class Fido2BindingModule {
+
+    @Binds
+    abstract fun bindCredentialRepository(
+        impl: CredentialRepositoryImpl
+    ): CredentialRepository
 
     @Binds
     abstract fun bindFido2Repository(

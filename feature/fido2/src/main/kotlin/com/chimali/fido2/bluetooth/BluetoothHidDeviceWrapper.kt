@@ -164,7 +164,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             bufferSize: Int
         ) {
             // Host polling for a report — respond with empty/idle report
-            hidDevice?.replyReport(device, type, id, ByteArray(FIDO_HID_REPORT_SIZE))
+            try {
+                hidDevice?.replyReport(device, type, id, ByteArray(FIDO_HID_REPORT_SIZE))
+            } catch (e: SecurityException) {
+                Log.e(TAG, "onGetReport: BLUETOOTH_CONNECT permission denied", e)
+            }
         }
 
         override fun onVirtualCableUnplug(device: BluetoothDevice) {
@@ -181,7 +185,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * to acquire the BluetoothHidDevice profile proxy from the system.
      */
     fun initialize() {
-        bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
+        try {
+            bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "initialize: Bluetooth permission denied", e)
+        }
     }
 
     /**
@@ -200,7 +208,15 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             return@suspendCancellableCoroutine
         }
 
-        if (bluetoothAdapter?.isEnabled != true) {
+        val isEnabled = try {
+            bluetoothAdapter?.isEnabled == true
+        } catch (e: SecurityException) {
+            cont.resumeWithException(
+                Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e)
+            )
+            return@suspendCancellableCoroutine
+        }
+        if (!isEnabled) {
             cont.resumeWithException(
                 Fido2Exception.BluetoothException("Bluetooth is disabled")
             )
@@ -254,13 +270,20 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                 hidCallback.onVirtualCableUnplug(device)
         }
 
-        val registered = hid.registerApp(
-            sdp,
-            inQos,
-            outQos,
-            Executors.newSingleThreadExecutor(),
-            registrationCallback
-        )
+        val registered = try {
+            hid.registerApp(
+                sdp,
+                inQos,
+                outQos,
+                Executors.newSingleThreadExecutor(),
+                registrationCallback
+            )
+        } catch (e: SecurityException) {
+            cont.resumeWithException(
+                Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
+            )
+            return@suspendCancellableCoroutine
+        }
 
         if (!registered) {
             cont.resumeWithException(
@@ -283,21 +306,34 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             return false
         }
         val report = ensureReportSize(data)
-        val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-        Log.d(TAG, "sendReport sent=$sent len=${report.size}")
-        return sent
+        return try {
+            val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
+            Log.d(TAG, "sendReport sent=$sent len=${report.size}")
+            sent
+        } catch (e: SecurityException) {
+            Log.e(TAG, "sendReport: BLUETOOTH_CONNECT permission denied", e)
+            false
+        }
     }
 
     /** Unregisters the HID app (stops advertising / disconnects host). */
     fun unregisterApp() {
-        hidDevice?.unregisterApp()
+        try {
+            hidDevice?.unregisterApp()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "unregisterApp: Bluetooth permission denied", e)
+        }
         _connectionState.value = HidConnectionState.Idle
     }
 
     /** Releases the profile proxy. Should be called from Application.onTerminate. */
     fun close() {
         unregisterApp()
-        hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }
+        try {
+            hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "close: Bluetooth permission denied", e)
+        }
         hidDevice = null
         incomingReports.close()
     }
@@ -306,7 +342,12 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     fun isConnected(): Boolean = _connectionState.value is HidConnectionState.Connected
 
     /** Returns true if Bluetooth is enabled on the device. */
-    fun isBluetoothEnabled(): Boolean = bluetoothAdapter?.isEnabled == true
+    fun isBluetoothEnabled(): Boolean = try {
+        bluetoothAdapter?.isEnabled == true
+    } catch (e: SecurityException) {
+        Log.e(TAG, "isBluetoothEnabled: permission denied", e)
+        false
+    }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 

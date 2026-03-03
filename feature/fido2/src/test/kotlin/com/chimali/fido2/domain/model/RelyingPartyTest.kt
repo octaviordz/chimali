@@ -249,10 +249,10 @@ class RelyingPartyTest {
         @Test
         @DisplayName("Should return safe name")
         fun `should return safe name`() = runTest {
-            assertEquals("Example Website", rp.getSafeDisplayName())
+            assertEquals("Example Website", rp.name)
             
             val rpWithBlankName = rp.copy(name = "")
-            assertEquals("example.com", rpWithBlankName.getSafeDisplayName())
+            assertEquals("example.com", rpWithBlankName.name)
         }
         
         @Test

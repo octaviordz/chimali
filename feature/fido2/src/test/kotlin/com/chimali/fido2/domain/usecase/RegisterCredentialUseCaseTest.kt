@@ -1,6 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
 import com.chimali.fido2.domain.model.*
+
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.Fido2Authenticator
@@ -49,7 +50,7 @@ class RegisterCredentialUseCaseTest {
         testRp = PublicKeyCredentialRpEntity.create(
             id = "https://example.com",
             name = "Example Website",
-            icon = "https://example.com/icon.png"
+            
         )
         
         testUser = PublicKeyCredentialUserEntity.create(
@@ -69,13 +70,13 @@ class RegisterCredentialUseCaseTest {
             allowCredentials = null,
             excludeCredentials = null,
             authenticatorSelection = AuthenticatorSelectionCriteria.create(
-                userVerification = UserVerificationRequirement.REQUIRED
+                userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED
             ),
             attestation = AttestationConveyancePreference.NONE
         )
         
         // Setup default mock responses
-        coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns UserVerificationRequirement.REQUIRED
+        coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
         coEvery { userVerificationService.getUserVerificationAvailability() } returns UserVerificationAvailability(
             biometricAvailable = true,
             pinAvailable = true,
@@ -156,7 +157,7 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should successfully register credential without verification when not required")
         fun `should successfully register credential without verification when not required`() = runTest {
             // Mock no verification required
-            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns UserVerificationRequirement.NOT_REQUIRED
+            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
             
             val result = registerCredentialUseCase(testOptions)
             
@@ -175,7 +176,7 @@ class RegisterCredentialUseCaseTest {
             val existingRp = RelyingParty.create(
                 id = "https://example.com",
                 name = "Example Website",
-                icon = "https://example.com/icon.png"
+                
             ).copy(credentialCount = 3)
             
             coEvery { credentialRepository.getRelyingParty(any()) } returns existingRp
@@ -254,7 +255,7 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should fail when credential creation validation fails")
         fun `should fail when credential creation validation fails`() = runTest {
             coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.failure(
-                Fido2Exception.CredentialCreationNotAllowed()
+                Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed")
             )
             
             val result = registerCredentialUseCase(testOptions)
@@ -313,7 +314,7 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should fail when user consent recording fails")
         fun `should fail when user consent recording fails`() = runTest {
             coEvery { userVerificationService.recordUserConsent(any()) } returns Result.failure(
-                Fido2Exception.ConsentDenied()
+                Fido2Exception.ConsentDenied("Consent denied")
             )
             
             val result = registerCredentialUseCase(testOptions)
@@ -331,7 +332,7 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should fail when credential storage fails")
         fun `should fail when credential storage fails`() = runTest {
             coEvery { credentialRepository.saveCredential(any()) } returns Result.failure(
-                Fido2Exception.CredentialStorageFailed()
+                Fido2Exception.CredentialStorageFailed("Credential storage failed")
             )
             
             val result = registerCredentialUseCase(testOptions)
@@ -344,7 +345,7 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should fail when RP update fails")
         fun `should fail when rp update fails`() = runTest {
             coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.failure(
-                Fido2Exception.RelyingPartyUpdateFailed()
+                Fido2Exception.RelyingPartyUpdateFailed("Relying party update failed")
             )
             
             val result = registerCredentialUseCase(testOptions)
@@ -404,11 +405,11 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should handle preferred verification with biometric available")
         fun `should handle preferred verification with biometric available`() = runTest {
-            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns UserVerificationRequirement.PREFERRED
+            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.PREFERRED
             
             val preferredOptions = testOptions.copy(
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
-                    userVerification = UserVerificationRequirement.PREFERRED
+                    userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.PREFERRED
                 )
             )
             
@@ -421,11 +422,11 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should handle discouraged verification")
         fun `should handle discouraged verification`() = runTest {
-            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns UserVerificationRequirement.DISCOURAGED
+            coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.DISCOURAGED
             
             val discouragedOptions = testOptions.copy(
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
-                    userVerification = UserVerificationRequirement.DISCOURAGED
+                    userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED
                 )
             )
             
@@ -485,7 +486,7 @@ class RegisterCredentialUseCaseTest {
             val residentKeyOptions = testOptions.copy(
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
                     requireResidentKey = ResidentKeyRequirement.REQUIRED,
-                    userVerification = UserVerificationRequirement.REQUIRED
+                    userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED
                 )
             )
             

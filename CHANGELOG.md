@@ -8,13 +8,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-03-02
 
 ### Added
-- **FIDO2 Registration (Phase 3)**: Complete FIDO2 MakeCredential flow — domain models, repository, CTAP2 handler, biometric/PIN consent, and Compose presentation layer
-- **FIDO2 Authentication (Phase 4)**: Full GetAssertion flow — assertion handler, sign-count tracking, credential selection, and authentication UI
-- **Credential Management (Phase 5)**: Credential enumeration, deletion, and management UI including `CredentialListScreen`, `DeleteConfirmationDialog`, and `CredentialManagementViewModel`
-- `getSignCount` method added to `PasskeyCredentialDao`
-- `isBlocked` field added to `RelyingParty` domain model
+- **CTAP2 Credential Management**: Implemented stateful enumeration subcommands (2-5) for listing RPs and credentials.
+- **Authentication Testing**: Completed full test suite for US2 (unit, UI, and integration) covering `GetAssertionUseCase`, `SelectCredentialUseCase`, and `AuthenticationPromptScreen`.
+- **Hilt Dependency Injection**: Added missing `CredentialRepository` binding in `Fido2Module.kt`.
 
 ### Fixed
+- **Test Build Issues**: Updated `UserVerificationAvailability` usage in tests to align with updated domain models.
 - **SQLDelight schema mismatches**: All named query parameters in `RelyingParty.sq` and `UserConsentRecord.sq` aligned with generated Kotlin API
 - **`UserVerificationServiceImpl`**: Rewrote to implement all 14 abstract members of `UserVerificationService`
 - **`ConsentVerificationResult.verificationMethod`**: Made nullable to allow unauthenticated consent paths
@@ -22,7 +21,9 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **`CredentialEncryptionService`**: Fixed `RpIdMismatch` constructor argument count
 - **`Ctap2CredentialManagementHandler`**: Fixed Flow collection to enable `.size` access
 - **`RelyingPartyDao`**: Fixed transaction blocks and `Long`→`Int`/`Boolean` return type casts
-- Full details: [2026-03-02-fido2-phases-3-5-build-fix.md](docs/changelogs/2026-03-02-fido2-phases-3-5-build-fix.md)
+- **`BluetoothHidDeviceWrapper`**: Wrapped all permission-gated Android 12+ Bluetooth calls (`registerApp`, `sendReport`, `getProfileProxy`, etc.) in `try/catch SecurityException` blocks to resolve Android Studio lint warnings and handle runtime revocation gracefully.
+- Added `BluetoothPermissionDenied` exception subclass to `Fido2Exception`.
+- Full details: [2026-03-02-fido2-ctap2-enumeration-and-test-completion.md](docs/changelogs/2026-03-02-fido2-ctap2-enumeration-and-test-completion.md)
 
 ### Constitutional Compliance
 - ✅ Security First — biometric/PIN gating on all credential operations

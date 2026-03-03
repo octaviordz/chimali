@@ -108,4 +108,5 @@ dependencies {
     
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.7.3")
+    androidTestImplementation("io.mockk:mockk-android:1.13.8")
 }

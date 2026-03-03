@@ -1,5 +1,6 @@
 package com.chimali.core.bluetooth.impl
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
@@ -12,6 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
+@SuppressLint("MissingPermission")
 class BluetoothHidAuthenticatorImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : BluetoothHidAuthenticator, BluetoothProfile.ServiceListener {
@@ -23,9 +25,14 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
         private set
 
     init {
-        adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)
+        try {
+            adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)
+        } catch (e: SecurityException) {
+            Log.e("BluetoothHID", "Bluetooth permission denied on init", e)
+        }
     }
 
+    @SuppressLint("MissingPermission")
     override fun startAdvertising() {
         if (state != AuthenticatorState.IDLE) return
         
@@ -37,32 +44,41 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
             com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR
         )
         
-        hidDevice?.registerApp(
-            sdpSettings,
-            null,
-            null, // QOS
-            Executors.newSingleThreadExecutor(),
-            object : BluetoothHidDevice.Callback() {
-                override fun onAppStatusChanged(pluggedDevice: android.bluetooth.BluetoothDevice?, registered: Boolean) {
-                    if (registered) {
-                        state = AuthenticatorState.ADVERTISING
-                        Log.d("BluetoothHID", "App registered and advertising")
+        try {
+            hidDevice?.registerApp(
+                sdpSettings,
+                null,
+                null, // QOS
+                Executors.newSingleThreadExecutor(),
+                object : BluetoothHidDevice.Callback() {
+                    override fun onAppStatusChanged(pluggedDevice: android.bluetooth.BluetoothDevice?, registered: Boolean) {
+                        if (registered) {
+                            state = AuthenticatorState.ADVERTISING
+                            Log.d("BluetoothHID", "App registered and advertising")
+                        }
+                    }
+                    
+                    override fun onConnectionStateChanged(device: android.bluetooth.BluetoothDevice?, state: Int) {
+                        this@BluetoothHidAuthenticatorImpl.state = when (state) {
+                            BluetoothProfile.STATE_CONNECTED -> AuthenticatorState.CONNECTED
+                            BluetoothProfile.STATE_DISCONNECTED -> AuthenticatorState.IDLE
+                            else -> this@BluetoothHidAuthenticatorImpl.state
+                        }
                     }
                 }
-                
-                override fun onConnectionStateChanged(device: android.bluetooth.BluetoothDevice?, state: Int) {
-                    this@BluetoothHidAuthenticatorImpl.state = when (state) {
-                        BluetoothProfile.STATE_CONNECTED -> AuthenticatorState.CONNECTED
-                        BluetoothProfile.STATE_DISCONNECTED -> AuthenticatorState.IDLE
-                        else -> this@BluetoothHidAuthenticatorImpl.state
-                    }
-                }
-            }
-        )
+            )
+        } catch (e: SecurityException) {
+            Log.e("BluetoothHID", "Bluetooth permission denied when starting advertisement", e)
+        }
     }
 
+    @SuppressLint("MissingPermission")
     override fun stop() {
-        // hidDevice?.unregisterApp()
+        try {
+            // hidDevice?.unregisterApp()
+        } catch (e: SecurityException) {
+            Log.e("BluetoothHID", "Bluetooth permission denied when stopping", e)
+        }
         state = AuthenticatorState.IDLE
     }
 

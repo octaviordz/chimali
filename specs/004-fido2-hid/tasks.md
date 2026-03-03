@@ -174,26 +174,27 @@
 - [X] T109 [US3] Create DeleteCredential use case class
 - [X] T110 [US3] Create DeleteAllCredentials use case class
 - [X] T111 [US3] Create ResetAuthenticator use case class
-- [ ] T112 [P] [US3] Implement unit tests for management use cases
+- [X] T112 [P] [US3] Implement unit tests for management use cases
 
 ### Data Layer Tasks
 - [X] T113 [US3] Add credential enumeration to repository
 - [X] T114 [US3] Implement secure credential deletion
 - [X] T115 [US3] Add credential count tracking
-- [ ] T116 [P] [US3] Implement unit tests for management repository methods
+- [X] T116 [P] [US3] Implement unit tests for management repository methods
 
 ### Core Bluetooth Tasks
 - [X] T117 [US3] Implement CTAP2 CredentialManagement commands
 - [X] T118 [US3] Add credential listing support to CTAP2 layer
-- [ ] T119 [P] [US3] Implement unit tests for credential management CTAP2
+- [x] T119 [P] [US3] Implement unit tests for credential management CTAP2
 
 ### Presentation Layer Tasks
 - [X] T120 [US3] Create CredentialManagementViewModel with MVI pattern
+- [X] T120a [US3] Implement unit test for CredentialManagementViewModel
 - [X] T121 [US3] Implement CredentialListScreen Compose screen
 - [X] T122 [US3] Create CredentialItem Compose component
 - [X] T123 [US3] Implement DeleteConfirmationDialog Compose component
 - [X] T124 [US3] Add credential details view screen
-- [ ] T125 [P] [US3] Implement Compose UI tests for credential management
+- [x] T125 [P] [US3] Implement Compose UI tests for credential management
 - [ ] T126 [P] [US3] Implement integration tests for management flow
 
 ### Integration Tasks
