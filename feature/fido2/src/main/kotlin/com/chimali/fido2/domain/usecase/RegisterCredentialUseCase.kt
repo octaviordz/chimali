@@ -18,7 +18,8 @@ import javax.inject.Inject
 class RegisterCredentialUseCase @Inject constructor(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
-    private val fido2Authenticator: Fido2Authenticator
+    private val fido2Authenticator: Fido2Authenticator,
+    private val cborCodec: com.chimali.fido2.data.crypto.CborCodec
 ) {
     
     /**
@@ -386,7 +387,8 @@ class RegisterCredentialUseCase @Inject constructor(
             counter = 0L, // New credential starts with counter 0
             aaguid = credential.aaguid,
             credentialId = credential.credentialId,
-            publicKey = credential.publicKey.encoded
+            // FIDO2 spec requires a CBOR-encoded COSE_Key, NOT raw DER
+            publicKey = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
         )
         
         // Create client data

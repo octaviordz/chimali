@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -236,17 +238,39 @@ class BluetoothHidTransportImpl @Inject constructor(
         val ctapCommand = payload[0].toInt() and 0xFF
         Log.d(TAG, "CTAP2 command=0x${ctapCommand.toString(16)} on CID=${cid.toHex()}")
 
-        // Send periodic keepalive while processing
-        sendPackets(responseBuilder.keepAliveResponse(cid, 0x01))
-
-        val responsePackets = when (ctapCommand) {
-            0x01 -> makeCredentialHandler.handle(message)         // authenticatorMakeCredential
-            0x02 -> handleGetAssertion(message)                    // authenticatorGetAssertion
-            0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
-            else -> {
-                Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
-                responseBuilder.errorResponse(cid, 0x3E.toByte()) // CTAP2_ERR_OPERATION_DENIED
+        // ── Periodic keepalive loop ────────────────────────────────────────────
+        // CTAP HID spec §8.5.5: the authenticator MUST send CTAPHID_KEEPALIVE
+        // continuously at a period ≤ 500ms while processing a CBOR command.
+        //
+        // IMPORTANT: the initial delay must come BEFORE the first keepalive send.
+        // Fast commands (GetInfo) complete in <10ms; an immediate keepalive would
+        // arrive at Windows BEFORE the real response, causing ERROR_INVALID_DATA.
+        // The rauth-android reference always sleeps first, then sends.
+        val keepaliveJob: Job = scope.launch {
+            delay(200L)  // ← wait first; fast commands finish before this fires
+            sendPackets(responseBuilder.keepAliveResponse(cid, 0x01)) // PROCESSING
+            while (true) {
+                delay(200L) // 200ms between subsequent keepalives (≤500ms per spec)
+                sendPackets(responseBuilder.keepAliveResponse(cid, 0x02)) // UPNEEDED
             }
+        }
+
+        val responsePackets = try {
+            when (ctapCommand) {
+                0x01 -> makeCredentialHandler.handle(message)         // authenticatorMakeCredential
+                0x02 -> handleGetAssertion(message)                    // authenticatorGetAssertion
+                0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
+                else -> {
+                    Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
+                    responseBuilder.errorResponse(cid, 0x3E.toByte()) // CTAP2_ERR_OPERATION_DENIED
+                }
+            }
+        } finally {
+            // cancelAndJoin() (not just cancel()) ensures the keepalive coroutine
+            // has completely stopped before we send the real response. Without this,
+            // a keepalive in-flight could arrive at Windows AFTER the CBOR response,
+            // corrupting the framing of the next request.
+            keepaliveJob.cancelAndJoin()
         }
 
         sendPackets(responsePackets)

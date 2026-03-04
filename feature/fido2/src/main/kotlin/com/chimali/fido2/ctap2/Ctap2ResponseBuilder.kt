@@ -69,18 +69,27 @@ class Ctap2ResponseBuilder @Inject constructor(
     fun getInfoResponse(cid: ByteArray, info: AuthenticatorInfo): List<ByteArray> {
         // CTAP2 §6.4 authenticatorGetInfo response — keys MUST be integers:
         //   1 = versions, 2 = extensions, 3 = aaguid, 4 = options,
-        //   5 = maxMsgSize, 6 = pinUvAuthProtocols
+        //   5 = maxMsgSize, 6 = pinUvAuthProtocols, 7 = maxCredentialCountInList,
+        //   8 = maxCredentialIdLength, 9 = transports
+        //
+        // Windows (CtapGetPluginAuthenticatorList) requires:
+        //   - "U2F_V2" in versions (even for CTAP2-only authenticators)
+        //   - key 9 (transports) listing the transport, e.g. ["bluetooth"]
+        //     Without this, Windows 0x80090011 "Object not found" error occurs.
         val responseMap: Map<String, Any> = mapOf(
-            "1" to listOf("FIDO_2_0"),      // versions: signal CTAP2 support
-            "3" to info.aaguid,             // aaguid: raw ByteArray (16 bytes)
-            "4" to mapOf(                   // options
+            "1" to listOf("FIDO_2_0", "U2F_V2"), // versions (both required for Windows)
+            "3" to info.aaguid,                   // aaguid: raw ByteArray (16 bytes)
+            "4" to mapOf(                          // options
                 "rk" to info.supportsResidentKeys,
                 "uv" to info.supportsUserVerification,
-                "up" to true
+                "up" to true,
+                "plat" to false                    // not platform-bound
             ),
-            "5" to 1200L                    // maxMsgSize
+            "5" to 1200L,                          // maxMsgSize
+            "8" to 255L,                           // maxCredentialIdLength
+            "9" to listOf("bluetooth")             // transports — required for Windows enumeration
         )
-        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0] aaguid=${info.aaguid.size}bytes")
+        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0, U2F_V2] aaguid=${info.aaguid.size}bytes transports=[bluetooth]")
         return successCborPackets(cid, responseMap)
     }
 

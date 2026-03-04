@@ -51,6 +51,65 @@ class CborCodec @Inject constructor() {
         return out.toByteArray()
     }
 
+    /**
+     * Encodes a P-256 EC public key as a CBOR COSE_Key map per RFC 8152 / WebAuthn spec.
+     *
+     * The credentialPublicKey in authenticatorData MUST be CBOR with integer keys:
+     *   1 (kty)  = 2          (EC2)
+     *   3 (alg)  = -7         (ES256)
+     *  -1 (crv)  = 1          (P-256)
+     *  -2 (x)    = 32 bytes   (X coordinate)
+     *  -3 (y)    = 32 bytes   (Y coordinate)
+     *
+     * @param uncompressedPoint  65-byte uncompressed EC point: 0x04 || X(32) || Y(32)
+     */
+    fun encodeCosePublicKeyFromUncompressed(uncompressedPoint: ByteArray): ByteArray {
+        require(uncompressedPoint.size == 65 && uncompressedPoint[0] == 0x04.toByte()) {
+            "Expected 65-byte uncompressed point starting with 0x04, got ${uncompressedPoint.size} bytes"
+        }
+        val x = uncompressedPoint.copyOfRange(1, 33)
+        val y = uncompressedPoint.copyOfRange(33, 65)
+        val out = ByteArrayOutputStream()
+        // CBOR map with 5 entries
+        out.write(0xA5)              // map(5)
+        // kty: 1 = 2 (EC2)
+        out.write(0x01)              // uint(1) - kty
+        out.write(0x02)              // uint(2) - EC2
+        // alg: 3 = -7 (ES256)  → CBOR negative = 0x20 | ((-7) - 1 negated) = 0x26
+        out.write(0x03)              // uint(3) - alg
+        out.write(0x26)              // negative int -7 (0x20 | 6)
+        // crv: -1 = 1 (P-256)  → key -1 = 0x20 | 0 = 0x20
+        out.write(0x20)              // negative int -1 (key crv)
+        out.write(0x01)              // uint(1) - P-256
+        // x: -2 as key, then 32-byte bstr
+        out.write(0x21)              // negative int -2 (key x)
+        out.write(0x58); out.write(32)  // bstr(32)
+        out.write(x)
+        // y: -3 as key, then 32-byte bstr
+        out.write(0x22)              // negative int -3 (key y)
+        out.write(0x58); out.write(32)  // bstr(32)
+        out.write(y)
+        return out.toByteArray()
+    }
+
+    /**
+     * Convenience wrapper: encodes a Java [java.security.PublicKey] (EC P-256)
+     * to a CBOR COSE_Key map.
+     * Extracts the uncompressed point from the SubjectPublicKeyInfo DER encoding.
+     */
+    fun encodeCosePublicKeyFromJavaKey(publicKey: java.security.PublicKey): ByteArray {
+        val derEncoded = publicKey.encoded   // SubjectPublicKeyInfo DER
+        // Last 65 bytes of P-256 SubjectPublicKeyInfo = 0x04 || X || Y
+        return if (derEncoded.size >= 65 && derEncoded[derEncoded.size - 65] == 0x04.toByte()) {
+            val uncompressed = derEncoded.copyOfRange(derEncoded.size - 65, derEncoded.size)
+            encodeCosePublicKeyFromUncompressed(uncompressed)
+        } else {
+            throw IllegalArgumentException(
+                "Cannot extract uncompressed EC point from key encoding (size=${derEncoded.size})"
+            )
+        }
+    }
+
     // ── Recursive decoder ─────────────────────────────────────────────────────
 
     /** Returns (decodedValue, nextOffset). */
