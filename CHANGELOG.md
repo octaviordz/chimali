@@ -17,7 +17,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **UI Responsiveness**: Fixed infinite loading screen and biometric prompt triggers in FIDO2 registration/authentication flows.
 - **Predictive Back**: Enabled `android:enableOnBackInvokedCallback` to support modern Android back gestures.
 - **Bluetooth Init**: Made `initialize()` suspending so "Start Authenticator" requires only one click.
-- **HID MTU Fix**: Reduced HID report size from 64 to 62 bytes (Android L2CAP cap), updated QoS to WIOKey reference values — enables Windows pairing via Classic HID.
+- **HID MTU Fix**: Reverted HID report size to 62 bytes. Android's Classic HID over L2CAP has a strict 64-byte MTU limit; the HIDP protocol consumes 2 bytes, leaving exactly 62 bytes for the FIDO payload. Using 64 bytes caused packet truncation and `0x32 (Not Supported)` errors on Windows.
+- **CTAP2 Metadata**: Fixed Windows "Cannot use this security key" error by adding the `algorithms` field (Key `0x0A`) to the GetInfo response and explicitly setting the `transports` field to `usb` to align with Windows CTAP enumeration requirements for HID devices.
 
 ### Changed
 - **Validation**: Relaxed RP ID validation to support optional protocol prefixes.

@@ -87,9 +87,12 @@ class Ctap2ResponseBuilder @Inject constructor(
             ),
             "5" to 1200L,                          // maxMsgSize
             "8" to 255L,                           // maxCredentialIdLength
-            "9" to listOf("bluetooth")             // transports — required for Windows enumeration
+            "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
+            "10" to listOf(                        // algorithms
+                mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key")
+            )
         )
-        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0, U2F_V2] aaguid=${info.aaguid.size}bytes transports=[bluetooth]")
+        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0, U2F_V2] aaguid=${info.aaguid.size}bytes transports=[usb]")
         return successCborPackets(cid, responseMap)
     }
 

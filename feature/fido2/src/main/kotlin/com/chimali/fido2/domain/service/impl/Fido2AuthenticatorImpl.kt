@@ -22,7 +22,10 @@ class Fido2AuthenticatorImpl @Inject constructor() : Fido2Authenticator {
     
     override suspend fun getAuthenticatorInfo(): AuthenticatorInfo {
         return AuthenticatorInfo(
-            aaguid = ByteArray(16) { 0 },
+            aaguid = byteArrayOf(
+                0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
+            ),
             version = "U2F_V2", // Also supports FIDO_2_0
             supportedAlgorithms = listOf("ES256"),
             supportedTransports = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE),
