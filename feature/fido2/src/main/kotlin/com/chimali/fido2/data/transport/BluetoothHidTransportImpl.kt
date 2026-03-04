@@ -10,6 +10,7 @@ import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
 import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -64,6 +65,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val hidWrapper: BluetoothHidDeviceWrapper,
     private val hidReportParser: HidReportParser,
     private val makeCredentialHandler: Ctap2MakeCredentialHandler,
+    private val getAssertionHandler: Ctap2GetAssertionHandler,
     private val responseBuilder: Ctap2ResponseBuilder,
     private val fido2Authenticator: Fido2Authenticator
 ) : Fido2Transport {
@@ -237,6 +239,7 @@ class BluetoothHidTransportImpl @Inject constructor(
 
         val responsePackets = when (ctapCommand) {
             0x01 -> makeCredentialHandler.handle(message)         // authenticatorMakeCredential
+            0x02 -> handleGetAssertion(message)                    // authenticatorGetAssertion
             0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
             else -> {
                 Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
@@ -260,6 +263,22 @@ class BluetoothHidTransportImpl @Inject constructor(
     private fun handleCancel(message: CtapHidMessage) {
         Log.d(TAG, "CTAPHID_CANCEL on CID=${message.channelId.toHex()}")
         // Acknowledge cancel — no response payload per spec
+    }
+
+    // ── authenticatorGetAssertion ─────────────────────────────────────────────
+
+    private suspend fun handleGetAssertion(message: CtapHidMessage): List<ByteArray> {
+        val cid = message.channelId
+        val requestBytes = message.payload.drop(1).toByteArray() // strip the 0x02 command byte
+        return try {
+            val responsePayload = getAssertionHandler.handle(requestBytes)
+            // Wrap payload in a CTAPHID_CBOR response packet
+            val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
+            hidReportParser.encodeResponse(responseMsg)
+        } catch (e: Exception) {
+            Log.e(TAG, "GetAssertion handler exception: ${e.message}")
+            responseBuilder.errorResponse(cid, 0x30.toByte())
+        }
     }
 
     // ── authenticatorGetInfo ──────────────────────────────────────────────────

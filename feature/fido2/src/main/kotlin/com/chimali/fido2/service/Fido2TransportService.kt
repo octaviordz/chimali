@@ -1,0 +1,141 @@
+package com.chimali.fido2.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.chimali.fido2.data.transport.Fido2Transport
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+private const val TAG = "Fido2TransportService"
+private const val CHANNEL_ID = "fido2_transport_channel"
+private const val NOTIFICATION_ID = 1001
+
+/**
+ * Foreground Service that keeps the Bluetooth HID transport alive while
+ * the user navigates away from the Chimali Authenticator screen.
+ *
+ * Without this service, Android kills the CoroutineScope inside
+ * [Fido2HomeViewModel] the moment the Activity leaves the foreground,
+ * which cuts the HID transport within ~5 seconds (process death grace period).
+ *
+ * Lifecycle:
+ * - Started via [ACTION_START] when the user presses "Start Authenticator".
+ * - Stopped via [ACTION_STOP] when the user presses "Stop Authenticator" or
+ *   explicitly dismisses the notification.
+ */
+@AndroidEntryPoint
+class Fido2TransportService : Service() {
+
+    companion object {
+        const val ACTION_START = "com.chimali.fido2.START_TRANSPORT"
+        const val ACTION_STOP  = "com.chimali.fido2.STOP_TRANSPORT"
+
+        fun startIntent(context: Context) =
+            Intent(context, Fido2TransportService::class.java).apply {
+                action = ACTION_START
+            }
+
+        fun stopIntent(context: Context) =
+            Intent(context, Fido2TransportService::class.java).apply {
+                action = ACTION_STOP
+            }
+    }
+
+    @Inject lateinit var transport: Fido2Transport
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_START -> startTransport()
+            ACTION_STOP  -> stopTransport()
+        }
+        return START_STICKY   // Restart if killed — keeps the key alive
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    // ── Transport lifecycle ────────────────────────────────────────────────────
+
+    private fun startTransport() {
+        startForeground(NOTIFICATION_ID, buildAdvertisingNotification())
+        scope.launch {
+            val result = transport.connect()
+            if (result.isFailure) {
+                Log.e(TAG, "Transport connect failed: ${result.exceptionOrNull()?.message}")
+                stopSelf()
+            } else {
+                Log.i(TAG, "HID transport connected — service running in foreground")
+            }
+        }
+    }
+
+    private fun stopTransport() {
+        scope.launch {
+            transport.disconnect()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    // ── Notification ──────────────────────────────────────────────────────────
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Chimali Authenticator",
+                NotificationManager.IMPORTANCE_LOW   // Silent — no sound/vibration
+            ).apply {
+                description = "Keeps the virtual security key active"
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildAdvertisingNotification(): Notification {
+        // Tapping the notification (or the Stop action) will stop the service
+        val stopPendingIntent = PendingIntent.getService(
+            this, 0, stopIntent(this),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Chimali Authenticator")
+            .setContentText("Virtual security key is advertising…")
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "Stop",
+                stopPendingIntent
+            )
+            .build()
+    }
+}
