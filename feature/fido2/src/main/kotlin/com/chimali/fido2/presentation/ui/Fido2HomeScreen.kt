@@ -46,6 +46,13 @@ fun Fido2HomeScreen(
 
     // Observe incoming FIDO2 events (e.g. from PC via Bluetooth)
     LaunchedEffect(Unit) {
+        // Check for any registration request that arrived while this screen was backgrounded
+        // or before it was created.
+        if (viewModel.getPendingRegistration() != null) {
+            onRegisterRequest()
+        }
+
+        // Collect new incoming requests (replay is now 0 in the bus)
         viewModel.uiEvents
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .collect {

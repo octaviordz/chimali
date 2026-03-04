@@ -50,4 +50,6 @@ class Fido2HomeViewModel @Inject constructor(
         // Mock a registration request as if it came from Bluetooth
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(options, CompletableDeferred()))
     }
+
+    fun getPendingRegistration(): Fido2UiEvent.RegistrationRequested? = uiEventBus.currentRegistrationRequest
 }

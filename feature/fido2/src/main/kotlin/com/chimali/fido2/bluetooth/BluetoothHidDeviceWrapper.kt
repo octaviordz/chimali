@@ -309,9 +309,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         }
 
         if (!registered) {
-            cont.resumeWithException(
-                Fido2Exception.BluetoothException("registerApp() returned false — Bluetooth may not be ready")
-            )
+            // registerApp() returned false: the Bluetooth stack wasn't ready to enqueue the
+            // call. The onAppStatusChanged callback may still fire with registered=false,
+            // which will resume the continuation via the callback above. If the callback
+            // never fires we stay suspended until the coroutine is cancelled by the service.
+            Log.w(TAG, "registerApp() returned false — waiting for callback (Bluetooth may be busy)")
         }
     }
 

@@ -52,10 +52,11 @@ class Ctap2ResponseBuilder @Inject constructor(
         attestation: AttestationObject
     ): List<ByteArray> {
         val authDataBytes = serializeAuthData(attestation.authData)
+        // CTAP2 §6.1 integer keys: 1=fmt, 2=authData, 3=attStmt
         val responseMap: Map<String, Any> = mapOf(
-            "fmt"      to attestation.fmt,
-            "authData" to authDataBytes.toList(),
-            "attStmt"  to emptyList<Any>()
+            "1" to attestation.fmt,
+            "2" to authDataBytes,          // raw ByteArray, not List
+            "3" to emptyMap<String, Any>() // attStmt ("none" format)
         )
         return successCborPackets(cid, responseMap)
     }
@@ -66,21 +67,20 @@ class Ctap2ResponseBuilder @Inject constructor(
      * Encodes a `authenticatorGetInfo` (0x04) response per CTAP2 §6.4.
      */
     fun getInfoResponse(cid: ByteArray, info: AuthenticatorInfo): List<ByteArray> {
+        // CTAP2 §6.4 authenticatorGetInfo response — keys MUST be integers:
+        //   1 = versions, 2 = extensions, 3 = aaguid, 4 = options,
+        //   5 = maxMsgSize, 6 = pinUvAuthProtocols
         val responseMap: Map<String, Any> = mapOf(
-            "versions"            to listOf("FIDO_2_0", "FIDO_2_1"),
-            "aaguid"              to info.aaguid.toList(),
-            "options"             to mapOf(
-                "rk"   to info.supportsResidentKeys,
-                "uv"   to info.supportsUserVerification,
-                "up"   to true,
-                "plat" to false
+            "1" to listOf("FIDO_2_0"),      // versions: signal CTAP2 support
+            "3" to info.aaguid,             // aaguid: raw ByteArray (16 bytes)
+            "4" to mapOf(                   // options
+                "rk" to info.supportsResidentKeys,
+                "uv" to info.supportsUserVerification,
+                "up" to true
             ),
-            "maxMsgSize"          to 1200,
-            "pinUvAuthProtocols"  to listOf(1, 2),
-            "maxCredentialCount"  to info.maxCredentialCount,
-            "maxCredentialIdLen"  to info.maxCredentialIdLength,
-            "transports"          to listOf("bluetooth")
+            "5" to 1200L                    // maxMsgSize
         )
+        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0] aaguid=${info.aaguid.size}bytes")
         return successCborPackets(cid, responseMap)
     }
 

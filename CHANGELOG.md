@@ -9,6 +9,10 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ### Fixed
 - **Passkey Storage Error**: Fixed `SQLiteConstraintException` by ensuring Relying Party persistence before consent/credential creation.
+- **Credential Upsert**: Implemented insert-or-replace logic in `saveCredential` to support passkey re-registration without UNIQUE constraint crashes.
+- **Navigation Loop**: Resolved a "stuck" UI feedback loop by changing `Fido2UiEventBus` to `replay=0` and implementing event consumption.
+- **CTAP2 Spec Compliance**: Updated CBOR response builders to use required integer keys for CTAP2 compatibility with Windows.
+- **Bluetooth Stability**: Fixed a double-resume race condition in HID app registration; stabilized Windows "Security Key" handshake.
 - **Validation Refinement**: Relaxed HTTPS origin requirement and added support for `"none"` algorithm in attestation statements.
 - **UI Responsiveness**: Fixed infinite loading screen and biometric prompt triggers in FIDO2 registration/authentication flows.
 - **Predictive Back**: Enabled `android:enableOnBackInvokedCallback` to support modern Android back gestures.
@@ -22,7 +26,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ### Added
 - **Repository**: Added `saveRelyingParty` to handle both insert and update operations for RPs.
-- Full details: [2026-03-03-fido2-registration-fix.md](docs/changelogs/2026-03-03-fido2-registration-fix.md)
+- Full details: [2026-03-03-fido2-registration-fix.md](docs/changelogs/2026-03-03-fido2-registration-fix.md) & [2026-03-03-fido2-spec-and-nav-fix.md](docs/changelogs/2026-03-03-fido2-spec-and-nav-fix.md)
 
 ## [Unreleased] - 2026-03-02
 

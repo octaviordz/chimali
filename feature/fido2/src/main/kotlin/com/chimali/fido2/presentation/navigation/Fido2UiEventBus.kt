@@ -15,7 +15,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class Fido2UiEventBus @Inject constructor() {
-    private val _events = MutableSharedFlow<Fido2UiEvent>(extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<Fido2UiEvent>(replay = 0, extraBufferCapacity = 1)
     val events: SharedFlow<Fido2UiEvent> = _events.asSharedFlow()
 
     var currentRegistrationRequest: Fido2UiEvent.RegistrationRequested? = null
@@ -27,6 +27,14 @@ class Fido2UiEventBus @Inject constructor() {
             is Fido2UiEvent.AuthenticationRequested -> currentAuthenticationRequest = event
         }
         _events.tryEmit(event)
+    }
+
+    fun clearRegistrationRequest() {
+        currentRegistrationRequest = null
+    }
+
+    fun clearAuthenticationRequest() {
+        currentAuthenticationRequest = null
     }
 }
 

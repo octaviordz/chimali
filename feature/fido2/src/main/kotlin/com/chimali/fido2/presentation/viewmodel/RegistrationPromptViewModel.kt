@@ -1,5 +1,6 @@
 package com.chimali.fido2.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -101,6 +102,8 @@ sealed interface RegistrationEffect {
  * 3. User confirms → biometric or PIN → [RegistrationState.Processing]
  * 4. [Fido2Service] performs registration → [RegistrationState.Success] or [RegistrationState.Error]
  */
+private const val TAG = "RegistrationVM"
+
 @HiltViewModel
 class RegistrationPromptViewModel @Inject constructor(
     private val fido2Service: Fido2Service,
@@ -118,21 +121,24 @@ class RegistrationPromptViewModel @Inject constructor(
     private var pendingDeferred: CompletableDeferred<*>? = null
 
     init {
+        Log.d(TAG, "RegistrationPromptViewModel created — subscribing to event bus")
         // Observe event bus for incoming registration requests from transport
         uiEventBus.events
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .onEach { event ->
+                Log.d(TAG, "RegistrationRequested received via SharedFlow: rpId=${event.options.rp.id}")
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
             }
             .launchIn(viewModelScope)
 
-        // Consume any already-pending event that was emitted before this ViewModel was created
+        // Also consume any event stored before this ViewModel was created (replay backup)
         uiEventBus.currentRegistrationRequest?.let { event ->
+            Log.d(TAG, "RegistrationRequested present in currentRequest cache: rpId=${event.options.rp.id}")
             pendingDeferred = event.deferred
             initRegistration(event.options)
-            uiEventBus.currentRegistrationRequest = null
-        }
+            uiEventBus.clearRegistrationRequest()
+        } ?: Log.d(TAG, "No currentRegistrationRequest in cache at init time")
     }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────

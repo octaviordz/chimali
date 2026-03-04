@@ -7,6 +7,7 @@ import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.bluetooth.CTAPHID_INIT
 import com.chimali.fido2.bluetooth.CTAPHID_PING
 import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
+import com.chimali.fido2.bluetooth.CTAPHID_MSG
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -187,6 +188,7 @@ class BluetoothHidTransportImpl @Inject constructor(
         when (message.command) {
             CTAPHID_INIT    -> handleInit(message)
             CTAPHID_CBOR    -> handleCbor(message)
+            CTAPHID_MSG     -> handleMsg(message)
             CTAPHID_PING    -> handlePing(message)
             CTAPHID_CANCEL  -> handleCancel(message)
             else -> {
@@ -258,7 +260,96 @@ class BluetoothHidTransportImpl @Inject constructor(
         sendPackets(hidReportParser.encodeResponse(pongMsg))
     }
 
-    // ── CTAPHID_CANCEL ────────────────────────────────────────────────────────
+    // ── CTAPHID_MSG (U2F / APDU compat layer) ────────────────────────────────
+    //
+    // Windows wraps CTAP2 MakeCredential/GetAssertion in an ISO 7816-4 APDU
+    // and delivers it via CTAPHID_MSG when it needs U2F compatibility.
+    //
+    // Extended-length APDU layout (73 bytes for a typical MakeCredential):
+    //   [0]    CLA  (0x00)
+    //   [1]    INS  (0x10 = CTAP2-over-MSG, 0x01/02/03 = legacy U2F)
+    //   [2]    P1
+    //   [3]    P2
+    //   [4]    0x00 (extended-length marker)
+    //   [5-6]  Lc big-endian (number of data bytes)
+    //   [7..7+Lc-1] DATA (for CTAP2: first byte = CTAP cmd, rest = CBOR)
+    //   last 2 bytes: Le (often 0x00, 0x00)
+    //
+    // For CTAP2-over-MSG (INS=0x10): unwrap and route to handleCbor().
+    // For pure U2F (INS != 0x10): respond with SW1=0x6D SW2=0x00 so
+    // Windows knows to use the CTAP2 path instead.
+
+    private suspend fun handleMsg(message: CtapHidMessage) {
+        val cid     = message.channelId
+        val payload = message.payload
+        Log.d(TAG, "CTAPHID_MSG len=${payload.size} cid=${cid.toHex()}")
+
+        if (payload.size < 4) {
+            sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN))
+            return
+        }
+
+        val ins = payload[1].toInt() and 0xFF
+
+        // CTAP2-over-MSG: INS = 0x10, data is CBOR payload
+        if (ins == 0x10) {
+            val cborData = extractApduData(payload)
+            if (cborData == null || cborData.isEmpty()) {
+                Log.w(TAG, "CTAPHID_MSG INS=0x10 but APDU data is empty")
+                sendPackets(u2fErrorResponse(cid, 0x6F, 0x00)) // SW_UNKNOWN
+                return
+            }
+            Log.d(TAG, "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and 0xFF).toString(16)} as CBOR")
+            // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
+            val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
+            handleCbor(syntheticMsg)
+            return
+        }
+
+        // Pure U2F commands (Register=0x01, Authenticate=0x02, Version=0x03)
+        when (ins) {
+            0x03 -> {
+                // U2F_VERSION — respond "U2F_V2" so Windows knows we speak U2F
+                val u2fVersion = "U2F_V2".toByteArray(Charsets.US_ASCII)
+                sendPackets(u2fSuccessResponse(cid, u2fVersion))
+            }
+            else -> {
+                Log.d(TAG, "CTAPHID_MSG U2F INS=0x${ins.toString(16)} not supported — returning SW_INS_NOT_SUPPORTED")
+                // SW 0x6D 0x00 = INS_NOT_SUPPORTED → Windows will use CTAP2 path
+                sendPackets(u2fErrorResponse(cid, 0x6D, 0x00))
+            }
+        }
+    }
+
+    /** Extract data bytes from an ISO 7816-4 APDU (handles extended and short Lc). */
+    private fun extractApduData(apdu: ByteArray): ByteArray? {
+        if (apdu.size < 4) return null
+        return try {
+            if (apdu.size == 4) return ByteArray(0)          // no body
+            if (apdu[4] != 0x00.toByte()) {                  // short Lc
+                val lc = apdu[4].toInt() and 0xFF
+                apdu.copyOfRange(5, 5 + lc)
+            } else {                                         // extended Lc
+                if (apdu.size < 7) return null
+                val lc = ((apdu[5].toInt() and 0xFF) shl 8) or (apdu[6].toInt() and 0xFF)
+                apdu.copyOfRange(7, 7 + lc)
+            }
+        } catch (e: Exception) { null }
+    }
+
+    /** Build a U2F success APDU response: data + SW1=0x90 SW2=0x00 */
+    private fun u2fSuccessResponse(cid: ByteArray, data: ByteArray): List<ByteArray> {
+        val resp = data + byteArrayOf(0x90.toByte(), 0x00)
+        val msg  = CtapHidMessage(cid, CTAPHID_MSG, resp)
+        return hidReportParser.encodeResponse(msg)
+    }
+
+    /** Build a U2F error APDU response: SW1 + SW2 only */
+    private fun u2fErrorResponse(cid: ByteArray, sw1: Int, sw2: Int): List<ByteArray> {
+        val resp = byteArrayOf(sw1.toByte(), sw2.toByte())
+        val msg  = CtapHidMessage(cid, CTAPHID_MSG, resp)
+        return hidReportParser.encodeResponse(msg)
+    }
 
     private fun handleCancel(message: CtapHidMessage) {
         Log.d(TAG, "CTAPHID_CANCEL on CID=${message.channelId.toHex()}")

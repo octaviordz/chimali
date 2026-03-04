@@ -87,21 +87,31 @@ class Ctap2GetAssertionHandler @Inject constructor(
         val rpId = params["1"] as? String
             ?: throw Fido2Exception.InvalidParameter("Missing rpId (key 0x01)")
 
-        val clientDataHashB64 = params["2"] as? String
-            ?: throw Fido2Exception.InvalidParameter("Missing clientDataHash (key 0x02)")
-        val clientDataHash = Base64.getDecoder().decode(clientDataHashB64)
-        require(clientDataHash.size == 32) { "clientDataHash must be 32 bytes" }
+        // clientDataHash: real CBOR delivers this as a raw ByteArray.
+        // The old JSON-based codec delivered it as a base64 string — handle both.
+        val clientDataHash: ByteArray = when (val raw = params["2"]) {
+            is ByteArray -> raw
+            is String    -> java.util.Base64.getDecoder().decode(raw)
+            else         -> throw Fido2Exception.InvalidParameter("Missing clientDataHash (key 0x02)")
+        }
+        require(clientDataHash.size == 32) { "clientDataHash must be 32 bytes, got ${clientDataHash.size}" }
 
-        // Optional allow-list: list of descriptor maps
+        // Optional allow-list: array of PublicKeyCredentialDescriptor maps.
+        // credential ID is a byte string in CBOR → ByteArray, or legacy base64 String.
         val allowListRaw = params["3"] as? List<*>
         val allowCredentials = allowListRaw?.mapNotNull { descriptor ->
             (descriptor as? Map<*, *>)?.let { map ->
-                val id   = map["id"] as? String ?: return@mapNotNull null
-                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = id.toByteArray())
+                val rawId = map["id"]
+                val idBytes: ByteArray = when (rawId) {
+                    is ByteArray -> rawId
+                    is String    -> rawId.toByteArray()   // legacy / base64
+                    else         -> return@mapNotNull null
+                }
+                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = idBytes)
             }
         }
 
-        // options map (key 0x05)
+        // options map (key 0x05): {"uv": bool, "up": bool}
         val optionsMap = params["5"] as? Map<*, *>
         val uvRaw = optionsMap?.get("uv") as? Boolean ?: false
         val userVerification = if (uvRaw) UserVerificationRequirement.REQUIRED

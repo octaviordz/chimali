@@ -35,12 +35,26 @@ class CredentialRepositoryImpl @Inject constructor(
 
     override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
         return try {
+            // FIDO2 spec: re-registering the same user for the same RP replaces the
+            // existing credential. Delete any old (rpId, userId) entry first so we
+            // don't hit the UNIQUE constraint on re-registration.
+            val existingEntities = passkeyCredentialDao.getCredentialsByRpId(credential.rpId)
+                .first()
+                .filter { it.userId == credential.userId }
+            for (old in existingEntities) {
+                credentialStorageService.deletePrivateKey(old.privateKeyAlias)
+                passkeyCredentialDao.deleteCredential(old.id)
+            }
+
             val keyStorageResult = credentialStorageService.storePrivateKey(
                 credential.privateKeyAlias,
                 credential.publicKey
             )
             if (keyStorageResult.isFailure) {
-                return Result.failure(keyStorageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Key storage failed"))
+                return Result.failure(
+                    keyStorageResult.exceptionOrNull()
+                        ?: Fido2Exception.CredentialStorageFailed("Key storage failed")
+                )
             }
             passkeyCredentialDao.insertCredential(credential)
             Result.success(Unit)

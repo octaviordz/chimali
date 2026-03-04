@@ -64,9 +64,11 @@ fun Fido2RegistrationNavGraph(
         composable(Fido2Destinations.REGISTRATION_ROUTE) {
             RegistrationPromptScreen(
                 onSuccess = { credentialId ->
+                    navController.popBackStack()
                     onRegistrationComplete(credentialId)
                 },
                 onCancel = {
+                    navController.popBackStack()
                     onRegistrationCancelled()
                 }
             )

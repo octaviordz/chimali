@@ -179,53 +179,62 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         cid: ByteArray,
         req: MakeCredentialRequest
     ): List<ByteArray> {
-        // Build options
-        val rp = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
+        Log.d(TAG, "handleMakeCredential START rpId=${req.rpId} user=${req.userName}")
+
+        val rp   = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
         val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
         val makeCredentialOptions = MakeCredentialOptions.create(
-            rp = rp,
-            user = user,
+            rp = rp, user = user,
             challenge = req.clientDataHash,
             pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
         )
 
-        // Dispatch to UI and wait
         val deferred = CompletableDeferred<Result<AttestationObject>>()
+        Log.d(TAG, "Dispatching RegistrationRequested event to UI")
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
+        Log.d(TAG, "Event dispatched — awaiting user response via deferred")
 
         val attestationResult = deferred.await()
-        
+        Log.d(TAG, "Deferred resolved — success=${attestationResult.isSuccess} error=${attestationResult.exceptionOrNull()?.message}")
+
         if (attestationResult.isFailure) {
             val ex = attestationResult.exceptionOrNull()
-            Log.e(TAG, "Registration failed or cancelled: ${ex?.message}")
+            Log.e(TAG, "Registration failed or cancelled: ${ex?.message}", ex)
             return when (ex) {
-                is Fido2Exception.CredentialException -> errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
-                is Fido2Exception.UserVerificationException -> errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
+                is Fido2Exception.CredentialException ->
+                    errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
+                is Fido2Exception.UserVerificationException ->
+                    errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
                 else -> errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
             }
         }
 
         val attestation = attestationResult.getOrThrow()
-        val responseCbor = encodeAttestationResponse(attestation)
+        Log.d(TAG, "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes")
+        val responseCbor   = encodeAttestationResponse(attestation)
         val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
-        val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and 0x7F, responsePayload)
+        // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
+        val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
+        Log.d(TAG, "MakeCredential response ready payloadLen=${responsePayload.size}")
         return hidReportParser.encodeResponse(responseMsg)
     }
 
     // ── CBOR response encoding ────────────────────────────────────────────────
 
     /**
-     * Encodes the AttestationObject into a CTAP2 MakeCredential response CBOR map.
-     * Keys are integer per CTAP2 spec §6.1:
+     * Encodes the AttestationObject as a CTAP2 authenticatorMakeCredential response.
+     * Per CTAP2 spec §6.1, keys MUST be integers:
      *   0x01 = fmt, 0x02 = authData, 0x03 = attStmt
      */
     private fun encodeAttestationResponse(attestation: AttestationObject): ByteArray {
         val authDataBytes = buildAuthenticatorData(attestation.authData)
+        // Integer keys — not string keys — per CTAP2 §6.1
         val responseMap: Map<String, Any> = mapOf(
-            "fmt" to attestation.fmt,
-            "authData" to authDataBytes.toList(),
-            "attStmt" to emptyList<Any>()
+            "1" to attestation.fmt,         // fmt
+            "2" to authDataBytes,           // authData (raw bytes, not base64)
+            "3" to emptyMap<String, Any>()  // attStmt (none format)
         )
+        Log.d(TAG, "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}")
         return cborCodec.encodeToFido2Format(responseMap)
     }
 
