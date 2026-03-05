@@ -37,12 +37,12 @@ class HidReportParserTest {
         cmd: Int,
         payload: ByteArray
     ): ByteArray {
-        val packet = ByteArray(64)
+        val packet = ByteArray(62)
         cid.copyInto(packet, 0)
         packet[4] = (cmd or 0x80).toByte()          // CMD with init flag
         packet[5] = ((payload.size shr 8) and 0xFF).toByte()
         packet[6] = (payload.size and 0xFF).toByte()
-        payload.copyInto(packet, 7, 0, minOf(payload.size, 57))
+        payload.copyInto(packet, 7, 0, minOf(payload.size, 55))
         return packet
     }
 
@@ -53,10 +53,10 @@ class HidReportParserTest {
         payload: ByteArray,
         offset: Int
     ): ByteArray {
-        val packet = ByteArray(64)
+        val packet = ByteArray(62)
         cid.copyInto(packet, 0)
         packet[4] = (seq and 0x7F).toByte()
-        payload.copyInto(packet, 5, offset, minOf(offset + 59, payload.size))
+        payload.copyInto(packet, 5, offset, minOf(offset + 57, payload.size))
         return packet
     }
 
@@ -106,11 +106,11 @@ class HidReportParserTest {
 
     @Test
     fun `multi packet message reassembles correctly`() {
-        // 57 + 10 = 67 bytes total, needs 2 packets
-        val fullPayload = ByteArray(67) { it.toByte() }
+        // 55 + 10 = 65 bytes total, needs 2 packets
+        val fullPayload = ByteArray(65) { it.toByte() }
 
         val init = initPacket(testCid, CTAPHID_CBOR, fullPayload)
-        val cont0 = contPacket(testCid, 0, fullPayload, 57)
+        val cont0 = contPacket(testCid, 0, fullPayload, 55)
 
         val r1 = parser.processReport(init)
         assertTrue(r1.isSuccess)
@@ -125,16 +125,16 @@ class HidReportParserTest {
 
     @Test
     fun `two continuation packets reassemble correctly`() {
-        // 57 + 59 + 1 = 117 bytes
-        val fullPayload = ByteArray(117) { (it and 0xFF).toByte() }
+        // 55 + 57 + 1 = 113 bytes
+        val fullPayload = ByteArray(113) { (it and 0xFF).toByte() }
 
         val r1 = parser.processReport(initPacket(testCid, CTAPHID_CBOR, fullPayload))
         assertNull(r1.getOrNull())
 
-        val r2 = parser.processReport(contPacket(testCid, 0, fullPayload, 57))
+        val r2 = parser.processReport(contPacket(testCid, 0, fullPayload, 55))
         assertNull(r2.getOrNull())
 
-        val r3 = parser.processReport(contPacket(testCid, 1, fullPayload, 116))
+        val r3 = parser.processReport(contPacket(testCid, 1, fullPayload, 112))
         val msg = r3.getOrNull()
         assertNotNull(msg)
         assertArrayEquals(fullPayload, msg!!.payload)
@@ -144,11 +144,11 @@ class HidReportParserTest {
 
     @Test
     fun `out of order continuation returns failure`() {
-        val fullPayload = ByteArray(67) { it.toByte() }
+        val fullPayload = ByteArray(65) { it.toByte() }
 
         parser.processReport(initPacket(testCid, CTAPHID_CBOR, fullPayload))
         // Send seq=1 instead of seq=0
-        val contWrong = contPacket(testCid, 1, fullPayload, 57)
+        val contWrong = contPacket(testCid, 1, fullPayload, 55)
         val result = parser.processReport(contWrong)
 
         assertTrue(result.isFailure)
@@ -157,7 +157,7 @@ class HidReportParserTest {
 
     @Test
     fun `orphaned continuation returns failure`() {
-        val packet = ByteArray(64)
+        val packet = ByteArray(62)
         testCid.copyInto(packet, 0)
         packet[4] = 0x00 // continuation, seq=0, but no pending state
 
@@ -183,7 +183,7 @@ class HidReportParserTest {
         val packets = parser.encodeResponse(msg)
 
         assertEquals(1, packets.size, "Single packet expected for small payload")
-        assertEquals(64, packets[0].size)
+        assertEquals(62, packets[0].size)
 
         // Verify CID in first packet
         assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
@@ -201,7 +201,7 @@ class HidReportParserTest {
         val packets = parser.encodeResponse(msg)
 
         assertEquals(3, packets.size) // init + 2 cont
-        packets.forEach { assertEquals(64, it.size) }
+        packets.forEach { assertEquals(62, it.size) }
 
         // Verify sequence numbers on continuations
         assertEquals(0x00.toByte(), packets[1][4]) // seq=0
@@ -256,12 +256,12 @@ class HidReportParserTest {
 
     @Test
     fun `reset clears pending state so continuation becomes orphan`() {
-        val fullPayload = ByteArray(67) { it.toByte() }
+        val fullPayload = ByteArray(65) { it.toByte() }
         parser.processReport(initPacket(testCid, CTAPHID_CBOR, fullPayload))
         parser.reset()
 
         // Continuation after reset should fail
-        val cont = contPacket(testCid, 0, fullPayload, 57)
+        val cont = contPacket(testCid, 0, fullPayload, 55)
         val result = parser.processReport(cont)
         assertTrue(result.isFailure)
     }

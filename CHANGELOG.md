@@ -3,9 +3,13 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
-## [Unreleased] - 2026-03-04
+## [Unreleased] - 2026-03-05
 
 ### Fixed
+- **FIDO2 Domain & Unit Tests**: Fixed 13 previously failing test suites related to FIDO2 domain validations, RP ID extraction, and strict vs implicit consent constraints.
+- Full details: [2026-03-05-fido2-domain-tests-fix.md](docs/changelogs/2026-03-05-fido2-domain-tests-fix.md)
+
+## [Unreleased] - 2026-03-04
 - **FIDO2 Bluetooth Reliability**: Resolved critical protocol negotiation and stability issues for Windows compatibility.
 - **U2F-to-CTAP2 Fallback (Windows Probing Fix)**:
     - Implemented a structural dummy `U2F_REGISTER` response to satisfy mandatory host probing during registration.

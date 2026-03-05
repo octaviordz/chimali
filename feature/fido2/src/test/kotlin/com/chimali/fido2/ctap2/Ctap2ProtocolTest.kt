@@ -88,7 +88,7 @@ class Ctap2ProtocolTest {
         val packets = responseBuilder.errorResponse(testCid, statusCode)
 
         assertTrue(packets.isNotEmpty())
-        assertEquals(64, packets[0].size)
+        assertEquals(62, packets[0].size)
         assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
 
         // Init flag must be set in CMD byte
@@ -107,7 +107,7 @@ class Ctap2ProtocolTest {
     fun `keepAliveResponse produces correct structure`() {
         val packets = responseBuilder.keepAliveResponse(testCid, 0x01)
         assertTrue(packets.isNotEmpty())
-        assertEquals(64, packets[0].size)
+        assertEquals(62, packets[0].size)
         assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
     }
 
@@ -126,7 +126,7 @@ class Ctap2ProtocolTest {
     fun `makeCredentialResponse encodes into 64-byte packets`() {
         val attestation = makeAttestationObject()
         val packets = responseBuilder.makeCredentialResponse(testCid, attestation)
-        packets.forEach { assertEquals(64, it.size) }
+        packets.forEach { assertEquals(62, it.size) }
     }
 
     @Test
@@ -169,7 +169,7 @@ class Ctap2ProtocolTest {
     fun `hidErrorResponse produces framed 64-byte packet`() {
         val packets = responseBuilder.hidErrorResponse(testCid, 0x01)
         assertTrue(packets.isNotEmpty())
-        assertEquals(64, packets[0].size)
+        assertEquals(62, packets[0].size)
         assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
     }
 

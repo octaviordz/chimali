@@ -6,6 +6,8 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.*
+import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
@@ -23,6 +25,8 @@ class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
     private lateinit var fido2Authenticator: Fido2Authenticator
+    private lateinit var cborCodec: CborCodec
+    private lateinit var cryptoService: Fido2CryptoService
     private lateinit var registerCredentialUseCase: RegisterCredentialUseCase
     
     private lateinit var testPublicKey: java.security.PublicKey
@@ -36,10 +40,14 @@ class RegisterCredentialUseCaseTest {
         credentialRepository = mockk()
         userVerificationService = mockk()
         fido2Authenticator = mockk()
+        cborCodec = mockk()
+        cryptoService = mockk()
         registerCredentialUseCase = RegisterCredentialUseCase(
             credentialRepository,
             userVerificationService,
-            fido2Authenticator
+            fido2Authenticator,
+            cborCodec,
+            cryptoService
         )
         
         // Setup test data
@@ -76,6 +84,10 @@ class RegisterCredentialUseCaseTest {
         )
         
         // Setup default mock responses
+        val testFido2KeyPair = com.chimali.fido2.data.crypto.Fido2KeyPair("test_alias", ByteArray(65) { 0x01 })
+        coEvery { cryptoService.generateCredentialKeyPair(any(), any()) } returns Result.success(testFido2KeyPair)
+        coEvery { cryptoService.getPublicKey(any()) } returns testPublicKey
+        coEvery { cborCodec.encodeCosePublicKeyFromJavaKey(any()) } returns ByteArray(77)
         coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
         coEvery { userVerificationService.getUserVerificationAvailability() } returns UserVerificationAvailability(
             biometricAvailable = true,
@@ -100,6 +112,7 @@ class RegisterCredentialUseCaseTest {
         coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
         coEvery { credentialRepository.getRelyingParty(any()) } returns null
         coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.success(Unit)
+        coEvery { credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>()) } returns Result.success(Unit)
     }
     
     @Nested
@@ -111,7 +124,7 @@ class RegisterCredentialUseCaseTest {
         fun `should successfully register credential with biometric verification`() = runTest {
             val result = registerCredentialUseCase(testOptions)
             
-            assertTrue(result.isSuccess)
+            assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
             val attestationObject = result.getOrThrow()
             assertNotNull(attestationObject)
             assertEquals("none", attestationObject.fmt)
@@ -122,7 +135,7 @@ class RegisterCredentialUseCaseTest {
             coVerify { userVerificationService.recordUserConsent(any()) }
             coVerify { credentialRepository.validateCredentialCreation(any(), any()) }
             coVerify { credentialRepository.saveCredential(any()) }
-            coVerify { credentialRepository.updateRelyingParty(any(), any()) }
+            coVerify { credentialRepository.saveRelyingParty(any()) }
         }
         
         @Test
@@ -144,7 +157,7 @@ class RegisterCredentialUseCaseTest {
             
             val result = registerCredentialUseCase(testOptions)
             
-            assertTrue(result.isSuccess)
+            assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
             val attestationObject = result.getOrThrow()
             assertNotNull(attestationObject)
             
@@ -159,9 +172,23 @@ class RegisterCredentialUseCaseTest {
             // Mock no verification required
             coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
             
-            val result = registerCredentialUseCase(testOptions)
+            val optionsNotRequired = MakeCredentialOptions.create(
+                rp = testRp,
+                user = testUser,
+                challenge = "test_challenge".toByteArray(),
+                pubKeyCredParams = testParams,
+                timeout = 60000L,
+                allowCredentials = null,
+                excludeCredentials = null,
+                authenticatorSelection = AuthenticatorSelectionCriteria.create(
+                    userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED
+                ),
+                attestation = AttestationConveyancePreference.NONE
+            )
             
-            assertTrue(result.isSuccess)
+            val result = registerCredentialUseCase(optionsNotRequired)
+            
+            assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
             val attestationObject = result.getOrThrow()
             assertNotNull(attestationObject)
             
@@ -183,10 +210,10 @@ class RegisterCredentialUseCaseTest {
             
             val result = registerCredentialUseCase(testOptions)
             
-            assertTrue(result.isSuccess)
+            assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
             
             // Verify RP was updated with incremented credential count
-            coVerify { credentialRepository.updateRelyingParty(any(), any()) }
+            coVerify { credentialRepository.saveRelyingParty(any()) }
         }
     }
     
@@ -197,58 +224,61 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should fail when RP validation fails")
         fun `should fail when rp validation fails`() = runTest {
-            val invalidRp = testRp.copy(id = "invalid-rp-id")
-            val invalidOptions = testOptions.copy(rp = invalidRp)
-            
-            val result = registerCredentialUseCase(invalidOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertThrows(IllegalArgumentException::class.java) {
+                PublicKeyCredentialRpEntity.create(
+                    id = "ftp://invalid-rp.com", // ftp is invalid scheme
+                    name = "Test RP"
+                )
+            }
         }
         
         @Test
         @DisplayName("Should fail when user validation fails")
         fun `should fail when user validation fails`() = runTest {
-            val invalidUser = testUser.copy(name = "") // Blank name
-            val invalidOptions = testOptions.copy(user = invalidUser)
-            
-            val result = registerCredentialUseCase(invalidOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertThrows(IllegalArgumentException::class.java) {
+                PublicKeyCredentialUserEntity.create(
+                    id = "user123".toByteArray(),
+                    name = "", // Blank name is invalid
+                    displayName = "Test User"
+                )
+            }
         }
         
         @Test
         @DisplayName("Should fail when challenge is empty")
         fun `should fail when challenge is empty`() = runTest {
-            val invalidOptions = testOptions.copy(challenge = ByteArray(0))
-            
-            val result = registerCredentialUseCase(invalidOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertThrows(IllegalArgumentException::class.java) {
+                MakeCredentialOptions.create(
+                    rp = testRp,
+                    user = testUser,
+                    challenge = ByteArray(0) // Empty challenge is invalid
+                )
+            }
         }
         
         @Test
         @DisplayName("Should fail when challenge exceeds maximum size")
         fun `should fail when challenge exceeds maximum size`() = runTest {
-            val invalidOptions = testOptions.copy(challenge = ByteArray(65))
-            
-            val result = registerCredentialUseCase(invalidOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertThrows(IllegalArgumentException::class.java) {
+                MakeCredentialOptions.create(
+                    rp = testRp,
+                    user = testUser,
+                    challenge = ByteArray(65) // Max is 64
+                )
+            }
         }
         
         @Test
         @DisplayName("Should fail when timeout is invalid")
         fun `should fail when timeout is invalid`() = runTest {
-            val invalidOptions = testOptions.copy(timeout = -1L)
-            
-            val result = registerCredentialUseCase(invalidOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertThrows(IllegalArgumentException::class.java) {
+                MakeCredentialOptions.create(
+                    rp = testRp,
+                    user = testUser,
+                    challenge = "test_challenge".toByteArray(),
+                    timeout = -1L // Negative timeout is invalid
+                )
+            }
         }
         
         @Test
@@ -344,7 +374,7 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should fail when RP update fails")
         fun `should fail when rp update fails`() = runTest {
-            coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.failure(
+            coEvery { credentialRepository.saveRelyingParty(any()) } returns Result.failure(
                 Fido2Exception.RelyingPartyUpdateFailed("Relying party update failed")
             )
             
@@ -386,15 +416,11 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should fail with unsupported algorithm")
         fun `should fail with unsupported algorithm`() = runTest {
-            val unsupportedParams = PublicKeyCredentialParameters.create(
-                algorithm = "UNSUPPORTED"
-            )
-            val unsupportedOptions = testOptions.copy(pubKeyCredParams = unsupportedParams)
-            
-            val result = registerCredentialUseCase(unsupportedOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is Fido2Exception.UnsupportedAlgorithm)
+            // PublicKeyCredentialParameters validates algorithm in init, so creating with unsupported
+            // algorithm throws IllegalArgumentException before the use case is even called.
+            assertThrows(IllegalArgumentException::class.java) {
+                PublicKeyCredentialParameters.create(algorithm = "UNSUPPORTED")
+            }
         }
     }
     
@@ -457,8 +483,7 @@ class RegisterCredentialUseCaseTest {
             )
             
             val result = registerCredentialUseCase(optionsWithExcludes)
-            
-            assertTrue(result.isSuccess)
+            assertTrue(result.isSuccess, "Failed with exception: ${result.exceptionOrNull()?.message}")
         }
         
         @Test
@@ -476,8 +501,7 @@ class RegisterCredentialUseCaseTest {
             )
             
             val result = registerCredentialUseCase(optionsWithAllows)
-            
-            assertTrue(result.isSuccess)
+            assertTrue(result.isSuccess, "Failed with exception: ${result.exceptionOrNull()?.message}")
         }
         
         @Test

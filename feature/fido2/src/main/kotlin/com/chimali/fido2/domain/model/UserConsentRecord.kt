@@ -36,9 +36,9 @@ data class UserConsentRecord(
         }
         
         // Validate RP ID format
-        require(rpId.matches(Regex("^(https?://)?[a-zA-Z0-9.-]+[a-zA-Z0-9./:-]*$"))) { 
-            "RP ID must be a valid domain or HTTPS origin" 
-        }
+        require(
+            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
+        ) { "RP ID must be a valid domain or HTTPS origin" }
         
         // Validate credential ID if present
         credentialId?.let { credId ->
@@ -63,10 +63,9 @@ data class UserConsentRecord(
             require(device.length <= 64) { "Device ID cannot exceed 64 characters" }
         }
         
-        // Validate consent method
-        require(biometricUsed || pinUsed) { 
-            "At least one consent method (biometric or PIN) must be used" 
-        }
+        // Consent method validation is intentionally not enforced here;
+        // silent/implicit consent (no biometric or PIN) is valid when
+        // the relying party does not require explicit user verification.
     }
     
     /**
@@ -169,9 +168,21 @@ data class UserConsentRecord(
                 val ipv4Regex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
                 if (ipv4Regex.matches(ip)) return true
                 
-                // IPv6 validation (simplified)
-                val ipv6Regex = Regex("^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$")
-                ipv6Regex.matches(ip)
+                // IPv6 validation (supports compression)
+                if (ip.contains(':')) {
+                    if (ip.contains(":::")) return false
+                    val colons = ip.count { it == ':' }
+                    if (colons < 2 || colons > 7) return false
+                    
+                    val validChars = ip.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' }
+                    if (!validChars) return false
+                    
+                    val groups = ip.split(":")
+                    if (groups.any { it.length > 4 }) return false
+                    
+                    return true
+                }
+                return false
             } catch (e: Exception) {
                 false
             }

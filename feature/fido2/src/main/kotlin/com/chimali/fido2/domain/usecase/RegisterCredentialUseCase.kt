@@ -37,7 +37,7 @@ class RegisterCredentialUseCase @Inject constructor(
             // Ensure relying party exists before creating consent records or credentials
             val rpResult = updateRelyingParty(options.rp)
             if (rpResult.isFailure) {
-                return Result.failure(Fido2Exception.CredentialStorageFailed("Failed to register relying party: ${rpResult.exceptionOrNull()?.message}"))
+                return Result.failure(rpResult.exceptionOrNull() ?: Fido2Exception.RelyingPartyUpdateFailed("Failed to register relying party"))
             }
             
             // Check if user consent is required
@@ -170,7 +170,19 @@ class RegisterCredentialUseCase @Inject constructor(
                         if (result.isSuccess) {
                             Result.success(Unit)
                         } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
+                            if (availability.pinAvailable) {
+                                val pinResult = userVerificationService.verifyPin(
+                                    prompt = "Enter your PIN to register new passkey",
+                                    rpId = options.rp.id
+                                )
+                                if (pinResult.isSuccess) {
+                                    Result.success(Unit)
+                                } else {
+                                    Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
+                                }
+                            } else {
+                                Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
+                            }
                         }
                     }
                     availability.pinAvailable -> {

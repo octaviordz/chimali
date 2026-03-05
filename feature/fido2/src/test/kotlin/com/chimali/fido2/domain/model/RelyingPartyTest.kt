@@ -101,7 +101,7 @@ class RelyingPartyTest {
         fun `should throw exception when rp id is invalid`() = runTest {
             assertThrows<IllegalArgumentException> {
                 RelyingParty(
-                    id = "invalid-rp-id",
+                    id = "ftp://invalid-rp-id",
                     name = "Example Website",
                     iconUrl = null,
                     credentialCount = 0,
@@ -231,8 +231,11 @@ class RelyingPartyTest {
         @Test
         @DisplayName("Should handle invalid RP ID when extracting domain")
         fun `should handle invalid rp id when extracting domain`() = runTest {
-            val rpWithInvalidId = rp.copy(id = "invalid-url")
-            assertEquals("invalid-url", rpWithInvalidId.getDomain())
+            // A bare hostname without a dot (e.g. "invalid-url") is now rejected
+            // by domain validation. This verifies that behavior.
+            assertThrows<IllegalArgumentException> {
+                rp.copy(id = "invalid-url")
+            }
         }
         
         @Test
@@ -251,7 +254,7 @@ class RelyingPartyTest {
         fun `should return safe name`() = runTest {
             assertEquals("Example Website", rp.name)
             
-            val rpWithBlankName = rp.copy(name = "")
+            val rpWithBlankName = RelyingParty.create(id = "https://example.com", name = "")
             assertEquals("example.com", rpWithBlankName.name)
         }
         
@@ -277,7 +280,7 @@ class RelyingPartyTest {
         @Test
         @DisplayName("Should create RP with updated last used time")
         fun `should create rp with updated last used time`() = runTest {
-            val newLastUsedAt = Instant.now().plusSeconds(60)
+            val newLastUsedAt = rp.createdAt.plusSeconds(30)
             val updatedRp = rp.withLastUsedAt(newLastUsedAt)
             
             assertEquals(newLastUsedAt, updatedRp.lastUsedAt)
@@ -290,10 +293,18 @@ class RelyingPartyTest {
         fun `should correctly check if rp was recently used`() = runTest {
             assertTrue(rp.isRecentlyUsed(30)) // Should be recent
             
-            val oldRp = rp.copy(lastUsedAt = Instant.now().minusSeconds(31 * 24 * 60 * 60)) // 31 days ago
+            val oldCreatedAt = Instant.now().minusSeconds(32 * 24 * 60 * 60)
+            val oldRp = rp.copy(
+                createdAt = oldCreatedAt, 
+                lastUsedAt = oldCreatedAt.plusSeconds(1 * 24 * 60 * 60)
+            ) // 31 days ago
             assertFalse(oldRp.isRecentlyUsed(30))
             
-            val recentRp = rp.copy(lastUsedAt = Instant.now().minusSeconds(29 * 24 * 60 * 60)) // 29 days ago
+            val recentCreatedAt = Instant.now().minusSeconds(30 * 24 * 60 * 60)
+            val recentRp = rp.copy(
+                createdAt = recentCreatedAt,
+                lastUsedAt = recentCreatedAt.plusSeconds(1 * 24 * 60 * 60)
+            ) // 29 days ago
             assertTrue(recentRp.isRecentlyUsed(30))
         }
     }

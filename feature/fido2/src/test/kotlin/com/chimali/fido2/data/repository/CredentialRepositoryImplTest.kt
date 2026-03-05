@@ -3,7 +3,7 @@ package com.chimali.fido2.data.repository
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
-import com.chimali.fido2.data.service.CredentialStorageService
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.*
 import com.chimali.fido2.domain.exception.Fido2Exception
 import io.mockk.*
@@ -23,7 +23,7 @@ class CredentialRepositoryImplTest {
     private lateinit var passkeyCredentialDao: PasskeyCredentialDao
     private lateinit var relyingPartyDao: RelyingPartyDao
     private lateinit var userConsentRecordDao: UserConsentRecordDao
-    private lateinit var credentialStorageService: CredentialStorageService
+    private lateinit var cryptoService: Fido2CryptoService
     private lateinit var repository: CredentialRepositoryImpl
 
     private lateinit var testCredential: PasskeyCredential
@@ -37,12 +37,12 @@ class CredentialRepositoryImplTest {
         passkeyCredentialDao = mockk()
         relyingPartyDao = mockk()
         userConsentRecordDao = mockk()
-        credentialStorageService = mockk()
+        cryptoService = mockk()
         repository = CredentialRepositoryImpl(
             passkeyCredentialDao,
             relyingPartyDao,
             userConsentRecordDao,
-            credentialStorageService
+            cryptoService
         )
 
         val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(256) }
@@ -94,9 +94,9 @@ class CredentialRepositoryImplTest {
         )
 
         // Default Mocks
-        coEvery { credentialStorageService.storePrivateKey(any(), any()) } returns Result.success(Unit)
-        coEvery { credentialStorageService.getPublicKey(any()) } returns testPublicKey
-        coEvery { credentialStorageService.deletePrivateKey(any()) } returns Result.success(Unit)
+        coEvery { cryptoService.keyExists(any()) } returns true
+        coEvery { cryptoService.getPublicKey(any()) } returns testPublicKey
+        coEvery { cryptoService.deleteCredentialKey(any()) } returns Result.success(Unit)
         
         coEvery { passkeyCredentialDao.insertCredential(any()) } just Runs
         coEvery { passkeyCredentialDao.getCredentialById(any()) } returns null
@@ -123,7 +123,7 @@ class CredentialRepositoryImplTest {
         fun `should successfully save credential`() = runTest {
             val result = repository.saveCredential(testCredential)
             assertTrue(result.isSuccess)
-            coVerify { credentialStorageService.storePrivateKey(testCredential.privateKeyAlias, testCredential.publicKey) }
+            coVerify { cryptoService.keyExists(testCredential.id) }
             coVerify { passkeyCredentialDao.insertCredential(testCredential) }
         }
 
@@ -174,7 +174,7 @@ class CredentialRepositoryImplTest {
             
             assertTrue(result.isSuccess)
             coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
-            coVerify { credentialStorageService.deletePrivateKey(testCredential.privateKeyAlias) }
+            coVerify { cryptoService.deleteCredentialKey(testCredential.id) }
         }
 
         @Test

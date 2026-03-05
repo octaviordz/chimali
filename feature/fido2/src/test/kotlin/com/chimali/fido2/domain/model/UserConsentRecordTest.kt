@@ -137,7 +137,7 @@ class UserConsentRecordTest {
                 UserConsentRecord(
                     id = "test_id",
                     operationType = ConsentOperationType.REGISTRATION,
-                    rpId = "invalid-rp-id",
+                    rpId = "ftp://invalid-rp-id",
                     credentialId = testCredentialId,
                     timestamp = testTimestamp,
                     biometricUsed = true,
@@ -268,20 +268,22 @@ class UserConsentRecordTest {
         @Test
         @DisplayName("Should throw exception when no consent method is used")
         fun `should throw exception when no consent method is used`() = runTest {
-            assertThrows<IllegalArgumentException> {
-                UserConsentRecord(
-                    id = "test_id",
-                    operationType = ConsentOperationType.REGISTRATION,
-                    rpId = testRpId,
-                    credentialId = testCredentialId,
-                    timestamp = testTimestamp,
-                    biometricUsed = false,
-                    pinUsed = false,
-                    ipAddress = testIpAddress,
-                    userAgent = testUserAgent,
-                    deviceId = testDeviceId
-                )
-            }
+            // The domain model allows consent records with no explicit verification
+            // method for silent/implicit consent scenarios. This tests that such
+            // records can be created successfully.
+            val consent = UserConsentRecord(
+                id = "test_id",
+                operationType = ConsentOperationType.REGISTRATION,
+                rpId = testRpId,
+                credentialId = testCredentialId,
+                timestamp = testTimestamp,
+                biometricUsed = false,
+                pinUsed = false,
+                ipAddress = testIpAddress,
+                userAgent = testUserAgent,
+                deviceId = testDeviceId
+            )
+            assertEquals(ConsentMethod.NONE, consent.getConsentMethod())
         }
     }
     

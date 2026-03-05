@@ -60,6 +60,7 @@ class GetUserConsentUseCase @Inject constructor(
             val verificationResult = if (requireVerification && consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED) {
                 performUserVerificationForConsent(rpId, operationType, prompt)
             } else {
+                // Silent/implicit consent — no explicit verification performed
                 Result.success(ConsentVerificationResult(
                     biometricUsed = false,
                     pinUsed = false,
@@ -93,6 +94,8 @@ class GetUserConsentUseCase @Inject constructor(
             
             Result.success(consentRecord)
             
+        } catch (e: IllegalArgumentException) {
+            Result.failure(e)
         } catch (e: Exception) {
             Result.failure(Fido2Exception.ConsentOperationFailed(e.message ?: "Unknown error", e))
         }

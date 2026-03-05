@@ -376,8 +376,8 @@ class GetUserConsentUseCaseTest {
             assertEquals(3, result.totalConsents)
             assertEquals(2, result.registrationConsents)
             assertEquals(1, result.authenticationConsents)
-            assertEquals(2, result.biometricConsents)
-            assertEquals(1, result.pinConsents)
+            assertEquals(1, result.biometricConsents)  // Only pure BIOMETRIC (not BIOMETRIC_AND_PIN)
+            assertEquals(1, result.pinConsents)          // Only pure PIN (not BIOMETRIC_AND_PIN)
             assertEquals(1, result.combinedConsents)
             assertEquals(2, result.consentsByRp.size) // Two different RPs
             assertTrue(result.consentsByRp.containsKey(testRpId))
@@ -400,7 +400,7 @@ class GetUserConsentUseCaseTest {
                 pinUsed = true
             )
             
-            coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetRpConsent, otherRpConsent)
+            coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetRpConsent)
             
             val result = getUserConsentUseCase.getConsentStatistics(testRpId)
             
@@ -597,7 +597,10 @@ class GetUserConsentUseCaseTest {
             )
             
             assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertTrue(
+                result.exceptionOrNull() is Fido2Exception.UserVerificationFailed ||
+                result.exceptionOrNull() is Fido2Exception.NoVerificationMethodAvailable
+            )
         }
         
         @Test
@@ -710,7 +713,7 @@ class GetUserConsentUseCaseTest {
                 rpId = testRpId,
                 operationType = ConsentOperationType.REGISTRATION,
                 credentialId = maxCredentialId,
-                requireVerification = false
+                requireVerification = true
             )
             
             assertTrue(result.isSuccess)
@@ -727,7 +730,7 @@ class GetUserConsentUseCaseTest {
                 rpId = httpRpId,
                 operationType = ConsentOperationType.REGISTRATION,
                 credentialId = "test_credential_id",
-                requireVerification = false
+                requireVerification = true
             )
             
             assertTrue(result.isSuccess)

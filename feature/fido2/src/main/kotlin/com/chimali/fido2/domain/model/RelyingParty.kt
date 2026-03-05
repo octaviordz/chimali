@@ -78,7 +78,9 @@ data class RelyingParty(
      */
     fun getDomain(): String {
         return try {
-            URI.create(id).host ?: id
+            val uri = URI.create(id)
+            val host = uri.host ?: return id
+            if (uri.port != -1) "$host:${uri.port}" else host
         } catch (e: Exception) {
             id
         }
@@ -143,9 +145,16 @@ data class RelyingParty(
             iconUrl: String? = null
         ): RelyingParty {
             val now = Instant.now()
+            // Auto-set name to domain extracted from id if blank
+            val resolvedName = if (name.isBlank()) {
+                try {
+                    val uri = java.net.URI.create(id)
+                    uri.host ?: id
+                } catch (e: Exception) { id }
+            } else name
             return RelyingParty(
                 id = id,
-                name = name,
+                name = resolvedName,
                 iconUrl = iconUrl,
                 credentialCount = 0,
                 createdAt = now,
@@ -157,12 +166,18 @@ data class RelyingParty(
          * Validates RP ID format according to FIDO2 specifications.
          */
         fun isValidRpId(rpId: String): Boolean {
+            if (rpId.isBlank()) return false
             return try {
-                val uri = java.net.URI(if (rpId.contains("://")) rpId else "https://$rpId")
-                val scheme = uri.scheme?.lowercase()
-                val host = uri.host
-                
-                scheme in setOf("https", "http") && host != null && host.isNotBlank()
+                if (rpId.contains("://")) {
+                    // Must have http or https scheme
+                    val uri = java.net.URI(rpId)
+                    val scheme = uri.scheme?.lowercase()
+                    scheme in setOf("https", "http") && uri.host != null && uri.host.isNotBlank()
+                } else {
+                    // Bare domain: must contain a dot (e.g., example.com) or be localhost
+                    rpId == "localhost" || rpId.startsWith("localhost:") ||
+                        (rpId.contains('.') && !rpId.contains(' '))
+                }
             } catch (e: Exception) {
                 false
             }
@@ -172,11 +187,10 @@ data class RelyingParty(
          * Normalizes RP ID to HTTPS format.
          */
         fun normalizeRpId(rpId: String): String {
-            return if (rpId.startsWith("https://") || rpId.startsWith("http://")) {
-                rpId
-            } else {
-                "https://$rpId"
-            }
+            if (rpId.startsWith("http://localhost")) return rpId
+            if (rpId.startsWith("http://")) return "https://" + rpId.substring(7)
+            if (rpId.startsWith("https://")) return rpId
+            return "https://$rpId"
         }
     }
 }

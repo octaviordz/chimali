@@ -80,7 +80,7 @@ data class PasskeyCredential(
      * Checks if this credential belongs to the specified relying party.
      */
     fun belongsToRelyingParty(rpId: String): Boolean {
-        return this.rpId.equals(rpId, ignoreCase = true)
+        return this.rpId.trimEnd('/').equals(rpId.trimEnd('/'), ignoreCase = true)
     }
     
     /**
