@@ -15,6 +15,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
     - Changed `uv` to `true` with `plat: false` to align with biometric cross-platform key expectations.
 - **CBOR Integer Encoding**: Fixed a critical bug in `CborCodec` where negative integers (e.g., COSE ES256 algorithm ID `-7`) were incorrectly encoded as unsigned/float16 garbage, causing Windows parser rejects.
 - **AuthenticatorData Attestation Fix**: Fixed missing `AT (0x40)` bit in `AuthenticatorData` flags. This prevents the Windows browser from crashing when processing `MakeCredential` attestation responses containing large public key payloads.
+- **GetAssertion Base64 Encoding Bug**: Fixed a critical `E_INVALIDARG (0x80070057)` error on Windows by encoding `authData`, `signature`, and `credentialId` as binary CBOR byte strings instead of Base64 ASCII text during authentication.
+- **KeyNotFound Alias Mismatch**: Refactored `RegisterCredentialUseCase` and `CredentialRepositoryImpl` to centralize cryptographic generation in `Fido2CryptoService`. This resolved a dual-generation race condition that immediately discarded private keys and caused `KeyNotFound` errors on every `GetAssertion` attempt.
+- **AAGUID Metadata Integrity**: Replaced the random `SecureRandom` AAGUID generation with a static, deterministic `CHIMALI_AAGUID` to prevent Windows from treating the authenticator as an unknown device model.
+
+### Added
+- **Documentation**: Added comprehensive analysis of CTAP2 Bluetooth constraints and fixes tailored for Windows 11 / webauthn.io. Full details: [FIDO2_Windows_Bluetooth_Analysis.md](docs/FIDO2_Windows_Bluetooth_Analysis.md)
 
 ## [Unreleased] - 2026-03-03
 

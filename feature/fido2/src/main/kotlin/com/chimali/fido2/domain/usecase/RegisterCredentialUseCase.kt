@@ -19,7 +19,8 @@ class RegisterCredentialUseCase @Inject constructor(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
     private val fido2Authenticator: Fido2Authenticator,
-    private val cborCodec: com.chimali.fido2.data.crypto.CborCodec
+    private val cborCodec: com.chimali.fido2.data.crypto.CborCodec,
+    private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService
 ) {
     
     /**
@@ -245,26 +246,31 @@ class RegisterCredentialUseCase @Inject constructor(
             // Generate credential ID
             val credentialId = generateCredentialId()
             
-            // Generate key pair
-            val keyPairResult = generateKeyPair(options.pubKeyCredParams)
-            if (keyPairResult.isFailure) {
-                return Result.failure(keyPairResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
+            // Generate hardware-backed key pair via Fido2CryptoService
+            val cryptoResult = cryptoService.generateCredentialKeyPair(
+                credentialId = credentialId,
+                requireUserAuth = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED
+            )
+            if (cryptoResult.isFailure) {
+                return Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
             }
             
-            val keyPair = keyPairResult.getOrThrow()
+            // Retrieve the public key object for PasskeyCredential
+            val publicKey = cryptoService.getPublicKey(credentialId)
+                ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: $credentialId"))
             
             // Generate AAGUID for this authenticator
             val aaguid = generateAAGUID()
             
-            // Create the credential
+            // Create the credential domain model
             val credential = PasskeyCredential.create(
                 id = credentialId,
                 rpId = options.rp.id,
                 userId = String(options.user.id),
                 userName = options.user.name,
                 userDisplayName = options.user.displayName,
-                publicKey = keyPair.public,
-                privateKeyAlias = "fido2_credential_${credentialId}",
+                publicKey = publicKey,
+                privateKeyAlias = com.chimali.fido2.data.crypto.Fido2CryptoService.credentialAlias(credentialId),
                 aaguid = aaguid,
                 credentialId = credentialId.toByteArray()
             )
@@ -350,15 +356,14 @@ class RegisterCredentialUseCase @Inject constructor(
     }
     
     /**
-     * Generates an AAGUID for this authenticator.
+     * Returns the fixed AAGUID for the Chimali authenticator (version 1).
+     * Must be identical to CHIMALI_AAGUID in Ctap2MakeCredentialHandler.
      */
-    private fun generateAAGUID(): ByteArray {
-        // Generate a random AAGUID for this authenticator
-        // In a real implementation, this would be device-specific
-        val aaguid = ByteArray(16)
-        SecureRandom().nextBytes(aaguid)
-        return aaguid
-    }
+    private fun generateAAGUID(): ByteArray = byteArrayOf(
+        0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
+    )
+
     
     /**
      * Updates relying party information in the repository.

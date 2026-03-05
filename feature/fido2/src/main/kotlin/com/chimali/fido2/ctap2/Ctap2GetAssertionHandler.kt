@@ -133,24 +133,25 @@ class Ctap2GetAssertionHandler @Inject constructor(
     ): ByteArray {
         val responseMap = mutableMapOf<String, Any>()
 
-        // 0x01 — credential descriptor (omit if single credential, per spec)
+        // 0x01 — credential descriptor
+        // Per CTAP2 §6.2, the credential id MUST be raw bytes (CBOR bstr), not base64.
         assertion.credential?.let { desc ->
             responseMap["1"] = mapOf(
                 "type" to "public-key",
-                "id"   to desc.getIdBase64Url()
+                "id"   to desc.id   // ByteArray — CborCodec encodes as CBOR bstr
             )
         }
 
-        // 0x02 — authData bytes
-        responseMap["2"] = Base64.getEncoder().encodeToString(assertion.authData)
+        // 0x02 — authData: raw bytes, NOT base64 text
+        responseMap["2"] = assertion.authData
 
-        // 0x03 — DER-encoded signature
-        responseMap["3"] = Base64.getEncoder().encodeToString(assertion.signature)
+        // 0x03 — DER-encoded ECDSA signature: raw bytes, NOT base64 text
+        responseMap["3"] = assertion.signature
 
         // 0x04 — user entity (discoverable credential flow)
         assertion.user?.let { user ->
             responseMap["4"] = mapOf(
-                "id"          to Base64.getUrlEncoder().withoutPadding().encodeToString(user.id),
+                "id"          to user.id,              // raw bytes
                 "name"        to user.name,
                 "displayName" to (user.displayName ?: user.name)
             )
