@@ -212,8 +212,8 @@ class CborCodec @Inject constructor() {
             null         -> writeByte(out, 0xF6.toByte())
             is ByteArray -> { writeHeader(out, 2, value.size.toLong()); out.write(value) }
             is String    -> { val b = value.toByteArray(Charsets.UTF_8); writeHeader(out, 3, b.size.toLong()); out.write(b) }
-            is Long      -> writeUInt(out, value)
-            is Int       -> writeUInt(out, value.toLong())
+            is Long      -> if (value >= 0) writeUInt(out, value) else writeNegInt(out, value)
+            is Int       -> writeValue(out, value.toLong())
             is Map<*, *> -> {
                 @Suppress("UNCHECKED_CAST")
                 writeMap(out, value as Map<String, Any>)
@@ -230,6 +230,9 @@ class CborCodec @Inject constructor() {
             }
         }
     }
+
+    /** CBOR major-type 1: negative integer. Encodes N as -(N+1), e.g. -7 → argument=6 → 0x26. */
+    private fun writeNegInt(out: ByteArrayOutputStream, value: Long) = writeHeader(out, 1, -(value + 1))
 
     private fun writeMap(out: ByteArrayOutputStream, map: Map<String, Any>) {
         writeHeader(out, 5, map.size.toLong())

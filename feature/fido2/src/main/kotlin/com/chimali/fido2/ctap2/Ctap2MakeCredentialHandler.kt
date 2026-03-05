@@ -235,7 +235,10 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             "3" to emptyMap<String, Any>()  // attStmt (none format)
         )
         Log.d(TAG, "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}")
-        return cborCodec.encodeToFido2Format(responseMap)
+        Log.d(TAG, "authData hex: ${authDataBytes.joinToString("") { "%02x".format(it) }}")
+        val encoded = cborCodec.encodeToFido2Format(responseMap)
+        Log.d(TAG, "CBOR response hex: ${encoded.joinToString("") { "%02x".format(it) }}")
+        return encoded
     }
 
     /**
@@ -245,7 +248,11 @@ class Ctap2MakeCredentialHandler @Inject constructor(
     private fun buildAuthenticatorData(authData: AuthenticatorData): ByteArray {
         val result = mutableListOf<Byte>()
         result.addAll(authData.rpIdHash.toList())         // 32 bytes
-        result.addAll(authData.flags.toList())            // 1 byte
+        // Force AT (0x40) + UP (0x01) flags; preserve UV (0x04) if set.
+        // AT MUST be set when attested credential data follows the counter.
+        val rawFlags = if (authData.flags.isNotEmpty()) authData.flags[0].toInt() else 0
+        val flags = (rawFlags or FLAG_AT or FLAG_UP).toByte()
+        result.add(flags)                                 // 1 byte
         // signCount as 4-byte big-endian
         val cnt = authData.counter
         result.add(((cnt shr 24) and 0xFF).toByte())

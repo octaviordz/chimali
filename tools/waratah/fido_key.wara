@@ -1,0 +1,14 @@
+[[applicationCollection]]
+usage = [0xF1D0, 0x01] 
+
+    [[applicationCollection.inputReport]]
+    [[applicationCollection.inputReport.variableItem]]
+    usage = [0xF1D0, 0x20]
+    logicalValueRange = [0, 255] # Waratah sets sizeInBits to 8 automatically
+    count = 64
+
+    [[applicationCollection.outputReport]]
+    [[applicationCollection.outputReport.variableItem]]
+    usage = [0xF1D0, 0x21]
+    logicalValueRange = [0, 255]
+    count = 64

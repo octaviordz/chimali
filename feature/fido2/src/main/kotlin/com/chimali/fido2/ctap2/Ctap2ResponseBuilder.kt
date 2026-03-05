@@ -77,22 +77,24 @@ class Ctap2ResponseBuilder @Inject constructor(
         //   - key 9 (transports) listing the transport, e.g. ["bluetooth"]
         //     Without this, Windows 0x80090011 "Object not found" error occurs.
         val responseMap: Map<String, Any> = mapOf(
-            "1" to listOf("FIDO_2_0", "U2F_V2"), // versions (both required for Windows)
+            "1" to listOf("FIDO_2_0"), // versions — CTAP2 only; no U2F_V2 to prevent Windows from trying U2F_REGISTER
             "3" to info.aaguid,                   // aaguid: raw ByteArray (16 bytes)
             "4" to mapOf(                          // options
                 "rk" to info.supportsResidentKeys,
-                "uv" to info.supportsUserVerification,
                 "up" to true,
-                "plat" to false                    // not platform-bound
+                "uv" to true,                      // device has internal UV (biometric) — required for discoverable credentials
+                "plat" to false,                   // not platform-bound
+                "clientPin" to false               // PIN not yet set (fresh device)
             ),
             "5" to 1200L,                          // maxMsgSize
+            "6" to listOf(2L, 1L),                 // pinUvAuthProtocols: [2, 1] — required for Windows CTAP2 negotiation
             "8" to 255L,                           // maxCredentialIdLength
             "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
             "10" to listOf(                        // algorithms
                 mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key")
             )
         )
-        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0, U2F_V2] aaguid=${info.aaguid.size}bytes transports=[usb]")
+        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0] aaguid=${info.aaguid.size}bytes transports=[usb]")
         return successCborPackets(cid, responseMap)
     }
 

@@ -3,7 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
-## [Unreleased]
+## [Unreleased] - 2026-03-04
+
+### Fixed
+- **FIDO2 Bluetooth Reliability**: Resolved critical protocol negotiation and stability issues for Windows compatibility.
+- **U2F-to-CTAP2 Fallback (Windows Probing Fix)**:
+    - Implemented a structural dummy `U2F_REGISTER` response to satisfy mandatory host probing during registration.
+    - Added `SW_WRONG_DATA` (0x6A80) response to `U2F_AUTHENTICATE` to correctly signal the host to fall back to `CTAP2 GetAssertion`.
+- **GetInfo Response Fixes**:
+    - Added `pinUvAuthProtocols` (Key `0x06`) to enable CTAP2 negotiation on Windows.
+    - Changed `uv` to `true` with `plat: false` to align with biometric cross-platform key expectations.
+- **CBOR Integer Encoding**: Fixed a critical bug in `CborCodec` where negative integers (e.g., COSE ES256 algorithm ID `-7`) were incorrectly encoded as unsigned/float16 garbage, causing Windows parser rejects.
+- **AuthenticatorData Attestation Fix**: Fixed missing `AT (0x40)` bit in `AuthenticatorData` flags. This prevents the Windows browser from crashing when processing `MakeCredential` attestation responses containing large public key payloads.
 
 ## [Unreleased] - 2026-03-03
 

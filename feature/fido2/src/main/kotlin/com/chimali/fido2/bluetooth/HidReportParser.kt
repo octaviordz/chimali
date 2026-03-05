@@ -254,7 +254,7 @@ class HidReportParser @Inject constructor() {
             put(0x01.toByte())  // Major device version
             put(0x00.toByte())  // Minor device version
             put(0x00.toByte())  // Build number
-            put((CAPABILITY_CBOR).toByte())  // Capabilities
+            put((CAPABILITY_CBOR or CAPABILITY_NMSG).toByte())  // CBOR supported + MSG not supported → forces CTAP2 path
         }.array()
 
         return CtapHidMessage(BROADCAST_CID, CTAPHID_INIT, payload)
