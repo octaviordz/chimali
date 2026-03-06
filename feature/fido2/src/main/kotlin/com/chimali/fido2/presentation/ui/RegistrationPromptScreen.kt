@@ -19,11 +19,28 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.biometric.BiometricPrompt
+import androidx.biometric.BiometricManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Context
+import android.content.ContextWrapper
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.*
 import kotlinx.coroutines.flow.collectLatest
+
+/** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
+private fun Context.findFragmentActivity(): FragmentActivity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is FragmentActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 /**
  * T063 — FIDO2 Registration Prompt Screen.
@@ -43,14 +60,45 @@ fun RegistrationPromptScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val activity = context.findFragmentActivity()
+
     // Handle one-shot effects
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is RegistrationEffect.NavigateBack                -> onCancel()
                 is RegistrationEffect.NavigateToSuccess          -> onSuccess(effect.credential.id)
-                is RegistrationEffect.NavigateToBiometricPrompt -> { /* handled inline */ }
-                is RegistrationEffect.NavigateToPinEntry        -> { /* handled inline */ }
+                is RegistrationEffect.LaunchSystemPrompt -> {
+                    activity?.let { act ->
+                        val executor = ContextCompat.getMainExecutor(act)
+                        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                            .setTitle(effect.promptTitle)
+                            .setSubtitle(effect.promptSubtitle)
+                            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                            .build()
+
+                        val biometricPrompt = BiometricPrompt(act, executor, object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                super.onAuthenticationError(errorCode, errString)
+                                // Only treat cancel as an explicit failure vs error
+                                if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
+                                    viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Verification cancelled by user"))
+                                } else {
+                                    viewModel.handleIntent(RegistrationIntent.UserVerificationFailed(errString.toString()))
+                                }
+                            }
+
+                            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                super.onAuthenticationSucceeded(result)
+                                viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess)
+                            }
+                        })
+                        biometricPrompt.authenticate(promptInfo)
+                    } ?: run {
+                        viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Activity context required for biometric prompt"))
+                    }
+                }
                 is RegistrationEffect.ShowSnackbar              -> { /* handled via state */ }
             }
         }
@@ -60,8 +108,6 @@ fun RegistrationPromptScreen(
         state = state,
         onConfirm    = { viewModel.handleIntent(RegistrationIntent.ConfirmRegistration) },
         onCancel     = { viewModel.handleIntent(RegistrationIntent.CancelRegistration) },
-        onBiometric  = { viewModel.handleIntent(RegistrationIntent.UseBiometric) },
-        onPinSubmit  = { viewModel.handleIntent(RegistrationIntent.UsePinVerification(it)) },
         onRetry      = { viewModel.handleIntent(RegistrationIntent.Retry) }
     )
 }
@@ -71,8 +117,6 @@ internal fun RegistrationPromptContent(
     state: RegistrationState,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
-    onBiometric: () -> Unit,
-    onPinSubmit: (String) -> Unit,
     onRetry: () -> Unit
 ) {
     Surface(
@@ -99,9 +143,9 @@ internal fun RegistrationPromptContent(
                     )
                 }
 
-                is RegistrationState.AwaitingBiometric -> {
+                is RegistrationState.AwaitingUserVerification -> {
                     Box(
-                        Modifier.fillMaxSize().semantics { contentDescription = "Biometric prompt" },
+                        Modifier.fillMaxSize().semantics { contentDescription = "User verification prompt" },
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -110,23 +154,12 @@ internal fun RegistrationPromptContent(
                         ) {
                             Icon(
                                 imageVector        = Icons.Filled.Lock,
-                                contentDescription = "Biometric",
+                                contentDescription = "Authentication",
                                 modifier           = Modifier.size(72.dp),
                                 tint               = MaterialTheme.colorScheme.primary
                             )
-                            Text("Verifying identity…", style = MaterialTheme.typography.titleMedium)
+                            Text("Please verify your identity", style = MaterialTheme.typography.titleMedium)
                         }
-                    }
-                }
-
-                is RegistrationState.AwaitingPin -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        PinEntryDialog(
-                            title      = "Enter PIN",
-                            subtitle   = "Verify your PIN to continue",
-                            onDismiss  = onCancel,
-                            onPinEnteredAndConfirmed = onPinSubmit
-                        )
                     }
                 }
 

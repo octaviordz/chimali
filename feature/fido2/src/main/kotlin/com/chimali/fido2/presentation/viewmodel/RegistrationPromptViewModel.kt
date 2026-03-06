@@ -28,11 +28,14 @@ sealed interface RegistrationIntent {
     /** User dismissed or back-pressed the registration prompt. */
     data object CancelRegistration : RegistrationIntent
 
-    /** User chose biometric verification. */
-    data object UseBiometric : RegistrationIntent
+    /** User chose to start verification (either biometric or PIN via system). */
+    data object VerifyUser : RegistrationIntent
 
-    /** User chose PIN verification. */
-    data class UsePinVerification(val pin: String) : RegistrationIntent
+    /** System verification succeeded. */
+    data object UserVerificationSuccess : RegistrationIntent
+
+    /** System verification failed. */
+    data class UserVerificationFailed(val message: String) : RegistrationIntent
 
     /** Retry after an error. */
     data object Retry : RegistrationIntent
@@ -56,11 +59,8 @@ sealed interface RegistrationState {
         val availableMethod: VerificationMethod
     ) : RegistrationState
 
-    /** User confirmed; awaiting biometric. */
-    data object AwaitingBiometric : RegistrationState
-
-    /** User confirmed; awaiting PIN entry. */
-    data object AwaitingPin : RegistrationState
+    /** User confirmed; awaiting system verification (Biometric/PIN). */
+    data object AwaitingUserVerification : RegistrationState
 
     /** Performing cryptographic registration. */
     data object Processing : RegistrationState
@@ -81,8 +81,7 @@ sealed interface RegistrationState {
 // ── MVI: Side-effects ─────────────────────────────────────────────────────────
 
 sealed interface RegistrationEffect {
-    data object NavigateToBiometricPrompt : RegistrationEffect
-    data object NavigateToPinEntry       : RegistrationEffect
+    data class LaunchSystemPrompt(val promptTitle: String, val promptSubtitle: String) : RegistrationEffect
     data class NavigateToSuccess(val credential: PasskeyCredential) : RegistrationEffect
     data object NavigateBack             : RegistrationEffect
     data class ShowSnackbar(val message: String) : RegistrationEffect
@@ -145,12 +144,18 @@ class RegistrationPromptViewModel @Inject constructor(
 
     fun handleIntent(intent: RegistrationIntent) {
         when (intent) {
-            is RegistrationIntent.InitRegistration    -> initRegistration(intent.options)
-            is RegistrationIntent.ConfirmRegistration -> confirmRegistration()
-            is RegistrationIntent.CancelRegistration  -> cancelRegistration()
-            is RegistrationIntent.UseBiometric        -> startBiometricVerification()
-            is RegistrationIntent.UsePinVerification  -> startPinVerification(intent.pin)
-            is RegistrationIntent.Retry               -> retryRegistration()
+            is RegistrationIntent.InitRegistration      -> initRegistration(intent.options)
+            is RegistrationIntent.ConfirmRegistration   -> confirmRegistration()
+            is RegistrationIntent.CancelRegistration    -> cancelRegistration()
+            is RegistrationIntent.VerifyUser            -> startSystemVerification()
+            is RegistrationIntent.UserVerificationSuccess -> {
+                pendingOptions?.let { performRegistration(it) }
+            }
+            is RegistrationIntent.UserVerificationFailed -> {
+                _state.value = RegistrationState.Error(intent.message)
+                viewModelScope.launch { emit(RegistrationEffect.ShowSnackbar(intent.message)) }
+            }
+            is RegistrationIntent.Retry                 -> retryRegistration()
         }
     }
 
@@ -177,56 +182,23 @@ class RegistrationPromptViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val availability = userVerificationService.getUserVerificationAvailability()
-            when (availability.getBestAvailableMethod()) {
-                VerificationMethod.BIOMETRIC -> {
-                    startBiometricVerification()
-                }
-                VerificationMethod.PIN -> {
-                    _state.value = RegistrationState.AwaitingPin
-                    emit(RegistrationEffect.NavigateToPinEntry)
-                }
-                VerificationMethod.DEVICE_LOCK,
-                VerificationMethod.NONE -> {
-                    // No UV required / available — proceed without verification
-                    performRegistration(options)
-                }
-                else -> performRegistration(options)
+            
+            if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
+                // No UV required / available — proceed without verification
+                performRegistration(options)
+            } else {
+                startSystemVerification()
             }
         }
     }
 
-    private fun startBiometricVerification() {
+    private fun startSystemVerification() {
         val options = pendingOptions ?: return
         viewModelScope.launch {
-            _state.value = RegistrationState.AwaitingBiometric
-            val result = userVerificationService.verifyBiometric(
-                prompt = "Verify to register passkey for ${options.rp.name}",
-                rpId   = options.rp.id
-            )
-            if (result.isSuccess) {
-                performRegistration(options)
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "Biometric verification failed"
-                _state.value = RegistrationState.Error(msg)
-                emit(RegistrationEffect.ShowSnackbar(msg))
-            }
-        }
-    }
-
-    private fun startPinVerification(pin: String) {
-        val options = pendingOptions ?: return
-        viewModelScope.launch {
-            val result = userVerificationService.verifyPin(
-                prompt = "Enter PIN to register passkey",
-                rpId   = options.rp.id
-            )
-            if (result.isSuccess) {
-                performRegistration(options)
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "PIN verification failed"
-                _state.value = RegistrationState.Error(msg)
-                emit(RegistrationEffect.ShowSnackbar(msg))
-            }
+            _state.value = RegistrationState.AwaitingUserVerification
+            val promptTitle = "Create Passkey"
+            val promptSubtitle = options.rp.name
+            emit(RegistrationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
         }
     }
 

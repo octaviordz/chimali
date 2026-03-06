@@ -24,8 +24,9 @@ sealed interface AuthenticationIntent {
     data class InitAuthentication(val options: GetAssertionOptions) : AuthenticationIntent
     data object ConfirmAuthentication   : AuthenticationIntent
     data object CancelAuthentication    : AuthenticationIntent
-    data object UseBiometric            : AuthenticationIntent
-    data class UsePinVerification(val pin: String) : AuthenticationIntent
+    data object VerifyUser              : AuthenticationIntent
+    data object UserVerificationSuccess : AuthenticationIntent
+    data class UserVerificationFailed(val message: String) : AuthenticationIntent
     data class SelectCredential(val credential: PasskeyCredential) : AuthenticationIntent
     data object Retry                   : AuthenticationIntent
 }
@@ -47,8 +48,7 @@ sealed interface AuthenticationState {
         val credentials: List<PasskeyCredential>
     ) : AuthenticationState
 
-    data object AwaitingBiometric : AuthenticationState
-    data object AwaitingPin       : AuthenticationState
+    data object AwaitingUserVerification : AuthenticationState
     data object Processing        : AuthenticationState
 
     data class Success(val assertion: AssertionObject) : AuthenticationState
@@ -59,8 +59,7 @@ sealed interface AuthenticationState {
 // ── MVI: Effects ─────────────────────────────────────────────────────────────
 
 sealed interface AuthenticationEffect {
-    data object NavigateToBiometricPrompt  : AuthenticationEffect
-    data object NavigateToPinEntry         : AuthenticationEffect
+    data class LaunchSystemPrompt(val promptTitle: String, val promptSubtitle: String) : AuthenticationEffect
     data class NavigateToSuccess(val assertion: AssertionObject) : AuthenticationEffect
     data object NavigateBack               : AuthenticationEffect
     data class ShowSnackbar(val message: String) : AuthenticationEffect
@@ -95,8 +94,14 @@ class AuthenticationPromptViewModel @Inject constructor(
             is AuthenticationIntent.InitAuthentication  -> initAuthentication(intent.options)
             is AuthenticationIntent.ConfirmAuthentication -> confirmAuthentication()
             is AuthenticationIntent.CancelAuthentication  -> cancel()
-            is AuthenticationIntent.UseBiometric          -> startBiometric()
-            is AuthenticationIntent.UsePinVerification    -> startPin(intent.pin)
+            is AuthenticationIntent.VerifyUser            -> startSystemVerification()
+            is AuthenticationIntent.UserVerificationSuccess -> {
+                pendingOptions?.let { performAuthentication(it) }
+            }
+            is AuthenticationIntent.UserVerificationFailed -> {
+                _state.value = AuthenticationState.Error(intent.message)
+                viewModelScope.launch { emit(AuthenticationEffect.ShowSnackbar(intent.message)) }
+            }
             is AuthenticationIntent.SelectCredential      -> onCredentialSelected(intent.credential)
             is AuthenticationIntent.Retry                 -> retry()
         }
@@ -123,48 +128,22 @@ class AuthenticationPromptViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val availability = userVerificationService.getUserVerificationAvailability()
-            when (availability.getBestAvailableMethod()) {
-                VerificationMethod.BIOMETRIC -> {
-                    startBiometric()
-                }
-                VerificationMethod.PIN -> {
-                    _state.value = AuthenticationState.AwaitingPin
-                    emit(AuthenticationEffect.NavigateToPinEntry)
-                }
-                else -> performAuthentication(options)
+            
+            if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
+                performAuthentication(options)
+            } else {
+                startSystemVerification()
             }
         }
     }
 
-    private fun startBiometric() {
+    private fun startSystemVerification() {
         val options = pendingOptions ?: return
         viewModelScope.launch {
-            _state.value = AuthenticationState.AwaitingBiometric
-            val result = userVerificationService.verifyBiometric(
-                prompt = "Sign in with passkey for ${options.rpId}",
-                rpId   = options.rpId
-            )
-            if (result.isSuccess) {
-                performAuthentication(options)
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "Biometric verification failed"
-                _state.value = AuthenticationState.Error(msg)
-                emit(AuthenticationEffect.ShowSnackbar(msg))
-            }
-        }
-    }
-
-    private fun startPin(pin: String) {
-        val options = pendingOptions ?: return
-        viewModelScope.launch {
-            val result = userVerificationService.verifyPin("Enter PIN to sign in", options.rpId)
-            if (result.isSuccess) {
-                performAuthentication(options)
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "PIN verification failed"
-                _state.value = AuthenticationState.Error(msg)
-                emit(AuthenticationEffect.ShowSnackbar(msg))
-            }
+            _state.value = AuthenticationState.AwaitingUserVerification
+            val promptTitle = "Sign in"
+            val promptSubtitle = options.rpId
+            emit(AuthenticationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
         }
     }
 

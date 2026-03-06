@@ -98,15 +98,7 @@ class RegisterCredentialUseCaseTest {
             minPinLength = 4,
             biometricStrength = BiometricStrength.STRONG
         )
-        coEvery { userVerificationService.verifyBiometric(any(), any()) } returns Result.success(
-            BiometricVerificationResult(
-                success = true,
-                biometricType = BiometricType.FINGERPRINT,
-                confidence = 0.9f,
-                timestamp = Instant.now(),
-                errorMessage = null
-            )
-        )
+
         coEvery { userVerificationService.recordUserConsent(any()) } returns Result.success(mockk())
         coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.success(Unit)
         coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
@@ -131,7 +123,6 @@ class RegisterCredentialUseCaseTest {
             
             // Verify all expected interactions
             coVerify { userVerificationService.isUserVerificationRequired(any(), any(), any()) }
-            coVerify { userVerificationService.verifyBiometric(any(), any()) }
             coVerify { userVerificationService.recordUserConsent(any()) }
             coVerify { credentialRepository.validateCredentialCreation(any(), any()) }
             coVerify { credentialRepository.saveCredential(any()) }
@@ -141,18 +132,15 @@ class RegisterCredentialUseCaseTest {
         @Test
         @DisplayName("Should successfully register credential with PIN verification")
         fun `should successfully register credential with pin verification`() = runTest {
-            // Mock PIN verification success
-            coEvery { userVerificationService.verifyBiometric(any(), any()) } returns Result.failure(
-                Fido2Exception.UserVerificationFailed("Biometric failed")
-            )
-            coEvery { userVerificationService.verifyPin(any(), any()) } returns Result.success(
-                PinVerificationResult(
-                    success = true,
-                    attemptsRemaining = 3,
-                    isLocked = false,
-                    timestamp = Instant.now(),
-                    errorMessage = null
-                )
+            // Mock PIN as the only available method
+            coEvery { userVerificationService.getUserVerificationAvailability() } returns UserVerificationAvailability(
+                biometricAvailable = false,
+                pinAvailable = true,
+                deviceLockAvailable = false,
+                supportedBiometricTypes = emptyList(),
+                maxPinLength = 8,
+                minPinLength = 4,
+                biometricStrength = BiometricStrength.WEAK
             )
             
             val result = registerCredentialUseCase(testOptions)
@@ -161,9 +149,8 @@ class RegisterCredentialUseCaseTest {
             val attestationObject = result.getOrThrow()
             assertNotNull(attestationObject)
             
-            // Verify PIN verification was used as fallback
-            coVerify { userVerificationService.verifyBiometric(any(), any()) }
-            coVerify { userVerificationService.verifyPin(any(), any()) }
+            // Verify availability was checked 
+            coVerify { userVerificationService.getUserVerificationAvailability() }
         }
         
         @Test
@@ -193,8 +180,7 @@ class RegisterCredentialUseCaseTest {
             assertNotNull(attestationObject)
             
             // Verify no verification was performed
-            coVerify(exactly = 0) { userVerificationService.verifyBiometric(any(), any()) }
-            coVerify(exactly = 0) { userVerificationService.verifyPin(any(), any()) }
+            coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
         
         @Test
@@ -299,27 +285,7 @@ class RegisterCredentialUseCaseTest {
     @DisplayName("User Verification Failure Tests")
     inner class UserVerificationFailureTests {
         
-        @Test
-        @DisplayName("Should fail when biometric verification fails and no PIN available")
-        fun `should fail when biometric verification fails and no pin available`() = runTest {
-            coEvery { userVerificationService.verifyBiometric(any(), any()) } returns Result.failure(
-                Fido2Exception.UserVerificationFailed("Biometric failed")
-            )
-            coEvery { userVerificationService.getUserVerificationAvailability() } returns UserVerificationAvailability(
-                biometricAvailable = true,
-                pinAvailable = false,
-                deviceLockAvailable = false,
-                supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                maxPinLength = 8,
-                minPinLength = 4,
-                biometricStrength = BiometricStrength.STRONG
-            )
-            
-            val result = registerCredentialUseCase(testOptions)
-            
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull() is Fido2Exception.UserVerificationFailed)
-        }
+
         
         @Test
         @DisplayName("Should fail when no verification method is available")
@@ -442,7 +408,7 @@ class RegisterCredentialUseCaseTest {
             val result = registerCredentialUseCase(preferredOptions)
             
             assertTrue(result.isSuccess)
-            coVerify { userVerificationService.verifyBiometric(any(), any()) }
+            coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
         
         @Test
@@ -459,8 +425,7 @@ class RegisterCredentialUseCaseTest {
             val result = registerCredentialUseCase(discouragedOptions)
             
             assertTrue(result.isSuccess)
-            coVerify(exactly = 0) { userVerificationService.verifyBiometric(any(), any()) }
-            coVerify(exactly = 0) { userVerificationService.verifyPin(any(), any()) }
+            coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
     }
     

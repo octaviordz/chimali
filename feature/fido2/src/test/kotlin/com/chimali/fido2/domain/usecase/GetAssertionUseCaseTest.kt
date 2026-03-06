@@ -72,8 +72,7 @@ class GetAssertionUseCaseTest {
                 minPinLength = 4,
                 biometricStrength = BiometricStrength.STRONG
             )
-        coEvery { userVerificationService.verifyBiometric(any(), any()) } returns
-            Result.success(mockk<BiometricVerificationResult>())
+
     }
 
     private fun createOptions(
@@ -114,16 +113,14 @@ class GetAssertionUseCaseTest {
     fun `returns failure when user verification required but fails`() = runTest {
         coEvery { userVerificationService.getUserVerificationAvailability() } returns
             UserVerificationAvailability(
-                biometricAvailable = true,
+                biometricAvailable = false,
                 pinAvailable = false,
                 deviceLockAvailable = false,
-                supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                maxPinLength = 8,
-                minPinLength = 4,
-                biometricStrength = BiometricStrength.STRONG
+                supportedBiometricTypes = emptyList(),
+                maxPinLength = 0,
+                minPinLength = 0,
+                biometricStrength = BiometricStrength.WEAK
             )
-        coEvery { userVerificationService.verifyBiometric(any(), any()) } returns
-            Result.failure(Fido2Exception.UserVerificationFailed("Biometric cancelled"))
 
         mockkStatic(KeyStore::class)
         val ks = mockk<KeyStore>()

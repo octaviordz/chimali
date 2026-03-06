@@ -16,46 +16,7 @@ interface UserVerificationService {
      */
     suspend fun getUserVerificationAvailability(): UserVerificationAvailability
     
-    /**
-     * Initiates biometric verification for user authentication.
-     * 
-     * @param prompt The message to display to the user
-     * @param rpId The ID of the relying party requesting verification
-     * @return Result containing BiometricVerificationResult
-     */
-    suspend fun verifyBiometric(
-        prompt: String = "Verify your identity",
-        rpId: String? = null
-    ): Result<BiometricVerificationResult>
-    
-    /**
-     * Initiates PIN verification for user authentication.
-     * 
-     * @param prompt The message to display to the user
-     * @param rpId The ID of the relying party requesting verification
-     * @param maxAttempts Maximum number of allowed attempts
-     * @return Result containing PinVerificationResult
-     */
-    suspend fun verifyPin(
-        prompt: String = "Enter your PIN",
-        rpId: String? = null,
-        maxAttempts: Int = 3
-    ): Result<PinVerificationResult>
-    
-    /**
-     * Initiates combined biometric and PIN verification.
-     * 
-     * @param prompt The message to display to the user
-     * @param rpId The ID of the relying party requesting verification
-     * @param maxAttempts Maximum number of allowed PIN attempts
-     * @return Result containing CombinedVerificationResult
-     */
-    suspend fun verifyBiometricAndPin(
-        prompt: String = "Verify your identity",
-        rpId: String? = null,
-        maxAttempts: Int = 3
-    ): Result<CombinedVerificationResult>
-    
+
     /**
      * Checks if biometric verification is enrolled and available.
      * 
@@ -118,29 +79,5 @@ interface UserVerificationService {
         context: VerificationContext? = null
     ): UserVerificationRequirement
     
-    /**
-     * Initiates device lock verification.
-     * 
-     * @param prompt The message to display to the user
-     * @param rpId The ID of the relying party requesting verification
-     * @return Result containing DeviceLockVerificationResult
-     */
-    suspend fun verifyDeviceLock(
-        prompt: String = "Unlock your device",
-        rpId: String? = null
-    ): Result<DeviceLockVerificationResult>
-    
-    /**
-     * Cancels any ongoing user verification operations.
-     * 
-     * @return Result indicating success or failure
-     */
-    suspend fun cancelVerification(): Result<Unit>
-    
-    /**
-     * Gets the current verification state.
-     * 
-     * @return VerificationState indicating current status
-     */
-    suspend fun getVerificationState(): VerificationState
+
 }

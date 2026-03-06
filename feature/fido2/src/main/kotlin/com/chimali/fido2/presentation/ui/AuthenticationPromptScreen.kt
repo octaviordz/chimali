@@ -17,11 +17,28 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.biometric.BiometricPrompt
+import androidx.biometric.BiometricManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Context
+import android.content.ContextWrapper
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.viewmodel.*
 import kotlinx.coroutines.flow.collectLatest
+
+/** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
+private fun Context.findFragmentActivity(): FragmentActivity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is FragmentActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 /**
  * T096 — FIDO2 Authentication Prompt Screen.
@@ -37,12 +54,45 @@ fun AuthenticationPromptScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val activity = context.findFragmentActivity()
+
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is AuthenticationEffect.NavigateBack          -> onCancel()
                 is AuthenticationEffect.NavigateToSuccess    -> onSuccess(effect.assertion.credentialId)
-                else -> {}
+                is AuthenticationEffect.LaunchSystemPrompt -> {
+                    activity?.let { act ->
+                        val executor = ContextCompat.getMainExecutor(act)
+                        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                            .setTitle(effect.promptTitle)
+                            .setSubtitle(effect.promptSubtitle)
+                            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                            .build()
+
+                        val biometricPrompt = BiometricPrompt(act, executor, object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                super.onAuthenticationError(errorCode, errString)
+                                // Only treat cancel as an explicit failure vs error
+                                if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
+                                    viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Verification cancelled by user"))
+                                } else {
+                                    viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed(errString.toString()))
+                                }
+                            }
+
+                            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                super.onAuthenticationSucceeded(result)
+                                viewModel.handleIntent(AuthenticationIntent.UserVerificationSuccess)
+                            }
+                        })
+                        biometricPrompt.authenticate(promptInfo)
+                    } ?: run {
+                        viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Activity context required for biometric prompt"))
+                    }
+                }
+                is AuthenticationEffect.ShowSnackbar -> { /* handled via state */ }
             }
         }
     }
@@ -51,8 +101,6 @@ fun AuthenticationPromptScreen(
         state      = state,
         onConfirm  = { viewModel.handleIntent(AuthenticationIntent.ConfirmAuthentication) },
         onCancel   = { viewModel.handleIntent(AuthenticationIntent.CancelAuthentication) },
-        onBiometric = { viewModel.handleIntent(AuthenticationIntent.UseBiometric) },
-        onPinSubmit = { viewModel.handleIntent(AuthenticationIntent.UsePinVerification(it)) },
         onSelectCredential = { viewModel.handleIntent(AuthenticationIntent.SelectCredential(it)) },
         onRetry    = { viewModel.handleIntent(AuthenticationIntent.Retry) }
     )
@@ -63,8 +111,6 @@ internal fun AuthenticationPromptContent(
     state: AuthenticationState,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
-    onBiometric: () -> Unit,
-    onPinSubmit: (String) -> Unit,
     onSelectCredential: (PasskeyCredential) -> Unit,
     onRetry: () -> Unit
 ) {
@@ -121,8 +167,7 @@ internal fun AuthenticationPromptContent(
                     )
                 }
 
-                is AuthenticationState.AwaitingBiometric,
-                is AuthenticationState.AwaitingPin -> {
+                is AuthenticationState.AwaitingUserVerification -> {
                     Box(
                         modifier = Modifier.fillMaxSize().semantics { contentDescription = "Awaiting verification" },
                         contentAlignment = Alignment.Center

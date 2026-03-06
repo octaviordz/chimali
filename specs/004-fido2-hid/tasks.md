@@ -231,7 +231,7 @@
 
 ### Security Hardening Tasks
 - [ ] T144 Add certificate pinning for FIDO2 communications
-- [ ] T145 Implement rate limiting for PIN attempts
+- [x] T145 Implement rate limiting for PIN attempts
 - [ ] T146 Add secure backup verification
 - [ ] T147 Implement audit logging for security events
 - [ ] T148 [P] Implement security tests for all components

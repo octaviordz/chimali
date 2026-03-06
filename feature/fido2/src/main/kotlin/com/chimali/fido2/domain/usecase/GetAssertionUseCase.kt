@@ -105,34 +105,11 @@ class GetAssertionUseCase @Inject constructor(
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private suspend fun performUserVerification(options: GetAssertionOptions) {
-        when (options.userVerification) {
-            UserVerificationRequirement.REQUIRED -> {
-                val availability = userVerificationService.getUserVerificationAvailability()
-                val result = when {
-                    availability.biometricAvailable ->
-                        userVerificationService.verifyBiometric(
-                            prompt = "Sign in with passkey",
-                            rpId   = options.rpId
-                        )
-                    availability.pinAvailable ->
-                        userVerificationService.verifyPin(
-                            prompt = "Enter PIN to sign in",
-                            rpId   = options.rpId
-                        )
-                    else -> Result.failure(Fido2Exception.NoVerificationMethodAvailable("No method available"))
-                }
-                result.getOrElse { throw Fido2Exception.UserVerificationFailed(it.message ?: "Verification failed") }
+        if (options.userVerification == UserVerificationRequirement.REQUIRED) {
+            val availability = userVerificationService.getUserVerificationAvailability()
+            if (availability.getBestAvailableMethod() == com.chimali.fido2.domain.service.VerificationMethod.NONE) {
+                throw Fido2Exception.NoVerificationMethodAvailable("No method available")
             }
-            UserVerificationRequirement.PREFERRED -> {
-                val availability = userVerificationService.getUserVerificationAvailability()
-                if (availability.biometricAvailable) {
-                    userVerificationService.verifyBiometric(
-                        prompt = "Sign in with passkey",
-                        rpId   = options.rpId
-                    ) // best-effort; failure is acceptable
-                }
-            }
-            else -> { /* DISCOURAGED / NOT_REQUIRED */ }
         }
     }
 

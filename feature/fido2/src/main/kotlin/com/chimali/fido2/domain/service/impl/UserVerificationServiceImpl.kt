@@ -45,55 +45,6 @@ class UserVerificationServiceImpl @Inject constructor(
         )
     }
 
-    override suspend fun verifyBiometric(
-        prompt: String,
-        rpId: String?
-    ): Result<BiometricVerificationResult> {
-        // TODO: Implement actual biometric prompt
-        return Result.success(
-            BiometricVerificationResult(
-                success = true,
-                biometricType = BiometricType.FINGERPRINT,
-                confidence = 1.0f,
-                timestamp = Instant.now(),
-                errorMessage = null
-            )
-        )
-    }
-
-    override suspend fun verifyPin(
-        prompt: String,
-        rpId: String?,
-        maxAttempts: Int
-    ): Result<PinVerificationResult> {
-        // TODO: Implement actual PIN verification
-        return Result.success(
-            PinVerificationResult(
-                success = true,
-                attemptsRemaining = maxAttempts,
-                isLocked = false,
-                timestamp = Instant.now(),
-                errorMessage = null
-            )
-        )
-    }
-
-    override suspend fun verifyBiometricAndPin(
-        prompt: String,
-        rpId: String?,
-        maxAttempts: Int
-    ): Result<CombinedVerificationResult> {
-        // TODO: Implement combined verification
-        return Result.success(
-            CombinedVerificationResult(
-                success = true,
-                biometricResult = null,
-                pinResult = null,
-                verificationMethod = VerificationMethod.BIOMETRIC_AND_PIN,
-                timestamp = Instant.now()
-            )
-        )
-    }
 
     override suspend fun isBiometricAvailable(): Boolean {
         return biometricManager.canAuthenticate(
@@ -151,24 +102,5 @@ class UserVerificationServiceImpl @Inject constructor(
         return UserVerificationRequirement.PREFERRED
     }
 
-    override suspend fun verifyDeviceLock(
-        prompt: String,
-        rpId: String?
-    ): Result<DeviceLockVerificationResult> {
-        return Result.success(
-            DeviceLockVerificationResult(
-                success = true,
-                timestamp = Instant.now(),
-                errorMessage = null
-            )
-        )
-    }
 
-    override suspend fun cancelVerification(): Result<Unit> {
-        return Result.success(Unit)
-    }
-
-    override suspend fun getVerificationState(): VerificationState {
-        return VerificationState.IDLE
-    }
 }

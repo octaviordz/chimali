@@ -158,94 +158,14 @@ class RegisterCredentialUseCase @Inject constructor(
         val verificationRequirement = options.authenticatorSelection?.userVerification 
             ?: UserVerificationRequirement.PREFERRED
         
-        return when (verificationRequirement) {
-            UserVerificationRequirement.REQUIRED -> {
-                val availability = userVerificationService.getUserVerificationAvailability()
-                when {
-                    availability.biometricAvailable -> {
-                        val result = userVerificationService.verifyBiometric(
-                            prompt = "Verify your identity to register new passkey",
-                            rpId = options.rp.id
-                        )
-                        if (result.isSuccess) {
-                            Result.success(Unit)
-                        } else {
-                            if (availability.pinAvailable) {
-                                val pinResult = userVerificationService.verifyPin(
-                                    prompt = "Enter your PIN to register new passkey",
-                                    rpId = options.rp.id
-                                )
-                                if (pinResult.isSuccess) {
-                                    Result.success(Unit)
-                                } else {
-                                    Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
-                                }
-                            } else {
-                                Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
-                            }
-                        }
-                    }
-                    availability.pinAvailable -> {
-                        val result = userVerificationService.verifyPin(
-                            prompt = "Enter your PIN to register new passkey",
-                            rpId = options.rp.id
-                        )
-                        if (result.isSuccess) {
-                            Result.success(Unit)
-                        } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
-                        }
-                    }
-                    else -> {
-                        Result.failure(Fido2Exception.NoVerificationMethodAvailable())
-                    }
-                }
-            }
-            UserVerificationRequirement.PREFERRED -> {
-                // Try biometric first, then fallback to PIN
-                val availability = userVerificationService.getUserVerificationAvailability()
-                if (availability.biometricAvailable) {
-                    val result = userVerificationService.verifyBiometric(
-                        prompt = "Verify your identity to register new passkey",
-                        rpId = options.rp.id
-                    )
-                    if (result.isSuccess) {
-                        Result.success(Unit)
-                    } else {
-                        // Fallback to PIN
-                        if (availability.pinAvailable) {
-                            val pinResult = userVerificationService.verifyPin(
-                                prompt = "Enter your PIN to register new passkey",
-                                rpId = options.rp.id
-                            )
-                            if (pinResult.isSuccess) {
-                                Result.success(Unit)
-                            } else {
-                                Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
-                            }
-                        } else {
-                            Result.failure(Fido2Exception.NoVerificationMethodAvailable())
-                        }
-                    }
-                } else if (availability.pinAvailable) {
-                    val result = userVerificationService.verifyPin(
-                        prompt = "Enter your PIN to register new passkey",
-                        rpId = options.rp.id
-                    )
-                    if (result.isSuccess) {
-                        Result.success(Unit)
-                    } else {
-                        Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
-                    }
-                } else {
-                    Result.failure(Fido2Exception.NoVerificationMethodAvailable())
-                }
-            }
-            UserVerificationRequirement.DISCOURAGED -> {
-                // User verification is discouraged or not required
-                Result.success(Unit)
+        if (verificationRequirement == UserVerificationRequirement.REQUIRED) {
+            val availability = userVerificationService.getUserVerificationAvailability()
+            if (availability.getBestAvailableMethod() == com.chimali.fido2.domain.service.VerificationMethod.NONE) {
+                return Result.failure(Fido2Exception.NoVerificationMethodAvailable())
             }
         }
+        
+        return Result.success(Unit)
     }
     
     /**

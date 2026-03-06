@@ -267,67 +267,23 @@ class GetUserConsentUseCase @Inject constructor(
         operationType: ConsentOperationType,
         customPrompt: String?
     ): Result<ConsentVerificationResult> {
-        val prompt = customPrompt ?: when (operationType) {
-            ConsentOperationType.REGISTRATION -> "Verify your identity to register new passkey"
-            ConsentOperationType.AUTHENTICATION -> "Verify your identity to sign in"
-            ConsentOperationType.CREDENTIAL_DELETION -> "Verify your identity to delete passkey"
-            ConsentOperationType.CREDENTIAL_UPDATE -> "Verify your identity to update passkey"
-        }
-        
         val availability = userVerificationService.getUserVerificationAvailability()
+        val bestMethod = availability.getBestAvailableMethod()
         
-        return when {
-            availability.biometricAvailable -> {
-                val result = userVerificationService.verifyBiometric(
-                    prompt = prompt,
-                    rpId = rpId
-                )
-                if (result.isSuccess) {
-                    Result.success(ConsentVerificationResult(
-                        biometricUsed = true,
-                        pinUsed = false,
-                        verificationMethod = VerificationMethod.BIOMETRIC
-                    ))
-                } else {
-                    // Try PIN fallback
-                    if (availability.pinAvailable) {
-                        val pinResult = userVerificationService.verifyPin(
-                            prompt = prompt,
-                            rpId = rpId
-                        )
-                        if (pinResult.isSuccess) {
-                            Result.success(ConsentVerificationResult(
-                                biometricUsed = false,
-                                pinUsed = true,
-                                verificationMethod = VerificationMethod.PIN
-                            ))
-                        } else {
-                            Result.failure(Fido2Exception.UserVerificationFailed(pinResult.exceptionOrNull()?.message ?: "Verification failed"))
-                        }
-                    } else {
-                        Result.failure(Fido2Exception.NoVerificationMethodAvailable())
-                    }
-                }
-            }
-            availability.pinAvailable -> {
-                val result = userVerificationService.verifyPin(
-                    prompt = prompt,
-                    rpId = rpId
-                )
-                if (result.isSuccess) {
-                    Result.success(ConsentVerificationResult(
-                        biometricUsed = false,
-                        pinUsed = true,
-                        verificationMethod = VerificationMethod.PIN
-                    ))
-                } else {
-                    Result.failure(Fido2Exception.UserVerificationFailed(result.exceptionOrNull()?.message ?: "Verification failed"))
-                }
-            }
-            else -> {
-                Result.failure(Fido2Exception.NoVerificationMethodAvailable())
-            }
+        if (bestMethod == com.chimali.fido2.domain.service.VerificationMethod.NONE) {
+            return Result.failure(Fido2Exception.NoVerificationMethodAvailable("User verification is required but no method is available"))
         }
+        
+        return Result.success(ConsentVerificationResult(
+            biometricUsed = availability.biometricAvailable,
+            pinUsed = availability.pinAvailable,
+            verificationMethod = when (bestMethod) {
+                com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC -> VerificationMethod.BIOMETRIC
+                com.chimali.fido2.domain.service.VerificationMethod.PIN -> VerificationMethod.PIN
+                com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC_AND_PIN -> VerificationMethod.BIOMETRIC
+                else -> null
+            }
+        ))
     }
     
     /**

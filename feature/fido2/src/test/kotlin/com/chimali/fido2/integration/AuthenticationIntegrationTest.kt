@@ -117,8 +117,7 @@ class AuthenticationIntegrationTest {
     fun `successful authentication transitions to Success state`() = runTest {
         val testAssertion = AssertionObject.createTest("cred1", "https://example.com")
         coEvery { getAssertionUseCase(any()) } returns Result.success(testAssertion)
-        coEvery { userVerificationService.verifyBiometric(any(), any()) } returns
-            Result.success(mockk())
+
 
         viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))
         advanceUntilIdle()
@@ -128,9 +127,9 @@ class AuthenticationIntegrationTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        // State should be either AwaitingBiometric, Processing, or Success depending on timing
+        // State should be either AwaitingUserVerification, Processing, or Success depending on timing
         assertTrue(
-            state is AuthenticationState.AwaitingBiometric ||
+            state is AuthenticationState.AwaitingUserVerification ||
             state is AuthenticationState.Processing ||
             state is AuthenticationState.Success
         )
@@ -142,22 +141,21 @@ class AuthenticationIntegrationTest {
     fun `failed assertion transitions to Error state`() = runTest {
         coEvery { getAssertionUseCase(any()) } returns
             Result.failure(Exception("Auth failed"))
-        coEvery { userVerificationService.verifyBiometric(any(), any()) } returns
-            Result.success(mockk())
+
 
         // Need to go through: Init → Confirm → Biometric → perform → Error
         viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))
         advanceUntilIdle()
 
-        // Use biometric directly to bypass the confirm→biometric chaining
-        viewModel.handleIntent(AuthenticationIntent.UseBiometric)
+        // Use UserVerificationSuccess directly to bypass the system prompt UI wait
+        viewModel.handleIntent(AuthenticationIntent.UserVerificationSuccess)
         advanceUntilIdle()
 
         val state = viewModel.state.value
         assertTrue(
             state is AuthenticationState.Error ||
             state is AuthenticationState.Processing ||
-            state is AuthenticationState.AwaitingBiometric
+            state is AuthenticationState.AwaitingUserVerification
         )
     }
 
