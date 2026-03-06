@@ -232,6 +232,9 @@
 ### Security Hardening Tasks
 - [ ] T144 Add certificate pinning for FIDO2 communications
 - [x] T145 Implement rate limiting for PIN attempts
+- [ ] T145a Integrate `HdkManager` into `Fido2CryptoService` for credential derivation
+- [ ] T145b Migrate `RegisterCredentialUseCase` and `AuthenticateAssertionUseCase` to use derived keys
+- [ ] T145c Implement BIP39 Master Seed ingestion/derivation for FIDO2 root of trust
 - [ ] T146 Add secure backup verification
 - [ ] T147 Implement audit logging for security events
 - [ ] T148 [P] Implement security tests for all components
@@ -321,13 +324,13 @@ Every task includes specific file paths and clear completion criteria to ensure 
 
 ## Total Task Count
 
-**Summary**: 165 total tasks
+**Summary**: 168 total tasks
 - **Setup**: 10 tasks (T001-T010)
 - **Foundational**: 14 tasks (T011-T024)
 - **User Story 1**: 53 tasks (T025-T077)
 - **User Story 2**: 30 tasks (T078-T107)
 - **User Story 3**: 25 tasks (T108-T132)
-- **Polish**: 33 tasks (T133-T165)
+- **Polish**: 36 tasks (T133-T165, includes T145a-c)
 
 **Parallel Tasks**: 42 tasks marked with [P] for parallel execution
 **Independent Test Criteria**: Each phase has clear verification requirements
