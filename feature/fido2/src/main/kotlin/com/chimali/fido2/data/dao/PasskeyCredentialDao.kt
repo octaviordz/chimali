@@ -95,7 +95,7 @@ class PasskeyCredentialDao @Inject constructor(
     suspend fun updateSignCount(credentialId: String, signCount: Long) {
         database.passkeyCredentialQueries.updateSignCount(
             signCount = signCount,
-            credentialId = credentialId
+            id = credentialId
         )
     }
     
@@ -105,7 +105,7 @@ class PasskeyCredentialDao @Inject constructor(
     suspend fun updateLastUsedAt(credentialId: String) {
         database.passkeyCredentialQueries.updateLastUsedAt(
             lastUsedAt = Instant.now().toEpochMilli(),
-            credentialId = credentialId
+            id = credentialId
         )
     }
 
@@ -113,7 +113,7 @@ class PasskeyCredentialDao @Inject constructor(
      * Retrieves the sign count for a specific credential.
      */
     suspend fun getSignCount(credentialId: String): Long {
-        return database.passkeyCredentialQueries.getSignCount(credentialId)
+        return database.passkeyCredentialQueries.getSignCount(id = credentialId)
             .executeAsOneOrNull() ?: 0L
     }
     

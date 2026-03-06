@@ -8,7 +8,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Fixed
 - **FIDO2 Domain & Unit Tests**: Fixed 13 previously failing test suites related to FIDO2 domain validations, RP ID extraction, and strict vs implicit consent constraints.
 - **BiometricPrompt Context Fix**: Resolved `IllegalStateException` by migrating `MainActivity` to `FragmentActivity` and implementing a robust `findFragmentActivity()` context-lookup helper to unwrap `ContextThemeWrapper` during FIDO2 flows.
-- Full details: [2026-03-05-fido2-domain-tests-fix.md](docs/changelogs/2026-03-05-fido2-domain-tests-fix.md) & [2026-03-05-fido2-biometric-prompt-fix.md](docs/changelogs/2026-03-05-fido2-biometric-prompt-fix.md)
+- **FIDO2 Signature Counter Fix**: Fixed authentication failure on `webauthn.io` by correcting an ID mismatch in SQLDelight queries, ensuring `signCount` correctly increments and persists in the database.
+- Full details: [2026-03-05-fido2-domain-tests-fix.md](docs/changelogs/2026-03-05-fido2-domain-tests-fix.md), [2026-03-05-fido2-biometric-prompt-fix.md](docs/changelogs/2026-03-05-fido2-biometric-prompt-fix.md), & [2026-03-05-fido2-sign-count-fix.md](docs/changelogs/2026-03-05-fido2-sign-count-fix.md)
 
 ## [Unreleased] - 2026-03-04
 - **FIDO2 Bluetooth Reliability**: Resolved critical protocol negotiation and stability issues for Windows compatibility.
