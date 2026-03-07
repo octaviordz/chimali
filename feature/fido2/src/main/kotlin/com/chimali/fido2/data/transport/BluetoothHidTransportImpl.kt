@@ -85,6 +85,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val channelRegistry = mutableMapOf<String, ByteArray>()
 
     private var receiveJob: Job? = null
+    private var stateObserverJob: Job? = null
 
     // ── Fido2Transport interface ───────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ class BluetoothHidTransportImpl @Inject constructor(
         return try {
             receiveJob?.cancel()
             receiveJob = null
+            stateObserverJob?.cancel()
+            stateObserverJob = null
             hidWrapper.unregisterApp()
             channelRegistry.clear()
             hidReportParser.reset()
@@ -137,7 +140,8 @@ class BluetoothHidTransportImpl @Inject constructor(
     // ── Connection state observation (T054) ───────────────────────────────────
 
     private fun observeConnectionState() {
-        hidWrapper.connectionState.onEach { state ->
+        stateObserverJob?.cancel()
+        stateObserverJob = hidWrapper.connectionState.onEach { state ->
             when (state) {
                 is HidConnectionState.Connected -> {
                     Log.i(TAG, "Host connected: ${state.device.address}")
