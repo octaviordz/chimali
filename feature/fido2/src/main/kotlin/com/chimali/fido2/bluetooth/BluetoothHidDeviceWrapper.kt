@@ -12,10 +12,12 @@ import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -134,6 +136,19 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             Log.d(TAG, "onAppStatusChanged registered=$registered device=$pluggedDevice")
             if (registered) {
+                if (pluggedDevice != null) {
+                    Log.w(TAG, "Phantom device reported upon registration: ${pluggedDevice.address}. Forcing disconnect to clear L2CAP socket.")
+                    try {
+                        // Some Android devices (like Moto G) falsely report a connected device 
+                        // immediately upon registration, occupying the socket and blocking real connections.
+                        // Force a disconnect to clear the state.
+                        val disconnected = hidDevice?.disconnect(pluggedDevice)
+                        Log.d(TAG, "Forced disconnect result: $disconnected")
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "Failed to force disconnect phantom device", e)
+                    }
+                }
+                // Always return to advertising, waiting for the REAL host connection attempt
                 _connectionState.value = HidConnectionState.Advertising
             } else {
                 _connectionState.value = HidConnectionState.Idle
@@ -146,8 +161,20 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                 BluetoothProfile.STATE_CONNECTED -> {
                     connectedDevice = device
                     _connectionState.value = HidConnectionState.Connected(device)
+                    // Windows keepalive: some drivers instantly drop idle L2CAP connections.
+                    // Send an empty HID report immediately so they know the device is active.
+                    try {
+                        val report = ByteArray(FIDO_HID_REPORT_SIZE)
+                        val sent = hidDevice?.sendReport(device, FIDO_REPORT_ID.toInt(), report)
+                        Log.d(TAG, "Sent initial keepalive report on connect: $sent")
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "Failed to send initial keepalive: permission denied", e)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to send initial keepalive", e)
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.d(TAG, "Device disconnected: ${device.address}")
                     connectedDevice = null
                     _connectionState.value = HidConnectionState.Advertising
                 }
@@ -219,102 +246,129 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * Bluetooth host can discover and connect to this authenticator.
      *
      * Suspends until the app is registered (i.e. [onAppStatusChanged] fires
-     * with registered=true) or throws on failure.
+     * with registered=true). Implements a timeout and retry mechanism for
+     * unreliable Bluetooth stacks that drop callbacks.
      */
-    suspend fun registerApp(): Result<Unit> = suspendCancellableCoroutine { cont ->
-        val hid = hidDevice
-        if (hid == null) {
-            cont.resumeWithException(
-                Fido2Exception.BluetoothException("HID_DEVICE profile not yet acquired — call initialize() first")
-            )
-            return@suspendCancellableCoroutine
-        }
+    suspend fun registerApp(): Result<Unit> {
+        var lastException: Exception? = null
+        val maxRetries = 3
+        var retryDelay = 1000L
 
-        val isEnabled = try {
-            bluetoothAdapter?.isEnabled == true
-        } catch (e: SecurityException) {
-            cont.resumeWithException(
-                Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e)
-            )
-            return@suspendCancellableCoroutine
-        }
-        if (!isEnabled) {
-            cont.resumeWithException(
-                Fido2Exception.BluetoothException("Bluetooth is disabled")
-            )
-            return@suspendCancellableCoroutine
-        }
+        for (attempt in 1..maxRetries) {
+            Log.d(TAG, "registerApp attempt $attempt/$maxRetries")
+            
+            // Wrap the coroutine in a timeout. If the Android Bluetooth stack returns false
+            // to registerApp() and drops the callback, this prevents hanging forever.
+            val result = withTimeoutOrNull(5000L) {
+                suspendCancellableCoroutine<Result<Unit>> { cont ->
+                    val hid = hidDevice
+                    if (hid == null) {
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothException("HID_DEVICE profile not yet acquired")
+                        )
+                        return@suspendCancellableCoroutine
+                    }
 
-        val sdp = BluetoothHidDeviceAppSdpSettings(
-            "Chimali Authenticator",
-            "FIDO2 Virtual Security Key",
-            "Chimali",
-            BluetoothHidDevice.SUBCLASS1_COMBO,
-            FIDO_HID_REPORT_DESCRIPTOR
-        )
+                    val isEnabled = try {
+                        bluetoothAdapter?.isEnabled == true
+                    } catch (e: SecurityException) {
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e)
+                        )
+                        return@suspendCancellableCoroutine
+                    }
+                    if (!isEnabled) {
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothException("Bluetooth is disabled")
+                        )
+                        return@suspendCancellableCoroutine
+                    }
 
-        // QoS: wiokey-android values — inQos null (host-driven), outQos tightly
-        // bounded to 62-byte token bucket at 1000 token/s, 2 Mbps peak.
-        val outQos = BluetoothHidDeviceAppQosSettings(
-            BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-            1000,                    // token rate (bytes/s)
-            FIDO_HID_REPORT_SIZE + 1, // token bucket size (63)
-            2000,                    // peak bandwidth (bytes/s)
-            5000,                    // latency (μs)
-            BluetoothHidDeviceAppQosSettings.MAX
-        )
-
-        // Wrap the existing callback to capture registration result
-        val registrationCallback = object : BluetoothHidDevice.Callback() {
-            override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
-                hidCallback.onAppStatusChanged(pluggedDevice, registered)
-                if (registered) {
-                    if (cont.isActive) cont.resume(Result.success(Unit))
-                } else {
-                    if (cont.isActive) cont.resumeWithException(
-                        Fido2Exception.BluetoothException("HID app registration failed")
+                    val sdp = BluetoothHidDeviceAppSdpSettings(
+                        "Chimali Authenticator",
+                        "FIDO2 Virtual Security Key",
+                        "Chimali",
+                        BluetoothHidDevice.SUBCLASS1_NONE,
+                        FIDO_HID_REPORT_DESCRIPTOR
                     )
+
+                    // QoS: wiokey-android values
+                    val outQos = BluetoothHidDeviceAppQosSettings(
+                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                        1000, 
+                        FIDO_HID_REPORT_SIZE + 1, 
+                        2000, 
+                        5000, 
+                        BluetoothHidDeviceAppQosSettings.MAX
+                    )
+
+                    val registrationCallback = object : BluetoothHidDevice.Callback() {
+                        override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
+                            hidCallback.onAppStatusChanged(pluggedDevice, registered)
+                            if (registered) {
+                                if (cont.isActive) cont.resume(Result.success(Unit))
+                            } else {
+                                if (cont.isActive) cont.resumeWithException(
+                                    Fido2Exception.BluetoothException("HID app registration failed")
+                                )
+                            }
+                        }
+                        override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) = hidCallback.onConnectionStateChanged(device, state)
+                        override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) = hidCallback.onSetReport(device, type, id, data)
+                        override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) = hidCallback.onInterruptData(device, reportId, data)
+                        override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) = hidCallback.onGetReport(device, type, id, bufferSize)
+                        override fun onVirtualCableUnplug(device: BluetoothDevice) = hidCallback.onVirtualCableUnplug(device)
+                    }
+
+                    val registered = try {
+                        val callResult = hid.registerApp(
+                            sdp,
+                            null,
+                            outQos,
+                            Executors.newSingleThreadExecutor(),
+                            registrationCallback
+                        )
+                        Log.d(TAG, "registerApp framework call returned: $callResult")
+                        callResult
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "SecurityException in registerApp", e)
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
+                        )
+                        return@suspendCancellableCoroutine
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Unexpected Exception in registerApp", e)
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothException("Unexpected error during app registration: ${e.message}")
+                        )
+                        return@suspendCancellableCoroutine
+                    }
+
+                    if (!registered) {
+                        Log.w(TAG, "registerApp() returned false. Waiting up to 5s for callback...")
+                    }
                 }
             }
 
-            override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) =
-                hidCallback.onConnectionStateChanged(device, state)
+            if (result != null) {
+                if (result.isSuccess) {
+                    return Result.success(Unit)
+                } else {
+                    lastException = result.exceptionOrNull() as? Exception
+                }
+            } else {
+                Log.e(TAG, "registerApp timed out after 5000ms")
+                lastException = Fido2Exception.BluetoothException("HID registration timed out")
+            }
 
-            override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) =
-                hidCallback.onSetReport(device, type, id, data)
-
-            override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) =
-                hidCallback.onInterruptData(device, reportId, data)
-
-            override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) =
-                hidCallback.onGetReport(device, type, id, bufferSize)
-
-            override fun onVirtualCableUnplug(device: BluetoothDevice) =
-                hidCallback.onVirtualCableUnplug(device)
+            if (attempt < maxRetries) {
+                Log.w(TAG, "Retrying registration in ${retryDelay}ms...")
+                delay(retryDelay)
+                retryDelay *= 2 // Exponential backoff
+            }
         }
-
-        val registered = try {
-            hid.registerApp(
-                sdp,
-                null,   // inQos — let the host dictate inbound QoS
-                outQos,
-                Executors.newSingleThreadExecutor(),
-                registrationCallback
-            )
-        } catch (e: SecurityException) {
-            cont.resumeWithException(
-                Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
-            )
-            return@suspendCancellableCoroutine
-        }
-
-        if (!registered) {
-            // registerApp() returned false: the Bluetooth stack wasn't ready to enqueue the
-            // call. The onAppStatusChanged callback may still fire with registered=false,
-            // which will resume the continuation via the callback above. If the callback
-            // never fires we stay suspended until the coroutine is cancelled by the service.
-            Log.w(TAG, "registerApp() returned false — waiting for callback (Bluetooth may be busy)")
-        }
+        
+        return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID registration failed after retries"))
     }
 
     /**

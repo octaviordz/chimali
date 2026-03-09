@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-07
+
+### Fixed
+- **FIDO2 Bluetooth Reliability**: Hardened `BluetoothHidDeviceWrapper` with an exponential backoff retry loop and `5000ms` timeouts to prevent coroutine hangs when buggy Android Bluetooth stacks silently drop `registerApp` callbacks. 
+- **Phantom Connection Sockets**: Added explicit `disconnect()` teardown logic in `onAppStatusChanged` to clear falsely reported `pluggedDevice` sockets on registration, preventing silently dropped incoming connections from Windows PCs.
+- **Windows Dual Device Profile Split**: Changed SDP service registration to `BluetoothHidDevice.SUBCLASS1_NONE` (was `COMBO`) to correctly identify the app as a raw security key. This prevents strict Windows 11 drivers from splitting the FIDO profile into conflicting devices (Phone/Screen widgets) and endless connection loops.
+- Full details: [2026-03-07-fido2-bluetooth-reliability.md](docs/changelogs/2026-03-07-fido2-bluetooth-reliability.md)
+
 ## [Unreleased] - 2026-03-05
 
 ### Fixed
