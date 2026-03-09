@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.3.0 → 0.4.0
-- List of modified principles: IV, Technical Constraints, Development Workflow & Testing
+- Version change: 0.4.0 → 0.5.0
+- List of modified principles: IV, V
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md
@@ -25,13 +25,13 @@ The application strictly follows Clean Architecture with Unidirectional Data Flo
 The application must adhere to strict Android Vitals targets:
 - Startup: Cold Start < 2s, Warm Start < 1s, Hot Start < 500ms.
 - Smoothness: Maintain 60 FPS during interactions.
-- Latency: Bluetooth HID Virtual Authenticator actions must be < 200ms end-to-end.
+- Latency: Bluetooth HID Virtual Authenticator actions must be < 200ms end-to-end. Outgoing HID reports MUST utilize a thread-safe FIFO queuing mechanism to prevent packet loss during rapid or fragmented transactions.
 - Resources: Zero memory leaks and minimal battery impact (< 0.1% excessive wake locks).
 - Clipboard: Sensitive data mustache be explicitly cleared from the system clipboard within 60 seconds of copy action.
 - Scalability: The system must be designed to handle 10,000+ vault items with negligible performance degradation.
 
 ### V. Cross-Platform Utility & Modern UX
-The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidDevice` to support cross-platform authentication (Windows, macOS, Linux). The UI must follow Material Design 3 (M3) with dynamic coloring, ensuring a premium user experience.
+The app must seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidDevice` to support cross-platform authentication (Windows, macOS, Linux). Protocol implementation must strictly adhere to CTAP2 CBOR encoding standards (e.g., proper integer keys, correct negative integer major types, and AT flags) and provide defensive legacy U2F fallback probing to ensure strict OS compatibility (e.g., Windows 11). The UI must follow Material Design 3 (M3) with dynamic coloring, ensuring a premium user experience.
 
 ### VI. Inclusion & Universal Accessibility
 Accessibility is a core functional and security requirement. The application MUST support screen readers (TalkBack), high-contrast modes, and dynamic text scaling. Legibility is treated as a security feature to prevent user error during credential management: credentials MUST be displayed using high-legibility fonts (e.g., [Atkinson Hyperlegible](https://brailleinstitute.org/atkinson-hyperlegible-font)) with clear character differentiation.
@@ -60,4 +60,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.4.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-02-26
+**Version**: 0.5.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-09
