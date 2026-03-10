@@ -1,5 +1,7 @@
 package com.chimali.core.bluetooth.api
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * Interface for managing the Bluetooth HID Virtual Authenticator.
  */
@@ -23,7 +25,7 @@ interface BluetoothHidAuthenticator {
     /**
      * Status of the Bluetooth HID device.
      */
-    val state: AuthenticatorState
+    val state: StateFlow<AuthenticatorState>
 }
 
 enum class AuthenticatorState {

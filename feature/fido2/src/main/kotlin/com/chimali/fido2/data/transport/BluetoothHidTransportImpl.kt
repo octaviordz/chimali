@@ -91,23 +91,27 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     override suspend fun connect(): Result<Unit> {
         return try {
+            Log.d(TAG, "connect() starting...")
             hidWrapper.initialize().getOrThrow()
+            Log.d(TAG, "hidWrapper initialized, now registering app...")
             hidWrapper.registerApp().getOrThrow()
+            Log.d(TAG, "hidWrapper app registered, starting receiver and observer...")
             startReceiving()
             observeConnectionState()
             Log.i(TAG, "BluetoothHidTransport connected and advertising")
             Result.success(Unit)
         } catch (e: Fido2Exception) {
-            Log.e(TAG, "connect() failed: ${e.message}")
+            Log.e(TAG, "connect() failed with Fido2Exception: ${e.message}")
             Result.failure(e)
         } catch (e: Exception) {
-            Log.e(TAG, "connect() unexpected failure", e)
+            Log.e(TAG, "connect() unexpected failure: ${e.message}", e)
             Result.failure(Fido2Exception.TransportException("Failed to start HID transport: ${e.message}"))
         }
     }
 
     override suspend fun disconnect(): Result<Unit> {
         return try {
+            Log.d(TAG, "disconnect() starting...")
             receiveJob?.cancel()
             receiveJob = null
             stateObserverJob?.cancel()
@@ -118,7 +122,7 @@ class BluetoothHidTransportImpl @Inject constructor(
             Log.i(TAG, "BluetoothHidTransport disconnected")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "disconnect() failed", e)
+            Log.e(TAG, "disconnect() failed: ${e.message}", e)
             Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
         }
     }

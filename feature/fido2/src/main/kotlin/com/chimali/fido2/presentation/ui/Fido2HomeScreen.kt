@@ -1,5 +1,9 @@
 package com.chimali.fido2.presentation.ui
 
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -60,6 +64,35 @@ fun Fido2HomeScreen(
             }
     }
 
+    var showBluetoothError by remember { mutableStateOf(false) }
+
+    val bluetoothDiscoverableLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // For ACTION_REQUEST_DISCOVERABLE, result.resultCode is the duration of discoverability in seconds,
+        // or Activity.RESULT_CANCELED (0) if the user denied it.
+        if (result.resultCode != android.app.Activity.RESULT_CANCELED) {
+            // User enabled Bluetooth and/or discoverability, proceed with starting the transport
+            viewModel.toggleTransport()
+        } else {
+            // User denied or failed to enable Bluetooth/Discoverable
+            showBluetoothError = true
+        }
+    }
+
+    if (showBluetoothError) {
+        AlertDialog(
+            onDismissRequest = { showBluetoothError = false },
+            title = { Text("Bluetooth Required") },
+            text = { Text("Chimali Authenticator requires Bluetooth and visibility to act as a security key. Please allow discoverability to continue.") },
+            confirmButton = {
+                TextButton(onClick = { showBluetoothError = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -87,7 +120,21 @@ fun Fido2HomeScreen(
             // Primary Action
             TransportToggleButton(
                 connectionState = connectionState,
-                onToggle = { viewModel.toggleTransport() }
+                onToggle = {
+                    val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
+                    if (isRunning) {
+                        // Directly stop if it's already running
+                        viewModel.toggleTransport()
+                    } else {
+                        // Starting: Request system prompt to turn on Bluetooth AND make it discoverable.
+                        // This simplifies the flow for the user so they don't have to manually go to 
+                        // Settings -> Pair New Device.
+                        val discoverableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                        }
+                        bluetoothDiscoverableLauncher.launch(discoverableIntent)
+                    }
+                }
             )
 
             // Secondary Actions

@@ -23,6 +23,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 private const val TAG = "BluetoothHidWrapper"
 
@@ -101,6 +107,10 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     private val _connectionState = MutableStateFlow<HidConnectionState>(HidConnectionState.Idle)
     val connectionState: StateFlow<HidConnectionState> = _connectionState.asStateFlow()
 
+    private val reportQueue = ConcurrentLinkedQueue<ByteArray>()
+    private val isSending = AtomicBoolean(false)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * Channel that receives raw 64-byte HID reports from the host.
      * Consumers (e.g. [HidReportParser]) should collect from this channel.
@@ -115,9 +125,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = proxy as BluetoothHidDevice
-                Log.d(TAG, "HID_DEVICE profile proxy acquired")
+                Log.d(TAG, "HID_DEVICE profile proxy acquired successfully")
                 initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                 initContinuation = null
+            } else {
+                Log.w(TAG, "onServiceConnected received for profile $profile, expected HID_DEVICE")
             }
         }
 
@@ -125,7 +137,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = null
                 _connectionState.value = HidConnectionState.Idle
-                Log.d(TAG, "HID_DEVICE profile proxy released")
+                Log.d(TAG, "HID_DEVICE profile proxy released (service disconnected)")
             }
         }
     }
@@ -220,25 +232,77 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Must be called once to acquire the BluetoothHidDevice profile proxy from the system.
-     * This suspends until the proxy is delivered.
+     * Must be called once to acquire the [BluetoothHidDevice] profile proxy from the system.
+     *
+     * On some OEM devices (e.g. Asus Zenfone 10), [BluetoothProfile.ServiceListener.onServiceConnected]
+     * is silently never delivered even when [BluetoothAdapter.getProfileProxy] returns true. This can
+     * happen when the Bluetooth daemon is still initialising. We apply the same timeout+retry pattern
+     * used in [registerApp] to handle this gracefully.
      */
     suspend fun initialize(): Result<Unit> {
+        Log.d(TAG, "initialize() called. Current hidDevice: $hidDevice")
         if (hidDevice != null) return Result.success(Unit)
-        
-        return suspendCancellableCoroutine { cont ->
-            initContinuation = cont
-            try {
-                val success = bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE) ?: false
-                if (!success) {
-                    cont.resumeWithException(Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"))
-                    initContinuation = null
+
+        var lastException: Exception? = null
+        val maxRetries = 3
+        var retryDelay = 1000L
+
+        for (attempt in 1..maxRetries) {
+            Log.d(TAG, "initialize attempt $attempt/$maxRetries")
+
+            val result = withTimeoutOrNull(5000L) {
+                suspendCancellableCoroutine<Result<Unit>> { cont ->
+                    initContinuation = cont
+                    try {
+                        val adapterState = bluetoothAdapter?.state
+                        Log.d(TAG, "Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)")
+                        Log.d(TAG, "Calling getProfileProxy for HID_DEVICE...")
+                        val success = bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE) ?: false
+                        Log.d(TAG, "getProfileProxy returned: $success")
+                        if (!success) {
+                            Log.e(TAG, "getProfileProxy returned false - Bluetooth may be off or profile unsupported")
+                            cont.resumeWithException(Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"))
+                            initContinuation = null
+                        } else {
+                            Log.d(TAG, "getProfileProxy returned true - waiting for onServiceConnected callback...")
+                        }
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?", e)
+                        cont.resumeWithException(Fido2Exception.BluetoothPermissionDenied("Bluetooth permission denied", e))
+                        initContinuation = null
+                    }
                 }
-            } catch (e: SecurityException) {
-                cont.resumeWithException(Fido2Exception.BluetoothPermissionDenied("Bluetooth permission denied", e))
-                initContinuation = null
+            }
+
+            when {
+                result == null -> {
+                    Log.e(TAG, "initialize() timed out after 5000ms - onServiceConnected never received. " +
+                        "OEM stack may require a retry or Bluetooth stack isn't fully up.")
+                    lastException = Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
+                }
+                result.isSuccess -> {
+                    Log.i(TAG, "initialize() succeeded on attempt $attempt")
+                    return Result.success(Unit)
+                }
+                else -> {
+                    lastException = result.exceptionOrNull() as? Exception
+                    Log.w(TAG, "initialize() failed on attempt $attempt: ${lastException?.message}")
+                    // If it's a permission error, don't retry — user action needed
+                    if (lastException is Fido2Exception.BluetoothPermissionDenied) {
+                        return Result.failure(lastException)
+                    }
+                }
+            }
+
+            if (attempt < maxRetries) {
+                Log.d(TAG, "Retrying initialize() in ${retryDelay}ms...")
+                delay(retryDelay)
+                retryDelay *= 2
             }
         }
+
+        Log.e(TAG, "initialize() failed after $maxRetries attempts")
+        return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries"))
     }
 
     /**
@@ -270,38 +334,36 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     }
 
                     val isEnabled = try {
-                        bluetoothAdapter?.isEnabled == true
+                        val enabled = bluetoothAdapter?.isEnabled == true
+                        Log.d(TAG, "Bluetooth adapter enabled: $enabled")
+                        enabled
                     } catch (e: SecurityException) {
+                        Log.e(TAG, "SecurityException checking if adapter is enabled - BLUETOOTH_CONNECT permission missing?", e)
                         cont.resumeWithException(
                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e)
                         )
                         return@suspendCancellableCoroutine
                     }
                     if (!isEnabled) {
+                        Log.w(TAG, "Bluetooth is disabled, cannot register HID app")
                         cont.resumeWithException(
                             Fido2Exception.BluetoothException("Bluetooth is disabled")
                         )
                         return@suspendCancellableCoroutine
                     }
 
+                    Log.d(TAG, "Preparing SDP settings for 'Chimali Authenticator'...")
                     val sdp = BluetoothHidDeviceAppSdpSettings(
                         "Chimali Authenticator",
                         "FIDO2 Virtual Security Key",
                         "Chimali",
-                        BluetoothHidDevice.SUBCLASS1_NONE,
+                        BluetoothHidDevice.SUBCLASS1_COMBO,
                         FIDO_HID_REPORT_DESCRIPTOR
                     )
 
-                    // QoS: wiokey-android values
-                    val outQos = BluetoothHidDeviceAppQosSettings(
-                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                        1000, 
-                        FIDO_HID_REPORT_SIZE + 1, 
-                        2000, 
-                        5000, 
-                        BluetoothHidDeviceAppQosSettings.MAX
-                    )
-
+                    // Pass null for QoS to let Android use safe defaults.
+                    // Strict Android 13/14 vendor stacks (like Asus) often reject explicit outQos.
+                    
                     val registrationCallback = object : BluetoothHidDevice.Callback() {
                         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
                             hidCallback.onAppStatusChanged(pluggedDevice, registered)
@@ -321,17 +383,18 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     }
 
                     val registered = try {
+                        Log.d(TAG, "Performing registerApp with SDP subclass COMBO and null QoS...")
                         val callResult = hid.registerApp(
                             sdp,
                             null,
-                            outQos,
+                            null, // QOS: Use null to avoid vendor rejection
                             Executors.newSingleThreadExecutor(),
                             registrationCallback
                         )
-                        Log.d(TAG, "registerApp framework call returned: $callResult")
+                        Log.d(TAG, "registerApp framework call result: $callResult")
                         callResult
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "SecurityException in registerApp", e)
+                        Log.e(TAG, "SecurityException in registerApp - missing permissions?", e)
                         cont.resumeWithException(
                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
                         )
@@ -345,19 +408,21 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     }
 
                     if (!registered) {
-                        Log.w(TAG, "registerApp() returned false. Waiting up to 5s for callback...")
+                        Log.w(TAG, "registerApp() returned false - internal stack failure. Waiting for callback anyway...")
                     }
                 }
             }
 
             if (result != null) {
                 if (result.isSuccess) {
+                    Log.i(TAG, "registerApp successful")
                     return Result.success(Unit)
                 } else {
                     lastException = result.exceptionOrNull() as? Exception
+                    Log.w(TAG, "registerApp result was failure: ${lastException?.message}")
                 }
             } else {
-                Log.e(TAG, "registerApp timed out after 5000ms")
+                Log.e(TAG, "registerApp timed out after 5000ms - callback onAppStatusChanged never received")
                 lastException = Fido2Exception.BluetoothException("HID registration timed out")
             }
 
@@ -385,13 +450,46 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             return false
         }
         val report = ensureReportSize(data)
-        return try {
+        reportQueue.add(report)
+        processNextReport()
+        return true
+    }
+
+    @Synchronized
+    private fun processNextReport() {
+        if (isSending.get() || reportQueue.isEmpty()) return
+
+        val report = reportQueue.poll() ?: return
+        isSending.set(true)
+
+        val hid = hidDevice
+        val device = connectedDevice
+
+        if (hid == null || device == null) {
+            Log.w(TAG, "processNextReport: HID device or connected device not available")
+            isSending.set(false)
+            processNextReport()
+            return
+        }
+
+        try {
             val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-            Log.d(TAG, "sendReport sent=$sent len=${report.size}")
-            sent
+            Log.d(TAG, "sendReport dispatched len=${report.size} success=$sent")
+            
+            // Delay slightly to give the Bluetooth stack time to process the HCI commands
+            scope.launch {
+                delay(20L)
+                isSending.set(false)
+                processNextReport()
+            }
         } catch (e: SecurityException) {
             Log.e(TAG, "sendReport: BLUETOOTH_CONNECT permission denied", e)
-            false
+            isSending.set(false)
+            processNextReport()
+        } catch (e: Exception) {
+            Log.e(TAG, "sendReport: Exception", e)
+            isSending.set(false)
+            processNextReport()
         }
     }
 

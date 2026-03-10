@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-09
+
+### Added
+- **Automated Bluetooth Pairing**: Replaced manual "Pair new device" steps with a single-click discoverability flow in the `Fido2HomeScreen`. This uses `ACTION_REQUEST_DISCOVERABLE` to both enable Bluetooth and make the device visible to Windows for pairing in one system prompt.
+
+### Fixed
+- **Asus Zenfone 10 Bluetooth Compatibility**: Hardened `BluetoothHidDeviceWrapper` to prevent silent initialization hangs. Added a 5-second timeout and 3-retry loop to handle cases where the Android Bluetooth stack silently drops the `onServiceConnected` callback.
+- **Strict Vendor Stack Rejection**: Optimized `BluetoothHidDeviceAppSdpSettings` to `SUBCLASS1_COMBO` and transitioned to system-default Quality of Service (QoS) parameters (passing `null` to `registerApp`), resolving silent HID advertisement rejections on certain Qualcomm/Asus/Samsung Bluetooth stacks.
+- **Enhanced Diagnostics**: Integrated detailed Logcat tracing for Bluetooth adapter states and profile registration progress to simplify future troubleshooting of OEM-specific Bluetooth stacks.
+- Full details: [2026-03-09-fido2-zenfone-bluetooth-compatibility.md](docs/changelogs/2026-03-09-fido2-zenfone-bluetooth-compatibility.md)
+
 ## [Unreleased] - 2026-03-07
 
 ### Fixed

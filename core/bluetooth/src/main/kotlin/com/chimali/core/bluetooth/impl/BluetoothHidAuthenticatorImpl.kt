@@ -10,10 +10,13 @@ import android.util.Log
 import com.chimali.core.bluetooth.api.AuthenticatorState
 import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import androidx.annotation.RequiresPermission
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
-@SuppressLint("MissingPermission")
 class BluetoothHidAuthenticatorImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : BluetoothHidAuthenticator, BluetoothProfile.ServiceListener {
@@ -21,10 +24,15 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
     private var hidDevice: BluetoothHidDevice? = null
     private val adapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     
-    override var state: AuthenticatorState = AuthenticatorState.IDLE
-        private set
+    private val _state = MutableStateFlow(AuthenticatorState.IDLE)
+    override val state: StateFlow<AuthenticatorState> = _state.asStateFlow()
 
     init {
+        initializeProfileProxy()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun initializeProfileProxy() {
         try {
             adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)
         } catch (e: SecurityException) {
@@ -32,9 +40,9 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
+    @RequiresPermission(allOf = [android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE])
     override fun startAdvertising() {
-        if (state != AuthenticatorState.IDLE) return
+        if (_state.value != AuthenticatorState.IDLE) return
         
         val sdpSettings = BluetoothHidDeviceAppSdpSettings(
             "Chimali Authenticator",
@@ -53,16 +61,16 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
                 object : BluetoothHidDevice.Callback() {
                     override fun onAppStatusChanged(pluggedDevice: android.bluetooth.BluetoothDevice?, registered: Boolean) {
                         if (registered) {
-                            state = AuthenticatorState.ADVERTISING
+                            _state.value = AuthenticatorState.ADVERTISING
                             Log.d("BluetoothHID", "App registered and advertising")
                         }
                     }
                     
                     override fun onConnectionStateChanged(device: android.bluetooth.BluetoothDevice?, state: Int) {
-                        this@BluetoothHidAuthenticatorImpl.state = when (state) {
+                        this@BluetoothHidAuthenticatorImpl._state.value = when (state) {
                             BluetoothProfile.STATE_CONNECTED -> AuthenticatorState.CONNECTED
                             BluetoothProfile.STATE_DISCONNECTED -> AuthenticatorState.IDLE
-                            else -> this@BluetoothHidAuthenticatorImpl.state
+                            else -> this@BluetoothHidAuthenticatorImpl._state.value
                         }
                     }
                 }
@@ -72,18 +80,18 @@ class BluetoothHidAuthenticatorImpl @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
+    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     override fun stop() {
         try {
             // hidDevice?.unregisterApp()
         } catch (e: SecurityException) {
             Log.e("BluetoothHID", "Bluetooth permission denied when stopping", e)
         }
-        state = AuthenticatorState.IDLE
+        _state.value = AuthenticatorState.IDLE
     }
 
     override fun sendConfirmation() {
-        if (state != AuthenticatorState.CONNECTED) return
+        if (_state.value != AuthenticatorState.CONNECTED) return
         // Send actual HID report for "button press" or FIDO HID response
         Log.d("BluetoothHID", "Sending confirmation (skeleton)")
     }
