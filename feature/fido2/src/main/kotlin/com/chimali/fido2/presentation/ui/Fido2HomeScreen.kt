@@ -16,23 +16,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
-import com.chimali.fido2.domain.model.MakeCredentialOptions
-import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
-import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
-import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
-import com.chimali.fido2.presentation.navigation.Fido2Destinations
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.filterIsInstance
 
 /**
@@ -96,7 +88,13 @@ fun Fido2HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chimali Authenticator", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        "Chimali Authenticator", 
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -108,14 +106,17 @@ fun Fido2HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Status Card
+            // Compact Status Card
             StatusIndicator(connectionState)
 
-            Spacer(modifier = Modifier.weight(1f))
+            // Paired Devices List — takes all remaining vertical space
+            PairedDevicesSection(
+                modifier = Modifier.weight(1f)
+            )
 
             // Primary Action
             TransportToggleButton(
@@ -123,12 +124,8 @@ fun Fido2HomeScreen(
                 onToggle = {
                     val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
                     if (isRunning) {
-                        // Directly stop if it's already running
                         viewModel.toggleTransport()
                     } else {
-                        // Starting: Request system prompt to turn on Bluetooth AND make it discoverable.
-                        // This simplifies the flow for the user so they don't have to manually go to 
-                        // Settings -> Pair New Device.
                         val discoverableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
                             putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
                         }
@@ -136,28 +133,6 @@ fun Fido2HomeScreen(
                     }
                 }
             )
-
-            // Secondary Actions
-            OutlinedButton(
-                onClick = {
-                    // Manual test trigger
-                    val mockUserId = "user_${System.currentTimeMillis()}"
-                    val mockOptions = MakeCredentialOptions.create(
-                        rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
-                        user = PublicKeyCredentialUserEntity.create(mockUserId.toByteArray(), mockUserId, "Chimali User"),
-                        challenge = "challenge".toByteArray(),
-                        pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
-                    )
-                    viewModel.testRegistration(mockOptions)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Test Registration UI")
-            }
 
             OutlinedButton(
                 onClick = onManageCredentials,
@@ -191,51 +166,59 @@ fun StatusIndicator(state: HidConnectionState) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(color.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
-                // Pulse Animation if advertising or connecting
                 if (state is HidConnectionState.Advertising || state is HidConnectionState.Connecting) {
                     PulseAnimation(color = color)
                 }
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = color
                 )
             }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            if (state is HidConnectionState.Connected) {
-                Text(
-                    text = "Device: ${state.device.name ?: "Unknown"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = color.copy(alpha = 0.8f)
-                )
-            }
-            if (state is HidConnectionState.Error) {
-                Text(
-                    text = state.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+            Column {
+                if (state is HidConnectionState.Connected) {
+                    Text(
+                        text = state.device.name ?: "Unknown",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = color.copy(alpha = 0.8f)
+                    )
+                } else {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                    if (state is HidConnectionState.Error) {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
         }
     }
@@ -274,8 +257,7 @@ fun TransportToggleButton(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (running) "Stop Authenticator" else "Start Authenticator",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontSize = 18.sp
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }

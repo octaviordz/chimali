@@ -79,3 +79,4 @@ SELECT
 FROM RelyingParty rp
 LEFT JOIN UserConsentRecord ucr ON rp.id = ucr.rpId
 GROUP BY rp.id, rp.name, rp.credentialCount;
+

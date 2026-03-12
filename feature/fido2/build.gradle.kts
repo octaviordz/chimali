@@ -52,12 +52,16 @@ android {
         databases {
             create("Fido2Database") {
                 packageName.set("com.chimali.fido2.data.database")
+                version = 3
             }
         }
     }
 }
 
 dependencies {
+    // Project Modules
+    implementation(project(":core:common"))
+
     // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

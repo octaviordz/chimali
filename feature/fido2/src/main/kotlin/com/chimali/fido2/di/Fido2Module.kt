@@ -3,6 +3,7 @@ package com.chimali.fido2.di
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.biometric.BiometricManager
+import com.chimali.core.events.Fido2EventBus
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -16,6 +17,7 @@ import com.chimali.fido2.data.repository.Fido2RepositoryImpl
 import com.chimali.fido2.data.repository.PasskeyCredentialRepositoryImpl
 import com.chimali.fido2.data.repository.RelyingPartyRepositoryImpl
 import com.chimali.fido2.data.repository.UserConsentRepositoryImpl
+import com.chimali.fido2.data.repository.PairedDeviceRepositoryImpl
 import com.chimali.fido2.data.storage.AndroidKeyStoreWrapper
 import com.chimali.fido2.data.storage.KeyStoreWrapper
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
@@ -25,6 +27,7 @@ import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
 import com.chimali.fido2.domain.repository.UserConsentRepository
+import com.chimali.fido2.domain.repository.PairedDeviceRepository
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
@@ -62,6 +65,12 @@ object Fido2Module {
     fun provideKeyStoreWrapper(): KeyStoreWrapper {
         return AndroidKeyStoreWrapper()
     }
+
+    @Provides
+    @Singleton
+    fun provideFido2EventBus(): Fido2EventBus {
+        return Fido2EventBus()
+    }
 }
 
 @Module
@@ -92,6 +101,11 @@ abstract class Fido2BindingModule {
     abstract fun bindUserConsentRepository(
         impl: UserConsentRepositoryImpl
     ): UserConsentRepository
+
+    @Binds
+    abstract fun bindPairedDeviceRepository(
+        impl: PairedDeviceRepositoryImpl
+    ): PairedDeviceRepository
 
     @Binds
     abstract fun bindFido2Transport(

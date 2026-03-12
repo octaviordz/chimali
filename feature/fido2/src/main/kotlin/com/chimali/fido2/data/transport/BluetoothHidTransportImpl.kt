@@ -16,6 +16,9 @@ import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.service.AuthenticatorInfo
+import com.chimali.core.events.Fido2Event
+import com.chimali.core.events.Fido2EventBus
+import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +78,9 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val makeCredentialHandler: Ctap2MakeCredentialHandler,
     private val getAssertionHandler: Ctap2GetAssertionHandler,
     private val responseBuilder: Ctap2ResponseBuilder,
-    private val fido2Authenticator: Fido2Authenticator
+    private val fido2Authenticator: Fido2Authenticator,
+    private val fido2EventBus: Fido2EventBus,
+    private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator
 ) : Fido2Transport {
 
     private val secureRandom = SecureRandom()
@@ -270,8 +275,18 @@ class BluetoothHidTransportImpl @Inject constructor(
 
         val responsePackets = try {
             when (ctapCommand) {
-                0x01 -> makeCredentialHandler.handle(message)         // authenticatorMakeCredential
-                0x02 -> handleGetAssertion(message)                    // authenticatorGetAssertion
+                0x01 -> {
+                    // authenticatorMakeCredential — CTAP2 registration
+                    val resp = makeCredentialHandler.handle(message)
+                    publishSuccessEvent()
+                    resp
+                }
+                0x02 -> {
+                    // authenticatorGetAssertion — CTAP2 authentication
+                    val resp = handleGetAssertion(message)
+                    publishSuccessEvent()
+                    resp
+                }
                 0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
                 else -> {
                     Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
@@ -287,6 +302,29 @@ class BluetoothHidTransportImpl @Inject constructor(
         }
 
         sendPackets(responsePackets)
+    }
+
+    private fun publishSuccessEvent() {
+        val state = hidWrapper.connectionState.value
+        if (state is HidConnectionState.Connected) {
+            val mac = state.device.address
+            val name = state.device.name
+            
+            // Requires API 31+ or suppression for BLUETOOTH_CONNECT, but we already have permission
+            // The property is `bluetoothClass.deviceClass` which returns the Int representing the major/minor class
+            val devClass = try {
+                state.device.bluetoothClass?.deviceClass
+            } catch (e: SecurityException) {
+                null
+            }
+
+            Log.d(TAG, "FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass")
+            fido2EventBus.publish(Fido2Event.InteractionSuccessful(
+                hostDeviceAddress = mac,
+                hostDeviceName = name,
+                hostDeviceClass = devClass
+            ))
+        }
     }
 
     // ── CTAPHID_PING ──────────────────────────────────────────────────────────

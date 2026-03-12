@@ -1,0 +1,204 @@
+package com.chimali.fido2.presentation.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.TabletMac
+import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.chimali.fido2.domain.model.PairedDevice
+import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import java.text.DateFormat
+import java.util.Date
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PairedDevicesSection(
+    modifier: Modifier = Modifier,
+    viewModel: PairedDevicesViewModel = hiltViewModel()
+) {
+    val devices by viewModel.pairedDevices.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    AnimatedVisibility(visible = true, modifier = modifier) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (devices.isNotEmpty()) {
+                    Text(
+                        text = "Devices",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 280.dp)
+                        ) {
+                            items(
+                                items = devices,
+                                key = { it.macAddress }
+                            ) { device ->
+                                PairedDeviceItem(
+                                    device = device,
+                                    onSwipedAway = {
+                                        // 1. Immediately hide the item via ViewModel
+                                        viewModel.pendingRemove(device.macAddress)
+
+                                        // 2. Show undo snackbar (Long = ~10s)
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "\"${device.name ?: "Device"}\" removed",
+                                                actionLabel = "Undo",
+                                                duration = SnackbarDuration.Long
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                // Undo — restore item to the list
+                                                viewModel.undoRemove(device.macAddress)
+                                            } else {
+                                                // Timed out or dismissed — commit deletion to DB
+                                                viewModel.commitRemove(device.macAddress)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Snackbar pinned to the bottom of the section box
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PairedDeviceItem(
+    device: PairedDevice,
+    onSwipedAway: () -> Unit
+) {
+    val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+    val lastUsed = dateFormat.format(Date(device.lastUsedAt))
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                onSwipedAway()
+                // Return false: we handle visibility via ViewModel, not SwipeToDismissBox
+                false
+            } else {
+                false
+            }
+        },
+        // Require 40% drag before triggering — prevents accidental deletes
+        positionalThreshold = { totalDistance -> totalDistance * 0.4f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromEndToStart = true,
+        enableDismissFromStartToEnd = true,
+        backgroundContent = {
+            val progress = dismissState.progress
+            val targetValue = dismissState.targetValue
+
+            // Background only becomes visible when actively swiping
+            val isSwiping = progress > 0.01f
+
+            val bgAlpha by animateFloatAsState(
+                targetValue = if (isSwiping) 1f else 0f,
+                label = "bg_alpha"
+            )
+            val iconAlpha by animateFloatAsState(
+                targetValue = if (progress > 0.15f) 1f else 0f,
+                label = "icon_alpha"
+            )
+
+            // Determine swipe direction from targetValue (not dismissDirection which can be null)
+            val isSwipingLeft = targetValue == SwipeToDismissBoxValue.EndToStart
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(bgAlpha)
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = if (isSwipingLeft) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete device",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.alpha(iconAlpha)
+                )
+            }
+        }
+    ) {
+        // Foreground — icon depends on device class
+        val iconInfo = getDeviceIcon(device.deviceClass)
+
+        ListItem(
+            headlineContent = { Text(device.name ?: "Unknown Device") },
+            supportingContent = { Text("Last used: $lastUsed") },
+            leadingContent = {
+                Icon(
+                    imageVector = iconInfo.first,
+                    contentDescription = iconInfo.second,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        )
+    }
+}
+
+/**
+ * Maps a raw Bluetooth Device Class integer into a specific Material Icon.
+ */
+@Composable
+private fun getDeviceIcon(deviceClass: Int?): Pair<androidx.compose.ui.graphics.vector.ImageVector, String> {
+    if (deviceClass == null) return Icons.Default.Bluetooth to "Generic Bluetooth device"
+
+    // The major class is stored in bits 8-12. Masking with 0x1F00 extracts these bits.
+    return when (deviceClass and 0x1F00) {
+        0x0100 -> Icons.Default.Computer to "Computer"
+        0x0200 -> Icons.Default.Smartphone to "Phone"
+        0x0700 -> Icons.Default.Watch to "Wearable"
+        else -> Icons.Default.Bluetooth to "Generic Bluetooth device"
+    }
+}

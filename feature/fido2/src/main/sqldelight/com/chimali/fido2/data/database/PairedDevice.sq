@@ -1,0 +1,20 @@
+CREATE TABLE PairedDevice (
+    macAddress TEXT NOT NULL PRIMARY KEY,
+    name TEXT,
+    lastUsedAt INTEGER NOT NULL,
+    createdAt INTEGER NOT NULL,
+    deviceClass INTEGER
+);
+
+insertOrReplace:
+INSERT OR REPLACE INTO PairedDevice (macAddress, name, lastUsedAt, createdAt, deviceClass)
+VALUES (?, ?, ?, ?, ?);
+
+selectAll:
+SELECT * FROM PairedDevice ORDER BY lastUsedAt DESC;
+
+deleteByAddress:
+DELETE FROM PairedDevice WHERE macAddress = ?;
+
+selectByAddress:
+SELECT * FROM PairedDevice WHERE macAddress = ?;

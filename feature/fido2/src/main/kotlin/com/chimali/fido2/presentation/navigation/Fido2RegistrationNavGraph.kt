@@ -1,42 +1,57 @@
 package com.chimali.fido2.presentation.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
 
 /**
- * T067 — Navigation graph for the FIDO2 Registration flow.
- *
- * ### Destinations
- * | Route                   | Screen                          |
- * |-------------------------|---------------------------------|
- * | `fido2/register`        | [RegistrationPromptScreen]      |
- * | `fido2/register/success`| Success confirmation (inline)   |
- *
- * The registration flow is a nested graph embedded inside the host app's
- * NavHost. Entry via `deeplink://chimali/fido2/register` when the HID
- * transport receives a CTAP2 MakeCredential request.
+ * T067 — Navigation graph for the FIDO2 module with a Bottom Navigation Bar
+ * for top-level destinations.
  */
 object Fido2Destinations {
     const val HOME_ROUTE = "fido2/home"
     const val REGISTRATION_ROUTE = "fido2/register"
     const val REGISTRATION_SUCCESS_ROUTE = "fido2/register/success"
     const val MANAGEMENT_ROUTE = "fido2/management"
+    const val DEVELOPMENT_ROUTE = "fido2/dev-tools"
 }
 
-/**
- * The FIDO2 registration navigation host. Typically embedded as a nested graph
- * inside the host application NavHost.
- *
- * @param onRegistrationComplete Called with the credential ID when registration succeeds.
- * @param onRegistrationCancelled Called when user dismisses without registering.
- * @param navController NavHostController; defaults to a remembered one for standalone use.
- * @param startDestination Initial route; defaults to the registration prompt.
- */
+private sealed class BottomNavItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+) {
+    object Authenticator : BottomNavItem(
+        route = Fido2Destinations.HOME_ROUTE,
+        label = "Authenticator",
+        icon = Icons.Default.Security
+    )
+    object DevTools : BottomNavItem(
+        route = Fido2Destinations.DEVELOPMENT_ROUTE,
+        label = "Dev Tools",
+        icon = Icons.Default.BugReport
+    )
+}
+
+private val bottomNavItems = listOf(
+    BottomNavItem.Authenticator,
+    BottomNavItem.DevTools
+)
+
 @Composable
 fun Fido2RegistrationNavGraph(
     onRegistrationComplete: (credentialId: String) -> Unit,
@@ -45,41 +60,82 @@ fun Fido2RegistrationNavGraph(
     startDestination: String = Fido2Destinations.HOME_ROUTE,
     modifier: Modifier = Modifier
 ) {
-    NavHost(
-        navController    = navController,
-        startDestination = startDestination,
-        modifier         = modifier
-    ) {
-        composable(Fido2Destinations.HOME_ROUTE) {
-            com.chimali.fido2.presentation.ui.Fido2HomeScreen(
-                onManageCredentials = {
-                    navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
-                },
-                onRegisterRequest = {
-                    navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
-                }
-            )
-        }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-        composable(Fido2Destinations.REGISTRATION_ROUTE) {
-            RegistrationPromptScreen(
-                onSuccess = { credentialId ->
-                    navController.popBackStack()
-                    onRegistrationComplete(credentialId)
-                },
-                onCancel = {
-                    navController.popBackStack()
-                    onRegistrationCancelled()
-                }
-            )
-        }
+    // The bottom bar is only visible on the top-level routes
+    val showBottomBar = currentRoute in bottomNavItems.map { it.route }
 
-        composable(Fido2Destinations.MANAGEMENT_ROUTE) {
-            com.chimali.fido2.presentation.management.CredentialListScreen(
-                onNavigateUp = {
-                    navController.popBackStack()
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    bottomNavItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                if (currentRoute != item.route) {
+                                    navController.navigate(item.route) {
+                                        // Pop up to HOME so back-stack doesn't grow indefinitely
+                                        popUpTo(Fido2Destinations.HOME_ROUTE) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = {
+                                Icon(imageVector = item.icon, contentDescription = item.label)
+                            },
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
-            )
+            }
+        }
+    ) { innerPadding ->
+        Box(modifier = modifier.padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination
+            ) {
+                composable(Fido2Destinations.HOME_ROUTE) {
+                    com.chimali.fido2.presentation.ui.Fido2HomeScreen(
+                        onManageCredentials = {
+                            navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
+                        },
+                        onRegisterRequest = {
+                            navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
+                        }
+                    )
+                }
+
+                composable(Fido2Destinations.DEVELOPMENT_ROUTE) {
+                    DevelopmentToolsScreen()
+                }
+
+                composable(Fido2Destinations.REGISTRATION_ROUTE) {
+                    RegistrationPromptScreen(
+                        onSuccess = { credentialId ->
+                            navController.popBackStack()
+                            onRegistrationComplete(credentialId)
+                        },
+                        onCancel = {
+                            navController.popBackStack()
+                            onRegistrationCancelled()
+                        }
+                    )
+                }
+
+                composable(Fido2Destinations.MANAGEMENT_ROUTE) {
+                    com.chimali.fido2.presentation.management.CredentialListScreen(
+                        onNavigateUp = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+            }
         }
     }
 }

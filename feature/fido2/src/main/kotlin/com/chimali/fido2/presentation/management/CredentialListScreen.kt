@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
 
@@ -32,7 +33,13 @@ fun CredentialListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Passkeys") },
+                title = { 
+                    Text(
+                        "Passkeys", 
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
                 actions = {
                     IconButton(onClick = { viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog) }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete All")

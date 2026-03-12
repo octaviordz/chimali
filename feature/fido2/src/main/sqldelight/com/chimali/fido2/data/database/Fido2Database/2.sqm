@@ -1,0 +1,7 @@
+-- Migration 2: Add PairedDevice table to track hosts that successfully completed a FIDO2 operation
+CREATE TABLE PairedDevice (
+    macAddress TEXT NOT NULL PRIMARY KEY,
+    name TEXT,
+    lastUsedAt INTEGER NOT NULL,
+    createdAt INTEGER NOT NULL
+);

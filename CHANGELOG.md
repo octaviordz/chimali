@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-11
+
+### Added
+- **Device Class Identification**: Implemented Bluetooth "Major Device Class" extraction. The Authenticator now identifies if the connecting host is a Computer, Smartphone, or Wearable and displays the corresponding Material icon.
+- **Enhanced Paired Devices UI**: Added a "Bottom Navigation Bar", refined "Swipe-to-Delete" with 10s undo, and immediate UI hiding for swiped items.
+- **Status Hierarchy Update**: Redesigned the connection status indicator to emphasize the host name (larger bold font) over the status label.
+
+### Fixed
+- **SQL Migration Alignment**: Resolved a `NullPointerException` by aligning SQLDelight schema column order with physical SQLite `ALTER TABLE` behavior.
+- **Icon Persistence Logic**: Hardened the repository to prevent "Uncategorized" class reports from overwriting known computer/phone icons.
+- Full details: [2026-03-11-fido2-device-class-and-ui-polish.md](docs/changelogs/2026-03-11-fido2-device-class-and-ui-polish.md)
+
 ## [Unreleased] - 2026-03-09
 
 ### Added
