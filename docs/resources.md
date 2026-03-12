@@ -14,6 +14,10 @@ This file contains links, tools, and research materials that are useful for the 
 
 ## Decentralized Identity & SSI
 - **walt.id Identity SDK**: [GitHub Repository](https://github.com/walt-id/waltid-identity) - Open-source Decentralized Identity (SSI) and Wallet solutions for developers.
+- **EU Digital Identity Wallet (EUDI)**:
+  - [Repositories List](https://github.com/eu-digital-identity-wallet/.github/blob/main/profile/repositories-list.md) - Official overview of EUDI repositories.
+  - [Android Wallet UI](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui) - Reference implementation for the EU Wallet Android app.
+  - [Android Wallet Core](https://github.com/eu-digital-identity-wallet/eudi-lib-android-wallet-core) - Core library coordinating identity/credential flows in EUDI.
 
 ## Cryptography & HD Keys
 - **HD Keys beyond Bitcoin**: [Google Share Link](https://share.google/aimode/7zIX8QRB2KWH6asT3) - Discussion on the broader applications of Hierarchical Deterministic keys.
