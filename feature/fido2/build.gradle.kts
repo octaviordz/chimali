@@ -69,14 +69,17 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     
     // Biometric
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation(libs.androidx.biometric)
+    
+    // Security - EncryptedSharedPreferences for persisting BIP39 mnemonic
+    implementation(libs.androidx.security.crypto)
     
     // FIDO2 & Crypto
     implementation(libs.bouncycastle.provider)
     implementation(libs.kotlinx.coroutines.android)
     
     // Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation(libs.kotlinx.serialization.json)
     
     // Database
     implementation(libs.sqldelight.android)
@@ -97,22 +100,22 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     
     // Testing
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
-    testImplementation("io.mockk:mockk:1.13.8")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
-    testImplementation("app.cash.sqldelight:sqlite-driver:2.0.1")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.junit.platform.launcher)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.sqldelight.sqlite.driver)
+    testImplementation(libs.kotlinx.serialization.json)
     
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.7.3")
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.58")
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.compiler)
     
     debugImplementation(libs.compose.ui.tooling)
-    debugImplementation("androidx.compose.ui:ui-test-manifest:1.7.3")
-    androidTestImplementation("io.mockk:mockk-android:1.13.8")
+    debugImplementation(libs.compose.ui.test.manifest)
+    androidTestImplementation(libs.mockk.android)
 }

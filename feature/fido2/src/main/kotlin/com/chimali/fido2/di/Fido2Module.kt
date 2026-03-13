@@ -18,8 +18,6 @@ import com.chimali.fido2.data.repository.PasskeyCredentialRepositoryImpl
 import com.chimali.fido2.data.repository.RelyingPartyRepositoryImpl
 import com.chimali.fido2.data.repository.UserConsentRepositoryImpl
 import com.chimali.fido2.data.repository.PairedDeviceRepositoryImpl
-import com.chimali.fido2.data.storage.AndroidKeyStoreWrapper
-import com.chimali.fido2.data.storage.KeyStoreWrapper
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -60,11 +58,6 @@ object Fido2Module {
         return Fido2Database(driver)
     }
 
-    @Provides
-    @Singleton
-    fun provideKeyStoreWrapper(): KeyStoreWrapper {
-        return AndroidKeyStoreWrapper()
-    }
 
     @Provides
     @Singleton
@@ -127,9 +120,9 @@ abstract class Fido2BindingModule {
         impl: UserVerificationServiceImpl
     ): UserVerificationService
 
-    // T145a: Bind the ephemeral seed provider. TODO(T145c): replace with wallet-backed impl.
+    // T145c: Bind the persistent BIP39-backed seed provider.
     @Binds
     abstract fun bindMasterSeedProvider(
-        impl: com.chimali.fido2.data.crypto.EphemeralMasterSeedProvider
+        impl: com.chimali.fido2.data.crypto.WalletMasterSeedProvider
     ): com.chimali.fido2.data.crypto.MasterSeedProvider
 }

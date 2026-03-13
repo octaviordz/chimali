@@ -232,10 +232,10 @@
 ### Security Hardening Tasks
 - [ ] T144 Add certificate pinning for FIDO2 communications
 - [x] T145 Implement rate limiting for PIN attempts
-- [ ] T145a Integrate `HdkManager` into `Fido2CryptoService` for credential derivation
-- [ ] T145b Migrate `RegisterCredentialUseCase` and `AuthenticateAssertionUseCase` to use derived keys
-- [ ] T145c Implement BIP39 Master Seed ingestion/derivation for FIDO2 root of trust
-- [ ] T146 Add secure backup verification
+- [x] T145a Integrate `HdkManager` into `Fido2CryptoService` for credential derivation
+- [x] T145b Migrate `RegisterCredentialUseCase` and `AuthenticateAssertionUseCase` to use derived keys
+- [x] T145c Implement BIP39 Master Seed ingestion/derivation for FIDO2 root of trust *(refs: FR-HID-015, SC-006)*
+- [ ] T146 Add secure backup verification *(depends on T145c — mnemonic export/recovery path established by WalletMasterSeedProvider)*
 - [ ] T147 Implement audit logging for security events
 - [ ] T148 [P] Implement security tests for all components
 

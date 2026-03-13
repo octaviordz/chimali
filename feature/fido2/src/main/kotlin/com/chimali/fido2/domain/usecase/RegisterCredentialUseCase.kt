@@ -6,9 +6,7 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.exception.Fido2Exception
-import kotlinx.coroutines.flow.Flow
 import java.security.SecureRandom
-import java.util.Base64
 import javax.inject.Inject
 
 /**
@@ -221,71 +219,6 @@ class RegisterCredentialUseCase @Inject constructor(
         return "cred_${System.currentTimeMillis()}_${SecureRandom().nextInt(10000)}"
     }
     
-    /**
-     * Generates a cryptographic key pair based on parameters.
-     */
-    private suspend fun generateKeyPair(
-        params: PublicKeyCredentialParameters
-    ): Result<java.security.KeyPair> {
-        return try {
-            when (params.algorithm) {
-                "ES256" -> generateECKeyPair("secp256r1")
-                "RS256" -> generateRSAKeyPair(2048)
-                "EdDSA" -> generateEdDSAKeyPair()
-                else -> Result.failure(Fido2Exception.UnsupportedAlgorithm(params.algorithm))
-            }
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
-    /**
-     * Generates an elliptic curve key pair.
-     */
-    private fun generateECKeyPair(curve: String): Result<java.security.KeyPair> {
-        return try {
-            val curveName = when (curve) {
-                "secp256r1" -> "secp256r1"
-                "secp384r1" -> "secp384r1"
-                "secp521r1" -> "secp521r1"
-                else         -> return Result.failure(Fido2Exception.UnsupportedCurve(curve))
-            }
-            val keyPairGenerator = java.security.KeyPairGenerator.getInstance("EC")
-            keyPairGenerator.initialize(java.security.spec.ECGenParameterSpec(curveName))
-            Result.success(keyPairGenerator.generateKeyPair())
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
-    /**
-     * Generates an RSA key pair.
-     */
-    private fun generateRSAKeyPair(keySize: Int): Result<java.security.KeyPair> {
-        return try {
-            val keyPairGenerator = java.security.KeyPairGenerator.getInstance("RSA")
-            keyPairGenerator.initialize(java.security.spec.RSAKeyGenParameterSpec(
-                keySize,
-                java.math.BigInteger.valueOf(65537)
-            ))
-            Result.success(keyPairGenerator.generateKeyPair())
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
-        }
-    }
-    
-    /**
-     * Generates an EdDSA key pair.
-     */
-    private fun generateEdDSAKeyPair(): Result<java.security.KeyPair> {
-        return try {
-            // Note: EdDSA support may require additional libraries
-            // For now, fallback to EC
-            generateECKeyPair("secp256r1")
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
-        }
-    }
     
     /**
      * Returns the fixed AAGUID for the Chimali authenticator (version 1).
@@ -312,36 +245,74 @@ class RegisterCredentialUseCase @Inject constructor(
     
     /**
      * Creates an attestation object for the registration response.
+     *
+     * T145b: Uses "packed" self-attestation, signing authData||clientDataHash with the
+     * HDK-derived ECDSA P-256 key via [Fido2CryptoService.sign]. Falls back to "none"
+     * attestation if signing fails (e.g. master seed not yet available).
      */
     private suspend fun createAttestationObject(
         options: MakeCredentialOptions,
         credential: PasskeyCredential
     ): AttestationObject {
-        // Create authenticator data
+        // Build authenticatorData
+        val authDataBytes = run {
+            val rpIdHash   = hashRpId(options.rp.id)
+            val flags      = createAuthenticatorFlags(options)
+            val counter    = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
+            val credIdLen  = byteArrayOf(
+                (credential.credentialId.size shr 8).toByte(),
+                (credential.credentialId.size and 0xFF).toByte()
+            )
+            val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
+            // AT flag (0x40) in flags signals attested credential data is present
+            rpIdHash + flags + counter + credential.aaguid + credIdLen +
+                credential.credentialId + pubKeyCose
+        }
+
         val authData = AuthenticatorData.create(
             rpIdHash = hashRpId(options.rp.id),
             flags = createAuthenticatorFlags(options),
-            counter = 0L, // New credential starts with counter 0
+            counter = 0L,
             aaguid = credential.aaguid,
             credentialId = credential.credentialId,
-            // FIDO2 spec requires a CBOR-encoded COSE_Key, NOT raw DER
             publicKey = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
         )
-        
-        // Create client data
-        val clientData = ClientData.create(
-            type = "webauthn.create",
-            challenge = options.challenge,
-            origin = options.rp.id
+
+        // Compute clientDataHash (SHA-256 of the JSON-serialised clientData)
+        val clientDataJson = """{"type":"webauthn.create","challenge":"${java.util.Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(options.challenge)}","origin":"${options.rp.id}"}"""
+        val clientDataHash = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(clientDataJson.toByteArray(Charsets.UTF_8))
+
+        // Sign authData || clientDataHash with the HDK-derived key (packed self-attestation)
+        val signatureResult = cryptoService.sign(
+            credentialId = credential.id,
+            data         = authDataBytes + clientDataHash
         )
-        
-        // Create attestation statement (self-attested for privacy)
-        val attStmt = AttestationStatement.createNone()
-        
+
+        val (fmt, attStmt) = if (signatureResult.isSuccess) {
+            val sig = signatureResult.getOrThrow()
+            "packed" to AttestationStatement.create(
+                alg     = "ES256",
+                fmt     = "packed",
+                attCert = sig,
+                authData = authDataBytes
+            )
+        } else {
+            // Graceful degradation: fall back to none-attestation if seed not yet available
+            "none" to AttestationStatement.createNone()
+        }
+
+        val clientData = ClientData.create(
+            type      = "webauthn.create",
+            challenge = options.challenge,
+            origin    = options.rp.id
+        )
+
         return AttestationObject.create(
-            fmt = "none",
-            authData = authData,
-            attStmt = attStmt,
+            fmt        = fmt,
+            authData   = authData,
+            attStmt    = attStmt,
             clientData = clientData
         )
     }

@@ -18,8 +18,8 @@ Implement a FIDO2 Virtual Authenticator using BluetoothHidDevice to enable passw
 -->
 
 **Language/Version**: Kotlin 1.9+ (Android Native)  
-**Primary Dependencies**: AndroidX BiometricPrompt, Android KeyStore, BluetoothHidDevice, SQLCipher, SQLDelight, Hilt, Jetpack Compose, Bouncy Castle (PQC), ML-KEM/Kyber library  
-**Storage**: SQLCipher + SQLDelight for encrypted credential metadata, Android KeyStore for private keys  
+**Primary Dependencies**: AndroidX BiometricPrompt, BluetoothHidDevice, SQLCipher, SQLDelight, Hilt, Jetpack Compose, Bouncy Castle (PQC), ML-KEM/Kyber library, HDK-ECDH-P256 (IETF draft-dijkhuis-cfrg-hdkeys-06)  
+**Storage**: SQLCipher + SQLDelight for encrypted credential metadata; credential private keys are derived via HDK from a BIP39 master seed (stored in `EncryptedSharedPreferences`) — Android KeyStore is used only for root symmetric key wrapping  
 **Testing**: JUnit 5, MockK, Compose UI Testing  
 **Target Platform**: Android 9.0+ (API 28+) with Bluetooth HID support  
 **Project Type**: Mobile Application with FIDO2 Virtual Authenticator functionality  

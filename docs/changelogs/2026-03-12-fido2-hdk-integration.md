@@ -1,44 +1,100 @@
 # Changelog: FIDO2 HDK Keys & Master Seed Integration
 
 **Date:** 2026-03-12  
-**Task ID:** T145a  
-**Requirement Focus:** FR-AUTH-030 (Master Seed Backup), NFR-SEC-040 (Master Key Management)
+**Task IDs:** T145a, T145b, T145c  
+**Requirement Focus:** FR-AUTH-030 (Master Seed Backup), FR-HID-015 (Secure Key Storage), NFR-SEC-040 (Master Key Management), SC-006 (Credential Storage Survives Restart)
 
 ## Overview
-This update implements a critical pivot in the FIDO2 cryptographic architecture. To satisfy the project's requirement for a **Master Seed** backup mechanism (allowing all credentials to be restored from a single recovery point), we have transitioned away from non-exportable hardware-backed Android KeyStore keys for FIDO2 credentials in favor of software-derived keys using the **HDK-ECDH-P256** standard (IETF `draft-dijkhuis-cfrg-hdkeys-06`).
 
-## Changes
+This changelog covers the complete T145 arc — a critical architectural pivot in the FIDO2 cryptographic layer. The series transitions credential key management from non-exportable hardware-bound Android KeyStore keys to a fully deterministic, BIP39-backed Hierarchical Deterministic Key (HDK) derivation scheme, enabling credential backup and recovery from a single mnemonic.
+
+---
+
+## T145a — HDK Integration into Fido2CryptoService
+
+**Summary:** Rewrote the FIDO2 crypto layer to use HDK-ECDH-P256 (IETF `draft-dijkhuis-cfrg-hdkeys-06`) for deterministic key derivation. Introduced a temporary `EphemeralMasterSeedProvider` stub.
 
 ### Core & Infrastructure
-- **Dependency Integration**: Added `:core:security` as a dependency to the `feature:fido2` module to enable access to `HdkManager`.
-- **Master Seed Plumbing**: 
-    - Created the `MasterSeedProvider` interface to decouple cryptographic derivation from specific storage implementations (SQLCipher/Vault).
-    - Implemented `EphemeralMasterSeedProvider` as an in-memory stub to unblock current development until the full BIP39 onboarding flow is ready (T145c).
+- **Dependency Integration**: Added `:core:security` as a dependency to `feature:fido2` to enable access to `HdkManager`.
+- **`MasterSeedProvider` Interface**: Created to decouple cryptographic derivation from storage (SQLCipher/Vault).
+- **`EphemeralMasterSeedProvider`**: Implemented an in-memory stub to unblock development until the full BIP39 flow was ready (T145c).
 
-### Cryptography (feature:fido2)
-- **Fido2CryptoService (Major Rewrite)**:
-    - Replaced the `KeyPairGenerator` based on "AndroidKeyStore" with deterministic derivation via `HdkManager.deriveHdk()`.
-    - Implemented P-256 key material extraction (65-byte uncompressed public keys).
-    - Transitioned `sign()` to use **BouncyCastle** with the blinded private scalar derived in-memory on-demand.
-    - **Security Enhancement**: Private key scalars are never persisted to disk and are zeroed out immediately after signing operations.
-    - **Path Derivation**: Implemented deterministic HDK path mapping using the SHA-256 hash of the `credentialId`.
-- **Exception Handling**: Added `Fido2Exception.SigningFailed` to specifically track HDK-related signing errors.
+### Cryptography
+- **`Fido2CryptoService` (Major Rewrite)**:
+  - Replaced `KeyPairGenerator` (AndroidKeyStore) with deterministic `HdkManager.deriveHdk()`.
+  - Implemented P-256 key material extraction (65-byte uncompressed public keys).
+  - Transitioned `sign()` to use BouncyCastle with a blinded private scalar derived in-memory.
+  - Private key scalars are **never persisted** and are zeroed immediately after signing.
+  - Deterministic HDK path mapping via SHA-256 hash of `credentialId`.
 
-### Use Cases (feature:fido2)
-- **GetAssertionUseCase**: Refactored to eliminate all direct `java.security.KeyStore` logic. The use case now delegates signing to `Fido2CryptoService`, abstracting the underlying key management strategy.
+### Tests
+- `Fido2CryptoServiceTest`: Key stability, derivation paths, DER-encoded signatures.
+- Migrated `GetAssertionUseCaseTest` to `Fido2CryptoService` mocks.
 
-### Quality Assurance & Verification
-- **New Unit Tests**: Implemented `Fido2CryptoServiceTest` covering key stability, derivation paths, and signature formation (DER encoding).
-- **Test Fixes**: 
-    - Migrated `GetAssertionUseCaseTest` to use `Fido2CryptoService` mocks, resolving compilation errors and removing obsolete KeyStore stubbing.
-    - Fixed a pre-existing parameter naming bug in `PasskeyCredentialDaoTest` (`credentialId` -> `id`) uncovered during the full module recompile.
-- **Verification**: All unit tests in `:feature:fido2` pass (`./gradlew :feature:fido2:testDebugUnitTest`).
+---
+
+## T145b — Use Case Migration to Derived Keys
+
+**Summary:** Migrated `RegisterCredentialUseCase` and `AuthenticateAssertionUseCase` to fully use the HDK derivation path, removing all residual direct KeyStore references.
+
+### Changes
+- **`RegisterCredentialUseCase`**: Refactored to obtain key material exclusively from `Fido2CryptoService`, which internally uses HDK derivation.
+- **`AuthenticateAssertionUseCase` / `GetAssertionUseCase`**: Eliminated all `java.security.KeyStore` logic; signing fully delegated to `Fido2CryptoService`.
+- Added `Fido2Exception.SigningFailed` for HDK-specific signing error tracking.
+
+---
+
+## T145c — Persistent BIP39 Master Seed Provider
+
+**Summary:** Replaced the ephemeral seed stub with a persistent, BIP39-backed `WalletMasterSeedProvider`. The mnemonic is generated once, encrypted on-device, and the deterministic seed is re-derived on each launch. All tests pass.
+
+### `core:security`
+
+- **`bip39_english.txt`** *(NEW)*: Official 2048-word BIP39 English wordlist (source: trezor/python-mnemonic) added to module assets.
+- **`Bip39MasterSeedGenerator`** *(REWRITTEN)*:
+  - Now accepts `@ApplicationContext` to load the wordlist from assets.
+  - Full BIP39-compliant `entropyToMnemonic`: entropy → SHA-256 checksum → 11-bit group → wordlist index.
+  - PBKDF2-HMAC-SHA512 with 2048 iterations for seed derivation (BIP39 spec).
+- **`build.gradle.kts`**: Added MockK, JUnit Jupiter, and coroutines-test for unit testing.
+- **`Bip39MasterSeedGeneratorTest`** *(NEW)*: 10 tests — word count validation, entropy determinism, seed length, passphrase sensitivity.
+
+### `feature:fido2`
+
+- **`WalletMasterSeedProvider`** *(NEW)*:
+  - Generates a 24-word BIP39 mnemonic on first launch.
+  - Persists securely via `EncryptedSharedPreferences` (AES-256-GCM for values, satisfying Constitution §I).
+  - Re-derives the 64-byte seed deterministically on subsequent launches (`MasterSeedGenerator.deriveSeed`).
+  - In-process seed and device key pair are cached (`@Singleton`, `@Synchronized`).
+- **`EphemeralMasterSeedProvider`** *(DELETED)*: T145a stub removed.
+- **`Fido2Module`**: `@Binds` updated from `EphemeralMasterSeedProvider` → `WalletMasterSeedProvider`.
+- **`build.gradle.kts`**: Added `androidx.security:security-crypto:1.0.0` (stable).
+- **`WalletMasterSeedProviderTest`** *(NEW)*: 6 tests using a `TestableWalletMasterSeedProvider` test double verifying initialization, in-process caching, mnemonic reuse, and device key pair stability.
+
+### Test Results
+
+```
+:core:security:testDebugUnitTest    — 10 tests PASSED ✅
+:feature:fido2:testDebugUnitTest    —  6 tests PASSED ✅
+BUILD SUCCESSFUL
+```
+
+---
 
 ## Security Assessment
-- **Benefit**: Credentials are now fully restorable from the Master Seed, preventing data loss on device reset or app uninstallation.
-- **Mitigation**: While keys are no longer "Hardware Backed" in the traditional SE/TEE sense, the master seed itself will be protected by SQLCipher (AES-256-GCM) with keys deriveable only when the user unlocks their vault via Biometrics/PIN. This maintains a high security bar while enabling the required backup functionality.
+
+| Aspect | Detail |
+|--------|--------|
+| **Key exportability** | HDK-derived keys are software keys; the master seed is the single secret. Recovery = mnemonic. |
+| **Mnemonic storage** | AES-256-GCM (EncryptedSharedPreferences value encryption). |
+| **Memory safety** | Private scalars exist in memory only for the duration of the signing operation. |
+| **Quantum readiness** | Architecture supports HHD (Hybrid HD), enabling PQ key derivation from the same BIP39 root (see BRD NFR-SEC-040). |
+
+> ⚠️ **Migration Notice**: Credentials registered under T145a's ephemeral seed are orphaned (the ephemeral seed no longer exists). Users must re-register any previously created passkey credentials.
+
+---
 
 ## Next Steps
-- **T145c**: Implementation of `WalletMasterSeedProvider` backed by BIP39 mnemonics.
-- **T145d**: Shamir's Secret Sharing (SSS) integration for partitioned master seed backup.
-- **T146**: Persistence mechanism for the device root key pair.
+
+- **T146**: Secure backup verification — mnemonic export/recovery path.
+- **T147**: Audit logging for security events.
+- **T145d** *(future)*: Shamir's Secret Sharing (SSS) partitioned backup.

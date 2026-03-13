@@ -105,6 +105,8 @@ class RegisterCredentialUseCaseTest {
         coEvery { credentialRepository.getRelyingParty(any()) } returns null
         coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.success(Unit)
         coEvery { credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>()) } returns Result.success(Unit)
+        // T145b: stub sign() so the packed attestation path succeeds in tests
+        coEvery { cryptoService.sign(any(), any()) } returns Result.success(ByteArray(72) { 0x30 })
     }
     
     @Nested
@@ -119,7 +121,7 @@ class RegisterCredentialUseCaseTest {
             assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
             val attestationObject = result.getOrThrow()
             assertNotNull(attestationObject)
-            assertEquals("none", attestationObject.fmt)
+            assertEquals("packed", attestationObject.fmt)
             
             // Verify all expected interactions
             coVerify { userVerificationService.isUserVerificationRequired(any(), any(), any()) }
@@ -495,7 +497,7 @@ class RegisterCredentialUseCaseTest {
             
             assertTrue(result.isSuccess)
             val attestationObject = result.getOrThrow()
-            assertEquals("none", attestationObject.fmt) // Still self-attested for privacy
+            assertEquals("packed", attestationObject.fmt) // packed self-attestation from HDK key
         }
     }
 }

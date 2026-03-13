@@ -1,79 +1,98 @@
 package com.chimali.core.security.impl
 
+import android.content.Context
 import com.chimali.core.security.api.MasterSeedGenerator
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import javax.inject.Inject
 
-class Bip39MasterSeedGenerator @Inject constructor() : MasterSeedGenerator {
+/**
+ * BIP39-compliant implementation of [MasterSeedGenerator].
+ *
+ * Uses the official 2048-word BIP39 English wordlist from assets/bip39_english.txt.
+ * Mnemonic generation follows the BIP39 spec:
+ *   1. Generate N bytes of cryptographically secure entropy.
+ *   2. Compute SHA-256 hash; take the first (N*8/32) bits as the checksum.
+ *   3. Concatenate entropy bits + checksum bits.
+ *   4. Split into groups of 11 bits; each group is an index into the 2048-word wordlist.
+ *
+ * Seed derivation uses PBKDF2-HMAC-SHA512 with 2048 iterations and the "mnemonic[passphrase]"
+ * salt as specified in BIP39.
+ */
+class Bip39MasterSeedGenerator @Inject constructor(
+    @ApplicationContext private val context: Context
+) : MasterSeedGenerator {
 
-    // A real app would load all 2048 words. For now, this is a demonstration.
-    // In a production environment, this wordlist would be complete and potentially localized.
-    private val englishWordList = listOf(
-        "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse",
-        "access", "accident", "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "act",
-        // ... (truncated)
-        "about" // Dummy for now to avoid huge file, but in real work I'd provide a resource.
-    )
+    private val wordList: List<String> by lazy {
+        context.assets.open("bip39_english.txt").bufferedReader().readLines()
+            .filter { it.isNotBlank() }
+            .also { require(it.size == 2048) { "BIP39 wordlist must contain exactly 2048 words, found ${it.size}" } }
+    }
 
     override fun generateMnemonic(wordCount: Int): List<String> {
         require(wordCount == 12 || wordCount == 24) { "Word count must be 12 or 24" }
-        
-        val entropyBits = if (wordCount == 12) 128 else 256
-        val entropy = ByteArray(entropyBits / 8)
+
+        val entropyBytes = if (wordCount == 12) 16 else 32 // 128 or 256 bits
+        val entropy = ByteArray(entropyBytes)
         SecureRandom().nextBytes(entropy)
-        
+
         return entropyToMnemonic(entropy)
     }
 
     override fun deriveSeed(mnemonic: List<String>, passphrase: String): ByteArray {
         val mnemonicString = mnemonic.joinToString(" ")
         val salt = "mnemonic$passphrase"
-        
+
         val spec = PBEKeySpec(
             mnemonicString.toCharArray(),
-            salt.toByteArray(),
+            salt.toByteArray(Charsets.UTF_8),
             2048,
             512
         )
-        val f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
-        return f.generateSecret(spec).encoded
+        return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
+            .generateSecret(spec)
+            .encoded
     }
 
-    private fun entropyToMnemonic(entropy: ByteArray): List<String> {
+    /**
+     * Converts raw entropy bytes into a BIP39 mnemonic word list.
+     */
+    internal fun entropyToMnemonic(entropy: ByteArray): List<String> {
+        require(entropy.size == 16 || entropy.size == 32) {
+            "Entropy must be 16 bytes (128-bit) or 32 bytes (256-bit)"
+        }
+
+        // Step 1: Compute SHA-256 checksum
         val hash = MessageDigest.getInstance("SHA-256").digest(entropy)
-        val checksumBits = entropy.size * 8 / 32
-        
-        // Append checksum bits to entropy
+        val checksumBits = entropy.size * 8 / 32  // 4 bits for 128-bit, 8 bits for 256-bit
+
+        // Step 2: Build a bit array: entropy bits + checksum bits
         val totalBits = entropy.size * 8 + checksumBits
         val bits = BooleanArray(totalBits)
-        
-        for (i in entropy.indices) {
-            for (j in 0..7) {
-                bits[i * 8 + j] = (entropy[i].toInt() shr (7 - j) and 1) == 1
+
+        // Fill entropy bits (MSB first)
+        for (byteIndex in entropy.indices) {
+            for (bitIndex in 0..7) {
+                bits[byteIndex * 8 + bitIndex] = (entropy[byteIndex].toInt() ushr (7 - bitIndex) and 1) == 1
             }
         }
-        
+
+        // Fill checksum bits from the first byte of the SHA-256 hash (MSB first)
         for (i in 0 until checksumBits) {
-            bits[entropy.size * 8 + i] = (hash[0].toInt() shr (7 - i) and 1) == 1
+            bits[entropy.size * 8 + i] = (hash[0].toInt() ushr (7 - i) and 1) == 1
         }
-        
-        val mnemonic = mutableListOf<String>()
-        for (i in 0 until totalBits / 11) {
+
+        // Step 3: Group into 11-bit chunks and map to words
+        val wordCount = totalBits / 11
+        return (0 until wordCount).map { i ->
             var index = 0
             for (j in 0..10) {
-                index = index shl 1
-                if (bits[i * 11 + j]) {
-                    index = index or 1
-                }
+                index = (index shl 1) or (if (bits[i * 11 + j]) 1 else 0)
             }
-            // In a real implementation, we map to the 2048 wordlist.
-            // Using a simple modulo for this demo implementation.
-            mnemonic.add(englishWordList[index % englishWordList.size])
+            wordList[index] // index is always in [0, 2047] for a 2048-word list
         }
-        
-        return mnemonic
     }
 }

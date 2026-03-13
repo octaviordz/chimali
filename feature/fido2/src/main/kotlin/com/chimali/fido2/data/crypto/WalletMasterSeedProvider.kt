@@ -1,0 +1,101 @@
+package com.chimali.fido2.data.crypto
+
+import android.content.Context
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+
+import com.chimali.core.security.api.HdkKeyPair
+import com.chimali.core.security.api.HdkManager
+import com.chimali.core.security.api.MasterSeedGenerator
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private const val TAG = "WalletMasterSeedProvider"
+private const val PREFS_FILE_NAME = "chimali_wallet_seed"
+private const val KEY_MNEMONIC = "bip39_mnemonic"
+
+/**
+ * T145c — Persistent [MasterSeedProvider] backed by BIP39 and [EncryptedSharedPreferences].
+ *
+ * On the first launch, a fresh 24-word BIP39 mnemonic is generated with [MasterSeedGenerator],
+ * stored encrypted on-device via [EncryptedSharedPreferences], and the corresponding 64-byte
+ * PBKDF2 seed is derived and returned.
+ *
+ * On subsequent launches, the persisted mnemonic is read from encrypted storage and the same
+ * deterministic seed is re-derived, ensuring FIDO2 credentials remain valid across restarts.
+ *
+ * **AES note**: The mnemonic string is stored as a SharedPreferences *value*, which
+ * [EncryptedSharedPreferences] protects with AES-256-GCM, satisfying Constitution §I.
+ *
+ * **Device key pair**: Derived once from the seed and cached in memory for the
+ * lifetime of the process. The private scalar must never appear in plaintext logs.
+ *
+ * ⚠️ **Migration note**: Any credentials registered with [EphemeralMasterSeedProvider]
+ * (T145a era) are bound to a transient seed and will be orphaned. Users must re-register.
+ */
+@Singleton
+class WalletMasterSeedProvider @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val masterSeedGenerator: MasterSeedGenerator,
+    private val hdkManager: HdkManager
+) : MasterSeedProvider {
+
+    @Volatile
+    private var cachedSeed: ByteArray? = null
+
+    @Volatile
+    private var cachedDeviceKeyPair: HdkKeyPair? = null
+
+    override suspend fun getMasterSeed(): ByteArray? = ensureInitialized().first
+
+    override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInitialized().second
+
+    @Synchronized
+    private fun ensureInitialized(): Pair<ByteArray?, HdkKeyPair?> {
+        if (cachedSeed != null) {
+            return Pair(cachedSeed, cachedDeviceKeyPair)
+        }
+
+        val mnemonic = getOrCreateMnemonic()
+        val seed = masterSeedGenerator.deriveSeed(mnemonic)
+
+        cachedSeed = seed
+        cachedDeviceKeyPair = hdkManager.generateDeviceKeyPair()
+
+        Log.d(TAG, "Master seed initialized from BIP39 mnemonic (word count: ${mnemonic.size})")
+        return Pair(cachedSeed, cachedDeviceKeyPair)
+    }
+
+    /**
+     * Returns the persisted mnemonic, or generates and persists a new one on first call.
+     */
+    private fun getOrCreateMnemonic(): List<String> {
+        val prefs = openEncryptedPrefs()
+        val existing = prefs.getString(KEY_MNEMONIC, null)
+        if (!existing.isNullOrBlank()) {
+            Log.d(TAG, "Loaded existing BIP39 mnemonic from secure storage")
+            return existing.split(" ")
+        }
+
+        Log.i(TAG, "Generating new BIP39 mnemonic (first launch)")
+        val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = 24)
+        prefs.edit()
+            .putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
+            .apply()
+        return newMnemonic
+    }
+
+    private fun openEncryptedPrefs(): android.content.SharedPreferences {
+        val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(
+            androidx.security.crypto.MasterKeys.AES256_GCM_SPEC
+        )
+        return EncryptedSharedPreferences.create(
+            PREFS_FILE_NAME,
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+}
