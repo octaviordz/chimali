@@ -61,6 +61,7 @@ android {
 dependencies {
     // Project Modules
     implementation(project(":core:common"))
+    implementation(project(":core:security"))
 
     // Core Android
     implementation(libs.androidx.core.ktx)

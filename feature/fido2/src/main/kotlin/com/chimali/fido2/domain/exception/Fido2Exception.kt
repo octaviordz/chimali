@@ -31,6 +31,10 @@ sealed class Fido2Exception(
     class SignatureFailed(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "SIGNATURE_FAILED")
 
+    /** Used by Fido2CryptoService / GetAssertionUseCase for HDK-based signing failures. */
+    class SigningFailed(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "SIGNING_FAILED")
+
     /** Alias used by CredentialStorageService. */
     class SignatureVerificationFailed(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "SIGNATURE_VERIFY_FAILED")

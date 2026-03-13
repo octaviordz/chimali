@@ -9,16 +9,11 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.fido2.domain.service.VerificationContext
 import com.chimali.fido2.data.crypto.ClientDataHashService
-import java.security.KeyStore
-import java.security.PrivateKey
-import java.security.Signature
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import javax.inject.Inject
 
 private const val TAG = "GetAssertionUseCase"
-private const val ANDROID_KEYSTORE = "AndroidKeyStore"
-private const val SHA256ECDSA = "SHA256withECDSA"
 
 /**
  * T080 — Authenticate use case: executes a FIDO2 GetAssertion ceremony.
@@ -36,9 +31,9 @@ private const val SHA256ECDSA = "SHA256withECDSA"
 class GetAssertionUseCase @Inject constructor(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
-    private val selectCredentialUseCase: SelectCredentialUseCase
+    private val selectCredentialUseCase: SelectCredentialUseCase,
+    private val cryptoService: Fido2CryptoService
 ) {
-    private val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     suspend operator fun invoke(
         options: GetAssertionOptions
@@ -147,17 +142,12 @@ class GetAssertionUseCase @Inject constructor(
         return rpIdHash + byteArrayOf(flags.toByte()) + counter  // 37 bytes
     }
 
-    private fun signWithCredential(
+    private suspend fun signWithCredential(
         credentialId: String,
         authData: ByteArray,
         clientDataHash: ByteArray
     ): ByteArray {
-        val alias = "fido2_cred_$credentialId"
-        val privateKey = keyStore.getKey(alias, null) as? PrivateKey
-            ?: throw Fido2Exception.KeyNotFound(alias)
-        return Signature.getInstance(SHA256ECDSA).apply {
-            initSign(privateKey)
-            update(authData + clientDataHash)
-        }.sign()
+        return cryptoService.sign(credentialId, authData + clientDataHash)
+            .getOrElse { throw Fido2Exception.SigningFailed(it.message ?: "Signing failed", it) }
     }
 }

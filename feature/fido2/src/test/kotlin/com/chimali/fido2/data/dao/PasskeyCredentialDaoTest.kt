@@ -121,7 +121,7 @@ class PasskeyCredentialDaoTest {
             dao.updateSignCount(testCredential.id, 5L)
 
             coVerify(exactly = 1) {
-                queries.updateSignCount(signCount = 5L, credentialId = testCredential.id)
+                queries.updateSignCount(signCount = 5L, id = testCredential.id)
             }
         }
     }

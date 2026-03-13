@@ -126,4 +126,10 @@ abstract class Fido2BindingModule {
     abstract fun bindUserVerificationService(
         impl: UserVerificationServiceImpl
     ): UserVerificationService
+
+    // T145a: Bind the ephemeral seed provider. TODO(T145c): replace with wallet-backed impl.
+    @Binds
+    abstract fun bindMasterSeedProvider(
+        impl: com.chimali.fido2.data.crypto.EphemeralMasterSeedProvider
+    ): com.chimali.fido2.data.crypto.MasterSeedProvider
 }

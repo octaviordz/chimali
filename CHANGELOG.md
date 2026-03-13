@@ -3,6 +3,21 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-12
+
+### Added
+- **FIDO2 HDK Integration**: Completed a major architectural transition for FIDO2 credentials to support **Master Seed backup (FR-AUTH-030)**. Keys are now derived deterministically using HDK-ECDH-P256 instead of being tied to non-exportable hardware KeyStore blocks.
+- **Master Seed Plumbing**: Introduced `MasterSeedProvider` interface and `EphemeralMasterSeedProvider` to facilitate centralized seed management across modules.
+
+### Changed
+- **Cryptographic Service Refactor**: `Fido2CryptoService` now performs in-memory software key derivation and uses BouncyCastle for signing, strictly ensuring private key material never touches persistent storage.
+- **UseCase Migration**: `GetAssertionUseCase` migrated away from direct Android KeyStore dependencies to use the abstracted `Fido2CryptoService` API.
+
+### Fixed
+- **Latent DAO Bug**: Resolved a pre-existing parameter naming mismatch in `PasskeyCredentialDao` uncovered during full module recompilation.
+- **Test Integrity**: Updated full FIDO2 unit test suite to align with the new derivation architecture.
+- Full details: [2026-03-12-fido2-hdk-integration.md](docs/changelogs/2026-03-12-fido2-hdk-integration.md)
+
 ## [Unreleased] - 2026-03-11
 
 ### Added
@@ -183,4 +198,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-02-23*
+*Last Updated: 2026-03-12*
