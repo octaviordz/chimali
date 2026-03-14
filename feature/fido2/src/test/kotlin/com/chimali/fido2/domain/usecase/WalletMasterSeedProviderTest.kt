@@ -95,6 +95,21 @@ class WalletMasterSeedProviderTest {
         verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
     }
 
+    @Test
+    fun `getMnemonic returns the persisted mnemonic as word list`() = runTest {
+        // T146: programmatic persistence verification
+        provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
+        val words = provider.getMnemonic()
+        assertEquals(fakeMnemonic, words)
+    }
+
+    @Test
+    fun `getMnemonic returns null when no mnemonic is persisted`() = runTest {
+        provider.persistedMnemonic = null
+        val words = provider.getMnemonic()
+        assertNull(words)
+    }
+
     /**
      * Test double that replaces [EncryptedSharedPreferences] with an in-memory string variable.
      */

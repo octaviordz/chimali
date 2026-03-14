@@ -98,4 +98,16 @@ class WalletMasterSeedProvider @Inject constructor(
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     }
+
+    /**
+     * T146 — Returns the raw BIP39 mnemonic for Dev Tools (debug only).
+     * Reads back the persisted mnemonic from [EncryptedSharedPreferences] and splits
+     * on spaces. Returns null if no mnemonic has been persisted yet.
+     *
+     * ⚠️ Caller must zero backing structures immediately after use.
+     */
+    override suspend fun getMnemonic(): List<String>? {
+        val raw = openEncryptedPrefs().getString(KEY_MNEMONIC, null)
+        return if (raw.isNullOrBlank()) null else raw.split(" ")
+    }
 }

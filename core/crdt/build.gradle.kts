@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.chimali.core.crdt"
-    compileSdk = 34
+    compileSdk = 35
     defaultConfig { minSdk = 28 }
 
     compileOptions {

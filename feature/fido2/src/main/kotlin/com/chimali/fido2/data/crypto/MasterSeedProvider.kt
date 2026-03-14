@@ -32,4 +32,13 @@ interface MasterSeedProvider {
      * operation and should be zeroed out immediately after use.
      */
     suspend fun getDeviceKeyPair(): HdkKeyPair?
+
+    /**
+     * Returns the raw BIP39 mnemonic as an ordered word list, or null if not yet initialized.
+     *
+     * ⚠️ The caller is responsible for zeroing the returned list's backing arrays
+     * immediately after use. This function must NOT be called outside [BuildConfig.DEBUG]
+     * contexts in production code.
+     */
+    suspend fun getMnemonic(): List<String>?
 }

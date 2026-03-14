@@ -235,7 +235,13 @@
 - [x] T145a Integrate `HdkManager` into `Fido2CryptoService` for credential derivation
 - [x] T145b Migrate `RegisterCredentialUseCase` and `AuthenticateAssertionUseCase` to use derived keys
 - [x] T145c Implement BIP39 Master Seed ingestion/derivation for FIDO2 root of trust *(refs: FR-HID-015, SC-006)*
-- [ ] T146 Add secure backup verification *(depends on T145c — mnemonic export/recovery path established by WalletMasterSeedProvider)*
+- [x] T146 Add programmatic verification that mnemonic persists and derives successfully after restart (SC-006)
+- [x] T146a [DEV] Create DevToolsViewModel to handle temporary mnemonic export/recovery flows
+- [x] T146b [DEV] Implement temporary DevToolsScreen Compose UI for Developer options
+- [x] T146c [DEV] Add "View Master Seed" flow guarded by biometric authentication (clears from memory on exit)
+- [x] T146d [DEV] Add "Recover from Seed" flow for testing mnemonic ingestion on device wipe
+- [x] T146e [DEV] Add "Show QR Code" button to the View Master Seed flow (biometric-gated; cleared on navigate away)
+- [x] T146f [DEV] Add "Scan QR Code" button to the Recover flow using CameraX + ML Kit barcode scanning
 - [ ] T147 Implement audit logging for security events
 - [ ] T148 [P] Implement security tests for all components
 

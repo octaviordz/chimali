@@ -15,6 +15,7 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -121,17 +122,23 @@ class RegistrationPromptViewModel @Inject constructor(
 
     init {
         Log.d(TAG, "RegistrationPromptViewModel created — subscribing to event bus")
-        // Observe event bus for incoming registration requests from transport
+        // Observe event bus for incoming registration requests from transport.
+        // Guard: if we are already showing an error to the user, do NOT let a PC retry
+        // silently overwrite the error screen — the user must dismiss/retry first.
         uiEventBus.events
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .onEach { event ->
                 Log.d(TAG, "RegistrationRequested received via SharedFlow: rpId=${event.options.rp.id}")
+                if (_state.value is RegistrationState.Error) {
+                    Log.d(TAG, "Ignoring incoming request — currently showing error to user")
+                    return@onEach
+                }
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
             }
             .launchIn(viewModelScope)
 
-        // Also consume any event stored before this ViewModel was created (replay backup)
+        // Also consume any event stored before this ViewModel was created (replay backup).
         uiEventBus.currentRegistrationRequest?.let { event ->
             Log.d(TAG, "RegistrationRequested present in currentRequest cache: rpId=${event.options.rp.id}")
             pendingDeferred = event.deferred
@@ -224,31 +231,46 @@ class RegistrationPromptViewModel @Inject constructor(
         _state.value = RegistrationState.Processing
         viewModelScope.launch {
             val result = fido2Service.makeCredential(options)
-            
-            // Complete transport's deferred
-            @Suppress("UNCHECKED_CAST")
-            val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
-            deferred?.complete(result)
 
             result.onSuccess { attestation ->
+                // Complete transport's deferred only on success
+                @Suppress("UNCHECKED_CAST")
+                val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
+                deferred?.complete(result)
+
                 // Build a lightweight display credential from the attestation metadata
                 val credential = PasskeyCredential.fromMakeCredentialOptions(options)
                 _state.value = RegistrationState.Success(credential)
+
+                // Hold the success screen for a moment so the user can read it before
+                // navigating away. The transport deferred is already resolved above.
+                delay(SUCCESS_DISPLAY_DURATION_MS)
                 emit(RegistrationEffect.NavigateToSuccess(credential))
+
+                // Clear pending only after success — on failure we keep them so Retry works
+                pendingOptions = null
+                pendingDeferred = null
             }
             result.onFailure { error ->
+                // Complete the transport deferred with the failure so the PC gets a response
+                @Suppress("UNCHECKED_CAST")
+                val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
+                deferred?.complete(result)
+                pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
+
                 // T074 — delegate error classification to RegistrationErrorHandler
                 val ui = RegistrationErrorHandler.handle(error)
                 _state.value = RegistrationState.Error(ui.message, ui.isRetryable)
             }
-            
-            // Clear pending
-            pendingOptions = null
-            pendingDeferred = null
         }
     }
 
     private suspend fun emit(effect: RegistrationEffect) {
         _effects.send(effect)
+    }
+
+    companion object {
+        /** How long the success screen is shown before automatically dismissing (ms). */
+        private const val SUCCESS_DISPLAY_DURATION_MS = 2_000L
     }
 }

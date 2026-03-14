@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.chimali.core.security"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 28

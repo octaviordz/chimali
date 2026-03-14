@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.chimali.feature.authenticator"
-    compileSdk = 34
+    compileSdk = 35
     defaultConfig { minSdk = 28 }
 
     compileOptions {

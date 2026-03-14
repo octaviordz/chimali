@@ -11,7 +11,7 @@ plugins {
 
 android {
     namespace = "com.chimali.fido2"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 28
@@ -46,6 +46,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     sqldelight {
@@ -118,4 +119,12 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.mockk.android)
+
+    // Dev Tools: QR generation + scanning — debug only
+    debugImplementation(libs.qrose)
+    debugImplementation(libs.camera.core)
+    debugImplementation(libs.camera.camera2)
+    debugImplementation(libs.camera.lifecycle)
+    debugImplementation(libs.camera.view)
+    debugImplementation(libs.mlkit.barcode.scanning)
 }

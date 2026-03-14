@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.4.0 → 0.5.0
-- List of modified principles: IV, V
+- Version change: 0.6.0 → 0.7.0
+- List of modified principles: I (Security First)
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md
@@ -13,7 +13,11 @@ SYNC IMPACT REPORT
 ## Core Principles
 
 ### I. Security First (Zero-Trust Local-First)
-All sensitive data must be encrypted with AES-256-GCM. **Exception**: BIP39 mnemonic seed phrases and other human-readable secrets intended for encrypted key-value storage (e.g., `EncryptedSharedPreferences`) MAY use **AES-256-SIV** (as provided by Android's Jetpack `security-crypto` library), which provides nonce-misuse resistance. This exception exists because `EncryptedSharedPreferences` uses AES-SIV for deterministic encryption of preference keys and AES-GCM for values—this is acceptable when the key itself (the mnemonic string) needs stable deterministic identification. All other credential payloads must use AES-256-GCM. If the device supports Quantum-Resistant algorithms (PQC, e.g., ML-KEM/Kyber), the application must utilize these as the primary encryption method. Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
+All sensitive data must be encrypted. The application adheres to a **Multi-Mode Symmetric Encryption Strategy** based on modern Android best practices:
+1. **AES-256-GCM** MUST be used for general payload encryption (files, credential blobs, value storage). This enables Hardware Keystore offloading and safe streaming without memory exhaustion.
+2. **AES-256-SIV** (Synthetic IV) MUST be used for **Searchable Encrypted Metadata** (e.g., database lookup tags, category names) where deterministic ciphertext is required, and for **Key Wrapping** where nonce-misuse resistance is paramount (e.g., within `EncryptedSharedPreferences` or master key boundaries).
+
+If the device supports Quantum-Resistant algorithms (PQC, e.g., ML-KEM/Kyber), the application must utilize these as the primary encryption method. Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
 
 ### II. Master Seed Architecture
 The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture accommodates **Hybrid Hierarchical Deterministic Derivation (HHD)** from a single BIP39 root seed using standard paths (BIP-44 / SLIP-10), supporting deterministic derivation of both classical (ECDSA/Ed25519) and Post-Quantum (e.g., Falcon-512) signature schemes without requiring additional mnemonic phrases.
@@ -60,4 +64,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.6.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-12
+**Version**: 0.7.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-13

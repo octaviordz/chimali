@@ -20,6 +20,9 @@
     <!-- Network permissions for FIDO2 communication -->
     <uses-permission android:name="android.permission.INTERNET" />
     
+    <!-- Camera permission for Dev Tools QR Scanning (Debug only) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
     <!-- Hardware requirements -->
     <uses-feature 
         android:name="android.hardware.bluetooth" 

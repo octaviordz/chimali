@@ -3,6 +3,32 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-14
++
++### Added
++- **Dev Tools Seed Management**: Implemented a comprehensive suite of development tools for BIP39 master seed management (T146 series). Includes biometric-gated mnemonic viewing, QR code export, QR code scan import (CameraX + ML Kit), and manual 24-word recovery.
++- **New Dependencies**: Integrated `qrose` for QR generation and ML Kit Barcode Scanning with CameraX for secure QR-based seed transfer in debug builds.
++
++### Changed
++- **SDK Target Migration**: Upgraded `compileSdk` and `targetSdk` to **API 35 (Android 15)** across all 13 modules to comply with Jetpack Compose 1.10.0 requirements and optimize for modern platform features.
++
++### Fixed
++- **QR Scanner Permissions**: Resolved a critical issue where the QR scanner failed to launch due to a missing `CAMERA` permission declaration in the Android Manifest.
++- **Scanner UX**: Hardened the "Scan QR Code" button logic to handle pre-granted permissions gracefully and prevent silent launcher failures.
++- Full details: [2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md](docs/changelogs/2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md)
++
++## [Unreleased] - 2026-03-13
+
+### Changed
+- **Constitution (v0.7.0)**: Formally adopted a **Multi-Mode Symmetric Encryption Strategy**. Established AES-256-GCM as the mandate for payload/streaming encryption to preserve Hardware Keystore offloading, and established AES-256-SIV as the mandate for searchable metadata and key wrapping to provide nonce-misuse resistance. Updated BRD `NFR-SEC-010` accordingly.
+- Full details: [2026-03-13-constitution-v0.7.0.md](docs/changelogs/2026-03-13-constitution-v0.7.0.md)
+
+### Fixed
+- **FIDO2 Registration UX**: Resolved issues where "Registration failed" and "Passkey created" screens were only visible for a fraction of a second due to immediate navigation/retry loops.
+- **Crypto Provider Exception**: Fixed a critical `NoSuchAlgorithmException` where Android's security framework shadowed the BouncyCastle provider name.
+- **Retry Logic**: Fixed a bug where the "Try again" button failed to re-initiate registration after a failure due to state being cleared prematurely.
+- Full details: [2026-03-13-fido2-registration-ux-and-crypto-fixes.md](docs/changelogs/2026-03-13-fido2-registration-ux-and-crypto-fixes.md)
+
 ## [Unreleased] - 2026-03-12
 
 ### Added
@@ -198,4 +224,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-12*
+*Last Updated: 2026-03-13*

@@ -197,9 +197,14 @@ class Fido2CryptoService @Inject constructor(
     /**
      * Signs data using a raw P-256 private scalar via BouncyCastle.
      * Returns DER-encoded ECDSA signature.
+     *
+     * Note: We pass the [BouncyCastleProvider] *instance* rather than the provider name string
+     * because Android's security framework silently overrides the "BC" provider name with its
+     * own stripped-down variant, which lacks EC KeyFactory support.
      */
     private fun signWithRawScalar(privateKeyBytes: ByteArray, data: ByteArray): ByteArray {
         val sk = BigInteger(1, privateKeyBytes)
+        val bcProvider = BouncyCastleProvider()
         // Reconstruct java.security.PrivateKey from scalar via BouncyCastle ECPrivateKeySpec
         val ecSpec = org.bouncycastle.jce.spec.ECNamedCurveSpec(
             "secp256r1",
@@ -209,10 +214,10 @@ class Fido2CryptoService @Inject constructor(
             P256Group.G.curve.cofactor
         )
         val ecPrivKeySpec = java.security.spec.ECPrivateKeySpec(sk, ecSpec)
-        val privateKey = KeyFactory.getInstance("EC", BouncyCastleProvider.PROVIDER_NAME)
+        val privateKey = KeyFactory.getInstance("EC", bcProvider)
             .generatePrivate(ecPrivKeySpec)
 
-        return Signature.getInstance("SHA256withECDSA", BouncyCastleProvider.PROVIDER_NAME).apply {
+        return Signature.getInstance("SHA256withECDSA", bcProvider).apply {
             initSign(privateKey)
             update(data)
         }.sign()
@@ -220,6 +225,10 @@ class Fido2CryptoService @Inject constructor(
 
     /**
      * Decodes an uncompressed EC point (65 bytes) to a [PublicKey] using BouncyCastle.
+     *
+     * Note: We pass the [BouncyCastleProvider] *instance* rather than the provider name string
+     * because Android's security framework silently overrides the "BC" provider name with its
+     * own stripped-down variant, which lacks EC KeyFactory support.
      */
     private fun decodeUncompressedPoint(bytes: ByteArray): PublicKey {
         require(bytes.size == 65 && bytes[0] == 0x04.toByte()) {
@@ -229,6 +238,7 @@ class Fido2CryptoService @Inject constructor(
         val x = point.normalize().affineXCoord.toBigInteger()
         val y = point.normalize().affineYCoord.toBigInteger()
 
+        val bcProvider = BouncyCastleProvider()
         val ecSpec = org.bouncycastle.jce.spec.ECNamedCurveSpec(
             "secp256r1",
             P256Group.G.curve,
@@ -238,7 +248,7 @@ class Fido2CryptoService @Inject constructor(
         )
         val javaPoint = JavaECPoint(x, y)
         val pubKeySpec = ECPublicKeySpec(javaPoint, ecSpec)
-        return KeyFactory.getInstance("EC", BouncyCastleProvider.PROVIDER_NAME)
+        return KeyFactory.getInstance("EC", bcProvider)
             .generatePublic(pubKeySpec)
     }
 
