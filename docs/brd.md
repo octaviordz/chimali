@@ -56,7 +56,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.4 Authentication & Security
 - **FR-AUTH-010**: Mandatory Authentication using Biometrics (Fingerprint/Face) or Device PIN, defaulting to the user's device settings.
 - **FR-AUTH-020**: Automatic lock on app backgrounding or device inactivity.
-- **FR-AUTH-030**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing). The backup will be based on a **Master Seed**, ensuring that all credentials can be restored from a single recovery point.
+- **FR-AUTH-030**: Local-first storage with a secure backup mechanism utilizing secret sharing (e.g., Shamir's Secret Sharing). The backup will be based on a **Master Seed**, ensuring that all credentials can be restored from a single recovery point. See [Credential ID Recovery Analysis](research/credential_id_recovery_analysis.md) for details on recovery consistency and deterministic metadata requirements.
 
 ### 4.5 Human Interface & Accessibility
 - **FR-UI-010: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.

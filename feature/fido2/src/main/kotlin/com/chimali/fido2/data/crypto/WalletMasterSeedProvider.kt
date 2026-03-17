@@ -100,7 +100,7 @@ class WalletMasterSeedProvider @Inject constructor(
     }
 
     /**
-     * T146 — Returns the raw BIP39 mnemonic for Dev Tools (debug only).
+     * T146g — Returns the raw BIP39 mnemonic for Dev Tools (debug only).
      * Reads back the persisted mnemonic from [EncryptedSharedPreferences] and splits
      * on spaces. Returns null if no mnemonic has been persisted yet.
      *
@@ -109,5 +109,47 @@ class WalletMasterSeedProvider @Inject constructor(
     override suspend fun getMnemonic(): List<String>? {
         val raw = openEncryptedPrefs().getString(KEY_MNEMONIC, null)
         return if (raw.isNullOrBlank()) null else raw.split(" ")
+    }
+
+    /**
+     * T146g — Imports a BIP39 mnemonic, replacing any existing seed.
+     *
+     * The [mnemonic] [CharArray] is zeroed after use regardless of success or failure.
+     * Cache is invalidated on success so the next [getMasterSeed]/[getDeviceKeyPair] call
+     * re-derives from the new seed.
+     *
+     * @throws IllegalArgumentException if the word count is not exactly 24.
+     */
+    override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
+        try {
+            val mnemonicString = String(mnemonic)
+            val words = mnemonicString.split(" ")
+            require(words.size == 24) {
+                "Invalid mnemonic: expected 24 words, got ${words.size}."
+            }
+
+            val prefs = openEncryptedPrefs()
+            val alreadyExisted = !prefs.getString(KEY_MNEMONIC, null).isNullOrBlank()
+
+            prefs.edit()
+                .putString(KEY_MNEMONIC, mnemonicString)
+                .commit() // commit() (synchronous) guarantees disk write before cache invalidation
+
+            invalidateCache()
+
+            // Re-derive immediately so the new seed is live for any in-flight FIDO2 operations.
+            ensureInitialized()
+
+            Log.i(TAG, "Master seed imported (${if (alreadyExisted) "replaced existing" else "first import"})")
+            return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
+        } finally {
+            mnemonic.fill('\u0000')
+        }
+    }
+
+    @Synchronized
+    private fun invalidateCache() {
+        cachedSeed = null
+        cachedDeviceKeyPair = null
     }
 }

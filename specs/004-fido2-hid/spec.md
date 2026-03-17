@@ -105,7 +105,7 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **FR-HID-018**: System MUST support credential enumeration and management
 - **FR-HID-019**: System MUST implement proper error handling for FIDO2 protocol failures
 - **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions
-- **FR-HID-023**: System MUST automatically clear sensitive data from system clipboard within 60 seconds of copy action
+- **FR-HID-023**: System MUST provide a secure copy mechanism that automatically clears sensitive data (e.g. mnemonic seeds) from the system clipboard within 60 seconds of the copy action, avoiding prohibited background monitoring.
 
 ### Key Entities *(include if feature involves data)*
 

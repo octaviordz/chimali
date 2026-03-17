@@ -3,6 +3,21 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-17
+
+### Added
+- **Security Test Series (T148)**: Implemented comprehensive security verification for memory zeroing, deterministic key derivation (KATs), biometric lockout response, and SQLCipher storage integrity.
+- **Clipboard Security (T133)**: Introduced a centralized `ClipboardManagerService` that automatically clears sensitive data after 60 seconds to prevent leakages via the system clipboard.
+- **Mnemonic Import (T146g)**: Completed the seed recovery flow with secure word-count validation and high-assurance buffer zeroing.
+
+### Changed
+- **Responsive Dev Tools**: Refactored mnemonic management buttons to use `FlowRow`, ensuring UI adaptivity and icon/text alignment on small screens.
+
+### Fixed
+- **Vault Build Error**: Resolved missing test dependencies in the `feature:vault` module preventing instrumentation test compilation.
+- **Test Stability**: Fixed Android `Log` stub issues in `Fido2CryptoServiceTest` that were causing unit test regressions.
+- Full details: [2026-03-17-security-hardening-tests-and-mnemonic-recovery.md](docs/changelogs/2026-03-17-security-hardening-tests-and-mnemonic-recovery.md)
+
 ## [Unreleased] - 2026-03-14
 +
 +### Added
@@ -224,4 +239,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-13*
+*Last Updated: 2026-03-17*

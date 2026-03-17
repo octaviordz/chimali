@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -199,22 +201,54 @@ fun DevelopmentToolsScreen(
                     // Seed word grid
                     MnemonicWordGrid(words = state.mnemonicWords!!)
 
-                    // QR code toggle
+                    // QR code toggle and Copy
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedButton(
+                            onClick = { devToolsViewModel.onIntent(DevToolsIntent.CopyToClipboard) },
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        ) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                            ) {
+                                Icon(
+                                    Icons.Default.CopyAll,
+                                    contentDescription = null,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                                Text(
+                                    "Copy",
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                            }
+                        }
+                        OutlinedButton(
                             onClick = { showQrCode = !showQrCode },
                             modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
-                            Icon(
-                                if (showQrCode) Icons.Default.VisibilityOff else Icons.Default.QrCode,
-                                contentDescription = null
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(if (showQrCode) "Hide QR" else "Show QR")
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                            ) {
+                                Icon(
+                                    if (showQrCode) Icons.Default.VisibilityOff else Icons.Default.QrCode,
+                                    contentDescription = null,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                                Text(
+                                    if (showQrCode) "Hide QR" else "QR",
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                            }
                         }
                         OutlinedButton(
                             onClick = { devToolsViewModel.onIntent(DevToolsIntent.ClearMnemonic); showQrCode = false },
@@ -222,11 +256,24 @@ fun DevelopmentToolsScreen(
                             shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
-                            )
+                            ),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
-                            Icon(Icons.Default.VisibilityOff, contentDescription = null)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Clear")
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                            ) {
+                                Icon(
+                                    Icons.Default.VisibilityOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                                Text(
+                                    "Clear",
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                )
+                            }
                         }
                     }
 

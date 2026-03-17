@@ -20,6 +20,18 @@ import com.chimali.core.security.api.HdkKeyPair
  * - Providing the device key pair derived from that seed.
  * - Returning null when the seed is not available (vault locked / not yet created).
  */
+/**
+ * Result of a [MasterSeedProvider.importMnemonic] operation.
+ *
+ * - [Created]  — no mnemonic existed; the provided one is now the active seed.
+ * - [Replaced] — a mnemonic already existed and has been overwritten; any credentials
+ *   derived from the previous seed are now orphaned and must be re-registered.
+ */
+sealed interface ImportMnemonicResult {
+    data object Created : ImportMnemonicResult
+    data object Replaced : ImportMnemonicResult
+}
+
 interface MasterSeedProvider {
     /**
      * Returns the 32-byte master seed, or null if not yet initialized or wallet is locked.
@@ -41,4 +53,18 @@ interface MasterSeedProvider {
      * contexts in production code.
      */
     suspend fun getMnemonic(): List<String>?
+
+    /**
+     * T146g — Imports a BIP39 mnemonic, persisting it as the new active master seed.
+     *
+     * The [mnemonic] [CharArray] must contain exactly 24 space-separated words joined into
+     * a single char sequence (e.g. `"word1 word2 … word24".toCharArray()`).  The array is
+     * **zeroed immediately after use**; the caller must not rely on its content afterwards.
+     *
+     * If a mnemonic already exists it is **overwritten** and [ImportMnemonicResult.Replaced]
+     * is returned so the caller can warn the user that existing credentials are now orphaned.
+     *
+     * @throws IllegalArgumentException if the word count is not exactly 24.
+     */
+    suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult
 }

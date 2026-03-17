@@ -24,7 +24,8 @@ Implement a FIDO2 Virtual Authenticator using BluetoothHidDevice to enable passw
 **Target Platform**: Android 9.0+ (API 28+) with Bluetooth HID support  
 **Project Type**: Mobile Application with FIDO2 Virtual Authenticator functionality  
 **Performance Goals**: Bluetooth HID operations <200ms, Registration <30s, Authentication <5s, 95%+ success rate  
-**Constraints**: <200ms p95 for HID operations, <100MB memory, offline-capable, StrongBox support when available  
+**Constraints**: <200ms p95 for HID operations, <100MB memory, offline-capable, StrongBox support when available
+**Clipboard**: System clipboard clearing is managed explicitly by an in-app `ClipboardManagerService` injected via Hilt that launches a 60-second coroutine delay upon copying, rather than system-level background monitoring.  
 **Scale/Scope**: Support 50 credentials per user, 10+ minute continuous Bluetooth sessions
 
 ## Constitution Check

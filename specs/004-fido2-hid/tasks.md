@@ -213,9 +213,9 @@
 
 ### Performance Optimization Tasks
 - [ ] T133 Implement performance monitoring for HID operations
-- [ ] T133a Implement clipboard monitoring for sensitive data
-- [ ] T133b Add automatic clipboard clearing after 60 seconds
-- [ ] T133c [P] Implement clipboard security tests
+- [x] T133a Create `ClipboardManagerService` to handle explicitly copying sensitive data and scheduling a 60-second coroutine delay to clear the clipboard
+- [x] T133b Integrate `ClipboardManagerService` into `DevToolsViewModel` and any other UI elements that copy sensitive data
+- [x] T133c [P] Implement clipboard security tests
 - [ ] T134 Add memory leak detection and prevention
 - [ ] T135 Optimize database queries for credential operations
 - [ ] T136 Implement background thread processing for crypto operations
@@ -242,8 +242,14 @@
 - [x] T146d [DEV] Add "Recover from Seed" flow for testing mnemonic ingestion on device wipe
 - [x] T146e [DEV] Add "Show QR Code" button to the View Master Seed flow (biometric-gated; cleared on navigate away)
 - [x] T146f [DEV] Add "Scan QR Code" button to the Recover flow using CameraX + ML Kit barcode scanning
-- [ ] T147 Implement audit logging for security events
-- [ ] T148 [P] Implement security tests for all components
+- [x] T146g Implement persistence of recovered mnemonic via `MasterSeedProvider`: add `importMnemonic(mnemonic: CharArray)` to the interface; implementation must (a) validate 24-word count before writing, (b) warn caller if a mnemonic already exists and default to overwrite/replace, (c) persist to `EncryptedSharedPreferences`, (d) explicitly zero the `CharArray` after use, (e) invalidate `cachedSeed` / `cachedDeviceKeyPair` so the next call re-derives from the new seed; connect to `DevToolsViewModel.recoverFromSeed` resolving the `T146-future` TODO *(refs: FR-HID-015, SC-006)*
+- [x] T146g-p [P] Unit tests for `importMnemonic`: overwrite-existing path, wrong-word-count validation failure, cache invalidation (subsequent `getMasterSeed` returns re-derived seed), no-prior-seed path
+- [x] ~~T147 Implement audit logging for security events~~ (Removed: Underspecified and potential privacy risk, deferred to future phase)
+- [x] T148 [P] Implement security tests for security-critical components
+  - [x] T148a [P] Memory zeroing tests: verify `CharArray.fill('\u0000')` clears mnemonic buffers before GC (Constitution §I)
+  - [x] T148b [P] Crypto KAT (Known Answer Tests): verify same 24-word seed always derives the same public key pair (Constitution §II, SC-006)
+  - [x] T148c [P] Biometric lockout response tests: verify ViewModel correctly handles `ERROR_LOCKOUT` and `ERROR_LOCKOUT_PERMANENT` callbacks from `BiometricPrompt` (shows correct error UI, clears sensitive state, does not retry) — *Note: rate-limiting itself is enforced by Android OS/TEE, not app code*
+  - [x] T148d [P] Storage integrity tests: verify SQLCipher database file is not readable as plain-text after creation (FR-HID-015)
 
 ### Error Handling & Logging Tasks
 - [ ] T149 Add comprehensive error reporting

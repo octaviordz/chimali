@@ -39,4 +39,10 @@ dependencies {
     
     // Google Fonts for legibility fonts
     implementation("androidx.compose.ui:ui-text-google-fonts")
+
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }

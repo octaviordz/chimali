@@ -7,8 +7,11 @@ import com.chimali.core.security.hdkeys.P256Group
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -38,6 +41,11 @@ class Fido2CryptoServiceTest {
     @BeforeEach
     fun setUp() {
         Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.d(any(), any()) } returns 0
+        every { android.util.Log.e(any(), any(), any()) } returns 0
+        every { android.util.Log.w(any(), any<String>(), any()) } returns 0
+        every { android.util.Log.i(any(), any()) } returns 0
 
         hdkManager = mockk()
         masterSeedProvider = mockk()
@@ -47,6 +55,11 @@ class Fido2CryptoServiceTest {
         coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
 
         service = Fido2CryptoService(hdkManager, masterSeedProvider)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        unmockkStatic(android.util.Log::class)
     }
 
     @Nested
@@ -155,6 +168,90 @@ class Fido2CryptoServiceTest {
             val publicKey = service.getPublicKey("some-cred")
 
             assertNotNull(publicKey)
+        }
+    }
+
+    /**
+     * T148b — Known-Answer Tests (KAT) for deterministic HDK key derivation.
+     *
+     * Verifies Constitution §II and SC-006: the same BIP39 seed MUST always derive
+     * the exact same public key for a given credential ID, enabling wallet recovery.
+     *
+     * Uses a real [HdkEcdhP256] instance (no mocking) so the math is actually exercised.
+     */
+    @Nested
+    inner class KnownAnswerTests {
+
+        private val realHdkManager = com.chimali.core.security.hdkeys.HdkEcdhP256()
+
+        @Test
+        fun `T148b same seed and credentialId always derives the same public key`() = runTest {
+            // Given: a fixed seed (simulating recovery from the same 24-word mnemonic)
+            val fixedSeed = ByteArray(32) { (it * 7 + 3).toByte() }
+            val credentialId = "kat-credential-stable"
+
+            coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
+            coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
+
+            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider)
+
+            // When: derive twice from the same seed
+            val keyPair1 = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keyPair2 = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+
+            // Then: public key bytes are identical (determinism — SC-006)
+            assertTrue(
+                keyPair1.publicKeyBytes.contentEquals(keyPair2.publicKeyBytes),
+                "Same seed must always yield the same public key (SC-006)"
+            )
+        }
+
+        @Test
+        fun `T148b different seeds derive different public keys for the same credentialId`() = runTest {
+            // Given: two different seeds (different wallet recoveries)
+            val seed1 = ByteArray(32) { it.toByte() }
+            val seed2 = ByteArray(32) { (255 - it).toByte() }
+            val credentialId = "kat-credential-different-seeds"
+
+            val realService1 = Fido2CryptoService(realHdkManager, masterSeedProvider)
+            val realService2 = Fido2CryptoService(realHdkManager, masterSeedProvider)
+
+            coEvery { masterSeedProvider.getMasterSeed() } returns seed1
+            coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
+            val keyPair1 = realService1.generateCredentialKeyPair(credentialId).getOrThrow()
+
+            coEvery { masterSeedProvider.getMasterSeed() } returns seed2
+            val keyPair2 = realService2.generateCredentialKeyPair(credentialId).getOrThrow()
+
+            // Then: Different seeds must produce different public keys
+            assertTrue(
+                !keyPair1.publicKeyBytes.contentEquals(keyPair2.publicKeyBytes),
+                "Different seeds must produce different public keys"
+            )
+        }
+
+        @Test
+        fun `T148b after seed import re-derived keys differ from old seed keys`() = runTest {
+            // Given: derive a key with the original seed
+            val oldSeed = ByteArray(32) { (it + 1).toByte() }
+            val newSeed = ByteArray(32) { (it + 100).toByte() }
+            val credentialId = "kat-cred-post-import"
+
+            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider)
+
+            coEvery { masterSeedProvider.getMasterSeed() } returns oldSeed
+            coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
+            val keysBeforeImport = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+
+            // Simulate seed import (cache invalidated, new seed returned)
+            coEvery { masterSeedProvider.getMasterSeed() } returns newSeed
+            val keysAfterImport = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+
+            // Then: post-import keys must differ — old credentials are orphaned
+            assertTrue(
+                !keysBeforeImport.publicKeyBytes.contentEquals(keysAfterImport.publicKeyBytes),
+                "After seed replace, derived public keys must change (orphaned credential warning)"
+            )
         }
     }
 }

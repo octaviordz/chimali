@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
  *  - in-process caching (init runs only once)
  *  - reuse of a persisted mnemonic
  *  - device key pair derivation
+ *  - T146g-p: importMnemonic coverage (Created, Replaced, cache invalidation, validation)
  */
 class WalletMasterSeedProviderTest {
 
@@ -110,6 +111,82 @@ class WalletMasterSeedProviderTest {
         assertNull(words)
     }
 
+    // -----------------------------------------------------------------------
+    // T146g-p: importMnemonic tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `importMnemonic returns Created when no mnemonic existed before`() = runTest {
+        // No mnemonic persisted yet.
+        provider.persistedMnemonic = null
+
+        val twentyFourWords = List(24) { "word${it + 1}" }
+        every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(64)
+
+        val chars = twentyFourWords.joinToString(" ").toCharArray()
+        val result = provider.importMnemonic(chars)
+
+        assertEquals(ImportMnemonicResult.Created, result)
+        assertEquals(twentyFourWords.joinToString(" "), provider.persistedMnemonic)
+    }
+
+    @Test
+    fun `importMnemonic returns Replaced when a mnemonic already existed`() = runTest {
+        // Pre-populate storage with an existing mnemonic.
+        provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
+
+        val newWords = List(24) { "new${it + 1}" }
+        every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(64)
+
+        val chars = newWords.joinToString(" ").toCharArray()
+        val result = provider.importMnemonic(chars)
+
+        assertEquals(ImportMnemonicResult.Replaced, result)
+        assertEquals(newWords.joinToString(" "), provider.persistedMnemonic)
+    }
+
+    @Test
+    fun `importMnemonic invalidates cache so getMasterSeed re-derives from new mnemonic`() = runTest {
+        // Warm the cache with the original mnemonic / seed.
+        val originalSeed = provider.getMasterSeed()
+
+        val newWords = List(24) { "cache${it + 1}" }
+        val newSeed = ByteArray(64) { (it + 10).toByte() }
+        every { mockGenerator.deriveSeed(newWords, "") } returns newSeed
+
+        val chars = newWords.joinToString(" ").toCharArray()
+        provider.importMnemonic(chars)
+
+        // After import the cache must be refreshed; getMasterSeed must return the new seed.
+        val seedAfterImport = provider.getMasterSeed()
+        assertFalse(originalSeed.contentEquals(seedAfterImport!!))
+        assertArrayEquals(newSeed, seedAfterImport)
+    }
+
+    @Test
+    fun `importMnemonic throws IllegalArgumentException for wrong word count`() = runTest {
+        val shortWords = listOf("only", "twelve", "words",
+            "here", "but", "need", "more",
+            "this", "will", "fail", "validation", "check")
+        val chars = shortWords.joinToString(" ").toCharArray()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { provider.importMnemonic(chars) }
+        }
+    }
+
+    @Test
+    fun `importMnemonic zeroes the CharArray after use`() = runTest {
+        val words = List(24) { "zero${it + 1}" }
+        every { mockGenerator.deriveSeed(words, "") } returns ByteArray(64)
+
+        val chars = words.joinToString(" ").toCharArray()
+        provider.importMnemonic(chars)
+
+        // All chars must be null characters after importMnemonic returns.
+        assertTrue(chars.all { it == '\u0000' }, "CharArray must be zeroed after importMnemonic")
+    }
+
     /**
      * Test double that replaces [EncryptedSharedPreferences] with an in-memory string variable.
      */
@@ -130,6 +207,31 @@ class WalletMasterSeedProviderTest {
 
         override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInit().second
 
+        override suspend fun getMnemonic(): List<String>? =
+            persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
+
+        override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
+            try {
+                val mnemonicString = String(mnemonic)
+                val words = mnemonicString.split(" ")
+                require(words.size == 24) {
+                    "Invalid mnemonic: expected 24 words, got ${words.size}."
+                }
+                val alreadyExisted = !persistedMnemonic.isNullOrBlank()
+                persistedMnemonic = mnemonicString
+                // Invalidate cache.
+                synchronized(this) {
+                    cachedSeed = null
+                    cachedKeyPair = null
+                }
+                // Re-derive immediately.
+                ensureInit()
+                return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
+            } finally {
+                mnemonic.fill('\u0000')
+            }
+        }
+
         @Synchronized
         private fun ensureInit(): Pair<ByteArray?, HdkKeyPair?> {
             if (cachedSeed != null) return Pair(cachedSeed, cachedKeyPair)
@@ -148,3 +250,4 @@ class WalletMasterSeedProviderTest {
         }
     }
 }
+

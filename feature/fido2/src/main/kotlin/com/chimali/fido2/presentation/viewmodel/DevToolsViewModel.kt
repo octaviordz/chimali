@@ -2,6 +2,8 @@ package com.chimali.fido2.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chimali.core.clipboard.ClipboardManagerService
+import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -35,8 +37,18 @@ sealed interface DevToolsIntent {
     data object ClearMnemonic : DevToolsIntent
     /** Dismiss any error message. */
     data object DismissError : DevToolsIntent
+    /** Support copying the mnemonic words to the clipboard securely. */
+    data object CopyToClipboard : DevToolsIntent
     /** Attempt to re-ingest a mnemonic (e.g. from QR scan or manual entry). */
     data class RecoverFromSeed(val words: List<String>) : DevToolsIntent
+    /**
+     * T148c — Notifies the ViewModel that Android BiometricPrompt reported an error.
+     *
+     * Specifically handles [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT]
+     * and [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT].
+     * On lockout the ViewModel must clear any sensitive state from memory immediately.
+     */
+    data class BiometricError(val errorCode: Int, val message: String) : DevToolsIntent
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +76,8 @@ sealed interface DevToolsEffect {
  */
 @HiltViewModel
 class DevToolsViewModel @Inject constructor(
-    private val masterSeedProvider: MasterSeedProvider
+    private val masterSeedProvider: MasterSeedProvider,
+    private val clipboardManagerService: ClipboardManagerService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DevToolsUiState())
@@ -79,7 +92,32 @@ class DevToolsViewModel @Inject constructor(
             is DevToolsIntent.ClearMnemonic -> clearMnemonic()
             is DevToolsIntent.DismissError -> _state.value = _state.value.copy(error = null)
             is DevToolsIntent.RecoverFromSeed -> recoverFromSeed(intent.words)
+            is DevToolsIntent.CopyToClipboard -> {
+                _state.value.mnemonicWords?.joinToString(" ")?.let {
+                    clipboardManagerService.copySensitiveData("Chimali Master Seed", it)
+                    viewModelScope.launch {
+                        _effects.send(DevToolsEffect.ShowSnackbar("Mnemonic copied safely. It will clear in 60s."))
+                    }
+                }
+            }
+            is DevToolsIntent.BiometricError -> handleBiometricError(intent.errorCode, intent.message)
         }
+    }
+
+    /**
+     * T148c — Handles biometric authentication errors from the OS, including lockout
+     * ([android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT] and
+     * [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT]).
+     *
+     * Clears mnemonic from state immediately regardless of error code. No retry is attempted.
+     */
+    private fun handleBiometricError(errorCode: Int, message: String) {
+        _state.value = _state.value.copy(
+            mnemonicWords = null,
+            isMnemonicVisible = false,
+            isLoading = false,
+            error = message
+        )
     }
 
     /** Called from UI after biometric succeeds to show the mnemonic. */
@@ -113,8 +151,12 @@ class DevToolsViewModel @Inject constructor(
     }
 
     /**
-     * Validates and stores a recovering mnemonic (currently just validates word count;
-     * in a real recovery flow this would re-derive and persist via WalletMasterSeedProvider).
+     * Validates the mnemonic word count, then delegates persistence to [MasterSeedProvider].
+     *
+     * Converts the word list to a [CharArray] before passing it to [importMnemonic] so that
+     * the provider can zero the sensitive material after use (Constitution §I).
+     *
+     * If a seed already existed, the user is warned that previous credentials are orphaned.
      */
     private fun recoverFromSeed(words: List<String>) {
         if (words.size != 24) {
@@ -125,9 +167,27 @@ class DevToolsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-            // TODO T146-future: persist recovered mnemonic via WalletMasterSeedProvider
-            _state.value = _state.value.copy(isLoading = false, recoverSuccess = true)
-            _effects.send(DevToolsEffect.ShowSnackbar("Mnemonic validated (${words.size} words). Implement persistence in T146-future."))
+            try {
+                val mnemonicChars = words.joinToString(" ").toCharArray()
+                val result = masterSeedProvider.importMnemonic(mnemonicChars)
+                // mnemonicChars is zeroed by the provider; do not use it after this point.
+
+                val message = when (result) {
+                    is ImportMnemonicResult.Created ->
+                        "Mnemonic imported and persisted successfully."
+                    is ImportMnemonicResult.Replaced ->
+                        "⚠️ Existing seed overwritten. Re-registration required for previous credentials."
+                }
+                _state.value = _state.value.copy(isLoading = false, recoverSuccess = true)
+                _effects.send(DevToolsEffect.ShowSnackbar(message))
+            } catch (e: IllegalArgumentException) {
+                _state.value = _state.value.copy(isLoading = false, error = e.message)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "Failed to import mnemonic: ${e.message}"
+                )
+            }
         }
     }
 }
