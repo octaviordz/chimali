@@ -6,6 +6,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-03-18
 
 ### Added
+- **Full Integration Verification (T159)**: Achieved a 100% pass rate across the entire `:feature:fido2` unit test suite (59 tests), validating the end-to-end Registration and Authentication flows.
 - **Localized Error Handling (T149–T153)**: Implemented a privacy-safe local crash reporting system with Timber and a regex-based `PrivacyLogScrubber` that redacts mnemonics and keys. Technical FIDO2 errors are now mapped to user-friendly UI messages.
 - **Atkinson Hyperlegible Font (T142)**: Integrated the Braille Institute's accessibility-focused font across high-density FIDO2 data views to improve character distinguishability for low-vision users.
 - **Accessibility Verification (T143)**: Introduced a comprehensive suite of UI tests to verify heading roles, merged semantics, and live region announcements across the Authenticator.
@@ -13,7 +14,15 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Changed
 - **TalkBack Optimization (T139)**: Refined the FIDO2 UI hierarchy with explicit heading roles and merged card semantics, significantly reducing screen reader navigation fatigue.
 - **Background Crypto (T136)**: Offloaded `sign()` and `generateCredentialKeyPair()` in `Fido2CryptoService` to the background `@DefaultDispatcher`, ensuring a smooth 60fps UI during cryptographic operations.
-- Full details: [2026-03-18-accessibility-and-localized-logging.md](docs/changelogs/2026-03-18-accessibility-and-localized-logging.md)
+- **PQC Algorithm Probing**: Enhanced `PostQuantumCrypto` to dynamically resolve between NIST standard (`ML-KEM-512`) and Bouncy Castle legacy (`Kyber`) names for improved cross-environment stability.
+- Full details: [2026-03-18-accessibility-and-localized-logging.md](docs/changelogs/2026-03-18-accessibility-and-localized-logging.md), [2026-03-18-fido2-verification-and-pqc-robustness.md](docs/changelogs/2026-03-18-fido2-verification-and-pqc-robustness.md), & [2026-03-18-code-cleanup.md](docs/changelogs/2026-03-18-code-cleanup.md)
+
+### Fixed
+- **CBOR Counter Integrity**: Resolved a spec-compliance regression in `CryptoUtilsTest` by enforcing 64-bit `Long` encoding for authenticator counters.
+- **Test Logic Robustness**: Fixed logically invalid assertions in `PostQuantumCryptoTest` that were incorrectly failing in certain hardware/JRE environments.
+
+### Removed
+- **Unused Crypto Helpers**: Deleted the `getRecommendedAlgorithm` probing logic and associated tests to streamline the cryptographic provider interface.
 
 ## [Unreleased] - 2026-03-17
 

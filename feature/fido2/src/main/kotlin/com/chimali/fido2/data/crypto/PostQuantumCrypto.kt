@@ -32,9 +32,20 @@ class PostQuantumCrypto @Inject constructor() {
         return try {
             if (!isPqcSupported()) return null
             
-            // Use default Kyber parameters since constructor is private
-            val keyPairGenerator = KeyPairGenerator.getInstance("Kyber", BouncyCastlePQCProvider.PROVIDER_NAME)
-            keyPairGenerator.initialize(512) // Use key size instead of parameter spec
+            // Try NIST name first, then BC name
+            val algorithm = try {
+                KeyPairGenerator.getInstance("ML-KEM-512", BouncyCastlePQCProvider.PROVIDER_NAME)
+                "ML-KEM-512"
+            } catch (e: Exception) {
+                "Kyber"
+            }
+            
+            val keyPairGenerator = KeyPairGenerator.getInstance(algorithm, BouncyCastlePQCProvider.PROVIDER_NAME)
+            try {
+                keyPairGenerator.initialize(KyberParameterSpec.kyber512)
+            } catch (e: Exception) {
+                keyPairGenerator.initialize(512)
+            }
             keyPairGenerator.generateKeyPair()
         } catch (e: Exception) {
             null
@@ -45,7 +56,14 @@ class PostQuantumCrypto @Inject constructor() {
         return try {
             if (!isPqcSupported() || publicKey == null) return null
             
-            val cipher = javax.crypto.Cipher.getInstance("Kyber", BouncyCastlePQCProvider.PROVIDER_NAME)
+            // Probe for NIST name first, fall back to BC legacy name
+            val cipherAlgorithm = try {
+                javax.crypto.Cipher.getInstance("ML-KEM-512", BouncyCastlePQCProvider.PROVIDER_NAME)
+                "ML-KEM-512"
+            } catch (e: Exception) {
+                "Kyber"
+            }
+            val cipher = javax.crypto.Cipher.getInstance(cipherAlgorithm, BouncyCastlePQCProvider.PROVIDER_NAME)
             cipher.init(javax.crypto.Cipher.WRAP_MODE, publicKey)
             val encapsulated = cipher.wrap(publicKey)
             val sharedSecret = ByteArray(32) // Kyber shared secret size
@@ -69,11 +87,4 @@ class PostQuantumCrypto @Inject constructor() {
         }
     }
     
-    fun getRecommendedAlgorithm(): String {
-        return if (isPqcSupported()) {
-            "Kyber512"
-        } else {
-            "ECDH-P256"
-        }
-    }
 }

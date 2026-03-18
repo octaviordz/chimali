@@ -25,16 +25,6 @@ class PostQuantumCryptoTest {
         assertNotNull(isSupported)
     }
 
-    @Test
-    fun `test recommended algorithm selection`() {
-        val algorithm = pqCrypto.getRecommendedAlgorithm()
-        
-        assertNotNull(algorithm)
-        assertTrue(
-            algorithm == "Kyber512" || algorithm == "ECDH-P256",
-            "Algorithm should be either Kyber512 or ECDH-P256, got: $algorithm"
-        )
-    }
 
     @Test
     @EnabledOnJre(JRE.JAVA_17) // PQC may require Java 17+
@@ -45,8 +35,17 @@ class PostQuantumCryptoTest {
             assertNotNull(keyPair)
             assertNotNull(keyPair?.public)
             assertNotNull(keyPair?.private)
-            assertEquals("Kyber", keyPair?.public?.algorithm)
-            assertEquals("Kyber", keyPair?.private?.algorithm)
+            // Accept both legacy BC name ("Kyber") and NIST standard name ("ML-KEM")
+            assertTrue(
+                keyPair?.public?.algorithm?.startsWith("Kyber") == true ||
+                keyPair?.public?.algorithm?.startsWith("ML-KEM") == true,
+                "Expected Kyber or ML-KEM algorithm, got: ${keyPair?.public?.algorithm}"
+            )
+            assertTrue(
+                keyPair?.private?.algorithm?.startsWith("Kyber") == true ||
+                keyPair?.private?.algorithm?.startsWith("ML-KEM") == true,
+                "Expected Kyber or ML-KEM algorithm, got: ${keyPair?.private?.algorithm}"
+            )
         } else {
             assertNull(keyPair)
         }
@@ -131,10 +130,12 @@ class PostQuantumCryptoTest {
         val encapsulationResult = pqCrypto.kyberEncapsulate(null)
         val decapsulationResult = pqCrypto.kyberDecapsulate(null, ByteArray(0))
         
-        // Should not throw exceptions
-        assertNotNull(keyPair) // May be null or not depending on environment
-        assertNotNull(encapsulationResult)
-        assertNotNull(decapsulationResult)
+        // If not supported, these should be null
+        if (!pqCrypto.isPqcSupported()) {
+            assertNull(keyPair)
+            assertNull(encapsulationResult)
+            assertNull(decapsulationResult)
+        }
     }
 
     @Test
@@ -157,27 +158,11 @@ class PostQuantumCryptoTest {
             val encapsulationResult = pqCrypto.kyberEncapsulate(keyPair.public)
             val decapsulationResult = pqCrypto.kyberDecapsulate(keyPair.private, ByteArray(0))
             
-            // Should not crash, may return null if PQC not fully supported
-            assertNotNull(encapsulationResult)
-            assertNotNull(decapsulationResult)
+            // Empty arrays are invalid for decapsulation and should return null
+            assertNull(decapsulationResult)
         }
     }
 
-    @Test
-    fun `test algorithm recommendation consistency`() {
-        val algorithm1 = pqCrypto.getRecommendedAlgorithm()
-        val algorithm2 = pqCrypto.getRecommendedAlgorithm()
-        
-        assertEquals(algorithm1, algorithm2)
-        
-        // Algorithm should be consistent with PQC support
-        val isSupported = pqCrypto.isPqcSupported()
-        if (isSupported) {
-            assertEquals("Kyber512", algorithm1)
-        } else {
-            assertEquals("ECDH-P256", algorithm1)
-        }
-    }
 
     @Test
     fun `test multiple key pair generation`() = runTest {

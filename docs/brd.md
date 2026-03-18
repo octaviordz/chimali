@@ -60,6 +60,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ### 4.5 Human Interface & Accessibility
 - **FR-UI-010: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.
+- **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase).*
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
@@ -81,12 +82,14 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - **NFR-PERF-040: Resource Optimization**:
     - Zero memory leaks detected via Profiler or LeakCanary.
     - "Excessive Wake Locks" must remain below 0.1% to minimize battery impact.
+- **NFR-PERF-050: Performance Monitoring and Instrumentation**: The application should implement internal telemetry to monitor HID latency and packet delivery success rates to ensure compliance with NFR-PERF-030. *(Note: Implementation deferred to a future dedicated performance optimization phase).*
 
 ### 5.3 Maintainability
 - **NFR-ARCH-010: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.
 - **NFR-ARCH-020: Dependency Injection**: Use **Hilt** for standardized, compile-time safe dependency management.
 - **NFR-ARCH-030: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
 - **NFR-ARCH-040: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
+- **Documentation Deferral Note**: Comprehensive API documentation and user troubleshooting guides are deferred to a dedicated post-release documentation phase.
 
 ## 6. User Interface & Experience (UI/UX)
 - **Design System**: Material Design 3 (M3).

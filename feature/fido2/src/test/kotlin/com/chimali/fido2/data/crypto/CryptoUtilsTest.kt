@@ -183,7 +183,7 @@ class CryptoUtilsTest {
         val testData = mapOf(
             "rpId" to "example.com",
             "userId" to "user123",
-            "counter" to 42
+            "counter" to 42L
         )
         
         val encoded = cborCodec.encodeToFido2Format(testData)
