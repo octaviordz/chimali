@@ -81,9 +81,16 @@ fun CredentialDetailsScreen(
         title = { Text("Passkey Details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "ID: ${credential.id}",
+                    fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily
+                )
                 Text("User: ${credential.userName}")
                 Text("Display Name: ${credential.userDisplayName}")
-                Text("Relying Party: ${credential.rpId}")
+                Text(
+                    text = "Relying Party: ${credential.rpId}",
+                    fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily
+                )
                 Text("Created: ${credential.createdAt}")
                 Text("Last Used: ${credential.lastUsedAt ?: "Never"}")
                 Text("Sign Count: ${credential.signCount}")

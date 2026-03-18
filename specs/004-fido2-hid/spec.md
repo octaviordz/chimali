@@ -13,6 +13,10 @@
 - Q: What user verification method should be implemented for FIDO2 operations? → A: Biometric (fingerprint/face) + PIN fallback
 - Q: How many passkey credentials should the device support storing? → A: 50 credentials maximum
 
+### Session 2026-03-17
+
+- Q: How should crash reporting be implemented to comply with the Constitution's "no cloud processing" privacy mandate? → A: Local only (logs are saved on-device and never automatically uploaded to the cloud).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

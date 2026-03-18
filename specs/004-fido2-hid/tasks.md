@@ -218,16 +218,16 @@
 - [x] T133c [P] Implement clipboard security tests
 - [ ] T134 Add memory leak detection and prevention
 - [ ] T135 Optimize database queries for credential operations
-- [ ] T136 Implement background thread processing for crypto operations
+- [x] T136 Implement background thread processing for crypto operations
 - [ ] T137 Add caching for frequently accessed credentials
 - [ ] T138 [P] Implement performance tests for all operations
 
 ### Accessibility Tasks
-- [ ] T139 Add TalkBack support to all Compose screens
+- [x] T139 Add TalkBack support to all Compose screens
 - [ ] T140 Implement high-contrast theme support
 - [ ] T141 Add dynamic text scaling support
-- [ ] T142 Use Atkinson Hyperlegible font for security text
-- [ ] T143 [P] Implement accessibility tests for all screens
+- [x] T142 Use Atkinson Hyperlegible font for security text
+- [x] T143 [P] Implement accessibility tests for all screens
 
 ### Security Hardening Tasks
 - [ ] T144 Add certificate pinning for FIDO2 communications
@@ -252,11 +252,11 @@
   - [x] T148d [P] Storage integrity tests: verify SQLCipher database file is not readable as plain-text after creation (FR-HID-015)
 
 ### Error Handling & Logging Tasks
-- [ ] T149 Add comprehensive error reporting
-- [ ] T150 Implement crash reporting for production
-- [ ] T151 Add debug logging for development
-- [ ] T152 Create user-friendly error messages
-- [ ] T153 [P] Implement error handling tests
+- [x] T149 Add comprehensive FIDO2 protocol error reporting 
+- [x] T150 Implement local-only crash reporting mechanism (no cloud sync)
+- [x] T151 Add privacy-safe debug logging (excluding sensitive data)
+- [x] T152 Create user-friendly error messages for connection issues
+- [x] T153 [P] Implement error handling tests
 
 ### Documentation & Deployment Tasks
 - [ ] T154 Update API documentation with examples

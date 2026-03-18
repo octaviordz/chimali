@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider
+import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -181,8 +182,10 @@ class DevToolsViewModel @Inject constructor(
                 _state.value = _state.value.copy(isLoading = false, recoverSuccess = true)
                 _effects.send(DevToolsEffect.ShowSnackbar(message))
             } catch (e: IllegalArgumentException) {
+                Timber.e(e, "Invalid mnemonic provided for recovery")
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to import mnemonic due to unexpected error")
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Failed to import mnemonic: ${e.message}"

@@ -1,23 +1,21 @@
 package com.chimali.fido2.data.crypto
 
 import android.util.Log
+import com.chimali.core.common.di.DefaultDispatcher
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.domain.exception.Fido2Exception
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.math.BigInteger
+import java.security.KeyFactory
 import java.security.PublicKey
-import java.security.SecureRandom
 import java.security.Security
 import java.security.Signature
 import java.security.interfaces.ECPublicKey
-import java.security.spec.ECGenParameterSpec
-import java.security.KeyFactory
-import java.security.spec.ECPublicKeySpec
 import java.security.spec.ECPoint as JavaECPoint
-import java.security.spec.ECParameterSpec
-import java.security.spec.ECFieldFp
-import java.security.spec.EllipticCurve
+import java.security.spec.ECPublicKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,7 +38,8 @@ private const val TAG = "Fido2CryptoService"
 @Singleton
 class Fido2CryptoService @Inject constructor(
     private val hdkManager: HdkManager,
-    private val masterSeedProvider: com.chimali.fido2.data.crypto.MasterSeedProvider
+    private val masterSeedProvider: com.chimali.fido2.data.crypto.MasterSeedProvider,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
 ) {
 
     init {
@@ -64,34 +63,36 @@ class Fido2CryptoService @Inject constructor(
     suspend fun generateCredentialKeyPair(
         credentialId: String,
         requireUserAuth: Boolean = false
-    ): Result<Fido2KeyPair> = runCatching {
-        val seed = masterSeedProvider.getMasterSeed()
-            ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
+    ): Result<Fido2KeyPair> = withContext(defaultDispatcher) {
+        runCatching {
+            val seed = masterSeedProvider.getMasterSeed()
+                ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
 
-        val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
-            ?: throw Fido2Exception.KeyGenerationFailed("Device key pair not available", null)
+            val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
+                ?: throw Fido2Exception.KeyGenerationFailed("Device key pair not available", null)
 
-        val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
-        val path = derivationPath(credentialId)
+            val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
+            val path = derivationPath(credentialId)
 
-        Log.d(TAG, "Deriving HDK key pair for credentialId=$credentialId path=$path")
+            Log.d(TAG, "Deriving HDK key pair for credentialId=$credentialId path=$path")
 
-        val hdkResult = hdkManager.deriveHdk(
-            devicePublicKey = devicePubKeyBytes,
-            seed = seed,
-            path = path
-        )
+            val hdkResult = hdkManager.deriveHdk(
+                devicePublicKey = devicePubKeyBytes,
+                seed = seed,
+                path = path
+            )
 
-        val publicKeyBytes = P256Group.serializeElement(hdkResult.publicKey) // 65 bytes uncompressed
+            val publicKeyBytes = P256Group.serializeElement(hdkResult.publicKey) // 65 bytes uncompressed
 
-        Log.d(TAG, "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}")
-        Fido2KeyPair(
-            alias = credentialAlias(credentialId),
-            publicKeyBytes = publicKeyBytes
-        )
-    }.recoverCatching { e ->
-        Log.e(TAG, "Key derivation failed", e)
-        throw Fido2Exception.KeyGenerationFailed(e.message ?: "Key derivation failed", e)
+            Log.d(TAG, "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}")
+            Fido2KeyPair(
+                alias = credentialAlias(credentialId),
+                publicKeyBytes = publicKeyBytes
+            )
+        }.recoverCatching { e ->
+            Log.e(TAG, "Key derivation failed", e)
+            throw Fido2Exception.KeyGenerationFailed(e.message ?: "Key derivation failed", e)
+        }
     }
 
     /**
@@ -137,42 +138,44 @@ class Fido2CryptoService @Inject constructor(
      * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
      * @return DER-encoded ECDSA signature bytes.
      */
-    suspend fun sign(credentialId: String, data: ByteArray): Result<ByteArray> = runCatching {
-        val seed = masterSeedProvider.getMasterSeed()
-            ?: throw Fido2Exception.KeyNotFound("Master seed not available")
+    suspend fun sign(credentialId: String, data: ByteArray): Result<ByteArray> = withContext(defaultDispatcher) {
+        runCatching {
+            val seed = masterSeedProvider.getMasterSeed()
+                ?: throw Fido2Exception.KeyNotFound("Master seed not available")
 
-        val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
-            ?: throw Fido2Exception.KeyNotFound("Device key pair not available")
+            val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
+                ?: throw Fido2Exception.KeyNotFound("Device key pair not available")
 
-        val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
-        val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
+            val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
+            val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
 
-        val path = derivationPath(credentialId)
-        val hdkResult = hdkManager.deriveHdk(
-            devicePublicKey = devicePubKeyBytes,
-            seed = seed,
-            path = path
-        )
+            val path = derivationPath(credentialId)
+            val hdkResult = hdkManager.deriveHdk(
+                devicePublicKey = devicePubKeyBytes,
+                seed = seed,
+                path = path
+            )
 
-        // Derive the blinded private key: sk' = sk * bf mod n
-        val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
-        val blindedPrivKeyBytes = hdkManager.blindPrivateKey(
-            devicePrivateKey = devicePrivKeyBytes,
-            blindingFactor = blindingFactorBytes
-        )
+            // Derive the blinded private key: sk' = sk * bf mod n
+            val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
+            val blindedPrivKeyBytes = hdkManager.blindPrivateKey(
+                devicePrivateKey = devicePrivKeyBytes,
+                blindingFactor = blindingFactorBytes
+            )
 
-        // Sign using BouncyCastle
-        val signature = signWithRawScalar(blindedPrivKeyBytes, data).also {
-            // Zero out sensitive material immediately
-            blindedPrivKeyBytes.fill(0)
-            devicePrivKeyBytes.fill(0)
+            // Sign using BouncyCastle
+            val signature = signWithRawScalar(blindedPrivKeyBytes, data).also {
+                // Zero out sensitive material immediately
+                blindedPrivKeyBytes.fill(0)
+                devicePrivKeyBytes.fill(0)
+            }
+
+            Log.d(TAG, "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}")
+            signature
+        }.recoverCatching { e ->
+            Log.e(TAG, "Signing failed for $credentialId", e)
+            throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
         }
-
-        Log.d(TAG, "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}")
-        signature
-    }.recoverCatching { e ->
-        Log.e(TAG, "Signing failed for $credentialId", e)
-        throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────

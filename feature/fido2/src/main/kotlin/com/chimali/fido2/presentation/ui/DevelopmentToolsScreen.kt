@@ -26,6 +26,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +46,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
 import com.chimali.fido2.presentation.viewmodel.DevToolsEffect
 import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
+import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
 import com.chimali.fido2.presentation.viewmodel.DevToolsViewModel
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import io.github.alexzhirkevich.qrose.options.QrBallShape
@@ -54,6 +58,7 @@ import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import kotlinx.coroutines.launch
 import android.content.pm.PackageManager
+import com.chimali.core.ui.theme.LegibilityType
 
 /**
  * T146b/c/d/e/f — Development / QA screen housing test utilities.
@@ -101,6 +106,31 @@ fun DevelopmentToolsScreen(
         onDispose { devToolsViewModel.onIntent(DevToolsIntent.ClearMnemonic) }
     }
 
+    DevelopmentToolsContent(
+        state = state,
+        onIntent = devToolsViewModel::onIntent,
+        onHomeTestRegistration = homeViewModel::testRegistration
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun DevelopmentToolsContent(
+    state: DevToolsUiState,
+    onIntent: (DevToolsIntent) -> Unit,
+    onHomeTestRegistration: (MakeCredentialOptions) -> Unit
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var showQrCode by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
+    var showRecoverForm by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) showScanner = true }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -108,7 +138,8 @@ fun DevelopmentToolsScreen(
                     Text(
                         "Development Tools",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics { heading() }
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -137,7 +168,8 @@ fun DevelopmentToolsScreen(
             Text(
                 text = "Test & Debug Utilities",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { heading() }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -154,7 +186,7 @@ fun DevelopmentToolsScreen(
                         challenge = "challenge".toByteArray(),
                         pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
                     )
-                    homeViewModel.testRegistration(mockOptions)
+                    onHomeTestRegistration(mockOptions)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = MaterialTheme.shapes.large
@@ -186,7 +218,7 @@ fun DevelopmentToolsScreen(
                                 title = "View Master Seed",
                                 description = "Authenticate to view your BIP39 mnemonic."
                             ) {
-                                devToolsViewModel.onIntent(DevToolsIntent.LoadMnemonic)
+                                onIntent(DevToolsIntent.LoadMnemonic)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -207,7 +239,7 @@ fun DevelopmentToolsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedButton(
-                            onClick = { devToolsViewModel.onIntent(DevToolsIntent.CopyToClipboard) },
+                            onClick = { onIntent(DevToolsIntent.CopyToClipboard) },
                             modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
@@ -251,7 +283,7 @@ fun DevelopmentToolsScreen(
                             }
                         }
                         OutlinedButton(
-                            onClick = { devToolsViewModel.onIntent(DevToolsIntent.ClearMnemonic); showQrCode = false },
+                            onClick = { onIntent(DevToolsIntent.ClearMnemonic); showQrCode = false },
                             modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.outlinedButtonColors(
@@ -334,7 +366,7 @@ fun DevelopmentToolsScreen(
                             MnemonicQrScanner(
                                 onScanned = { words ->
                                     showScanner = false
-                                    devToolsViewModel.onIntent(DevToolsIntent.RecoverFromSeed(words))
+                                    onIntent(DevToolsIntent.RecoverFromSeed(words))
                                     scope.launch {
                                         snackbarHostState.showSnackbar("Scanned ${words.size} words.")
                                     }
@@ -357,7 +389,7 @@ fun DevelopmentToolsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     ManualMnemonicEntryForm { words ->
-                        devToolsViewModel.onIntent(DevToolsIntent.RecoverFromSeed(words))
+                        onIntent(DevToolsIntent.RecoverFromSeed(words))
                     }
                 }
 
@@ -391,11 +423,13 @@ private fun MnemonicWordGrid(words: List<String>) {
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.border(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant,
-                    RoundedCornerShape(6.dp)
-                )
+                modifier = Modifier
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant,
+                        RoundedCornerShape(6.dp)
+                    )
+                    .semantics(mergeDescendants = true) { }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -409,7 +443,7 @@ private fun MnemonicWordGrid(words: List<String>) {
                     )
                     Text(
                         text = word,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -466,7 +500,7 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
                 onValueChange = { fields[index] = it },
                 label = { Text("${index + 1}", style = MaterialTheme.typography.labelSmall) },
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
                 modifier = Modifier.fillMaxWidth()
             )
         }

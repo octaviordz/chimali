@@ -8,7 +8,8 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
-import com.chimali.fido2.presentation.error.RegistrationErrorHandler
+import com.chimali.fido2.presentation.error.Fido2ErrorHandler
+import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -177,7 +178,8 @@ class AuthenticationPromptViewModel @Inject constructor(
                     emit(AuthenticationEffect.NavigateToSuccess(assertion))
                 }
                 .onFailure { error ->
-                    val ui = RegistrationErrorHandler.handle(error)   // reuse error handler
+                    Timber.e(error, "Authentication process failed")
+                    val ui = Fido2ErrorHandler.handle(error)
                     _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
                 }
         }

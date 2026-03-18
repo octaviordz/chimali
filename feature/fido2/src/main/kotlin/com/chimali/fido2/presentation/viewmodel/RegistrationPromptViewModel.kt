@@ -9,7 +9,8 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
-import com.chimali.fido2.presentation.error.RegistrationErrorHandler
+import com.chimali.fido2.presentation.error.Fido2ErrorHandler
+import timber.log.Timber
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -258,8 +259,10 @@ class RegistrationPromptViewModel @Inject constructor(
                 deferred?.complete(result)
                 pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
 
-                // T074 — delegate error classification to RegistrationErrorHandler
-                val ui = RegistrationErrorHandler.handle(error)
+                Timber.e(error, "Registration process failed")
+
+                // T149 / T152 — delegate error classification to Fido2ErrorHandler
+                val ui = Fido2ErrorHandler.handle(error)
                 _state.value = RegistrationState.Error(ui.message, ui.isRetryable)
             }
         }

@@ -3,12 +3,12 @@ package com.chimali.fido2.presentation.error
 import com.chimali.fido2.domain.exception.Fido2Exception
 
 /**
- * T074 — Registration error handler.
+ * T149 / T152 — FIDO2 error handler.
  *
  * Maps [Fido2Exception] subclasses to user-facing messages and retry recommendations.
  * Keeps the ViewModel clean of string resources by centralising all error classification logic.
  */
-object RegistrationErrorHandler {
+object Fido2ErrorHandler {
 
     data class ErrorUi(
         val title: String,
@@ -76,6 +76,7 @@ object RegistrationErrorHandler {
             ctap2ErrorCode = 0x17 // CTAP2_ERR_PROCESSING
         )
 
+        is Fido2Exception.UnsupportedAlgorithmException,
         is Fido2Exception.UnsupportedAlgorithm -> ErrorUi(
             title       = "Unsupported algorithm",
             message     = "This site requested a cryptographic algorithm not supported by this device.",

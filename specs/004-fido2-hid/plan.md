@@ -1,89 +1,44 @@
 # Implementation Plan: FIDO2 Virtual Authenticator via BluetoothHidDevice
 
-**Branch**: `004-fido2-hid` | **Date**: 2026-03-01 | **Spec**: [spec.md](spec.md)
+**Branch**: `004-fido2-hid` | **Date**: 2026-03-17 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/004-fido2-hid/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Implement a FIDO2 Virtual Authenticator using BluetoothHidDevice to enable passwordless authentication across platforms. The solution will support both FIDO2.0 and FIDO2.1 protocols, with biometric user verification and secure credential storage using Android KeyStore. Based on reference implementations from WIOsense rauth-android library and WioKey Android app, adapted to Kotlin with Clean Architecture principles.
+Implement localized Error Handling & Logging for the FIDO2 Virtual Authenticator. To comply with the strict "no cloud processing" and privacy mandates of the project's Constitution, logging and crash reporting will be entirely local-only (on-device). Sensitive data (e.g., cryptographic material, biometric events) will be explicitly excluded from all logs. The system will provide comprehensive, user-friendly error messages during Bluetooth HID disruptions, FIDO2 protocol failures, or validation errors.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
 **Language/Version**: Kotlin 1.9+ (Android Native)  
-**Primary Dependencies**: AndroidX BiometricPrompt, BluetoothHidDevice, SQLCipher, SQLDelight, Hilt, Jetpack Compose, Bouncy Castle (PQC), ML-KEM/Kyber library, HDK-ECDH-P256 (IETF draft-dijkhuis-cfrg-hdkeys-06)  
-**Storage**: SQLCipher + SQLDelight for encrypted credential metadata; credential private keys are derived via HDK from a BIP39 master seed (stored in `EncryptedSharedPreferences`) — Android KeyStore is used only for root symmetric key wrapping  
-**Testing**: JUnit 5, MockK, Compose UI Testing  
-**Target Platform**: Android 9.0+ (API 28+) with Bluetooth HID support  
-**Project Type**: Mobile Application with FIDO2 Virtual Authenticator functionality  
-**Performance Goals**: Bluetooth HID operations <200ms, Registration <30s, Authentication <5s, 95%+ success rate  
-**Constraints**: <200ms p95 for HID operations, <100MB memory, offline-capable, StrongBox support when available
-**Clipboard**: System clipboard clearing is managed explicitly by an in-app `ClipboardManagerService` injected via Hilt that launches a 60-second coroutine delay upon copying, rather than system-level background monitoring.  
-**Scale/Scope**: Support 50 credentials per user, 10+ minute continuous Bluetooth sessions
+**Primary Dependencies**: AndroidX, Jetpack Compose, Timber (for structured local logging)
+**Storage**: Local App Data directory for crash logs (custom rotating file sink via Timber tree, NEVER shipped to cloud).  
+**Testing**: JUnit 5, MockK (for verifying logger exclusions).  
+**Target Platform**: Android 9.0+ (API 28+)  
+**Project Type**: Mobile Application  
+**Performance Goals**: Local logging overhead < 5ms per event.   
+**Constraints**: Absolute privacy (no remote crash reporting tools like Crashlytics). Sensitive parameters must be masked.  
+**Scale/Scope**: Limit local log files to 5MB rotating buffer to prevent disk exhaustion.
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Security First (Zero-Trust Local-First) ✅
-- ✅ AES-256-GCM encryption via SQLCipher
-- ✅ Android KeyStore with StrongBox support
-- ✅ Memory zeroing for sensitive data
-- ✅ No plain-text credential storage
+### I. Security First (Zero-Trust Local-First)
+- ✅ Local-only crash reporting ensures no sensitive data leaves the device.
+- ✅ Timber trees will be configured to mask or exclude sensitive values from logs.
 
-### Master Seed Architecture ✅
-- ✅ HDK-ECDH-P256 key derivation (IETF draft-dijkhuis-cfrg-hdkeys-06)
-- ✅ BIP39 mnemonic seed generation
+### III. Uncompromising Architecture & Quality 
+- ✅ Error handling mapped cleanly via MVI state flows.
+- ✅ Custom Timber tree implementation for localized capture.
 
-### Uncompromising Architecture & Quality ✅
-- ✅ Clean Architecture with MVI pattern
-- ✅ Hilt dependency injection
-- ✅ Feature-by-module modularization
-- ✅ Detekt and Ktlint static analysis
+### IV. Performance & Reliability Excellence 
+- ✅ Log rotation (e.g., 5MB cap) ensures no disk/memory leaks from logging.
 
-### Performance & Reliability Excellence ✅
-- ✅ Cold Start <2s, Warm Start <1s, Hot Start <500ms targets
-- ✅ 60 FPS maintenance during interactions
-- ✅ Bluetooth HID operations <200ms
-- ✅ Zero memory leaks requirement
-- ✅ 10,000+ vault item scalability
+### VI. Inclusion & Universal Accessibility
+- ✅ User-friendly error messages mapped from technical CTAP2 codes.
 
-### Cross-Platform Utility & Modern UX ✅
-- ✅ BluetoothHidDevice for cross-platform authentication
-- ✅ Material Design 3 with dynamic coloring
-
-### Inclusion & Universal Accessibility ✅
-- ✅ TalkBack screen reader support
-- ✅ High-contrast modes
-- ✅ Dynamic text scaling
-- ✅ Atkinson Hyperlegible font for security
-
-### Documentation Standards ✅
-- ✅ IEEE 830 SRS principles
-- ✅ Stable mnemonic path format (FR-HID-NNN)
-- ✅ Living documentation practices
-
-### Technical Constraints ✅
-- ✅ Android Native (Minimum SDK 28)
-- ✅ Kotlin primary with Rust for core crypto
-- ✅ KMP-ready module structure
-- ✅ SQLCipher + SQLDelight storage
-- ✅ Jetpack Compose UI
-- ✅ Bluetooth HID Device Profile
-- ✅ On-device AI only
-
-### Development Workflow & Testing ✅
-- ✅ TDD approach
-- ✅ 100% unit test coverage for core logic
-- ✅ Comprehensive integration tests
-- ✅ Compose UI Testing
+### Technical Constraints & Privacy Focus
+- ✅ No cloud crash reporting meets the "On-device AI only / no cloud processing" mandate.
 
 ## Project Structure
 
@@ -91,68 +46,23 @@ Implement a FIDO2 Virtual Authenticator using BluetoothHidDevice to enable passw
 
 ```text
 specs/004-fido2-hid/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # This file
+├── research.md          
+├── data-model.md        
+├── contracts/           
+└── tasks.md             
 ```
 
 ### Source Code (repository root)
 
 ```text
-# FIDO2 Virtual Authenticator Module Structure
 feature/fido2/
 ├── src/main/kotlin/
-│   ├── domain/
-│   │   ├── model/          # Domain models (PasskeyCredential, RelyingParty, etc.)
-│   │   ├── repository/      # Repository interfaces
-│   │   └── usecase/        # Use cases (RegisterCredential, Authenticate, etc.)
-│   ├── data/
-│   │   ├── local/          # SQLDelight database + DAOs
-│   │   ├── remote/         # Bluetooth HID transport
-│   │   └── repository/     # Repository implementations
 │   ├── presentation/
-│   │   ├── ui/            # Jetpack Compose screens
-│   │   ├── viewmodel/      # MVI ViewModels
-│   │   └── navigation/     # Navigation components
-│   └── di/                # Hilt modules
-├── src/test/kotlin/        # Unit tests
-└── src/androidTest/kotlin/  # Integration tests
-
-# Core Bluetooth HID Module
-core/bluetooth/
-├── src/main/kotlin/
-│   ├── hid/              # Bluetooth HID device abstraction
-│   ├── ctap/             # CTAP2 protocol implementation
-│   └── transport/         # Transport layer management
-└── src/test/kotlin/
-
-# Core Crypto Module
-core/crypto/
-├── src/main/kotlin/
-│   ├── keystore/         # Android KeyStore wrapper
-│   ├── hdkey/            # Hierarchical deterministic keys
-│   └── fido2/            # FIDO2 cryptographic operations
-└── src/test/kotlin/
-
-# Core Data Module
-core/data/
-├── src/main/kotlin/
-│   ├── database/         # SQLDelight setup
-│   ├── encrypted/         # SQLCipher integration
-│   └── migration/        # Database migrations
-└── src/test/kotlin/
+│   │   ├── error/          # User-friendly error mapping
+│   ├── util/
+│   │   ├── logging/        # Timber trees and local crash reporting sinks
+├── src/test/kotlin/        # Unit tests verifying no sensitive data is logged
 ```
 
-**Structure Decision**: Feature-by-module architecture following Clean Architecture principles. The FIDO2 authenticator is implemented as a feature module with dependencies on core modules for Bluetooth, crypto, and data functionality. This aligns with Chimali's KMP-ready structure and enables independent testing and deployment.
-
-## Complexity Tracking
-
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Structure Decision**: Extending the existing Clean Architecture within `feature:fido2` module, adding utilities for local logging and refined presentation mappers for error states.

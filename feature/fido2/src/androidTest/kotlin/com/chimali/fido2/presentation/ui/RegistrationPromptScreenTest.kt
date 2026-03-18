@@ -1,5 +1,7 @@
 package com.chimali.fido2.presentation.ui
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.domain.service.VerificationMethod
@@ -22,7 +24,7 @@ class RegistrationPromptScreenTest {
     // ── AwaitingUserConsent state ─────────────────────────────────────────────
 
     @Test
-    fun `shows RP name and user name in consent state`() {
+    fun showsRpNameAndUserNameInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.AwaitingUserConsent(
@@ -34,8 +36,6 @@ class RegistrationPromptScreenTest {
                 ),
                 onConfirm   = {},
                 onCancel    = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onRetry     = {}
             )
         }
@@ -43,10 +43,35 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithText("Example Corp").assertIsDisplayed()
         composeTestRule.onNodeWithText("example.com").assertIsDisplayed()
         composeTestRule.onNodeWithText("Alice").assertIsDisplayed()
+
+        // T143: Verify heading role for screen title
+        composeTestRule.onNodeWithText("Create Passkey")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
     @Test
-    fun `shows Create Passkey button and Cancel button in consent state`() {
+    fun rpAndUserCardsHaveMergedDescendantsForTalkBack() {
+        composeTestRule.setContent {
+            RegistrationPromptContent(
+                state = RegistrationState.AwaitingUserConsent(
+                    rpId            = "example.com",
+                    rpName          = "Example Corp",
+                    userName        = "alice@example.com",
+                    userDisplayName = "Alice",
+                    availableMethod = VerificationMethod.NONE
+                ),
+                onConfirm = {}, onCancel = {}, onRetry = {}
+            )
+        }
+
+        // T143: Verify RP card merges descendants
+        // We find by RP name and check if it's a single node containing the ID
+        composeTestRule.onNode(hasText("Example Corp").and(hasText("example.com")), useUnmergedTree = false)
+            .assertExists()
+    }
+
+    @Test
+    fun showsCreatePasskeyButtonAndCancelButtonInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.AwaitingUserConsent(
@@ -56,8 +81,8 @@ class RegistrationPromptScreenTest {
                     userDisplayName = "User",
                     availableMethod = VerificationMethod.NONE
                 ),
-                onConfirm = {}, onCancel = {}, onBiometric = {},
-                onPinSubmit = {}, onRetry = {}
+                onConfirm = {}, onCancel = {},
+                onRetry = {}
             )
         }
 
@@ -66,7 +91,7 @@ class RegistrationPromptScreenTest {
     }
 
     @Test
-    fun `confirm button click triggers onConfirm callback`() {
+    fun confirmButtonClickTriggersOnConfirmCallback() {
         var confirmCalled = false
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -78,7 +103,7 @@ class RegistrationPromptScreenTest {
                     availableMethod = VerificationMethod.NONE
                 ),
                 onConfirm = { confirmCalled = true },
-                onCancel = {}, onBiometric = {}, onPinSubmit = {}, onRetry = {}
+                onCancel = {}, onRetry = {}
             )
         }
 
@@ -87,7 +112,7 @@ class RegistrationPromptScreenTest {
     }
 
     @Test
-    fun `cancel button click triggers onCancel callback`() {
+    fun cancelButtonClickTriggersOnCancelCallback() {
         var cancelCalled = false
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -99,7 +124,7 @@ class RegistrationPromptScreenTest {
                     availableMethod = VerificationMethod.NONE
                 ),
                 onConfirm = {}, onCancel = { cancelCalled = true },
-                onBiometric = {}, onPinSubmit = {}, onRetry = {}
+                onRetry = {}
             )
         }
 
@@ -110,12 +135,12 @@ class RegistrationPromptScreenTest {
     // ── Processing state ──────────────────────────────────────────────────────
 
     @Test
-    fun `shows progress indicator in processing state`() {
+    fun showsProgressIndicatorInProcessingState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Processing,
-                onConfirm = {}, onCancel = {}, onBiometric = {},
-                onPinSubmit = {}, onRetry = {}
+                onConfirm = {}, onCancel = {},
+                onRetry = {}
             )
         }
 
@@ -125,26 +150,30 @@ class RegistrationPromptScreenTest {
     // ── Error state ───────────────────────────────────────────────────────────
 
     @Test
-    fun `shows error message in error state`() {
+    fun showsErrorMessageInErrorState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Something went wrong", isRetryable = true),
-                onConfirm = {}, onCancel = {}, onBiometric = {},
-                onPinSubmit = {}, onRetry = {}
+                onConfirm = {}, onCancel = {},
+                onRetry = {}
             )
         }
 
         composeTestRule.onNodeWithText("Something went wrong").assertIsDisplayed()
         composeTestRule.onNodeWithText("Try again").assertIsDisplayed()
+
+        // T143: Verify live region for automatic announcement
+        composeTestRule.onNode(hasAnyDescendant(hasText("Something went wrong")))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test
-    fun `hides retry button for non-retryable errors`() {
+    fun hidesRetryButtonForNonRetryableErrors() {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Not allowed", isRetryable = false),
-                onConfirm = {}, onCancel = {}, onBiometric = {},
-                onPinSubmit = {}, onRetry = {}
+                onConfirm = {}, onCancel = {},
+                onRetry = {}
             )
         }
 
@@ -152,43 +181,4 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithText("Try again").assertDoesNotExist()
     }
 
-    // ── PinEntryDialog tests ──────────────────────────────────────────────────
-
-    @Test
-    fun `PinEntryDialog confirm button disabled when pin is empty`() {
-        composeTestRule.setContent {
-            PinEntryDialog(
-                onDismiss = {},
-                onPinEnteredAndConfirmed = {}
-            )
-        }
-
-        composeTestRule.onNodeWithContentDescription("Confirm PIN button").assertIsNotEnabled()
-    }
-
-    @Test
-    fun `PinEntryDialog confirm button enabled after typing minimum digits`() {
-        composeTestRule.setContent {
-            PinEntryDialog(
-                minPinLength = 4,
-                onDismiss = {},
-                onPinEnteredAndConfirmed = {}
-            )
-        }
-
-        composeTestRule.onNodeWithContentDescription("PIN input field").performTextInput("1234")
-        composeTestRule.onNodeWithContentDescription("Confirm PIN button").assertIsEnabled()
-    }
-
-    @Test
-    fun `PinEntryDialog show-hide PIN toggle exists`() {
-        composeTestRule.setContent {
-            PinEntryDialog(
-                onDismiss = {},
-                onPinEnteredAndConfirmed = {}
-            )
-        }
-
-        composeTestRule.onNodeWithContentDescription("Show PIN").assertIsDisplayed()
-    }
 }

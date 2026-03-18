@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import android.util.Log
+import timber.log.Timber
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -66,7 +67,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
                 else -> byteArrayOf(CTAP2_ERR_UNSUPPORTED_OPTION)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception handling credential management", e)
+            Timber.e(e, "Exception handling credential management")
             byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }

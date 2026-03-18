@@ -57,12 +57,21 @@ android {
             }
         }
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+        }
+    }
 }
 
 dependencies {
     // Project Modules
     implementation(project(":core:common"))
     implementation(project(":core:security"))
+    implementation(project(":core:ui"))
 
     // Core Android
     implementation(libs.androidx.core.ktx)
@@ -127,4 +136,7 @@ dependencies {
     debugImplementation(libs.camera.lifecycle)
     debugImplementation(libs.camera.view)
     debugImplementation(libs.mlkit.barcode.scanning)
+
+    // Logging
+    implementation(libs.timber)
 }

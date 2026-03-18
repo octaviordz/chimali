@@ -1,5 +1,7 @@
 package com.chimali.fido2.presentation.ui
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.domain.model.AssertionObject
@@ -33,8 +35,6 @@ class AuthenticationPromptScreenTest {
                 ),
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -43,6 +43,10 @@ class AuthenticationPromptScreenTest {
         composeTestRule.onNodeWithText("https://example.com").assertIsDisplayed()
         composeTestRule.onNodeWithText("Sign in").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
+
+        // T143: Verify heading role for screen title
+        composeTestRule.onNodeWithText("Sign in with Passkey")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
     @Test
@@ -57,8 +61,6 @@ class AuthenticationPromptScreenTest {
                 ),
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -76,8 +78,6 @@ class AuthenticationPromptScreenTest {
                 state = AuthenticationState.Processing,
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -97,8 +97,6 @@ class AuthenticationPromptScreenTest {
                 state = AuthenticationState.Success(testAssertion),
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -106,6 +104,13 @@ class AuthenticationPromptScreenTest {
 
         composeTestRule.onNodeWithText("Signed in!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Authentication successful.").assertIsDisplayed()
+
+        // T143: Verify live region and heading for success state
+        composeTestRule.onNodeWithText("Signed in!")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+        
+        composeTestRule.onNode(hasAnyDescendant(hasText("Signed in!")))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     // ── Error state ─────────────────────────────────────────────────────────
@@ -117,8 +122,6 @@ class AuthenticationPromptScreenTest {
                 state = AuthenticationState.Error("Network timeout", isRetryable = true),
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -128,6 +131,13 @@ class AuthenticationPromptScreenTest {
         composeTestRule.onNodeWithText("Network timeout").assertIsDisplayed()
         composeTestRule.onNodeWithText("Try again").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
+
+        // T143: Verify live region and heading for error state
+        composeTestRule.onNodeWithText("Authentication failed")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+
+        composeTestRule.onNode(hasAnyDescendant(hasText("Authentication failed")))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test
@@ -137,8 +147,6 @@ class AuthenticationPromptScreenTest {
                 state = AuthenticationState.Error("Fatal error", isRetryable = false),
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )
@@ -154,11 +162,9 @@ class AuthenticationPromptScreenTest {
     fun awaitingBiometric_showsVerifyingIdentity() {
         composeTestRule.setContent {
             AuthenticationPromptContent(
-                state = AuthenticationState.AwaitingBiometric,
+                state = AuthenticationState.AwaitingUserVerification,
                 onConfirm = {},
                 onCancel = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onSelectCredential = {},
                 onRetry = {}
             )

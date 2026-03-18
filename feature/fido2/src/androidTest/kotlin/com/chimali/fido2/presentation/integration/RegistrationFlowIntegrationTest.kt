@@ -28,7 +28,7 @@ class RegistrationFlowIntegrationTest {
     val composeRule = androidx.compose.ui.test.junit4.createComposeRule()
 
     @Test
-    fun `full flow - consent to processing shows progress indicator`() {
+    fun fullFlow_consentToProcessingShowsProgressIndicator() {
         val states = mutableListOf<RegistrationState>()
         var currentState: RegistrationState = RegistrationState.AwaitingUserConsent(
             rpId            = "example.com",
@@ -46,8 +46,6 @@ class RegistrationFlowIntegrationTest {
                     states.add(currentState)
                 },
                 onCancel    = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onRetry     = {}
             )
         }
@@ -61,7 +59,7 @@ class RegistrationFlowIntegrationTest {
     }
 
     @Test
-    fun `cancel flow - dismisses and calls onCancel`() {
+    fun cancelFlow_dismissesAndCallsOnCancel() {
         var cancelCalled = false
         composeRule.setContent {
             RegistrationPromptContent(
@@ -74,8 +72,6 @@ class RegistrationFlowIntegrationTest {
                 ),
                 onConfirm   = {},
                 onCancel    = { cancelCalled = true },
-                onBiometric = {},
-                onPinSubmit = {},
                 onRetry     = {}
             )
         }
@@ -85,15 +81,13 @@ class RegistrationFlowIntegrationTest {
     }
 
     @Test
-    fun `error retry flow - shows retry button and errors are recoverable`() {
+    fun errorRetryFlow_showsRetryButtonAndErrorsAreRecoverable() {
         var retryCalled = false
         composeRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Timeout", isRetryable = true),
                 onConfirm   = {},
                 onCancel    = {},
-                onBiometric = {},
-                onPinSubmit = {},
                 onRetry     = { retryCalled = true }
             )
         }
@@ -103,7 +97,7 @@ class RegistrationFlowIntegrationTest {
     }
 
     @Test
-    fun `success state displays passkey created message`() {
+    fun successStateDisplaysPasskeyCreatedMessage() {
         composeRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Success(
@@ -113,8 +107,7 @@ class RegistrationFlowIntegrationTest {
                         userName = "alice"
                     )
                 ),
-                onConfirm = {}, onCancel = {}, onBiometric = {},
-                onPinSubmit = {}, onRetry = {}
+                onConfirm = {}, onCancel = {}, onRetry = {}
             )
         }
 

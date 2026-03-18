@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import android.util.Log
+import timber.log.Timber
 import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +28,7 @@ class Ctap2ResetAuthenticatorHandler @Inject constructor(
                 byteArrayOf(0x17) // CTAP2_ERR_PROCESSING
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception handling authenticator reset", e)
+            Timber.e(e, "Exception handling authenticator reset")
             byteArrayOf(0x17) // CTAP2_ERR_PROCESSING
         }
     }

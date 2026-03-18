@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.api.VaultItem
@@ -30,7 +32,7 @@ fun VaultListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Credentials Vault") },
+                title = { Text("Credentials Vault", modifier = Modifier.semantics { heading() }) },
                 actions = {
                     IconButton(onClick = onManageLabelsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Manage Labels")
@@ -89,7 +91,8 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(16.dp)
+            .semantics(mergeDescendants = true) { },
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {

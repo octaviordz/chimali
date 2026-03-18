@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import android.util.Log
+import timber.log.Timber
 import com.chimali.fido2.data.crypto.AuthenticatorDataBuilder
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -64,7 +65,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
                     byteArrayOf(0x00.toByte()) + responseBytes  // CTAP2_OK + response
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "Assertion failed: ${error.message}", error)
+                    Timber.e(error, "Assertion failed: ${error.message}")
                     val errorCode: Byte = when (error) {
                         is Fido2Exception.CredentialNotFound      -> 0x22.toByte() // CTAP2_ERR_NO_CREDENTIALS
                         is Fido2Exception.UserVerificationFailed  -> 0x29.toByte() // CTAP2_ERR_OPERATION_DENIED
@@ -75,7 +76,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
                 }
             )
         } catch (e: Exception) {
-            Log.e(TAG, "GetAssertion handler exception: ${e.message}", e)
+            Timber.e(e, "GetAssertion handler exception: ${e.message}")
             byteArrayOf(0x17.toByte()) // CTAP2_ERR_PROCESSING
         }
     }

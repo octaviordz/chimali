@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-18
+
+### Added
+- **Localized Error Handling (T149–T153)**: Implemented a privacy-safe local crash reporting system with Timber and a regex-based `PrivacyLogScrubber` that redacts mnemonics and keys. Technical FIDO2 errors are now mapped to user-friendly UI messages.
+- **Atkinson Hyperlegible Font (T142)**: Integrated the Braille Institute's accessibility-focused font across high-density FIDO2 data views to improve character distinguishability for low-vision users.
+- **Accessibility Verification (T143)**: Introduced a comprehensive suite of UI tests to verify heading roles, merged semantics, and live region announcements across the Authenticator.
+
+### Changed
+- **TalkBack Optimization (T139)**: Refined the FIDO2 UI hierarchy with explicit heading roles and merged card semantics, significantly reducing screen reader navigation fatigue.
+- **Background Crypto (T136)**: Offloaded `sign()` and `generateCredentialKeyPair()` in `Fido2CryptoService` to the background `@DefaultDispatcher`, ensuring a smooth 60fps UI during cryptographic operations.
+- Full details: [2026-03-18-accessibility-and-localized-logging.md](docs/changelogs/2026-03-18-accessibility-and-localized-logging.md)
+
 ## [Unreleased] - 2026-03-17
 
 ### Added
@@ -239,4 +251,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-17*
+*Last Updated: 2026-03-18*

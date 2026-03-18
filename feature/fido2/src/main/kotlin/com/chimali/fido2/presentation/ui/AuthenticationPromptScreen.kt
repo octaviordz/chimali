@@ -12,7 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -138,9 +141,9 @@ internal fun AuthenticationPromptContent(
                             }
                         }
                         Spacer(Modifier.height(24.dp))
-                        Text("Sign in with Passkey", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text("Sign in with Passkey", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
                         Spacer(Modifier.height(8.dp))
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(currentState.rpId, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                 if (currentState.credentialCount > 1) {
@@ -185,15 +188,27 @@ internal fun AuthenticationPromptContent(
                 ) { AuthenticationProgressIndicator() }
 
                 is AuthenticationState.Success -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(32.dp)) {
-                        Text("Signed in!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .padding(32.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite }
+                    ) {
+                        Text("Signed in!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
                         Text("Authentication successful.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
                 is AuthenticationState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(32.dp)) {
-                        Text("Authentication failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .padding(32.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite }
+                    ) {
+                        Text("Authentication failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { heading() })
                         Text(currentState.message, textAlign = TextAlign.Center)
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedButton(onClick = onCancel) { Text("Cancel") }

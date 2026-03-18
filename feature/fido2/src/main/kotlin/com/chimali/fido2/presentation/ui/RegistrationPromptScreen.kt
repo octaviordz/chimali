@@ -14,7 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -187,7 +190,7 @@ internal fun RegistrationPromptContent(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Filled.Lock,
-                                        contentDescription = "Success",
+                                        contentDescription = null,
                                         modifier           = Modifier.size(40.dp),
                                         tint               = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
@@ -196,7 +199,8 @@ internal fun RegistrationPromptContent(
                             Text(
                                 "Passkey created!",
                                 style      = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier   = Modifier.semantics { heading() }
                             )
                             Text(
                                 "You can now sign in with your passkey.",
@@ -272,14 +276,17 @@ private fun AwaitingConsentContent(
         Text(
             text       = "Create Passkey",
             style      = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier   = Modifier.semantics { heading() }
         )
 
         Spacer(Modifier.height(8.dp))
 
         // Site/RP card
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) { },
             shape    = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -303,7 +310,9 @@ private fun AwaitingConsentContent(
 
         // User card
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) { },
             shape    = RoundedCornerShape(12.dp)
         ) {
             Column(

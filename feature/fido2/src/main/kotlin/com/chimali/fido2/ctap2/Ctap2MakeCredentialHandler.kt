@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import android.util.Log
+import timber.log.Timber
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
@@ -105,10 +106,10 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             val params = decodeMakeCredentialRequest(cborData)
             handleMakeCredential(cid, params)
         } catch (e: Fido2Exception) {
-            Log.e(TAG, "MakeCredential error: ${e.message}")
+            Timber.e(e, "MakeCredential error: ${e.message}")
             errorPackets(cid, mapExceptionToStatus(e))
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error in MakeCredential", e)
+            Timber.e(e, "Unexpected error in MakeCredential")
             errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
         }
     }
@@ -199,7 +200,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         if (attestationResult.isFailure) {
             val ex = attestationResult.exceptionOrNull()
-            Log.e(TAG, "Registration failed or cancelled: ${ex?.message}", ex)
+            Timber.e(ex, "Registration failed or cancelled: ${ex?.message}")
             return when (ex) {
                 is Fido2Exception.CredentialException ->
                     errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
