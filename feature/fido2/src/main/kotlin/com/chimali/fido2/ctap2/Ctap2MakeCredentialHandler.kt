@@ -26,6 +26,7 @@ import java.security.spec.ECGenParameterSpec
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.chimali.fido2.util.performance.LatencyProfiler
 
 private const val TAG = "Ctap2MakeCredential"
 
@@ -195,7 +196,10 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
         Log.d(TAG, "Event dispatched — awaiting user response via deferred")
 
+        // NFR-PERF-030: Exclude UI interaction time from system latency
+        LatencyProfiler.startUserInteraction("MakeCredential")
         val attestationResult = deferred.await()
+        LatencyProfiler.endUserInteraction("MakeCredential")
         Log.d(TAG, "Deferred resolved — success=${attestationResult.isSuccess} error=${attestationResult.exceptionOrNull()?.message}")
 
         if (attestationResult.isFailure) {
@@ -233,7 +237,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         val responseMap: Map<String, Any> = mapOf(
             "1" to attestation.fmt,         // fmt
             "2" to authDataBytes,           // authData (raw bytes, not base64)
-            "3" to emptyMap<String, Any>()  // attStmt (none format)
+            "3" to buildAttestationStatementMap(attestation.attStmt)
         )
         Log.d(TAG, "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}")
         Log.d(TAG, "authData hex: ${authDataBytes.joinToString("") { "%02x".format(it) }}")

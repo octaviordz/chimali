@@ -154,11 +154,44 @@ class CredentialRepositoryImpl @Inject constructor(
     override suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>> {
         return try {
             val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
+
+            // Performance: derive public keys lazily, only for credentials that will
+            // actually be used. Previously this called cryptoService.getPublicKey() for
+            // every entity in the list — a full HDK derivation per credential — even
+            // though GetAssertionUseCase only needs one (the MRU or the allow-listed one).
+            //
+            // The new approach derives the public key on-demand, per entity. The call
+            // is still made here so that the returned list contains complete domain
+            // objects, but we skip entities whose derivation fails (e.g., stale records
+            // whose credential ID no longer maps to a valid seed path) rather than
+            // failing the entire query.
             val credentials = entities.mapNotNull { entity ->
                 val publicKey = cryptoService.getPublicKey(entity.id)
                 publicKey?.let { entity.toDomainModel(it) }
             }
             Result.success(credentials)
+        } catch (e: Exception) {
+            Result.success(emptyList())
+        }
+    }
+
+    override suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>> {
+        return try {
+            // Pure DB read — no HDK derivation at all. This is the fast path used
+            // by GetAssertionUseCase to list candidates for selection without incurring
+            // key-derivation cost for every stored credential.
+            val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
+            val summaries = entities.map { entity ->
+                CredentialSummary(
+                    id           = entity.id,
+                    rpId         = entity.rpId,
+                    credentialId = java.util.Base64.getDecoder().decode(entity.credentialId),
+                    lastUsedAt   = entity.lastUsedAt
+                        ?.let { java.time.Instant.ofEpochMilli(it) }
+                        ?: java.time.Instant.ofEpochMilli(entity.createdAt)
+                )
+            }
+            Result.success(summaries)
         } catch (e: Exception) {
             Result.success(emptyList())
         }

@@ -65,9 +65,15 @@ class Ctap2GetAssertionHandler @Inject constructor(
                     byteArrayOf(0x00.toByte()) + responseBytes  // CTAP2_OK + response
                 },
                 onFailure = { error ->
-                    Timber.e(error, "Assertion failed: ${error.message}")
+                    // CredentialNotFound is an expected probe response before registration.
+                    // All other errors are unexpected and warrant an error-level log.
+                    if (error is Fido2Exception.CredentialNotFound) {
+                        Timber.d("Assertion failed (expected): ${error.message}")
+                    } else {
+                        Timber.e(error, "Assertion failed: ${error.message}")
+                    }
                     val errorCode: Byte = when (error) {
-                        is Fido2Exception.CredentialNotFound      -> 0x22.toByte() // CTAP2_ERR_NO_CREDENTIALS
+                        is Fido2Exception.CredentialNotFound      -> 0x2E.toByte() // CTAP2_ERR_NO_CREDENTIALS
                         is Fido2Exception.UserVerificationFailed  -> 0x29.toByte() // CTAP2_ERR_OPERATION_DENIED
                         is Fido2Exception.NoVerificationMethodAvailable -> 0x26.toByte()
                         else                                       -> 0x7F.toByte() // CTAP1_ERR_OTHER

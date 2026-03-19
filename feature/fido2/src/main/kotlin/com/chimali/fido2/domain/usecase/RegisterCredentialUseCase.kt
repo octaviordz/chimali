@@ -278,11 +278,8 @@ class RegisterCredentialUseCase @Inject constructor(
             publicKey = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
         )
 
-        // Compute clientDataHash (SHA-256 of the JSON-serialised clientData)
-        val clientDataJson = """{"type":"webauthn.create","challenge":"${java.util.Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(options.challenge)}","origin":"${options.rp.id}"}"""
-        val clientDataHash = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(clientDataJson.toByteArray(Charsets.UTF_8))
+        // For CTAP2, the host already computed the clientDataHash and passed it in options.challenge.
+        val clientDataHash = options.challenge
 
         // Sign authData || clientDataHash with the HDK-derived key (packed self-attestation)
         val signatureResult = cryptoService.sign(
@@ -331,18 +328,16 @@ class RegisterCredentialUseCase @Inject constructor(
     private fun createAuthenticatorFlags(options: MakeCredentialOptions): ByteArray {
         var flags = 0x00
         
-        // Set user present flag
+        // Set user present flag (UP)
         flags = flags or 0x01
         
-        // Set user verified flag if verification is required
+        // Set user verified flag (UV) if verification is required
         if (options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED) {
             flags = flags or 0x04
         }
         
-        // Set user verification flag if verification is required
-        if (options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED) {
-            flags = flags or 0x04
-        }
+        // Set attested credential data included flag (AT)
+        flags = flags or 0x40
         
         return byteArrayOf(flags.toByte())
     }

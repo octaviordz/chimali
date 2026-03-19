@@ -14,8 +14,10 @@ import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
 import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.service.AuthenticatorInfo
+import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
@@ -40,6 +42,8 @@ import java.security.spec.ECGenParameterSpec
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.chimali.fido2.util.performance.LatencyProfiler
+import com.chimali.fido2.util.performance.WarmUpHelper
 
 private const val TAG = "BluetoothHidTransport"
 
@@ -80,7 +84,9 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val responseBuilder: Ctap2ResponseBuilder,
     private val fido2Authenticator: Fido2Authenticator,
     private val fido2EventBus: Fido2EventBus,
-    private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator
+    private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator,
+    private val userVerificationService: UserVerificationService,
+    private val cryptoService: Fido2CryptoService
 ) : Fido2Transport {
 
     private val secureRandom = SecureRandom()
@@ -154,7 +160,42 @@ class BluetoothHidTransportImpl @Inject constructor(
             when (state) {
                 is HidConnectionState.Connected -> {
                     Log.i(TAG, "Host connected: ${state.device.address}")
-                    // Transport is ready for CTAPHID_INIT from the host
+                    // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
+                    // real GetAssertion ceremony doesn't pay cold-start costs.
+                    //
+                    // The host still has to complete CTAPHID_INIT channel negotiation +
+                    // the Windows pre-flight GetAssertion checks before issuing the real
+                    // ceremony, giving this coroutine a realistic head start.
+                    //
+                    // All results are discarded — only the side-effects (cache population
+                    // and TEE channel initialisation) matter. Failures are non-fatal.
+                    scope.launch(Dispatchers.IO) {
+                        // (1) BiometricManager availability cache — eliminates 50–150ms
+                        //     Binder IPC into Android SystemServer on first UV check.
+                        runCatching { userVerificationService.getUserVerificationAvailability() }
+                            .onFailure { e ->
+                                Log.w(TAG, "BiometricManager pre-warm failed (non-fatal): ${e.message}")
+                            }
+
+                        // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
+                        //     HAL init spike on the first Crypto.sign() call.
+                        //     Fido2Initializer also calls this at app start, but the first
+                        //     CTAP2 message can arrive before that warmup finishes on a
+                        //     parallel thread. Repeating it here at connect-time is safe
+                        //     (the key already exists; it's just a 5ms lookup + sign).
+                        WarmUpHelper.warmUpAndroidKeyStore()
+
+                        // (3) Master seed (EncryptedSharedPreferences) — the dominant
+                        //     cold-start cost in Crypto.sign(). On the first call per session,
+                        //     getMasterSeed() decrypts the BIP39 mnemonic using the
+                        //     'androidx_security_master_key_v2' AndroidKeyStore key. That
+                        //     specific key has its own lazy-init cost (~150ms) separate from
+                        //     the generic warmup key exercised by warmUpAndroidKeyStore().
+                        //     After this call, WalletMasterSeedProvider caches the seed in
+                        //     memory, so all subsequent getMasterSeed() calls are ~0ms.
+                        cryptoService.warmUpMasterSeed()
+                    }
+                    // Transport is now ready for CTAPHID_INIT from the host
                 }
                 is HidConnectionState.Advertising -> {
                     Log.d(TAG, "Advertising for host connections")
@@ -254,6 +295,14 @@ class BluetoothHidTransportImpl @Inject constructor(
         }
 
         val ctapCommand = payload[0].toInt() and 0xFF
+        val operationLabel = when (ctapCommand) {
+            0x01 -> "MakeCredential"
+            0x02 -> "GetAssertion"
+            0x04 -> "GetInfo"
+            else -> "CTAP2_0x${ctapCommand.toString(16)}"
+        }
+        // NFR-PERF-030: Start measuring full CTAP2 processing time
+        LatencyProfiler.start(operationLabel)
         Log.d(TAG, "CTAP2 command=0x${ctapCommand.toString(16)} on CID=${cid.toHex()}")
 
         // ── Periodic keepalive loop ────────────────────────────────────────────
@@ -264,11 +313,11 @@ class BluetoothHidTransportImpl @Inject constructor(
         // Fast commands (GetInfo) complete in <10ms; an immediate keepalive would
         // arrive at Windows BEFORE the real response, causing ERROR_INVALID_DATA.
         // The rauth-android reference always sleeps first, then sends.
-        val keepaliveJob: Job = scope.launch {
-            delay(200L)  // ← wait first; fast commands finish before this fires
+        val keepaliveJob: Job = scope.launch(Dispatchers.IO) {
+            delay(75L)  // wait first; spec requires first ~100ms. Reference uses 75ms.
             sendPackets(responseBuilder.keepAliveResponse(cid, 0x01)) // PROCESSING
             while (true) {
-                delay(200L) // 200ms between subsequent keepalives (≤500ms per spec)
+                delay(75L) // 75ms between subsequent keepalives.
                 sendPackets(responseBuilder.keepAliveResponse(cid, 0x02)) // UPNEEDED
             }
         }
@@ -299,6 +348,8 @@ class BluetoothHidTransportImpl @Inject constructor(
             // a keepalive in-flight could arrive at Windows AFTER the CBOR response,
             // corrupting the framing of the next request.
             keepaliveJob.cancelAndJoin()
+            // NFR-PERF-030: Record processing time before transmitting response
+            LatencyProfiler.end(operationLabel)
         }
 
         sendPackets(responsePackets)

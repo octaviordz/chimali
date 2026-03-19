@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.repository
 
+import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.UserConsentRecord
@@ -204,6 +205,19 @@ interface CredentialRepository {
      * @return Result containing list of matching credentials
      */
     suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>>
+
+    /**
+     * T083a — Retrieves lightweight [CredentialSummary] projections for a specific RP.
+     *
+     * Unlike [getCredentialsForRp], this method performs **no HDK key derivation** — it reads
+     * only the database columns required for candidate selection (id, credentialId, lastUsedAt).
+     * Use this in the first phase of GetAssertion to pick the best candidate, then call
+     * [getCredentialById] once to hydrate only the winner with its derived public key.
+     *
+     * @param rpId  The relying party identifier to filter by.
+     * @return Result containing a list of summaries (empty list on DB error).
+     */
+    suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>>
 
     /**
      * T084 — Retrieves the current sign count for a credential.

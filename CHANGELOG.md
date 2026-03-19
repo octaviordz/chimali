@@ -18,8 +18,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - Full details: [2026-03-18-accessibility-and-localized-logging.md](docs/changelogs/2026-03-18-accessibility-and-localized-logging.md), [2026-03-18-fido2-verification-and-pqc-robustness.md](docs/changelogs/2026-03-18-fido2-verification-and-pqc-robustness.md), & [2026-03-18-code-cleanup.md](docs/changelogs/2026-03-18-code-cleanup.md)
 
 ### Fixed
+- **Windows FIDO2 Timeout Bug**: Reduced CTAPHID `KEEPALIVE` initial delay from `200ms` strictly to `75ms` to prevent Windows from silently aborting the FIDO transaction (`ERROR_INVALID_DATA (0x8007000d)`) during heavy cryptographic warmup.
+- **CTAP2 Attestation Compliance**: Synchronized `clientDataHash` handling with `rauth-android` reference implementation, directly signing the raw bytes alongside `authenticatorData` (with `AT` 0x40 flag injected) rather than hashing an artificial JSON envelope. Also fixed `attStmt` encoding to correctly emit `alg` and `sig` for packed attestations.
+- **GetAssertion Pre-flight Logging**: Improved error filtering in `GetAssertionUseCase.kt` to identify `CREDENTIAL_NOT_FOUND` via `errorCode` property rather than strict exception casting, neutralizing noisy error logs caused by anticipated Windows WebAuthn OS probes.
 - **CBOR Counter Integrity**: Resolved a spec-compliance regression in `CryptoUtilsTest` by enforcing 64-bit `Long` encoding for authenticator counters.
 - **Test Logic Robustness**: Fixed logically invalid assertions in `PostQuantumCryptoTest` that were incorrectly failing in certain hardware/JRE environments.
+- Full details: [2026-03-18-fido2-makecredential-timing-and-cbor-fixes.md](docs/changelogs/2026-03-18-fido2-makecredential-timing-and-cbor-fixes.md)
 
 ### Removed
 - **Unused Crypto Helpers**: Deleted the `getRecommendedAlgorithm` probing logic and associated tests to streamline the cryptographic provider interface.

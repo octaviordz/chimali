@@ -8,6 +8,7 @@ import com.chimali.fido2.domain.exception.Fido2Exception
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import com.chimali.fido2.util.performance.LatencyProfiler
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
@@ -129,6 +130,98 @@ class Fido2CryptoService @Inject constructor(
     suspend fun deleteCredentialKey(credentialId: String): Result<Unit> = Result.success(Unit)
 
     /**
+     * Pre-warms the master seed cache to eliminate first-ceremony latency.
+     *
+     * ## Problem (NFR-PERF-030)
+     *
+     * [sign] starts by calling [MasterSeedProvider.getMasterSeed], which on the first
+     * call decrypts the BIP39 mnemonic from `EncryptedSharedPreferences`. That decrypt
+     * uses an AES-256-GCM key stored in AndroidKeyStore under
+     * `_androidx_security_master_key_v2`. The **first access to that specific key** in
+     * a process session costs ~150ms due to the same HAL IPC init that affects all
+     * AndroidKeyStore operations, plus the actual AES-GCM decrypt.
+     *
+     * [WarmUpHelper.warmUpAndroidKeyStore] does NOT help here because it exercises a
+     * *different* key alias (`chimali_fido2_hal_warmup`), not the EncryptedSharedPreferences
+     * master key. Each distinct AndroidKeyStore key has its own lazy-init cost.
+     *
+     * ## Fix
+     *
+     * Call this method once in a fire-and-forget coroutine when the Bluetooth HID host
+     * connects (in [BluetoothHidTransportImpl.observeConnectionState]). By the time
+     * the first real [sign] call arrives, [MasterSeedProvider.getMasterSeed] returns
+     * the in-memory cached value (~0ms), eliminating the ~150ms cold-start spike.
+     *
+     * The result is intentionally discarded. Failures are non-fatal.
+     */
+    suspend fun warmUpMasterSeed() {
+        runCatching {
+            val t0 = System.currentTimeMillis()
+            Log.d(TAG, "Master seed pre-warm START")
+
+            // (1) Decrypt BIP39 mnemonic from EncryptedSharedPreferences (~150ms first call).
+            //     WalletMasterSeedProvider caches the result; subsequent calls return in ~0ms.
+            val seed = masterSeedProvider.getMasterSeed()
+                ?: run {
+                    Log.w(TAG, "Master seed pre-warm: seed not available — skipping full warmup")
+                    return@runCatching
+                }
+
+            val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
+                ?: run {
+                    Log.w(TAG, "Master seed pre-warm: device key pair not available — skipping full warmup")
+                    return@runCatching
+                }
+
+            val t1 = System.currentTimeMillis()
+            Log.d(TAG, "Master seed pre-warm: seed loaded in ${t1 - t0}ms — warming full sign() path")
+
+            // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
+            //
+            //  Previous approach used path=[0] (1 level, ~20ms) but the real sign() uses
+            //  path=[FIDO2_APP_INDEX, credentialIndex] (2 levels, ~65ms). Level 2 HMAC and the
+            //  blindPrivateKey + signWithRawScalar steps were still cold on first ceremony.
+            //
+            //  Now we run the exact same sequence as sign(), with dummy data:
+            //   a) serializeElement + serializeScalar for device key pair
+            //   b) deriveHdk with the REAL 2-level FIDO2 index path
+            //   c) serializeScalar for blinding factor
+            //   d) blindPrivateKey (BigInteger multiply mod n)
+            //   e) signWithRawScalar (KeyFactory.generatePrivate + Signature.sign via BC)
+            //
+            //  After this, every code path in sign() is JIT-compiled. The first real ceremony
+            //  should cost only the steady-state amount (~80-100ms HDK + ECDSA).
+            val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
+            val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
+
+            val warmupPath = derivationPath("warmup") // warms MessageDigest.getInstance("SHA-256")
+            val hdkResult = hdkManager.deriveHdk(
+                devicePublicKey = devicePubKeyBytes,
+                seed = seed,
+                path = warmupPath // real 2-level path derived same way as sign()
+            )
+
+            val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
+            val blindedPrivKeyBytes = hdkManager.blindPrivateKey(
+                devicePrivateKey = devicePrivKeyBytes,
+                blindingFactor = blindingFactorBytes
+            )
+
+            // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
+            // Result is discarded, dummy data avoids doing anything meaningful.
+            signWithRawScalar(blindedPrivKeyBytes, ByteArray(32) { it.toByte() })
+
+            // Zeroise sensitive warmup material
+            blindedPrivKeyBytes.fill(0)
+            devicePrivKeyBytes.fill(0)
+
+            Log.d(TAG, "Master seed pre-warm DONE: seed=${t1 - t0}ms sign-path=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms")
+        }.onFailure { e ->
+            Log.w(TAG, "Master seed pre-warm FAILED (non-fatal): ${e.message}")
+        }
+    }
+
+    /**
      * Signs [data] with the HDK-derived ECDSA P-256 private key for [credentialId].
      *
      * This is the primary signing entry point used by [GetAssertionUseCase]. The
@@ -140,6 +233,8 @@ class Fido2CryptoService @Inject constructor(
      */
     suspend fun sign(credentialId: String, data: ByteArray): Result<ByteArray> = withContext(defaultDispatcher) {
         runCatching {
+            // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
+            LatencyProfiler.start("Crypto.sign")
             val seed = masterSeedProvider.getMasterSeed()
                 ?: throw Fido2Exception.KeyNotFound("Master seed not available")
 
@@ -170,9 +265,11 @@ class Fido2CryptoService @Inject constructor(
                 devicePrivKeyBytes.fill(0)
             }
 
+            LatencyProfiler.end("Crypto.sign")
             Log.d(TAG, "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}")
             signature
         }.recoverCatching { e ->
+            LatencyProfiler.end("Crypto.sign") // ensure timer ends on failure path too
             Log.e(TAG, "Signing failed for $credentialId", e)
             throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
         }
