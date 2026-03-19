@@ -26,7 +26,7 @@
 
 | ID | Requirement | Status | Verification Reference |
 |----|-------------|--------|----------------------|
-| **NFR-PERF-030** | Bluetooth HID Latency < 200ms. | [/] | `LatencyProfiler.kt` — Logcat instrumented in `BluetoothHidTransportImpl` + `Fido2CryptoService` (T160a). **Run device test and check for `✅ PASS` in Logcat.** |
+| **NFR-PERF-030** | Bluetooth HID Latency < 200ms. | [x] | `LatencyProfiler.kt` — Logcat instrumented in `BluetoothHidTransportImpl` + `Fido2CryptoService` (T160a). **Verified `✅ PASS` for all core flows.** |
 | **NFR-PERF-020** | Rendering Smoothness (60 FPS during interactions). | [x] | Background crypto offloading (`T136`) |
 
 ## 4. Non-Functional Requirements (NFR) - Architecture & UA
@@ -45,5 +45,5 @@
 The **FR-HID-010** implementation is 90% compliant. 
 
 **Remaining Items for T163 Completion:**
-1.  **Latency Verification**: Conduct a manual or automated benchmark to confirm <200ms HID response time.
+1.  ~~**Latency Verification**: Conduct a manual or automated benchmark to confirm <200ms HID response time.~~ (Verified via Logcat)
 2.  **Static Analysis**: Execute `gradle detekt ktlintCheck` and resolve any regressions in the `:feature:fido2` module.
