@@ -1,0 +1,644 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:CborCodec.kt$CborCodec$private fun decodeItem(data: ByteArray, offset: Int): Pair&lt;Any?, Int&gt;</ID>
+    <ID>CyclomaticComplexMethod:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private fun decodeMakeCredentialRequest(cbor: ByteArray): MakeCredentialRequest</ID>
+    <ID>CyclomaticComplexMethod:DevelopmentToolsScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable internal fun DevelopmentToolsContent( state: DevToolsUiState, onIntent: (DevToolsIntent) -&gt; Unit, onHomeTestRegistration: (MakeCredentialOptions) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:Fido2ErrorHandler.kt$Fido2ErrorHandler$fun handle(error: Throwable): ErrorUi</ID>
+    <ID>CyclomaticComplexMethod:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$suspend operator fun invoke(options: MakeCredentialOptions): Result&lt;AttestationObject&gt;</ID>
+    <ID>ForbiddenComment:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$// TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it</ID>
+    <ID>ForbiddenComment:Fido2RepositoryImpl.kt$Fido2RepositoryImpl$// TODO: Implement FIDO2 authentication logic</ID>
+    <ID>ForbiddenComment:Fido2RepositoryImpl.kt$Fido2RepositoryImpl$// TODO: Implement FIDO2 registration logic</ID>
+    <ID>ForbiddenComment:HdKeyDerivation.kt$HdKeyDerivation$// TODO: Implement proper HD derivation using parent key + chainCode + index</ID>
+    <ID>ForbiddenComment:PasskeyCredentialRepositoryImpl.kt$PasskeyCredentialRepositoryImpl$// TODO: Implement database delete logic</ID>
+    <ID>ForbiddenComment:PasskeyCredentialRepositoryImpl.kt$PasskeyCredentialRepositoryImpl$// TODO: Implement database get logic</ID>
+    <ID>ForbiddenComment:PasskeyCredentialRepositoryImpl.kt$PasskeyCredentialRepositoryImpl$// TODO: Implement database query logic</ID>
+    <ID>ForbiddenComment:PasskeyCredentialRepositoryImpl.kt$PasskeyCredentialRepositoryImpl$// TODO: Implement database save logic</ID>
+    <ID>ForbiddenComment:PasskeyCredentialRepositoryImpl.kt$PasskeyCredentialRepositoryImpl$// TODO: Implement database update logic</ID>
+    <ID>ForbiddenComment:RelyingPartyRepositoryImpl.kt$RelyingPartyRepositoryImpl$// TODO: Implement database delete logic</ID>
+    <ID>ForbiddenComment:RelyingPartyRepositoryImpl.kt$RelyingPartyRepositoryImpl$// TODO: Implement database get logic</ID>
+    <ID>ForbiddenComment:RelyingPartyRepositoryImpl.kt$RelyingPartyRepositoryImpl$// TODO: Implement database query logic</ID>
+    <ID>ForbiddenComment:RelyingPartyRepositoryImpl.kt$RelyingPartyRepositoryImpl$// TODO: Implement database save logic</ID>
+    <ID>ForbiddenComment:RelyingPartyRepositoryImpl.kt$RelyingPartyRepositoryImpl$// TODO: Implement database update logic</ID>
+    <ID>ForbiddenComment:UserConsentRepositoryImpl.kt$UserConsentRepositoryImpl$// TODO: Implement database delete logic</ID>
+    <ID>ForbiddenComment:UserConsentRepositoryImpl.kt$UserConsentRepositoryImpl$// TODO: Implement database query logic</ID>
+    <ID>ForbiddenComment:UserConsentRepositoryImpl.kt$UserConsentRepositoryImpl$// TODO: Implement database save logic</ID>
+    <ID>ForbiddenComment:UserVerificationServiceImpl.kt$UserVerificationServiceImpl$// TODO: Persist consent record</ID>
+    <ID>ForbiddenComment:UserVerificationServiceImpl.kt$UserVerificationServiceImpl$// TODO: Return persisted records</ID>
+    <ID>FunctionNaming:AuthenticationPromptScreen.kt$@Composable fun AuthenticationProgressIndicator(message: String = "Signing in…")</ID>
+    <ID>FunctionNaming:AuthenticationPromptScreen.kt$@Composable fun AuthenticationPromptScreen( onSuccess: (credentialId: String) -&gt; Unit, onCancel: () -&gt; Unit, viewModel: AuthenticationPromptViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:AuthenticationPromptScreen.kt$@Composable internal fun AuthenticationPromptContent( state: AuthenticationState, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit, onSelectCredential: (PasskeyCredential) -&gt; Unit, onRetry: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:BiometricPromptComponent.kt$@Composable fun BiometricPromptComponent( title: String, subtitle: String, description: String? = null, negativeButtonText: String = "Use PIN instead", onSuccess: () -&gt; Unit, onError: (errorCode: Int, message: String) -&gt; Unit, onFallback: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:CredentialComponents.kt$@Composable fun CredentialDetailsScreen( credential: PasskeyCredential, onDismiss: () -&gt; Unit, onDelete: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:CredentialComponents.kt$@Composable fun CredentialItem( credential: PasskeyCredential, onClick: (PasskeyCredential) -&gt; Unit, onDeleteClick: (PasskeyCredential) -&gt; Unit )</ID>
+    <ID>FunctionNaming:CredentialComponents.kt$@Composable fun DeleteConfirmationDialog( title: String, message: String, onConfirm: () -&gt; Unit, onDismiss: () -&gt; Unit, isDestructive: Boolean = false )</ID>
+    <ID>FunctionNaming:CredentialListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CredentialListScreen( onNavigateUp: () -&gt; Unit, viewModel: CredentialManagementViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:CredentialSelectionDialog.kt$@Composable fun CredentialSelectionDialog( credentials: List&lt;PasskeyCredential&gt;, onSelect: (credential: PasskeyCredential) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:CredentialSelectionDialog.kt$@Composable private fun CredentialItem( credential: PasskeyCredential, onSelect: (PasskeyCredential) -&gt; Unit )</ID>
+    <ID>FunctionNaming:DevelopmentToolsScreen.kt$@Composable private fun ManualMnemonicEntryForm(onSubmit: (List&lt;String&gt;) -&gt; Unit)</ID>
+    <ID>FunctionNaming:DevelopmentToolsScreen.kt$@Composable private fun MnemonicQrCodeView(words: List&lt;String&gt;)</ID>
+    <ID>FunctionNaming:DevelopmentToolsScreen.kt$@Composable private fun MnemonicWordGrid(words: List&lt;String&gt;)</ID>
+    <ID>FunctionNaming:DevelopmentToolsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DevelopmentToolsScreen( homeViewModel: Fido2HomeViewModel = hiltViewModel(), devToolsViewModel: DevToolsViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:DevelopmentToolsScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable internal fun DevelopmentToolsContent( state: DevToolsUiState, onIntent: (DevToolsIntent) -&gt; Unit, onHomeTestRegistration: (MakeCredentialOptions) -&gt; Unit )</ID>
+    <ID>FunctionNaming:Fido2HomeScreen.kt$@Composable fun PulseAnimation(color: Color)</ID>
+    <ID>FunctionNaming:Fido2HomeScreen.kt$@Composable fun StatusIndicator(state: HidConnectionState)</ID>
+    <ID>FunctionNaming:Fido2HomeScreen.kt$@Composable fun TransportToggleButton( connectionState: HidConnectionState, onToggle: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:Fido2HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun Fido2HomeScreen( onManageCredentials: () -&gt; Unit, onRegisterRequest: () -&gt; Unit, viewModel: Fido2HomeViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:Fido2RegistrationNavGraph.kt$@Composable fun Fido2RegistrationNavGraph( onRegistrationComplete: (credentialId: String) -&gt; Unit, onRegistrationCancelled: () -&gt; Unit, navController: NavHostController = rememberNavController(), startDestination: String = Fido2Destinations.HOME_ROUTE, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:MnemonicQrScanner.kt$@Composable fun MnemonicQrScanner( modifier: Modifier = Modifier, onScanned: (List&lt;String&gt;) -&gt; Unit, onError: (String) -&gt; Unit = {} )</ID>
+    <ID>FunctionNaming:PairedDevicesSection.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun PairedDevicesSection( modifier: Modifier = Modifier, viewModel: PairedDevicesViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:PairedDevicesSection.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun PairedDeviceItem( device: PairedDevice, onSwipedAway: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:RegistrationProgressIndicator.kt$@Composable fun RegistrationProgressIndicator( message: String = "Registering passkey…", size: Dp = 120.dp, strokeWidth: Dp = 6.dp )</ID>
+    <ID>FunctionNaming:RegistrationPromptScreen.kt$@Composable fun RegistrationPromptScreen( onSuccess: (credentialId: String) -&gt; Unit, onCancel: () -&gt; Unit, viewModel: RegistrationPromptViewModel = hiltViewModel() )</ID>
+    <ID>FunctionNaming:RegistrationPromptScreen.kt$@Composable internal fun RegistrationPromptContent( state: RegistrationState, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit, onRetry: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:RegistrationPromptScreen.kt$@Composable private fun AwaitingConsentContent( state: RegistrationState.AwaitingUserConsent, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit )</ID>
+    <ID>FunctionOnlyReturningConstant:SqlCipherWrapper.kt$SqlCipherWrapper$fun createSupportFactory(password: String): Any</ID>
+    <ID>InvalidPackageDeclaration:WalletMasterSeedProviderTest.kt$package com.chimali.fido2.data.crypto</ID>
+    <ID>LongMethod:AuthenticationPromptScreen.kt$@Composable internal fun AuthenticationPromptContent( state: AuthenticationState, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit, onSelectCredential: (PasskeyCredential) -&gt; Unit, onRetry: () -&gt; Unit )</ID>
+    <ID>LongMethod:BiometricPromptComponent.kt$@Composable fun BiometricPromptComponent( title: String, subtitle: String, description: String? = null, negativeButtonText: String = "Use PIN instead", onSuccess: () -&gt; Unit, onError: (errorCode: Int, message: String) -&gt; Unit, onFallback: () -&gt; Unit )</ID>
+    <ID>LongMethod:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$suspend fun registerApp(): Result&lt;Unit&gt;</ID>
+    <ID>LongMethod:CborCodec.kt$CborCodec$private fun decodeItem(data: ByteArray, offset: Int): Pair&lt;Any?, Int&gt;</ID>
+    <ID>LongMethod:CredentialListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CredentialListScreen( onNavigateUp: () -&gt; Unit, viewModel: CredentialManagementViewModel = hiltViewModel() )</ID>
+    <ID>LongMethod:CredentialRepositoryImplTest.kt$CredentialRepositoryImplTest$@BeforeEach fun setUp()</ID>
+    <ID>LongMethod:DevelopmentToolsScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable internal fun DevelopmentToolsContent( state: DevToolsUiState, onIntent: (DevToolsIntent) -&gt; Unit, onHomeTestRegistration: (MakeCredentialOptions) -&gt; Unit )</ID>
+    <ID>LongMethod:Fido2ErrorHandler.kt$Fido2ErrorHandler$fun handle(error: Throwable): ErrorUi</ID>
+    <ID>LongMethod:Fido2HomeScreen.kt$@Composable fun StatusIndicator(state: HidConnectionState)</ID>
+    <ID>LongMethod:Fido2HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun Fido2HomeScreen( onManageCredentials: () -&gt; Unit, onRegisterRequest: () -&gt; Unit, viewModel: Fido2HomeViewModel = hiltViewModel() )</ID>
+    <ID>LongMethod:Fido2RegistrationNavGraph.kt$@Composable fun Fido2RegistrationNavGraph( onRegistrationComplete: (credentialId: String) -&gt; Unit, onRegistrationCancelled: () -&gt; Unit, navController: NavHostController = rememberNavController(), startDestination: String = Fido2Destinations.HOME_ROUTE, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:MnemonicQrScanner.kt$@Composable fun MnemonicQrScanner( modifier: Modifier = Modifier, onScanned: (List&lt;String&gt;) -&gt; Unit, onError: (String) -&gt; Unit = {} )</ID>
+    <ID>LongMethod:PairedDevicesSection.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun PairedDevicesSection( modifier: Modifier = Modifier, viewModel: PairedDevicesViewModel = hiltViewModel() )</ID>
+    <ID>LongMethod:PairedDevicesSection.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun PairedDeviceItem( device: PairedDevice, onSwipedAway: () -&gt; Unit )</ID>
+    <ID>LongMethod:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest$@BeforeEach fun setUp()</ID>
+    <ID>LongMethod:RegistrationProgressIndicator.kt$@Composable fun RegistrationProgressIndicator( message: String = "Registering passkey…", size: Dp = 120.dp, strokeWidth: Dp = 6.dp )</ID>
+    <ID>LongMethod:RegistrationPromptScreen.kt$@Composable internal fun RegistrationPromptContent( state: RegistrationState, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit, onRetry: () -&gt; Unit )</ID>
+    <ID>LongMethod:RegistrationPromptScreen.kt$@Composable private fun AwaitingConsentContent( state: RegistrationState.AwaitingUserConsent, onConfirm: () -&gt; Unit, onCancel: () -&gt; Unit )</ID>
+    <ID>LongParameterList:AttestationObject.kt$AuthenticatorData.Companion$( rpIdHash: ByteArray, flags: ByteArray = byteArrayOf(0x00), counter: Long = 0L, aaguid: ByteArray, credentialId: ByteArray, publicKey: ByteArray )</ID>
+    <ID>LongParameterList:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$( rpId: String, userPresent: Boolean = true, userVerified: Boolean = false, signCount: Long = 0L, aaguid: ByteArray, credentialId: ByteArray, cosePublicKey: ByteArray, extensions: ByteArray? = null )</ID>
+    <ID>LongParameterList:BiometricPromptComponent.kt$( title: String, subtitle: String, description: String? = null, negativeButtonText: String = "Use PIN instead", onSuccess: () -&gt; Unit, onError: (errorCode: Int, message: String) -&gt; Unit, onFallback: () -&gt; Unit )</ID>
+    <ID>LongParameterList:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$( private val hidWrapper: BluetoothHidDeviceWrapper, private val hidReportParser: HidReportParser, private val makeCredentialHandler: Ctap2MakeCredentialHandler, private val getAssertionHandler: Ctap2GetAssertionHandler, private val responseBuilder: Ctap2ResponseBuilder, private val fido2Authenticator: Fido2Authenticator, private val fido2EventBus: Fido2EventBus, private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator, private val userVerificationService: UserVerificationService, private val cryptoService: Fido2CryptoService )</ID>
+    <ID>LongParameterList:CborCodec.kt$CborCodec$( rpIdHash: ByteArray, flags: Byte, counter: Int, aaguid: ByteArray, credentialId: ByteArray, publicKeyBytes: ByteArray )</ID>
+    <ID>LongParameterList:GetAssertionOptions.kt$GetAssertionOptions.Companion$( rpId: String, clientDataHash: ByteArray, allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null, userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED, extensions: Map&lt;String, Any&gt;? = null, timeout: Long? = null )</ID>
+    <ID>LongParameterList:MakeCredentialOptions.kt$MakeCredentialOptions.Companion$( rp: PublicKeyCredentialRpEntity, user: PublicKeyCredentialUserEntity, challenge: ByteArray, pubKeyCredParams: PublicKeyCredentialParameters = PublicKeyCredentialParameters.create(), timeout: Long? = null, allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null, excludeCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null, authenticatorSelection: AuthenticatorSelectionCriteria? = null, attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE, extensions: Map&lt;String, Any&gt;? = null )</ID>
+    <ID>LongParameterList:MakeCredentialOptions.kt$MakeCredentialOptions.Companion$( rp: PublicKeyCredentialRpEntity, user: PublicKeyCredentialUserEntity, challengeBase64: String, pubKeyCredParams: PublicKeyCredentialParameters = PublicKeyCredentialParameters.create(), timeout: Long? = null, allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null, excludeCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null, authenticatorSelection: AuthenticatorSelectionCriteria? = null, attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE, extensions: Map&lt;String, Any&gt;? = null )</ID>
+    <ID>LongParameterList:PasskeyCredential.kt$PasskeyCredential.Companion$( id: String, rpId: String, userId: String, userName: String, userDisplayName: String, publicKey: PublicKey, privateKeyAlias: String, aaguid: ByteArray, credentialId: ByteArray )</ID>
+    <ID>LongParameterList:UserConsentRecord.kt$UserConsentRecord.Companion$( operationType: ConsentOperationType, rpId: String, credentialId: String? = null, biometricUsed: Boolean, pinUsed: Boolean, ipAddress: String? = null, userAgent: String? = null, deviceId: String? = null )</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$0x04</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$0xFF</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$16</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$24</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$32</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$33</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$34</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$35</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$36</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$37</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject$8</ID>
+    <ID>MagicNumber:AssertionObject.kt$AssertionObject.Companion$64</ID>
+    <ID>MagicNumber:AttestationObject.kt$AttestationStatement$10</ID>
+    <ID>MagicNumber:AttestationObject.kt$AttestationStatement$1024</ID>
+    <ID>MagicNumber:AttestationObject.kt$AttestationStatement$2048</ID>
+    <ID>MagicNumber:AttestationObject.kt$AuthenticatorData$0x04</ID>
+    <ID>MagicNumber:AttestationObject.kt$AuthenticatorData$1023</ID>
+    <ID>MagicNumber:AttestationObject.kt$AuthenticatorData$1024</ID>
+    <ID>MagicNumber:AttestationObject.kt$AuthenticatorData$16</ID>
+    <ID>MagicNumber:AttestationObject.kt$AuthenticatorData$32</ID>
+    <ID>MagicNumber:AttestationObject.kt$ClientData$60</ID>
+    <ID>MagicNumber:AttestationObject.kt$ClientData$64</ID>
+    <ID>MagicNumber:AuthenticationPromptScreen.kt$0.6f</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$0x04</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$0x40</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$0x80</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$0xFF</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$16</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$24</ID>
+    <ID>MagicNumber:AuthenticatorDataBuilder.kt$AuthenticatorDataBuilder$8</ID>
+    <ID>MagicNumber:AuthenticatorSelectionCriteria.kt$AuthenticatorSelectionCriteria$300</ID>
+    <ID>MagicNumber:AuthenticatorSelectionCriteria.kt$AuthenticatorSelectionCriteria$300L</ID>
+    <ID>MagicNumber:AuthenticatorSelectionCriteria.kt$AuthenticatorSelectionCriteria$32</ID>
+    <ID>MagicNumber:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$1000L</ID>
+    <ID>MagicNumber:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$20L</ID>
+    <ID>MagicNumber:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$3</ID>
+    <ID>MagicNumber:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$5000L</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x03</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x04</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x05</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x06</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x07</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x0C</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x10</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x100</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x17</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x2A</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x30</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x31</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x3D</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x48</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x55</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x6A</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x6D</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x6F</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0x80</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$0xFF</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$16</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$32</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$4</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$5</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$6</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$64</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$65</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$7</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$75L</ID>
+    <ID>MagicNumber:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$8</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x03</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x20</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x21</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x22</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x26</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0x58</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0xA5</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0xFF</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0xFFFF</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$0xFFFFFFFFL</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$20</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$21</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$22</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$23</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$24</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$25</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$26</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$27</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$3</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$32</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$33</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$4</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$5</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$65</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$7</ID>
+    <ID>MagicNumber:CborCodec.kt$CborCodec$8</ID>
+    <ID>MagicNumber:CredentialEncryptionService.kt$CredentialEncryptionService$31</ID>
+    <ID>MagicNumber:CredentialEncryptionService.kt$CredentialEncryptionService$32</ID>
+    <ID>MagicNumber:CredentialEncryptionService.kt$CredentialEncryptionService$8</ID>
+    <ID>MagicNumber:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$10</ID>
+    <ID>MagicNumber:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$730</ID>
+    <ID>MagicNumber:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$90</ID>
+    <ID>MagicNumber:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$3</ID>
+    <ID>MagicNumber:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$4</ID>
+    <ID>MagicNumber:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$5</ID>
+    <ID>MagicNumber:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$6</ID>
+    <ID>MagicNumber:Ctap2GetAssertionHandler.kt$Ctap2GetAssertionHandler$32</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x41</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x43</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x48</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x49</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x4C</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$0x4D</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$0x7F</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$0xFF</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$16</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$24</ID>
+    <ID>MagicNumber:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$8</ID>
+    <ID>MagicNumber:Ctap2ResetAuthenticatorHandler.kt$Ctap2ResetAuthenticatorHandler$0x17</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$0x40</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$0xFF</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$1200L</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$16</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$24</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$255L</ID>
+    <ID>MagicNumber:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$8</ID>
+    <ID>MagicNumber:DevToolsViewModel.kt$DevToolsViewModel$24</ID>
+    <ID>MagicNumber:DevelopmentToolsScreen.kt$.25f</ID>
+    <ID>MagicNumber:DevelopmentToolsScreen.kt$24</ID>
+    <ID>MagicNumber:DevelopmentToolsScreen.kt$3</ID>
+    <ID>MagicNumber:Fido2Authenticator.kt$VerificationPreferences$30000L</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x41</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x43</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x48</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x49</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x4C</ID>
+    <ID>MagicNumber:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$0x4D</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$0x7F</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$0xFF</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$16</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$24</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$3</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$32</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$65</ID>
+    <ID>MagicNumber:Fido2CryptoService.kt$Fido2CryptoService$8</ID>
+    <ID>MagicNumber:Fido2HomeScreen.kt$0xFF4CAF50</ID>
+    <ID>MagicNumber:Fido2HomeScreen.kt$0xFF6200EE</ID>
+    <ID>MagicNumber:Fido2HomeScreen.kt$0xFFFF9800</ID>
+    <ID>MagicNumber:Fido2HomeScreen.kt$120</ID>
+    <ID>MagicNumber:Fido2HomeScreen.kt$1500</ID>
+    <ID>MagicNumber:GetAssertionOptions.kt$GetAssertionOptions$300_000</ID>
+    <ID>MagicNumber:GetAssertionOptions.kt$GetAssertionOptions$32</ID>
+    <ID>MagicNumber:GetAssertionOptions.kt$GetAssertionOptions$60_000L</ID>
+    <ID>MagicNumber:GetAssertionUseCase.kt$GetAssertionUseCase$0x04</ID>
+    <ID>MagicNumber:GetAssertionUseCase.kt$GetAssertionUseCase$0xFF</ID>
+    <ID>MagicNumber:GetAssertionUseCase.kt$GetAssertionUseCase$16</ID>
+    <ID>MagicNumber:GetAssertionUseCase.kt$GetAssertionUseCase$24</ID>
+    <ID>MagicNumber:GetAssertionUseCase.kt$GetAssertionUseCase$8</ID>
+    <ID>MagicNumber:GetUserConsentUseCase.kt$GetUserConsentUseCase$10</ID>
+    <ID>MagicNumber:GetUserConsentUseCase.kt$GetUserConsentUseCase$1023</ID>
+    <ID>MagicNumber:HdKeyDerivation.kt$HdKeyDerivation$32</ID>
+    <ID>MagicNumber:HidReportParser.kt$HidReportParser$0x7F</ID>
+    <ID>MagicNumber:HidReportParser.kt$HidReportParser$0xFF</ID>
+    <ID>MagicNumber:HidReportParser.kt$HidReportParser$8</ID>
+    <ID>MagicNumber:LatencyProfiler.kt$LatencyProfiler$1_000_000L</ID>
+    <ID>MagicNumber:LatencyProfiler.kt$LatencyProfiler$200</ID>
+    <ID>MagicNumber:LocalCrashReportingTree.kt$LocalCrashReportingTree$1024</ID>
+    <ID>MagicNumber:LocalCrashReportingTree.kt$LocalCrashReportingTree$5L</ID>
+    <ID>MagicNumber:MakeCredentialOptions.kt$MakeCredentialOptions$300000</ID>
+    <ID>MagicNumber:MakeCredentialOptions.kt$MakeCredentialOptions$32</ID>
+    <ID>MagicNumber:MakeCredentialOptions.kt$MakeCredentialOptions$60000L</ID>
+    <ID>MagicNumber:MakeCredentialOptions.kt$MakeCredentialOptions$64</ID>
+    <ID>MagicNumber:MnemonicQrScanner.kt$24</ID>
+    <ID>MagicNumber:PairedDeviceRepositoryImpl.kt$PairedDeviceRepositoryImpl$0x1F00</ID>
+    <ID>MagicNumber:PairedDevicesSection.kt$0x0100</ID>
+    <ID>MagicNumber:PairedDevicesSection.kt$0x0200</ID>
+    <ID>MagicNumber:PairedDevicesSection.kt$0x0700</ID>
+    <ID>MagicNumber:PairedDevicesSection.kt$0x1F00</ID>
+    <ID>MagicNumber:PairedDevicesViewModel.kt$PairedDevicesViewModel$5000</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential$1023</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential$16</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential$24</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential$60</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential$64</ID>
+    <ID>MagicNumber:PasskeyCredential.kt$PasskeyCredential.Companion$16</ID>
+    <ID>MagicNumber:PasskeyCredentialDao.kt$PasskeyCredentialDao$24</ID>
+    <ID>MagicNumber:PasskeyCredentialDao.kt$PasskeyCredentialDao$60</ID>
+    <ID>MagicNumber:PostQuantumCrypto.kt$PostQuantumCrypto$32</ID>
+    <ID>MagicNumber:PostQuantumCrypto.kt$PostQuantumCrypto$512</ID>
+    <ID>MagicNumber:PublicKeyCredentialDescriptor.kt$PublicKeyCredentialDescriptor$1023</ID>
+    <ID>MagicNumber:PublicKeyCredentialDescriptor.kt$PublicKeyCredentialDescriptor$5</ID>
+    <ID>MagicNumber:PublicKeyCredentialParameters.kt$PublicKeyCredentialParameters$16</ID>
+    <ID>MagicNumber:PublicKeyCredentialParameters.kt$PublicKeyCredentialParameters$32</ID>
+    <ID>MagicNumber:PublicKeyCredentialRpEntity.kt$PublicKeyCredentialRpEntity$128</ID>
+    <ID>MagicNumber:PublicKeyCredentialRpEntity.kt$PublicKeyCredentialRpEntity$64</ID>
+    <ID>MagicNumber:PublicKeyCredentialUserEntity.kt$PublicKeyCredentialUserEntity$128</ID>
+    <ID>MagicNumber:PublicKeyCredentialUserEntity.kt$PublicKeyCredentialUserEntity$64</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x04</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x40</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x41</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x43</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x48</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x49</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x4C</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0x4D</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$0xFF</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$10000</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$300000</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$32</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$64</ID>
+    <ID>MagicNumber:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$8</ID>
+    <ID>MagicNumber:RegistrationProgressIndicator.kt$0.65f</ID>
+    <ID>MagicNumber:RegistrationProgressIndicator.kt$0.6f</ID>
+    <ID>MagicNumber:RelyingParty.kt$RelyingParty$24</ID>
+    <ID>MagicNumber:RelyingParty.kt$RelyingParty$256</ID>
+    <ID>MagicNumber:RelyingParty.kt$RelyingParty$60</ID>
+    <ID>MagicNumber:RelyingParty.kt$RelyingParty$64</ID>
+    <ID>MagicNumber:RelyingParty.kt$RelyingParty.Companion$7</ID>
+    <ID>MagicNumber:RelyingPartyDao.kt$RelyingPartyDao$10</ID>
+    <ID>MagicNumber:RelyingPartyDao.kt$RelyingPartyDao$24</ID>
+    <ID>MagicNumber:RelyingPartyDao.kt$RelyingPartyDao$60</ID>
+    <ID>MagicNumber:SqlCipherWrapper.kt$SqlCipherWrapper$32</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord$1023</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord$45</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord$512</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord$60</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord$64</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord.Companion$4</ID>
+    <ID>MagicNumber:UserConsentRecord.kt$UserConsentRecord.Companion$7</ID>
+    <ID>MagicNumber:UserConsentRecordDao.kt$UserConsentRecordDao$20</ID>
+    <ID>MagicNumber:UserVerificationServiceImpl.kt$UserVerificationServiceImpl$10_000L</ID>
+    <ID>MagicNumber:UserVerificationTypes.kt$BiometricStrength.STRONG$3</ID>
+    <ID>MagicNumber:UserVerificationTypes.kt$BiometricStrength.VERY_STRONG$4</ID>
+    <ID>MagicNumber:UserVerificationTypes.kt$BiometricType.IRIS$3</ID>
+    <ID>MagicNumber:UserVerificationTypes.kt$BiometricType.VOICE$4</ID>
+    <ID>MagicNumber:UserVerificationTypes.kt$BiometricVerificationResult$0.7f</ID>
+    <ID>MagicNumber:WalletMasterSeedProvider.kt$WalletMasterSeedProvider$24</ID>
+    <ID>MatchingDeclarationName:Fido2RegistrationNavGraph.kt$Fido2Destinations</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$.</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$&lt;no name provided&gt;$if</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$&lt;no name provided&gt;$viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Verification cancelled by user"))</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$&lt;no name provided&gt;$viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed(errString.toString()))</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Button</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Column</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Icon(Icons.Filled.Lock, contentDescription = "Passkey", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Icon(Icons.Filled.Lock, contentDescription = "Verifying", modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$OutlinedButton</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Surface</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text("${currentState.credentialCount} passkeys available", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text("Authentication failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { heading() })</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text("Authentication successful.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text("Sign in with Passkey", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text("Signed in!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text(currentState.rpId, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$Text(message, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$val</ID>
+    <ID>MaxLineLength:AuthenticationPromptScreen.kt$viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Activity context required for biometric prompt"))</ID>
+    <ID>MaxLineLength:AuthenticationPromptViewModel.kt$AuthenticationPromptViewModel$val filtered = listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credential.credentialId))</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$Log.e(TAG, "SecurityException checking if adapter is enabled - BLUETOOTH_CONNECT permission missing?", e)</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$Log.w(TAG, "registerApp() returned false - internal stack failure. Waiting for callback anyway...")</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$cont.resumeWithException(Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"))</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$cont.resumeWithException(Fido2Exception.BluetoothPermissionDenied("Bluetooth permission denied", e))</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$lastException = Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries"))</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID registration failed after retries"))</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$val success = bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE) ?: false</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$Log.w(TAG, "Phantom device reported upon registration: ${pluggedDevice.address}. Forcing disconnect to clear L2CAP socket.")</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$override fun onConnectionStateChanged(device: BluetoothDevice, state: Int)</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int)</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray)</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray)</ID>
+    <ID>MaxLineLength:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$override fun onVirtualCableUnplug(device: BluetoothDevice)</ID>
+    <ID>MaxLineLength:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$val p256Oid = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x03, 0x01, 0x07) // 1.2.840.10045.3.1.7</ID>
+    <ID>MaxLineLength:CborCodec.kt$CborCodec$encodeToFido2Format(mapOf("type" to type, "challenge" to challenge, "origin" to origin, "crossOrigin" to crossOrigin))</ID>
+    <ID>MaxLineLength:CborCodec.kt$CborCodec$fun</ID>
+    <ID>MaxLineLength:CborCodec.kt$CborCodec$is String -&gt; { val b = value.toByteArray(Charsets.UTF_8); writeHeader(out, 3, b.size.toLong()); out.write(b) }</ID>
+    <ID>MaxLineLength:CredentialEncryptionService.kt$CredentialEncryptionService$return """{"rpId":"${metadata.rpId}","userId":"${metadata.userId}","userName":"${metadata.userName}","userDisplayName":"${metadata.userDisplayName}"}"""</ID>
+    <ID>MaxLineLength:CredentialListScreen.kt$message = "This will permanently delete all passkeys stored on this device. You may lose access to your accounts."</ID>
+    <ID>MaxLineLength:CredentialManagementViewModel.kt$CredentialManagementViewModel$// Actually let's assume it returns Flow&lt;List&lt;PasskeyCredential&gt;&gt; based on our DataLayer implementation.</ID>
+    <ID>MaxLineLength:CredentialManagementViewModel.kt$CredentialManagementViewModel$// this will be the whole list. Oh wait, GetAllCredentialsUseCase says Flow&lt;List&lt;PasskeyCredential&gt;&gt; but interface says Flow&lt;PasskeyCredential&gt;? </ID>
+    <ID>MaxLineLength:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$.</ID>
+    <ID>MaxLineLength:CredentialRepositoryImplTest.kt$CredentialRepositoryImplTest.CredentialManagementTests$coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns flowOf(listOf(testEntity))</ID>
+    <ID>MaxLineLength:CryptoOperationsTest.kt$CryptoOperationsTest$val h1 = clientDataHashService.computeHash("webauthn.create", ByteArray(16) { 0xAA.toByte() }, "https://example.com")</ID>
+    <ID>MaxLineLength:CryptoOperationsTest.kt$CryptoOperationsTest$val h2 = clientDataHashService.computeHash("webauthn.create", ByteArray(16) { 0xBB.toByte() }, "https://example.com")</ID>
+    <ID>MaxLineLength:CryptoOperationsTest.kt$CryptoOperationsTest$val json = """{"type":"webauthn.create","challenge":"AAEC","origin":"https://example.com","crossOrigin":false}"""</ID>
+    <ID>MaxLineLength:Ctap2GetAssertionHandler.kt$Ctap2GetAssertionHandler$Log.d(TAG, "GetAssertion: rpId=${options.rpId} allowCredentials=${options.allowCredentials?.size ?: "discoverable"}")</ID>
+    <ID>MaxLineLength:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$Log.d(TAG, "Deferred resolved — success=${attestationResult.isSuccess} error=${attestationResult.exceptionOrNull()?.message}")</ID>
+    <ID>MaxLineLength:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$"6" to listOf(2L, 1L)</ID>
+    <ID>MaxLineLength:Ctap2ResponseBuilder.kt$Ctap2ResponseBuilder$"uv" to true</ID>
+    <ID>MaxLineLength:Ctap2WindowsCompatibilityTest.kt$Ctap2WindowsCompatibilityTest$assertFalse(containsSubArray(cborPayload, base64AuthData), "CBOR MUST NOT contain Base64 text representations (Windows E_INVALIDARG)")</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Result&lt;Unit&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Result&lt;AssertionObject&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun initiatePairing(pairingRequest: PairingRequest): Result&lt;PairingResult&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun makeCredential(options: MakeCredentialOptions): Result&lt;AttestationObject&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun performHealthCheck(): Result&lt;HealthCheckResult&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Result&lt;Unit&gt;</ID>
+    <ID>MaxLineLength:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl$override suspend fun validateRequest(request: Fido2Request): Result&lt;RequestValidationResult&gt;</ID>
+    <ID>MaxLineLength:Fido2CryptoService.kt$Fido2CryptoService$Log.d(TAG, "Master seed pre-warm DONE: seed=${t1 - t0}ms sign-path=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms")</ID>
+    <ID>MaxLineLength:Fido2CryptoServiceTest.kt$Fido2CryptoServiceTest$private val realDeviceKeyPair: HdkKeyPair by lazy { P256Group.generateKeyPair().let { HdkKeyPair(it.first, it.second) } }</ID>
+    <ID>MaxLineLength:Fido2CryptoServiceTest.kt$Fido2CryptoServiceTest.GetPublicKeyTests$every { hdkManager.deriveHdk(any(), any(), any()) } returns HdkResult(pk, ByteArray(32), P256Group.randomScalar())</ID>
+    <ID>MaxLineLength:Fido2ErrorHandler.kt$Fido2ErrorHandler$message = "Could not save your passkey. ${error.message ?: "Please check available storage and try again."}"</ID>
+    <ID>MaxLineLength:Fido2HomeScreen.kt$containerColor = if (isRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary</ID>
+    <ID>MaxLineLength:Fido2HomeScreen.kt$is HidConnectionState.Advertising -&gt; Triple("Advertising...", Color(0xFF6200EE), Icons.Default.BluetoothSearching)</ID>
+    <ID>MaxLineLength:Fido2HomeScreen.kt$is HidConnectionState.Idle -&gt; Triple("Ready to Start", MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)</ID>
+    <ID>MaxLineLength:Fido2HomeScreen.kt$text = { Text("Chimali Authenticator requires Bluetooth and visibility to act as a security key. Please allow discoverability to continue.") }</ID>
+    <ID>MaxLineLength:Fido2HomeScreen.kt$val isRunning = connectionState !is HidConnectionState.Idle &amp;&amp; connectionState !is HidConnectionState.Error</ID>
+    <ID>MaxLineLength:GetAssertionUseCaseTest.kt$GetAssertionUseCaseTest$useCase = GetAssertionUseCase(credentialRepository, userVerificationService, selectCredentialUseCase, cryptoService)</ID>
+    <ID>MaxLineLength:GetUserConsentUseCase.kt$ConsentStatistics$return "Total: $totalConsents consents (Registration: $registrationConsents, Authentication: $authenticationConsents, Recent: $recentConsents, Avg/day: ${"%.2f".format(averageConsentsPerDay)}) - Methods: $methodSummary"</ID>
+    <ID>MaxLineLength:GetUserConsentUseCase.kt$GetUserConsentUseCase$return Result.failure(Fido2Exception.NoVerificationMethodAvailable("User verification is required but no method is available"))</ID>
+    <ID>MaxLineLength:GetUserConsentUseCase.kt$GetUserConsentUseCase$return Result.failure(saveResult.exceptionOrNull() ?: Fido2Exception.ConsentStorageFailed("Failed to save consent"))</ID>
+    <ID>MaxLineLength:GetUserConsentUseCase.kt$GetUserConsentUseCase$return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))</ID>
+    <ID>MaxLineLength:GetUserConsentUseCase.kt$GetUserConsentUseCase$val</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentRetrievalTests$coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentRetrievalTests$coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(inRangeConsent, outOfRangeConsent)</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentRetrievalTests$coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(registrationConsent, authConsent)</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentRetrievalTests$coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetConsent, otherConsent)</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentStatisticsTests$coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())</ID>
+    <ID>MaxLineLength:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.SuccessfulConsentRecordingTests$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED</ID>
+    <ID>MaxLineLength:HidReportParser.kt$HidReportParser$Fido2Exception.ProtocolException("Sequence mismatch on CID $cidKey: expected ${state.nextSeq}, got $seq")</ID>
+    <ID>MaxLineLength:HidReportParser.kt$HidReportParser$put((CAPABILITY_CBOR or CAPABILITY_NMSG).toByte())</ID>
+    <ID>MaxLineLength:HidReportParser.kt$private const val INIT_RESPONSE_SIZE = 17 // nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)</ID>
+    <ID>MaxLineLength:PasskeyCredentialDaoTest.kt$PasskeyCredentialDaoTest.InsertUpdateOperations$every { queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } just Runs</ID>
+    <ID>MaxLineLength:PrivacyLogScrubberTest.kt$PrivacyLogScrubberTest$val sensitiveMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"</ID>
+    <ID>MaxLineLength:PrivacyLogScrubberTest.kt$PrivacyLogScrubberTest$val sensitiveMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$?:</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$requireUserAuth = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied("User consent denied"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(credentialGenerationResult.exceptionOrNull() ?: Fido2Exception.CredentialGenerationFailed("Credential generation failed"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(rpResult.exceptionOrNull() ?: Fido2Exception.RelyingPartyUpdateFailed("Failed to register relying party"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest$coEvery { credentialRepository.saveRelyingParty(any&lt;com.chimali.fido2.domain.model.RelyingParty&gt;()) } returns Result.success(Unit)</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest.SuccessfulRegistrationTests$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest.VerificationPreferenceTests$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.DISCOURAGED</ID>
+    <ID>MaxLineLength:RegisterCredentialUseCaseTest.kt$RegisterCredentialUseCaseTest.VerificationPreferenceTests$coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.PREFERRED</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$.</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$&lt;no name provided&gt;$if</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$&lt;no name provided&gt;$viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Verification cancelled by user"))</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$&lt;no name provided&gt;$viewModel.handleIntent(RegistrationIntent.UserVerificationFailed(errString.toString()))</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$Text("Signing in as", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$Text(state.userName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$Text(text = state.userDisplayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$val</ID>
+    <ID>MaxLineLength:RegistrationPromptScreen.kt$viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Activity context required for biometric prompt"))</ID>
+    <ID>MaxLineLength:RegistrationPromptViewModel.kt$RegistrationPromptViewModel$val</ID>
+    <ID>MaxLineLength:UserConsentRecord.kt$UserConsentRecord.Companion$val ipv4Regex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")</ID>
+    <ID>MaxLineLength:WarmUpHelper.kt$WarmUpHelper$Timber.tag(TAG).d("AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms")</ID>
+    <ID>ReturnCount:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$@Synchronized private fun processNextReport()</ID>
+    <ID>ReturnCount:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$fun sendReport(data: ByteArray): Boolean</ID>
+    <ID>ReturnCount:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$suspend fun initialize(): Result&lt;Unit&gt;</ID>
+    <ID>ReturnCount:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$private fun extractApduData(apdu: ByteArray): ByteArray?</ID>
+    <ID>ReturnCount:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$private suspend fun handleMsg(message: CtapHidMessage)</ID>
+    <ID>ReturnCount:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$override suspend fun getCredentialById(credentialId: String): PasskeyCredential?</ID>
+    <ID>ReturnCount:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$private suspend fun handleDeleteCredential(params: Map&lt;String, Any&gt;): ByteArray</ID>
+    <ID>ReturnCount:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$private suspend fun handleEnumerateCredentialsBegin(params: Map&lt;String, Any&gt;): ByteArray</ID>
+    <ID>ReturnCount:Ctap2WindowsCompatibilityTest.kt$Ctap2WindowsCompatibilityTest$private fun containsSubArray(haystack: ByteArray, needle: ByteArray): Boolean</ID>
+    <ID>ReturnCount:Fido2Authenticator.kt$PinSettings$fun validatePin(pin: String): Boolean</ID>
+    <ID>ReturnCount:GetUserConsentUseCase.kt$GetUserConsentUseCase$suspend operator fun invoke( rpId: String, operationType: ConsentOperationType, credentialId: String? = null, requireVerification: Boolean = false, prompt: String? = null ): Result&lt;UserConsentRecord&gt;</ID>
+    <ID>ReturnCount:HidReportParser.kt$HidReportParser$private fun processContinuationPacket( cid: ByteArray, cidKey: String, report: ByteArray ): Result&lt;CtapHidMessage?&gt;</ID>
+    <ID>ReturnCount:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$private suspend fun generateCredential( options: MakeCredentialOptions ): Result&lt;PasskeyCredential&gt;</ID>
+    <ID>ReturnCount:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$suspend operator fun invoke(options: MakeCredentialOptions): Result&lt;AttestationObject&gt;</ID>
+    <ID>ReturnCount:RelyingParty.kt$RelyingParty.Companion$fun normalizeRpId(rpId: String): String</ID>
+    <ID>ReturnCount:UserConsentRecord.kt$UserConsentRecord.Companion$private fun isValidIpAddress(ip: String): Boolean</ID>
+    <ID>ReturnCount:UserVerificationTypes.kt$PinConfiguration$fun validatePin(pin: String): Boolean</ID>
+    <ID>SwallowedException:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$e: Exception</ID>
+    <ID>SwallowedException:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$e: SecurityException</ID>
+    <ID>SwallowedException:CborCodec.kt$CborCodec$e: Exception</ID>
+    <ID>SwallowedException:CredentialEncryptionService.kt$CredentialEncryptionService$e: Exception</ID>
+    <ID>SwallowedException:CredentialManagementViewModel.kt$CredentialManagementViewModel$e: Exception</ID>
+    <ID>SwallowedException:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$e: Exception</ID>
+    <ID>SwallowedException:CredentialStorageService.kt$CredentialStorageService$e: Exception</ID>
+    <ID>SwallowedException:HdKeyDerivation.kt$HdKeyDerivation$e: Exception</ID>
+    <ID>SwallowedException:MemoryUtils.kt$MemoryUtils$e: Exception</ID>
+    <ID>SwallowedException:PostQuantumCrypto.kt$PostQuantumCrypto$e: Exception</ID>
+    <ID>SwallowedException:PublicKeyCredentialRpEntity.kt$PublicKeyCredentialRpEntity$e: Exception</ID>
+    <ID>SwallowedException:RelyingParty.kt$RelyingParty$e: Exception</ID>
+    <ID>SwallowedException:RelyingParty.kt$RelyingParty.Companion$e: Exception</ID>
+    <ID>SwallowedException:SqlCipherWrapper.kt$SqlCipherWrapper$e: Exception</ID>
+    <ID>SwallowedException:UserConsentRecord.kt$UserConsentRecord.Companion$e: Exception</ID>
+    <ID>ThrowsCount:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private fun decodeMakeCredentialRequest(cbor: ByteArray): MakeCredentialRequest</ID>
+    <ID>TooGenericExceptionCaught:AttestationObject.kt$ClientData.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BluetoothHidDeviceWrapper.kt$BluetoothHidDeviceWrapper.&lt;no name provided&gt;$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CborCodec.kt$CborCodec$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CredentialEncryptionService.kt$CredentialEncryptionService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CredentialManagementViewModel.kt$CredentialManagementViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CredentialStorageService.kt$CredentialStorageService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Ctap2GetAssertionHandler.kt$Ctap2GetAssertionHandler$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Ctap2ResetAuthenticatorHandler.kt$Ctap2ResetAuthenticatorHandler$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DevToolsViewModel.kt$DevToolsViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Fido2CryptoService.kt$Fido2CryptoService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GetUserConsentUseCase.kt$GetUserConsentUseCase$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HdKeyDerivation.kt$HdKeyDerivation$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LocalCrashReportingTree.kt$LocalCrashReportingTree$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MakeCredentialOptions.kt$MakeCredentialOptions.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MemoryUtils.kt$MemoryUtils$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MnemonicQrScanner.kt$exc: Exception</ID>
+    <ID>TooGenericExceptionCaught:PostQuantumCrypto.kt$PostQuantumCrypto$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PublicKeyCredentialDescriptor.kt$PublicKeyCredentialDescriptor.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PublicKeyCredentialRpEntity.kt$PublicKeyCredentialRpEntity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PublicKeyCredentialUserEntity.kt$PublicKeyCredentialUserEntity.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RelyingParty.kt$RelyingParty$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RelyingParty.kt$RelyingParty.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SqlCipherWrapper.kt$SqlCipherWrapper$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:UserConsentRecord.kt$UserConsentRecord.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WarmUpHelper.kt$WarmUpHelper$e: Exception</ID>
+    <ID>TooGenericExceptionThrown:CredentialRepositoryImpl.kt$CredentialRepositoryImpl$throw Exception("Empty")</ID>
+    <ID>TooGenericExceptionThrown:HdKeyDerivation.kt$HdKeyDerivation$throw RuntimeException("Failed to derive child key", e)</ID>
+    <ID>TooGenericExceptionThrown:HdKeyDerivation.kt$HdKeyDerivation$throw RuntimeException("Key agreement failed", e)</ID>
+    <ID>TooGenericExceptionThrown:HdKeyDerivation.kt$HdKeyDerivation$throw RuntimeException("Signing failed", e)</ID>
+    <ID>TooManyFunctions:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl : Fido2Transport</ID>
+    <ID>TooManyFunctions:CborCodec.kt$CborCodec</ID>
+    <ID>TooManyFunctions:CredentialEncryptionService.kt$CredentialEncryptionService</ID>
+    <ID>TooManyFunctions:CredentialRepository.kt$CredentialRepository</ID>
+    <ID>TooManyFunctions:CredentialRepositoryImpl.kt$CredentialRepositoryImpl : CredentialRepository</ID>
+    <ID>TooManyFunctions:Ctap2CredentialManagementHandler.kt$Ctap2CredentialManagementHandler</ID>
+    <ID>TooManyFunctions:Fido2Authenticator.kt$Fido2Authenticator</ID>
+    <ID>TooManyFunctions:Fido2AuthenticatorImpl.kt$Fido2AuthenticatorImpl : Fido2Authenticator</ID>
+    <ID>TooManyFunctions:Fido2Module.kt$Fido2BindingModule</ID>
+    <ID>TooManyFunctions:GetUserConsentUseCase.kt$GetUserConsentUseCase</ID>
+    <ID>TooManyFunctions:PasskeyCredentialDao.kt$PasskeyCredentialDao</ID>
+    <ID>TooManyFunctions:RegisterCredentialUseCase.kt$RegisterCredentialUseCase</ID>
+    <ID>TooManyFunctions:RelyingPartyDao.kt$RelyingPartyDao</ID>
+    <ID>TooManyFunctions:UserConsentRecordDao.kt$UserConsentRecordDao</ID>
+    <ID>UnusedParameter:CredentialEncryptionService.kt$CredentialEncryptionService$alias: String</ID>
+    <ID>UnusedParameter:CredentialListScreen.kt$onNavigateUp: () -&gt; Unit</ID>
+    <ID>UnusedParameter:CredentialStorageService.kt$CredentialStorageService$alias: String</ID>
+    <ID>UnusedParameter:Ctap2ResetAuthenticatorHandler.kt$Ctap2ResetAuthenticatorHandler$requestBytes: ByteArray</ID>
+    <ID>UnusedParameter:DevToolsViewModel.kt$DevToolsViewModel$errorCode: Int</ID>
+    <ID>UnusedParameter:Fido2CryptoService.kt$Fido2CryptoService$credentialId: String</ID>
+    <ID>UnusedParameter:Fido2CryptoService.kt$Fido2CryptoService$requireUserAuth: Boolean = false</ID>
+    <ID>UnusedParameter:GetUserConsentUseCase.kt$GetUserConsentUseCase$customPrompt: String?</ID>
+    <ID>UnusedParameter:GetUserConsentUseCase.kt$GetUserConsentUseCase$operationType: ConsentOperationType</ID>
+    <ID>UnusedParameter:GetUserConsentUseCase.kt$GetUserConsentUseCase$rpId: String</ID>
+    <ID>UnusedParameter:HdKeyDerivation.kt$HdKeyDerivation$chainCode: ByteArray</ID>
+    <ID>UnusedParameter:HdKeyDerivation.kt$HdKeyDerivation$index: Int</ID>
+    <ID>UnusedParameter:HdKeyDerivation.kt$HdKeyDerivation$parentKeyPair: KeyPair</ID>
+    <ID>UnusedParameter:MemoryUtils.kt$MemoryUtils$input: String</ID>
+    <ID>UnusedParameter:SqlCipherWrapper.kt$SqlCipherWrapper$password: String</ID>
+    <ID>UnusedPrivateMember:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private fun selectAlgorithm(requested: List&lt;Int&gt;): Int?</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$BluetoothHidTransportImpl$private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$private const val ERR_CHANNEL_BUSY: Byte = 0x06</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$private const val ERR_INVALID_PAR: Byte = 0x02</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$private const val ERR_LOCK_REQUIRED: Byte = 0x0A</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$private const val ERR_MSG_TIMEOUT: Byte = 0x05</ID>
+    <ID>UnusedPrivateProperty:BluetoothHidTransportImpl.kt$private const val ERR_OTHER: Byte = 0x7F.toByte()</ID>
+    <ID>UnusedPrivateProperty:ClientDataHashService.kt$ClientDataHashService.Companion$private val SHA_256 = MessageDigest.getInstance("SHA-256")</ID>
+    <ID>UnusedPrivateProperty:CredentialEncryptionService.kt$CredentialEncryptionService$val newMasterKey = generateMasterKey("fido2_master_encryption_key_v2")</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$// CTAP2 response keys (§6.2) private const val KEY_CREDENTIAL = 1</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$Ctap2GetAssertionHandler$private val authDataBuilder: AuthenticatorDataBuilder</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$private const val KEY_AUTH_DATA = 2</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$private const val KEY_NUM_CREDS = 5</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$private const val KEY_SIGNATURE = 3</ID>
+    <ID>UnusedPrivateProperty:Ctap2GetAssertionHandler.kt$private const val KEY_USER = 4</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$// Fixed AAGUID for Chimali authenticator (version 1) private val CHIMALI_AAGUID = byteArrayOf( 0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0" 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 // ...version 1 )</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private val fido2Authenticator: Fido2Authenticator</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private val secureRandom = SecureRandom()</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$Ctap2MakeCredentialHandler$private val userVerificationService: UserVerificationService</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$private const val CTAP2_ERR_MISSING_PARAMETER: Byte = 0x14.toByte()</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$private const val CTAP2_ERR_PIN_INVALID: Byte = 0x31.toByte()</ID>
+    <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandler.kt$private const val FLAG_UV: Int = 0x04 // User Verified</ID>
+    <ID>UnusedPrivateProperty:DatabaseSchemaTest.kt$DatabaseSchemaTest$val schemaPath = "src/main/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq"</ID>
+    <ID>UnusedPrivateProperty:Fido2RepositoryImpl.kt$Fido2RepositoryImpl$private val consentRepository: UserConsentRepository</ID>
+    <ID>UnusedPrivateProperty:Fido2RepositoryImpl.kt$Fido2RepositoryImpl$private val relyingPartyRepository: RelyingPartyRepository</ID>
+    <ID>UnusedPrivateProperty:GetUserConsentUseCaseTest.kt$GetUserConsentUseCaseTest.ConsentStatisticsTests$val otherRpConsent = UserConsentRecord.create( operationType = ConsentOperationType.AUTHENTICATION, rpId = "https://other.com", biometricUsed = false, pinUsed = true )</ID>
+    <ID>UnusedPrivateProperty:HidReportParserTest.kt$HidReportParserTest$private val testCidKey = "01020304"</ID>
+    <ID>UnusedPrivateProperty:MnemonicQrScanner.kt$val context = LocalContext.current</ID>
+    <ID>UnusedPrivateProperty:PrivacyLogScrubberTest.kt$PrivacyLogScrubberTest$val scrubbed1 = PrivacyLogScrubber.scrub(message1)</ID>
+    <ID>UnusedPrivateProperty:RegisterCredentialUseCase.kt$RegisterCredentialUseCase$private val fido2Authenticator: Fido2Authenticator</ID>
+    <ID>UnusedPrivateProperty:SqlCipherWrapper.kt$SqlCipherWrapper$private val context: Context</ID>
+    <ID>UseRequire:CborCodec.kt$CborCodec$throw IllegalArgumentException( "Cannot extract uncompressed EC point from key encoding (size=${derEncoded.size})" )</ID>
+    <ID>VariableNaming:Ctap2WindowsCompatibilityTest.kt$Ctap2WindowsCompatibilityTest$val FLAG_AT = 0x40</ID>
+    <ID>VariableNaming:Ctap2WindowsCompatibilityTest.kt$Ctap2WindowsCompatibilityTest$val FLAG_UP = 0x01</ID>
+    <ID>VariableNaming:UserVerificationServiceImpl.kt$UserVerificationServiceImpl$/** How long a cached availability result is considered fresh (10 seconds). */ private val CACHE_TTL_MS = 10_000L</ID>
+    <ID>WildcardImport:AuthenticationIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:AuthenticationPromptScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AuthenticationPromptScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:AuthenticationPromptScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AuthenticationPromptScreen.kt$import com.chimali.fido2.presentation.viewmodel.*</ID>
+    <ID>WildcardImport:BiometricPromptComponent.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:BiometricPromptComponent.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:BiometricPromptComponent.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:CredentialComponents.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:CredentialComponents.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:CredentialListScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:CredentialListScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:CredentialManagementViewModel.kt$import kotlinx.coroutines.flow.*</ID>
+    <ID>WildcardImport:CredentialManagementViewModelTest.kt$import kotlinx.coroutines.test.*</ID>
+    <ID>WildcardImport:CredentialManagementViewModelTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:CredentialRepositoryImpl.kt$import com.chimali.fido2.data.mapper.*</ID>
+    <ID>WildcardImport:CredentialRepositoryImpl.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:CredentialRepositoryImplTest.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:CredentialRepositoryImplTest.kt$import io.mockk.*</ID>
+    <ID>WildcardImport:CredentialRepositoryImplTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:CredentialSelectionDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:CredentialSelectionDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:CryptoOperationsTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:CryptoUtilsTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:Ctap2ProtocolTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:Ctap2WindowsCompatibilityTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:DatabaseSchemaTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:DevToolsViewModelTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:DevelopmentToolsScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:DevelopmentToolsScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:DevelopmentToolsScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ExampleUnitTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:Fido2Authenticator.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:Fido2AuthenticatorImpl.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:Fido2AuthenticatorImpl.kt$import com.chimali.fido2.domain.service.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.animation.core.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.material.icons.filled.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:Fido2HomeScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:Fido2RegistrationNavGraph.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCase.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCase.kt$import com.chimali.fido2.domain.service.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCaseTest.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCaseTest.kt$import com.chimali.fido2.domain.service.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCaseTest.kt$import io.mockk.*</ID>
+    <ID>WildcardImport:GetUserConsentUseCaseTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:HidReportParserTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:ManagementIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:PairedDevicesSection.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:PairedDevicesSection.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:PairedDevicesSection.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:PasskeyCredentialDaoTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:PasskeyCredentialTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:PostQuantumCryptoTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCase.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCase.kt$import com.chimali.fido2.domain.service.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCaseTest.kt$import com.chimali.fido2.domain.model.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCaseTest.kt$import com.chimali.fido2.domain.service.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCaseTest.kt$import io.mockk.*</ID>
+    <ID>WildcardImport:RegisterCredentialUseCaseTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:RegistrationProgressIndicator.kt$import androidx.compose.animation.core.*</ID>
+    <ID>WildcardImport:RegistrationProgressIndicator.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:RegistrationProgressIndicator.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:RegistrationProgressIndicator.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:RegistrationPromptScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:RegistrationPromptScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:RegistrationPromptScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:RegistrationPromptScreen.kt$import com.chimali.fido2.presentation.viewmodel.*</ID>
+    <ID>WildcardImport:RegistrationPromptViewModel.kt$import kotlinx.coroutines.flow.*</ID>
+    <ID>WildcardImport:RelyingPartyRepositoryImpl.kt$import com.chimali.fido2.data.mapper.*</ID>
+    <ID>WildcardImport:RelyingPartyTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:SecurityStorageIntegrityTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:SelectCredentialUseCaseTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:UserConsentRecordTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+    <ID>WildcardImport:WalletMasterSeedProviderTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

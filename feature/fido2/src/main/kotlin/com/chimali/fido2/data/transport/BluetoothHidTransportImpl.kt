@@ -339,7 +339,7 @@ class BluetoothHidTransportImpl @Inject constructor(
                 0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
                 else -> {
                     Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
-                    responseBuilder.errorResponse(cid, 0x3E.toByte()) // CTAP2_ERR_OPERATION_DENIED
+                    responseBuilder.errorResponse(cid, 0x01.toByte()) // CTAP1_ERR_INVALID_COMMAND
                 }
             }
         } finally {

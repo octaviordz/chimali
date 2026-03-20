@@ -1,5 +1,6 @@
 package com.chimali.fido2.service
 
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,17 +13,23 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "Fido2TransportService"
 private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
+private const val AUTH_REQUEST_CHANNEL_ID = "fido2_auth_requests"
+private const val AUTH_REQUEST_NOTIF_ID = 1002
 
 /**
  * Foreground Service that keeps the Bluetooth HID transport alive while
@@ -56,6 +63,7 @@ class Fido2TransportService : Service() {
     }
 
     @Inject lateinit var transport: Fido2Transport
+    @Inject lateinit var uiEventBus: Fido2UiEventBus
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -83,6 +91,16 @@ class Fido2TransportService : Service() {
 
     private fun startTransport() {
         startForeground(NOTIFICATION_ID, buildAdvertisingNotification())
+        
+        // Listen for incoming requests to push a Heads-Up notification if in background
+        uiEventBus.events
+            .onEach { event ->
+                if (!isAppInForeground()) {
+                    showAuthRequestNotification(event)
+                }
+            }
+            .launchIn(scope)
+
         scope.launch {
             val result = transport.connect()
             if (result.isFailure) {
@@ -106,6 +124,7 @@ class Fido2TransportService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Chimali Authenticator",
@@ -113,8 +132,16 @@ class Fido2TransportService : Service() {
             ).apply {
                 description = "Keeps the virtual security key active"
             }
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)
+            
+            val authChannel = NotificationChannel(
+                AUTH_REQUEST_CHANNEL_ID,
+                "Authentication Requests",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifies you when a passkey is requested"
+            }
+            nm.createNotificationChannel(authChannel)
         }
     }
 
@@ -137,5 +164,41 @@ class Fido2TransportService : Service() {
                 stopPendingIntent
             )
             .build()
+    }
+
+    private fun isAppInForeground(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
+        val processInfo = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(processInfo)
+        return processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    }
+
+    private fun showAuthRequestNotification(event: Fido2UiEvent) {
+        val (title, text) = when (event) {
+            is Fido2UiEvent.RegistrationRequested -> "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
+            is Fido2UiEvent.AuthenticationRequested -> "Sign In" to "Windows is requesting a passkey for ${event.rpId}. Tap to authenticate."
+        }
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        } ?: return
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, AUTH_REQUEST_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
+            .setFullScreenIntent(pendingIntent, true)
+            .build()
+
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(AUTH_REQUEST_NOTIF_ID, notification)
     }
 }

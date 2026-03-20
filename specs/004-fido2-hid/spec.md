@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-fido2-hid`  
 **Created**: 2026-03-01  
-**Status**: Draft  
+**Status**: Stable  
 **Input**: User description: "FR-HID-010: Act as a FIDO2 Virtual Authenticator via BluetoothHidDevice. Take into account the requirement for passkey support. For reference look into https://github.com/octaviordz/wiokey-android and https://github.com/WIOsense/rauth-android"
 
 ## Clarifications
@@ -111,6 +111,13 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions
 - **FR-HID-023**: System MUST provide a secure copy mechanism that automatically clears sensitive data (e.g. mnemonic seeds) from the system clipboard within 60 seconds of the copy action, avoiding prohibited background monitoring.
 
+### Non-Functional Requirements
+
+- **NFR-PERF-030**: System MUST ensure Bluetooth HID Virtual Authenticator actions complete with < 200ms end-to-end latency, excluding user interaction (Biometric/PIN) time.
+- **NFR-SEC-010**: System MUST ensure no sensitive cryptographic material or credential data is logged to Local-First crash reports or output streams.
+- **NFR-SEC-020**: System MUST explicitly prohibit cloud telemetry (all diagnostics and crash reports must remain on-device).
+- **NFR-ARCH-040**: Codebase MUST pass static analysis gates (Detekt and Ktlint) prior to completion.
+
 ### Key Entities *(include if feature involves data)*
 
 - **Passkey Credential**: Represents a FIDO2 credential containing private key, relying party information, and user metadata
@@ -129,7 +136,7 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 
 - **SC-001**: Users can complete FIDO2 registration in under 30 seconds from request to credential storage
 - **SC-002**: FIDO2 authentication completes in under 5 seconds from request to response
-- **SC-003**: Device maintains stable Bluetooth HID connection for at least 10 minutes of continuous use
+- **SC-003**: Device maintains persistent Bluetooth HID availability for at least 10 minutes of continuous use
 - **SC-004**: 95% of FIDO2 operations (registration, authentication, credential enumeration) complete successfully without protocol errors, measured over 100 consecutive operations
 - **SC-005**: Users can successfully authenticate to at least 3 different relying party services
 - **SC-006**: Credential storage remains secure and accessible after device restart

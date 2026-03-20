@@ -267,13 +267,16 @@
 
 ### Final Integration & Verification Tasks
 - [x] T159 Run full integration test suite to verify end-to-end functionality (Registration, Authentication, Credential Management). Ensure 100% pass rate across all feature:fido2 tests.
+- [ ] T159a [P] Implement automated stress test / simulated loop to execute 100 consecutive FIDO2 operations to verify 95% success rate without state corruption (SC-004)
 - [x] ~~T160 Verify performance targets are met~~ (Delayed for future work)
-- [/] T160a [P] Implement minimal HID latency profiler (NFR-PERF-030): `LatencyProfiler` utility + Logcat instrumentation in `BluetoothHidTransportImpl` and `Fido2CryptoService` *(refs: NFR-PERF-030)*
+- [x] T160a [P] Implement minimal HID latency profiler (NFR-PERF-030): `LatencyProfiler` utility + Logcat instrumentation in transport and presentation layers to track end-to-end performance excluding user interaction time. Log outputs must strictly sanitize sensitive cryptographic state/credential IDs and avoid cloud telemetry uploads.
+  - [x] T160a-1 Implement `LatencyProfiler` utility.
+  - [x] T160a-2 Add Logcat instrumentation in `BluetoothHidTransportImpl` and `Fido2CryptoService`.
 - [ ] T161 Test on multiple Android devices
 - [ ] T162 Validate FIDO2 compliance with test tools
-- [/] T163 Verify BRD requirements compliance (refs: [brd-compliance.md](checklists/brd-compliance.md))
-- [ ] T164 Final compilation check and code review
-- [ ] T165 Prepare feature for merge to main branch
+- [x] T163 Verify BRD requirements compliance (refs: [FR-HID-010-brd-compliance.md](checklists/FR-HID-010-brd-compliance.md))
+- [x] T164 Final compilation check and code review
+- [x] T165 Prepare feature for merge to main branch
 
 ## Dependencies
 

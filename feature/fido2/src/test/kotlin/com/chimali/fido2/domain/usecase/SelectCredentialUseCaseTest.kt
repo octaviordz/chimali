@@ -37,6 +37,19 @@ class SelectCredentialUseCaseTest {
         )
     }
 
+    private fun createSummary(
+        id: String,
+        rpId: String = "https://example.com",
+        lastUsedAt: Instant = Instant.now()
+    ): com.chimali.fido2.domain.model.CredentialSummary {
+        return com.chimali.fido2.domain.model.CredentialSummary(
+            id = id,
+            rpId = rpId,
+            credentialId = id.toByteArray(),
+            lastUsedAt = lastUsedAt
+        )
+    }
+
     // ── Empty candidates ─────────────────────────────────────────────────────
 
     @Test
@@ -51,8 +64,8 @@ class SelectCredentialUseCaseTest {
 
     @Test
     fun `auto-selects single credential`() = runTest {
-        val credential = PasskeyCredential.createTest("cred1", "https://example.com", "user1")
-        val result = useCase(listOf(credential), createOptions())
+        val summary = createSummary("cred1")
+        val result = useCase(listOf(summary), createOptions())
 
         assertTrue(result.isSuccess)
         assertEquals("cred1", result.getOrThrow().id)
@@ -62,25 +75,20 @@ class SelectCredentialUseCaseTest {
 
     @Test
     fun `selects most recently used credential from multiple`() = runTest {
-        val now = Instant.now()
-        val older = PasskeyCredential.createTest("cred1", "https://example.com", "user1")
-        // The createTest factory uses Instant.now() for lastUsedAt, so we need to
-        // ensure we can differentiate. Since both are created at Instant.now(), the test
-        // verifies that maxByOrNull picks deterministically (the last one created).
-        val newer = PasskeyCredential.createTest("cred2", "https://example.com", "user2")
+        val older = createSummary("cred1", lastUsedAt = Instant.now().minusSeconds(3600))
+        val newer = createSummary("cred2", lastUsedAt = Instant.now())
 
         val result = useCase(listOf(older, newer), createOptions())
 
         assertTrue(result.isSuccess)
-        // Both have nearly identical timestamps; the important thing is one is selected
-        assertNotNull(result.getOrThrow())
+        assertEquals("cred2", result.getOrThrow().id)
     }
 
     @Test
     fun `selects from three candidates without error`() = runTest {
-        val c1 = PasskeyCredential.createTest("cred1", "https://example.com", "alice")
-        val c2 = PasskeyCredential.createTest("cred2", "https://example.com", "bob")
-        val c3 = PasskeyCredential.createTest("cred3", "https://example.com", "carol")
+        val c1 = createSummary("cred1")
+        val c2 = createSummary("cred2")
+        val c3 = createSummary("cred3")
 
         val result = useCase(listOf(c1, c2, c3), createOptions())
 

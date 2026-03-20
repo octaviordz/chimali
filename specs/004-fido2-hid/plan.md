@@ -5,26 +5,26 @@
 
 ## Summary
 
-Implement localized Error Handling & Logging for the FIDO2 Virtual Authenticator. To comply with the strict "no cloud processing" and privacy mandates of the project's Constitution, logging and crash reporting will be entirely local-only (on-device). Sensitive data (e.g., cryptographic material, biometric events) will be explicitly excluded from all logs. The system will provide comprehensive, user-friendly error messages during Bluetooth HID disruptions, FIDO2 protocol failures, or validation errors.
+Implement the FIDO2 Virtual Authenticator via `BluetoothHidDevice`, allowing the Android device to act as a cross-platform passkey authenticator. This includes the complete CTAP2 ceremonies (Registration, Authentication, and Credential Management), secured by on-device cryptography. To comply with the strict "no cloud processing" and privacy mandates of the project's Constitution, logging and crash reporting will be entirely Local-First (on-device). Sensitive data (e.g., cryptographic material, biometric events) will be explicitly excluded from all logs. The system will provide comprehensive, user-friendly error messages during Bluetooth HID disruptions, FIDO2 protocol failures, or validation errors.
 
 ## Technical Context
 
 **Language/Version**: Kotlin 1.9+ (Android Native)  
-**Primary Dependencies**: AndroidX, Jetpack Compose, Timber (for structured local logging)
+**Primary Dependencies**: AndroidX, Jetpack Compose, Timber (for structured Local-First logging)
 **Storage**: Local App Data directory for crash logs (custom rotating file sink via Timber tree, NEVER shipped to cloud).  
 **Testing**: JUnit 5, MockK (for verifying logger exclusions).  
 **Target Platform**: Android 9.0+ (API 28+)  
 **Project Type**: Mobile Application  
-**Performance Goals**: Local logging overhead < 5ms per event.   
+**Performance Goals**: Local-First logging overhead < 5ms per event.   
 **Constraints**: Absolute privacy (no remote crash reporting tools like Crashlytics). Sensitive parameters must be masked.  
-**Scale/Scope**: Limit local log files to 5MB rotating buffer to prevent disk exhaustion.
+**Scale/Scope**: Limit Local-First log files to 5MB rotating buffer to prevent disk exhaustion.
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 ### I. Security First (Zero-Trust Local-First)
-- ✅ Local-only crash reporting ensures no sensitive data leaves the device.
+- ✅ Local-First crash reporting ensures no sensitive data leaves the device.
 - ✅ Timber trees will be configured to mask or exclude sensitive values from logs.
 
 ### III. Uncompromising Architecture & Quality 

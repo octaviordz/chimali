@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-19
+
+### Added
+- **FIDO2 Background Notifications (Under Development)**: Implemented an initial High-Priority notification system in `Fido2TransportService`. **Note**: Initial manual testing indicates notifications are currently not firing; requires further investigation into Android's foreground/background lifecycle and notification permissions.
+
+### Fixed
+- **GetInfo Spec Compliance**: Removed unsupported `clientPin` and `pinUvAuthProtocols` from the `GetInfo` response to prevent Windows from attempting ClientPIN (0x06) negotiation, resolving `0x8007000d` (Unknown Device State).
+- **CTAPHID_INIT Capabilities**: Fixed a bug where `CAPABILITY_NMSG` was incorrectly advertised, potentially confusing Windows drivers about CTAPHID command support.
+- **CTAP Error Codes**: Standardized on `0x01` (`CTAP1_ERR_INVALID_COMMAND`) for unsupported commands to align with the FIDO specification.
+- **Latency Profiling (NFR-PERF-030)**: Resolved a regression where user interaction time was incorrectly included in system latency measurements during `MakeCredential`.
+- Full details: [2026-03-19-fido2-background-notifications-and-spec-compliance.md](docs/changelogs/2026-03-19-fido2-background-notifications-and-spec-compliance.md)
+
 ## [Unreleased] - 2026-03-18
 
 ### Added
@@ -264,4 +276,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-18*
+*Last Updated: 2026-03-19*

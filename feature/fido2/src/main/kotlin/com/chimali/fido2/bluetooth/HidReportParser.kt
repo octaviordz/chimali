@@ -50,7 +50,11 @@ private const val INIT_NONCE_SIZE      = 8
 private const val INIT_RESPONSE_SIZE   = 17  // nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)
 
 private const val CAPABILITY_CBOR  = 0x04
-private const val CAPABILITY_NMSG  = 0x08
+// Note: CAPABILITY_NMSG (0x08) intentionally NOT included.
+// Per FIDO CTAP HID spec, bit 3 (0x08) = "MSG command NOT supported".
+// Setting it causes Windows to think CTAPHID_MSG is unavailable and
+// may trip device-state validation errors on first connection.
+// rauth-android only advertises CAPABILITY_CBOR — we follow the same pattern.
 
 /** CID assigned to the broadcast channel (used for CTAPHID_INIT). */
 val BROADCAST_CID: ByteArray = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
@@ -254,7 +258,7 @@ class HidReportParser @Inject constructor() {
             put(0x01.toByte())  // Major device version
             put(0x00.toByte())  // Minor device version
             put(0x00.toByte())  // Build number
-            put((CAPABILITY_CBOR or CAPABILITY_NMSG).toByte())  // CBOR supported + MSG not supported → forces CTAP2 path
+            put(CAPABILITY_CBOR.toByte())  // Only CBOR; no NMSG bit per rauth-android / FIDO spec
         }.array()
 
         return CtapHidMessage(BROADCAST_CID, CTAPHID_INIT, payload)

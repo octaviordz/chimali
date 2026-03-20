@@ -83,11 +83,9 @@ class Ctap2ResponseBuilder @Inject constructor(
                 "rk" to info.supportsResidentKeys,
                 "up" to true,
                 "uv" to true,                      // device has internal UV (biometric) — required for discoverable credentials
-                "plat" to false,                   // not platform-bound
-                "clientPin" to false               // PIN not yet set (fresh device)
+                "plat" to false                    // not platform-bound
             ),
             "5" to 1200L,                          // maxMsgSize
-            "6" to listOf(2L, 1L),                 // pinUvAuthProtocols: [2, 1] — required for Windows CTAP2 negotiation
             "8" to 255L,                           // maxCredentialIdLength
             "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
             "10" to listOf(                        // algorithms
