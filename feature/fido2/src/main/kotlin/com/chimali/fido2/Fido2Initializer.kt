@@ -31,7 +31,7 @@ object Fido2Initializer {
         //
         // Both costs would otherwise appear in the first real GetAssertion or
         // MakeCredential ceremony, causing an intermittent NFR-PERF-030 overrun.
-        // Running a throwaway no-op sign here amortises these costs at startup, so
+        // Running a throwaway no-op sign here amortizes these costs at startup, so
         // the ceremony path always hits fully-compiled native code.
         WarmUpHelper.warmUpBouncyCastle()
 
@@ -39,7 +39,7 @@ object Fido2Initializer {
         //
         // cryptoService.sign() uses Signature.getInstance("SHA256withECDSA", "AndroidKeyStore")
         // with a hardware-backed key. The very first call to this path per app session
-        // initialises the HAL IPC binder to the TEE or StrongBox, costing ~180–360ms
+        // initializes the HAL IPC binder to the TEE or StrongBox, costing ~180–360ms
         // (vs. ~170ms steady-state). warmUpBouncyCastle() does NOT help here because
         // BouncyCastle and AndroidKeyStore use completely separate engine implementations.
         //

@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.*
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
@@ -16,9 +18,8 @@ import javax.inject.Inject
 class RegisterCredentialUseCase @Inject constructor(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
-    private val fido2Authenticator: Fido2Authenticator,
-    private val cborCodec: com.chimali.fido2.data.crypto.CborCodec,
-    private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService
+    private val cborCodec: CborCodec,
+    private val cryptoService: Fido2CryptoService
 ) {
     
     /**
@@ -46,7 +47,7 @@ class RegisterCredentialUseCase @Inject constructor(
             )
             
             // Get user consent if required
-            if (consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED) {
+            if (consentRequired == ServiceVerificationRequirement.REQUIRED) {
                 val consentResult = getUserConsentForRegistration(options)
                 if (consentResult.isFailure) {
                     return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied("User consent denied"))
@@ -96,7 +97,7 @@ class RegisterCredentialUseCase @Inject constructor(
     /**
      * Validates the registration options according to FIDO2 specifications.
      */
-    private suspend fun validateRegistrationOptions(options: MakeCredentialOptions) {
+    private fun validateRegistrationOptions(options: MakeCredentialOptions) {
         // Validate RP entity
         options.rp.validate()
         
@@ -179,7 +180,7 @@ class RegisterCredentialUseCase @Inject constructor(
             // Generate hardware-backed key pair via Fido2CryptoService
             val cryptoResult = cryptoService.generateCredentialKeyPair(
                 credentialId = credentialId,
-                requireUserAuth = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED
+            _requireUserAuth = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED
             )
             if (cryptoResult.isFailure) {
                 return Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
@@ -200,7 +201,7 @@ class RegisterCredentialUseCase @Inject constructor(
                 userName = options.user.name,
                 userDisplayName = options.user.displayName,
                 publicKey = publicKey,
-                privateKeyAlias = com.chimali.fido2.data.crypto.Fido2CryptoService.credentialAlias(credentialId),
+                privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
                 aaguid = aaguid,
                 credentialId = credentialId.toByteArray()
             )
@@ -235,11 +236,8 @@ class RegisterCredentialUseCase @Inject constructor(
      */
     private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity): Result<Unit> {
         val existingRp = credentialRepository.getRelyingParty(rp.id)
-        val rpToSave = if (existingRp != null) {
-            existingRp.withCredentialCount(existingRp.credentialCount + 1)
-        } else {
-            RelyingParty.create(rp.id, rp.name, rp.icon)
-        }
+        val rpToSave = existingRp?.withCredentialCount(existingRp.credentialCount + 1)
+            ?: RelyingParty.create(rp.id, rp.name, rp.icon)
         return credentialRepository.saveRelyingParty(rpToSave)
     }
     

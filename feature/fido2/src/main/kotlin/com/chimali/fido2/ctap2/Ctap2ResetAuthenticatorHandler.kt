@@ -1,12 +1,9 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
-import timber.log.Timber
 import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "Ctap2ResetAuth"
 
 /**
  * T117 — CTAP2 authenticatorReset (0x07) handler.
@@ -18,7 +15,7 @@ class Ctap2ResetAuthenticatorHandler @Inject constructor(
 ) {
 
     suspend fun handle(requestBytes: ByteArray): ByteArray {
-        Log.d(TAG, "Handling authenticatorReset")
+        Timber.d("Handling authenticatorReset")
         
         return try {
             val result = resetAuthenticatorUseCase()

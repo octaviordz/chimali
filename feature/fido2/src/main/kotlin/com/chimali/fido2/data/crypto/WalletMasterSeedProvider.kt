@@ -1,17 +1,16 @@
 package com.chimali.fido2.data.crypto
 
 import android.content.Context
-import android.util.Log
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
-
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "WalletMasterSeedProvider"
 private const val PREFS_FILE_NAME = "chimali_wallet_seed"
 private const val KEY_MNEMONIC = "bip39_mnemonic"
 
@@ -31,12 +30,12 @@ private const val KEY_MNEMONIC = "bip39_mnemonic"
  * **Device key pair**: Derived once from the seed and cached in memory for the
  * lifetime of the process. The private scalar must never appear in plaintext logs.
  *
- * ⚠️ **Migration note**: Any credentials registered with [EphemeralMasterSeedProvider]
+ * ⚠️ **Migration note**: Any credentials registered with `EphemeralMasterSeedProvider`
  * (T145a era) are bound to a transient seed and will be orphaned. Users must re-register.
  */
 @Singleton
 class WalletMasterSeedProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val masterSeedGenerator: MasterSeedGenerator,
     private val hdkManager: HdkManager
 ) : MasterSeedProvider {
@@ -63,7 +62,7 @@ class WalletMasterSeedProvider @Inject constructor(
         cachedSeed = seed
         cachedDeviceKeyPair = hdkManager.generateDeviceKeyPair()
 
-        Log.d(TAG, "Master seed initialized from BIP39 mnemonic (word count: ${mnemonic.size})")
+        Timber.d("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size)
         return Pair(cachedSeed, cachedDeviceKeyPair)
     }
 
@@ -74,15 +73,15 @@ class WalletMasterSeedProvider @Inject constructor(
         val prefs = openEncryptedPrefs()
         val existing = prefs.getString(KEY_MNEMONIC, null)
         if (!existing.isNullOrBlank()) {
-            Log.d(TAG, "Loaded existing BIP39 mnemonic from secure storage")
+            Timber.d("Loaded existing BIP39 mnemonic from secure storage")
             return existing.split(" ")
         }
 
-        Log.i(TAG, "Generating new BIP39 mnemonic (first launch)")
+        Timber.i("Generating new BIP39 mnemonic (first launch)")
         val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = 24)
-        prefs.edit()
-            .putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
-            .apply()
+        prefs.edit {
+            putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
+        }
         return newMnemonic
     }
 
@@ -131,16 +130,16 @@ class WalletMasterSeedProvider @Inject constructor(
             val prefs = openEncryptedPrefs()
             val alreadyExisted = !prefs.getString(KEY_MNEMONIC, null).isNullOrBlank()
 
-            prefs.edit()
-                .putString(KEY_MNEMONIC, mnemonicString)
-                .commit() // commit() (synchronous) guarantees disk write before cache invalidation
+            prefs.edit(commit = true) {
+                putString(KEY_MNEMONIC, mnemonicString)
+            }
 
             invalidateCache()
 
             // Re-derive immediately so the new seed is live for any in-flight FIDO2 operations.
             ensureInitialized()
 
-            Log.i(TAG, "Master seed imported (${if (alreadyExisted) "replaced existing" else "first import"})")
+            Timber.i("Master seed imported (%s)", if (alreadyExisted) "replaced existing" else "first import")
             return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
         } finally {
             mnemonic.fill('\u0000')

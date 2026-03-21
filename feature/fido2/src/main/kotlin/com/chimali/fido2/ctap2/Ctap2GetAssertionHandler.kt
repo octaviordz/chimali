@@ -1,32 +1,29 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
-import timber.log.Timber
-import com.chimali.fido2.data.crypto.AuthenticatorDataBuilder
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
-import java.util.Base64
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "Ctap2GetAssertionHandler"
-
 // CTAP2 response keys (§6.2)
-private const val KEY_CREDENTIAL  = 1
-private const val KEY_AUTH_DATA   = 2
-private const val KEY_SIGNATURE   = 3
-private const val KEY_USER        = 4
-private const val KEY_NUM_CREDS   = 5
+// private const val KEY_CREDENTIAL  = 1
+// private const val KEY_AUTH_DATA   = 2
+// private const val KEY_SIGNATURE   = 3
+// private const val KEY_USER        = 4
+// private const val KEY_NUM_CREDS   = 5
 
 /**
  * T087 — CTAP2 authenticatorGetAssertion command handler.
  *
  * Receives decoded CBOR request bytes from the HID transport, extracts
  * GetAssertion parameters, delegates to [GetAssertionUseCase], then
- * serialises the [AssertionObject] response back to CBOR.
+ * serializes the [AssertionObject] response back to CBOR.
  *
  * ### CTAP2 Request parameters decoded (§6.2):
  * | Key | Type | Field             |
@@ -41,8 +38,7 @@ private const val KEY_NUM_CREDS   = 5
 @Singleton
 class Ctap2GetAssertionHandler @Inject constructor(
     private val getAssertionUseCase: GetAssertionUseCase,
-    private val cborCodec: CborCodec,
-    private val authDataBuilder: AuthenticatorDataBuilder
+    private val cborCodec: CborCodec
 ) {
 
     /**
@@ -55,12 +51,12 @@ class Ctap2GetAssertionHandler @Inject constructor(
         return try {
             val params = cborCodec.decodeFromFido2Format(requestBytes)
             val options = decodeOptions(params)
-            Log.d(TAG, "GetAssertion: rpId=${options.rpId} allowCredentials=${options.allowCredentials?.size ?: "discoverable"}")
+            Timber.d("GetAssertion: rpId=%s allowCredentials=%s", options.rpId, options.allowCredentials?.size ?: "discoverable")
 
             val result = getAssertionUseCase(options)
             result.fold(
                 onSuccess = { assertion ->
-                    Log.d(TAG, "Assertion success: credId=${assertion.credentialId}")
+                    Timber.d("Assertion success: credId=%s", assertion.credentialId)
                     val responseBytes = encodeResponse(assertion)
                     byteArrayOf(0x00.toByte()) + responseBytes  // CTAP2_OK + response
                 },
@@ -68,9 +64,9 @@ class Ctap2GetAssertionHandler @Inject constructor(
                     // CredentialNotFound is an expected probe response before registration.
                     // All other errors are unexpected and warrant an error-level log.
                     if (error is Fido2Exception.CredentialNotFound) {
-                        Timber.d("Assertion failed (expected): ${error.message}")
+                        Timber.d("Assertion failed (expected): %s", error.message)
                     } else {
-                        Timber.e(error, "Assertion failed: ${error.message}")
+                        Timber.e(error, "Assertion failed: %s", error.message)
                     }
                     val errorCode: Byte = when (error) {
                         is Fido2Exception.CredentialNotFound      -> 0x2E.toByte() // CTAP2_ERR_NO_CREDENTIALS
@@ -82,14 +78,13 @@ class Ctap2GetAssertionHandler @Inject constructor(
                 }
             )
         } catch (e: Exception) {
-            Timber.e(e, "GetAssertion handler exception: ${e.message}")
+            Timber.e(e, "GetAssertion handler exception: %s", e.message)
             byteArrayOf(0x17.toByte()) // CTAP2_ERR_PROCESSING
         }
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
 
-    @Suppress("UNCHECKED_CAST")
     private fun decodeOptions(params: Map<String, Any>): GetAssertionOptions {
         val rpId = params["1"] as? String
             ?: throw Fido2Exception.InvalidParameter("Missing rpId (key 0x01)")
@@ -108,13 +103,12 @@ class Ctap2GetAssertionHandler @Inject constructor(
         val allowListRaw = params["3"] as? List<*>
         val allowCredentials = allowListRaw?.mapNotNull { descriptor ->
             (descriptor as? Map<*, *>)?.let { map ->
-                val rawId = map["id"]
-                val idBytes: ByteArray = when (rawId) {
+                val idBytes: ByteArray = when (val rawId = map["id"]) {
                     is ByteArray -> rawId
                     is String    -> rawId.toByteArray()   // legacy / base64
                     else         -> return@mapNotNull null
                 }
-                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = idBytes)
+                PublicKeyCredentialDescriptor.create(id = idBytes)
             }
         }
 
@@ -134,9 +128,8 @@ class Ctap2GetAssertionHandler @Inject constructor(
 
     // ── T088: Response encoding ───────────────────────────────────────────────
 
-    @Suppress("UNCHECKED_CAST")
     private fun encodeResponse(
-        assertion: com.chimali.fido2.domain.model.AssertionObject
+        assertion: AssertionObject
     ): ByteArray {
         val responseMap = mutableMapOf<String, Any>()
 
@@ -160,7 +153,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
             responseMap["4"] = mapOf(
                 "id"          to user.id,              // raw bytes
                 "name"        to user.name,
-                "displayName" to (user.displayName ?: user.name)
+                "displayName" to user.displayName.ifEmpty { user.name }
             )
         }
 

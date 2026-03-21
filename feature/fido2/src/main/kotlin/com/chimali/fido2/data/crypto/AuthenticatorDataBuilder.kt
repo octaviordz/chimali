@@ -1,11 +1,9 @@
 package com.chimali.fido2.data.crypto
 
-import android.util.Log
-import com.chimali.fido2.domain.model.UserVerificationRequirement
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "AuthenticatorDataBuilder"
 private const val AUTH_DATA_MIN_LENGTH = 37 // rpIdHash(32) + flags(1) + counter(4)
 
 /**
@@ -49,7 +47,7 @@ class AuthenticatorDataBuilder @Inject constructor() {
         signCount: Long,
         extensions: ByteArray? = null
     ): ByteArray {
-        Log.d(TAG, "Building assertion authData for rpId=$rpId signCount=$signCount")
+        Timber.d("Building assertion authData for rpId=%s signCount=%d", rpId, signCount)
         val rpIdHash = rpIdHash(rpId)
         val flags    = assembleFlags(
             up          = userPresent,
@@ -86,7 +84,7 @@ class AuthenticatorDataBuilder @Inject constructor() {
         cosePublicKey: ByteArray,
         extensions: ByteArray? = null
     ): ByteArray {
-        Log.d(TAG, "Building attestation authData for rpId=$rpId credLen=${credentialId.size}")
+        Timber.d("Building attestation authData for rpId=%s credLen=%d", rpId, credentialId.size)
         require(aaguid.size == 16) { "AAGUID must be 16 bytes" }
 
         val rpIdHash = rpIdHash(rpId)

@@ -1,13 +1,14 @@
 package com.chimali.fido2.data.transport
 
-import android.util.Log
-import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
+import com.chimali.core.events.Fido2Event
+import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.bluetooth.BROADCAST_CID
+import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
+import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
 import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.bluetooth.CTAPHID_INIT
-import com.chimali.fido2.bluetooth.CTAPHID_PING
-import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
 import com.chimali.fido2.bluetooth.CTAPHID_MSG
+import com.chimali.fido2.bluetooth.CTAPHID_PING
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -16,53 +17,41 @@ import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.service.AuthenticatorInfo
-import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.core.events.Fido2Event
-import com.chimali.core.events.Fido2EventBus
-import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
 import com.chimali.fido2.domain.service.Fido2Authenticator
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.util.performance.LatencyProfiler
+import com.chimali.fido2.util.performance.WarmUpHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.security.KeyPairGenerator
 import java.security.SecureRandom
 import java.security.Signature
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.chimali.fido2.util.performance.LatencyProfiler
-import com.chimali.fido2.util.performance.WarmUpHelper
-
-private const val TAG = "BluetoothHidTransport"
 
 // CTAPHID error codes (§8.4)
 private const val ERR_INVALID_CMD:   Byte = 0x01
-private const val ERR_INVALID_PAR:   Byte = 0x02
 private const val ERR_INVALID_LEN:   Byte = 0x03
 private const val ERR_INVALID_SEQ:   Byte = 0x04
-private const val ERR_MSG_TIMEOUT:   Byte = 0x05
-private const val ERR_CHANNEL_BUSY:  Byte = 0x06
-private const val ERR_LOCK_REQUIRED: Byte = 0x0A
 private const val ERR_INVALID_CHANNEL: Byte = 0x0B
-private const val ERR_OTHER:         Byte = 0x7F.toByte()
 
 /**
  * Central FIDO2 HID transport layer (T053 + T054).
  *
  * Implements [Fido2Transport] as the top-level orchestrator that:
- * 1. Initialises and registers the [BluetoothHidDeviceWrapper] (peripheral role)
+ * 1. initializes and registers the [BluetoothHidDeviceWrapper] (peripheral role)
  * 2. Consumes raw 64-byte HID reports from [BluetoothHidDeviceWrapper.incomingReports]
  * 3. Reassembles multi-packet CTAPHID messages via [HidReportParser]
  * 4. Dispatches each command to the appropriate CTAP2 handler
@@ -84,7 +73,6 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val responseBuilder: Ctap2ResponseBuilder,
     private val fido2Authenticator: Fido2Authenticator,
     private val fido2EventBus: Fido2EventBus,
-    private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator,
     private val userVerificationService: UserVerificationService,
     private val cryptoService: Fido2CryptoService
 ) : Fido2Transport {
@@ -102,27 +90,27 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     override suspend fun connect(): Result<Unit> {
         return try {
-            Log.d(TAG, "connect() starting...")
+            Timber.d("connect() starting...")
             hidWrapper.initialize().getOrThrow()
-            Log.d(TAG, "hidWrapper initialized, now registering app...")
+            Timber.d("hidWrapper initialized, now registering app...")
             hidWrapper.registerApp().getOrThrow()
-            Log.d(TAG, "hidWrapper app registered, starting receiver and observer...")
+            Timber.d("hidWrapper app registered, starting receiver and observer...")
             startReceiving()
             observeConnectionState()
-            Log.i(TAG, "BluetoothHidTransport connected and advertising")
+            Timber.i("BluetoothHidTransport connected and advertising")
             Result.success(Unit)
         } catch (e: Fido2Exception) {
-            Log.e(TAG, "connect() failed with Fido2Exception: ${e.message}")
+            Timber.e("connect() failed with Fido2Exception: %s", e.message)
             Result.failure(e)
         } catch (e: Exception) {
-            Log.e(TAG, "connect() unexpected failure: ${e.message}", e)
+            Timber.e(e, "connect() unexpected failure: %s", e.message)
             Result.failure(Fido2Exception.TransportException("Failed to start HID transport: ${e.message}"))
         }
     }
 
     override suspend fun disconnect(): Result<Unit> {
         return try {
-            Log.d(TAG, "disconnect() starting...")
+            Timber.d("disconnect() starting...")
             receiveJob?.cancel()
             receiveJob = null
             stateObserverJob?.cancel()
@@ -130,10 +118,10 @@ class BluetoothHidTransportImpl @Inject constructor(
             hidWrapper.unregisterApp()
             channelRegistry.clear()
             hidReportParser.reset()
-            Log.i(TAG, "BluetoothHidTransport disconnected")
+            Timber.i("BluetoothHidTransport disconnected")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "disconnect() failed: ${e.message}", e)
+            Timber.e(e, "disconnect() failed: %s", e.message)
             Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
         }
     }
@@ -159,7 +147,7 @@ class BluetoothHidTransportImpl @Inject constructor(
         stateObserverJob = hidWrapper.connectionState.onEach { state ->
             when (state) {
                 is HidConnectionState.Connected -> {
-                    Log.i(TAG, "Host connected: ${state.device.address}")
+                    Timber.i("Host connected: %s", state.device.address)
                     // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
                     // real GetAssertion ceremony doesn't pay cold-start costs.
                     //
@@ -168,13 +156,13 @@ class BluetoothHidTransportImpl @Inject constructor(
                     // ceremony, giving this coroutine a realistic head start.
                     //
                     // All results are discarded — only the side-effects (cache population
-                    // and TEE channel initialisation) matter. Failures are non-fatal.
+                    // and TEE channel initialization) matter. Failures are non-fatal.
                     scope.launch(Dispatchers.IO) {
                         // (1) BiometricManager availability cache — eliminates 50–150ms
                         //     Binder IPC into Android SystemServer on first UV check.
                         runCatching { userVerificationService.getUserVerificationAvailability() }
                             .onFailure { e ->
-                                Log.w(TAG, "BiometricManager pre-warm failed (non-fatal): ${e.message}")
+                                Timber.w("BiometricManager pre-warm failed (non-fatal): %s", e.message)
                             }
 
                         // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
@@ -198,16 +186,16 @@ class BluetoothHidTransportImpl @Inject constructor(
                     // Transport is now ready for CTAPHID_INIT from the host
                 }
                 is HidConnectionState.Advertising -> {
-                    Log.d(TAG, "Advertising for host connections")
+                    Timber.d("Advertising for host connections")
                     // Clean up any channels from prior host session
                     channelRegistry.clear()
                     hidReportParser.reset()
                 }
                 is HidConnectionState.Idle -> {
-                    Log.d(TAG, "HID transport idle")
+                    Timber.d("HID transport idle")
                 }
                 is HidConnectionState.Error -> {
-                    Log.e(TAG, "HID connection error: ${state.message}")
+                    Timber.e("HID connection error: %s", state.message)
                 }
                 else -> { /* Connecting — nothing to do */ }
             }
@@ -228,7 +216,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     private suspend fun processReport(report: ByteArray) {
         val result = hidReportParser.processReport(report)
         if (result.isFailure) {
-            Log.e(TAG, "Report parse error: ${result.exceptionOrNull()?.message}")
+            Timber.e("Report parse error: %s", result.exceptionOrNull()?.message)
             // Can't identify CID from a broken packet; send broadcast error
             sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_SEQ))
             return
@@ -236,8 +224,8 @@ class BluetoothHidTransportImpl @Inject constructor(
 
         val message = result.getOrNull() ?: return  // null = still accumulating
 
-        Log.d(TAG, "CTAPHID cmd=0x${message.command.toString(16).uppercase()} " +
-                   "cid=${message.channelId.toHex()} payloadLen=${message.payload.size}")
+        Timber.d("CTAPHID cmd=0x%s cid=%s payloadLen=%d",
+            message.command.toString(16).uppercase(), message.channelId.toHex(), message.payload.size)
 
         dispatchMessage(message)
     }
@@ -253,7 +241,7 @@ class BluetoothHidTransportImpl @Inject constructor(
             CTAPHID_PING    -> handlePing(message)
             CTAPHID_CANCEL  -> handleCancel(message)
             else -> {
-                Log.w(TAG, "Unknown CTAPHID command 0x${message.command.toString(16)}")
+                Timber.w("Unknown CTAPHID command 0x%s", message.command.toString(16))
                 sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_CMD))
             }
         }
@@ -271,7 +259,7 @@ class BluetoothHidTransportImpl @Inject constructor(
         // Assign a new CID for this session
         val newCid = generateCid()
         channelRegistry[newCid.toHex()] = newCid
-        Log.i(TAG, "CTAPHID_INIT: assigned CID=${newCid.toHex()}")
+        Timber.i("CTAPHID_INIT: assigned CID=%s", newCid.toHex())
 
         val initResponse = hidReportParser.buildInitResponse(nonce, newCid)
         sendPackets(hidReportParser.encodeResponse(initResponse))
@@ -303,7 +291,7 @@ class BluetoothHidTransportImpl @Inject constructor(
         }
         // NFR-PERF-030: Start measuring full CTAP2 processing time
         LatencyProfiler.start(operationLabel)
-        Log.d(TAG, "CTAP2 command=0x${ctapCommand.toString(16)} on CID=${cid.toHex()}")
+        Timber.d("CTAP2 command=0x%s on CID=%s", ctapCommand.toString(16), cid.toHex())
 
         // ── Periodic keepalive loop ────────────────────────────────────────────
         // CTAP HID spec §8.5.5: the authenticator MUST send CTAPHID_KEEPALIVE
@@ -338,7 +326,7 @@ class BluetoothHidTransportImpl @Inject constructor(
                 }
                 0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
                 else -> {
-                    Log.w(TAG, "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}")
+                    Timber.w("Unsupported CTAP2 command 0x%s", ctapCommand.toString(16))
                     responseBuilder.errorResponse(cid, 0x01.toByte()) // CTAP1_ERR_INVALID_COMMAND
                 }
             }
@@ -359,8 +347,8 @@ class BluetoothHidTransportImpl @Inject constructor(
         val state = hidWrapper.connectionState.value
         if (state is HidConnectionState.Connected) {
             val mac = state.device.address
-            val name = state.device.name
-            
+            val name = try { state.device.name } catch (e: SecurityException) { null }
+
             // Requires API 31+ or suppression for BLUETOOTH_CONNECT, but we already have permission
             // The property is `bluetoothClass.deviceClass` which returns the Int representing the major/minor class
             val devClass = try {
@@ -369,7 +357,7 @@ class BluetoothHidTransportImpl @Inject constructor(
                 null
             }
 
-            Log.d(TAG, "FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass")
+            Timber.d("FIDO2 Operation succeeded for host: %s (%s), Class: %d", name, mac, devClass)
             fido2EventBus.publish(Fido2Event.InteractionSuccessful(
                 hostDeviceAddress = mac,
                 hostDeviceName = name,
@@ -408,7 +396,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     private suspend fun handleMsg(message: CtapHidMessage) {
         val cid     = message.channelId
         val payload = message.payload
-        Log.d(TAG, "CTAPHID_MSG len=${payload.size} cid=${cid.toHex()}")
+        Timber.d("CTAPHID_MSG len=%d cid=%s", payload.size, cid.toHex())
 
         if (payload.size < 4) {
             sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN))
@@ -421,11 +409,11 @@ class BluetoothHidTransportImpl @Inject constructor(
         if (ins == 0x10) {
             val cborData = extractApduData(payload)
             if (cborData == null || cborData.isEmpty()) {
-                Log.w(TAG, "CTAPHID_MSG INS=0x10 but APDU data is empty")
+                Timber.w("CTAPHID_MSG INS=0x10 but APDU data is empty")
                 sendPackets(u2fErrorResponse(cid, 0x6F, 0x00)) // SW_UNKNOWN
                 return
             }
-            Log.d(TAG, "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and 0xFF).toString(16)} as CBOR")
+            Timber.d("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and 0xFF).toString(16))
             // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
             val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
             handleCbor(syntheticMsg)
@@ -443,7 +431,7 @@ class BluetoothHidTransportImpl @Inject constructor(
                 // U2F_REGISTER — Windows requires a structurally valid U2F response before it
                 // will issue CTAP2 authenticatorMakeCredential. We build an ephemeral (discarded)
                 // U2F registration to pass Windows's mandatory probe.
-                Log.d(TAG, "CTAPHID_MSG U2F_REGISTER → sending dummy U2F registration to unlock CTAP2 path")
+                Timber.d("CTAPHID_MSG U2F_REGISTER → sending dummy U2F registration to unlock CTAP2 path")
                 val apduData = extractApduData(payload)
                 if (apduData != null && apduData.size >= 64) {
                     val clientDataHash = apduData.copyOfRange(0, 32)
@@ -458,11 +446,11 @@ class BluetoothHidTransportImpl @Inject constructor(
                 // U2F_AUTHENTICATE — return SW_WRONG_DATA (0x6A80) to signal that we don't
                 // recognise this U2F key handle. Per the U2F spec, this tells the platform
                 // "credential not found here" and causes Windows to fall back to CTAP2 GetAssertion.
-                Log.d(TAG, "CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)")
+                Timber.d("CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)")
                 sendPackets(u2fErrorResponse(cid, 0x6A, 0x80))
             }
             else -> {
-                Log.d(TAG, "CTAPHID_MSG U2F INS=0x${ins.toString(16)} unknown — returning SW_INS_NOT_SUPPORTED")
+                Timber.d("CTAPHID_MSG U2F INS=0x%s unknown — returning SW_INS_NOT_SUPPORTED", ins.toString(16))
                 sendPackets(u2fErrorResponse(cid, 0x6D, 0x00))
             }
         }
@@ -499,7 +487,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     }
 
     private fun handleCancel(message: CtapHidMessage) {
-        Log.d(TAG, "CTAPHID_CANCEL on CID=${message.channelId.toHex()}")
+        Timber.d("CTAPHID_CANCEL on CID=%s", message.channelId.toHex())
         // Acknowledge cancel — no response payload per spec
     }
 
@@ -514,7 +502,7 @@ class BluetoothHidTransportImpl @Inject constructor(
             val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
             hidReportParser.encodeResponse(responseMsg)
         } catch (e: Exception) {
-            Log.e(TAG, "GetAssertion handler exception: ${e.message}")
+            Timber.e(e, "GetAssertion handler exception: %s", e.message)
             responseBuilder.errorResponse(cid, 0x30.toByte())
         }
     }
@@ -528,11 +516,11 @@ class BluetoothHidTransportImpl @Inject constructor(
             // Debug: log the first packet hex so we can diagnose Windows rejection
             if (packets.isNotEmpty()) {
                 val hex = packets.first().joinToString("") { "%02x".format(it) }
-                Log.d(TAG, "GetInfo response packet[0] hex: $hex")
+                Timber.d("GetInfo response packet[0] hex: %s", hex)
             }
             packets
         } catch (e: Exception) {
-            Log.e(TAG, "GetInfo failed: ${e.message}")
+            Timber.e(e, "GetInfo failed: %s", e.message)
             responseBuilder.errorResponse(cid, 0x30.toByte())
         }
     }
@@ -542,7 +530,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     private fun sendPackets(packets: List<ByteArray>) {
         for (packet in packets) {
             if (!hidWrapper.sendReport(packet)) {
-                Log.w(TAG, "sendReport returned false — host may have disconnected")
+                Timber.w("sendReport returned false — host may have disconnected")
                 break
             }
         }

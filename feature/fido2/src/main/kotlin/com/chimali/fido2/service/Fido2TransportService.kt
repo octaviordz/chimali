@@ -8,13 +8,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,9 +22,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
-private const val TAG = "Fido2TransportService"
 private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
 private const val AUTH_REQUEST_CHANNEL_ID = "fido2_auth_requests"
@@ -104,10 +103,10 @@ class Fido2TransportService : Service() {
         scope.launch {
             val result = transport.connect()
             if (result.isFailure) {
-                Log.e(TAG, "Transport connect failed: ${result.exceptionOrNull()?.message}")
+                Timber.e("Transport connect failed: %s", result.exceptionOrNull()?.message)
                 stopSelf()
             } else {
-                Log.i(TAG, "HID transport connected — service running in foreground")
+                Timber.i("HID transport connected — service running in foreground")
             }
         }
     }
@@ -123,26 +122,24 @@ class Fido2TransportService : Service() {
     // ── Notification ──────────────────────────────────────────────────────────
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Chimali Authenticator",
-                NotificationManager.IMPORTANCE_LOW   // Silent — no sound/vibration
-            ).apply {
-                description = "Keeps the virtual security key active"
-            }
-            nm.createNotificationChannel(channel)
-            
-            val authChannel = NotificationChannel(
-                AUTH_REQUEST_CHANNEL_ID,
-                "Authentication Requests",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifies you when a passkey is requested"
-            }
-            nm.createNotificationChannel(authChannel)
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Chimali Authenticator",
+            NotificationManager.IMPORTANCE_LOW   // Silent — no sound/vibration
+        ).apply {
+            description = "Keeps the virtual security key active"
         }
+        nm.createNotificationChannel(channel)
+        
+        val authChannel = NotificationChannel(
+            AUTH_REQUEST_CHANNEL_ID,
+            "Authentication Requests",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifies you when a passkey is requested"
+        }
+        nm.createNotificationChannel(authChannel)
     }
 
     private fun buildAdvertisingNotification(): Notification {
@@ -167,7 +164,6 @@ class Fido2TransportService : Service() {
     }
 
     private fun isAppInForeground(): Boolean {
-        val am = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
         val processInfo = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(processInfo)
         return processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
@@ -198,7 +194,7 @@ class Fido2TransportService : Service() {
             .setFullScreenIntent(pendingIntent, true)
             .build()
 
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(AUTH_REQUEST_NOTIF_ID, notification)
     }
 }

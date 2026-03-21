@@ -1,13 +1,10 @@
 package com.chimali.fido2.bluetooth
 
-import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
+import timber.log.Timber
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "HidReportParser"
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
@@ -105,7 +102,26 @@ class HidReportParser @Inject constructor() {
         val totalLength: Int,
         val buffer: MutableList<Byte>,
         var nextSeq: Int = 0
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is InProgress) return false
+            return channelId.contentEquals(other.channelId) &&
+                   command == other.command &&
+                   totalLength == other.totalLength &&
+                   buffer == other.buffer &&
+                   nextSeq == other.nextSeq
+        }
+
+        override fun hashCode(): Int {
+            var result = channelId.contentHashCode()
+            result = 31 * result + command
+            result = 31 * result + totalLength
+            result = 31 * result + buffer.hashCode()
+            result = 31 * result + nextSeq
+            return result
+        }
+    }
 
     /** Map from CID (as hex string) → in-progress reassembly state. */
     private val pending = mutableMapOf<String, InProgress>()
@@ -151,7 +167,7 @@ class HidReportParser @Inject constructor() {
 
         // Abort any prior pending message on this channel
         if (pending.containsKey(cidKey)) {
-            Log.w(TAG, "New init packet received while $cidKey was pending — aborting old")
+            Timber.w("New init packet received while %s was pending — aborting old", cidKey)
             pending.remove(cidKey)
         }
 

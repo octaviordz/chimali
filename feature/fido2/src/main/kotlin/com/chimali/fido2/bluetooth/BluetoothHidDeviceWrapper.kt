@@ -3,34 +3,31 @@ package com.chimali.fido2.bluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
-import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
-import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import timber.log.Timber
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-
-private const val TAG = "BluetoothHidWrapper"
 
 /**
  * FIDO2 HID descriptor per FIDO Alliance CTAP HID spec (section 8).
@@ -88,7 +85,7 @@ private const val FIDO_REPORT_ID: Byte = 0
  */
 @Singleton
 class BluetoothHidDeviceWrapper @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     // ── Bluetooth infrastructure ──────────────────────────────────────────────
 
@@ -125,11 +122,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = proxy as BluetoothHidDevice
-                Log.d(TAG, "HID_DEVICE profile proxy acquired successfully")
+                Timber.d("HID_DEVICE profile proxy acquired successfully")
                 initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                 initContinuation = null
             } else {
-                Log.w(TAG, "onServiceConnected received for profile $profile, expected HID_DEVICE")
+                Timber.w("onServiceConnected received for profile %d, expected HID_DEVICE", profile)
             }
         }
 
@@ -137,7 +134,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = null
                 _connectionState.value = HidConnectionState.Idle
-                Log.d(TAG, "HID_DEVICE profile proxy released (service disconnected)")
+                Timber.d("HID_DEVICE profile proxy released (service disconnected)")
             }
         }
     }
@@ -146,18 +143,18 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     private val hidCallback = object : BluetoothHidDevice.Callback() {
 
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
-            Log.d(TAG, "onAppStatusChanged registered=$registered device=$pluggedDevice")
+            Timber.d("onAppStatusChanged registered=%b device=%s", registered, pluggedDevice)
             if (registered) {
                 if (pluggedDevice != null) {
-                    Log.w(TAG, "Phantom device reported upon registration: ${pluggedDevice.address}. Forcing disconnect to clear L2CAP socket.")
+                    Timber.w("Phantom device reported upon registration: %s. Forcing disconnect to clear L2CAP socket.", pluggedDevice.address)
                     try {
                         // Some Android devices (like Moto G) falsely report a connected device 
                         // immediately upon registration, occupying the socket and blocking real connections.
                         // Force a disconnect to clear the state.
                         val disconnected = hidDevice?.disconnect(pluggedDevice)
-                        Log.d(TAG, "Forced disconnect result: $disconnected")
+                        Timber.d("Forced disconnect result: %b", disconnected)
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "Failed to force disconnect phantom device", e)
+                        Timber.e(e, "Failed to force disconnect phantom device")
                     }
                 }
                 // Always return to advertising, waiting for the REAL host connection attempt
@@ -168,7 +165,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         }
 
         override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) {
-            Log.d(TAG, "onConnectionStateChanged state=$state device=${device.address}")
+            Timber.d("onConnectionStateChanged state=%d device=%s", state, device.address)
             when (state) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     connectedDevice = device
@@ -178,18 +175,20 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     try {
                         val report = ByteArray(FIDO_HID_REPORT_SIZE)
                         val sent = hidDevice?.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-                        Log.d(TAG, "Sent initial keepalive report on connect: $sent")
+                        Timber.d("Sent initial keepalive report on connect: %b", sent)
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "Failed to send initial keepalive: permission denied", e)
+                        Timber.e(e, "Failed to send initial keepalive: permission denied")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to send initial keepalive", e)
+                        Timber.e(e, "Failed to send initial keepalive")
                     }
                 }
+
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    Log.d(TAG, "Device disconnected: ${device.address}")
+                    Timber.d("Device disconnected: %s", device.address)
                     connectedDevice = null
                     _connectionState.value = HidConnectionState.Advertising
                 }
+
                 BluetoothProfile.STATE_CONNECTING -> {
                     _connectionState.value = HidConnectionState.Connecting(device)
                 }
@@ -198,13 +197,13 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
         /** Called when the host sends a SET_REPORT command (output report). */
         override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) {
-            Log.d(TAG, "onSetReport type=$type id=$id len=${data.size}")
+            Timber.d("onSetReport type=%d id=%d len=%d", type, id, data.size)
             incomingReports.trySend(ensureReportSize(data))
         }
 
         /** Called when the host sends data over the HID interrupt channel. */
         override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) {
-            Log.d(TAG, "onInterruptData reportId=$reportId len=${data.size}")
+            Timber.d("onInterruptData reportId=%d len=%d", reportId, data.size)
             incomingReports.trySend(ensureReportSize(data))
         }
 
@@ -218,12 +217,12 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             try {
                 hidDevice?.replyReport(device, type, id, ByteArray(FIDO_HID_REPORT_SIZE))
             } catch (e: SecurityException) {
-                Log.e(TAG, "onGetReport: BLUETOOTH_CONNECT permission denied", e)
+                Timber.e(e, "onGetReport: BLUETOOTH_CONNECT permission denied")
             }
         }
 
         override fun onVirtualCableUnplug(device: BluetoothDevice) {
-            Log.d(TAG, "onVirtualCableUnplug device=${device.address}")
+            Timber.d("onVirtualCableUnplug device=%s", device.address)
             connectedDevice = null
             _connectionState.value = HidConnectionState.Advertising
         }
@@ -236,11 +235,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      *
      * On some OEM devices (e.g. Asus Zenfone 10), [BluetoothProfile.ServiceListener.onServiceConnected]
      * is silently never delivered even when [BluetoothAdapter.getProfileProxy] returns true. This can
-     * happen when the Bluetooth daemon is still initialising. We apply the same timeout+retry pattern
+     * happen when the Bluetooth daemon is still initializing. We apply the same timeout+retry pattern
      * used in [registerApp] to handle this gracefully.
      */
     suspend fun initialize(): Result<Unit> {
-        Log.d(TAG, "initialize() called. Current hidDevice: $hidDevice")
+        Timber.d("initialize() called. Current hidDevice: %s", hidDevice)
         if (hidDevice != null) return Result.success(Unit)
 
         var lastException: Exception? = null
@@ -248,27 +247,34 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         var retryDelay = 1000L
 
         for (attempt in 1..maxRetries) {
-            Log.d(TAG, "initialize attempt $attempt/$maxRetries")
+            Timber.d("initialize attempt %d/%d", attempt, maxRetries)
 
             val result = withTimeoutOrNull(5000L) {
-                suspendCancellableCoroutine<Result<Unit>> { cont ->
+                suspendCancellableCoroutine { cont ->
                     initContinuation = cont
                     try {
                         val adapterState = bluetoothAdapter?.state
-                        Log.d(TAG, "Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)")
-                        Log.d(TAG, "Calling getProfileProxy for HID_DEVICE...")
-                        val success = bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE) ?: false
-                        Log.d(TAG, "getProfileProxy returned: $success")
+                        Timber.d("Bluetooth adapter state before getProfileProxy: %s (STATE_ON=12)", adapterState)
+                        Timber.d("Calling getProfileProxy for HID_DEVICE...")
+                        val success =
+                            bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
+                                ?: false
+                        Timber.d("getProfileProxy returned: %b", success)
                         if (!success) {
-                            Log.e(TAG, "getProfileProxy returned false - Bluetooth may be off or profile unsupported")
+                            Timber.e("getProfileProxy returned false - Bluetooth may be off or profile unsupported")
                             cont.resumeWithException(Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"))
                             initContinuation = null
                         } else {
-                            Log.d(TAG, "getProfileProxy returned true - waiting for onServiceConnected callback...")
+                            Timber.d("getProfileProxy returned true - waiting for onServiceConnected callback...")
                         }
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?", e)
-                        cont.resumeWithException(Fido2Exception.BluetoothPermissionDenied("Bluetooth permission denied", e))
+                        Timber.e(e, "SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?")
+                        cont.resumeWithException(
+                            Fido2Exception.BluetoothPermissionDenied(
+                                "Bluetooth permission denied",
+                                e
+                            )
+                        )
                         initContinuation = null
                     }
                 }
@@ -276,17 +282,19 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
             when {
                 result == null -> {
-                    Log.e(TAG, "initialize() timed out after 5000ms - onServiceConnected never received. " +
-                        "OEM stack may require a retry or Bluetooth stack isn't fully up.")
-                    lastException = Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
+                    Timber.e("initialize() timed out after 5000ms - onServiceConnected never received. OEM stack may require a retry or Bluetooth stack isn't fully up.")
+                    lastException =
+                        Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
                 }
+
                 result.isSuccess -> {
-                    Log.i(TAG, "initialize() succeeded on attempt $attempt")
+                    Timber.i("initialize() succeeded on attempt %d", attempt)
                     return Result.success(Unit)
                 }
+
                 else -> {
                     lastException = result.exceptionOrNull() as? Exception
-                    Log.w(TAG, "initialize() failed on attempt $attempt: ${lastException?.message}")
+                    Timber.w("initialize() failed on attempt %d: %s", attempt, lastException?.message)
                     // If it's a permission error, don't retry — user action needed
                     if (lastException is Fido2Exception.BluetoothPermissionDenied) {
                         return Result.failure(lastException)
@@ -295,21 +303,23 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             }
 
             if (attempt < maxRetries) {
-                Log.d(TAG, "Retrying initialize() in ${retryDelay}ms...")
+                Timber.d("Retrying initialize() in %dms...", retryDelay)
                 delay(retryDelay)
                 retryDelay *= 2
             }
         }
 
-        Log.e(TAG, "initialize() failed after $maxRetries attempts")
-        return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries"))
+        Timber.e("initialize() failed after %d attempts", maxRetries)
+        return Result.failure(
+            lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries")
+        )
     }
 
     /**
      * Registers the FIDO2 HID application and begins advertising so that a
      * Bluetooth host can discover and connect to this authenticator.
      *
-     * Suspends until the app is registered (i.e. [onAppStatusChanged] fires
+     * Suspends until the app is registered (i.e. [BluetoothHidDevice.Callback.onAppStatusChanged] fires
      * with registered=true). Implements a timeout and retry mechanism for
      * unreliable Bluetooth stacks that drop callbacks.
      */
@@ -319,12 +329,12 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         var retryDelay = 1000L
 
         for (attempt in 1..maxRetries) {
-            Log.d(TAG, "registerApp attempt $attempt/$maxRetries")
-            
+            Timber.d("registerApp attempt %d/%d", attempt, maxRetries)
+
             // Wrap the coroutine in a timeout. If the Android Bluetooth stack returns false
             // to registerApp() and drops the callback, this prevents hanging forever.
             val result = withTimeoutOrNull(5000L) {
-                suspendCancellableCoroutine<Result<Unit>> { cont ->
+                suspendCancellableCoroutine { cont ->
                     val hid = hidDevice
                     if (hid == null) {
                         cont.resumeWithException(
@@ -335,24 +345,27 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
                     val isEnabled = try {
                         val enabled = bluetoothAdapter?.isEnabled == true
-                        Log.d(TAG, "Bluetooth adapter enabled: $enabled")
+                        Timber.d("Bluetooth adapter enabled: %b", enabled)
                         enabled
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "SecurityException checking if adapter is enabled - BLUETOOTH_CONNECT permission missing?", e)
+                        Timber.e(
+                            e,
+                            "SecurityException checking if adapter is enabled - BLUETOOTH_CONNECT permission missing?"
+                        )
                         cont.resumeWithException(
                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e)
                         )
                         return@suspendCancellableCoroutine
                     }
                     if (!isEnabled) {
-                        Log.w(TAG, "Bluetooth is disabled, cannot register HID app")
+                        Timber.w("Bluetooth is disabled, cannot register HID app")
                         cont.resumeWithException(
                             Fido2Exception.BluetoothException("Bluetooth is disabled")
                         )
                         return@suspendCancellableCoroutine
                     }
 
-                    Log.d(TAG, "Preparing SDP settings for 'Chimali Authenticator'...")
+                    Timber.d("Preparing SDP settings for 'Chimali Authenticator'...")
                     val sdp = BluetoothHidDeviceAppSdpSettings(
                         "Chimali Authenticator",
                         "FIDO2 Virtual Security Key",
@@ -363,7 +376,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
                     // Pass null for QoS to let Android use safe defaults.
                     // Strict Android 13/14 vendor stacks (like Asus) often reject explicit outQos.
-                    
+
                     val registrationCallback = object : BluetoothHidDevice.Callback() {
                         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
                             hidCallback.onAppStatusChanged(pluggedDevice, registered)
@@ -375,15 +388,25 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                                 )
                             }
                         }
-                        override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) = hidCallback.onConnectionStateChanged(device, state)
-                        override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) = hidCallback.onSetReport(device, type, id, data)
-                        override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) = hidCallback.onInterruptData(device, reportId, data)
-                        override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) = hidCallback.onGetReport(device, type, id, bufferSize)
-                        override fun onVirtualCableUnplug(device: BluetoothDevice) = hidCallback.onVirtualCableUnplug(device)
+
+                        override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) =
+                            hidCallback.onConnectionStateChanged(device, state)
+
+                        override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) =
+                            hidCallback.onSetReport(device, type, id, data)
+
+                        override fun onInterruptData(device: BluetoothDevice, reportId: Byte, data: ByteArray) =
+                            hidCallback.onInterruptData(device, reportId, data)
+
+                        override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) =
+                            hidCallback.onGetReport(device, type, id, bufferSize)
+
+                        override fun onVirtualCableUnplug(device: BluetoothDevice) =
+                            hidCallback.onVirtualCableUnplug(device)
                     }
 
-                    val registered = try {
-                        Log.d(TAG, "Performing registerApp with SDP subclass COMBO and null QoS...")
+                    val registeredValue = try {
+                        Timber.d("Performing registerApp with SDP subclass COMBO and null QoS...")
                         val callResult = hid.registerApp(
                             sdp,
                             null,
@@ -391,49 +414,51 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                             Executors.newSingleThreadExecutor(),
                             registrationCallback
                         )
-                        Log.d(TAG, "registerApp framework call result: $callResult")
+                        Timber.d("registerApp framework call result: %b", callResult)
                         callResult
                     } catch (e: SecurityException) {
-                        Log.e(TAG, "SecurityException in registerApp - missing permissions?", e)
+                        Timber.e(e, "SecurityException in registerApp - missing permissions?")
                         cont.resumeWithException(
                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
                         )
                         return@suspendCancellableCoroutine
                     } catch (e: Exception) {
-                        Log.e(TAG, "Unexpected Exception in registerApp", e)
+                        Timber.e(e, "Unexpected Exception in registerApp")
                         cont.resumeWithException(
                             Fido2Exception.BluetoothException("Unexpected error during app registration: ${e.message}")
                         )
                         return@suspendCancellableCoroutine
                     }
 
-                    if (!registered) {
-                        Log.w(TAG, "registerApp() returned false - internal stack failure. Waiting for callback anyway...")
+                    if (!registeredValue) {
+                        Timber.w("registerApp() returned false - internal stack failure. Waiting for callback anyway...")
                     }
                 }
             }
 
             if (result != null) {
                 if (result.isSuccess) {
-                    Log.i(TAG, "registerApp successful")
+                    Timber.i("registerApp successful")
                     return Result.success(Unit)
                 } else {
                     lastException = result.exceptionOrNull() as? Exception
-                    Log.w(TAG, "registerApp result was failure: ${lastException?.message}")
+                    Timber.w("registerApp result was failure: %s", lastException?.message)
                 }
             } else {
-                Log.e(TAG, "registerApp timed out after 5000ms - callback onAppStatusChanged never received")
+                Timber.e("registerApp timed out after 5000ms - callback onAppStatusChanged never received")
                 lastException = Fido2Exception.BluetoothException("HID registration timed out")
             }
 
             if (attempt < maxRetries) {
-                Log.w(TAG, "Retrying registration in ${retryDelay}ms...")
+                Timber.w("Retrying registration in %dms...", retryDelay)
                 delay(retryDelay)
                 retryDelay *= 2 // Exponential backoff
             }
         }
-        
-        return Result.failure(lastException ?: Fido2Exception.BluetoothException("HID registration failed after retries"))
+
+        return Result.failure(
+            lastException ?: Fido2Exception.BluetoothException("HID registration failed after retries")
+        )
     }
 
     /**
@@ -441,12 +466,12 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * interrupt channel.  [data] is padded/truncated to exactly 64 bytes.
      */
     fun sendReport(data: ByteArray): Boolean {
-        val hid = hidDevice ?: run {
-            Log.w(TAG, "sendReport: HID device not available")
+        if (hidDevice == null) {
+            Timber.w("sendReport: HID device not available")
             return false
         }
-        val device = connectedDevice ?: run {
-            Log.w(TAG, "sendReport: no connected device")
+        if (connectedDevice == null) {
+            Timber.w("sendReport: no connected device")
             return false
         }
         val report = ensureReportSize(data)
@@ -466,7 +491,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         val device = connectedDevice
 
         if (hid == null || device == null) {
-            Log.w(TAG, "processNextReport: HID device or connected device not available")
+            Timber.w("processNextReport: HID device or connected device not available")
             isSending.set(false)
             processNextReport()
             return
@@ -474,8 +499,8 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
         try {
             val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-            Log.d(TAG, "sendReport dispatched len=${report.size} success=$sent")
-            
+            Timber.d("sendReport dispatched len=%d success=%b", report.size, sent)
+
             // Delay slightly to give the Bluetooth stack time to process the HCI commands
             scope.launch {
                 delay(20L)
@@ -483,11 +508,11 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                 processNextReport()
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "sendReport: BLUETOOTH_CONNECT permission denied", e)
+            Timber.e(e, "sendReport: BLUETOOTH_CONNECT permission denied")
             isSending.set(false)
             processNextReport()
         } catch (e: Exception) {
-            Log.e(TAG, "sendReport: Exception", e)
+            Timber.e(e, "sendReport: Exception")
             isSending.set(false)
             processNextReport()
         }
@@ -498,7 +523,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         try {
             hidDevice?.unregisterApp()
         } catch (e: SecurityException) {
-            Log.e(TAG, "unregisterApp: Bluetooth permission denied", e)
+            Timber.e(e, "unregisterApp: Bluetooth permission denied")
         }
         _connectionState.value = HidConnectionState.Idle
     }
@@ -509,7 +534,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         try {
             hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }
         } catch (e: SecurityException) {
-            Log.e(TAG, "close: Bluetooth permission denied", e)
+            Timber.e(e, "close: Bluetooth permission denied")
         }
         hidDevice = null
         incomingReports.close()
@@ -517,14 +542,6 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
     /** Returns true if a Bluetooth host is currently connected. */
     fun isConnected(): Boolean = _connectionState.value is HidConnectionState.Connected
-
-    /** Returns true if Bluetooth is enabled on the device. */
-    fun isBluetoothEnabled(): Boolean = try {
-        bluetoothAdapter?.isEnabled == true
-    } catch (e: SecurityException) {
-        Log.e(TAG, "isBluetoothEnabled: permission denied", e)
-        false
-    }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 

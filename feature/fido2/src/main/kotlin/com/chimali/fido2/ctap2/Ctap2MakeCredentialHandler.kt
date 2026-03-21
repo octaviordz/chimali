@@ -1,34 +1,24 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
-import timber.log.Timber
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.MakeCredentialOptions
-import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
-import com.chimali.fido2.domain.service.Fido2Authenticator
-import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.LatencyProfiler
 import kotlinx.coroutines.CompletableDeferred
-import java.security.KeyPairGenerator
-import java.security.MessageDigest
-import java.security.SecureRandom
-import java.security.spec.ECGenParameterSpec
-import java.time.Instant
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.chimali.fido2.util.performance.LatencyProfiler
-
-private const val TAG = "Ctap2MakeCredential"
 
 // CTAPHID command codes
 private const val CTAPHID_CBOR: Byte = 0x10
@@ -44,23 +34,13 @@ private const val CTAP2_ERR_UNSUPPORTED_ALGORITHM: Byte = 0x26.toByte()
 private const val CTAP2_ERR_OPERATION_DENIED:      Byte = 0x27.toByte()
 private const val CTAP2_ERR_KEY_STORE_FULL:        Byte = 0x28.toByte()
 private const val CTAP2_ERR_NOT_ALLOWED:           Byte = 0x36.toByte()
-private const val CTAP2_ERR_PIN_INVALID:           Byte = 0x31.toByte()
 
 // COSE algorithm IDs
 internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
-internal const val COSE_RS256 = -257  // RSASSA-PKCS1-v1_5 with SHA-256
-internal const val COSE_EDDSA = -8    // EdDSA
 
 // AuthData flags
 private const val FLAG_UP: Int = 0x01  // User Present
-private const val FLAG_UV: Int = 0x04  // User Verified
 private const val FLAG_AT: Int = 0x40  // Attested Credential Data included
-
-// Fixed AAGUID for Chimali authenticator (version 1)
-private val CHIMALI_AAGUID = byteArrayOf(
-    0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
-)
 
 /**
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
@@ -69,20 +49,15 @@ private val CHIMALI_AAGUID = byteArrayOf(
  * Responsibilities:
  * - Decode CBOR-encoded MakeCredential request
  * - Validate parameters per CTAP2 spec §6.1
- * - Request user verification via [UserVerificationService]
- * - Delegate credential creation to [Fido2Authenticator]
+ * - Delegate credential creation to UI/Service layer via event bus
  * - Encode the success / error CTAP2 response back as a [CtapHidMessage]
  */
 @Singleton
 class Ctap2MakeCredentialHandler @Inject constructor(
-    private val userVerificationService: UserVerificationService,
-    private val fido2Authenticator: Fido2Authenticator,
     private val cborCodec: CborCodec,
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus
 ) {
-
-    private val secureRandom = SecureRandom()
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -107,7 +82,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             val params = decodeMakeCredentialRequest(cborData)
             handleMakeCredential(cid, params)
         } catch (e: Fido2Exception) {
-            Timber.e(e, "MakeCredential error: ${e.message}")
+            Timber.e(e, "MakeCredential error: %s", e.message)
             errorPackets(cid, mapExceptionToStatus(e))
         } catch (e: Exception) {
             Timber.e(e, "Unexpected error in MakeCredential")
@@ -181,7 +156,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         cid: ByteArray,
         req: MakeCredentialRequest
     ): List<ByteArray> {
-        Log.d(TAG, "handleMakeCredential START rpId=${req.rpId} user=${req.userName}")
+        Timber.d("handleMakeCredential START rpId=%s user=%s", req.rpId, req.userName)
 
         val rp   = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
         val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
@@ -192,19 +167,19 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         )
 
         val deferred = CompletableDeferred<Result<AttestationObject>>()
-        Log.d(TAG, "Dispatching RegistrationRequested event to UI")
+        Timber.d("Dispatching RegistrationRequested event to UI")
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
-        Log.d(TAG, "Event dispatched — awaiting user response via deferred")
+        Timber.d("Event dispatched — awaiting user response via deferred")
 
         // NFR-PERF-030: Exclude UI interaction time from system latency
         LatencyProfiler.startUserInteraction("MakeCredential")
         val attestationResult = deferred.await()
         LatencyProfiler.endUserInteraction("MakeCredential")
-        Log.d(TAG, "Deferred resolved — success=${attestationResult.isSuccess} error=${attestationResult.exceptionOrNull()?.message}")
+        Timber.d("Deferred resolved — success=%b error=%s", attestationResult.isSuccess, attestationResult.exceptionOrNull()?.message)
 
         if (attestationResult.isFailure) {
             val ex = attestationResult.exceptionOrNull()
-            Timber.e(ex, "Registration failed or cancelled: ${ex?.message}")
+            Timber.e(ex, "Registration failed or cancelled: %s", ex?.message)
             return when (ex) {
                 is Fido2Exception.CredentialException ->
                     errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
@@ -215,12 +190,12 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         }
 
         val attestation = attestationResult.getOrThrow()
-        Log.d(TAG, "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes")
+        Timber.d("Encoding MakeCredential response for credId=%dbytes", attestation.authData.credentialId.size)
         val responseCbor   = encodeAttestationResponse(attestation)
         val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
         // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
         val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
-        Log.d(TAG, "MakeCredential response ready payloadLen=${responsePayload.size}")
+        Timber.d("MakeCredential response ready payloadLen=%d", responsePayload.size)
         return hidReportParser.encodeResponse(responseMsg)
     }
 
@@ -239,10 +214,10 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             "2" to authDataBytes,           // authData (raw bytes, not base64)
             "3" to buildAttestationStatementMap(attestation.attStmt)
         )
-        Log.d(TAG, "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}")
-        Log.d(TAG, "authData hex: ${authDataBytes.joinToString("") { "%02x".format(it) }}")
+        Timber.d("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size)
+        Timber.d("authData hex: %s", authDataBytes.joinToString("") { "%02x".format(it) })
         val encoded = cborCodec.encodeToFido2Format(responseMap)
-        Log.d(TAG, "CBOR response hex: ${encoded.joinToString("") { "%02x".format(it) }}")
+        Timber.d("CBOR response hex: %s", encoded.joinToString("") { "%02x".format(it) })
         return encoded
     }
 
@@ -286,13 +261,6 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         }
     }
 
-    // ── Algorithm selection ───────────────────────────────────────────────────
-
-    private fun selectAlgorithm(requested: List<Int>): Int? {
-        val supported = listOf(COSE_ES256, COSE_RS256)
-        return supported.firstOrNull { it in requested }
-    }
-
     // ── Error helpers ─────────────────────────────────────────────────────────
 
     private fun errorPackets(cid: ByteArray, statusCode: Byte): List<ByteArray> {
@@ -321,4 +289,34 @@ private data class MakeCredentialRequest(
     val algorithms: List<Int>,
     val requireUV: Boolean,
     val requireRK: Boolean
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MakeCredentialRequest) return false
+
+        if (!clientDataHash.contentEquals(other.clientDataHash)) return false
+        if (rpId != other.rpId) return false
+        if (rpName != other.rpName) return false
+        if (!userId.contentEquals(other.userId)) return false
+        if (userName != other.userName) return false
+        if (userDisplayName != other.userDisplayName) return false
+        if (algorithms != other.algorithms) return false
+        if (requireUV != other.requireUV) return false
+        if (requireRK != other.requireRK) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = clientDataHash.contentHashCode()
+        result = 31 * result + rpId.hashCode()
+        result = 31 * result + rpName.hashCode()
+        result = 31 * result + userId.contentHashCode()
+        result = 31 * result + userName.hashCode()
+        result = 31 * result + userDisplayName.hashCode()
+        result = 31 * result + algorithms.hashCode()
+        result = 31 * result + requireUV.hashCode()
+        result = 31 * result + requireRK.hashCode()
+        return result
+    }
+}

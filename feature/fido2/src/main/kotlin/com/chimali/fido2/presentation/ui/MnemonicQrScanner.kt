@@ -1,7 +1,6 @@
 package com.chimali.fido2.presentation.ui
 
 import android.Manifest
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -30,9 +29,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import timber.log.Timber
 import java.util.concurrent.Executors
-
-private const val TAG = "MnemonicQrScanner"
 
 /**
  * T146f — A CameraX-based QR code scanner composable.
@@ -86,7 +84,7 @@ fun MnemonicQrScanner(
                                     hasScanned = true
                                     onScanned(words)
                                 } else {
-                                    Log.w(TAG, "QR scan had ${words.size} words, need 24")
+                                    Timber.w("QR scan had %d words, need 24", words.size)
                                     onError("QR code must encode exactly 24 words (found ${words.size}).")
                                 }
                             }
@@ -102,7 +100,7 @@ fun MnemonicQrScanner(
                             imageAnalysis
                         )
                     } catch (exc: Exception) {
-                        Log.e(TAG, "Camera bind failed", exc)
+                        Timber.e(exc, "Camera bind failed")
                         onError("Camera error: ${exc.message}")
                     }
                 }, ContextCompat.getMainExecutor(ctx))

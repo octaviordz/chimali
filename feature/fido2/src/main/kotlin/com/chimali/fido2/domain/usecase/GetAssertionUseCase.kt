@@ -1,6 +1,8 @@
 package com.chimali.fido2.domain.usecase
 
-import android.util.Log
+import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
+import com.chimali.fido2.data.crypto.ClientDataHashService
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.CredentialSummary
@@ -9,11 +11,8 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.fido2.data.crypto.ClientDataHashService
-import com.chimali.fido2.data.crypto.Fido2CryptoService
+import timber.log.Timber
 import javax.inject.Inject
-
-private const val TAG = "GetAssertionUseCase"
 
 /**
  * T080 — Authenticate use case: executes a FIDO2 GetAssertion ceremony.
@@ -47,7 +46,7 @@ class GetAssertionUseCase @Inject constructor(
         options: GetAssertionOptions
     ): Result<AssertionObject> = runCatching {
 
-        Log.d(TAG, "GetAssertion for rpId=${options.rpId}")
+        Timber.d("GetAssertion for rpId=%s", options.rpId)
 
         // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
         performUserVerification(options)
@@ -74,7 +73,6 @@ class GetAssertionUseCase @Inject constructor(
         val newSignCount = signCount + 1
         val authData = buildAuthData(
             rpIdHash     = rpIdHash,
-            userPresent  = true,
             userVerified = options.userVerification != UserVerificationRequirement.DISCOURAGED,
             signCount    = newSignCount
         )
@@ -83,12 +81,12 @@ class GetAssertionUseCase @Inject constructor(
 
         // 5 — persist incremented sign count
         credentialRepository.updateSignCount(selectedId, newSignCount)
-            .getOrElse { e -> Log.w(TAG, "Failed to update sign count: ${e.message}") }
+            .getOrElse { e -> Timber.w("Failed to update sign count: %s", e.message) }
 
         // Use credentialId bytes from the summary — no full object hydration needed.
         val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)
 
-        Log.d(TAG, "Assertion complete: credId=$selectedId signCount=$newSignCount")
+        Timber.d("Assertion complete: credId=%s signCount=%d", selectedId, newSignCount)
         AssertionObject(
             credential          = credDesc,
             authData            = authData,
@@ -99,9 +97,9 @@ class GetAssertionUseCase @Inject constructor(
     }.recoverCatching { e ->
         // CredentialNotFound is expected during pre-registration probes -- log at debug level.
         if (e is Fido2Exception.CredentialNotFound) {
-            Log.d(TAG, "GetAssertion (expected): ${e.message}")
+            Timber.d("GetAssertion (expected): %s", e.message)
         } else {
-            Log.e(TAG, "GetAssertion failed: ${e.message}", e)
+            Timber.e(e, "GetAssertion failed: %s", e.message)
         }
         throw when (e) {
             is Fido2Exception -> e
@@ -148,12 +146,12 @@ class GetAssertionUseCase @Inject constructor(
 
     private fun buildAuthData(
         rpIdHash: ByteArray,
-        userPresent: Boolean,
         userVerified: Boolean,
         signCount: Long
     ): ByteArray {
         var flags = 0
-        if (userPresent)  flags = flags or 0x01
+        // User Present (UP) bit is always set for assertions
+        flags = flags or 0x01
         if (userVerified) flags = flags or 0x04
         val counter = byteArrayOf(
             ((signCount shr 24) and 0xFF).toByte(),
@@ -173,4 +171,3 @@ class GetAssertionUseCase @Inject constructor(
             .getOrElse { throw Fido2Exception.SigningFailed(it.message ?: "Signing failed", it) }
     }
 }
-

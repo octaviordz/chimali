@@ -1,12 +1,10 @@
 package com.chimali.fido2.domain.usecase
 
-import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
+import timber.log.Timber
 import javax.inject.Inject
-
-private const val TAG = "SelectCredentialUseCase"
 
 /**
  * Selects the best [CredentialSummary] from a list of candidates for a [GetAssertionOptions].
@@ -22,7 +20,7 @@ private const val TAG = "SelectCredentialUseCase"
  */
 class SelectCredentialUseCase @Inject constructor() {
 
-    suspend operator fun invoke(
+    operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions
     ): Result<CredentialSummary> = runCatching {
@@ -32,12 +30,12 @@ class SelectCredentialUseCase @Inject constructor() {
             )
 
             candidates.size == 1 -> {
-                Log.d(TAG, "Auto-selecting single credential: ${candidates.first().id}")
+                Timber.d("Auto-selecting single credential: %s", candidates.first().id)
                 candidates.first()
             }
 
             else -> {
-                Log.d(TAG, "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId}")
+                Timber.d("Multiple credentials (%d), selecting MRU for rpId=%s", candidates.size, options.rpId)
                 selectMostRecentlyUsed(candidates)
             }
         }
@@ -47,7 +45,7 @@ class SelectCredentialUseCase @Inject constructor() {
         val selected = candidates.maxByOrNull { it.lastUsedAt }
             ?: throw Fido2Exception.CredentialNotFound("Could not resolve credential from candidates")
 
-        Log.d(TAG, "MRU selected credential: ${selected.id} (lastUsed=${selected.lastUsedAt})")
+        Timber.d("MRU selected credential: %s (lastUsed=%s)", selected.id, selected.lastUsedAt)
         return selected
     }
 }

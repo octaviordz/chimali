@@ -1,6 +1,5 @@
 package com.chimali.fido2.presentation.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -10,15 +9,22 @@ import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
-import timber.log.Timber
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 // ── MVI: Intent (user actions) ────────────────────────────────────────────────
@@ -42,7 +48,7 @@ sealed interface RegistrationIntent {
     /** Retry after an error. */
     data object Retry : RegistrationIntent
 
-    /** ViewModel needs to be initialised with the incoming CTAP2 request. */
+    /** ViewModel needs to be initialized with the incoming CTAP2 request. */
     data class InitRegistration(val options: MakeCredentialOptions) : RegistrationIntent
 }
 
@@ -76,7 +82,7 @@ sealed interface RegistrationState {
         val isRetryable: Boolean = true
     ) : RegistrationState
 
-    /** User cancelled — presenter should dismiss and notify CTAP2 layer. */
+    /** User canceled — presenter should dismiss and notify CTAP2 layer. */
     data object Cancelled : RegistrationState
 }
 
@@ -103,8 +109,6 @@ sealed interface RegistrationEffect {
  * 3. User confirms → biometric or PIN → [RegistrationState.Processing]
  * 4. [Fido2Service] performs registration → [RegistrationState.Success] or [RegistrationState.Error]
  */
-private const val TAG = "RegistrationVM"
-
 @HiltViewModel
 class RegistrationPromptViewModel @Inject constructor(
     private val fido2Service: Fido2Service,
@@ -116,22 +120,22 @@ class RegistrationPromptViewModel @Inject constructor(
     val state: StateFlow<RegistrationState> = _state.asStateFlow()
 
     private val _effects = Channel<RegistrationEffect>(Channel.BUFFERED)
-    val effects = _effects.receiveAsFlow()
+    val effects: Flow<RegistrationEffect> = _effects.receiveAsFlow()
 
     private var pendingOptions: MakeCredentialOptions? = null
     private var pendingDeferred: CompletableDeferred<*>? = null
 
     init {
-        Log.d(TAG, "RegistrationPromptViewModel created — subscribing to event bus")
+        Timber.d("RegistrationPromptViewModel created — subscribing to event bus")
         // Observe event bus for incoming registration requests from transport.
         // Guard: if we are already showing an error to the user, do NOT let a PC retry
         // silently overwrite the error screen — the user must dismiss/retry first.
         uiEventBus.events
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .onEach { event ->
-                Log.d(TAG, "RegistrationRequested received via SharedFlow: rpId=${event.options.rp.id}")
+                Timber.d("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id)
                 if (_state.value is RegistrationState.Error) {
-                    Log.d(TAG, "Ignoring incoming request — currently showing error to user")
+                    Timber.d("Ignoring incoming request — currently showing error to user")
                     return@onEach
                 }
                 pendingDeferred = event.deferred
@@ -141,11 +145,11 @@ class RegistrationPromptViewModel @Inject constructor(
 
         // Also consume any event stored before this ViewModel was created (replay backup).
         uiEventBus.currentRegistrationRequest?.let { event ->
-            Log.d(TAG, "RegistrationRequested present in currentRequest cache: rpId=${event.options.rp.id}")
+            Timber.d("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id)
             pendingDeferred = event.deferred
             initRegistration(event.options)
             uiEventBus.clearRegistrationRequest()
-        } ?: Log.d(TAG, "No currentRegistrationRequest in cache at init time")
+        } ?: Timber.d("No currentRegistrationRequest in cache at init time")
     }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────
@@ -177,7 +181,7 @@ class RegistrationPromptViewModel @Inject constructor(
                 rpId             = options.rp.id,
                 rpName           = options.rp.name,
                 userName         = options.user.name,
-                userDisplayName  = options.user.displayName ?: options.user.name,
+                userDisplayName  = options.user.displayName.ifEmpty { options.user.name },
                 availableMethod  = availability.getBestAvailableMethod()
             )
         }
@@ -190,7 +194,7 @@ class RegistrationPromptViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val availability = userVerificationService.getUserVerificationAvailability()
-            
+
             if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
                 // No UV required / available — proceed without verification
                 performRegistration(options)
@@ -233,7 +237,7 @@ class RegistrationPromptViewModel @Inject constructor(
         viewModelScope.launch {
             val result = fido2Service.makeCredential(options)
 
-            result.onSuccess { attestation ->
+            result.onSuccess { _ ->
                 // Complete transport's deferred only on success
                 @Suppress("UNCHECKED_CAST")
                 val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>

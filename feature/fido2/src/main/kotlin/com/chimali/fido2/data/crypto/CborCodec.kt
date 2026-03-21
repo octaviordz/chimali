@@ -153,7 +153,7 @@ class CborCodec @Inject constructor() {
                 repeat(count) {
                     val (k, kNext) = decodeItem(data, cur)
                     val (v, vNext) = decodeItem(data, kNext)
-                    // Normalise key to String
+                    // Normalize key to String
                     val keyStr = when (k) {
                         is Long   -> k.toString()
                         is String -> k

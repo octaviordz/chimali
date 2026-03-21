@@ -10,10 +10,8 @@ import java.security.Security
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
-private const val TAG = "WarmUpHelper"
-
 /**
- * One-shot warm-up utilities run at module initialisation to eliminate JIT and
+ * One-shot warm-up utilities run at module initialization to eliminate JIT and
  * provider/HAL registration overhead from the first live FIDO2 ceremony.
  *
  * Call order in [com.chimali.fido2.Fido2Initializer.init]:
@@ -37,10 +35,10 @@ object WarmUpHelper {
      * ## Problem
      *
      * `cryptoService.sign()` uses `Signature.getInstance("SHA256withECDSA", "AndroidKeyStore")`
-     * with a hardware-backed key. The first call in an app session initialises the IPC
+     * with a hardware-backed key. The first call in an app session initializes the IPC
      * channel to the Trusted Execution Environment (TEE) or StrongBox HAL, costing
      * **~180–360ms** on the first invocation vs. **~170ms** steady-state. This latency
-     * cannot be amortised using the [warmUpBouncyCastle] path because BC and AndroidKeyStore
+     * cannot be amortized using the [warmUpBouncyCastle] path because BC and AndroidKeyStore
      * use entirely separate signing engines.
      *
      * ## Fix: persistent warmup key
@@ -61,14 +59,14 @@ object WarmUpHelper {
     fun warmUpAndroidKeyStore() {
         try {
             val t0 = System.currentTimeMillis()
-            Timber.tag(TAG).d("AndroidKeyStore warm-up START")
+            Timber.d("AndroidKeyStore warm-up START")
 
             val keyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
 
             // Generate the warmup key if it doesn't yet exist (first install or after factory
             // reset / full uninstall). Subsequent app starts skip straight to the sign step.
             if (!keyStore.containsAlias(WARMUP_KEY_ALIAS)) {
-                Timber.tag(TAG).d("AndroidKeyStore warm-up: generating warmup key (first run)")
+                Timber.d("AndroidKeyStore warm-up: generating warmup key (first run)")
                 val kpg = KeyPairGenerator.getInstance(
                     KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore"
                 )
@@ -84,9 +82,9 @@ object WarmUpHelper {
                         .build()
                 )
                 kpg.generateKeyPair()
-                Timber.tag(TAG).d("AndroidKeyStore warm-up: key created in ${System.currentTimeMillis() - t0}ms")
+                Timber.d("AndroidKeyStore warm-up: key created in %dms", System.currentTimeMillis() - t0)
             } else {
-                Timber.tag(TAG).d("AndroidKeyStore warm-up: reusing existing warmup key")
+                Timber.d("AndroidKeyStore warm-up: reusing existing warmup key")
             }
 
             // Retrieve the private key and run one throwaway ECDSA sign.
@@ -99,10 +97,10 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign()  // result intentionally discarded
 
-            Timber.tag(TAG).d("AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms")
+            Timber.d("AndroidKeyStore warm-up DONE: sign=%dms total=%dms", System.currentTimeMillis() - t1, System.currentTimeMillis() - t0)
         } catch (e: Exception) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
-            Timber.tag(TAG).w(e, "AndroidKeyStore warm-up FAILED (non-fatal): ${e.message}")
+            Timber.w(e, "AndroidKeyStore warm-up FAILED (non-fatal): %s", e.message)
         }
     }
 
@@ -116,13 +114,13 @@ object WarmUpHelper {
      *   1. `Security.addProvider` — registers the BC `JCE` implementation (~20ms).
      *   2. ART JIT compilation of the EC math hot path (~50–120ms on first invocation).
      *
-     * A throwaway sign over an ephemeral, immediately discarded P-256 key amortises
+     * A throwaway sign over an ephemeral, immediately discarded P-256 key amortizes
      * both costs before the first real ceremony.
      */
     fun warmUpBouncyCastle() {
         try {
             val t0 = System.currentTimeMillis()
-            Timber.tag(TAG).d("BouncyCastle warm-up START")
+            Timber.d("BouncyCastle warm-up START")
 
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
                 Security.addProvider(BouncyCastleProvider())
@@ -138,10 +136,9 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign()  // result intentionally discarded
 
-            Timber.tag(TAG).d("BouncyCastle warm-up DONE: ${System.currentTimeMillis() - t0}ms")
+            Timber.d("BouncyCastle warm-up DONE: %dms", System.currentTimeMillis() - t0)
         } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "BouncyCastle warm-up FAILED (non-fatal): ${e.message}")
+            Timber.w(e, "BouncyCastle warm-up FAILED (non-fatal): %s", e.message)
         }
     }
 }
-

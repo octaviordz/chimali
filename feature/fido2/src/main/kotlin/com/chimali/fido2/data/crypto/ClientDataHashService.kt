@@ -1,14 +1,10 @@
 package com.chimali.fido2.data.crypto
 
-import android.util.Log
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import timber.log.Timber
 import java.security.MessageDigest
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "ClientDataHashService"
 
 /**
  * T059 — Client data hash generation per WebAuthn / CTAP2 spec.
@@ -50,7 +46,7 @@ class ClientDataHashService @Inject constructor() {
         crossOrigin: Boolean = false
     ): ByteArray {
         val clientDataJson = buildClientDataJson(type, challenge, origin, crossOrigin)
-        Log.d(TAG, "clientDataJSON: $clientDataJson")
+        Timber.d("clientDataJSON: %s", clientDataJson)
         return sha256(clientDataJson.toByteArray(Charsets.UTF_8))
     }
 

@@ -5,7 +5,6 @@ import android.util.Log
 import timber.log.Timber
 import java.io.File
 import java.io.FileWriter
-import java.io.PrintWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,7 +72,7 @@ class LocalCrashReportingTree(context: Context) : Timber.Tree() {
             }
         } catch (e: Exception) {
             // Cannot log this to Timber without infinite recursion. Let standard Logcat catch it.
-            Log.e("LocalCrashReportingTree", "Failed to write local log", e)
+            Timber.e(e, "Failed to write local log")
         }
     }
 

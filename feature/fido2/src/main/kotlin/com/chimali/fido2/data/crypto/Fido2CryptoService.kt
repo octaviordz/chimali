@@ -1,26 +1,49 @@
 package com.chimali.fido2.data.crypto
 
-import android.util.Log
 import com.chimali.core.common.di.DefaultDispatcher
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.util.performance.LatencyProfiler
+import com.chimali.fido2.util.performance.WarmUpHelper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import com.chimali.fido2.util.performance.LatencyProfiler
+import timber.log.Timber
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.Security
 import java.security.Signature
-import java.security.interfaces.ECPublicKey
 import java.security.spec.ECPoint as JavaECPoint
 import java.security.spec.ECPublicKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "Fido2CryptoService"
+/**
+ * Data class representing a FIDO2 key pair derived via HDK.
+ */
+data class Fido2KeyPair(
+    val alias: String,
+    val publicKeyBytes: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as Fido2KeyPair
+        if (alias != other.alias) return false
+        if (!publicKeyBytes.contentEquals(other.publicKeyBytes)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = alias.hashCode()
+        result = 31 * result + publicKeyBytes.contentHashCode()
+        return result
+    }
+}
 
 /**
  * T145a — Software-derived FIDO2 key management via HdkManager (HDK-ECDH-P256).
@@ -39,8 +62,8 @@ private const val TAG = "Fido2CryptoService"
 @Singleton
 class Fido2CryptoService @Inject constructor(
     private val hdkManager: HdkManager,
-    private val masterSeedProvider: com.chimali.fido2.data.crypto.MasterSeedProvider,
-    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
+    private val masterSeedProvider: MasterSeedProvider,
+    @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
 ) {
 
     init {
@@ -58,12 +81,12 @@ class Fido2CryptoService @Inject constructor(
      * The derivation path is `[FIDO2_APP_INDEX, credentialPathIndex(credentialId)]`.
      *
      * @param credentialId   Unique credential identifier string.
-     * @param requireUserAuth Ignored in HDK model; maintained for API compatibility.
+     * @param _requireUserAuth Ignored in HDK model; maintained for API compatibility.
      * @return [Fido2KeyPair] with alias and uncompressed public key bytes (65 bytes).
      */
     suspend fun generateCredentialKeyPair(
         credentialId: String,
-        requireUserAuth: Boolean = false
+        @Suppress("UNUSED_PARAMETER") _requireUserAuth: Boolean = false
     ): Result<Fido2KeyPair> = withContext(defaultDispatcher) {
         runCatching {
             val seed = masterSeedProvider.getMasterSeed()
@@ -75,7 +98,7 @@ class Fido2CryptoService @Inject constructor(
             val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
             val path = derivationPath(credentialId)
 
-            Log.d(TAG, "Deriving HDK key pair for credentialId=$credentialId path=$path")
+            Timber.d("Deriving HDK key pair for credentialId=%s path=%s", credentialId, path)
 
             val hdkResult = hdkManager.deriveHdk(
                 devicePublicKey = devicePubKeyBytes,
@@ -85,13 +108,13 @@ class Fido2CryptoService @Inject constructor(
 
             val publicKeyBytes = P256Group.serializeElement(hdkResult.publicKey) // 65 bytes uncompressed
 
-            Log.d(TAG, "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}")
+            Timber.d("HDK key pair derived: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
             Fido2KeyPair(
                 alias = credentialAlias(credentialId),
                 publicKeyBytes = publicKeyBytes
             )
         }.recoverCatching { e ->
-            Log.e(TAG, "Key derivation failed", e)
+            Timber.e(e, "Key derivation failed")
             throw Fido2Exception.KeyGenerationFailed(e.message ?: "Key derivation failed", e)
         }
     }
@@ -111,7 +134,7 @@ class Fido2CryptoService @Inject constructor(
             val keyPair = generateCredentialKeyPair(credentialId).getOrNull() ?: return null
             decodeUncompressedPoint(keyPair.publicKeyBytes)
         } catch (e: Exception) {
-            Log.w(TAG, "getPublicKey failed for $credentialId", e)
+            Timber.w(e, "getPublicKey failed for %s", credentialId)
             null
         }
     }
@@ -119,7 +142,7 @@ class Fido2CryptoService @Inject constructor(
     /**
      * Returns true if the master seed is available (prerequisite for any key existence).
      */
-    suspend fun keyExists(credentialId: String): Boolean {
+    suspend fun keyExists(@Suppress("UNUSED_PARAMETER") credentialId: String): Boolean {
         return masterSeedProvider.getMasterSeed() != null
     }
 
@@ -127,7 +150,8 @@ class Fido2CryptoService @Inject constructor(
      * No-op: HDK keys are derived on demand, there is no persistent key to delete.
      * Credential metadata cleanup is handled by the repository.
      */
-    suspend fun deleteCredentialKey(credentialId: String): Result<Unit> = Result.success(Unit)
+    @Suppress("RedundantSuspendModifier")
+    suspend fun deleteCredentialKey(@Suppress("UNUSED_PARAMETER") credentialId: String): Result<Unit> = Result.success(Unit)
 
     /**
      * Pre-warms the master seed cache to eliminate first-ceremony latency.
@@ -157,24 +181,24 @@ class Fido2CryptoService @Inject constructor(
     suspend fun warmUpMasterSeed() {
         runCatching {
             val t0 = System.currentTimeMillis()
-            Log.d(TAG, "Master seed pre-warm START")
+            Timber.d("Master seed pre-warm START")
 
             // (1) Decrypt BIP39 mnemonic from EncryptedSharedPreferences (~150ms first call).
             //     WalletMasterSeedProvider caches the result; subsequent calls return in ~0ms.
             val seed = masterSeedProvider.getMasterSeed()
                 ?: run {
-                    Log.w(TAG, "Master seed pre-warm: seed not available — skipping full warmup")
+                    Timber.w("Master seed pre-warm: seed not available — skipping full warmup")
                     return@runCatching
                 }
 
             val deviceKeyPair = masterSeedProvider.getDeviceKeyPair()
                 ?: run {
-                    Log.w(TAG, "Master seed pre-warm: device key pair not available — skipping full warmup")
+                    Timber.w("Master seed pre-warm: device key pair not available — skipping full warmup")
                     return@runCatching
                 }
 
             val t1 = System.currentTimeMillis()
-            Log.d(TAG, "Master seed pre-warm: seed loaded in ${t1 - t0}ms — warming full sign() path")
+            Timber.d("Master seed pre-warm: seed loaded in %dms — warming full sign() path", t1 - t0)
 
             // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
             //
@@ -215,9 +239,10 @@ class Fido2CryptoService @Inject constructor(
             blindedPrivKeyBytes.fill(0)
             devicePrivKeyBytes.fill(0)
 
-            Log.d(TAG, "Master seed pre-warm DONE: seed=${t1 - t0}ms sign-path=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms")
+            Timber.d("Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
+                t1 - t0, System.currentTimeMillis() - t1, System.currentTimeMillis() - t0)
         }.onFailure { e ->
-            Log.w(TAG, "Master seed pre-warm FAILED (non-fatal): ${e.message}")
+            Timber.w(e, "Master seed pre-warm FAILED (non-fatal): %s", e.message)
         }
     }
 
@@ -266,11 +291,11 @@ class Fido2CryptoService @Inject constructor(
             }
 
             LatencyProfiler.end("Crypto.sign")
-            Log.d(TAG, "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}")
+            Timber.d("Signed %d bytes for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
             signature
         }.recoverCatching { e ->
             LatencyProfiler.end("Crypto.sign") // ensure timer ends on failure path too
-            Log.e(TAG, "Signing failed for $credentialId", e)
+            Timber.e(e, "Signing failed for %s", credentialId)
             throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
         }
     }
@@ -357,25 +382,9 @@ class Fido2CryptoService @Inject constructor(
         private const val FIDO2_APP_INDEX = 0x4649_4432 // "FID2" as 31-bit int (positive)
 
         /** Returns the logical alias for a credential (used for lookup / metadata). */
-        fun credentialAlias(credentialId: String) = "fido2_cred_$credentialId"
+        fun credentialAlias(credentialId: String): String = "fido2_hdk_$credentialId"
 
         /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
         const val COSE_ES256 = -7
     }
-}
-
-/** Result type returned by [Fido2CryptoService.generateCredentialKeyPair]. */
-data class Fido2KeyPair(
-    /** Logical alias for the credential's key (used for metadata lookup). */
-    val alias: String,
-    /** Uncompressed EC public key bytes: 0x04 || X(32) || Y(32), total 65 bytes. */
-    val publicKeyBytes: ByteArray
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Fido2KeyPair) return false
-        return alias == other.alias && publicKeyBytes.contentEquals(other.publicKeyBytes)
-    }
-    override fun hashCode(): Int = 31 * alias.hashCode() + publicKeyBytes.contentHashCode()
-    override fun toString() = "Fido2KeyPair(alias=$alias, pubKeyLen=${publicKeyBytes.size})"
 }

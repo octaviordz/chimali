@@ -1,17 +1,14 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
-import timber.log.Timber
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import kotlinx.coroutines.flow.toList
+import timber.log.Timber
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.toList
-import java.security.MessageDigest
-
-private const val TAG = "Ctap2CredentialMgmt"
 
 // CTAP2 status codes
 private const val CTAP2_OK: Byte = 0x00
@@ -55,7 +52,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
             val subCommand = (params["1"] as? Number)?.toInt() 
                 ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
-            Log.d(TAG, "Credential Management subCommand: $subCommand")
+            Timber.d("Credential Management subCommand: %d", subCommand)
 
             when (subCommand) {
                 1 -> handleGetCredsMetadata()
@@ -109,7 +106,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
             .toMutableList()
 
         val totalRPs = rpEnumerationSession.size
-        val first = rpEnumerationSession.removeFirst()
+        val first = rpEnumerationSession.removeAt(0)
         return buildRpResponse(first, totalRPs)
     }
 
@@ -119,7 +116,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
         if (rpEnumerationSession.isEmpty()) {
             return byteArrayOf(CTAP2_ERR_NOT_ALLOWED)
         }
-        val next = rpEnumerationSession.removeFirst()
+        val next = rpEnumerationSession.removeAt(0)
         return buildRpResponse(next, totalRPs = null)
     }
 
@@ -156,7 +153,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
         }.toMutableList()
 
         val totalCredentials = credentialEnumerationSession.size
-        val first = credentialEnumerationSession.removeFirst()
+        val first = credentialEnumerationSession.removeAt(0)
         return buildCredentialResponse(first, totalCredentials)
     }
 
@@ -166,7 +163,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
         if (credentialEnumerationSession.isEmpty()) {
             return byteArrayOf(CTAP2_ERR_NOT_ALLOWED)
         }
-        val next = credentialEnumerationSession.removeFirst()
+        val next = credentialEnumerationSession.removeAt(0)
         return buildCredentialResponse(next, totalCredentials = null)
     }
 
@@ -196,7 +193,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
      * CTAP2 keys: 3 = rp entity, 4 = rpIdHash, 5 = totalRPs (only on Begin)
      */
     private fun buildRpResponse(entry: RpEntry, totalRPs: Int?): ByteArray {
-        val response = mutableMapOf<String, Any>(
+        val response = mutableMapOf(
             "3" to mapOf("id" to entry.rpId, "name" to entry.rpName),
             "4" to entry.rpIdHash.toList()
         )
@@ -213,7 +210,7 @@ class Ctap2CredentialManagementHandler @Inject constructor(
      *             8 = publicKey, 9 = totalCredentials (only on Begin)
      */
     private fun buildCredentialResponse(entry: CredentialEntry, totalCredentials: Int?): ByteArray {
-        val response = mutableMapOf<String, Any>(
+        val response = mutableMapOf(
             "6" to mapOf(
                 "id" to entry.userId,
                 "name" to entry.userName,

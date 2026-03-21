@@ -1,6 +1,5 @@
 package com.chimali.fido2.presentation.viewmodel
 
-import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
@@ -25,8 +24,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class Fido2HomeViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val fido2Transport: Fido2Transport,
+    @param:ApplicationContext private val context: Context,
+    fido2Transport: Fido2Transport,
     private val uiEventBus: Fido2UiEventBus
 ) : ViewModel() {
 
@@ -45,15 +44,6 @@ class Fido2HomeViewModel @Inject constructor(
         } else {
             context.startService(Fido2TransportService.stopIntent(context))
         }
-    }
-
-    /**
-     * Checks if the system Bluetooth adapter is enabled. 
-     * Used by the UI to prevent starting the service if BT is off.
-     */
-    fun isBluetoothEnabled(): Boolean {
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        return bluetoothManager?.adapter?.isEnabled == true
     }
 
     fun testRegistration(options: MakeCredentialOptions) {

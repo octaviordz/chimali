@@ -364,7 +364,7 @@ data class PinSettings(
             pin.any { it in chars }
         } ?: false
         
-        return hasLetter && hasDigit && (hasSpecial || true)
+        return hasLetter && hasDigit
     }
 }
 

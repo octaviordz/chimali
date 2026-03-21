@@ -1,18 +1,15 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
-import com.chimali.fido2.bluetooth.BROADCAST_CID
+import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
-import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "Ctap2ResponseBuilder"
 
 // CTAP2 status codes
 private const val CTAP2_OK:                   Byte = 0x00
@@ -26,7 +23,7 @@ private const val CTAP2_ERR_KEY_STORE_FULL:   Byte = 0x28.toByte()
 private const val CTAP2_ERR_PIN_BLOCKED:      Byte = 0x32.toByte()
 private const val CTAP2_ERR_PIN_INVALID:      Byte = 0x31.toByte()
 
-private const val CMD_CBOR_BARE = CTAPHID_CBOR.toInt() and 0x7F   // 0x10
+private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F   // 0x10
 
 /**
  * Builds properly encoded CTAP2 response [CtapHidMessage]s and their corresponding
@@ -92,7 +89,7 @@ class Ctap2ResponseBuilder @Inject constructor(
                 mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key")
             )
         )
-        Log.d(TAG, "getInfoResponse: versions=[FIDO_2_0] aaguid=${info.aaguid.size}bytes transports=[usb]")
+        Timber.d("getInfoResponse: versions=[FIDO_2_0] aaguid=%dbytes transports=[usb]", info.aaguid.size)
         return successCborPackets(cid, responseMap)
     }
 

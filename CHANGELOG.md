@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-20
+
+### Changed
+- **Logging Infrastructure Refactor**: Standardized on Timber's automatic class-based tagging across the `:feature:fido2` module. Removed redundant `TAG` constants and explicit `.tag(TAG)` calls to reduce boilerplate and ensure log consistency.
+- **Code Maintenance**: Performed a general cleanup of `BluetoothHidDeviceWrapper.kt`, including spelling fixes and formatting improvements to align with the project's styling guidelines.
+- **Spec Compliance & Cleanup**: Commented out unused constants in `Ctap2GetAssertionHandler.kt` to reduce compiler warnings while maintaining alignment with the FIDO spec for future implementation.
+- Full details: [2026-03-20-fido2-logging-refactor-and-maintenance.md](docs/changelogs/2026-03-20-fido2-logging-refactor-and-maintenance.md)
+
 ## [Unreleased] - 2026-03-19
 
 ### Added

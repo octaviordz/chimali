@@ -5,14 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider
-import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 // ---------------------------------------------------------------------------
@@ -85,13 +87,13 @@ class DevToolsViewModel @Inject constructor(
     val state: StateFlow<DevToolsUiState> = _state.asStateFlow()
 
     private val _effects = Channel<DevToolsEffect>(Channel.BUFFERED)
-    val effects = _effects.receiveAsFlow()
+    val effects: Flow<DevToolsEffect> = _effects.receiveAsFlow()
 
     fun onIntent(intent: DevToolsIntent) {
         when (intent) {
             is DevToolsIntent.LoadMnemonic -> loadMnemonic()
             is DevToolsIntent.ClearMnemonic -> clearMnemonic()
-            is DevToolsIntent.DismissError -> _state.value = _state.value.copy(error = null)
+            is DevToolsIntent.DismissError -> _state.update { it.copy(error = null) }
             is DevToolsIntent.RecoverFromSeed -> recoverFromSeed(intent.words)
             is DevToolsIntent.CopyToClipboard -> {
                 _state.value.mnemonicWords?.joinToString(" ")?.let {
@@ -113,61 +115,68 @@ class DevToolsViewModel @Inject constructor(
      * Clears mnemonic from state immediately regardless of error code. No retry is attempted.
      */
     private fun handleBiometricError(errorCode: Int, message: String) {
-        _state.value = _state.value.copy(
-            mnemonicWords = null,
-            isMnemonicVisible = false,
-            isLoading = false,
-            error = message
-        )
+        Timber.w("Biometric error received: code=%d, message=%s", errorCode, message)
+        _state.update {
+            it.copy(
+                mnemonicWords = null,
+                isMnemonicVisible = false,
+                isLoading = false,
+                error = message
+            )
+        }
     }
 
     /** Called from UI after biometric succeeds to show the mnemonic. */
     private fun loadMnemonic() {
         if (_state.value.isLoading) return
-        _state.value = _state.value.copy(isLoading = true, error = null)
+        _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             val words = masterSeedProvider.getMnemonic()
-            _state.value = if (words != null) {
-                _state.value.copy(
-                    mnemonicWords = words,
-                    isMnemonicVisible = true,
-                    isLoading = false
-                )
-            } else {
-                _state.value.copy(
-                    isLoading = false,
-                    error = "Master seed not initialised. Launch the authenticator first."
-                )
+            _state.update { currentState ->
+                if (words != null) {
+                    currentState.copy(
+                        mnemonicWords = words,
+                        isMnemonicVisible = true,
+                        isLoading = false
+                    )
+                } else {
+                    currentState.copy(
+                        isLoading = false,
+                        error = "Master seed not initialized. Launch the authenticator first."
+                    )
+                }
             }
         }
     }
 
     private fun clearMnemonic() {
-        _state.value = _state.value.copy(
-            mnemonicWords = null,
-            isMnemonicVisible = false,
-            recoverSuccess = false,
-            error = null
-        )
+        _state.update {
+            it.copy(
+                mnemonicWords = null,
+                isMnemonicVisible = false,
+                recoverSuccess = false,
+                error = null
+            )
+        }
     }
 
     /**
      * Validates the mnemonic word count, then delegates persistence to [MasterSeedProvider].
      *
-     * Converts the word list to a [CharArray] before passing it to [importMnemonic] so that
+     * Converts the word list to a [CharArray] before passing it to [MasterSeedProvider.importMnemonic] so that
      * the provider can zero the sensitive material after use (Constitution §I).
      *
      * If a seed already existed, the user is warned that previous credentials are orphaned.
      */
     private fun recoverFromSeed(words: List<String>) {
         if (words.size != 24) {
-            _state.value = _state.value.copy(
-                error = "Invalid mnemonic: expected 24 words, got ${words.size}."
-            )
+            _state.update {
+                it.copy(error = "Invalid mnemonic: expected 24 words, got ${words.size}.")
+            }
             return
         }
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val mnemonicChars = words.joinToString(" ").toCharArray()
                 val result = masterSeedProvider.importMnemonic(mnemonicChars)
@@ -179,17 +188,19 @@ class DevToolsViewModel @Inject constructor(
                     is ImportMnemonicResult.Replaced ->
                         "⚠️ Existing seed overwritten. Re-registration required for previous credentials."
                 }
-                _state.value = _state.value.copy(isLoading = false, recoverSuccess = true)
+                _state.update { it.copy(isLoading = false, recoverSuccess = true) }
                 _effects.send(DevToolsEffect.ShowSnackbar(message))
             } catch (e: IllegalArgumentException) {
                 Timber.e(e, "Invalid mnemonic provided for recovery")
-                _state.value = _state.value.copy(isLoading = false, error = e.message)
+                _state.update { it.copy(isLoading = false, error = e.message) }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to import mnemonic due to unexpected error")
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = "Failed to import mnemonic: ${e.message}"
-                )
+                Timber.e(e, "Failed to import mnemonic: %s", e.message ?: "Unknown error")
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Failed to import mnemonic: ${e.message}"
+                    )
+                }
             }
         }
     }
