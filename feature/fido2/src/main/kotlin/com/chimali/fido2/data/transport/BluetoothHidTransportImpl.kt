@@ -225,7 +225,9 @@ class BluetoothHidTransportImpl @Inject constructor(
         val message = result.getOrNull() ?: return  // null = still accumulating
 
         Timber.d("CTAPHID cmd=0x%s cid=%s payloadLen=%d",
-            message.command.toString(16).uppercase(), message.channelId.toHex(), message.payload.size)
+            message.command.toString(16).uppercase(),
+            message.channelId.toHex(),
+            message.payload.size)
 
         dispatchMessage(message)
     }
@@ -291,7 +293,8 @@ class BluetoothHidTransportImpl @Inject constructor(
         }
         // NFR-PERF-030: Start measuring full CTAP2 processing time
         LatencyProfiler.start(operationLabel)
-        Timber.d("CTAP2 command=0x%s on CID=%s", ctapCommand.toString(16), cid.toHex())
+        Timber.d("CTAP2 command=0x%s on CID=%s",
+            ctapCommand.toString(16), cid.toHex())
 
         // ── Periodic keepalive loop ────────────────────────────────────────────
         // CTAP HID spec §8.5.5: the authenticator MUST send CTAPHID_KEEPALIVE
