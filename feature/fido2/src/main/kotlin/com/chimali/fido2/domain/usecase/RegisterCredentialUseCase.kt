@@ -8,6 +8,7 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.exception.Fido2Exception
+import android.util.Base64
 import java.security.SecureRandom
 import javax.inject.Inject
 
@@ -174,12 +175,14 @@ class RegisterCredentialUseCase @Inject constructor(
         options: MakeCredentialOptions
     ): Result<PasskeyCredential> {
         return try {
-            // Generate credential ID
-            val credentialId = generateCredentialId()
-            
+            // Generate random 32-byte ID and its Base64URL encoding using centralized generator.
+            val generatedId = PasskeyCredential.generateRandomId()
+            val credentialIdBytes = generatedId.bytes
+            val credentialIdStr = generatedId.encoded
+
             // Generate hardware-backed key pair via Fido2CryptoService
             val cryptoResult = cryptoService.generateCredentialKeyPair(
-                credentialId = credentialId,
+                credentialId = credentialIdStr,
             _requireUserAuth = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED
             )
             if (cryptoResult.isFailure) {
@@ -187,23 +190,23 @@ class RegisterCredentialUseCase @Inject constructor(
             }
             
             // Retrieve the public key object for PasskeyCredential
-            val publicKey = cryptoService.getPublicKey(credentialId)
-                ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: $credentialId"))
+            val publicKey = cryptoService.getPublicKey(credentialIdStr)
+                ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: $credentialIdStr"))
             
             // Generate AAGUID for this authenticator
             val aaguid = generateAAGUID()
             
             // Create the credential domain model
             val credential = PasskeyCredential.create(
-                id = credentialId,
+                id = credentialIdStr,
                 rpId = options.rp.id,
                 userId = String(options.user.id),
                 userName = options.user.name,
                 userDisplayName = options.user.displayName,
                 publicKey = publicKey,
-                privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
+                privateKeyAlias = Fido2CryptoService.credentialAlias(credentialIdStr),
                 aaguid = aaguid,
-                credentialId = credentialId.toByteArray()
+                credentialId = credentialIdBytes
             )
             
             Result.success(credential)
@@ -213,12 +216,7 @@ class RegisterCredentialUseCase @Inject constructor(
         }
     }
     
-    /**
-     * Generates a unique credential ID.
-     */
-    private fun generateCredentialId(): String {
-        return "cred_${System.currentTimeMillis()}_${SecureRandom().nextInt(10000)}"
-    }
+
     
     
     /**

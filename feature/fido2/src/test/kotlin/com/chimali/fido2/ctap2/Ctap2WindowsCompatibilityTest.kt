@@ -64,7 +64,7 @@ class Ctap2WindowsCompatibilityTest {
     @Test
     fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() = runTest {
         val mockUseCase = mockk<GetAssertionUseCase>()
-        val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, AuthenticatorDataBuilder())
+        val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec)
 
         // Create dummy bytes
         val dummyAuthData = ByteArray(37) { 0xAA.toByte() }

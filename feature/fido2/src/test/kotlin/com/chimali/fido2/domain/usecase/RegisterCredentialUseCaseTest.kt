@@ -45,7 +45,6 @@ class RegisterCredentialUseCaseTest {
         registerCredentialUseCase = RegisterCredentialUseCase(
             credentialRepository,
             userVerificationService,
-            fido2Authenticator,
             cborCodec,
             cryptoService
         )

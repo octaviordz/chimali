@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-24
+
+### Changed
+- **Centralized Credential ID Generation**: Unified FIDO2 credential ID logic into `PasskeyCredential.Companion.generateRandomId()`. This ensures all credentials follow the same standard across `RegisterCredentialUseCase` and domain models.
+- **Privacy & Security Enhancement**: Transitioned from predictable, timestamp-based credential IDs (`cred_...`) to 32-byte (256-bit) high-entropy `SecureRandom` IDs. This prevents authenticator fingerprinting and registration timing leakage while maintaining compatibility with HDK derivation paths.
+
+### Fixed
+- **Test Stability**: Resolved pre-existing compilation errors in `RegisterCredentialUseCaseTest.kt` and `Ctap2WindowsCompatibilityTest.kt` caused by obsolete constructor signatures.
+- **Full details**: [2026-03-24-fido2-credential-id-centralization.md](docs/changelogs/2026-03-24-fido2-credential-id-centralization.md)
+
 ## [Unreleased] - 2026-03-20
 
 ### Changed
@@ -284,4 +294,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-19*
+*Last Updated: 2026-03-24*
