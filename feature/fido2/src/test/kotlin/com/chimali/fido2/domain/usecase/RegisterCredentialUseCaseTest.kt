@@ -84,7 +84,7 @@ class RegisterCredentialUseCaseTest {
         
         // Setup default mock responses
         val testFido2KeyPair = com.chimali.fido2.data.crypto.Fido2KeyPair("test_alias", ByteArray(65) { 0x01 })
-        coEvery { cryptoService.generateCredentialKeyPair(any(), any()) } returns Result.success(testFido2KeyPair)
+        coEvery { cryptoService.generateCredentialKeyPair(any()) } returns Result.success(testFido2KeyPair)
         coEvery { cryptoService.getPublicKey(any()) } returns testPublicKey
         coEvery { cborCodec.encodeCosePublicKeyFromJavaKey(any()) } returns ByteArray(77)
         coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED

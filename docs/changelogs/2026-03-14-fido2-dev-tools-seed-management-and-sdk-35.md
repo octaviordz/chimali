@@ -7,15 +7,15 @@ This update introduces powerful development utilities for BIP39 master seed mana
 
 ### feature:fido2 Layer
 
-#### [NEW] [DevToolsViewModel.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/viewmodel/DevToolsViewModel.kt)
+#### [NEW] `DevToolsViewModel.kt`
 - **MVI Architecture**: Implemented a dedicated ViewModel to manage mnemonic loading, biometric gating, and recovery flows.
 - **Security Gates**: Implemented `ClearMnemonic` intent to zero out sensitive state from memory as soon as the user navigates away from the Dev Tools screen.
 
-#### [NEW] [MnemonicQrScanner.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/ui/MnemonicQrScanner.kt)
+#### [NEW] `MnemonicQrScanner.kt`
 - **CameraX + ML Kit**: Created a high-performance QR scanner component optimized for reading 24-word BIP39 mnemonics.
 - **Validation**: Integrated real-time word count validation (24 words) before accepting scanned results.
 
-#### [MODIFY] [DevelopmentToolsScreen.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt)
+#### [MODIFY] `DevelopmentToolsScreen.kt`
 - **Biometric Protection**: Added biometric authentication gate for viewing the master seed.
 - **Visual Word Grid**: Implemented a numbered grid display for easy manual verification of mnemonic words.
 - **QR Export**: Integrated `qrose` for generating on-screen QR codes for seed transfer.
@@ -24,13 +24,13 @@ This update introduces powerful development utilities for BIP39 master seed mana
 
 ### core:security & data Layers
 
-#### [MODIFY] [MasterSeedProvider.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/data/crypto/MasterSeedProvider.kt) & [WalletMasterSeedProvider.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt)
+#### [MODIFY] `MasterSeedProvider.kt` & `WalletMasterSeedProvider.kt`
 - **Mnemonic Retrieval**: Extended the interface to support `getMnemonic()` for debug-only inspection.
 - **Encrypted Storage**: Implemented retrieval from `EncryptedSharedPreferences`.
 
 ### Build & Platform
 
-#### [MODIFY] [libs.versions.toml](file:///d:/octav/source/repos/Chimali/gradle/libs.versions.toml) & [build.gradle.kts](file:///d:/octav/source/repos/Chimali/feature/fido2/build.gradle.kts)
+#### [MODIFY] `libs.versions.toml` & `build.gradle.kts`
 - **SDK 35 Migration**: Bumped `compileSdk` and `targetSdk` to 35 across the entire project.
 - **Debug-Only Dependencies**: Added CameraX, ML Kit, and QRose libraries specifically for `debugImplementation` to maintain a slim and secure production APK.
 

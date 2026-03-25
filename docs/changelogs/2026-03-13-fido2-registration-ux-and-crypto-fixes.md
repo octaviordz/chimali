@@ -7,11 +7,11 @@ This update resolves critical stability and usability issues in the FIDO2 regist
 
 ### feature:fido2 Layer
 
-#### [MODIFY] [Fido2CryptoService.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt)
+#### [MODIFY] `Fido2CryptoService.kt`
 - **BouncyCastle Provider Instance Fix**: Resolved `java.security.NoSuchAlgorithmException: no such algorithm: EC for provider BC`. Android's framework overrides the `"BC"` provider name with a limited version. The service now passes the `BouncyCastleProvider()` instance directly to `KeyFactory` and `Signature` instead of using the name string.
 - **Improved Decoding Safety**: Updated `decodeUncompressedPoint` to use the explicit provider instance, ensuring reliable EC point reconstruction during credential creation.
 
-#### [MODIFY] [RegistrationPromptViewModel.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/viewmodel/RegistrationPromptViewModel.kt)
+#### [MODIFY] `RegistrationPromptViewModel.kt`
 - **Error Screen Persistence**: Added a guard in the `init` block to prevent incoming registration requests (from PC retries) from overwriting an active `Error` state. This keeps the "Registration failed" screen visible.
 - **Success Screen Delay**: Introduced `SUCCESS_DISPLAY_DURATION_MS` (2 seconds) delay before navigating away from the `Success` state. This allows the "Passkey created!" message to be read by the user.
 - **Retry Logic Fix**: Updated `performRegistration` to retain `pendingOptions` upon failure. Previously, these were cleared regardless of result, causing the "Try again" button to fail with a "No pending request" error.

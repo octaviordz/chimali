@@ -3,6 +3,20 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-25
+
+### Added
+- **FIDO2 Automated Stress Testing (T159a)**: Implemented a robust integration test suite (`Fido2StressTest.kt`) that validates the system's stability through 100 consecutive registration and authentication operations. Verified 100% success rate with real P-256 scalar math simulation.
+
+### Changed
+- **CredentialId Value Class Refactor**: Migrated `CredentialId` to a Kotlin-idiomatic `@JvmInline value class` with a `String` (Base64URL) backing field, significantly improving type safety and memory efficiency across all CTAP2 logic.
+- **Hierarchical Key Derivation Path**: Refined the bitwise conversion logic in `Fido2CryptoService.derivePath()` to ensure consistent 31-bit positive integer indices for credential derivation.
+
+### Fixed
+- **Authentication Query Accuracy**: Resolved a bug in the integration tests where full origin RP IDs (e.g., `https://...`) stored in the repository were incorrectly queried using Hostnames, resulting in empty credential results.
+- **Cross-module Compilation**: Fixed a pre-existing compile break in `RegisterCredentialUseCaseTest` caused by recent signature updates to the key generation API.
+- **Full details**: [2026-03-25-fido2-stress-testing-and-credentialid-refactor.md](docs/changelogs/2026-03-25-fido2-stress-testing-and-credentialid-refactor.md)
+
 ## [Unreleased] - 2026-03-24
 
 ### Changed

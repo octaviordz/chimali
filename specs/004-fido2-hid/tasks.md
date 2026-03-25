@@ -267,7 +267,7 @@
 
 ### Final Integration & Verification Tasks
 - [x] T159 Run full integration test suite to verify end-to-end functionality (Registration, Authentication, Credential Management). Ensure 100% pass rate across all feature:fido2 tests.
-- [ ] T159a [P] Implement automated stress test / simulated loop to execute 100 consecutive FIDO2 operations to verify 95% success rate without state corruption (SC-004)
+- [X] T159a [P] Implement automated stress test / simulated loop to execute 100 consecutive FIDO2 operations to verify 95% success rate without state corruption (SC-004)
 - [x] ~~T160 Verify performance targets are met~~ (Delayed for future work)
 - [x] T160a [P] Implement minimal HID latency profiler (NFR-PERF-030): `LatencyProfiler` utility + Logcat instrumentation in transport and presentation layers to track end-to-end performance excluding user interaction time. Log outputs must strictly sanitize sensitive cryptographic state/credential IDs and avoid cloud telemetry uploads.
   - [x] T160a-1 Implement `LatencyProfiler` utility.
