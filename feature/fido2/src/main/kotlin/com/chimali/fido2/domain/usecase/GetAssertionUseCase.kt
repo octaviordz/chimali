@@ -5,6 +5,7 @@ import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
@@ -167,7 +168,7 @@ class GetAssertionUseCase @Inject constructor(
         authData: ByteArray,
         clientDataHash: ByteArray
     ): ByteArray {
-        return cryptoService.sign(credentialId, authData + clientDataHash)
+        return cryptoService.sign(CredentialId.fromString(credentialId), authData + clientDataHash)
             .getOrElse { throw Fido2Exception.SigningFailed(it.message ?: "Signing failed", it) }
     }
 }

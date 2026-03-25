@@ -23,7 +23,6 @@ class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
     private lateinit var getUserConsentUseCase: GetUserConsentUseCase
-    
     private lateinit var testRpId: String
     private lateinit var testTimestamp: Instant
     private lateinit var testConsentRecord: UserConsentRecord

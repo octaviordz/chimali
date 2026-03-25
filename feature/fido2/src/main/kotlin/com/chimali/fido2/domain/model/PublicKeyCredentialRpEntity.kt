@@ -51,7 +51,7 @@ data class PublicKeyCredentialRpEntity(
      * Returns a safe name for display.
      */
     fun getSafeName(): String {
-        return if (name.isNotBlank()) name else getDomain()
+        return name.ifBlank { getDomain() }
     }
     
     companion object {

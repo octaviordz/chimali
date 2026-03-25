@@ -35,7 +35,7 @@ class CborCodec @Inject constructor() {
         val (value, _) = decodeItem(data, 0)
         @Suppress("UNCHECKED_CAST")
         (value as? Map<String, Any>) ?: emptyMap()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         emptyMap()
     }
 
@@ -124,19 +124,19 @@ class CborCodec @Inject constructor() {
 
         return when (major) {
             0 -> Pair(argument, pos)                            // unsigned integer
-            1 -> Pair(-(argument as Long) - 1L, pos)            // negative integer
+            1 -> Pair(-argument - 1L, pos)            // negative integer
             2 -> {                                              // byte string
-                val len = (argument as Long).toInt()
+                val len = argument.toInt()
                 val bytes = data.copyOfRange(pos, pos + len)
                 Pair(bytes, pos + len)
             }
             3 -> {                                              // text string
-                val len = (argument as Long).toInt()
+                val len = argument.toInt()
                 val str = String(data, pos, len, Charsets.UTF_8)
                 Pair(str, pos + len)
             }
             4 -> {                                              // array
-                val count = (argument as Long).toInt()
+                val count = argument.toInt()
                 val list = mutableListOf<Any?>()
                 var cur = pos
                 repeat(count) {
@@ -147,7 +147,7 @@ class CborCodec @Inject constructor() {
                 Pair(list, cur)
             }
             5 -> {                                              // map
-                val count = (argument as Long).toInt()
+                val count = argument.toInt()
                 val map = mutableMapOf<String, Any>()
                 var cur = pos
                 repeat(count) {

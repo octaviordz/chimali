@@ -1,6 +1,5 @@
 package com.chimali.fido2.ctap2
 
-import com.chimali.fido2.data.crypto.AuthenticatorDataBuilder
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
@@ -8,7 +7,9 @@ import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**

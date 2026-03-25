@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.repository
 
 import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.data.mapper.*
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -40,13 +41,13 @@ class CredentialRepositoryImpl @Inject constructor(
                 .first()
                 .filter { it.userId == credential.userId }
             for (old in existingEntities) {
-                cryptoService.deleteCredentialKey(old.id)
+                cryptoService.deleteCredentialKey(CredentialId.fromString(old.id))
                 passkeyCredentialDao.deleteCredential(old.id)
             }
 
             // Key is already stored in Android KeyStore via Fido2CryptoService in the use case.
             // We only need to check it exists and save metadata.
-            if (!cryptoService.keyExists(credential.id)) {
+            if (!cryptoService.keyExists(CredentialId.fromString(credential.id))) {
                 return Result.failure(Fido2Exception.KeyNotFound("Key not found for alias: ${credential.id}"))
             }
 
@@ -60,7 +61,7 @@ class CredentialRepositoryImpl @Inject constructor(
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
         return try {
             val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-            val publicKey = cryptoService.getPublicKey(entity.id) ?: return null
+            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id)) ?: return null
             entity.toDomainModel(publicKey)
         } catch (e: Exception) {
             null
@@ -72,7 +73,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(entity.id)
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -83,7 +84,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(entity.id)
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -94,7 +95,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(entity.id)
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -103,7 +104,7 @@ class CredentialRepositoryImpl @Inject constructor(
 
     override suspend fun deleteCredential(credentialId: String): Result<Unit> {
         return try {
-            cryptoService.deleteCredentialKey(credentialId)
+            cryptoService.deleteCredentialKey(CredentialId.fromString(credentialId))
             passkeyCredentialDao.deleteCredential(credentialId)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -166,7 +167,7 @@ class CredentialRepositoryImpl @Inject constructor(
             // whose credential ID no longer maps to a valid seed path) rather than
             // failing the entire query.
             val credentials = entities.mapNotNull { entity ->
-                val publicKey = cryptoService.getPublicKey(entity.id)
+                val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                 publicKey?.let { entity.toDomainModel(it) }
             }
             Result.success(credentials)
@@ -227,7 +228,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { it.userName.lowercase().contains(lq) || it.userDisplayName.lowercase().contains(lq) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(entity.id)
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -241,7 +242,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { entity -> entity.lastUsedAt == null || Instant.ofEpochMilli(entity.lastUsedAt).isBefore(cutoff) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(entity.id)
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -254,7 +255,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { false } // Not implemented in current schema
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(entity.id)
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -268,7 +269,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { Instant.ofEpochMilli(it.createdAt).isBefore(cutoff) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(entity.id)
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }

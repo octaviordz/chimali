@@ -123,7 +123,7 @@ class CredentialRepositoryImplTest {
         fun `should successfully save credential`() = runTest {
             val result = repository.saveCredential(testCredential)
             assertTrue(result.isSuccess)
-            coVerify { cryptoService.keyExists(testCredential.id) }
+            coVerify { cryptoService.keyExists(CredentialId.fromString(testCredential.id)) }
             coVerify { passkeyCredentialDao.insertCredential(testCredential) }
         }
 
@@ -174,7 +174,7 @@ class CredentialRepositoryImplTest {
             
             assertTrue(result.isSuccess)
             coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
-            coVerify { cryptoService.deleteCredentialKey(testCredential.id) }
+            coVerify { cryptoService.deleteCredentialKey(CredentialId.fromString(testCredential.id)) }
         }
 
         @Test

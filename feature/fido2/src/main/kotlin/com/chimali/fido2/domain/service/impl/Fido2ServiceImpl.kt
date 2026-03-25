@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.service.impl
 
+import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -31,7 +32,7 @@ class Fido2ServiceImpl @Inject constructor(
      * - AttestationObject construction
      * - Credential persistence
      */
-    override suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject> {
+    override suspend fun makeCredential(options: MakeCredentialOptions): Result<MakeCredentialResult> {
         return registerCredentialUseCase(options)
     }
 

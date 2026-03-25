@@ -97,7 +97,7 @@ data class RelyingParty(
      * Returns a safe name for display.
      */
     fun getSafeName(): String {
-        return if (name.isNotBlank()) name else getDomain()
+        return name.ifBlank { getDomain() }
     }
     
     /**
@@ -146,12 +146,14 @@ data class RelyingParty(
         ): RelyingParty {
             val now = Instant.now()
             // Auto-set name to domain extracted from id if blank
-            val resolvedName = if (name.isBlank()) {
+            val resolvedName = name.ifBlank {
                 try {
-                    val uri = java.net.URI.create(id)
+                    val uri = URI.create(id)
                     uri.host ?: id
-                } catch (e: Exception) { id }
-            } else name
+                } catch (e: Exception) {
+                    id
+                }
+            }
             return RelyingParty(
                 id = id,
                 name = resolvedName,
@@ -170,7 +172,7 @@ data class RelyingParty(
             return try {
                 if (rpId.contains("://")) {
                     // Must have http or https scheme
-                    val uri = java.net.URI(rpId)
+                    val uri = URI(rpId)
                     val scheme = uri.scheme?.lowercase()
                     scheme in setOf("https", "http") && uri.host != null && uri.host.isNotBlank()
                 } else {

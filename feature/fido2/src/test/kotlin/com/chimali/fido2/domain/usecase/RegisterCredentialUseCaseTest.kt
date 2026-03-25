@@ -57,7 +57,7 @@ class RegisterCredentialUseCaseTest {
         testRp = PublicKeyCredentialRpEntity.create(
             id = "https://example.com",
             name = "Example Website",
-            
+
         )
         
         testUser = PublicKeyCredentialUserEntity.create(
@@ -107,21 +107,27 @@ class RegisterCredentialUseCaseTest {
         // T145b: stub sign() so the packed attestation path succeeds in tests
         coEvery { cryptoService.sign(any(), any()) } returns Result.success(ByteArray(72) { 0x30 })
     }
-    
+
     @Nested
     @DisplayName("Successful Registration Tests")
     inner class SuccessfulRegistrationTests {
-        
+
         @Test
         @DisplayName("Should successfully register credential with biometric verification")
         fun `should successfully register credential with biometric verification`() = runTest {
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
-            val attestationObject = result.getOrThrow()
+            val makeResult = result.getOrThrow()
+            val attestationObject = makeResult.attestationObject
+            val credential = makeResult.credential
+
             assertNotNull(attestationObject)
+            assertNotNull(credential)
             assertEquals("packed", attestationObject.fmt)
-            
+            assertEquals(testRp.id, credential.rpId)
+            assertEquals("testuser", credential.userName)
+
             // Verify all expected interactions
             coVerify { userVerificationService.isUserVerificationRequired(any(), any(), any()) }
             coVerify { userVerificationService.recordUserConsent(any()) }
@@ -129,7 +135,7 @@ class RegisterCredentialUseCaseTest {
             coVerify { credentialRepository.saveCredential(any()) }
             coVerify { credentialRepository.saveRelyingParty(any()) }
         }
-        
+
         @Test
         @DisplayName("Should successfully register credential with PIN verification")
         fun `should successfully register credential with pin verification`() = runTest {
@@ -143,23 +149,24 @@ class RegisterCredentialUseCaseTest {
                 minPinLength = 4,
                 biometricStrength = BiometricStrength.WEAK
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
-            val attestationObject = result.getOrThrow()
-            assertNotNull(attestationObject)
-            
-            // Verify availability was checked 
+            val makeResult = result.getOrThrow()
+            assertNotNull(makeResult.attestationObject)
+            assertNotNull(makeResult.credential)
+
+            // Verify availability was checked
             coVerify { userVerificationService.getUserVerificationAvailability() }
         }
-        
+
         @Test
         @DisplayName("Should successfully register credential without verification when not required")
         fun `should successfully register credential without verification when not required`() = runTest {
             // Mock no verification required
             coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
-            
+
             val optionsNotRequired = MakeCredentialOptions.create(
                 rp = testRp,
                 user = testUser,
@@ -173,32 +180,33 @@ class RegisterCredentialUseCaseTest {
                 ),
                 attestation = AttestationConveyancePreference.NONE
             )
-            
+
             val result = registerCredentialUseCase(optionsNotRequired)
-            
+
             assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
-            val attestationObject = result.getOrThrow()
-            assertNotNull(attestationObject)
-            
+            val makeResult = result.getOrThrow()
+            assertNotNull(makeResult.attestationObject)
+            assertNotNull(makeResult.credential)
+
             // Verify no verification was performed
             coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
-        
+
         @Test
         @DisplayName("Should update existing RP information")
         fun `should update existing rp information`() = runTest {
             val existingRp = RelyingParty.create(
                 id = "https://example.com",
                 name = "Example Website",
-                
+
             ).copy(credentialCount = 3)
-            
+
             coEvery { credentialRepository.getRelyingParty(any()) } returns existingRp
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isSuccess, "Result failed with exception: ${result.exceptionOrNull()?.message}")
-            
+
             // Verify RP was updated with incremented credential count
             coVerify { credentialRepository.saveRelyingParty(any()) }
         }
@@ -207,7 +215,7 @@ class RegisterCredentialUseCaseTest {
     @Nested
     @DisplayName("Validation Failure Tests")
     inner class ValidationFailureTests {
-        
+
         @Test
         @DisplayName("Should fail when RP validation fails")
         fun `should fail when rp validation fails`() = runTest {
@@ -218,7 +226,7 @@ class RegisterCredentialUseCaseTest {
                 )
             }
         }
-        
+
         @Test
         @DisplayName("Should fail when user validation fails")
         fun `should fail when user validation fails`() = runTest {
@@ -230,7 +238,7 @@ class RegisterCredentialUseCaseTest {
                 )
             }
         }
-        
+
         @Test
         @DisplayName("Should fail when challenge is empty")
         fun `should fail when challenge is empty`() = runTest {
@@ -274,20 +282,20 @@ class RegisterCredentialUseCaseTest {
             coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.failure(
                 Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed")
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull() is Fido2Exception.CredentialCreationNotAllowed)
         }
     }
-    
+
     @Nested
     @DisplayName("User Verification Failure Tests")
     inner class UserVerificationFailureTests {
-        
 
-        
+
+
         @Test
         @DisplayName("Should fail when no verification method is available")
         fun `should fail when no verification method is available`() = runTest {
@@ -300,86 +308,86 @@ class RegisterCredentialUseCaseTest {
                 minPinLength = 0,
                 biometricStrength = BiometricStrength.WEAK
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull() is Fido2Exception.NoVerificationMethodAvailable)
         }
-        
+
         @Test
         @DisplayName("Should fail when user consent recording fails")
         fun `should fail when user consent recording fails`() = runTest {
             coEvery { userVerificationService.recordUserConsent(any()) } returns Result.failure(
                 Fido2Exception.ConsentDenied("Consent denied")
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull() is Fido2Exception.ConsentDenied)
         }
     }
-    
+
     @Nested
     @DisplayName("Storage Failure Tests")
     inner class StorageFailureTests {
-        
+
         @Test
         @DisplayName("Should fail when credential storage fails")
         fun `should fail when credential storage fails`() = runTest {
             coEvery { credentialRepository.saveCredential(any()) } returns Result.failure(
                 Fido2Exception.CredentialStorageFailed("Credential storage failed")
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull() is Fido2Exception.CredentialStorageFailed)
         }
-        
+
         @Test
         @DisplayName("Should fail when RP update fails")
         fun `should fail when rp update fails`() = runTest {
             coEvery { credentialRepository.saveRelyingParty(any()) } returns Result.failure(
                 Fido2Exception.RelyingPartyUpdateFailed("Relying party update failed")
             )
-            
+
             val result = registerCredentialUseCase(testOptions)
-            
+
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull() is Fido2Exception.RelyingPartyUpdateFailed)
         }
     }
-    
+
     @Nested
     @DisplayName("Algorithm Support Tests")
     inner class AlgorithmSupportTests {
-        
+
         @Test
         @DisplayName("Should support ES256 algorithm")
         fun `should support es256 algorithm`() = runTest {
             val es256Options = testOptions.copy(
                 pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
             )
-            
+
             val result = registerCredentialUseCase(es256Options)
-            
+
             assertTrue(result.isSuccess)
         }
-        
+
         @Test
         @DisplayName("Should support RS256 algorithm")
         fun `should support rs256 algorithm`() = runTest {
             val rs256Options = testOptions.copy(
                 pubKeyCredParams = PublicKeyCredentialParameters.createRS256()
             )
-            
+
             val result = registerCredentialUseCase(rs256Options)
-            
+
             assertTrue(result.isSuccess)
         }
-        
+
         @Test
         @DisplayName("Should fail with unsupported algorithm")
         fun `should fail with unsupported algorithm`() = runTest {
@@ -390,7 +398,7 @@ class RegisterCredentialUseCaseTest {
             }
         }
     }
-    
+
     @Nested
     @DisplayName("Verification Preference Tests")
     inner class VerificationPreferenceTests {
@@ -399,15 +407,15 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should handle preferred verification with biometric available")
         fun `should handle preferred verification with biometric available`() = runTest {
             coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.PREFERRED
-            
+
             val preferredOptions = testOptions.copy(
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
                     userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.PREFERRED
                 )
             )
-            
+
             val result = registerCredentialUseCase(preferredOptions)
-            
+
             assertTrue(result.isSuccess)
             coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
@@ -416,24 +424,24 @@ class RegisterCredentialUseCaseTest {
         @DisplayName("Should handle discouraged verification")
         fun `should handle discouraged verification`() = runTest {
             coEvery { userVerificationService.isUserVerificationRequired(any(), any(), any()) } returns com.chimali.fido2.domain.service.UserVerificationRequirement.DISCOURAGED
-            
+
             val discouragedOptions = testOptions.copy(
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
                     userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED
                 )
             )
-            
+
             val result = registerCredentialUseCase(discouragedOptions)
-            
+
             assertTrue(result.isSuccess)
             coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
         }
     }
-    
+
     @Nested
     @DisplayName("Edge Cases")
     inner class EdgeCases {
-        
+
         @Test
         @DisplayName("Should handle exclude credentials list")
         fun `should handle exclude credentials list`() = runTest {
@@ -443,15 +451,15 @@ class RegisterCredentialUseCaseTest {
                     id = "existing_credential".toByteArray()
                 )
             )
-            
+
             val optionsWithExcludes = testOptions.copy(
                 excludeCredentials = excludeCredentials
             )
-            
+
             val result = registerCredentialUseCase(optionsWithExcludes)
             assertTrue(result.isSuccess, "Failed with exception: ${result.exceptionOrNull()?.message}")
         }
-        
+
         @Test
         @DisplayName("Should handle allow credentials list")
         fun `should handle allow credentials list`() = runTest {
@@ -461,11 +469,11 @@ class RegisterCredentialUseCaseTest {
                     id = "allowed_credential".toByteArray()
                 )
             )
-            
+
             val optionsWithAllows = testOptions.copy(
                 allowCredentials = allowCredentials
             )
-            
+
             val result = registerCredentialUseCase(optionsWithAllows)
             assertTrue(result.isSuccess, "Failed with exception: ${result.exceptionOrNull()?.message}")
         }
@@ -479,9 +487,9 @@ class RegisterCredentialUseCaseTest {
                     userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED
                 )
             )
-            
+
             val result = registerCredentialUseCase(residentKeyOptions)
-            
+
             assertTrue(result.isSuccess)
         }
         
@@ -491,11 +499,12 @@ class RegisterCredentialUseCaseTest {
             val directAttestationOptions = testOptions.copy(
                 attestation = AttestationConveyancePreference.DIRECT
             )
-            
+
             val result = registerCredentialUseCase(directAttestationOptions)
-            
+
             assertTrue(result.isSuccess)
-            val attestationObject = result.getOrThrow()
+            val makeResult = result.getOrThrow()
+            val attestationObject = makeResult.attestationObject
             assertEquals("packed", attestationObject.fmt) // packed self-attestation from HDK key
         }
     }

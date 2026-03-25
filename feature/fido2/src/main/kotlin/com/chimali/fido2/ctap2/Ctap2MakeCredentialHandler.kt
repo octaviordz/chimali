@@ -9,6 +9,7 @@ import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
@@ -166,19 +167,19 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
         )
 
-        val deferred = CompletableDeferred<Result<AttestationObject>>()
+        val deferred = CompletableDeferred<Result<MakeCredentialResult>>()
         Timber.d("Dispatching RegistrationRequested event to UI")
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
         Timber.d("Event dispatched — awaiting user response via deferred")
 
         // NFR-PERF-030: Exclude UI interaction time from system latency
         LatencyProfiler.startUserInteraction("MakeCredential")
-        val attestationResult = deferred.await()
+        val makeCredentialResult = deferred.await()
         LatencyProfiler.endUserInteraction("MakeCredential")
-        Timber.d("Deferred resolved — success=%b error=%s", attestationResult.isSuccess, attestationResult.exceptionOrNull()?.message)
+        Timber.d("Deferred resolved — success=%b error=%s", makeCredentialResult.isSuccess, makeCredentialResult.exceptionOrNull()?.message)
 
-        if (attestationResult.isFailure) {
-            val ex = attestationResult.exceptionOrNull()
+        if (makeCredentialResult.isFailure) {
+            val ex = makeCredentialResult.exceptionOrNull()
             Timber.e(ex, "Registration failed or cancelled: %s", ex?.message)
             return when (ex) {
                 is Fido2Exception.CredentialException ->
@@ -189,7 +190,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             }
         }
 
-        val attestation = attestationResult.getOrThrow()
+        val attestation = makeCredentialResult.getOrThrow().attestationObject
         Timber.d("Encoding MakeCredential response for credId=%dbytes", attestation.authData.credentialId.size)
         val responseCbor   = encodeAttestationResponse(attestation)
         val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor

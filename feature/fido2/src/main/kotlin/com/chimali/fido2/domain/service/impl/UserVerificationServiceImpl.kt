@@ -5,20 +5,14 @@ import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.service.BiometricEnrollmentStatus
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
-import com.chimali.fido2.domain.service.BiometricVerificationResult
-import com.chimali.fido2.domain.service.CombinedVerificationResult
-import com.chimali.fido2.domain.service.DeviceLockVerificationResult
 import com.chimali.fido2.domain.service.PinConfiguration
-import com.chimali.fido2.domain.service.PinVerificationResult
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
-import com.chimali.fido2.domain.service.VerificationMethod
-import com.chimali.fido2.domain.service.VerificationState
-import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -1,8 +1,6 @@
 package com.chimali.fido2.domain.model
 
-import android.util.Base64
 import java.security.PublicKey
-import java.security.SecureRandom
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -96,7 +94,7 @@ data class PasskeyCredential(
      * Returns a safe display name for the credential.
      */
     fun getSafeDisplayName(): String {
-        return if (userDisplayName.isNotBlank()) userDisplayName else userName
+        return userDisplayName.ifBlank { userName }
     }
     
     /**
@@ -131,23 +129,10 @@ data class PasskeyCredential(
         const val AAGUID_LENGTH = 16
         
         /**
-         * Represents a generated FIDO2 credential ID in both raw bytes and encoded string formats.
-         */
-        data class GeneratedId(
-            val bytes: ByteArray,
-            val encoded: String
-        )
-
-        /**
          * Generates a new cryptographically secure random credential ID.
-         * Returns 32 bytes of entropy and its Base64URL-safe encoded string representation.
+         * Returns a [CredentialId] with 32 bytes of entropy and its Base64URL-safe encoding.
          */
-        fun generateRandomId(): GeneratedId {
-            val bytes = ByteArray(32)
-            SecureRandom().nextBytes(bytes)
-            val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP or Base64.URL_SAFE)
-            return GeneratedId(bytes, encoded)
-        }
+        fun generateRandomId(): CredentialId = CredentialId.generate()
         
         /**
          * Creates a new PasskeyCredential with validation.
@@ -179,36 +164,6 @@ data class PasskeyCredential(
                 credentialId = credentialId
             )
         }
-        /**
-         * T071 — Creates a lightweight display-only [PasskeyCredential] from [MakeCredentialOptions].
-         *
-         * This is used by the ViewModel to surface a usable credential object to the UI immediately
-         * after successful registration, while the full credential is persisted by the use case.
-         * A synthetic no-op [PublicKey] is used since the real key is stored in Android KeyStore.
-         */
-        fun fromMakeCredentialOptions(options: MakeCredentialOptions): PasskeyCredential {
-            val now = java.time.Instant.now()
-            val syntheticPubKey = object : java.security.PublicKey {
-                override fun getAlgorithm(): String = "EC"
-                override fun getFormat(): String = "X.509"
-                override fun getEncoded(): ByteArray = ByteArray(0)
-            }
-            val generatedId = generateRandomId()
-            return PasskeyCredential(
-                id               = generatedId.encoded,
-                rpId             = options.rp.id,
-                userId           = String(options.user.id),
-                userName         = options.user.name,
-                userDisplayName  = options.user.displayName ?: options.user.name,
-                publicKey        = syntheticPubKey,
-                privateKeyAlias  = "fido2_cred_${generatedId.encoded}",
-                signCount        = 0L,
-                createdAt        = now,
-                lastUsedAt       = now,
-                aaguid           = ByteArray(16),
-                credentialId     = generatedId.bytes
-            )
-        }
 
         /**
          * Test-only factory — creates a minimal valid [PasskeyCredential] without a real [PublicKey].
@@ -219,8 +174,8 @@ data class PasskeyCredential(
             rpId: String,
             userName: String
         ): PasskeyCredential {
-            val now = java.time.Instant.now()
-            val syntheticPubKey = object : java.security.PublicKey {
+            val now = Instant.now()
+            val syntheticPubKey = object : PublicKey {
                 override fun getAlgorithm(): String = "EC"
                 override fun getFormat(): String = "X.509"
                 override fun getEncoded(): ByteArray = ByteArray(0)

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
@@ -123,7 +124,7 @@ class RegistrationPromptViewModel @Inject constructor(
     val effects: Flow<RegistrationEffect> = _effects.receiveAsFlow()
 
     private var pendingOptions: MakeCredentialOptions? = null
-    private var pendingDeferred: CompletableDeferred<*>? = null
+    private var pendingDeferred: CompletableDeferred<Result<MakeCredentialResult>>? = null
 
     init {
         Timber.d("RegistrationPromptViewModel created — subscribing to event bus")
@@ -215,9 +216,7 @@ class RegistrationPromptViewModel @Inject constructor(
     }
 
     private fun cancelRegistration() {
-        @Suppress("UNCHECKED_CAST")
-        val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
-        deferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
+        pendingDeferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
         pendingOptions = null
         pendingDeferred = null
         _state.value = RegistrationState.Cancelled
@@ -237,14 +236,13 @@ class RegistrationPromptViewModel @Inject constructor(
         viewModelScope.launch {
             val result = fido2Service.makeCredential(options)
 
-            result.onSuccess { _ ->
-                // Complete transport's deferred only on success
-                @Suppress("UNCHECKED_CAST")
-                val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
-                deferred?.complete(result)
+            result.onSuccess { makeResult ->
+                makeResult.attestationObject
+                val credential = makeResult.credential
 
-                // Build a lightweight display credential from the attestation metadata
-                val credential = PasskeyCredential.fromMakeCredentialOptions(options)
+                // Complete transport's deferred only on success with the attestation object
+                pendingDeferred?.complete(Result.success(makeResult))
+
                 _state.value = RegistrationState.Success(credential)
 
                 // Hold the success screen for a moment so the user can read it before
@@ -258,9 +256,7 @@ class RegistrationPromptViewModel @Inject constructor(
             }
             result.onFailure { error ->
                 // Complete the transport deferred with the failure so the PC gets a response
-                @Suppress("UNCHECKED_CAST")
-                val deferred = pendingDeferred as? CompletableDeferred<Result<com.chimali.fido2.domain.model.AttestationObject>>
-                deferred?.complete(result)
+                pendingDeferred?.complete(Result.failure(error))
                 pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
 
                 Timber.e(error, "Registration process failed")

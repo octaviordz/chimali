@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import java.time.Instant
 
 /**

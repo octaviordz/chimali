@@ -172,18 +172,16 @@ data class UserConsentRecord(
                 if (ip.contains(':')) {
                     if (ip.contains(":::")) return false
                     val colons = ip.count { it == ':' }
-                    if (colons < 2 || colons > 7) return false
+                    if (colons !in 2..7) return false
                     
                     val validChars = ip.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' }
                     if (!validChars) return false
                     
                     val groups = ip.split(":")
-                    if (groups.any { it.length > 4 }) return false
-                    
-                    return true
+                    return groups.all { it.length <= 4 }
                 }
-                return false
-            } catch (e: Exception) {
+                false
+            } catch (_: Exception) {
                 false
             }
         }

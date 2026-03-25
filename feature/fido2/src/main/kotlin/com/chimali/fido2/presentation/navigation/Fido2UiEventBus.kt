@@ -1,7 +1,7 @@
 package com.chimali.fido2.presentation.navigation
 
-import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -41,7 +41,7 @@ class Fido2UiEventBus @Inject constructor() {
 sealed interface Fido2UiEvent {
     data class RegistrationRequested(
         val options: MakeCredentialOptions,
-        val deferred: CompletableDeferred<Result<AttestationObject>>
+        val deferred: CompletableDeferred<Result<MakeCredentialResult>>
     ) : Fido2UiEvent
 
     data class AuthenticationRequested(

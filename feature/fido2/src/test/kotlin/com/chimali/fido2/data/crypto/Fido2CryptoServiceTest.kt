@@ -4,6 +4,7 @@ import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.fido2.domain.model.CredentialId
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -85,11 +86,11 @@ class Fido2CryptoServiceTest {
                 )
             } returns fakeResult
 
-            val result = service.generateCredentialKeyPair(credentialId)
+            val result = service.generateCredentialKeyPair(CredentialId.fromString(credentialId))
 
             assertTrue(result.isSuccess)
             val keyPair = result.getOrThrow()
-            assertEquals(Fido2CryptoService.credentialAlias(credentialId), keyPair.alias)
+            assertEquals(Fido2CryptoService.credentialAlias(CredentialId.fromString(credentialId)), keyPair.alias)
             assertEquals(65, keyPair.publicKeyBytes.size)
             assertEquals(0x04.toByte(), keyPair.publicKeyBytes[0])
             // Path must be a 2-element list [FIDO2_APP_INDEX, credIndex]
@@ -104,8 +105,8 @@ class Fido2CryptoServiceTest {
 
             every { hdkManager.deriveHdk(any(), any(), any()) } returns fakeResult
 
-            val result1 = service.generateCredentialKeyPair(credentialId).getOrThrow()
-            val result2 = service.generateCredentialKeyPair(credentialId).getOrThrow()
+            val result1 = service.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
+            val result2 = service.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             assertTrue(result1.publicKeyBytes.contentEquals(result2.publicKeyBytes))
         }
@@ -120,8 +121,8 @@ class Fido2CryptoServiceTest {
                 else HdkResult(pk2, ByteArray(32), P256Group.randomScalar())
             }
 
-            val key1 = service.generateCredentialKeyPair("cred-1").getOrThrow()
-            val key2 = service.generateCredentialKeyPair("cred-2").getOrThrow()
+            val key1 = service.generateCredentialKeyPair(CredentialId.fromString("cred-1")).getOrThrow()
+            val key2 = service.generateCredentialKeyPair(CredentialId.fromString("cred-2")).getOrThrow()
 
             assertTrue(!key1.publicKeyBytes.contentEquals(key2.publicKeyBytes))
         }
@@ -130,7 +131,7 @@ class Fido2CryptoServiceTest {
         fun `generateCredentialKeyPair fails when master seed not available`() = runTest {
             coEvery { masterSeedProvider.getMasterSeed() } returns null
 
-            val result = service.generateCredentialKeyPair("any-cred")
+            val result = service.generateCredentialKeyPair(CredentialId.fromString("any-cred"))
 
             assertTrue(result.isFailure)
         }
@@ -148,7 +149,7 @@ class Fido2CryptoServiceTest {
             val realHdkManager = com.chimali.core.security.hdkeys.HdkEcdhP256()
             val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
 
-            val result = realService.sign(credentialId, data)
+            val result = realService.sign(CredentialId.fromString(credentialId), data)
 
             assertTrue(result.isSuccess)
             val signature = result.getOrThrow()
@@ -166,7 +167,7 @@ class Fido2CryptoServiceTest {
             val (_, pk) = P256Group.generateKeyPair()
             every { hdkManager.deriveHdk(any(), any(), any()) } returns HdkResult(pk, ByteArray(32), P256Group.randomScalar())
 
-            val publicKey = service.getPublicKey("some-cred")
+            val publicKey = service.getPublicKey(CredentialId.fromString("some-cred"))
 
             assertNotNull(publicKey)
         }
@@ -197,8 +198,8 @@ class Fido2CryptoServiceTest {
             val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
 
             // When: derive twice from the same seed
-            val keyPair1 = realService.generateCredentialKeyPair(credentialId).getOrThrow()
-            val keyPair2 = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keyPair1 = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
+            val keyPair2 = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             // Then: public key bytes are identical (determinism — SC-006)
             assertTrue(
@@ -219,10 +220,10 @@ class Fido2CryptoServiceTest {
 
             coEvery { masterSeedProvider.getMasterSeed() } returns seed1
             coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-            val keyPair1 = realService1.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keyPair1 = realService1.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             coEvery { masterSeedProvider.getMasterSeed() } returns seed2
-            val keyPair2 = realService2.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keyPair2 = realService2.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             // Then: Different seeds must produce different public keys
             assertTrue(
@@ -242,11 +243,11 @@ class Fido2CryptoServiceTest {
 
             coEvery { masterSeedProvider.getMasterSeed() } returns oldSeed
             coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-            val keysBeforeImport = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keysBeforeImport = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             // Simulate seed import (cache invalidated, new seed returned)
             coEvery { masterSeedProvider.getMasterSeed() } returns newSeed
-            val keysAfterImport = realService.generateCredentialKeyPair(credentialId).getOrThrow()
+            val keysAfterImport = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
             // Then: post-import keys must differ — old credentials are orphaned
             assertTrue(

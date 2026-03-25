@@ -347,7 +347,7 @@ data class PinSettings(
      * Validates a PIN against these settings.
      */
     fun validatePin(pin: String): Boolean {
-        if (pin.length < minLength || pin.length > maxLength) return false
+        if (pin.length !in minLength..maxLength) return false
         if (requireComplexity && !meetsComplexityRequirements(pin)) return false
         return true
     }

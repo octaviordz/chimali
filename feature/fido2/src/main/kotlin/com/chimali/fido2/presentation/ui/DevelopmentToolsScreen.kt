@@ -1,6 +1,7 @@
 package com.chimali.fido2.presentation.ui
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
@@ -26,11 +27,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +38,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.ui.theme.LegibilityType
 import com.chimali.fido2.BuildConfig
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
@@ -57,8 +57,6 @@ import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import kotlinx.coroutines.launch
-import android.content.pm.PackageManager
-import com.chimali.core.ui.theme.LegibilityType
 
 /**
  * T146b/c/d/e/f — Development / QA screen housing test utilities.
@@ -79,16 +77,6 @@ fun DevelopmentToolsScreen(
 ) {
     val state by devToolsViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    var showQrCode by remember { mutableStateOf(false) }
-    var showScanner by remember { mutableStateOf(false) }
-    var showRecoverForm by remember { mutableStateOf(false) }
-    var cameraPermGranted by remember { mutableStateOf(false) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> cameraPermGranted = granted; if (granted) showScanner = true }
 
     // Collect one-time effects
     LaunchedEffect(Unit) {
@@ -108,6 +96,7 @@ fun DevelopmentToolsScreen(
 
     DevelopmentToolsContent(
         state = state,
+        snackbarHostState = snackbarHostState,
         onIntent = devToolsViewModel::onIntent,
         onHomeTestRegistration = homeViewModel::testRegistration
     )
@@ -117,10 +106,10 @@ fun DevelopmentToolsScreen(
 @Composable
 internal fun DevelopmentToolsContent(
     state: DevToolsUiState,
+    snackbarHostState: SnackbarHostState,
     onIntent: (DevToolsIntent) -> Unit,
     onHomeTestRegistration: (MakeCredentialOptions) -> Unit
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var showQrCode by remember { mutableStateOf(false) }
@@ -231,7 +220,7 @@ internal fun DevelopmentToolsContent(
                     }
                 } else {
                     // Seed word grid
-                    MnemonicWordGrid(words = state.mnemonicWords!!)
+                    MnemonicWordGrid(words = state.mnemonicWords)
 
                     // QR code toggle and Copy
                     Row(
@@ -310,7 +299,7 @@ internal fun DevelopmentToolsContent(
                     }
 
                     if (showQrCode) {
-                        MnemonicQrCodeView(words = state.mnemonicWords!!)
+                        MnemonicQrCodeView(words = state.mnemonicWords)
                     }
                 }
 

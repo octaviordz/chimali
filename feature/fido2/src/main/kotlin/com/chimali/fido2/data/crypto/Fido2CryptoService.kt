@@ -5,6 +5,7 @@ import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
@@ -17,7 +18,7 @@ import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.Security
 import java.security.Signature
-import java.security.spec.ECPoint as JavaECPoint
+import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +43,10 @@ data class Fido2KeyPair(
         var result = alias.hashCode()
         result = 31 * result + publicKeyBytes.contentHashCode()
         return result
+    }
+
+    override fun toString(): String {
+        return "Fido2KeyPair(alias='$alias', publicKeyBytes.size=${publicKeyBytes.size})"
     }
 }
 
@@ -81,12 +86,10 @@ class Fido2CryptoService @Inject constructor(
      * The derivation path is `[FIDO2_APP_INDEX, credentialPathIndex(credentialId)]`.
      *
      * @param credentialId   Unique credential identifier string.
-     * @param _requireUserAuth Ignored in HDK model; maintained for API compatibility.
      * @return [Fido2KeyPair] with alias and uncompressed public key bytes (65 bytes).
      */
     suspend fun generateCredentialKeyPair(
-        credentialId: String,
-        @Suppress("UNUSED_PARAMETER") _requireUserAuth: Boolean = false
+        credentialId: CredentialId
     ): Result<Fido2KeyPair> = withContext(defaultDispatcher) {
         runCatching {
             val seed = masterSeedProvider.getMasterSeed()
@@ -122,14 +125,14 @@ class Fido2CryptoService @Inject constructor(
     /**
      * Returns the uncompressed public key bytes (65 bytes) for a credential.
      */
-    suspend fun getPublicKeyBytes(credentialId: String): ByteArray? {
+    suspend fun getPublicKeyBytes(credentialId: CredentialId): ByteArray? {
         return generateCredentialKeyPair(credentialId).getOrNull()?.publicKeyBytes
     }
 
     /**
      * Returns a [PublicKey] instance reconstructed from the derived public key bytes.
      */
-    suspend fun getPublicKey(credentialId: String): PublicKey? {
+    suspend fun getPublicKey(credentialId: CredentialId): PublicKey? {
         return try {
             val keyPair = generateCredentialKeyPair(credentialId).getOrNull() ?: return null
             decodeUncompressedPoint(keyPair.publicKeyBytes)
@@ -142,7 +145,7 @@ class Fido2CryptoService @Inject constructor(
     /**
      * Returns true if the master seed is available (prerequisite for any key existence).
      */
-    suspend fun keyExists(@Suppress("UNUSED_PARAMETER") credentialId: String): Boolean {
+    suspend fun keyExists(@Suppress("UNUSED_PARAMETER") credentialId: CredentialId): Boolean {
         return masterSeedProvider.getMasterSeed() != null
     }
 
@@ -151,7 +154,7 @@ class Fido2CryptoService @Inject constructor(
      * Credential metadata cleanup is handled by the repository.
      */
     @Suppress("RedundantSuspendModifier")
-    suspend fun deleteCredentialKey(@Suppress("UNUSED_PARAMETER") credentialId: String): Result<Unit> = Result.success(Unit)
+    suspend fun deleteCredentialKey(@Suppress("UNUSED_PARAMETER") credentialId: CredentialId): Result<Unit> = Result.success(Unit)
 
     /**
      * Pre-warms the master seed cache to eliminate first-ceremony latency.
@@ -218,7 +221,7 @@ class Fido2CryptoService @Inject constructor(
             val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
             val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
 
-            val warmupPath = derivationPath("warmup") // warms MessageDigest.getInstance("SHA-256")
+            val warmupPath = derivationPath(CredentialId.fromString("warmup")) // warms MessageDigest.getInstance("SHA-256")
             val hdkResult = hdkManager.deriveHdk(
                 devicePublicKey = devicePubKeyBytes,
                 seed = seed,
@@ -256,7 +259,7 @@ class Fido2CryptoService @Inject constructor(
      * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
      * @return DER-encoded ECDSA signature bytes.
      */
-    suspend fun sign(credentialId: String, data: ByteArray): Result<ByteArray> = withContext(defaultDispatcher) {
+    suspend fun sign(credentialId: CredentialId, data: ByteArray): Result<ByteArray> = withContext(defaultDispatcher) {
         runCatching {
             // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
             LatencyProfiler.start("Crypto.sign")
@@ -303,14 +306,15 @@ class Fido2CryptoService @Inject constructor(
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     /**
-     * Computes a deterministic derivation path index from a credential ID string.
+     * Computes a deterministic derivation path index from a credential ID.
      *
-     * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId)]
+     * Uses [CredentialId.toByteArray] (UTF-8 encoding of the Base64 string).
+     * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId.toByteArray())]
      * Both indices are non-negative 31-bit integers to stay within ECDH-P256 limits.
      */
-    private fun derivationPath(credentialId: String): List<Int> {
+    private fun derivationPath(credentialId: CredentialId): List<Int> {
         val hashBytes = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(credentialId.toByteArray(Charsets.UTF_8))
+            .digest(credentialId.toByteArray())
         // Take first 4 bytes as a 31-bit positive integer
         val credIndex = ((hashBytes[0].toInt() and 0x7F) shl 24) or
                         ((hashBytes[1].toInt() and 0xFF) shl 16) or
@@ -371,7 +375,7 @@ class Fido2CryptoService @Inject constructor(
             P256Group.ORDER,
             P256Group.G.curve.cofactor
         )
-        val javaPoint = JavaECPoint(x, y)
+        val javaPoint = ECPoint(x, y)
         val pubKeySpec = ECPublicKeySpec(javaPoint, ecSpec)
         return KeyFactory.getInstance("EC", bcProvider)
             .generatePublic(pubKeySpec)
@@ -382,7 +386,7 @@ class Fido2CryptoService @Inject constructor(
         private const val FIDO2_APP_INDEX = 0x4649_4432 // "FID2" as 31-bit int (positive)
 
         /** Returns the logical alias for a credential (used for lookup / metadata). */
-        fun credentialAlias(credentialId: String): String = "fido2_hdk_$credentialId"
+        fun credentialAlias(credentialId: CredentialId): String = "fido2_hdk_${credentialId.encoded}"
 
         /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
         const val COSE_ES256 = -7

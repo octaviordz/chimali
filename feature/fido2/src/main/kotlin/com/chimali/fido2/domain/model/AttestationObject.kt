@@ -1,6 +1,5 @@
 package com.chimali.fido2.domain.model
 
-import java.security.PublicKey
 import java.time.Instant
 
 /**
@@ -168,6 +167,32 @@ data class AuthenticatorData(
     fun getCredentialIdBase64(): String {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(credentialId)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as AuthenticatorData
+
+        if (!rpIdHash.contentEquals(other.rpIdHash)) return false
+        if (!flags.contentEquals(other.flags)) return false
+        if (counter != other.counter) return false
+        if (!aaguid.contentEquals(other.aaguid)) return false
+        if (!credentialId.contentEquals(other.credentialId)) return false
+        if (!publicKey.contentEquals(other.publicKey)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = rpIdHash.contentHashCode()
+        result = 31 * result + flags.contentHashCode()
+        result = 31 * result + counter.hashCode()
+        result = 31 * result + aaguid.contentHashCode()
+        result = 31 * result + credentialId.contentHashCode()
+        result = 31 * result + publicKey.contentHashCode()
+        return result
+    }
     
     companion object {
         /**
@@ -268,6 +293,43 @@ data class AttestationStatement(
     fun hasX5cChain(): Boolean {
         return x5c?.isNotEmpty() ?: false
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as AttestationStatement
+
+        if (alg != other.alg) return false
+        if (fmt != other.fmt) return false
+        if (attCert != null) {
+            if (other.attCert == null) return false
+            if (!attCert.contentEquals(other.attCert)) return false
+        } else if (other.attCert != null) return false
+        if (authData != null) {
+            if (other.authData == null) return false
+            if (!authData.contentEquals(other.authData)) return false
+        } else if (other.authData != null) return false
+        
+        if (x5c != null) {
+            if (other.x5c == null) return false
+            if (x5c.size != other.x5c.size) return false
+            for (i in x5c.indices) {
+                if (!x5c[i].contentEquals(other.x5c[i])) return false
+            }
+        } else if (other.x5c != null) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = alg.hashCode()
+        result = 31 * result + fmt.hashCode()
+        result = 31 * result + (attCert?.contentHashCode() ?: 0)
+        result = 31 * result + (authData?.contentHashCode() ?: 0)
+        result = 31 * result + (x5c?.fold(1) { acc, bytes -> 31 * acc + bytes.contentHashCode() } ?: 0)
+        return result
+    }
     
     companion object {
         /**
@@ -358,6 +420,30 @@ data class ClientData(
      */
     fun isCredentialAssertion(): Boolean {
         return type == "webauthn.get"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ClientData
+
+        if (type != other.type) return false
+        if (!challenge.contentEquals(other.challenge)) return false
+        if (origin != other.origin) return false
+        if (crossOrigin != other.crossOrigin) return false
+        if (timestamp != other.timestamp) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = 31 * result + challenge.contentHashCode()
+        result = 31 * result + origin.hashCode()
+        result = 31 * result + crossOrigin.hashCode()
+        result = 31 * result + timestamp.hashCode()
+        return result
     }
     
     companion object {

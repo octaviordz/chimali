@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
 import java.security.MessageDigest
+import com.chimali.fido2.domain.model.CredentialId
 
 /**
  * T061 — Unit tests for Core Crypto operations.
@@ -123,8 +124,8 @@ class CryptoOperationsTest {
 
     @Test
     fun `credentialAlias follows expected prefix`() {
-        val alias = Fido2CryptoService.credentialAlias("abc123")
-        assertEquals("fido2_cred_abc123", alias)
+        val alias = Fido2CryptoService.credentialAlias(CredentialId.fromString("abc123"))
+        assertEquals("fido2_hdk_abc123", alias)
     }
 
     @Test

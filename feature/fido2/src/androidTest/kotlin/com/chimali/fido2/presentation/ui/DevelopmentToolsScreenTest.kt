@@ -1,6 +1,8 @@
 package com.chimali.fido2.presentation.ui
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -22,6 +24,7 @@ class DevelopmentToolsScreenTest {
             MaterialTheme {
                 DevelopmentToolsContent(
                     state = DevToolsUiState(),
+                    snackbarHostState = remember { SnackbarHostState() },
                     onIntent = {},
                     onHomeTestRegistration = {}
                 )
@@ -44,6 +47,7 @@ class DevelopmentToolsScreenTest {
             MaterialTheme {
                 DevelopmentToolsContent(
                     state = DevToolsUiState(mnemonicWords = testWords),
+                    snackbarHostState = remember { SnackbarHostState() },
                     onIntent = {},
                     onHomeTestRegistration = {}
                 )
