@@ -25,8 +25,8 @@ data class PublicKeyCredentialParameters(
         require(type != PublicKeyCredentialType.UNKNOWN) { "Credential type must be specified" }
         
         // Validate algorithm
-        require(algorithm in setOf("ES256", "RS256", "EdDSA")) { 
-            "Algorithm must be one of: ES256, RS256, EdDSA" 
+        require(algorithm in setOf("ES256", "RS256", "EdDSA", "ML-DSA")) {
+            "Algorithm must be one of: ES256, RS256, EdDSA, ML-DSA"
         }
         
         // Validate curve if present
@@ -125,6 +125,18 @@ data class PublicKeyCredentialParameters(
             return create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "RS256",
+                curve = null
+            )
+        }
+
+        /**
+         * Creates parameters for ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3).
+         * COSE algorithm ID: -257 (working-draft; IANA finalization pending).
+         */
+        fun createMlDsa65(): PublicKeyCredentialParameters {
+            return create(
+                type = PublicKeyCredentialType.PUBLIC_KEY,
+                algorithm = "ML-DSA",
                 curve = null
             )
         }

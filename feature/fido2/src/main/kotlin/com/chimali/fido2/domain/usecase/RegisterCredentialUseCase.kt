@@ -179,7 +179,8 @@ class RegisterCredentialUseCase @Inject constructor(
 
             // Generate hardware-backed key pair via Fido2CryptoService
             val cryptoResult = cryptoService.generateCredentialKeyPair(
-                credentialId = credentialId
+                credentialId = credentialId,
+                algId = options.selectedAlgId
             )
             if (cryptoResult.isFailure) {
                 return Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
@@ -202,7 +203,8 @@ class RegisterCredentialUseCase @Inject constructor(
                 publicKey = publicKey,
                 privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
                 aaguid = aaguid,
-                credentialId = credentialId.toByteArray()
+                credentialId = credentialId.toByteArray(),
+                coseAlgorithm = options.selectedAlgId ?: Fido2CryptoService.COSE_ES256
             )
 
             return Result.success(credential)

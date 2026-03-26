@@ -36,7 +36,8 @@ class PasskeyCredentialDao @Inject constructor(
             lastUsedAt = credential.lastUsedAt.toEpochMilli(),
             aaguid = java.util.Base64.getEncoder().encodeToString(credential.aaguid),
             credentialId = java.util.Base64.getEncoder().encodeToString(credential.credentialId),
-            publicKey = java.util.Base64.getEncoder().encodeToString(credential.publicKey.encoded)
+            publicKey = java.util.Base64.getEncoder().encodeToString(credential.publicKey.encoded),
+            coseAlgorithm = credential.coseAlgorithm.toLong()
         )
     }
     

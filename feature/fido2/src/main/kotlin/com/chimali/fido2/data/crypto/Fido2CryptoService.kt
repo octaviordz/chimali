@@ -68,6 +68,7 @@ data class Fido2KeyPair(
 class Fido2CryptoService @Inject constructor(
     private val hdkManager: HdkManager,
     private val masterSeedProvider: MasterSeedProvider,
+    private val postQuantumCrypto: PostQuantumCrypto,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
 ) {
 
@@ -89,9 +90,26 @@ class Fido2CryptoService @Inject constructor(
      * @return [Fido2KeyPair] with alias and uncompressed public key bytes (65 bytes).
      */
     suspend fun generateCredentialKeyPair(
-        credentialId: CredentialId
+        credentialId: CredentialId,
+        algId: Int = COSE_ES256
     ): Result<Fido2KeyPair> = withContext(defaultDispatcher) {
         runCatching {
+            if (algId == COSE_ML_DSA_65) {
+                val pqChildSeed = masterSeedProvider.getPqChildSeed()
+                    ?: throw Fido2Exception.KeyGenerationFailed("PQ seed not available", null)
+                val derivedSeed = java.security.MessageDigest.getInstance("SHA-512").apply {
+                    update(pqChildSeed)
+                    update(credentialId.toByteArray())
+                }.digest()
+                val keyPair = postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
+                    ?: throw Fido2Exception.KeyGenerationFailed("ML-DSA not supported", null)
+                val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
+                derivedSeed.fill(0)
+                
+                Timber.d("ML-DSA key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
+                return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
+            }
+
             val seed = masterSeedProvider.getMasterSeed()
                 ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
 
@@ -259,10 +277,33 @@ class Fido2CryptoService @Inject constructor(
      * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
      * @return DER-encoded ECDSA signature bytes.
      */
-    suspend fun sign(credentialId: CredentialId, data: ByteArray): Result<ByteArray> = withContext(defaultDispatcher) {
+    suspend fun sign(
+        credentialId: CredentialId, 
+        data: ByteArray, 
+        algId: Int = COSE_ES256
+    ): Result<ByteArray> = withContext(defaultDispatcher) {
         runCatching {
             // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
             LatencyProfiler.start("Crypto.sign")
+            
+            if (algId == COSE_ML_DSA_65) {
+                val pqChildSeed = masterSeedProvider.getPqChildSeed()
+                    ?: throw Fido2Exception.KeyNotFound("PQ seed not available")
+                val derivedSeed = java.security.MessageDigest.getInstance("SHA-512").apply {
+                    update(pqChildSeed)
+                    update(credentialId.toByteArray())
+                }.digest()
+                val keyPair = postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
+                    ?: throw Fido2Exception.SigningFailed("ML-DSA generation failed", null)
+                val signature = postQuantumCrypto.sign(keyPair.private, data)
+                    ?: throw Fido2Exception.SigningFailed("ML-DSA signing failed", null)
+                
+                derivedSeed.fill(0)
+                LatencyProfiler.end("Crypto.sign")
+                Timber.d("Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
+                return@withContext Result.success(signature)
+            }
+
             val seed = masterSeedProvider.getMasterSeed()
                 ?: throw Fido2Exception.KeyNotFound("Master seed not available")
 
@@ -390,5 +431,9 @@ class Fido2CryptoService @Inject constructor(
 
         /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
         const val COSE_ES256 = -7
+
+        // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
+        // Working-draft value; IANA final assignment pending.
+        const val COSE_ML_DSA_65 = -257
     }
 }

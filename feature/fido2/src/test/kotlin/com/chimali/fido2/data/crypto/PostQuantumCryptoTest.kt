@@ -1,12 +1,18 @@
 package com.chimali.fido2.data.crypto
 
-import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.condition.EnabledOnJre
-import org.junit.jupiter.api.condition.JRE
+import org.junit.jupiter.api.Test
 
+/**
+ * T017a — Smoke-test that the PostQuantumCrypto class initializes and
+ * provides the expected ML-DSA-65 API.
+ *
+ * Full functional tests (KAT, sign/verify, determinism) live in [PqcSigningTest].
+ * These legacy-replacement tests ensure the old Kyber/ML-KEM methods are gone
+ * and the new ML-DSA API is wired up correctly.
+ */
 class PostQuantumCryptoTest {
 
     private lateinit var pqCrypto: PostQuantumCrypto
@@ -17,168 +23,48 @@ class PostQuantumCryptoTest {
     }
 
     @Test
-    fun `test PQC support detection`() {
-        val isSupported = pqCrypto.isPqcSupported()
-        
-        // This test may pass or fail depending on Bouncy Castle PQC provider availability
-        // The important thing is that it doesn't crash
-        assertNotNull(isSupported)
-    }
-
-
-    @Test
-    @EnabledOnJre(JRE.JAVA_17) // PQC may require Java 17+
-    fun `test Kyber key pair generation when supported`() = runTest {
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        
-        if (pqCrypto.isPqcSupported()) {
-            assertNotNull(keyPair)
-            assertNotNull(keyPair?.public)
-            assertNotNull(keyPair?.private)
-            // Accept both legacy BC name ("Kyber") and NIST standard name ("ML-KEM")
-            assertTrue(
-                keyPair?.public?.algorithm?.startsWith("Kyber") == true ||
-                keyPair?.public?.algorithm?.startsWith("ML-KEM") == true,
-                "Expected Kyber or ML-KEM algorithm, got: ${keyPair?.public?.algorithm}"
-            )
-            assertTrue(
-                keyPair?.private?.algorithm?.startsWith("Kyber") == true ||
-                keyPair?.private?.algorithm?.startsWith("ML-KEM") == true,
-                "Expected Kyber or ML-KEM algorithm, got: ${keyPair?.private?.algorithm}"
-            )
-        } else {
-            assertNull(keyPair)
-        }
+    fun `ML-DSA provider support detection returns true on JVM`() {
+        assertTrue(pqCrypto.isMlDsaSupported(), "BouncyCastle BC provider must be available on JVM")
     }
 
     @Test
-    @EnabledOnJre(JRE.JAVA_17)
-    fun `test Kyber encapsulation when supported`() = runTest {
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        
-        if (pqCrypto.isPqcSupported() && keyPair != null) {
-            val result = pqCrypto.kyberEncapsulate(keyPair.public)
-            
-            assertNotNull(result)
-            assertNotNull(result?.first) // encapsulated key
-            assertNotNull(result?.second) // shared secret
-            assertTrue(result?.first?.isNotEmpty() == true)
-            assertTrue(result?.second?.isNotEmpty() == true)
-        } else {
-            // Should gracefully fallback to null when PQC not supported
-            val result = pqCrypto.kyberEncapsulate(null)
-            assertNull(result)
-        }
+    fun `ML-DSA key pair generation returns non-null keypair`() {
+        val seed = ByteArray(64) { it.toByte() }
+        val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
+        assertNotNull(keyPair, "generateMlDsaKeyPair must return a non-null KeyPair")
+        assertNotNull(keyPair?.public, "Public key must not be null")
+        assertNotNull(keyPair?.private, "Private key must not be null")
     }
 
     @Test
-    @EnabledOnJre(JRE.JAVA_17)
-    fun `test Kyber decapsulation when supported`() = runTest {
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        
-        if (pqCrypto.isPqcSupported() && keyPair != null) {
-            // First encapsulate
-            val encapsulationResult = pqCrypto.kyberEncapsulate(keyPair.public)
-            assertNotNull(encapsulationResult)
-            
-            // Then decapsulate
-            val sharedSecret = pqCrypto.kyberDecapsulate(
-                keyPair.private, 
-                encapsulationResult?.first ?: ByteArray(0)
-            )
-            
-            assertNotNull(sharedSecret)
-            assertTrue(sharedSecret?.isNotEmpty() == true)
-        } else {
-            // Should gracefully fallback to null when PQC not supported
-            val sharedSecret = pqCrypto.kyberDecapsulate(null, ByteArray(0))
-            assertNull(sharedSecret)
-        }
+    fun `ML-DSA key algorithm name contains ML-DSA`() {
+        val seed = ByteArray(64) { 0x42 }
+        val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
+        assertNotNull(keyPair)
+        assertTrue(
+            keyPair!!.public.algorithm.contains("ML-DSA", ignoreCase = true) ||
+            keyPair.public.algorithm.contains("Dilithium", ignoreCase = true),
+            "Expected ML-DSA or Dilithium algorithm, got: ${keyPair.public.algorithm}"
+        )
     }
 
     @Test
-    @EnabledOnJre(JRE.JAVA_17)
-    fun `test Kyber encapsulation decapsulation round trip when supported`() = runTest {
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        
-        if (pqCrypto.isPqcSupported() && keyPair != null) {
-            // Encapsulate
-            val encapsulationResult = pqCrypto.kyberEncapsulate(keyPair.public)
-            assertNotNull(encapsulationResult)
-            
-            val encapsulated = encapsulationResult?.first ?: ByteArray(0)
-            val originalSharedSecret = encapsulationResult?.second ?: ByteArray(0)
-            
-            // Decapsulate
-            val decapsulatedSharedSecret = pqCrypto.kyberDecapsulate(keyPair.private, encapsulated)
-            
-            assertNotNull(decapsulatedSharedSecret)
-            
-            // Note: In a real implementation, these should match
-            // For now, we just verify both operations complete successfully
-            assertTrue(originalSharedSecret.isNotEmpty())
-            assertTrue(decapsulatedSharedSecret?.isNotEmpty() == true)
-        }
+    fun `publicKeyBytes returns non-empty byte array`() {
+        val seed = ByteArray(64) { 0x11 }
+        val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
+        assertNotNull(keyPair)
+        val bytes = pqCrypto.publicKeyBytes(keyPair!!)
+        assertTrue(bytes.isNotEmpty(), "Public key bytes must not be empty")
     }
 
     @Test
-    fun `test graceful fallback when PQC not supported`() = runTest {
-        // Mock scenario where PQC is not supported
-        // These operations should not crash and should return null
-        
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        val encapsulationResult = pqCrypto.kyberEncapsulate(null)
-        val decapsulationResult = pqCrypto.kyberDecapsulate(null, ByteArray(0))
-        
-        // If not supported, these should be null
-        if (!pqCrypto.isPqcSupported()) {
-            assertNull(keyPair)
-            assertNull(encapsulationResult)
-            assertNull(decapsulationResult)
-        }
-    }
-
-    @Test
-    fun `test PQC operations handle null inputs gracefully`() = runTest {
-        // Test that null inputs don't cause crashes
-        val encapsulationResult = pqCrypto.kyberEncapsulate(null)
-        val decapsulationResult = pqCrypto.kyberDecapsulate(null, null)
-        val decapsulationResult2 = pqCrypto.kyberDecapsulate(null, ByteArray(0))
-        
-        assertNull(encapsulationResult)
-        assertNull(decapsulationResult)
-        assertNull(decapsulationResult2)
-    }
-
-    @Test
-    fun `test PQC operations handle empty arrays gracefully`() = runTest {
-        val keyPair = pqCrypto.generateKyberKeyPair()
-        
-        if (keyPair != null) {
-            val encapsulationResult = pqCrypto.kyberEncapsulate(keyPair.public)
-            val decapsulationResult = pqCrypto.kyberDecapsulate(keyPair.private, ByteArray(0))
-            
-            // Empty arrays are invalid for decapsulation and should return null
-            assertNull(decapsulationResult)
-        }
-    }
-
-
-    @Test
-    fun `test multiple key pair generation`() = runTest {
-        repeat(3) {
-            val keyPair = pqCrypto.generateKyberKeyPair()
-            
-            if (pqCrypto.isPqcSupported()) {
-                assertNotNull(keyPair)
-                assertNotNull(keyPair?.public)
-                assertNotNull(keyPair?.private)
-                
-                // Each key pair should be different
-                val publicKeyEncoded = keyPair?.public?.encoded
-                assertNotNull(publicKeyEncoded)
-                assertTrue(publicKeyEncoded?.isNotEmpty() == true)
-            }
-        }
+    fun `sign returns non-null signature`() {
+        val seed = ByteArray(64) { 0x22 }
+        val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
+        assertNotNull(keyPair)
+        val message = "hello-fido2".toByteArray()
+        val sig = pqCrypto.sign(keyPair!!.private, message)
+        assertNotNull(sig, "sign() must return a non-null signature")
+        assertTrue(sig!!.isNotEmpty(), "Signature must not be empty")
     }
 }

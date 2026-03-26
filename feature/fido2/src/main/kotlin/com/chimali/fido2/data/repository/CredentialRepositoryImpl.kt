@@ -189,7 +189,8 @@ class CredentialRepositoryImpl @Inject constructor(
                     credentialId = java.util.Base64.getDecoder().decode(entity.credentialId),
                     lastUsedAt   = entity.lastUsedAt
                         ?.let { java.time.Instant.ofEpochMilli(it) }
-                        ?: java.time.Instant.ofEpochMilli(entity.createdAt)
+                        ?: java.time.Instant.ofEpochMilli(entity.createdAt),
+                    coseAlgorithm = entity.coseAlgorithm.toInt()
                 )
             }
             Result.success(summaries)

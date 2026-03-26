@@ -16,7 +16,8 @@ data class MakeCredentialOptions(
     val excludeCredentials: List<PublicKeyCredentialDescriptor>?,
     val authenticatorSelection: AuthenticatorSelectionCriteria?,
     val attestation: AttestationConveyancePreference,
-    val extensions: Map<String, Any>?
+    val extensions: Map<String, Any>?,
+    val selectedAlgId: Int
 ) {
     
     init {
@@ -131,7 +132,8 @@ data class MakeCredentialOptions(
             excludeCredentials: List<PublicKeyCredentialDescriptor>? = null,
             authenticatorSelection: AuthenticatorSelectionCriteria? = null,
             attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE,
-            extensions: Map<String, Any>? = null
+            extensions: Map<String, Any>? = null,
+            selectedAlgId: Int
         ): MakeCredentialOptions {
             return MakeCredentialOptions(
                 rp = rp,
@@ -143,7 +145,8 @@ data class MakeCredentialOptions(
                 excludeCredentials = excludeCredentials,
                 authenticatorSelection = authenticatorSelection,
                 attestation = attestation,
-                extensions = extensions
+                extensions = extensions,
+                selectedAlgId = selectedAlgId
             )
         }
         
@@ -160,7 +163,8 @@ data class MakeCredentialOptions(
             excludeCredentials: List<PublicKeyCredentialDescriptor>? = null,
             authenticatorSelection: AuthenticatorSelectionCriteria? = null,
             attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE,
-            extensions: Map<String, Any>? = null
+            extensions: Map<String, Any>? = null,
+            selectedAlgId: Int
         ): MakeCredentialOptions {
             val challenge = try {
                 Base64.getUrlDecoder().decode(challengeBase64)
@@ -178,7 +182,8 @@ data class MakeCredentialOptions(
                 excludeCredentials = excludeCredentials,
                 authenticatorSelection = authenticatorSelection,
                 attestation = attestation,
-                extensions = extensions
+                extensions = extensions,
+                selectedAlgId = selectedAlgId
             )
         }
     }

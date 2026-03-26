@@ -1,0 +1,1 @@
+ALTER TABLE PasskeyCredential ADD COLUMN coseAlgorithm INTEGER NOT NULL DEFAULT -7;

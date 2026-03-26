@@ -79,7 +79,8 @@ class RegisterCredentialUseCaseTest {
             authenticatorSelection = AuthenticatorSelectionCriteria.create(
                 userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED
             ),
-            attestation = AttestationConveyancePreference.NONE
+            attestation = AttestationConveyancePreference.NONE,
+            selectedAlgId = Fido2CryptoService.COSE_ES256
         )
         
         // Setup default mock responses
@@ -178,7 +179,8 @@ class RegisterCredentialUseCaseTest {
                 authenticatorSelection = AuthenticatorSelectionCriteria.create(
                     userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED
                 ),
-                attestation = AttestationConveyancePreference.NONE
+                attestation = AttestationConveyancePreference.NONE,
+                selectedAlgId = Fido2CryptoService.COSE_ES256
             )
 
             val result = registerCredentialUseCase(optionsNotRequired)
@@ -246,7 +248,8 @@ class RegisterCredentialUseCaseTest {
                 MakeCredentialOptions.create(
                     rp = testRp,
                     user = testUser,
-                    challenge = ByteArray(0) // Empty challenge is invalid
+                    challenge = ByteArray(0), // Empty challenge is invalid
+                    selectedAlgId = Fido2CryptoService.COSE_ES256
                 )
             }
         }
@@ -258,7 +261,8 @@ class RegisterCredentialUseCaseTest {
                 MakeCredentialOptions.create(
                     rp = testRp,
                     user = testUser,
-                    challenge = ByteArray(65) // Max is 64
+                    challenge = ByteArray(65), // Max is 64
+                    selectedAlgId = Fido2CryptoService.COSE_ES256
                 )
             }
         }
@@ -271,7 +275,8 @@ class RegisterCredentialUseCaseTest {
                     rp = testRp,
                     user = testUser,
                     challenge = "test_challenge".toByteArray(),
-                    timeout = -1L // Negative timeout is invalid
+                    timeout = -1L, // Negative timeout is invalid
+                    selectedAlgId = com.chimali.fido2.data.crypto.Fido2CryptoService.COSE_ES256
                 )
             }
         }

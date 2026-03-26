@@ -56,7 +56,7 @@ class Fido2CryptoServiceTest {
         coEvery { masterSeedProvider.getMasterSeed() } returns realSeed
         coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
 
-        service = Fido2CryptoService(hdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+        service = Fido2CryptoService(hdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
     }
 
     @AfterEach
@@ -147,7 +147,7 @@ class Fido2CryptoServiceTest {
 
             // Use real HDK derivation to sign
             val realHdkManager = com.chimali.core.security.hdkeys.HdkEcdhP256()
-            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
 
             val result = realService.sign(CredentialId.fromString(credentialId), data)
 
@@ -195,7 +195,7 @@ class Fido2CryptoServiceTest {
             coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
             coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
 
-            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
 
             // When: derive twice from the same seed
             val keyPair1 = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
@@ -215,8 +215,8 @@ class Fido2CryptoServiceTest {
             val seed2 = ByteArray(32) { (255 - it).toByte() }
             val credentialId = "kat-credential-different-seeds"
 
-            val realService1 = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
-            val realService2 = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+            val realService1 = Fido2CryptoService(realHdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
+            val realService2 = Fido2CryptoService(realHdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
 
             coEvery { masterSeedProvider.getMasterSeed() } returns seed1
             coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
@@ -239,7 +239,7 @@ class Fido2CryptoServiceTest {
             val newSeed = ByteArray(32) { (it + 100).toByte() }
             val credentialId = "kat-cred-post-import"
 
-            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+            val realService = Fido2CryptoService(realHdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
 
             coEvery { masterSeedProvider.getMasterSeed() } returns oldSeed
             coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair

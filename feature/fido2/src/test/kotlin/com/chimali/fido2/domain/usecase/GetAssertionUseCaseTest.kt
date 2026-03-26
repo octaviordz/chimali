@@ -93,7 +93,8 @@ class GetAssertionUseCaseTest {
             id = id,
             rpId = testRpId,
             credentialId = id.toByteArray(),
-            lastUsedAt = Instant.now()
+            lastUsedAt = Instant.now(),
+            coseAlgorithm = PasskeyCredential.COSE_ES256
         )
     }
 

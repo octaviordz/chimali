@@ -3,9 +3,27 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-26
+
+### Added
+- **FIDO2 Algorithm Selection (Dev Tools)**: Added a Segmented Button selector to `DevelopmentToolsScreen.kt` allowing developers to explicitly choose between ES256 and ML-DSA-65 algorithms for mock registration tests.
+- **SQLDelight Migration (v4)**: Implemented database migration `4.sqm` to add the `coseAlgorithm` column to the `PasskeyCredential` table. This resolved a critical `NullPointerException` encountered on physical devices with existing installations.
+
+### Changed
+- **Algorithm Identifier Refactor**: Replaced multiple instances of magic numbers (`-7`, `-257`) with domain-level constants in `PasskeyCredential` and `Fido2CryptoService`.
+- **Namespace Cleanup**: Refined test files by removing redundant fully-qualified class names for `PostQuantumCrypto`, improving code cleanliness and maintainability.
+
+### Fixed
+- **Registration Failed UI Error**: Resolved the database schema mismatch that caused registration to fail during the credential saving phase on-device.
+
+---
+
 ## [Unreleased] - 2026-03-25
 
 ### Added
+- **Post-Quantum Cryptography (ML-DSA) Support**: Replaced experimental ML-KEM/Kyber implementation with the NIST standardized ML-DSA-65 (FIPS 204) signature scheme using BouncyCastle v1.80.
+- **BIP-85 Hierarchical PQ Seed Derivation**: Implemented `HMAC-SHA512` based cryptographically isolated hierarchical deterministic derivation for the post-quantum keys, ensuring compromise isolation from the classical ECDSA keys.
+- **CTAP2 Algorithm Negotiation**: The authenticator now advertises support for `COSE -257` (ML-DSA-65) in `getInfo` and parses MakeCredential options to negotiate the highest priority supported algorithm.
 - **FIDO2 Automated Stress Testing (T159a)**: Implemented a robust integration test suite (`Fido2StressTest.kt`) that validates the system's stability through 100 consecutive registration and authentication operations. Verified 100% success rate with real P-256 scalar math simulation.
 
 ### Changed
@@ -13,9 +31,13 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **Hierarchical Key Derivation Path**: Refined the bitwise conversion logic in `Fido2CryptoService.derivePath()` to ensure consistent 31-bit positive integer indices for credential derivation.
 
 ### Fixed
+- **GetAssertion Signature Failure After Restart (Critical)**: Fixed a bug where authentication always failed with `"Could not verify authentication signature"` after closing and reopening the app. Root cause: `generateDeviceKeyPair()` used `SecureRandom` on every cold start, producing a different device key each time. Since the signing formula is `sk_device × blindingFactor mod n`, any change in `sk_device` produces an unverifiable signature. Fixed by replacing the random call with a deterministic `HMAC-SHA512("chimali_device_key_v1", masterSeed)` derivation in `WalletMasterSeedProvider`.
 - **Authentication Query Accuracy**: Resolved a bug in the integration tests where full origin RP IDs (e.g., `https://...`) stored in the repository were incorrectly queried using Hostnames, resulting in empty credential results.
 - **Cross-module Compilation**: Fixed a pre-existing compile break in `RegisterCredentialUseCaseTest` caused by recent signature updates to the key generation API.
-- **Full details**: [2026-03-25-fido2-stress-testing-and-credentialid-refactor.md](docs/changelogs/2026-03-25-fido2-stress-testing-and-credentialid-refactor.md)
+- **Full details**: 
+  - [2026-03-25-fido2-getassertion-restart-fix.md](docs/changelogs/2026-03-25-fido2-getassertion-restart-fix.md)
+  - [2026-03-25-fido2-stress-testing-and-credentialid-refactor.md](docs/changelogs/2026-03-25-fido2-stress-testing-and-credentialid-refactor.md)
+  - [2026-03-25-fido2-mldsa-pqc-integration.md](docs/changelogs/2026-03-25-fido2-mldsa-pqc-integration.md)
 
 ## [Unreleased] - 2026-03-24
 
@@ -88,20 +110,20 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - Full details: [2026-03-17-security-hardening-tests-and-mnemonic-recovery.md](docs/changelogs/2026-03-17-security-hardening-tests-and-mnemonic-recovery.md)
 
 ## [Unreleased] - 2026-03-14
-+
-+### Added
-+- **Dev Tools Seed Management**: Implemented a comprehensive suite of development tools for BIP39 master seed management (T146 series). Includes biometric-gated mnemonic viewing, QR code export, QR code scan import (CameraX + ML Kit), and manual 24-word recovery.
-+- **New Dependencies**: Integrated `qrose` for QR generation and ML Kit Barcode Scanning with CameraX for secure QR-based seed transfer in debug builds.
-+
-+### Changed
-+- **SDK Target Migration**: Upgraded `compileSdk` and `targetSdk` to **API 35 (Android 15)** across all 13 modules to comply with Jetpack Compose 1.10.0 requirements and optimize for modern platform features.
-+
-+### Fixed
-+- **QR Scanner Permissions**: Resolved a critical issue where the QR scanner failed to launch due to a missing `CAMERA` permission declaration in the Android Manifest.
-+- **Scanner UX**: Hardened the "Scan QR Code" button logic to handle pre-granted permissions gracefully and prevent silent launcher failures.
-+- Full details: [2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md](docs/changelogs/2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md)
-+
-+## [Unreleased] - 2026-03-13
+
+### Added
+- **Dev Tools Seed Management**: Implemented a comprehensive suite of development tools for BIP39 master seed management (T146 series). Includes biometric-gated mnemonic viewing, QR code export, QR code scan import (CameraX + ML Kit), and manual 24-word recovery.
+- **New Dependencies**: Integrated `qrose` for QR generation and ML Kit Barcode Scanning with CameraX for secure QR-based seed transfer in debug builds.
+
+### Changed
+- **SDK Target Migration**: Upgraded `compileSdk` and `targetSdk` to **API 35 (Android 15)** across all 13 modules to comply with Jetpack Compose 1.10.0 requirements and optimize for modern platform features.
+
+### Fixed
+- **QR Scanner Permissions**: Resolved a critical issue where the QR scanner failed to launch due to a missing `CAMERA` permission declaration in the Android Manifest.
+- **Scanner UX**: Hardened the "Scan QR Code" button logic to handle pre-granted permissions gracefully and prevent silent launcher failures.
+- Full details: [2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md](docs/changelogs/2026-03-14-fido2-dev-tools-seed-management-and-sdk-35.md)
+
+## [Unreleased] - 2026-03-13
 
 ### Changed
 - **Constitution (v0.7.0)**: Formally adopted a **Multi-Mode Symmetric Encryption Strategy**. Established AES-256-GCM as the mandate for payload/streaming encryption to preserve Hardware Keystore offloading, and established AES-256-SIV as the mandate for searchable metadata and key wrapping to provide nonce-misuse resistance. Updated BRD `NFR-SEC-010` accordingly.
@@ -308,4 +330,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-24*
+*Last Updated: 2026-03-26*

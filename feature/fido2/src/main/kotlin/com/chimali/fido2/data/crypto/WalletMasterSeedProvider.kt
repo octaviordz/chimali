@@ -6,8 +6,12 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.hdkeys.P256Group
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
+import java.math.BigInteger
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,6 +50,9 @@ class WalletMasterSeedProvider @Inject constructor(
     @Volatile
     private var cachedDeviceKeyPair: HdkKeyPair? = null
 
+    @Volatile
+    private var cachedPqChildSeed: ByteArray? = null
+
     override suspend fun getMasterSeed(): ByteArray? = ensureInitialized().first
 
     override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInitialized().second
@@ -60,7 +67,10 @@ class WalletMasterSeedProvider @Inject constructor(
         val seed = masterSeedGenerator.deriveSeed(mnemonic)
 
         cachedSeed = seed
-        cachedDeviceKeyPair = hdkManager.generateDeviceKeyPair()
+        // Derive the device key pair deterministically from the master seed so it
+        // is identical across app restarts. A random key pair here was the cause of
+        // "Could not verify authentication signature" errors after restart.
+        cachedDeviceKeyPair = deriveDeviceKeyPair(seed)
 
         Timber.d("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size)
         return Pair(cachedSeed, cachedDeviceKeyPair)
@@ -150,5 +160,102 @@ class WalletMasterSeedProvider @Inject constructor(
     private fun invalidateCache() {
         cachedSeed = null
         cachedDeviceKeyPair = null
+        cachedPqChildSeed?.fill(0)
+        cachedPqChildSeed = null
+    }
+
+    /**
+     * Derives a stable P-256 device key pair deterministically from [masterSeed].
+     *
+     * Uses HMAC-SHA512("chimali_device_key_v1", masterSeed) and takes the first 32 bytes
+     * as the private scalar (reduced mod P-256 order). This ensures the device key pair
+     * is identical across app restarts, which is required because the signing formula
+     * is  sk_device × blindingFactor mod n — any change in sk_device produces an
+     * unverifiable signature.
+     *
+     * The key derivation is intentionally separate from the BIP-85 PQ branch so that
+     * ECDSA keys and ML-DSA keys remain cryptographically isolated.
+     */
+    private fun deriveDeviceKeyPair(masterSeed: ByteArray): HdkKeyPair {
+        val raw = hmacSha512("chimali_device_key_v1".toByteArray(Charsets.UTF_8), masterSeed)
+        // Take the first 32 bytes as the private scalar (big-endian), reduced mod order.
+        val skScalar = BigInteger(1, raw.copyOfRange(0, 32)).mod(P256Group.ORDER)
+        val pkPoint  = P256Group.scalarBaseMult(skScalar)
+        raw.fill(0) // zeroise immediately
+        Timber.d("Device key pair derived deterministically from master seed")
+        return HdkKeyPair(skScalar, pkPoint)
+    }
+
+    // ── T017a: BIP-85-style PQ branch seed derivation ─────────────────────────
+
+    /**
+     * T017a — Returns a 64-byte BIP-85-derived child seed for the ML-DSA key branch.
+     *
+     * Process (mirroring the HHD blogpost + BIP-85 spec):
+     * 1. Derive a BIP-32 master root key via HMAC-SHA512("Bitcoin seed", masterSeed).
+     * 2. Apply three rounds of hardened CKD (adds 2^31 to each index):
+     *    m/83696968’/83286642’/2’
+     * 3. Run the BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", k).
+     *
+     * The result is a 64-byte seed used to initialize a deterministic SecureRandom
+     * for ML-DSA key generation.
+     */
+    override suspend fun getPqChildSeed(): ByteArray? {
+        cachedPqChildSeed?.let { return it }
+        val master = getMasterSeed() ?: return null
+        return synchronized(this) {
+            cachedPqChildSeed ?: derivePqChildSeed(master).also { cachedPqChildSeed = it }
+        }
+    }
+
+    private fun derivePqChildSeed(masterSeed: ByteArray): ByteArray {
+        // BIP-32 master root key from the master seed
+        val masterRootKey = hmacSha512("Bitcoin seed".toByteArray(Charsets.UTF_8), masterSeed)
+        val k = masterRootKey.copyOfRange(0, 32)  // IL = key
+        val c = masterRootKey.copyOfRange(32, 64) // IR = chain code
+
+        // Three rounds of hardened CKD: [83696968', 83286642', 2']
+        val hardenedOffset = 0x80000000L.toInt() // 2^31 as Int (wraps around)
+        val path = intArrayOf(
+            83696968 + hardenedOffset,  // "BIP85" purpose namespace (hardened)
+            83286642 + hardenedOffset,  // HHD app_no = "Tectonic" T9 (hardened)
+            2 + hardenedOffset           // index=2 → PQ (Falcon/ML-DSA) branch (hardened)
+        )
+
+        var currentKey = k
+        var currentChain = c
+        for (index in path) {
+            val (nextKey, nextChain) = ckdHard(currentKey, currentChain, index)
+            currentKey = nextKey
+            currentChain = nextChain
+        }
+
+        // BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", derivedKey)
+        val childSeed = hmacSha512("bip-entropy-from-k".toByteArray(Charsets.UTF_8), currentKey)
+        Timber.d("PQ child seed derived; seedLen=%d", childSeed.size)
+        return childSeed
+    }
+
+    /**
+     * BIP-32 hardened Child Key Derivation function.
+     * `I = HMAC-SHA512(key=chainCode, data=0x00 || parentKey || index_BE4)`
+     * Returns (IL, IR) = (new key bytes, new chain code bytes).
+     */
+    private fun ckdHard(parentKey: ByteArray, chainCode: ByteArray, index: Int): Pair<ByteArray, ByteArray> {
+        val data = ByteArray(1 + 32 + 4)
+        data[0] = 0x00
+        parentKey.copyInto(data, 1)
+        data[33] = ((index ushr 24) and 0xFF).toByte()
+        data[34] = ((index ushr 16) and 0xFF).toByte()
+        data[35] = ((index ushr  8) and 0xFF).toByte()
+        data[36] = ( index          and 0xFF).toByte()
+        val i = hmacSha512(chainCode, data)
+        return Pair(i.copyOfRange(0, 32), i.copyOfRange(32, 64))
+    }
+
+    private fun hmacSha512(key: ByteArray, data: ByteArray): ByteArray {
+        val mac = Mac.getInstance("HmacSHA512")
+        mac.init(SecretKeySpec(key, "HmacSHA512"))
+        return mac.doFinal(data)
     }
 }

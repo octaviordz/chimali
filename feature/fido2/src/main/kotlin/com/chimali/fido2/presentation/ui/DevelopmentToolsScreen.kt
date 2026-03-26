@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.core.ui.theme.LegibilityType
 import com.chimali.fido2.BuildConfig
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
@@ -115,6 +116,8 @@ internal fun DevelopmentToolsContent(
     var showQrCode by remember { mutableStateOf(false) }
     var showScanner by remember { mutableStateOf(false) }
     var showRecoverForm by remember { mutableStateOf(false) }
+    // 0 = ES256, 1 = ML-DSA-65
+    var selectedAlgIndex by remember { mutableIntStateOf(0) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -163,17 +166,41 @@ internal fun DevelopmentToolsContent(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // ── Algorithm selector ────────────────────────────────────────────
+            Text(
+                text = "Algorithm",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            )
+            val algOptions = listOf("ES256 (Classic)", "ML-DSA-65 (PQ)")
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                algOptions.forEachIndexed { index, label ->
+                    SegmentedButton(
+                        selected = selectedAlgIndex == index,
+                        onClick = { selectedAlgIndex = index },
+                        shape = SegmentedButtonDefaults.itemShape(index, algOptions.size),
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
+            }
+
             // ── Registration flow test trigger ────────────────────────────────
             OutlinedButton(
                 onClick = {
                     val mockUserId = "user_${System.currentTimeMillis()}"
+                    val algId = if (selectedAlgIndex == 0) Fido2CryptoService.COSE_ES256
+                                else Fido2CryptoService.COSE_ML_DSA_65
+                    val params = if (selectedAlgIndex == 0) PublicKeyCredentialParameters.createES256P256()
+                                 else PublicKeyCredentialParameters.createMlDsa65()
                     val mockOptions = MakeCredentialOptions.create(
                         rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
                         user = PublicKeyCredentialUserEntity.create(
                             mockUserId.toByteArray(), mockUserId, "Chimali Test User"
                         ),
                         challenge = "challenge".toByteArray(),
-                        pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
+                        pubKeyCredParams = params,
+                        selectedAlgId = algId
                     )
                     onHomeTestRegistration(mockOptions)
                 },

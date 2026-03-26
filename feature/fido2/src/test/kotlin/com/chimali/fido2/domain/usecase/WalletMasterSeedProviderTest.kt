@@ -210,6 +210,10 @@ class WalletMasterSeedProviderTest {
         override suspend fun getMnemonic(): List<String>? =
             persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
 
+        /** T017a: Returns a deterministic test PQ child seed. */
+        override suspend fun getPqChildSeed(): ByteArray? =
+            ByteArray(64) { (it + 99).toByte() }
+
         override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
             try {
                 val mnemonicString = String(mnemonic)

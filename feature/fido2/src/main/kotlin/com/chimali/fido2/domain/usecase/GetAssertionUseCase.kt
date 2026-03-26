@@ -78,7 +78,7 @@ class GetAssertionUseCase @Inject constructor(
             signCount    = newSignCount
         )
 
-        val signature = signWithCredential(selectedId, authData, options.clientDataHash)
+        val signature = signWithCredential(selectedId, authData, options.clientDataHash, selectedSummary.coseAlgorithm)
 
         // 5 — persist incremented sign count
         credentialRepository.updateSignCount(selectedId, newSignCount)
@@ -166,9 +166,10 @@ class GetAssertionUseCase @Inject constructor(
     private suspend fun signWithCredential(
         credentialId: String,
         authData: ByteArray,
-        clientDataHash: ByteArray
+        clientDataHash: ByteArray,
+        algId: Int
     ): ByteArray {
-        return cryptoService.sign(CredentialId.fromString(credentialId), authData + clientDataHash)
+        return cryptoService.sign(CredentialId.fromString(credentialId), authData + clientDataHash, algId)
             .getOrElse { throw Fido2Exception.SigningFailed(it.message ?: "Signing failed", it) }
     }
 }

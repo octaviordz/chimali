@@ -46,7 +46,8 @@ class SelectCredentialUseCaseTest {
             id = id,
             rpId = rpId,
             credentialId = id.toByteArray(),
-            lastUsedAt = lastUsedAt
+            lastUsedAt = lastUsedAt,
+            coseAlgorithm = PasskeyCredential.COSE_ES256
         )
     }
 

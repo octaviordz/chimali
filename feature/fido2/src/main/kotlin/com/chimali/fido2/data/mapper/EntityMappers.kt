@@ -27,7 +27,8 @@ fun PasskeyCredentialEntity.toDomainModel(publicKey: java.security.PublicKey): P
         createdAt = Instant.ofEpochMilli(this.createdAt),
         lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) } ?: Instant.ofEpochMilli(this.createdAt),
         aaguid = Base64.getDecoder().decode(this.aaguid),
-        credentialId = Base64.getDecoder().decode(this.credentialId)
+        credentialId = Base64.getDecoder().decode(this.credentialId),
+        coseAlgorithm = this.coseAlgorithm.toInt()
     )
 }
 
@@ -45,7 +46,7 @@ fun RelyingPartyEntity.toDomainModel(): RelyingParty {
 
 fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
     return UserConsentRecord(
-        id = this.id.toString(),
+        id = this.id,
         rpId = this.rpId,
         operationType = ConsentOperationType.valueOf(this.operationType),
         credentialId = this.credentialId,

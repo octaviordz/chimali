@@ -86,7 +86,8 @@ class Ctap2ResponseBuilder @Inject constructor(
             "8" to 255L,                           // maxCredentialIdLength
             "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
             "10" to listOf(                        // algorithms
-                mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key")
+                mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key"),
+                mapOf("alg" to COSE_ML_DSA_65.toLong(), "type" to "public-key")
             )
         )
         Timber.d("getInfoResponse: versions=[FIDO_2_0] aaguid=%dbytes transports=[usb]", info.aaguid.size)

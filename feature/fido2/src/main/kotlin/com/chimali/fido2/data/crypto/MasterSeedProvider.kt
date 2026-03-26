@@ -68,4 +68,17 @@ interface MasterSeedProvider {
      * @throws IllegalArgumentException if the word count is not exactly 24.
      */
     suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult
+
+    /**
+     * T017a — Returns a 64-byte BIP-85-derived child seed for the ML-DSA (PQ) key branch.
+     *
+     * Derived via fully-hardened CKD path `[83696968', 83286642', 2']` from the master seed
+     * followed by HMAC-SHA512("bip-entropy-from-k", k) — the BIP-85 entropy extraction step.
+     *
+     * This seed is cryptographically isolated from the ECDSA key branch (index=1), ensuring
+     * that compromise of one branch does not degrade the other (NIST SP 800-108 key separation).
+     *
+     * Returns null if the master seed is not yet available.
+     */
+    suspend fun getPqChildSeed(): ByteArray?
 }

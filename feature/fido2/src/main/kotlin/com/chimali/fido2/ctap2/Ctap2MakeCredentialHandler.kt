@@ -38,6 +38,8 @@ private const val CTAP2_ERR_NOT_ALLOWED:           Byte = 0x36.toByte()
 
 // COSE algorithm IDs
 internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
+/** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -257; IANA pending. */
+internal const val COSE_ML_DSA_65 = -257 // ML-DSA-65 (Dilithium)
 
 // AuthData flags
 private const val FLAG_UP: Int = 0x01  // User Present
@@ -161,10 +163,27 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         val rp   = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
         val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
+
+        // T017a Algorithm Negotiation: Pick the first algorithm requested that we support.
+        val (selectedAlgId, pubKeyCredParams) = req.algorithms.firstNotNullOfOrNull { algId ->
+            when (algId) {
+                COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
+                COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
+                else -> null
+            }
+        } ?: run {
+            Timber.e("Algorithm negotiation failed: None of the requested algorithms %s are supported", req.algorithms)
+            return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
+        }
+
+        Timber.i("Algorithm negotiation: RP requested %s, selected COSE alg %d (%s)",
+            req.algorithms, selectedAlgId, pubKeyCredParams.algorithm)
+
         val makeCredentialOptions = MakeCredentialOptions.create(
             rp = rp, user = user,
             challenge = req.clientDataHash,
-            pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
+            pubKeyCredParams = pubKeyCredParams,
+            selectedAlgId = selectedAlgId
         )
 
         val deferred = CompletableDeferred<Result<MakeCredentialResult>>()

@@ -73,7 +73,8 @@ class CredentialRepositoryImplTest {
             lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
             aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
             credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
-            publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded)
+            publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded),
+            coseAlgorithm = PasskeyCredential.COSE_ES256.toLong()
         )
 
         testRp = RelyingParty.create(

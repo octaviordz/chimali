@@ -20,7 +20,8 @@ data class PasskeyCredential(
     val createdAt: Instant,
     val lastUsedAt: Instant,
     val aaguid: ByteArray,
-    val credentialId: ByteArray
+    val credentialId: ByteArray,
+    val coseAlgorithm: Int = COSE_ES256
 ) {
     
     init {
@@ -64,6 +65,11 @@ data class PasskeyCredential(
         }
         require(!lastUsedAt.isBefore(createdAt)) { 
             "Last used time cannot be before creation time" 
+        }
+        
+        // Validate COSE Algorithm
+        require(coseAlgorithm == COSE_ES256 || coseAlgorithm == COSE_ML_DSA_65) {
+            "Unsupported COSE algorithm ID: $coseAlgorithm"
         }
     }
     
@@ -119,6 +125,11 @@ data class PasskeyCredential(
     }
     
     companion object {
+        // COSE algorithm IDs
+        internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
+        /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -257; IANA pending. */
+        internal const val COSE_ML_DSA_65 = -257 // ML-DSA-65 (Dilithium)
+
         /**
          * Maximum allowed sizes for various fields according to FIDO2 specs.
          */
@@ -146,7 +157,8 @@ data class PasskeyCredential(
             publicKey: PublicKey,
             privateKeyAlias: String,
             aaguid: ByteArray,
-            credentialId: ByteArray
+            credentialId: ByteArray,
+            coseAlgorithm: Int = COSE_ES256
         ): PasskeyCredential {
             val now = Instant.now()
             return PasskeyCredential(
@@ -161,7 +173,8 @@ data class PasskeyCredential(
                 createdAt = now,
                 lastUsedAt = now,
                 aaguid = aaguid,
-                credentialId = credentialId
+                credentialId = credentialId,
+                coseAlgorithm = coseAlgorithm
             )
         }
 
@@ -172,7 +185,8 @@ data class PasskeyCredential(
         fun createTest(
             id: String,
             rpId: String,
-            userName: String
+            userName: String,
+            coseAlgorithm: Int = COSE_ES256
         ): PasskeyCredential {
             val now = Instant.now()
             val syntheticPubKey = object : PublicKey {
@@ -192,7 +206,8 @@ data class PasskeyCredential(
                 createdAt        = now,
                 lastUsedAt       = now,
                 aaguid           = ByteArray(16),
-                credentialId     = id.toByteArray()
+                credentialId     = id.toByteArray(),
+                coseAlgorithm    = coseAlgorithm
             )
         }
     }

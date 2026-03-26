@@ -7,6 +7,7 @@ import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
+import com.chimali.fido2.data.crypto.PostQuantumCrypto
 import java.math.BigInteger
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.MakeCredentialOptions
@@ -115,7 +116,7 @@ class Fido2StressTest {
                 P256Group.serializeScalar(blindedScalar)
             }
         }
-        cryptoService = Fido2CryptoService(hdkManager, masterSeedProvider, UnconfinedTestDispatcher())
+        cryptoService = Fido2CryptoService(hdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
 
         repository = InMemoryCredentialRepository()
 
@@ -262,7 +263,8 @@ class Fido2StressTest {
             rp = rp,
             user = user,
             challenge = ByteArray(32) { (it + 1).toByte() },
-            pubKeyCredParams = PublicKeyCredentialParameters.createES256P256()
+            pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+            selectedAlgId = Fido2CryptoService.COSE_ES256
         )
     }
 }
@@ -280,7 +282,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
 
     fun getAllSummariesForRp(rpId: String): List<CredentialSummary> = credentials.values
         .filter { it.rpId == rpId }
-        .map { CredentialSummary(id = it.id, rpId = it.rpId, credentialId = it.credentialId, lastUsedAt = it.lastUsedAt) }
+        .map { CredentialSummary(id = it.id, rpId = it.rpId, credentialId = it.credentialId, lastUsedAt = it.lastUsedAt ?: it.createdAt, coseAlgorithm = it.coseAlgorithm) }
 
     override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
         credentials[credential.id] = credential
@@ -368,7 +370,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>> =
         Result.success(credentials.values
             .filter { it.rpId == rpId }
-            .map { CredentialSummary(id = it.id, rpId = it.rpId, credentialId = it.credentialId, lastUsedAt = it.lastUsedAt) })
+            .map { CredentialSummary(id = it.id, rpId = it.rpId, credentialId = it.credentialId, lastUsedAt = it.lastUsedAt ?: it.createdAt, coseAlgorithm = it.coseAlgorithm) })
 
     override suspend fun getSignCount(credentialId: String): Result<Long> =
         Result.success(signCounts[credentialId] ?: 0L)
