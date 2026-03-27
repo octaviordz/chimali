@@ -274,6 +274,7 @@
   - [x] T160a-2 Add Logcat instrumentation in `BluetoothHidTransportImpl` and `Fido2CryptoService`.
 - [ ] T161 Test on multiple Android devices
 - [ ] T162 Validate FIDO2 compliance with test tools
+- [x] T162a [P] Ensure algorithm consistency (Ed25519 & ML-DSA-65) across CryptoService and CTAP2 handlers
 - [x] T163 Verify BRD requirements compliance (refs: [FR-HID-010-brd-compliance.md](checklists/FR-HID-010-brd-compliance.md))
 - [x] T164 Final compilation check and code review
 - [x] T165 Prepare feature for merge to main branch

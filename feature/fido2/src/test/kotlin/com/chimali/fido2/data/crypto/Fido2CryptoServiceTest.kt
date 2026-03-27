@@ -167,7 +167,7 @@ class Fido2CryptoServiceTest {
             val (_, pk) = P256Group.generateKeyPair()
             every { hdkManager.deriveHdk(any(), any(), any()) } returns HdkResult(pk, ByteArray(32), P256Group.randomScalar())
 
-            val publicKey = service.getPublicKey(CredentialId.fromString("some-cred"))
+            val publicKey = service.getPublicKey(CredentialId.fromString("some-cred"), Fido2CryptoService.COSE_ES256)
 
             assertNotNull(publicKey)
         }

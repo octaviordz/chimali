@@ -38,8 +38,10 @@ private const val CTAP2_ERR_NOT_ALLOWED:           Byte = 0x36.toByte()
 
 // COSE algorithm IDs
 internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
-/** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -257; IANA pending. */
-internal const val COSE_ML_DSA_65 = -257 // ML-DSA-65 (Dilithium)
+/** COSE algorithm identifier for Ed25519. */
+internal const val COSE_ED25519 = -19 // Ed25519
+/** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -49; IANA pending. */
+internal const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
 // AuthData flags
 private const val FLAG_UP: Int = 0x01  // User Present
@@ -168,6 +170,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         val (selectedAlgId, pubKeyCredParams) = req.algorithms.firstNotNullOfOrNull { algId ->
             when (algId) {
                 COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
+                COSE_ED25519 -> COSE_ED25519 to PublicKeyCredentialParameters.createEd25519()
                 COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
                 else -> null
             }

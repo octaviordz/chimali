@@ -142,7 +142,7 @@ data class PublicKeyCredentialParameters(
 
         /**
          * Creates parameters for ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3).
-         * COSE algorithm ID: -257 (working-draft; IANA finalization pending).
+         * COSE algorithm ID: -49 (working-draft; IANA finalization pending).
          */
         fun createMlDsa65(): PublicKeyCredentialParameters {
             return create(

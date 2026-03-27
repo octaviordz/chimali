@@ -88,6 +88,7 @@ class Ctap2ResponseBuilder @Inject constructor(
             "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
             "10" to listOf(                        // algorithms
                 mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key"),
+                mapOf("alg" to COSE_ED25519.toLong(), "type" to "public-key"),
                 mapOf("alg" to COSE_ML_DSA_65.toLong(), "type" to "public-key")
             )
         )

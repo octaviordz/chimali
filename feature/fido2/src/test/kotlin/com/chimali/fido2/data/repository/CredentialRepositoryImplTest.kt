@@ -96,7 +96,7 @@ class CredentialRepositoryImplTest {
 
         // Default Mocks
         coEvery { cryptoService.keyExists(any()) } returns true
-        coEvery { cryptoService.getPublicKey(any()) } returns testPublicKey
+        coEvery { cryptoService.getPublicKey(any(), any()) } returns testPublicKey
         coEvery { cryptoService.deleteCredentialKey(any()) } returns Result.success(Unit)
         
         coEvery { passkeyCredentialDao.insertCredential(any()) } just Runs
