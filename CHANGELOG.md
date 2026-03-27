@@ -6,15 +6,20 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-03-26
 
 ### Added
-- **FIDO2 Algorithm Selection (Dev Tools)**: Added a Segmented Button selector to `DevelopmentToolsScreen.kt` allowing developers to explicitly choose between ES256 and ML-DSA-65 algorithms for mock registration tests.
+- **FIDO2 Ed25519 (COSE -19) Support**: Implemented deterministic Ed25519 key derivation and signing using **BouncyCastle 1.80**. Keys are derived from the user's Master Seed, fulfilling the backup requirement (FR-AUTH-030) while bypassing Android KeyStore limitations on older API levels (28-32) and OS-level bugs on Android 14/15.
+- **CBOR OKP Encoding**: Added native Octet Key Pair (OKP) encoding for Ed25519 public keys in `CborCodec.kt`.
+- **FIDO2 Algorithm Selection (Dev Tools)**: Added a Segmented Button selector to `DevelopmentToolsScreen.kt` allowing developers to explicitly choose between ES256, Ed25519, and ML-DSA-65 algorithms for mock registration tests.
 - **SQLDelight Migration (v4)**: Implemented database migration `4.sqm` to add the `coseAlgorithm` column to the `PasskeyCredential` table. This resolved a critical `NullPointerException` encountered on physical devices with existing installations.
 
 ### Changed
+- **Algorithm Identifier Correction (ML-DSA-65)**: Corrected the COSE identifier for ML-DSA-65 from `-257` to the draft standard `-49` across `Fido2CryptoService`, `AttestationObject`, and `CborCodec` to resolve the collision with RS256.
 - **Algorithm Identifier Refactor**: Replaced multiple instances of magic numbers (`-7`, `-257`) with domain-level constants in `PasskeyCredential` and `Fido2CryptoService`.
 - **Namespace Cleanup**: Refined test files by removing redundant fully-qualified class names for `PostQuantumCrypto`, improving code cleanliness and maintainability.
 
 ### Fixed
 - **Registration Failed UI Error**: Resolved the database schema mismatch that caused registration to fail during the credential saving phase on-device.
+- **Passkey Validation Crash**: Fixed a critical crash in `RegisterCredentialUseCase` by updating `PasskeyCredential.validate()` to accept the Ed25519 (`-19`) and ML-DSA-65 (`-49`) identifiers.
+- **Detailed changes**: [2026-03-26-fido2-algorithm-persistence-and-ux-refinements.md](docs/changelogs/2026-03-26-fido2-algorithm-persistence-and-ux-refinements.md) & [2026-03-26-fido2-ed25519-support.md](docs/changelogs/2026-03-26-fido2-ed25519-support.md)
 
 ---
 

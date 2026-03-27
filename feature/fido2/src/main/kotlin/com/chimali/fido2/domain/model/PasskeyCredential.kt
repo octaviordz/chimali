@@ -68,7 +68,7 @@ data class PasskeyCredential(
         }
         
         // Validate COSE Algorithm
-        require(coseAlgorithm == COSE_ES256 || coseAlgorithm == COSE_ML_DSA_65) {
+        require(coseAlgorithm == COSE_ES256 || coseAlgorithm == COSE_ED25519 || coseAlgorithm == COSE_ML_DSA_65) {
             "Unsupported COSE algorithm ID: $coseAlgorithm"
         }
     }
@@ -127,8 +127,9 @@ data class PasskeyCredential(
     companion object {
         // COSE algorithm IDs
         internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
-        /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -257; IANA pending. */
-        internal const val COSE_ML_DSA_65 = -257 // ML-DSA-65 (Dilithium)
+        internal const val COSE_ED25519 = -19 // EdDSA
+        /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID. */
+        internal const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
         /**
          * Maximum allowed sizes for various fields according to FIDO2 specs.

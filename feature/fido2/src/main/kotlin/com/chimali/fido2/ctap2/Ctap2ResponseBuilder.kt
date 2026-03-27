@@ -5,6 +5,7 @@ import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AttestationObject
+import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import timber.log.Timber
@@ -53,7 +54,7 @@ class Ctap2ResponseBuilder @Inject constructor(
         val responseMap: Map<String, Any> = mapOf(
             "1" to attestation.fmt,
             "2" to authDataBytes,          // raw ByteArray, not List
-            "3" to emptyMap<String, Any>() // attStmt ("none" format)
+            "3" to serializeAttStmt(attestation.attStmt)
         )
         return successCborPackets(cid, responseMap)
     }
@@ -159,6 +160,25 @@ class Ctap2ResponseBuilder @Inject constructor(
             out.addAll(authData.publicKey.toList())
         }
         return out.toByteArray()
+    }
+
+    /**
+     * Serialises [AttestationStatement] to a map.
+     */
+    private fun serializeAttStmt(attStmt: AttestationStatement): Map<String, Any> {
+        if (attStmt.fmt == "none") return emptyMap()
+        
+        val map = mutableMapOf<String, Any>()
+        if (attStmt.fmt == "packed") {
+            map["alg"] = attStmt.alg
+            // In packed format, the signature is stored in attCert in our domain model
+            attStmt.attCert?.let { map["sig"] = it }
+            attStmt.x5c?.let { map["x5c"] = it }
+        } else {
+            // Future formats (fido-u2f, android-key) can be added here
+            attStmt.attCert?.let { map["sig"] = it }
+        }
+        return map
     }
 
     /** Human-readable description of a CTAP2 status code (for logging only). */

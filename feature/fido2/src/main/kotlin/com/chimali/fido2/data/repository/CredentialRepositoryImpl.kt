@@ -61,7 +61,7 @@ class CredentialRepositoryImpl @Inject constructor(
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
         return try {
             val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id)) ?: return null
+            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt()) ?: return null
             entity.toDomainModel(publicKey)
         } catch (e: Exception) {
             null
@@ -73,7 +73,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -84,7 +84,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -95,7 +95,7 @@ class CredentialRepositoryImpl @Inject constructor(
         return flow {
             try {
                 passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
-                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                    val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                     if (publicKey != null) emit(entity.toDomainModel(publicKey))
                 }
             } catch (_: Exception) { }
@@ -167,7 +167,7 @@ class CredentialRepositoryImpl @Inject constructor(
             // whose credential ID no longer maps to a valid seed path) rather than
             // failing the entire query.
             val credentials = entities.mapNotNull { entity ->
-                val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                 publicKey?.let { entity.toDomainModel(it) }
             }
             Result.success(credentials)
@@ -229,7 +229,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { it.userName.lowercase().contains(lq) || it.userDisplayName.lowercase().contains(lq) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -243,7 +243,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { entity -> entity.lastUsedAt == null || Instant.ofEpochMilli(entity.lastUsedAt).isBefore(cutoff) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -256,7 +256,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { false } // Not implemented in current schema
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }
@@ -270,7 +270,7 @@ class CredentialRepositoryImpl @Inject constructor(
                 passkeyCredentialDao.getAllCredentials().first()
                     .filter { Instant.ofEpochMilli(it.createdAt).isBefore(cutoff) }
                     .forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id))
+                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
                         if (publicKey != null) emit(entity.toDomainModel(publicKey))
                     }
             } catch (_: Exception) { }

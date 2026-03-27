@@ -131,7 +131,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             }
         }
         if (algorithms.isEmpty()) {
-            throw Fido2Exception.InvalidFormatException("pubKeyCredParams contains no valid algorithms")
+            throw Fido2Exception.MissingParameterException("pubKeyCredParams contains no valid algorithms")
         }
 
         // 0x07: options (optional)
@@ -273,7 +273,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         return when (stmt.fmt) {
             "none" -> emptyMap()
             "packed" -> buildMap {
-                put("alg", COSE_ES256)
+                put("alg", stmt.alg)
                 stmt.attCert?.let { put("sig", it) }
                 stmt.x5c?.let { put("x5c", it) }
             }
@@ -291,6 +291,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
     private fun mapExceptionToStatus(e: Fido2Exception): Byte = when (e) {
         is Fido2Exception.InvalidFormatException  -> CTAP2_ERR_INVALID_CBOR
+        is Fido2Exception.MissingParameterException -> CTAP2_ERR_MISSING_PARAMETER
         is Fido2Exception.UnsupportedAlgorithmException -> CTAP2_ERR_UNSUPPORTED_ALGORITHM
         is Fido2Exception.UserVerificationException -> CTAP2_ERR_OPERATION_DENIED
         is Fido2Exception.CredentialException     -> CTAP2_ERR_KEY_STORE_FULL

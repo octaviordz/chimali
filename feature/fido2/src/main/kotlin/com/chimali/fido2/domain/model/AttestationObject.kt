@@ -137,7 +137,7 @@ data class AuthenticatorData(
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
         require(credentialId.size <= 1023) { "Credential ID cannot exceed 1023 bytes" }
         require(publicKey.isNotEmpty()) { "Public key cannot be empty" }
-        require(publicKey.size <= 1024) { "Public key cannot exceed 1024 bytes" }
+        require(publicKey.size <= MAX_PUBLIC_KEY_BYTES) { "Public key cannot exceed $MAX_PUBLIC_KEY_BYTES bytes" }
     }
     
     /**
@@ -195,6 +195,9 @@ data class AuthenticatorData(
     }
     
     companion object {
+        /** P-256 uncompressed point in COSE CBOR = ~77 bytes; ML-DSA-65 DER = ~1952 bytes → use 2048 as the cap. */
+        const val MAX_PUBLIC_KEY_BYTES = 2048
+
         /**
          * Creates a new AuthenticatorData with validation.
          */
@@ -223,7 +226,7 @@ data class AuthenticatorData(
  * This contains the attestation statement from the attestation object.
  */
 data class AttestationStatement(
-    val alg: String,
+    val alg: Any,
     val fmt: String,
     val attCert: ByteArray?,
     val authData: ByteArray?,
@@ -239,12 +242,25 @@ data class AttestationStatement(
      */
     internal fun validate() {
         // Validate required fields
-        require(alg.isNotBlank()) { "Algorithm cannot be blank" }
-        require(fmt.isNotBlank()) { "Format cannot be blank" }
-        
         // Validate algorithm
-        require(alg in setOf("ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "none")) { 
-            "Algorithm must be a valid signature algorithm" 
+        when (alg) {
+            is String -> {
+                require(alg.isNotBlank()) { "Algorithm cannot be blank" }
+                require(alg in setOf("ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "Ed25519", "none")) { 
+                    "Algorithm must be a valid signature algorithm string" 
+                }
+            }
+            is Int, is Long -> {
+                val algInt = (alg as Number).toInt()
+                require(algInt in setOf(
+                    COSE_ALG_ES256, COSE_ALG_ES384, COSE_ALG_ES512, 
+                    COSE_ALG_PS256, COSE_ALG_PS384, COSE_ALG_PS512, 
+                    COSE_ALG_EDDSA, COSE_ALG_ED25519, COSE_ALG_ML_DSA_65, COSE_ALG_RS256
+                )) { 
+                    "Algorithm must be a valid COSE algorithm identifier" 
+                }
+            }
+            else -> require(false) { "Algorithm must be a String or Integer" }
         }
         
         // Validate format
@@ -260,7 +276,7 @@ data class AttestationStatement(
         
         authData?.let { auth ->
             require(auth.isNotEmpty()) { "Auth data cannot be empty if provided" }
-            require(auth.size <= 1024) { "Auth data cannot exceed 1024 bytes" }
+            require(auth.size <= MAX_AUTH_DATA_BYTES) { "Auth data cannot exceed $MAX_AUTH_DATA_BYTES bytes" }
         }
         
         x5c?.let { chain ->
@@ -332,11 +348,25 @@ data class AttestationStatement(
     }
     
     companion object {
+        // Standard COSE Signature Algorithms
+        const val COSE_ALG_ES256 = -7
+        const val COSE_ALG_ES384 = -35
+        const val COSE_ALG_ES512 = -36
+        const val COSE_ALG_PS256 = -37
+        const val COSE_ALG_PS384 = -38
+        const val COSE_ALG_PS512 = -39
+        const val COSE_ALG_EDDSA = -8
+        const val COSE_ALG_ED25519 = -19
+        const val COSE_ALG_ML_DSA_65 = -49
+        const val COSE_ALG_RS256 = -257
+
+        const val MAX_AUTH_DATA_BYTES = 4096
+
         /**
          * Creates a new AttestationStatement with validation.
          */
         fun create(
-            alg: String = "ES256",
+            alg: Any = COSE_ALG_ES256,
             fmt: String = "packed",
             attCert: ByteArray? = null,
             authData: ByteArray? = null,

@@ -173,7 +173,7 @@ internal fun DevelopmentToolsContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             )
-            val algOptions = listOf("ES256 (Classic)", "ML-DSA-65 (PQ)")
+            val algOptions = listOf("ES256", "Ed25519", "ML-DSA-65")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 algOptions.forEachIndexed { index, label ->
                     SegmentedButton(
@@ -189,10 +189,16 @@ internal fun DevelopmentToolsContent(
             OutlinedButton(
                 onClick = {
                     val mockUserId = "user_${System.currentTimeMillis()}"
-                    val algId = if (selectedAlgIndex == 0) Fido2CryptoService.COSE_ES256
-                                else Fido2CryptoService.COSE_ML_DSA_65
-                    val params = if (selectedAlgIndex == 0) PublicKeyCredentialParameters.createES256P256()
-                                 else PublicKeyCredentialParameters.createMlDsa65()
+                    val algId = when (selectedAlgIndex) {
+                        0 -> Fido2CryptoService.COSE_ES256
+                        1 -> Fido2CryptoService.COSE_ED25519
+                        else -> Fido2CryptoService.COSE_ML_DSA_65
+                    }
+                    val params = when (selectedAlgIndex) {
+                        0 -> PublicKeyCredentialParameters.createES256P256()
+                        1 -> PublicKeyCredentialParameters.createEd25519()
+                        else -> PublicKeyCredentialParameters.createMlDsa65()
+                    }
                     val mockOptions = MakeCredentialOptions.create(
                         rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
                         user = PublicKeyCredentialUserEntity.create(

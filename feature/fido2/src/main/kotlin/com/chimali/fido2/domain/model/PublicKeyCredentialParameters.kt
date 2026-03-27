@@ -130,6 +130,17 @@ data class PublicKeyCredentialParameters(
         }
 
         /**
+         * Creates parameters for Ed25519.
+         */
+        fun createEd25519(): PublicKeyCredentialParameters {
+            return create(
+                type = PublicKeyCredentialType.PUBLIC_KEY,
+                algorithm = "EdDSA",
+                curve = "Ed25519"
+            )
+        }
+
+        /**
          * Creates parameters for ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3).
          * COSE algorithm ID: -257 (working-draft; IANA finalization pending).
          */

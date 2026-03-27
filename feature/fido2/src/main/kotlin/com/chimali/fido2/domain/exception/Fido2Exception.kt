@@ -203,6 +203,9 @@ sealed class Fido2Exception(
     class InvalidParameter(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "INVALID_PARAMETER")
 
+    class MissingParameterException(message: String, cause: Throwable? = null) :
+        Fido2Exception(message, cause, "MISSING_PARAMETER")
+
     class InvalidFormatException(message: String, cause: Throwable? = null) :
         Fido2Exception(message, cause, "INVALID_FORMAT")
 

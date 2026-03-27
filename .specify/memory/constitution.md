@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.6.0 → 0.7.0
-- List of modified principles: I (Security First)
+- Version change: 0.7.0 → 0.8.0
+- List of modified principles: III (Uncompromising Architecture & Quality)
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md
@@ -23,7 +23,7 @@ If the device supports Quantum-Resistant algorithms (PQC, e.g., ML-KEM/Kyber), t
 The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture accommodates **Hybrid Hierarchical Deterministic Derivation (HHD)** from a single BIP39 root seed using standard paths (BIP-44 / SLIP-10), supporting deterministic derivation of both classical (ECDSA/Ed25519) and Post-Quantum (e.g., Falcon-512) signature schemes without requiring additional mnemonic phrases.
 
 ### III. Uncompromising Architecture & Quality
-The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Hilt**. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards.
+The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Hilt**. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards. **The use of 'magic numbers' is strictly prohibited; all numeric literals with domain significance must be extracted into meaningful named constants or enums to ensure maintainability and readability.**
 
 ### IV. Performance & Reliability Excellence
 The application must adhere to strict Android Vitals targets:
@@ -64,4 +64,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.7.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-13
+**Version**: 0.8.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-26

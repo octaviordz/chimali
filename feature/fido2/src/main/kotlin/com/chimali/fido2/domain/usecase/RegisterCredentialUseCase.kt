@@ -187,7 +187,10 @@ class RegisterCredentialUseCase @Inject constructor(
             }
             
             // Retrieve the public key object for PasskeyCredential
-            val publicKey = cryptoService.getPublicKey(credentialId)
+            val publicKey = cryptoService.getPublicKey(
+                credentialId = credentialId,
+                algId = options.selectedAlgId
+            )
                 ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: ${credentialId.encoded}"))
             
             // Generate AAGUID for this authenticator
@@ -257,9 +260,15 @@ class RegisterCredentialUseCase @Inject constructor(
                 (credential.credentialId.size and 0xFF).toByte()
             )
             val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
-            // AT flag (0x40) in flags signals attested credential data is present
-            rpIdHash + flags + counter + credential.aaguid + credIdLen +
-                credential.credentialId + pubKeyCose
+            java.io.ByteArrayOutputStream().apply {
+                write(rpIdHash)
+                write(flags)
+                write(counter)
+                write(credential.aaguid)
+                write(credIdLen)
+                write(credential.credentialId)
+                write(pubKeyCose)
+            }.toByteArray()
         }
 
         val authData = AuthenticatorData.create(
@@ -283,7 +292,7 @@ class RegisterCredentialUseCase @Inject constructor(
         val (fmt, attStmt) = if (signatureResult.isSuccess) {
             val sig = signatureResult.getOrThrow()
             "packed" to AttestationStatement.create(
-                alg     = "ES256",
+                alg     = options.selectedAlgId,
                 fmt     = "packed",
                 attCert = sig,
                 authData = authDataBytes

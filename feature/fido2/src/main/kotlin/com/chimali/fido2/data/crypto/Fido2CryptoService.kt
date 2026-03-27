@@ -110,6 +110,24 @@ class Fido2CryptoService @Inject constructor(
                 return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
             }
 
+            if (algId == COSE_ED25519) {
+                val seed = masterSeedProvider.getMasterSeed()
+                    ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
+                val derivedSeed = java.security.MessageDigest.getInstance("SHA-512").apply {
+                    update(seed)
+                    update("Ed25519".toByteArray())
+                    update(credentialId.toByteArray())
+                }.digest().copyOf(32)
+
+                val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
+                val publicKeyBytes = privParams.generatePublicKey().encoded
+                
+                derivedSeed.fill(0)
+                
+                Timber.d("Ed25519 key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
+                return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
+            }
+
             val seed = masterSeedProvider.getMasterSeed()
                 ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
 
@@ -150,10 +168,23 @@ class Fido2CryptoService @Inject constructor(
     /**
      * Returns a [PublicKey] instance reconstructed from the derived public key bytes.
      */
-    suspend fun getPublicKey(credentialId: CredentialId): PublicKey? {
+    suspend fun getPublicKey(credentialId: CredentialId, algId: Int): PublicKey? {
         return try {
-            val keyPair = generateCredentialKeyPair(credentialId).getOrNull() ?: return null
-            decodeUncompressedPoint(keyPair.publicKeyBytes)
+            val keyPair = generateCredentialKeyPair(credentialId, algId).getOrNull() ?: return null
+            if (algId == COSE_ML_DSA_65) {
+                val bcProvider = BouncyCastleProvider()
+                val kf = KeyFactory.getInstance("ML-DSA-65", bcProvider)
+                val x509Spec = java.security.spec.X509EncodedKeySpec(keyPair.publicKeyBytes)
+                kf.generatePublic(x509Spec)
+            } else if (algId == COSE_ED25519) {
+                val bcProvider = BouncyCastleProvider()
+                val kf = KeyFactory.getInstance("Ed25519", bcProvider)
+                val prefix = byteArrayOf(0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x70, 0x03, 0x21, 0x00)
+                val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
+                kf.generatePublic(x509Spec)
+            } else {
+                decodeUncompressedPoint(keyPair.publicKeyBytes)
+            }
         } catch (e: Exception) {
             Timber.w(e, "getPublicKey failed for %s", credentialId)
             null
@@ -304,6 +335,28 @@ class Fido2CryptoService @Inject constructor(
                 return@withContext Result.success(signature)
             }
 
+            if (algId == COSE_ED25519) {
+                val seed = masterSeedProvider.getMasterSeed()
+                    ?: throw Fido2Exception.KeyNotFound("Master seed not available")
+                val derivedSeed = java.security.MessageDigest.getInstance("SHA-512").apply {
+                    update(seed)
+                    update("Ed25519".toByteArray())
+                    update(credentialId.toByteArray())
+                }.digest().copyOf(32)
+
+                val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
+                val signer = org.bouncycastle.crypto.signers.Ed25519Signer()
+                signer.init(true, privParams)
+                signer.update(data, 0, data.size)
+                val signature = signer.generateSignature()
+                
+                derivedSeed.fill(0)
+                
+                LatencyProfiler.end("Crypto.sign")
+                Timber.d("Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
+                return@withContext Result.success(signature)
+            }
+
             val seed = masterSeedProvider.getMasterSeed()
                 ?: throw Fido2Exception.KeyNotFound("Master seed not available")
 
@@ -434,6 +487,9 @@ class Fido2CryptoService @Inject constructor(
 
         // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
         // Working-draft value; IANA final assignment pending.
-        const val COSE_ML_DSA_65 = -257
+        const val COSE_ML_DSA_65 = -49
+
+        /** COSE algorithm identifier for Ed25519. */
+        const val COSE_ED25519 = -19
     }
 }

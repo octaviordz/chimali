@@ -55,11 +55,11 @@ class CborCodec @Inject constructor() {
      * Encodes a P-256 EC public key as a CBOR COSE_Key map per RFC 8152 / WebAuthn spec.
      *
      * The credentialPublicKey in authenticatorData MUST be CBOR with integer keys:
-     *   1 (kty)  = 2          (EC2)
-     *   3 (alg)  = -7         (ES256)
-     *  -1 (crv)  = 1          (P-256)
-     *  -2 (x)    = 32 bytes   (X coordinate)
-     *  -3 (y)    = 32 bytes   (Y coordinate)
+     *   COSE_KEY_KTY (1) = COSE_KEY_TYPE_EC2 (2)
+     *   COSE_KEY_ALG (3) = COSE_ALG_ES256 (-7)
+     *   COSE_KEY_CRV (-1) = COSE_CRV_P256 (1)
+     *   COSE_KEY_X (-2)   = 32 bytes   (X coordinate)
+     *   COSE_KEY_Y (-3)   = 32 bytes   (Y coordinate)
      *
      * @param uncompressedPoint  65-byte uncompressed EC point: 0x04 || X(32) || Y(32)
      */
@@ -93,19 +93,101 @@ class CborCodec @Inject constructor() {
     }
 
     /**
-     * Convenience wrapper: encodes a Java [java.security.PublicKey] (EC P-256)
+     * Encodes an ML-DSA-65 public key as a CBOR COSE_Key map.
+     * Based on draft-ietf-cose-dilithium, using AKP (Algorithm Key Pair).
+     *   COSE_KEY_KTY (1) = COSE_KEY_TYPE_AKP (5)
+     *   COSE_KEY_ALG (3) = COSE_ALG_ML_DSA_65 (-49)
+     *   COSE_KEY_PUB (-1) = bytes
+     * 
+     * However, since CTAP2 clients might not fully parse AKP yet, we provide what's
+     * defined in the COSE extensions or FIDO parameters.
+     * We'll use:
+     * kty(1) = 5 (AKP/OKP)
+     * alg(3) = -49
+     * -1 = publicKeyBytes
+     */
+    fun encodeCoseMlDsaPublicKey(publicKeyBytes: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        // CBOR map with 3 entries
+        out.write(0xA3)              // map(3)
+        // kty: 1
+        out.write(0x01)              // uint(1) - kty
+        out.write(0x05)              // uint(5) - AKP or OKP 
+        // alg: 3
+        out.write(0x03)              // uint(3) - alg
+        // -49 = 0x38 0x30 (negative 48)
+        out.write(0x38)              // negative int
+        out.write(0x30)
+        
+        // key parameter: -1 (pub)
+        out.write(0x20)              // negative int -1
+        // write byte string for public key
+        val bstrHeader = ByteArrayOutputStream()
+        writeHeader(bstrHeader, 2, publicKeyBytes.size.toLong())
+        out.write(bstrHeader.toByteArray())
+        out.write(publicKeyBytes)
+        return out.toByteArray()
+    }
+
+    /**
+     * Encodes an Ed25519 public key as a CBOR COSE_Key map.
+     * kty(1) = 1 (OKP)
+     * alg(3) = -19 (Ed25519)
+     * crv(-1) = 6 (Ed25519)
+     * x(-2) = publicKeyBytes (32 bytes)
+     */
+    fun encodeCoseEd25519PublicKey(publicKeyBytes: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        // CBOR map with 4 entries
+        out.write(0xA4)              // map(4)
+        
+        // kty: 1
+        out.write(0x01)              // uint(1) - kty
+        out.write(0x01)              // uint(1) - OKP
+        
+        // alg: 3
+        out.write(0x03)              // uint(3) - alg
+        out.write(0x32)              // negative int -19 (0x20 | 18)
+        
+        // crv: -1
+        out.write(0x20)              // negative int -1
+        out.write(0x06)              // uint(6) - Ed25519 curve
+        
+        // x: -2
+        out.write(0x21)              // negative int -2
+        out.write(0x58); out.write(32) // bstr(32)
+        out.write(publicKeyBytes)
+        
+        return out.toByteArray()
+    }
+
+    /**
+     * Convenience wrapper: encodes a Java [java.security.PublicKey] (EC P-256 or ML-DSA-65)
      * to a CBOR COSE_Key map.
      * Extracts the uncompressed point from the SubjectPublicKeyInfo DER encoding.
      */
     fun encodeCosePublicKeyFromJavaKey(publicKey: java.security.PublicKey): ByteArray {
         val derEncoded = publicKey.encoded   // SubjectPublicKeyInfo DER
+        val algorithm = publicKey.algorithm
+
+        if (algorithm == "ML-DSA" || algorithm == "ML-DSA-65" || algorithm == "Dilithium") {
+            // ML-DSA public key bytes are the raw bytes or DER. we usually just use the encoded value
+            return encodeCoseMlDsaPublicKey(derEncoded)
+        }
+
+        if (algorithm == "Ed25519" || algorithm == "EdDSA") {
+            // Extract the last 32 bytes as the raw public key
+            val rawKey = derEncoded.copyOfRange(derEncoded.size - 32, derEncoded.size)
+            return encodeCoseEd25519PublicKey(rawKey)
+        }
+
         // Last 65 bytes of P-256 SubjectPublicKeyInfo = 0x04 || X || Y
         return if (derEncoded.size >= 65 && derEncoded[derEncoded.size - 65] == 0x04.toByte()) {
             val uncompressed = derEncoded.copyOfRange(derEncoded.size - 65, derEncoded.size)
             encodeCosePublicKeyFromUncompressed(uncompressed)
         } else {
             throw IllegalArgumentException(
-                "Cannot extract uncompressed EC point from key encoding (size=${derEncoded.size})"
+                "Cannot extract uncompressed EC point from key encoding (algo=$algorithm, size=${derEncoded.size})"
             )
         }
     }

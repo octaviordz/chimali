@@ -44,11 +44,14 @@ const val COSE_ML_DSA_65 = -257
 class PostQuantumCrypto @Inject constructor() {
 
     init {
-        // Register the standard BouncyCastle provider which includes ML-DSA in BC 1.80.
-        // ML-DSA lives in bcprov-jdk18on (not bcpqc) as of BouncyCastle 1.78+.
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(BouncyCastleProvider())
-        }
+        // On Android, the system provides a crippled "BC" provider that lacks PQC.
+        // We must ensure our BouncyCastle 1.80 provider is used.
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+        Security.insertProviderAt(BouncyCastleProvider(), 1)
+        
+        Timber.d("PQC Provider registered: %s (version %.1f)", 
+            BouncyCastleProvider.PROVIDER_NAME, 
+            Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0)
     }
 
     // ── Provider check ────────────────────────────────────────────────────────
@@ -74,7 +77,7 @@ class PostQuantumCrypto @Inject constructor() {
         require(pqChildSeed.size >= 32) { "PQ child seed must be at least 32 bytes" }
         return try {
             val sr = SecureRandom.getInstance("SHA1PRNG").apply { setSeed(pqChildSeed) }
-            val kpg = KeyPairGenerator.getInstance("ML-DSA", BouncyCastleProvider.PROVIDER_NAME)
+            val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
             kpg.initialize(MLDSAParameterSpec.ml_dsa_65, sr)
             kpg.generateKeyPair().also {
                 Timber.d("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size)
@@ -95,7 +98,7 @@ class PostQuantumCrypto @Inject constructor() {
      * @return DER-encoded ML-DSA signature bytes, or null on failure.
      */
     fun sign(privateKey: PrivateKey, data: ByteArray): ByteArray? = try {
-        val sig = Signature.getInstance("ML-DSA", BouncyCastleProvider.PROVIDER_NAME)
+        val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
         sig.initSign(privateKey)
         sig.update(data)
         sig.sign().also { Timber.d("ML-DSA-65 signature produced; sigLen=%d", it.size) }
@@ -114,7 +117,7 @@ class PostQuantumCrypto @Inject constructor() {
      * @return true if the signature is valid.
      */
     fun verify(publicKey: PublicKey, data: ByteArray, signature: ByteArray): Boolean = try {
-        val sig = Signature.getInstance("ML-DSA", BouncyCastleProvider.PROVIDER_NAME)
+        val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
         sig.initVerify(publicKey)
         sig.update(data)
         sig.verify(signature)

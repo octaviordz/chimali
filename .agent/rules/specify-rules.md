@@ -1,4 +1,4 @@
-﻿# Chimali Development Guidelines
+# Chimali Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-02-20
 
@@ -13,6 +13,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - SQLCipher + SQLDelight for encrypted credential metadata, Android KeyStore for private keys (004-fido2-hid)
 - Kotlin 1.9+ (Android Native) + AndroidX, Jetpack Compose, Timber (for structured local logging) (004-fido2-hid)
 - Local App Data directory for crash logs (custom rotating file sink via Timber tree, NEVER shipped to cloud). (004-fido2-hid)
+- Kotlin + BouncyCastle 1.80 (004-fido2-hid)
+- EncryptedSharedPreferences (for Master Seed) (004-fido2-hid)
 
 - Kotlin 1.9.20+ + Jetpack Compose, Hilt, SQLDelight, SQLCipher, Android Keystore (001-store-credentials)
 
@@ -32,6 +34,7 @@ tests/
 Kotlin 1.9.20+: Follow standard conventions
 
 ## Recent Changes
+- 004-fido2-hid: Added Kotlin + BouncyCastle 1.80
 - 004-fido2-hid: Added Kotlin 1.9+ (Android Native) + AndroidX, Jetpack Compose, Timber (for structured local logging)
 - 004-fido2-hid: Added Kotlin 1.9+ (Android Native) + AndroidX BiometricPrompt, Android KeyStore, BluetoothHidDevice, SQLCipher, SQLDelight, Hilt, Jetpack Compose, Bouncy Castle (PQC), ML-KEM/Kyber library
 - 002-password-legibility: Added Kotlin 1.9+, Jetpack Compose + Google Fonts (for Atkinson Hyperlegible), Material 3
