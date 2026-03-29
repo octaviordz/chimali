@@ -23,10 +23,20 @@ import javax.inject.Inject
 class HdkEcdhP256 @Inject constructor() : HdkManager {
 
     companion object {
-        /** Instance ID as defined in the spec. */
+        /**
+         * Application-level instantiation label used in [createContext] per §2.3 of
+         * `draft-dijkhuis-cfrg-hdkeys-06`.
+         *
+         * **T168 verification note**: §4.1 of the spec defines only `DST = "ECDH Key Blind"`
+         * for the HDK-ECDH-P256 concrete instantiation; it does **not** prescribe an `ID` value.
+         * The `ID` used in `CreateContext` (§2.3) is an application-level choice. The value
+         * `"HDK-ECDH-P256-v1"` is a stable, self-describing label that uniquely identifies
+         * this instantiation. It MUST NOT be changed without regenerating all KAT vectors
+         * (T172) and all derived credentials, as it is baked into the `DeriveSalt` preimage.
+         */
         val ID = "HDK-ECDH-P256-v1".toByteArray(Charsets.US_ASCII)
 
-        /** Seed length in bytes. */
+        /** Seed length in bytes (= SHA-256 output length, per §2.2 Ns). */
         const val NS = 32
 
         private val random = SecureRandom()
@@ -35,9 +45,14 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
     // --- Core HDK Functions (§2.3–2.5) ---
 
     /**
-     * CreateContext: Build a context for a given index.
+     * CreateContext: Builds the per-index context string per §2.3 of
+     * `draft-dijkhuis-cfrg-hdkeys-06`.
      *
-     * ctx = ID || I2OSP(index, 4)
+     * `ctx = ID || I2OSP(index, 4)`
+     *
+     * [ID] is a 16-byte application-level label. [index] is encoded as a 4-byte
+     * big-endian unsigned integer (I2OSP per RFC 8017). The resulting [ctx] is
+     * passed to [deriveSalt] and [MultiplicativeBlinding.deriveBlindingFactor].
      */
     internal fun createContext(index: Int): ByteArray {
         return ID + HashToScalar.i2osp(index, 4)

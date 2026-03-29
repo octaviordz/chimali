@@ -304,29 +304,35 @@ documented as intentionally isolated from the HDK spec.
   `MultiplicativeBlinding.DST = "ECDH Key Blind"` has been verified conformant with §4.1 of
   `draft-dijkhuis-cfrg-hdkeys-06`. No change required. *(verified 2026-03-28; refs: MultiplicativeBlinding.kt:17)*
 
-- [ ] T168 **Verify `ID` constant alignment with §4.1 for `CreateContext`.**
-  The spec defines `ID` as the instantiation identifier. Confirm `"HDK-ECDH-P256-v1"` (20 bytes)
-  is the correct value for `draft-dijkhuis-cfrg-hdkeys-06 §4.1` or update to the standardised value.
-  *(refs: HdkEcdhP256.kt:27)*
+- [x] T168 **Verify `ID` constant alignment with §4.1 for `CreateContext`.** ✅ CLOSED
+  **Verified (2026-03-29):** §4.1 of `draft-dijkhuis-cfrg-hdkeys-06` only defines `DST = "ECDH Key Blind"` for
+  the HDK-ECDH-P256 instantiation — it does **not** prescribe an `ID` value. The `ID` constant is an
+  application-level label used in `CreateContext` (§2.3). The value `"HDK-ECDH-P256-v1"` is a stable,
+  self-describing choice and is conformant. KDoc updated to accurately reflect this: the old comment
+  `"Instance ID as defined in the spec"` has been replaced with a full verification note.
+  *(refs: HdkEcdhP256.kt:25–44)*
 
-- [ ] T169 **Audit `FIDO2_APP_INDEX` comment — remove BIP-32/BIP-32 namespace framing.**
-  The constant is documented as `"BIP32-style namespace index"` which is inaccurate; the HDK
-  path index has no structural relation to BIP-32 paths. Replace the comment with a HDK-spec
-  aligned description (e.g., `"Application-level HDK namespace index for FIDO2 keys (§2.3)"`).
-  *(refs: Fido2CryptoService.kt:479–480)*
+- [x] T169 **Audit `FIDO2_APP_INDEX` comment — remove BIP-32/BIP-32 namespace framing.** ✅ CLOSED
+  Replaced the inaccurate `"BIP32-style namespace index"` KDoc with an HDK-spec aligned description:
+  explains the two-level derivation path role per §2.3, the `"FID2"` ASCII encoding rationale,
+  the 31-bit constraint, and an explicit note that this index has no BIP-32 semantics.
+  *(fixed 2026-03-29; refs: Fido2CryptoService.kt:478–491)*
 
-- [ ] T170 **Document `getPqChildSeed` BIP-32 derivation as an intentional, isolated branch.**
-  `WalletMasterSeedProvider.derivePqChildSeed` uses BIP-32 hardened CKD as a child-seed
-  extraction mechanism for the ML-DSA branch. This is not in conflict with the HDK spec because
-  the PQ branch never feeds into `HdkEcdhP256`; it is a parallel derivation. Add explicit KDoc
-  to `ckdHard` and `derivePqChildSeed` clarifying this isolation and that the BIP-32 CKD here
-  is a BIP-85 compatibility tool, not HDK. *(refs: WalletMasterSeedProvider.kt:189–237)*
+- [x] T170 **Document `getPqChildSeed` BIP-32 derivation as an intentional, isolated branch.** ✅ CLOSED
+  Added full KDoc to `derivePqChildSeed` and `ckdHard` in `WalletMasterSeedProvider.kt`:
+  - Explicitly states BIP-32 CKD is **intentional isolation** — PQ branch output never feeds into `HdkManager.deriveHdk`
+  - Documents that ECDSA and ML-DSA branches are cryptographically isolated
+  - Clarifies `ckdHard` is a **BIP-85 compatibility tool**, not part of the HDK spec
+  - Expands `ckdHard` KDoc with a cross-reference to `derivePqChildSeed` for rationale
+  *(fixed 2026-03-29; refs: WalletMasterSeedProvider.kt:211–265)*
 
-- [ ] T171 **Audit `Ed25519` branch in `Fido2CryptoService` for HDK alignment.**
-  The Ed25519 key derivation uses a raw `SHA-512(masterSeed || "Ed25519" || credentialId.bytes)`
-  without going through `HdkManager`. Determine whether this branch should also use an HDK
-  derivation path (additive or multiplicative blinding over Curve25519) or document explicitly
-  why a direct `hash_to_scalar` approach is acceptable for this algorithm. *(refs: Fido2CryptoService.kt:113–128)*
+- [x] T171 **Audit `Ed25519` branch in `Fido2CryptoService` for HDK alignment.** ✅ CLOSED
+  **Audit result**: The Ed25519 branch is **conformant** — intentionally isolated from `HdkManager.deriveHdk`
+  because Ed25519 (Curve25519) is incompatible with P-256 multiplicative blinding (§3.2.2 of
+  `draft-dijkhuis-cfrg-hdkeys-06`). Decision: direct `SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]`
+  is acceptable. Derivation is deterministic (FR-AUTH-030) and private key is zeroed at both call sites.
+  **Documentation added**: algorithm routing table in `generateCredentialKeyPair` KDoc; isolation comments
+  at key-generation and signing sites. *(fixed 2026-03-29; refs: Fido2CryptoService.kt:84–130, 338–362)*
 
 ---
 

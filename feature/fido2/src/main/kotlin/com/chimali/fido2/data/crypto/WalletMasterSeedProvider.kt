@@ -208,6 +208,37 @@ class WalletMasterSeedProvider @Inject constructor(
         }
     }
 
+    /**
+     * Derives a 64-byte deterministic child seed for the ML-DSA (post-quantum) key branch
+     * using **BIP-85** entropy extraction over a **BIP-32** hardened derivation path.
+     *
+     * ## Isolation from HDK spec
+     *
+     * This function uses BIP-32 hardened Child Key Derivation (CKD) as a child-seed
+     * _extraction_ mechanism. This is **intentional and explicitly isolated** from the
+     * HDK-ECDH-P256 derivation path:
+     *
+     * - The output of this function is a raw seed bytes for ML-DSA key generation — it
+     *   is **never** fed into [HdkManager.deriveHdk] or any HDK function.
+     * - The classical ECDSA branch ([getMasterSeed] → [HdkManager.deriveHdk]) and this PQ
+     *   branch are **cryptographically isolated**: a compromise of one branch does not
+     *   implicate the other.
+     * - The BIP-32 usage here is purely a **BIP-85 compatibility tool** for deterministic
+     *   entropy extraction — not an HDK path in any sense of `draft-dijkhuis-cfrg-hdkeys-06`.
+     *
+     * ## Derivation path
+     *
+     * 1. BIP-32 master root key: `HMAC-SHA512("Bitcoin seed", masterSeed)` (BIP-32 §Master key
+     *    generation)
+     * 2. Three rounds of hardened CKD via [ckdHard]: `m/83696968'/83286642'/2'`
+     *    - `83696968'` = BIP-85 purpose namespace
+     *    - `83286642'` = application number ("Tectonic" T9 encoding)
+     *    - `2'`        = index for the PQ (ML-DSA) branch
+     * 3. BIP-85 entropy: `HMAC-SHA512("bip-entropy-from-k", derivedKey)`
+     *
+     * The result is a 64-byte seed used to deterministically initialize ML-DSA key generation
+     * in [PostQuantumCrypto.generateMlDsaKeyPair].
+     */
     private fun derivePqChildSeed(masterSeed: ByteArray): ByteArray {
         // BIP-32 master root key from the master seed
         val masterRootKey = hmacSha512("Bitcoin seed".toByteArray(Charsets.UTF_8), masterSeed)
@@ -237,9 +268,19 @@ class WalletMasterSeedProvider @Inject constructor(
     }
 
     /**
-     * BIP-32 hardened Child Key Derivation function.
-     * `I = HMAC-SHA512(key=chainCode, data=0x00 || parentKey || index_BE4)`
-     * Returns (IL, IR) = (new key bytes, new chain code bytes).
+     * BIP-32 hardened Child Key Derivation (CKD) function.
+     *
+     * `I = HMAC-SHA512(key=chainCode, data=0x00 || parentKey || I2OSP(index, 4))`
+     * Returns `(IL, IR)` = (new child key bytes, new child chain code bytes).
+     *
+     * ## Role in this codebase
+     *
+     * This is a **BIP-85 compatibility tool** used solely by [derivePqChildSeed] to
+     * extract deterministic entropy for ML-DSA key generation. It is **not** part of the
+     * HDK-ECDH-P256 derivation stack and has **no relation** to [HdkManager.deriveHdk]
+     * or any function defined in `draft-dijkhuis-cfrg-hdkeys-06`. The BIP-32 semantics
+     * (hardened index, chain code, "Bitcoin seed" HMAC key) are confined entirely to
+     * the PQ branch. See [derivePqChildSeed] for the isolation rationale.
      */
     private fun ckdHard(parentKey: ByteArray, chainCode: ByteArray, index: Int): Pair<ByteArray, ByteArray> {
         val data = ByteArray(1 + 32 + 4)

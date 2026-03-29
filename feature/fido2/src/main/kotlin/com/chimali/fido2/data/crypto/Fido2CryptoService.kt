@@ -82,12 +82,29 @@ class Fido2CryptoService @Inject constructor(
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Derives an EC P-256 key pair for the given credential ID using HDK.
+     * Derives a key pair for the given credential ID using the appropriate algorithm.
      *
-     * The derivation path is `[FIDO2_APP_INDEX, credentialPathIndex(credentialId)]`.
+     * ## Algorithm routing
      *
-     * @param credentialId   Unique credential identifier string.
-     * @return [Fido2KeyPair] with alias and uncompressed public key bytes (65 bytes).
+     * | Algorithm  | COSE ID | Derivation mechanism |
+     * |------------|---------|----------------------|
+     * | ES256      | -7      | **HDK-ECDH-P256** via [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
+     * | Ed25519    | -19     | **SHA-512 hash** — isolated branch; see note below |
+     * | ML-DSA-65  | -49     | **BIP-85 + SHA-512** — isolated PQ branch via [MasterSeedProvider.getPqChildSeed] |
+     *
+     * ### Ed25519 isolation note
+     *
+     * Ed25519 keys use `SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]` rather than
+     * [HdkManager.deriveHdk]. This is **intentional**: Ed25519 operates on a different curve
+     * (Curve25519) and is incompatible with the P-256 multiplicative blinding used by
+     * HDK-ECDH-P256 (§3.2.2). The derivation is deterministic (reproducible across restarts),
+     * satisfies FR-AUTH-030, and is **cryptographically isolated** from the P-256 HDK tree.
+     *
+     * The derivation path for ES256 is `[FIDO2_APP_INDEX, credentialPathIndex(credentialId)]`.
+     *
+     * @param credentialId   Unique credential identifier.
+     * @param algId          COSE algorithm identifier (default [COSE_ES256]).
+     * @return [Fido2KeyPair] with alias and public key bytes.
      */
     suspend fun generateCredentialKeyPair(
         credentialId: CredentialId,
@@ -110,6 +127,12 @@ class Fido2CryptoService @Inject constructor(
                 return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
             }
 
+            // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
+            // Derivation: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
+            // Ed25519 (Curve25519) is incompatible with P-256 multiplicative blinding (§3.2.2
+            // of draft-dijkhuis-cfrg-hdkeys-06), so HdkManager.deriveHdk cannot be used here.
+            // The 32-byte truncation produces the Ed25519 private key seed deterministically.
+            // The private key is zeroed immediately after the public key is extracted.
             if (algId == COSE_ED25519) {
                 val seed = masterSeedProvider.getMasterSeed()
                     ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
@@ -335,6 +358,9 @@ class Fido2CryptoService @Inject constructor(
                 return@withContext Result.success(signature)
             }
 
+            // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
+            // Re-derives the private key from scratch: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
+            // The private scalar is zeroed immediately after signing. It is never persisted.
             if (algId == COSE_ED25519) {
                 val seed = masterSeedProvider.getMasterSeed()
                     ?: throw Fido2Exception.KeyNotFound("Master seed not available")
@@ -476,8 +502,20 @@ class Fido2CryptoService @Inject constructor(
     }
 
     companion object {
-        /** Application-level BIP32-style namespace index for FIDO2 keys. */
-        private const val FIDO2_APP_INDEX = 0x4649_4432 // "FID2" as 31-bit int (positive)
+        /**
+         * Application-level HDK namespace index for FIDO2 keys — the first level of the
+         * two-level derivation path `[FIDO2_APP_INDEX, credentialIndex]` used in
+         * [derivationPath] per §2.3 of `draft-dijkhuis-cfrg-hdkeys-06`.
+         *
+         * The value `0x46494432` is the ASCII encoding of `"FID2"` (F=0x46, I=0x49, D=0x44,
+         * 2=0x32), chosen to be self-describing. The top bit is intentionally clear (31-bit
+         * positive integer) to stay within the P-256 scalar field constraints used by HDK.
+         *
+         * Note: this index has **no structural relation to BIP-32 paths**. HDK path indices
+         * are opaque integers fed into [HdkManager.deriveHdk]; they carry no BIP-32 semantics
+         * such as hardened/non-hardened derivation.
+         */
+        private const val FIDO2_APP_INDEX = 0x4649_4432 // ASCII "FID2", 31-bit positive
 
         /** Returns the logical alias for a credential (used for lookup / metadata). */
         fun credentialAlias(credentialId: CredentialId): String = "fido2_hdk_${credentialId.encoded}"
