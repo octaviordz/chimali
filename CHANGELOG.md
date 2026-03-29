@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-29
+
+### Fixed
+- **HDK DeriveSalt Spec Alignment (T166, T172)**: Corrected a spec deviation in `HdkEcdhP256.kt` where the `ID` domain separator was incorrectly double-prepended during salt derivation. The implementation now strictly conforms to `draft-dijkhuis-cfrg-hdkeys-06` §2.4 (`H(salt || ctx)`). Added comprehensive Known Answer Tests (KATs) as a regression guard.
+- **Detailed changes**: [2026-03-29-hdk-derivesalt-fix.md](docs/changelogs/2026-03-29-hdk-derivesalt-fix.md)
+
+---
+
 ## [Unreleased] - 2026-03-26
 
 ### Added

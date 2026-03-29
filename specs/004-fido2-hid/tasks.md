@@ -279,6 +279,94 @@
 - [x] T164 Final compilation check and code review
 - [x] T165 Prepare feature for merge to main branch
 
+## Phase 7: Hierarchical Key Derivation Refactor
+
+**Goal**: Audit and align the CFRG HDK-ECDH-P256 implementation in `core/security` against
+`draft-dijkhuis-cfrg-hdkeys-06` and remove all remaining BIP-32-style artifacts from the codebase.
+The FIDO2 main derivation path (used by `Fido2CryptoService`) is already correct; this phase
+targets correctness gaps, documentation debt, and test coverage.
+
+**Independent Test Criteria**: `HdkEcdhP256Test` and `Fido2CryptoServiceTest` pass with KAT
+vectors; no BIP-32 symbols or comments remain in the HDK layer; `derivePqChildSeed` is
+documented as intentionally isolated from the HDK spec.
+
+---
+
+### Correctness & Spec Alignment
+
+- [x] T166 **[BUG][PRIORITY] Fix `DeriveSalt` spec deviation in `HdkEcdhP256`.** ✅ CLOSED
+  `deriveSalt` now correctly implements `H(salt || ctx)` per §2.4. The `ID` domain
+  separator is already embedded in `ctx` (§2.3: `ctx = ID || I2OSP(index, 4)`) and
+  is not prepended again. KDoc updated to reflect the conformant behaviour.
+  *(fixed 2026-03-29; refs: HdkEcdhP256.kt:47–61)*
+
+- [x] T167 **Verify `DST` value against the HDK-ECDH-P256 concrete instantiation (§4.1).** ✅ CLOSED
+  `MultiplicativeBlinding.DST = "ECDH Key Blind"` has been verified conformant with §4.1 of
+  `draft-dijkhuis-cfrg-hdkeys-06`. No change required. *(verified 2026-03-28; refs: MultiplicativeBlinding.kt:17)*
+
+- [ ] T168 **Verify `ID` constant alignment with §4.1 for `CreateContext`.**
+  The spec defines `ID` as the instantiation identifier. Confirm `"HDK-ECDH-P256-v1"` (20 bytes)
+  is the correct value for `draft-dijkhuis-cfrg-hdkeys-06 §4.1` or update to the standardised value.
+  *(refs: HdkEcdhP256.kt:27)*
+
+- [ ] T169 **Audit `FIDO2_APP_INDEX` comment — remove BIP-32/BIP-32 namespace framing.**
+  The constant is documented as `"BIP32-style namespace index"` which is inaccurate; the HDK
+  path index has no structural relation to BIP-32 paths. Replace the comment with a HDK-spec
+  aligned description (e.g., `"Application-level HDK namespace index for FIDO2 keys (§2.3)"`).
+  *(refs: Fido2CryptoService.kt:479–480)*
+
+- [ ] T170 **Document `getPqChildSeed` BIP-32 derivation as an intentional, isolated branch.**
+  `WalletMasterSeedProvider.derivePqChildSeed` uses BIP-32 hardened CKD as a child-seed
+  extraction mechanism for the ML-DSA branch. This is not in conflict with the HDK spec because
+  the PQ branch never feeds into `HdkEcdhP256`; it is a parallel derivation. Add explicit KDoc
+  to `ckdHard` and `derivePqChildSeed` clarifying this isolation and that the BIP-32 CKD here
+  is a BIP-85 compatibility tool, not HDK. *(refs: WalletMasterSeedProvider.kt:189–237)*
+
+- [ ] T171 **Audit `Ed25519` branch in `Fido2CryptoService` for HDK alignment.**
+  The Ed25519 key derivation uses a raw `SHA-512(masterSeed || "Ed25519" || credentialId.bytes)`
+  without going through `HdkManager`. Determine whether this branch should also use an HDK
+  derivation path (additive or multiplicative blinding over Curve25519) or document explicitly
+  why a direct `hash_to_scalar` approach is acceptable for this algorithm. *(refs: Fido2CryptoService.kt:113–128)*
+
+---
+
+### Test Coverage (KATs & Regression)
+
+- [x] T172 **[P] Add `DeriveSalt` Known Answer Tests to `HdkEcdhP256Test`.** ✅ CLOSED
+  Four KATs added (index=0 match, index=1 match, output length=32, different indices → different outputs).
+  Comment updated to reflect T166 is applied and tests are GREEN. *(fixed 2026-03-29; refs: HdkEcdhP256Test.kt:173–249)*
+
+- [ ] T173 **[P] Add end-to-end HDK KATs for the two-level FIDO2 path.**
+  Using a fixed seed and `credentialId`, assert that `Fido2CryptoService.generateCredentialKeyPair`
+  returns a deterministic, known public key. This guards against derivation regressions across
+  refactors. *(refs: Fido2CryptoServiceTest.kt)*
+
+- [ ] T174 **[P] Add `BlindPublicKey` / `BlindPrivateKey` consistency KATs.**
+  For fixed `(sk, pk, bf)`, assert that `ScalarBaseMult(BlindPrivateKey(sk, bf))` equals
+  `BlindPublicKey(pk, bk, ctx)` with deterministic `bk`/`ctx` inputs derived from the KAT seed.
+  *(refs: MultiplicativeBlindingTest.kt)*
+
+- [ ] T175 **[P] Add `createContext` boundary tests (index=0, index=2^32-1).**
+  Verify that the I2OSP(index, 4) encoding is correct at boundary values. *(refs: HdkEcdhP256Test.kt)*
+
+---
+
+### Documentation & Cleanup
+
+- [ ] T176 **Update `HdkManager` KDoc to reference §2.5–2.6 of `draft-dijkhuis-cfrg-hdkeys-06`.**
+  Add section references alongside each function (`generateSeed` → §2.6, `deriveHdk` → §2.5,
+  `blindPrivateKey` → §3.2.2, `createBlindedSharedSecret` → §3.3.1). *(refs: HdkManager.kt)*
+
+- [ ] T177 **Add `HdkKeyAlias` utility or documentation for §2.8 key alias format.**
+  The spec defines a canonical `hdk-key-alias` format (`origin-alias "/" path`). Evaluate
+  whether credential aliases in `Fido2CryptoService.credentialAlias` should conform to this
+  format and document the decision. *(refs: Fido2CryptoService.kt:482–483)*
+
+- [ ] T178 **Ensure `blinded private key` is never persisted — add code assertion.**
+  Per §2.5: *"A unit MUST NOT persist a blinded private key."* Add an explicit runtime assertion
+  or developer warning if `blindPrivateKey` output is inadvertently stored (currently Logcat
+  logging and zero-fill are in place but no guard exists). *(refs: Fido2CryptoService.kt:376–388)*
+
 ## Dependencies
 
 ### Story Completion Order

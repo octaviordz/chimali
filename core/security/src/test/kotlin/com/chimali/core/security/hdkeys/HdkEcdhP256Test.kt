@@ -3,6 +3,7 @@ package com.chimali.core.security.hdkeys
 import org.junit.Assert.*
 import org.junit.Test
 import java.math.BigInteger
+import java.security.MessageDigest
 
 /**
  * Tests for HdkEcdhP256 — the main HDK-ECDH-P256 instantiation.
@@ -167,5 +168,83 @@ class HdkEcdhP256Test {
     fun `GenerateSeed produces 32 bytes`() {
         val seed = hdk.generateSeed()
         assertEquals(32, seed.size)
+    }
+
+    // --------------------------------------------------------------------------
+    // T172: DeriveSalt Known-Answer Tests (KATs) — draft-dijkhuis-cfrg-hdkeys-06 §2.4
+    //
+    // T166 fix applied: deriveSalt now correctly implements H(salt || ctx).
+    // The ID domain separator is already embedded in ctx (§2.3: ctx = ID || I2OSP(index, 4))
+    // and is NOT prepended again — in conformance with the spec.
+    // These KATs guard against regressions to the pre-fix H(ID || salt || ctx) behaviour.
+    //
+    // Reference inputs (fixed for cross-reviewer reproducibility):
+    //   salt  = ByteArray(32) — 32 zero bytes
+    //   index = 0 → ctx = ID(16 bytes) || I2OSP(0,4) = 20 bytes total
+    //   index = 1 → ctx = ID(16 bytes) || I2OSP(1,4) = 20 bytes total
+    // --------------------------------------------------------------------------
+
+    /**
+     * Reference implementation of DeriveSalt per §2.4 — the CORRECT formula.
+     * salt' = H(salt || ctx)
+     *
+     * ID is already embedded in ctx via §2.3 (ctx = ID || I2OSP(index, 4)).
+     * It MUST NOT be prepended again before salt.
+     */
+    private fun referenceDeriveSalt(salt: ByteArray, ctx: ByteArray): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(salt)
+        digest.update(ctx)
+        return digest.digest()
+    }
+
+    @Test
+    fun `t172 DeriveSalt KAT index 0 matches spec-correct formula H of salt and ctx`() {
+        val salt = ByteArray(32)         // 32 zero bytes (fixed reference input)
+        val ctx  = hdk.createContext(0)  // ID(16 bytes) || I2OSP(0, 4)
+
+        val expected = referenceDeriveSalt(salt, ctx)
+        val actual   = hdk.deriveSalt(salt, ctx)
+
+        assertArrayEquals(
+            "DeriveSalt must conform to §2.4: H(salt || ctx). " +
+                "Regression guard: ID prefix must NOT be prepended (T166).",
+            expected,
+            actual,
+        )
+    }
+
+    @Test
+    fun `t172 DeriveSalt KAT index 1 matches spec-correct formula H of salt and ctx`() {
+        val salt = ByteArray(32)
+        val ctx  = hdk.createContext(1)  // ID(16 bytes) || I2OSP(1, 4)
+
+        val expected = referenceDeriveSalt(salt, ctx)
+        val actual   = hdk.deriveSalt(salt, ctx)
+
+        assertArrayEquals(
+            "DeriveSalt must conform to §2.4: H(salt || ctx) for index=1.",
+            expected,
+            actual,
+        )
+    }
+
+    @Test
+    fun `t172 DeriveSalt produces 32-byte output for fixed inputs`() {
+        val salt   = ByteArray(32)
+        val ctx    = hdk.createContext(0)
+        val result = hdk.deriveSalt(salt, ctx)
+        assertEquals("DeriveSalt output must be exactly Ns=32 bytes (SHA-256 output length).", 32, result.size)
+    }
+
+    @Test
+    fun `t172 DeriveSalt different indices produce different salts`() {
+        val salt = ByteArray(32)
+        val out0 = hdk.deriveSalt(salt, hdk.createContext(0))
+        val out1 = hdk.deriveSalt(salt, hdk.createContext(1))
+        assertFalse(
+            "DeriveSalt with different indices must produce different outputs (domain separation via ctx).",
+            out0.contentEquals(out1),
+        )
     }
 }

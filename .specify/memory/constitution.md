@@ -1,11 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.7.0 → 0.8.0
-- List of modified principles: III (Uncompromising Architecture & Quality)
+- Version change: 0.9.1 → 0.9.2
+- List of modified principles: II (Master Seed Architecture — T166 DeriveSalt fix decision encoded; T167 formally closed)
 - Added sections: None
 - Removed sections: None
-- Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md
-- Follow-up TODOs: None
+- Templates requiring updates: None
+- Follow-up TODOs: Implement T166 fix in HdkEcdhP256.kt (PRIORITY); update KATs in T172; check T168 ID constant
 -->
 
 # Chimali Constitution
@@ -20,7 +20,30 @@ All sensitive data must be encrypted. The application adheres to a **Multi-Mode 
 If the device supports Quantum-Resistant algorithms (PQC, e.g., ML-KEM/Kyber), the application must utilize these as the primary encryption method. Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
 
 ### II. Master Seed Architecture
-The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture accommodates **Hybrid Hierarchical Deterministic Derivation (HHD)** from a single BIP39 root seed using standard paths (BIP-44 / SLIP-10), supporting deterministic derivation of both classical (ECDSA/Ed25519) and Post-Quantum (e.g., Falcon-512) signature schemes without requiring additional mnemonic phrases.
+The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys are derived using the **Hierarchical Deterministic Key (HDK) function** following **IETF draft-dijkhuis-cfrg-hdkeys-06**. This standardises privacy-preserving elliptic curve key management by eliminating legacy BIP-32 style components (such as separate chain codes) in favour of standard Key Derivation Functions mapping directly to the curve group. The architecture ensures deterministic derivation of classical (ECDSA/Ed25519) and Post-Quantum signature schemes from the single root seed, aligning with modern cryptography guidelines without reliance on mixed BIP-44/BIP-32 patterns.
+
+**Concrete instantiation**: The implemented HDK instantiation is **HDK-ECDH-P256** (§4.1 of the draft), using:
+- **Group**: NIST P-256 (secp256r1)
+- **Hash**: SHA-256 (via the `P256_XMD:SHA-256_SSWU_RO_` hash-to-curve suite)
+- **Blinding**: Multiplicative blinding (§3.2.2) — `BlindPublicKey(pk, bk, ctx) = ScalarMult(pk, DeriveBlindingFactor(bk, ctx))`
+- **KEM**: DHKEM(P-256, HKDF-SHA256) for remote key derivation (§3.3.1)
+
+**Key derivation rules** (per §2.5 of the draft):
+- A unit **MUST NOT** persist a blinded private key. Blinded private key bytes must be zeroed immediately after the signing operation completes.
+- Salt values (including the seed) **MUST NOT** be reused outside of HDK derivation calls.
+- The seed is generated with 32 bytes of entropy (`SecureRandom`) and stored encrypted via `EncryptedSharedPreferences` (AES-256-GCM).
+
+**PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses a **BIP-85-style** hardened CKD derivation (`m/83696968'/83286642'/2'`) to produce a child seed that is cryptographically isolated from the ECDSA HDK branch. This BIP-32 CKD usage is intentional, limited to the PQ branch only, and does **not** conflict with the HDK spec because that child seed never enters the `HdkEcdhP256` derivation tree. The ECDSA branch uses `HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
+
+**Spec alignment status** (Phase 7 `specs/004-fido2-hid/tasks.md`):
+- `DeriveSalt` **MUST** conform to §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`. The normative definition is:
+  ```
+  def DeriveSalt(salt, ctx):
+      salt' = H(salt || ctx)
+      return salt'
+  ```
+  The `ID` domain separator is already embedded in `ctx` via §2.3 (`ctx = ID || I2OSP(index, 4)`); it **MUST NOT** be prepended again to the hash input. The current implementation `H(ID || salt || ctx)` is a confirmed deviation. **Decision (2026-03-28): conform strictly to spec.** Fix is tracked as **T166 (PRIORITY)** in `specs/004-fido2-hid/tasks.md`; KAT vectors must be regenerated afterward (T172). **Until T166 is merged, existing derived keys are non-interoperable with conforming HDK implementations.**
+- `DST = "ECDH Key Blind"` for `HashToScalar` — **✅ CLOSED (T167)**: verified conformant with §4.1 of `draft-dijkhuis-cfrg-hdkeys-06`. No change required.
 
 ### III. Uncompromising Architecture & Quality
 The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Hilt**. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards. **The use of 'magic numbers' is strictly prohibited; all numeric literals with domain significance must be extracted into meaningful named constants or enums to ensure maintainability and readability.**
@@ -64,4 +87,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.8.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-26
+**Version**: 0.9.2 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-28

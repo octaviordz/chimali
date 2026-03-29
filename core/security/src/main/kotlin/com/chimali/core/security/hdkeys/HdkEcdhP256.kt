@@ -46,11 +46,15 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
     /**
      * DeriveSalt: Derive child salt from parent salt and context.
      *
-     * salt' = H(ID || salt || ctx)
+     * Per §2.4 of draft-dijkhuis-cfrg-hdkeys-06:
+     *   salt' = H(salt || ctx)
+     *
+     * Note: [ctx] is produced by [createContext] as `ID || I2OSP(index, 4)` per §2.3.
+     * The [ID] domain separator is already embedded in [ctx] and MUST NOT be
+     * prepended again to the hash input.
      */
     internal fun deriveSalt(salt: ByteArray, ctx: ByteArray): ByteArray {
         val digest = MessageDigest.getInstance("SHA-256")
-        digest.update(ID)
         digest.update(salt)
         digest.update(ctx)
         return digest.digest()
