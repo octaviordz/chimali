@@ -249,11 +249,65 @@ class Fido2CryptoServiceTest {
             coEvery { masterSeedProvider.getMasterSeed() } returns newSeed
             val keysAfterImport = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
 
-            // Then: post-import keys must differ — old credentials are orphaned
             assertTrue(
                 !keysBeforeImport.publicKeyBytes.contentEquals(keysAfterImport.publicKeyBytes),
                 "After seed replace, derived public keys must change (orphaned credential warning)"
             )
+        }
+
+        /**
+         * T173 / T181 — End-to-end HDK KAT for the two-level FIDO2 path.
+         *
+         * Fixed inputs (do NOT change without regenerating expectedHex):
+         *   seed       = ByteArray(32) { (it * 2).toByte() }  → [0, 2, 4, …, 62]
+         *   deviceSk   = BigInteger.ONE
+         *   devicePk   = P256Group.G  (the P-256 generator)
+         *   credentialId = "kat-t173-two-level-path-stable-reference"
+         *
+         * The derivation path is [FIDO2_APP_INDEX, credentialPathIndex(credentialId)].
+         * expectedHex was captured from a clean local run after the T166 DeriveSalt fix.
+         * Any change to the hash preimage, blinding formula, or I2OSP encoding will
+         * cause this test to fail — which is the intent.
+         *
+         * Verification (Python 3):
+         *   See specs/004-fido2-hid/checklists/hdk-conformance.md §T173 for the full
+         *   step-by-step reference computation.
+         */
+        @Test
+        fun `t173 end-to-end HDK KAT for the two-level FIDO2 path`() = runTest {
+            val fixedSeed = ByteArray(32) { (it * 2).toByte() }
+            val credentialId = "kat-t173-two-level-path-stable-reference"
+
+            val fixedDeviceSk = java.math.BigInteger.ONE
+            val fixedDevicePk = com.chimali.core.security.hdkeys.P256Group.G
+            val fixedDeviceKeyPair = HdkKeyPair(fixedDeviceSk, fixedDevicePk)
+
+            coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
+            coEvery { masterSeedProvider.getDeviceKeyPair() } returns fixedDeviceKeyPair
+
+            val realService = Fido2CryptoService(
+                realHdkManager,
+                masterSeedProvider,
+                PostQuantumCrypto(),
+                UnconfinedTestDispatcher()
+            )
+            val keyPair = realService.generateCredentialKeyPair(
+                CredentialId.fromString(credentialId)
+            ).getOrThrow()
+
+            // Pinned expected value — captured from local run after T166 fix.
+            // The raw 65-byte uncompressed P-256 point: 0x04 || X (32 bytes) || Y (32 bytes).
+            val expectedHex = "04B21950DBED9AEEAC450BC8D154BC159FE2FEF3FC1EA822765A760CC79EECC867EEAE7B715C000851AE19AACE4FC6F74D4C5AFBCFDE457494E68CEDE73A3AC2A7"
+            val actualHex = keyPair.publicKeyBytes.joinToString("") { "%02X".format(it) }
+
+            assertEquals(65, keyPair.publicKeyBytes.size,
+                "Public key must be 65-byte uncompressed P-256 point")
+            assertEquals(0x04.toByte(), keyPair.publicKeyBytes[0],
+                "Must start with 0x04 uncompressed prefix")
+            assertEquals(expectedHex, actualHex,
+                "T173/T181: End-to-end HDK derivation output changed. " +
+                "If this is intentional (e.g. after changing KAT inputs), " +
+                "update expectedHex to: $actualHex")
         }
     }
 }

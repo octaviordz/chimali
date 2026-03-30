@@ -53,8 +53,18 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
      * [ID] is a 16-byte application-level label. [index] is encoded as a 4-byte
      * big-endian unsigned integer (I2OSP per RFC 8017). The resulting [ctx] is
      * passed to [deriveSalt] and [MultiplicativeBlinding.deriveBlindingFactor].
+     *
+     * **Index domain (T179)**: The HDK spec defines indices as `uint32` (0–2^32−1).
+     * This implementation profiles the domain to `[0, Int.MAX_VALUE]` (31-bit non-negative
+     * signed integers) to avoid silent encoding errors via Kotlin's signed `Int`. Negative
+     * values are rejected with [IllegalArgumentException].
+     *
+     * @throws IllegalArgumentException if [index] is negative.
      */
     internal fun createContext(index: Int): ByteArray {
+        require(index >= 0) {
+            "HDK index must be non-negative (domain: [0, Int.MAX_VALUE]); got $index"
+        }
         return ID + HashToScalar.i2osp(index, 4)
     }
 

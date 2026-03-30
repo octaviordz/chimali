@@ -53,6 +53,8 @@ interface HdkManager {
 
     /**
      * Generate a new random seed of Ns bytes for HDK derivation.
+     *
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.6">draft-dijkhuis-cfrg-hdkeys-06 §2.6 (GenerateSeed)</a>
      */
     fun generateSeed(): ByteArray
 
@@ -67,10 +69,16 @@ interface HdkManager {
      * Performs local derivation by traversing the path of integer indices,
      * applying key blinding at each level.
      *
+     * **Index domain (T179)**: The spec defines indices as `uint32` (0–2^32−1). This
+     * implementation restricts inputs to `[0, Int.MAX_VALUE]` (31-bit non-negative). Each
+     * element of [path] must satisfy `index >= 0`.
+     *
      * @param devicePublicKey The device's public key (uncompressed encoding).
      * @param seed The root seed (32 bytes).
-     * @param path List of integer indices for derivation (e.g., [0], [0, 1, 2]).
+     * @param path List of non-negative integer indices for derivation (e.g., [0], [0, 1, 2]).
      * @return The derived HDK result containing blinded public key, salt, and blinding factor.
+     * @throws IllegalArgumentException if any index in [path] is negative.
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.5">draft-dijkhuis-cfrg-hdkeys-06 §2.5 (HDK)</a>
      */
     fun deriveHdk(
         devicePublicKey: ByteArray,
@@ -86,6 +94,7 @@ interface HdkManager {
      * @param devicePrivateKey The device private key (32 bytes, big-endian).
      * @param blindingFactor The combined blinding factor (32 bytes, big-endian).
      * @return The blinded private key (32 bytes).
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.2.2">draft-dijkhuis-cfrg-hdkeys-06 §3.2.2 (Multiplicative Blinding)</a>
      */
     fun blindPrivateKey(
         devicePrivateKey: ByteArray,
@@ -102,6 +111,7 @@ interface HdkManager {
      * @param blindingFactor The combined blinding factor (32 bytes).
      * @param readerPublicKey The reader's public key (uncompressed, 65 bytes).
      * @return Shared secret (32 bytes).
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.3.1">draft-dijkhuis-cfrg-hdkeys-06 §3.3.1 (Proof of Possession)</a>
      */
     fun createBlindedSharedSecret(
         devicePrivateKey: ByteArray,

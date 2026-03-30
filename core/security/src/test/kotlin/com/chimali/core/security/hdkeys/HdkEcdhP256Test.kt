@@ -247,4 +247,23 @@ class HdkEcdhP256Test {
             out0.contentEquals(out1),
         )
     }
+
+    @Test
+    fun `t175 createContext preserves boundary indices correctly`() {
+        val ctxMin = hdk.createContext(0)
+        // I2OSP(0, 4) should be 00 00 00 00
+        assertArrayEquals(
+            "createContext at index 0 must accurately encode as 00 00 00 00",
+            byteArrayOf(0, 0, 0, 0),
+            ctxMin.copyOfRange(ctxMin.size - 4, ctxMin.size)
+        )
+
+        val ctxMax = hdk.createContext(Int.MAX_VALUE)
+        // I2OSP(Int.MAX_VALUE, 4) should be 7F FF FF FF
+        assertArrayEquals(
+            "createContext at index Int.MAX_VALUE must accurately encode as 7F FF FF FF",
+            byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
+            ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size)
+        )
+    }
 }

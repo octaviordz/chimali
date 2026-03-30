@@ -301,17 +301,13 @@ class Fido2CryptoService @Inject constructor(
             )
 
             val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
-            val blindedPrivKeyBytes = hdkManager.blindPrivateKey(
-                devicePrivateKey = devicePrivKeyBytes,
-                blindingFactor = blindingFactorBytes
-            )
-
-            // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
-            // Result is discarded, dummy data avoids doing anything meaningful.
-            signWithRawScalar(blindedPrivKeyBytes, ByteArray(32) { it.toByte() })
+            withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
+                // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
+                // Result is discarded, dummy data avoids doing anything meaningful.
+                signWithRawScalar(blindedPrivKeyBytes, ByteArray(32) { it.toByte() })
+            }
 
             // Zeroise sensitive warmup material
-            blindedPrivKeyBytes.fill(0)
             devicePrivKeyBytes.fill(0)
 
             Timber.d("Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
@@ -399,19 +395,15 @@ class Fido2CryptoService @Inject constructor(
                 path = path
             )
 
-            // Derive the blinded private key: sk' = sk * bf mod n
+            // Derive the blinded private key safely scoped
             val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
-            val blindedPrivKeyBytes = hdkManager.blindPrivateKey(
-                devicePrivateKey = devicePrivKeyBytes,
-                blindingFactor = blindingFactorBytes
-            )
-
-            // Sign using BouncyCastle
-            val signature = signWithRawScalar(blindedPrivKeyBytes, data).also {
-                // Zero out sensitive material immediately
-                blindedPrivKeyBytes.fill(0)
-                devicePrivKeyBytes.fill(0)
+            
+            val signature = withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
+                signWithRawScalar(blindedPrivKeyBytes, data)
             }
+            
+            // Zero out device private key
+            devicePrivKeyBytes.fill(0)
 
             LatencyProfiler.end("Crypto.sign")
             Timber.d("Signed %d bytes for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
@@ -426,22 +418,23 @@ class Fido2CryptoService @Inject constructor(
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     /**
-     * Computes a deterministic derivation path index from a credential ID.
-     *
-     * Uses [CredentialId.toByteArray] (UTF-8 encoding of the Base64 string).
-     * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId.toByteArray())]
-     * Both indices are non-negative 31-bit integers to stay within ECDH-P256 limits.
+     * Safely executes a block with a blinded private key and ensures it is zeroised,
+     * enforcing that the blinding key is not leaked or persisted (T178).
      */
-    private fun derivationPath(credentialId: CredentialId): List<Int> {
-        val hashBytes = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(credentialId.toByteArray())
-        // Take first 4 bytes as a 31-bit positive integer
-        val credIndex = ((hashBytes[0].toInt() and 0x7F) shl 24) or
-                        ((hashBytes[1].toInt() and 0xFF) shl 16) or
-                        ((hashBytes[2].toInt() and 0xFF) shl 8)  or
-                         (hashBytes[3].toInt() and 0xFF)
-        return listOf(FIDO2_APP_INDEX, credIndex)
+    private inline fun <R> withBlindedPrivateKey(
+        devicePrivKeyBytes: ByteArray,
+        blindingFactorBytes: ByteArray,
+        block: (ByteArray) -> R
+    ): R {
+        val blindedPrivKeyBytes = hdkManager.blindPrivateKey(devicePrivKeyBytes, blindingFactorBytes)
+        return try {
+            block(blindedPrivKeyBytes)
+        } finally {
+            blindedPrivKeyBytes.fill(0)
+        }
     }
+
+
 
     /**
      * Signs data using a raw P-256 private scalar via BouncyCastle.
@@ -517,8 +510,35 @@ class Fido2CryptoService @Inject constructor(
          */
         private const val FIDO2_APP_INDEX = 0x4649_4432 // ASCII "FID2", 31-bit positive
 
-        /** Returns the logical alias for a credential (used for lookup / metadata). */
-        fun credentialAlias(credentialId: CredentialId): String = "fido2_hdk_${credentialId.encoded}"
+        /**
+         * Computes a deterministic derivation path index from a credential ID.
+         *
+         * Uses [CredentialId.toByteArray] (UTF-8 encoding of the Base64 string).
+         * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId.toByteArray())]
+         * Both indices are non-negative 31-bit integers to stay within ECDH-P256 limits.
+         */
+        private fun derivationPath(credentialId: CredentialId): List<Int> {
+            val hashBytes = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(credentialId.toByteArray())
+            // Take first 4 bytes as a 31-bit positive integer
+            val credIndex = ((hashBytes[0].toInt() and 0x7F) shl 24) or
+                            ((hashBytes[1].toInt() and 0xFF) shl 16) or
+                            ((hashBytes[2].toInt() and 0xFF) shl 8)  or
+                             (hashBytes[3].toInt() and 0xFF)
+            return listOf(FIDO2_APP_INDEX, credIndex)
+        }
+
+        /**
+         * Returns the logical alias for a credential using the format defined
+         * in §2.8 of draft-dijkhuis-cfrg-hdkeys-06 (origin-alias "/" path).
+         *
+         * `origin-alias` is "device-key".
+         * `path` is the `[`[FIDO2_APP_INDEX]`, credIndex]` derivation path separated by slashes.
+         */
+        fun credentialAlias(credentialId: CredentialId): String {
+            val path = derivationPath(credentialId)
+            return "device-key/${path.joinToString("/")}"
+        }
 
         /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
         const val COSE_ES256 = -7

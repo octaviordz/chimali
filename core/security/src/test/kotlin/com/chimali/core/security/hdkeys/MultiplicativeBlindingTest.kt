@@ -88,4 +88,28 @@ class MultiplicativeBlindingTest {
 
         assertEquals(expectedPk.normalize(), actualPk.normalize())
     }
+
+    @Test
+    fun `t174 BlindPublicKey and BlindPrivateKey consistency KAT`() {
+        // ScalarBaseMult(BlindPrivateKey(sk, bf)) == BlindPublicKey(pk, bk, ctx)
+        val ikm = byteArrayOf(1, 2, 3, 4, 5)
+        val ctx = byteArrayOf(6, 7, 8, 9, 0)
+
+        val bk = MultiplicativeBlinding.deriveBlindKey(ikm)
+        val bf = MultiplicativeBlinding.deriveBlindingFactor(bk, ctx)
+
+        val (sk, pk) = P256Group.generateKeyPair()
+
+        // Derive key through the private path
+        val blindedSk = MultiplicativeBlinding.blindPrivateKey(sk, bf)
+        val pkFromBlindedSk = P256Group.scalarBaseMult(blindedSk)
+
+        // Derive key through the public path
+        val blindedPk = MultiplicativeBlinding.blindPublicKey(pk, bk, ctx)
+
+        assertEquals(
+            "ScalarBaseMult(BlindPrivateKey(sk, bf)) must equal BlindPublicKey(pk, bk, ctx)",
+            pkFromBlindedSk.normalize(), blindedPk.normalize()
+        )
+    }
 }
