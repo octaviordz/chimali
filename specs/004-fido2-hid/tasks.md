@@ -373,6 +373,21 @@ documented as intentionally isolated from the HDK spec.
   or developer warning if `blindPrivateKey` output is inadvertently stored (currently Logcat
   logging and zero-fill are in place but no guard exists). *(refs: Fido2CryptoService.kt:376–388)*
 
+- [ ] T179 **Decide and enforce uint32 index domain for HDK paths (API/docs/tests).**
+  Resolve the current mismatch where public APIs accept signed `Int` indices but the draft index
+  domain is full 32-bit unsigned. Choose one:
+  - **Conformant**: migrate HDK path/index inputs to `UInt` (or `Long` with strict bounds) and
+    enforce \(0 \le index \le 2^{32}-1\) with `I2OSP(index, 4)` encoding.
+  - **Profiled restriction**: explicitly restrict to 31-bit non-negative indices and document
+    the conformance delta (and why it is safe for this application).
+  **Acceptance criteria**:
+  - Update KDoc/spec mapping in `HdkManager` and `HdkEcdhP256` to state the chosen domain and
+    encoding behaviour (including error behaviour for out-of-domain inputs).
+  - Add tests covering boundary values (0, max allowed) and rejection of out-of-domain values
+    (negative, and either \(2^{31}\) / \(2^{32}\) depending on the decision).
+  - Ensure callers in `Fido2CryptoService` use the chosen domain consistently (no silent
+    truncation/sign-extension). *(refs: HdkManager.kt, HdkEcdhP256.kt, Fido2CryptoService.kt)*
+
 ## Dependencies
 
 ### Story Completion Order
