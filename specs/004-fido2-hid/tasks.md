@@ -388,6 +388,57 @@ documented as intentionally isolated from the HDK spec.
   - Ensure callers in `Fido2CryptoService` use the chosen domain consistently (no silent
     truncation/sign-extension). *(refs: HdkManager.kt, HdkEcdhP256.kt, Fido2CryptoService.kt)*
 
+- [ ] T180 **[P] Add fixed-vector KATs for HDK primitives (non-self-referential).**
+  Add canonical vectors with **hard-coded expected hex outputs** (not computed by local reference
+  helpers) for:
+  - `CreateContext(index)` output bytes
+  - `DeriveSalt(salt, ctx)` output bytes
+  - `DeriveBlindKey(ikm)` output bytes
+  - `DeriveBlindingFactor(bk, ctx)` output scalar bytes
+  **Acceptance criteria**:
+  - Vector files or test constants are reproducible and documented with input/expected output.
+  - Tests fail if implementation changes output semantics.
+  - At least one vector uses non-zero, non-trivial byte inputs. *(refs: HdkEcdhP256Test.kt, MultiplicativeBlindingTest.kt)*
+
+- [ ] T181 **[P] Add fixed end-to-end 2-level FIDO2 HDK KAT vector.**
+  For fixed `masterSeed`, fixed device key pair, and fixed `credentialId`, assert exact expected
+  `publicKeyBytes` output from `generateCredentialKeyPair` on the ES256 path (no mocks for HDK math).
+  **Acceptance criteria**:
+  - Expected public key is pinned as a fixed hex vector.
+  - Test demonstrates stability across repeated derivations.
+  - Test explicitly asserts the resolved derivation path shape `[FIDO2_APP_INDEX, credentialIndex]`.
+  *(refs: Fido2CryptoServiceTest.kt, Fido2CryptoService.kt)*
+
+- [ ] T182 **[P] Add negative-path robustness tests for HDK remote flow and key decoding.**
+  Add regression tests for malformed and adversarial inputs:
+  - malformed/short/invalid `keyHandle` on remote decapsulation
+  - invalid/uncompressed-point violations in public key decoding
+  - mismatched `expectedPublicKey` in `acceptRemoteKey`
+  - out-of-domain indices per T179 decision
+  **Acceptance criteria**:
+  - Each scenario fails closed with explicit exception/assertion behaviour.
+  - No test path accepts malformed cryptographic inputs silently.
+  *(refs: HdkEcdhP256Test.kt, Fido2CryptoServiceTest.kt, HdkEcdhP256.kt)*
+
+- [ ] T183 **Strengthen non-persistence enforcement for blinded private keys.**
+  Extend T178 with a concrete enforcement boundary: add a guard/test that no storage/repository API
+  can be called with blinded private key material (directly or wrapped), and verify sensitive bytes
+  are zeroed on both success and failure paths.
+  **Acceptance criteria**:
+  - Unit tests assert storage interfaces are never invoked with blinded key bytes.
+  - Failure-path tests confirm zeroisation still occurs when signing fails.
+  *(refs: Fido2CryptoService.kt, Fido2CryptoServiceTest.kt, repository/storage adapters)*
+
+- [ ] T184 **Create HDK draft conformance delta register (MUST/SHOULD mapping).**
+  Produce a concise checklist mapping implemented draft sections used in this project
+  (`§2.2`-`§2.8`, `§3.2.2`, `§3.3.1`, `§4.1`, relevant security notes) to:
+  `covered`, `partial`, `not-applicable`, with code references and rationale.
+  **Acceptance criteria**:
+  - Document checked into `specs/004-fido2-hid/checklists/` with clear ownership.
+  - Any intentional profile deviations (e.g., index domain decision) are explicitly documented.
+  - Tasks T173-T183 reference this register where applicable.
+  *(refs: specs/004-fido2-hid/checklists/, HdkManager.kt, HdkEcdhP256.kt, Fido2CryptoService.kt)*
+
 ## Dependencies
 
 ### Story Completion Order
