@@ -69,21 +69,19 @@ interface HdkManager {
      * Performs local derivation by traversing the path of integer indices,
      * applying key blinding at each level.
      *
-     * **Index domain (T179)**: The spec defines indices as `uint32` (0–2^32−1). This
-     * implementation restricts inputs to `[0, Int.MAX_VALUE]` (31-bit non-negative). Each
-     * element of [path] must satisfy `index >= 0`.
+     * **Index domain (T179)**: The spec defines indices as `uint32` (0–2^32−1).
+     * This implementation natively uses Kotlin's unsigned 32-bit `UInt`.
      *
      * @param devicePublicKey The device's public key (uncompressed encoding).
      * @param seed The root seed (32 bytes).
-     * @param path List of non-negative integer indices for derivation (e.g., [0], [0, 1, 2]).
+     * @param path List of unsigned 32-bit indices for derivation (e.g., [0u], [0u, 1u, 2u]).
      * @return The derived HDK result containing blinded public key, salt, and blinding factor.
-     * @throws IllegalArgumentException if any index in [path] is negative.
      * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.5">draft-dijkhuis-cfrg-hdkeys-06 §2.5 (HDK)</a>
      */
     fun deriveHdk(
         devicePublicKey: ByteArray,
         seed: ByteArray,
-        path: List<Int>
+        path: List<UInt>
     ): HdkResult
 
     /**
@@ -138,7 +136,7 @@ interface HdkManager {
      *
      * @param parentSalt The parent's salt (used to derive the KEM key pair).
      * @param keyHandle The encapsulated key handle from the issuer.
-     * @param index The index for the new child key.
+     * @param index The child index for the new HDK.
      * @param parentPublicKey The parent's blinded public key (uncompressed, 65 bytes).
      * @param expectedPublicKey The expected resulting public key (uncompressed, 65 bytes).
      * @return The derived HDK result.
@@ -147,7 +145,7 @@ interface HdkManager {
     fun acceptRemoteKey(
         parentSalt: ByteArray,
         keyHandle: ByteArray,
-        index: Int,
+        index: UInt,
         parentPublicKey: ByteArray,
         expectedPublicKey: ByteArray
     ): HdkResult

@@ -514,23 +514,23 @@ class Fido2CryptoService @Inject constructor(
          * are opaque integers fed into [HdkManager.deriveHdk]; they carry no BIP-32 semantics
          * such as hardened/non-hardened derivation.
          */
-        private const val FIDO2_APP_INDEX = 0x4649_4432 // ASCII "FID2", 31-bit positive
+        private const val FIDO2_APP_INDEX: UInt = 0x4649_4432u // ASCII "FID2"
 
         /**
          * Computes a deterministic derivation path index from a credential ID.
          *
          * Uses [CredentialId.toByteArray] (UTF-8 encoding of the Base64 string).
          * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId.toByteArray())]
-         * Both indices are non-negative 31-bit integers to stay within ECDH-P256 limits.
+         * Both indices are full 32-bit unsigned integers.
          */
-        private fun derivationPath(credentialId: CredentialId): List<Int> {
+        private fun derivationPath(credentialId: CredentialId): List<UInt> {
             val hashBytes = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(credentialId.toByteArray())
-            // Take first 4 bytes as a 31-bit positive integer
-            val credIndex = ((hashBytes[0].toInt() and 0x7F) shl 24) or
-                            ((hashBytes[1].toInt() and 0xFF) shl 16) or
-                            ((hashBytes[2].toInt() and 0xFF) shl 8)  or
-                             (hashBytes[3].toInt() and 0xFF)
+            // Take first 4 bytes as a full 32-bit unsigned integer (extracting maximum entropy)
+            val credIndex = ((hashBytes[0].toUInt() and 0xFFu) shl 24) or
+                            ((hashBytes[1].toUInt() and 0xFFu) shl 16) or
+                            ((hashBytes[2].toUInt() and 0xFFu) shl 8)  or
+                             (hashBytes[3].toUInt() and 0xFFu)
             return listOf(FIDO2_APP_INDEX, credIndex)
         }
 

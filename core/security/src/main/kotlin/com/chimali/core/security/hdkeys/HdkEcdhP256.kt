@@ -55,16 +55,9 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
      * passed to [deriveSalt] and [MultiplicativeBlinding.deriveBlindingFactor].
      *
      * **Index domain (T179)**: The HDK spec defines indices as `uint32` (0–2^32−1).
-     * This implementation profiles the domain to `[0, Int.MAX_VALUE]` (31-bit non-negative
-     * signed integers) to avoid silent encoding errors via Kotlin's signed `Int`. Negative
-     * values are rejected with [IllegalArgumentException].
-     *
-     * @throws IllegalArgumentException if [index] is negative.
+     * This implementation natively uses Kotlin's unsigned 32-bit `UInt`.
      */
-    internal fun createContext(index: Int): ByteArray {
-        require(index >= 0) {
-            "HDK index must be non-negative (domain: [0, Int.MAX_VALUE]); got $index"
-        }
+    internal fun createContext(index: UInt): ByteArray {
         return ID + HashToScalar.i2osp(index, 4)
     }
 
@@ -97,7 +90,7 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
      * @return Triple of (blinded public key, derived salt, combined blinding factor).
      */
     internal fun hdk(
-        index: Int,
+        index: UInt,
         pk: ECPoint,
         salt: ByteArray,
         bf: BigInteger? = null
@@ -114,16 +107,16 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
     /**
      * Fold: Traverse a path of indices, applying HDK at each step.
      *
-     * Handles both local indices (Int) for hierarchical derivation.
+     * Handles both local indices (UInt) for hierarchical derivation.
      *
-     * @param path List of integer indices.
+     * @param path List of unsigned integer indices.
      * @param pk Starting public key.
      * @param salt Starting salt.
      * @param bf Starting blinding factor (null for root).
      * @return Final (pk, salt, bf) after traversing the full path.
      */
     internal fun fold(
-        path: List<Int>,
+        path: List<UInt>,
         pk: ECPoint,
         salt: ByteArray,
         bf: BigInteger? = null
@@ -158,16 +151,13 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
     override fun deriveHdk(
         devicePublicKey: ByteArray,
         seed: ByteArray,
-        path: List<Int>
+        path: List<UInt>
     ): HdkResult {
         // §2.2: Seed MUST be exactly Ns = 32 bytes.
         require(seed.size == NS) {
             "HDK seed must be exactly $NS bytes (Ns per §2.2); got ${seed.size}"
         }
-        // §2.5 / createContext: all indices must be non-negative (uint32 domain).
-        require(path.all { it >= 0 }) {
-            "HDK path indices must be non-negative; got ${path.filter { it < 0 }}"
-        }
+        // Note: index non-negativity is securely guaranteed by the signature's UInt type.
         val pk = P256Group.deserializeElement(devicePublicKey)
         val (derivedPk, derivedSalt, derivedBf) = fold(path, pk, seed)
         return HdkResult(derivedPk, derivedSalt, derivedBf)
@@ -206,7 +196,7 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
     override fun acceptRemoteKey(
         parentSalt: ByteArray,
         keyHandle: ByteArray,
-        index: Int,
+        index: UInt,
         parentPublicKey: ByteArray,
         expectedPublicKey: ByteArray
     ): HdkResult {

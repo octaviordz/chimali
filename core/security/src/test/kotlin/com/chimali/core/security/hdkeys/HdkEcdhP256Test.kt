@@ -13,13 +13,13 @@ class HdkEcdhP256Test {
     private val hdk = HdkEcdhP256()
 
     @Test
-    fun `Local derivation - root HDK is consistent with blind private key`() {
+    fun testLocalDerivationRootHdkConsistentWithBlindPrivateKey() {
         // Derive HDK at path [0], then verify:
         // pk_blinded == ScalarBaseMult(BlindPrivateKey(sk, bf))
         val (sk, pk) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
-        val (blindedPk, _, bf) = hdk.hdk(0, pk, seed)
+        val (blindedPk, _, bf) = hdk.hdk(0u, pk, seed)
 
         val blindedSk = MultiplicativeBlinding.blindPrivateKey(sk, bf)
         val expectedPk = P256Group.scalarBaseMult(blindedSk)
@@ -31,12 +31,12 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `Deterministic derivation - same inputs produce same outputs`() {
+    fun testDeterministicDerivationSameInputsProduceSameOutputs() {
         val (_, pk) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
-        val result1 = hdk.hdk(42, pk, seed)
-        val result2 = hdk.hdk(42, pk, seed)
+        val result1 = hdk.hdk(42u, pk, seed)
+        val result2 = hdk.hdk(42u, pk, seed)
 
         assertEquals(result1.first.normalize(), result2.first.normalize())
         assertArrayEquals(result1.second, result2.second)
@@ -44,12 +44,12 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `Different indices produce different HDK nodes`() {
+    fun testDifferentIndicesProduceDifferentHdkNodes() {
         val (_, pk) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
-        val result0 = hdk.hdk(0, pk, seed)
-        val result1 = hdk.hdk(1, pk, seed)
+        val result0 = hdk.hdk(0u, pk, seed)
+        val result1 = hdk.hdk(1u, pk, seed)
 
         assertNotEquals(
             "Different indices must produce different public keys",
@@ -59,16 +59,16 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `Multi-level derivation via fold`() {
+    fun testMultiLevelDerivationViaFold() {
         val (sk, pk) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
-        val (finalPk, finalSalt, finalBf) = hdk.fold(listOf(0, 1, 2), pk, seed)
+        val (finalPk, finalSalt, finalBf) = hdk.fold(listOf(0u, 1u, 2u), pk, seed)
 
         // Manual step-by-step derivation should match
-        val (pk1, salt1, bf1) = hdk.hdk(0, pk, seed)
-        val (pk2, salt2, bf2) = hdk.hdk(1, pk1, salt1, bf1)
-        val (pk3, salt3, bf3) = hdk.hdk(2, pk2, salt2, bf2)
+        val (pk1, salt1, bf1) = hdk.hdk(0u, pk, seed)
+        val (pk2, salt2, bf2) = hdk.hdk(1u, pk1, salt1, bf1)
+        val (pk3, salt3, bf3) = hdk.hdk(2u, pk2, salt2, bf2)
 
         assertEquals(pk3.normalize(), finalPk.normalize())
         assertArrayEquals(salt3, finalSalt)
@@ -76,12 +76,12 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `Proof of possession - BlindDH equals reader shared secret`() {
+    fun testProofOfPossessionBlindDhEqualsReaderSharedSecret() {
         val (skDevice, pkDevice) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
         // Derive HDK at root path [0]
-        val (blindedPk, _, bf) = hdk.hdk(0, pkDevice, seed)
+        val (blindedPk, _, bf) = hdk.hdk(0u, pkDevice, seed)
 
         // Reader generates a key pair
         val (skReader, pkReader) = P256Group.generateKeyPair()
@@ -99,12 +99,12 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `Remote derivation - Encap, Decap, and HDK round-trip`() {
+    fun testRemoteDerivationEncapDecapAndHdkRoundTrip() {
         val (_, pk) = P256Group.generateKeyPair()
         val seed = hdk.generateSeed()
 
         // Derive root HDK
-        val (rootPk, rootSalt, rootBf) = hdk.hdk(0, pk, seed)
+        val (rootPk, rootSalt, rootBf) = hdk.hdk(0u, pk, seed)
 
         // Request remote derivation: device derives KEM key pair from salt
         val (skKem, pkKem) = DhKem.deriveKeyPair(rootSalt)
@@ -113,7 +113,7 @@ class HdkEcdhP256Test {
         val (issuedSalt, keyHandle) = DhKem.encap(pkKem)
 
         // Issuer computes the expected derived HDK
-        val index = 42
+        val index = 42u
         val (expectedPk, _, _) = hdk.hdk(index, rootPk, issuedSalt)
 
         // Device decaps and derives the HDK
@@ -128,19 +128,19 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `HdkManager deriveHdk via public API`() {
+    fun testHdkManagerDeriveHdkViaPublicApi() {
         val keyPair = hdk.generateDeviceKeyPair()
         val seed = hdk.generateSeed()
         val pkBytes = P256Group.serializeElement(keyPair.publicKey)
 
-        val result = hdk.deriveHdk(pkBytes, seed, listOf(0))
+        val result = hdk.deriveHdk(pkBytes, seed, listOf(0u))
         assertNotNull(result.publicKey)
         assertEquals(32, result.salt.size)
         assertTrue(result.blindingFactor > BigInteger.ZERO)
     }
 
     @Test
-    fun `HdkManager blindPrivateKey via public API`() {
+    fun testHdkManagerBlindPrivateKeyViaPublicApi() {
         val keyPair = hdk.generateDeviceKeyPair()
         val bf = P256Group.randomScalar()
 
@@ -158,14 +158,14 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `CreateContext includes ID and index`() {
-        val ctx = hdk.createContext(42)
+    fun testCreateContextIncludesIdAndIndex() {
+        val ctx = hdk.createContext(42u)
         // Should be ID (16 bytes for "HDK-ECDH-P256-v1") + index (4 bytes)
         assertEquals(HdkEcdhP256.ID.size + 4, ctx.size)
     }
 
     @Test
-    fun `GenerateSeed produces 32 bytes`() {
+    fun testGenerateSeedProduces32Bytes() {
         val seed = hdk.generateSeed()
         assertEquals(32, seed.size)
     }
@@ -199,9 +199,9 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `t172 DeriveSalt KAT index 0 matches spec-correct formula H of salt and ctx`() {
+    fun testT172DeriveSaltKatIndex0MatchesSpecCorrectFormulaHOfSaltAndCtx() {
         val salt = ByteArray(32)         // 32 zero bytes (fixed reference input)
-        val ctx  = hdk.createContext(0)  // ID(16 bytes) || I2OSP(0, 4)
+        val ctx  = hdk.createContext(0u)  // ID(16 bytes) || I2OSP(0, 4)
 
         val expected = referenceDeriveSalt(salt, ctx)
         val actual   = hdk.deriveSalt(salt, ctx)
@@ -215,9 +215,9 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `t172 DeriveSalt KAT index 1 matches spec-correct formula H of salt and ctx`() {
+    fun testT172DeriveSaltKatIndex1MatchesSpecCorrectFormulaHOfSaltAndCtx() {
         val salt = ByteArray(32)
-        val ctx  = hdk.createContext(1)  // ID(16 bytes) || I2OSP(1, 4)
+        val ctx  = hdk.createContext(1u)  // ID(16 bytes) || I2OSP(1, 4)
 
         val expected = referenceDeriveSalt(salt, ctx)
         val actual   = hdk.deriveSalt(salt, ctx)
@@ -230,18 +230,18 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `t172 DeriveSalt produces 32-byte output for fixed inputs`() {
+    fun testT172DeriveSaltProduces32ByteOutputForFixedInputs() {
         val salt   = ByteArray(32)
-        val ctx    = hdk.createContext(0)
+        val ctx    = hdk.createContext(0u)
         val result = hdk.deriveSalt(salt, ctx)
         assertEquals("DeriveSalt output must be exactly Ns=32 bytes (SHA-256 output length).", 32, result.size)
     }
 
     @Test
-    fun `t172 DeriveSalt different indices produce different salts`() {
+    fun testT172DeriveSaltDifferentIndicesProduceDifferentSalts() {
         val salt = ByteArray(32)
-        val out0 = hdk.deriveSalt(salt, hdk.createContext(0))
-        val out1 = hdk.deriveSalt(salt, hdk.createContext(1))
+        val out0 = hdk.deriveSalt(salt, hdk.createContext(0u))
+        val out1 = hdk.deriveSalt(salt, hdk.createContext(1u))
         assertFalse(
             "DeriveSalt with different indices must produce different outputs (domain separation via ctx).",
             out0.contentEquals(out1),
@@ -249,8 +249,8 @@ class HdkEcdhP256Test {
     }
 
     @Test
-    fun `t175 createContext preserves boundary indices correctly`() {
-        val ctxMin = hdk.createContext(0)
+    fun testT175CreateContextPreservesBoundaryIndicesCorrectly() {
+        val ctxMin = hdk.createContext(0u)
         // I2OSP(0, 4) should be 00 00 00 00
         assertArrayEquals(
             "createContext at index 0 must accurately encode as 00 00 00 00",
@@ -258,11 +258,11 @@ class HdkEcdhP256Test {
             ctxMin.copyOfRange(ctxMin.size - 4, ctxMin.size)
         )
 
-        val ctxMax = hdk.createContext(Int.MAX_VALUE)
-        // I2OSP(Int.MAX_VALUE, 4) should be 7F FF FF FF
+        val ctxMax = hdk.createContext(UInt.MAX_VALUE)
+        // I2OSP(UInt.MAX_VALUE, 4) should be FF FF FF FF
         assertArrayEquals(
-            "createContext at index Int.MAX_VALUE must accurately encode as 7F FF FF FF",
-            byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
+            "createContext at index UInt.MAX_VALUE must accurately encode as FF FF FF FF",
+            byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
             ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size)
         )
     }

@@ -77,7 +77,7 @@ class Fido2CryptoServiceTest {
                 blindingFactor = P256Group.randomScalar()
             )
 
-            val capturedPath = slot<List<Int>>()
+            val capturedPath = slot<List<UInt>>()
             every {
                 hdkManager.deriveHdk(
                     devicePublicKey = devicePubKeyBytes,
@@ -295,9 +295,9 @@ class Fido2CryptoServiceTest {
                 CredentialId.fromString(credentialId)
             ).getOrThrow()
 
-            // Pinned expected value — captured from local run after T166 fix.
+            // Pinned expected value — captured from local run after UInt fix.
             // The raw 65-byte uncompressed P-256 point: 0x04 || X (32 bytes) || Y (32 bytes).
-            val expectedHex = "04B21950DBED9AEEAC450BC8D154BC159FE2FEF3FC1EA822765A760CC79EECC867EEAE7B715C000851AE19AACE4FC6F74D4C5AFBCFDE457494E68CEDE73A3AC2A7"
+            val expectedHex = "04962A65A7E025CCFE68130E0BC74AC061736FE5AE48CF63B7937B5F2B84875491DEB440FC850B2D88AFEA9A492866DA0AA0B80D3B423012DD71767F9F50A219FE"
             val actualHex = keyPair.publicKeyBytes.joinToString("") { "%02X".format(it) }
 
             assertEquals(65, keyPair.publicKeyBytes.size,

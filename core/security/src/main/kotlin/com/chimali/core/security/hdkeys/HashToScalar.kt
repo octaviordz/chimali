@@ -101,4 +101,18 @@ object HashToScalar {
         }
         return result
     }
+
+    /**
+     * I2OSP: Integer to Octet String Primitive for unsigned 32-bit values.
+     * Extracts full 32-bit domain without signed arithmetic corruption.
+     */
+    internal fun i2osp(value: UInt, length: Int): ByteArray {
+        val result = ByteArray(length)
+        var v = value
+        for (i in length - 1 downTo 0) {
+            result[i] = (v and 0xFFu).toByte()
+            v = v shr 8
+        }
+        return result
+    }
 }

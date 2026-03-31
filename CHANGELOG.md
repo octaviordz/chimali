@@ -3,6 +3,12 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-03-31
+
+### Changed
+- **HDK Index Migration to Unsigned Integers (UInt)**: Migrated the entire HDK derivation path logic from 31-bit signed integers to full 32-bit unsigned integers to ensure compliance with IETF `draft-dijkhuis-cfrg-hdkeys-06`. Updated `HdkManager`, `HdkEcdhP256`, and `HashToScalar` to handle `UInt` values, and refactored `Fido2CryptoService` to use the full 32-bit entropy domain for credential indices and spec-compliant alias formatting.
+- **Detailed changes**: [2026-03-31-hdk-uint-index-migration.md](docs/changelogs/2026-03-31-hdk-uint-index-migration.md)
+
 ## [Unreleased] - 2026-03-30
 
 ### Added

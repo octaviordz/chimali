@@ -39,7 +39,7 @@ class HdkNegativePathTest {
             hdk.deriveHdk(
                 devicePublicKey = devicePubKey,
                 seed = ByteArray(0), // invalid
-                path = listOf(0)
+                path = listOf(0u)
             )
         }
     }
@@ -53,39 +53,7 @@ class HdkNegativePathTest {
             hdk.deriveHdk(
                 devicePublicKey = devicePubKey,
                 seed = ByteArray(16), // too short — Ns = 32
-                path = listOf(0)
-            )
-        }
-    }
-
-    // ── Index validations ─────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("T182-03: deriveHdk with a negative index must throw (uint32 domain)")
-    fun `T182-03 deriveHdk negative index throws`() {
-        val deviceKeyPair = hdk.generateDeviceKeyPair()
-        val devicePubKey = P256Group.serializeElement(deviceKeyPair.publicKey)
-        val seed = hdk.generateSeed()
-        assertThrows<IllegalArgumentException> {
-            hdk.deriveHdk(
-                devicePublicKey = devicePubKey,
-                seed = seed,
-                path = listOf(-1) // invalid — spec defines uint32
-            )
-        }
-    }
-
-    @Test
-    @DisplayName("T182-04: deriveHdk with multiple indices — one negative — must throw")
-    fun `T182-04 deriveHdk multiple negative index throws`() {
-        val deviceKeyPair = hdk.generateDeviceKeyPair()
-        val devicePubKey = P256Group.serializeElement(deviceKeyPair.publicKey)
-        val seed = hdk.generateSeed()
-        assertThrows<IllegalArgumentException> {
-            hdk.deriveHdk(
-                devicePublicKey = devicePubKey,
-                seed = seed,
-                path = listOf(0, 1, -2) // last index is invalid
+                path = listOf(0u)
             )
         }
     }
@@ -101,7 +69,7 @@ class HdkNegativePathTest {
             hdk.deriveHdk(
                 devicePublicKey = badPubKey,
                 seed = seed,
-                path = listOf(0)
+                path = listOf(0u)
             )
         }
     }
@@ -115,7 +83,7 @@ class HdkNegativePathTest {
             hdk.deriveHdk(
                 devicePublicKey = truncatedPubKey,
                 seed = seed,
-                path = listOf(0)
+                path = listOf(0u)
             )
         }
     }
@@ -130,7 +98,7 @@ class HdkNegativePathTest {
         val seed = hdk.generateSeed()
 
         // Derive a real parent to get a valid salt and KEM public key
-        val parent = hdk.deriveHdk(devicePubKey, seed, listOf(0))
+        val parent = hdk.deriveHdk(devicePubKey, seed, listOf(0u))
         val kemPubKey = hdk.requestRemoteDerivation(parent.salt)
 
         // Attempt to accept a remote key but provide a random expected public key (mismatch)
@@ -139,7 +107,7 @@ class HdkNegativePathTest {
             hdk.acceptRemoteKey(
                 parentSalt = parent.salt,
                 keyHandle = kemPubKey, // placeholder; remote would provide real ciphertext
-                index = 1,
+                index = 1u,
                 parentPublicKey = devicePubKey,
                 expectedPublicKey = wrongExpectedPubKey // deliberately wrong
             )

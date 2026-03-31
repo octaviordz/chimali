@@ -124,8 +124,9 @@ class CryptoOperationsTest {
 
     @Test
     fun `credentialAlias follows expected prefix`() {
-        val alias = Fido2CryptoService.credentialAlias(CredentialId.fromString("abc123"))
-        assertEquals("fido2_hdk_abc123", alias)
+        val credId = CredentialId.fromString("abc123")
+        val alias = Fido2CryptoService.credentialAlias(credId)
+        assertTrue(alias.startsWith("device-key/1179206706/"))
     }
 
     @Test

@@ -96,10 +96,10 @@ class Fido2StressTest {
         val hdkManager: HdkManager = mockk {
             every { deriveHdk(any(), any(), any()) } answers {
                 val seed = arg<ByteArray>(1)
-                val path = arg<List<Int>>(2)
+                val path = arg<List<UInt>>(2)
                 // Derive a deterministic child scalar from seed+path via SHA-256
                 val digest = java.security.MessageDigest.getInstance("SHA-256")
-                path.forEach { idx -> digest.update((idx and 0xFF).toByte()) }
+                path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
                 val childScalar = BigInteger(1, digest.digest(seed)).mod(P256Group.ORDER).let {
                     if (it == BigInteger.ZERO) BigInteger.ONE else it
                 }
