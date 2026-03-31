@@ -7,6 +7,7 @@ import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.exception.Fido2Exception
 import javax.inject.Inject
@@ -19,8 +20,13 @@ class RegisterCredentialUseCase @Inject constructor(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
     private val cborCodec: CborCodec,
-    private val cryptoService: Fido2CryptoService
+    private val cryptoService: Fido2CryptoService,
+    private val settingsRepository: Fido2SettingsRepository
 ) {
+
+    companion object {
+        private const val DEFAULT_STORAGE_LIMIT = 1000
+    }
 
     /**
      * Registers a new credential with the authenticator.
@@ -67,6 +73,17 @@ class RegisterCredentialUseCase @Inject constructor(
             )
             if (validationResult.isFailure) {
                 return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"))
+            }
+
+            // FR-HID-022: Enforce global storage limit.
+            // Query total credential count and fail with CTAP2_ERR_KEY_STORE_FULL (0x28)
+            // if the device has reached capacity (default 1000, configurable).
+            val stats = credentialRepository.getCredentialStatistics()
+            val limit = settingsRepository.getMaxCredentialCount()
+            if (stats.totalCredentials >= limit) {
+                return Result.failure(
+                    Fido2Exception.TooManyCredentials(limit)
+                )
             }
 
             // Generate the credential

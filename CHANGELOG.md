@@ -3,7 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
-## [Unreleased] - 2026-03-29
+## [Unreleased] - 2026-03-30
+
+### Added
+- **Configurable FIDO2 Credential Limit (FR-HID-022, T115a)**: Migrated the FIDO2 credential storage limit from a hardcoded constant to a runtime-configurable system setting. Introduced `Fido2SettingsRepository` (interface) and `Fido2SettingsRepositoryImpl` (backed by `EncryptedSharedPreferences`), defaulting to **1000** credentials. `RegisterCredentialUseCase` now enforces the limit dynamically and `Fido2Exception.TooManyCredentials` exposes the `limit` as a public property for accurate error reporting.
+- **Detailed changes**: [2026-03-30-fido2-configurable-credential-limit.md](docs/changelogs/2026-03-30-fido2-configurable-credential-limit.md)
+
+### Fixed
+- **HDK Seed Size Mismatch (Critical)**: Resolved a runtime crash that blocked all FIDO2/ES256 credential registrations. `WalletMasterSeedProvider` was passing the raw 64-byte BIP39 PBKDF2-SHA512 seed directly to `HdkEcdhP256.deriveHdk()`, which enforces exactly **32 bytes** per HDK spec §2.2 (`Ns = 32`). Fixed by truncating the BIP39 seed to its first 32 bytes for the HDK layer while retaining the full 64 bytes for device key pair derivation via HMAC-SHA512. Also resolved a `keyset not found` warning from `EncryptedSharedPreferences` on first launch (expected `AndroidKeysetManager` behaviour when auto-generating a new keyset).
+- **Detailed changes**: [2026-03-30-hdk-seed-size-fix.md](docs/changelogs/2026-03-30-hdk-seed-size-fix.md)
+
+---
 
 ### Fixed
 - **HDK DeriveSalt Spec Alignment (T166, T172)**: Corrected a spec deviation in `HdkEcdhP256.kt` where the `ID` domain separator was incorrectly double-prepended during salt derivation. The implementation now strictly conforms to `draft-dijkhuis-cfrg-hdkeys-06` §2.4 (`H(salt || ctx)`). Added comprehensive Known Answer Tests (KATs) as a regression guard.
@@ -343,4 +353,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-26*
+*Last Updated: 2026-03-30*

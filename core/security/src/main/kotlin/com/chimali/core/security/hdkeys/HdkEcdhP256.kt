@@ -160,6 +160,14 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
         seed: ByteArray,
         path: List<Int>
     ): HdkResult {
+        // §2.2: Seed MUST be exactly Ns = 32 bytes.
+        require(seed.size == NS) {
+            "HDK seed must be exactly $NS bytes (Ns per §2.2); got ${seed.size}"
+        }
+        // §2.5 / createContext: all indices must be non-negative (uint32 domain).
+        require(path.all { it >= 0 }) {
+            "HDK path indices must be non-negative; got ${path.filter { it < 0 }}"
+        }
         val pk = P256Group.deserializeElement(devicePublicKey)
         val (derivedPk, derivedSalt, derivedBf) = fold(path, pk, seed)
         return HdkResult(derivedPk, derivedSalt, derivedBf)
@@ -169,6 +177,10 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
         devicePrivateKey: ByteArray,
         blindingFactor: ByteArray
     ): ByteArray {
+        // §3.2.2: Private key must be a valid non-zero P-256 scalar (exactly 32 bytes).
+        require(devicePrivateKey.size == 32) {
+            "Private key must be exactly 32 bytes; got ${devicePrivateKey.size}"
+        }
         val sk = P256Group.deserializeScalar(devicePrivateKey)
         val bf = P256Group.deserializeScalar(blindingFactor)
         val blindedSk = MultiplicativeBlinding.blindPrivateKey(sk, bf)

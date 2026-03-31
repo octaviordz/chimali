@@ -18,6 +18,7 @@ import com.chimali.fido2.data.repository.PasskeyCredentialRepositoryImpl
 import com.chimali.fido2.data.repository.RelyingPartyRepositoryImpl
 import com.chimali.fido2.data.repository.UserConsentRepositoryImpl
 import com.chimali.fido2.data.repository.PairedDeviceRepositoryImpl
+import com.chimali.fido2.data.repository.Fido2SettingsRepositoryImpl
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -26,6 +27,7 @@ import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
 import com.chimali.fido2.domain.repository.UserConsentRepository
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
@@ -125,4 +127,9 @@ abstract class Fido2BindingModule {
     abstract fun bindMasterSeedProvider(
         impl: com.chimali.fido2.data.crypto.WalletMasterSeedProvider
     ): com.chimali.fido2.data.crypto.MasterSeedProvider
+
+    @Binds
+    abstract fun bindFido2SettingsRepository(
+        impl: Fido2SettingsRepositoryImpl
+    ): Fido2SettingsRepository
 }

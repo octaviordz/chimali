@@ -19,6 +19,7 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
@@ -136,11 +137,16 @@ class Fido2StressTest {
 
         val selectCredentialUseCase = SelectCredentialUseCase()
 
+        val settingsRepository: Fido2SettingsRepository = mockk {
+            coEvery { getMaxCredentialCount() } returns 2000 // Stress test needs high limit
+        }
+
         registerUseCase = RegisterCredentialUseCase(
             credentialRepository = repository,
             userVerificationService = userVerificationService,
             cborCodec = CborCodec(),
-            cryptoService = cryptoService
+            cryptoService = cryptoService,
+            settingsRepository = settingsRepository
         )
         assertionUseCase = GetAssertionUseCase(
             credentialRepository = repository,

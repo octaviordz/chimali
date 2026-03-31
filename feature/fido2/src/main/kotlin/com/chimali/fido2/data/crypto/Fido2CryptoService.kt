@@ -397,11 +397,17 @@ class Fido2CryptoService @Inject constructor(
 
             // Derive the blinded private key safely scoped
             val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
-            
-            val signature = withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
-                signWithRawScalar(blindedPrivKeyBytes, data)
+
+            val signature = try {
+                withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
+                    signWithRawScalar(blindedPrivKeyBytes, data)
+                }
+            } finally {
+                // T183: Zero blindingFactorBytes immediately after use — it must not linger in memory.
+                // withBlindedPrivateKey already zeroes blindedPrivKeyBytes internally.
+                blindingFactorBytes.fill(0)
             }
-            
+
             // Zero out device private key
             devicePrivKeyBytes.fill(0)
 

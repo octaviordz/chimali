@@ -20,6 +20,7 @@ import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
@@ -122,11 +123,16 @@ class MultiAlgorithmIntegrationTest {
 
         val selectCredentialUseCase = SelectCredentialUseCase()
 
+        val settingsRepository: Fido2SettingsRepository = mockk {
+            coEvery { getMaxCredentialCount() } returns 1000
+        }
+
         registerUseCase = RegisterCredentialUseCase(
             credentialRepository = repository,
             userVerificationService = userVerificationService,
             cborCodec = CborCodec(),
-            cryptoService = cryptoService
+            cryptoService = cryptoService,
+            settingsRepository = settingsRepository
         )
         assertionUseCase = GetAssertionUseCase(
             credentialRepository = repository,

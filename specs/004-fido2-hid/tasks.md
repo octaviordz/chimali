@@ -87,6 +87,9 @@
 - [X] T054 [US1] Add connection state management for HID sessions
 - [X] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
 - [X] T056 [P] [US1] Implement unit tests for CTAP2 protocol
+- [ ] T056a [US1] Implement FIDO2.1 `credProtect` extension handling in `MakeCredential` command: read `credentialProtectionPolicy` from client extensions map, persist policy with credential, and enforce during `GetAssertion` by refusing RP-level credential enumeration if policy is `userVerificationRequired`. *(refs: FR-HID-020)*
+- [ ] T056b [US1] Update `authenticatorGetInfo` response to include FIDO2.1 flags: `options.credProtect=true`, `options.minPinLength=true`, `extensions=["credProtect","hmac-secret"]`. *(refs: FR-HID-020)*
+- [ ] T056c [P] [US1] Add CTAP2.1 protocol integration tests: verify `authenticatorGetInfo` returns correct FIDO2.1 flags; verify `credProtect` policy is stored and enforced. *(refs: FR-HID-020)*
 
 ### Core Crypto Tasks
 - [X] T057 [US1] Implement ECDSA P-256 key pair generation
@@ -180,6 +183,8 @@
 - [X] T113 [US3] Add credential enumeration to repository
 - [X] T114 [US3] Implement secure credential deletion
 - [X] T115 [US3] Add credential count tracking
+- [ ] T115a [US1] Enforce 50-credential maximum in `RegisterCredentialUseCase`: before persisting a new credential, query `credentialCount()` from the repository; if count ≥ 50, throw `Fido2Exception.StorageFull` with CTAP error code `CTAP2_ERR_KEY_STORE_FULL` (0x27). *(refs: FR-HID-022)*
+- [ ] T115b [P] [US1] Unit tests for the 50-credential storage limit: verify registration fails with `CTAP2_ERR_KEY_STORE_FULL` at count == 50 and succeeds at count == 49. *(refs: FR-HID-022)*
 - [X] T116 [P] [US3] Implement unit tests for management repository methods
 
 ### Core Bluetooth Tasks
@@ -501,10 +506,10 @@ Every task includes specific file paths and clear completion criteria to ensure 
 
 ## Total Task Count
 
-**Summary**: 168 total tasks
+**Summary**: 173 total tasks
 - **Setup**: 10 tasks (T001-T010)
 - **Foundational**: 14 tasks (T011-T024)
-- **User Story 1**: 53 tasks (T025-T077)
+- **User Story 1**: 56 tasks (T025-T077, includes T056a-c for FR-HID-020 FIDO2.1 extensions, T115a-b for FR-HID-022 50-credential quota)
 - **User Story 2**: 30 tasks (T078-T107)
 - **User Story 3**: 25 tasks (T108-T132)
 - **Polish**: 36 tasks (T133-T165, includes T145a-c)

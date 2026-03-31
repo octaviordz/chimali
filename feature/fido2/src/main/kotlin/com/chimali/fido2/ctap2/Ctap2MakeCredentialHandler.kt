@@ -142,6 +142,14 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         val requireUserVerification = options?.get("uv") as? Boolean ?: false
         val requireResidentKey = options?.get("rk") as? Boolean ?: false
 
+        // 0x0A / "extensions": optional FIDO2.1 extension map
+        // T056a: Parse credentialProtectionPolicy (credProtect) if present.
+        @Suppress("UNCHECKED_CAST")
+        val extensions = (map["10"] ?: map["extensions"]) as? Map<*, *>
+        val credProtectPolicy: Int? = extensions?.let {
+            (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
+        }
+
         return MakeCredentialRequest(
             clientDataHash = clientDataHash,
             rpId = rpId,
@@ -151,7 +159,8 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             userDisplayName = userDisplayName,
             algorithms = algorithms,
             requireUV = requireUserVerification,
-            requireRK = requireResidentKey
+            requireRK = requireResidentKey,
+            credProtectPolicy = credProtectPolicy
         )
     }
 
@@ -181,6 +190,13 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         Timber.i("Algorithm negotiation: RP requested %s, selected COSE alg %d (%s)",
             req.algorithms, selectedAlgId, pubKeyCredParams.algorithm)
+
+        // T056a: Log credProtect policy for auditability. Policy enforcement (blocking
+        // GetAssertion without UV when policy == 3) is handled in GetAssertionHandler.
+        if (req.credProtectPolicy != null) {
+            Timber.i("MakeCredential: credProtect policy=%d (1=optional,2=uvOptional,3=uvRequired)",
+                req.credProtectPolicy)
+        }
 
         val makeCredentialOptions = MakeCredentialOptions.create(
             rp = rp, user = user,
@@ -297,6 +313,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         is Fido2Exception.MissingParameterException -> CTAP2_ERR_MISSING_PARAMETER
         is Fido2Exception.UnsupportedAlgorithmException -> CTAP2_ERR_UNSUPPORTED_ALGORITHM
         is Fido2Exception.UserVerificationException -> CTAP2_ERR_OPERATION_DENIED
+        is Fido2Exception.TooManyCredentials      -> CTAP2_ERR_KEY_STORE_FULL  // T115a (FR-HID-022)
         is Fido2Exception.CredentialException     -> CTAP2_ERR_KEY_STORE_FULL
         else -> CTAP2_ERR_NOT_ALLOWED
     }
@@ -312,7 +329,15 @@ private data class MakeCredentialRequest(
     val userDisplayName: String,
     val algorithms: List<Int>,
     val requireUV: Boolean,
-    val requireRK: Boolean
+    val requireRK: Boolean,
+    /**
+     * T056a — FIDO2.1 credProtect policy from the client extensions map (key 0x0A).
+     *   1 = credProtectOptional (default if absent)
+     *   2 = credProtectOptionalWithCredentialIdList
+     *   3 = credProtectRequired — GetAssertion MUST fail without user verification
+     * Null means the RP did not specify a policy.
+     */
+    val credProtectPolicy: Int? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -327,6 +352,7 @@ private data class MakeCredentialRequest(
         if (algorithms != other.algorithms) return false
         if (requireUV != other.requireUV) return false
         if (requireRK != other.requireRK) return false
+        if (credProtectPolicy != other.credProtectPolicy) return false
 
         return true
     }
@@ -341,6 +367,7 @@ private data class MakeCredentialRequest(
         result = 31 * result + algorithms.hashCode()
         result = 31 * result + requireUV.hashCode()
         result = 31 * result + requireRK.hashCode()
+        result = 31 * result + (credProtectPolicy ?: 0)
         return result
     }
 }

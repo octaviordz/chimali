@@ -11,7 +11,7 @@
 
 - Q: Which FIDO2 protocol version(s) should the virtual authenticator support? → A: Both FIDO2.0 and FIDO2.1
 - Q: What user verification method should be implemented for FIDO2 operations? → A: Biometric (fingerprint/face) + PIN fallback
-- Q: How many passkey credentials should the device support storing? → A: 50 credentials maximum
+- Q: How many passkey credentials should the device support storing? → A: Configurable, defaults to 1000 credentials maximum as of 2026-03-31.
 
 ### Session 2026-03-17
 
@@ -104,11 +104,16 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **FR-HID-021**: System MUST support biometric (fingerprint/face) verification with PIN fallback for user authentication
 - **FR-HID-015**: System MUST securely store private keys and credentials
 - **FR-HID-016**: System MUST handle multiple credentials for different relying parties
-- **FR-HID-022**: System MUST support storage of up to 50 passkey credentials per user
+- **FR-HID-022**: System MUST support configurable storage of passkey credentials per user (default: 1000).
 - **FR-HID-017**: System MUST provide Bluetooth HID device functionality
 - **FR-HID-018**: System MUST support credential enumeration and management
 - **FR-HID-019**: System MUST implement proper error handling for FIDO2 protocol failures
-- **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions
+- **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions. Required FIDO2.1 extensions:
+  - `credProtect` (credential protection policy — `userVerificationRequired` enforcement)
+  - `minPinLength` reporting via `authenticatorGetInfo` response
+  - `hmac-secret` extension support during `GetAssertion` for offline device-bound secrets
+  - Updated `authenticatorGetInfo` AAGUID and `options` map reflecting `rk=true`, `uv=true`, `clientPin=true`
+  - *(Out-of-scope for initial release: enterprise attestation, `largeBlobKey`, serialized largeBlob storage)*
 - **FR-HID-023**: System MUST provide a secure copy mechanism that automatically clears sensitive data (e.g. mnemonic seeds) from the system clipboard within 60 seconds of the copy action, avoiding prohibited background monitoring.
 
 ### Non-Functional Requirements

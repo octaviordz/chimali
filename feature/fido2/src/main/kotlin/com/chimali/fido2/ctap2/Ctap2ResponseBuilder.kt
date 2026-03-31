@@ -74,13 +74,21 @@ class Ctap2ResponseBuilder @Inject constructor(
         //   - "U2F_V2" in versions (even for CTAP2-only authenticators)
         //   - key 9 (transports) listing the transport, e.g. ["bluetooth"]
         //     Without this, Windows 0x80090011 "Object not found" error occurs.
+        //
+        // T056b (FIDO2.1): extensions key (0x02) and updated options announce
+        //   credProtect, minPinLength, and hmac-secret support per FR-HID-020.
+        //   clientPin=true is advertised so clients know PIN is available.
+        //   Out-of-scope: enterprise attestation, largeBlobKey.
         val responseMap: Map<String, Any> = mapOf(
-            "1" to listOf("FIDO_2_0"), // versions — CTAP2 only; no U2F_V2 to prevent Windows from trying U2F_REGISTER
+            "1" to listOf("FIDO_2_0", "FIDO_2_1"), // versions — include FIDO_2_1 for CTAP2.1 clients
+            "2" to listOf("credProtect", "hmac-secret", "minPinLength"), // extensions (FIDO2.1)
             "3" to info.aaguid,                   // aaguid: raw ByteArray (16 bytes)
             "4" to mapOf(                          // options
                 "rk" to info.supportsResidentKeys,
                 "up" to true,
-                "uv" to true,                      // device has internal UV (biometric) — required for discoverable credentials
+                "uv" to true,                      // device has internal UV (biometric)
+                "clientPin" to true,               // PIN capability advertised (FIDO2.1)
+                "credProtect" to true,             // credProtect extension supported (FIDO2.1)
                 "plat" to false                    // not platform-bound
             ),
             "5" to 1200L,                          // maxMsgSize
@@ -92,9 +100,10 @@ class Ctap2ResponseBuilder @Inject constructor(
                 mapOf("alg" to COSE_ML_DSA_65.toLong(), "type" to "public-key")
             )
         )
-        Timber.d("getInfoResponse: versions=[FIDO_2_0] aaguid=%dbytes transports=[usb]", info.aaguid.size)
+        Timber.d("getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=%dbytes", info.aaguid.size)
         return successCborPackets(cid, responseMap)
     }
+
 
     // ── Error response ────────────────────────────────────────────────────────
 

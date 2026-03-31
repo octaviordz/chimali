@@ -153,7 +153,7 @@ sealed class Fido2Exception(
         Fido2Exception(message, cause, "CREDENTIAL_GENERATION_FAILED")
 
     /** Alias used by CredentialRepositoryImpl. */
-    class TooManyCredentials(limit: Int, cause: Throwable? = null) :
+    class TooManyCredentials(val limit: Int, cause: Throwable? = null) :
         Fido2Exception("Credential limit exceeded: max=$limit", cause, "TOO_MANY_CREDENTIALS")
 
     // ── Relying Party ─────────────────────────────────────────────────────────

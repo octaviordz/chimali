@@ -64,13 +64,20 @@ class WalletMasterSeedProvider @Inject constructor(
         }
 
         val mnemonic = getOrCreateMnemonic()
-        val seed = masterSeedGenerator.deriveSeed(mnemonic)
+        // BIP39 PBKDF2-SHA512 produces 64 bytes, but the HDK spec (§2.2) requires
+        // Ns = 32 bytes for the seed.  We take the first 32 bytes as the HDK seed
+        // and keep the full 64-byte material only for the device key pair derivation,
+        // which operates via HMAC-SHA512 anyway (deriveDeviceKeyPair).
+        val bip39Seed = masterSeedGenerator.deriveSeed(mnemonic)
+        val hdkSeed = bip39Seed.copyOf(32)   // first 32 bytes → HDK Ns bytes (§2.2)
 
-        cachedSeed = seed
+        cachedSeed = hdkSeed
         // Derive the device key pair deterministically from the master seed so it
         // is identical across app restarts. A random key pair here was the cause of
         // "Could not verify authentication signature" errors after restart.
-        cachedDeviceKeyPair = deriveDeviceKeyPair(seed)
+        cachedDeviceKeyPair = deriveDeviceKeyPair(bip39Seed)
+
+        bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
 
         Timber.d("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size)
         return Pair(cachedSeed, cachedDeviceKeyPair)

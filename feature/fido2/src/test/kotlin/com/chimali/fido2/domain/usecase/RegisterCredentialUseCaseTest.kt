@@ -3,6 +3,7 @@ package com.chimali.fido2.domain.usecase
 import com.chimali.fido2.domain.model.*
 
 import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.*
@@ -27,6 +28,7 @@ class RegisterCredentialUseCaseTest {
     private lateinit var fido2Authenticator: Fido2Authenticator
     private lateinit var cborCodec: CborCodec
     private lateinit var cryptoService: Fido2CryptoService
+    private lateinit var fido2SettingsRepository: Fido2SettingsRepository
     private lateinit var registerCredentialUseCase: RegisterCredentialUseCase
     
     private lateinit var testPublicKey: java.security.PublicKey
@@ -42,11 +44,13 @@ class RegisterCredentialUseCaseTest {
         fido2Authenticator = mockk()
         cborCodec = mockk()
         cryptoService = mockk()
+        fido2SettingsRepository = mockk()
         registerCredentialUseCase = RegisterCredentialUseCase(
             credentialRepository,
             userVerificationService,
             cborCodec,
-            cryptoService
+            cryptoService,
+            fido2SettingsRepository
         )
         
         // Setup test data
@@ -100,11 +104,22 @@ class RegisterCredentialUseCaseTest {
         )
 
         coEvery { userVerificationService.recordUserConsent(any()) } returns Result.success(mockk())
+        coEvery { fido2SettingsRepository.getMaxCredentialCount() } returns 1000
         coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.success(Unit)
         coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
         coEvery { credentialRepository.getRelyingParty(any()) } returns null
         coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.success(Unit)
         coEvery { credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>()) } returns Result.success(Unit)
+        // T115a: Stub getCredentialStatistics so the quota check in RegisterCredentialUseCase can proceed.
+        // Default: 0 credentials stored → registration allowed.
+        coEvery { credentialRepository.getCredentialStatistics() } returns com.chimali.fido2.domain.repository.CredentialStatistics(
+            totalCredentials = 0,
+            credentialsByRp = emptyMap(),
+            expiredCredentials = 0,
+            recentlyUsedCredentials = 0,
+            credentialsRequiringUserVerification = 0,
+            averageAgeDays = 0.0
+        )
         // T145b: stub sign() so the packed attestation path succeeds in tests
         coEvery { cryptoService.sign(any(), any()) } returns Result.success(ByteArray(72) { 0x30 })
     }
@@ -511,6 +526,64 @@ class RegisterCredentialUseCaseTest {
             val makeResult = result.getOrThrow()
             val attestationObject = makeResult.attestationObject
             assertEquals("packed", attestationObject.fmt) // packed self-attestation from HDK key
+        }
+    }
+
+    /**
+     * T115b (FR-HID-022) — Dynamic credential global storage limit.
+     *
+     * Verifies that [RegisterCredentialUseCase] enforces the maximum credential count
+     * by consulting [CredentialStatistics.totalCredentials] and [Fido2SettingsRepository]
+     * before generating a new credential.
+     */
+    @Nested
+    @DisplayName("T115b: Dynamic Credential Storage Limit Tests (FR-HID-022)")
+    inner class CredentialLimitTests {
+
+        private fun stubCountAndLimit(count: Int, limit: Int) {
+            coEvery { credentialRepository.getCredentialStatistics() } returns
+                com.chimali.fido2.domain.repository.CredentialStatistics(
+                    totalCredentials = count,
+                    credentialsByRp = emptyMap(),
+                    expiredCredentials = 0,
+                    recentlyUsedCredentials = 0,
+                    credentialsRequiringUserVerification = 0,
+                    averageAgeDays = 0.0
+                )
+            coEvery { fido2SettingsRepository.getMaxCredentialCount() } returns limit
+        }
+
+        @Test
+        @DisplayName("T115b: registration succeeds when credential count is below dynamic limit")
+        fun `T115b registration succeeds below limit`() = runTest {
+            stubCountAndLimit(count = 49, limit = 50)
+            val result = registerCredentialUseCase(testOptions)
+            assertTrue(
+                result.isSuccess,
+                "Expected success at 49/50"
+            )
+        }
+
+        @Test
+        @DisplayName("T115b: registration fails when count is at dynamic limit")
+        fun `T115b registration fails at limit`() = runTest {
+            stubCountAndLimit(count = 1000, limit = 1000)
+            val result = registerCredentialUseCase(testOptions)
+            assertTrue(result.isFailure, "Expected failure at 1000/1000")
+            assertTrue(result.exceptionOrNull() is Fido2Exception.TooManyCredentials)
+            val exception = result.exceptionOrNull() as Fido2Exception.TooManyCredentials
+            assertEquals(1000, exception.limit, "Exception should report the correct limit reached")
+        }
+
+        @Test
+        @DisplayName("T115b: registration correctly respects an increased limit")
+        fun `T115b registration respects increased limit`() = runTest {
+            stubCountAndLimit(count = 1000, limit = 2000)
+            val result = registerCredentialUseCase(testOptions)
+            assertTrue(
+                result.isSuccess,
+                "Expected success at 1000/2000"
+            )
         }
     }
 }
