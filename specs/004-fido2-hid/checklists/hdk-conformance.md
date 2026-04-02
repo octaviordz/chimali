@@ -20,7 +20,7 @@ relative to `draft-dijkhuis-cfrg-hdkeys-06`. Entries reference the spec section 
 | §2.5 | HDK derivation path | ✅ Conformant | Two-level `[FIDO2_APP_INDEX, credIdx]` |
 | §3.2.2 | Multiplicative blinding BlindPublicKey/BlindPrivateKey | ✅ Conformant | See Δ-002 |
 | §4.1 | Remote key derivation (KEM) | ⚠️ Partial | See Δ-003 |
-| §2.5 index domain | uint32 indices | ⚠️ Restricted | See Δ-004 |
+| §2.5 index domain | uint32 indices | ✅ Conformant | See Δ-004 |
 | (new) | Ed25519 key derivation | ✅ Non-conflicting extension | See Δ-005 |
 | (new) | ML-DSA-65 key derivation | ✅ Non-conflicting extension | See Δ-006 |
 
@@ -68,28 +68,16 @@ relative to `draft-dijkhuis-cfrg-hdkeys-06`. Entries reference the spec section 
 
 ---
 
-### Δ-004: Index Domain Restriction (uint32 → non-negative Int)
+### Δ-004: Index Domain Restriction (Resolved: Kotlin UInt Migration)
 
 - **Spec §2.5**: Defines path indices as `uint32` (0 to 2³²−1 = 4,294,967,295).
-- **Chimali API**: `HdkManager.deriveHdk(path: List<Int>)` uses signed 31-bit `Int`.
-  The implementation validates `index >= 0` and encodes via `I2OSP(index, 4)` (4-byte
-  big-endian), which is correct for all indices in [0, 2³¹−1].
-- **Why not `List<UInt>`?** Kotlin does provide `UInt` (stable since 1.5, range 0–2³²−1),
-  but using it in a generic `List<UInt>` causes **JVM boxing** (`Integer` objects instead
-  of primitives), the same heap overhead as `List<Int>`. Additionally, Android SDK APIs
-  universally expect `Int` or `Long`, requiring boilerplate conversions at every call site.
-  The ergonomic cost outweighs the benefit for this parameter.
-- **Gap**: Indices in [2³¹, 2³²−1] are unreachable with the current API. This is an
-  **intentional, accepted trade-off**:
-  - The configurable credential limit (FR-HID-022, T115a) defaults to 1000, and is
-    retrieved at runtime via `Fido2SettingsRepository`.
-  - `FIDO2_APP_INDEX` is a fixed small integer.
-  - Neither will ever approach the 31-bit ceiling (2³¹−1) even if the limit is 
-    increased by an order of magnitude.
-- **I2OSP encoding**: Unaffected. `I2OSP(index, 4)` always produces the correct 4-byte
-  big-endian representation for any index in the valid range.
-- **Status**: ⚠️ Documented limitation. No remediation required for current scope.
-  Future revisit if the API is extended to non-FIDO2 use cases with large index spaces.
+- **Chimali API**: `HdkManager.deriveHdk(path: List<UInt>)` uses native Kotlin unsigned
+  32-bit `UInt`. All API surfaces and cryptographic functions (`createContext`) operate
+  directly on `UInt`.
+- **I2OSP encoding**: `I2OSP(index, 4)` uses native `.toInt()` and `ByteBuffer.allocate(4)` 
+  to produce the correct 4-byte big-endian representation for any index in the full uint32 range.
+- **Verification**: `HdkEcdhP256Test.kt` contains boundary tests for index 0 and `UInt.MAX_VALUE`.
+- **Status**: ✅ Conformant. The previous 31-bit restriction has been resolved via native `UInt` adoption.
 
 ---
 

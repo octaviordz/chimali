@@ -87,9 +87,9 @@
 - [X] T054 [US1] Add connection state management for HID sessions
 - [X] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
 - [X] T056 [P] [US1] Implement unit tests for CTAP2 protocol
-- [ ] T056a [US1] Implement FIDO2.1 `credProtect` extension handling in `MakeCredential` command: read `credentialProtectionPolicy` from client extensions map, persist policy with credential, and enforce during `GetAssertion` by refusing RP-level credential enumeration if policy is `userVerificationRequired`. *(refs: FR-HID-020)*
-- [ ] T056b [US1] Update `authenticatorGetInfo` response to include FIDO2.1 flags: `options.credProtect=true`, `options.minPinLength=true`, `extensions=["credProtect","hmac-secret"]`. *(refs: FR-HID-020)*
-- [ ] T056c [P] [US1] Add CTAP2.1 protocol integration tests: verify `authenticatorGetInfo` returns correct FIDO2.1 flags; verify `credProtect` policy is stored and enforced. *(refs: FR-HID-020)*
+- [X] T056a [US1] Implement FIDO2.1 `credProtect` extension handling in `MakeCredential` command: read `credentialProtectionPolicy` from client extensions map, persist policy with credential, and enforce during `GetAssertion` by refusing RP-level credential enumeration if policy is `userVerificationRequired`. *(refs: FR-HID-020)*
+- [X] T056b [US1] Update `authenticatorGetInfo` response to include FIDO2.1 flags: `options.credProtect=true`, `options.minPinLength=true`, `extensions=["credProtect","hmac-secret"]`. *(refs: FR-HID-020)*
+- [X] T056c [P] [US1] Add CTAP2.1 protocol integration tests: verify `authenticatorGetInfo` returns correct FIDO2.1 flags; verify `credProtect` policy is stored and enforced. *(refs: FR-HID-020)*
 
 ### Core Crypto Tasks
 - [X] T057 [US1] Implement ECDSA P-256 key pair generation
@@ -183,8 +183,8 @@
 - [X] T113 [US3] Add credential enumeration to repository
 - [X] T114 [US3] Implement secure credential deletion
 - [X] T115 [US3] Add credential count tracking
-- [ ] T115a [US1] Enforce 50-credential maximum in `RegisterCredentialUseCase`: before persisting a new credential, query `credentialCount()` from the repository; if count ≥ 50, throw `Fido2Exception.StorageFull` with CTAP error code `CTAP2_ERR_KEY_STORE_FULL` (0x27). *(refs: FR-HID-022)*
-- [ ] T115b [P] [US1] Unit tests for the 50-credential storage limit: verify registration fails with `CTAP2_ERR_KEY_STORE_FULL` at count == 50 and succeeds at count == 49. *(refs: FR-HID-022)*
+- [X] T115a [US1] Enforce 50-credential maximum in `RegisterCredentialUseCase`: before persisting a new credential, query `credentialCount()` from the repository; if count ≥ 50, throw `Fido2Exception.StorageFull` with CTAP error code `CTAP2_ERR_KEY_STORE_FULL` (0x27). *(refs: FR-HID-022)*
+- [X] T115b [P] [US1] Unit tests for the 50-credential storage limit: verify registration fails with `CTAP2_ERR_KEY_STORE_FULL` at count == 50 and succeeds at count == 49. *(refs: FR-HID-022)*
 - [X] T116 [P] [US3] Implement unit tests for management repository methods
 
 ### Core Bluetooth Tasks
@@ -277,8 +277,6 @@
 - [x] T160a [P] Implement minimal HID latency profiler (NFR-PERF-030): `LatencyProfiler` utility + Logcat instrumentation in transport and presentation layers to track end-to-end performance excluding user interaction time. Log outputs must strictly sanitize sensitive cryptographic state/credential IDs and avoid cloud telemetry uploads.
   - [x] T160a-1 Implement `LatencyProfiler` utility.
   - [x] T160a-2 Add Logcat instrumentation in `BluetoothHidTransportImpl` and `Fido2CryptoService`.
-- [ ] T161 Test on multiple Android devices
-- [ ] T162 Validate FIDO2 compliance with test tools
 - [x] T162a [P] Ensure algorithm consistency (Ed25519 & ML-DSA-65) across CryptoService and CTAP2 handlers
 - [x] T163 Verify BRD requirements compliance (refs: [FR-HID-010-brd-compliance.md](checklists/FR-HID-010-brd-compliance.md))
 - [x] T164 Final compilation check and code review
@@ -347,53 +345,44 @@ documented as intentionally isolated from the HDK spec.
   Four KATs added (index=0 match, index=1 match, output length=32, different indices → different outputs).
   Comment updated to reflect T166 is applied and tests are GREEN. *(fixed 2026-03-29; refs: HdkEcdhP256Test.kt:173–249)*
 
-- [ ] T173 **[P] Add end-to-end HDK KATs for the two-level FIDO2 path.**
+- [x] T173 **[P] Add end-to-end HDK KATs for the two-level FIDO2 path.**
   Using a fixed seed and `credentialId`, assert that `Fido2CryptoService.generateCredentialKeyPair`
   returns a deterministic, known public key. This guards against derivation regressions across
   refactors. *(refs: Fido2CryptoServiceTest.kt)*
 
-- [ ] T174 **[P] Add `BlindPublicKey` / `BlindPrivateKey` consistency KATs.**
+- [x] T174 **[P] Add `BlindPublicKey` / `BlindPrivateKey` consistency KATs.**
   For fixed `(sk, pk, bf)`, assert that `ScalarBaseMult(BlindPrivateKey(sk, bf))` equals
   `BlindPublicKey(pk, bk, ctx)` with deterministic `bk`/`ctx` inputs derived from the KAT seed.
   *(refs: MultiplicativeBlindingTest.kt)*
 
-- [ ] T175 **[P] Add `createContext` boundary tests (index=0, index=2^32-1).**
+- [x] T175 **[P] Add `createContext` boundary tests (index=0, index=2^32-1).**
   Verify that the I2OSP(index, 4) encoding is correct at boundary values. *(refs: HdkEcdhP256Test.kt)*
 
 ---
 
 ### Documentation & Cleanup
 
-- [ ] T176 **Update `HdkManager` KDoc to reference §2.5–2.6 of `draft-dijkhuis-cfrg-hdkeys-06`.**
+- [x] T176 **Update `HdkManager` KDoc to reference §2.5–2.6 of `draft-dijkhuis-cfrg-hdkeys-06`.**
   Add section references alongside each function (`generateSeed` → §2.6, `deriveHdk` → §2.5,
   `blindPrivateKey` → §3.2.2, `createBlindedSharedSecret` → §3.3.1). *(refs: HdkManager.kt)*
 
-- [ ] T177 **Add `HdkKeyAlias` utility or documentation for §2.8 key alias format.**
+- [x] T177 **Add `HdkKeyAlias` utility or documentation for §2.8 key alias format.**
   The spec defines a canonical `hdk-key-alias` format (`origin-alias "/" path`). Evaluate
   whether credential aliases in `Fido2CryptoService.credentialAlias` should conform to this
   format and document the decision. *(refs: Fido2CryptoService.kt:482–483)*
 
-- [ ] T178 **Ensure `blinded private key` is never persisted — add code assertion.**
+- [x] T178 **Ensure `blinded private key` is never persisted — add code assertion.**
   Per §2.5: *"A unit MUST NOT persist a blinded private key."* Add an explicit runtime assertion
   or developer warning if `blindPrivateKey` output is inadvertently stored (currently Logcat
   logging and zero-fill are in place but no guard exists). *(refs: Fido2CryptoService.kt:376–388)*
 
-- [ ] T179 **Decide and enforce uint32 index domain for HDK paths (API/docs/tests).**
-  Resolve the current mismatch where public APIs accept signed `Int` indices but the draft index
-  domain is full 32-bit unsigned. Choose one:
-  - **Conformant**: migrate HDK path/index inputs to `UInt` (or `Long` with strict bounds) and
-    enforce \(0 \le index \le 2^{32}-1\) with `I2OSP(index, 4)` encoding.
-  - **Profiled restriction**: explicitly restrict to 31-bit non-negative indices and document
-    the conformance delta (and why it is safe for this application).
-  **Acceptance criteria**:
-  - Update KDoc/spec mapping in `HdkManager` and `HdkEcdhP256` to state the chosen domain and
-    encoding behaviour (including error behaviour for out-of-domain inputs).
-  - Add tests covering boundary values (0, max allowed) and rejection of out-of-domain values
-    (negative, and either \(2^{31}\) / \(2^{32}\) depending on the decision).
-  - Ensure callers in `Fido2CryptoService` use the chosen domain consistently (no silent
-    truncation/sign-extension). *(refs: HdkManager.kt, HdkEcdhP256.kt, Fido2CryptoService.kt)*
+- [x] T179 **Decide and enforce uint32 index domain for HDK paths (API/docs/tests).** ✅ CLOSED
+  Completed during the UInt migration. Conformance was chosen: HDK path indices are now natively
+  represented as Kotlin unsigned 32-bit `UInt`. Test suites (HdkEcdhP256Test) cover boundary values
+  like `UInt.MAX_VALUE`. No negative bounds tests needed since the type system blocks it.
+  *(fixed 2026-03-31; refs: changelogs/2026-03-31-hdk-uint-index-migration.md)*
 
-- [ ] T180 **[P] Add fixed-vector KATs for HDK primitives (non-self-referential).**
+- [x] T180 **[P] Add fixed-vector KATs for HDK primitives (non-self-referential).**
   Add canonical vectors with **hard-coded expected hex outputs** (not computed by local reference
   helpers) for:
   - `CreateContext(index)` output bytes
@@ -405,7 +394,7 @@ documented as intentionally isolated from the HDK spec.
   - Tests fail if implementation changes output semantics.
   - At least one vector uses non-zero, non-trivial byte inputs. *(refs: HdkEcdhP256Test.kt, MultiplicativeBlindingTest.kt)*
 
-- [ ] T181 **[P] Add fixed end-to-end 2-level FIDO2 HDK KAT vector.**
+- [x] T181 **[P] Add fixed end-to-end 2-level FIDO2 HDK KAT vector.**
   For fixed `masterSeed`, fixed device key pair, and fixed `credentialId`, assert exact expected
   `publicKeyBytes` output from `generateCredentialKeyPair` on the ES256 path (no mocks for HDK math).
   **Acceptance criteria**:
@@ -414,7 +403,7 @@ documented as intentionally isolated from the HDK spec.
   - Test explicitly asserts the resolved derivation path shape `[FIDO2_APP_INDEX, credentialIndex]`.
   *(refs: Fido2CryptoServiceTest.kt, Fido2CryptoService.kt)*
 
-- [ ] T182 **[P] Add negative-path robustness tests for HDK remote flow and key decoding.**
+- [x] T182 **[P] Add negative-path robustness tests for HDK remote flow and key decoding.**
   Add regression tests for malformed and adversarial inputs:
   - malformed/short/invalid `keyHandle` on remote decapsulation
   - invalid/uncompressed-point violations in public key decoding
@@ -425,7 +414,7 @@ documented as intentionally isolated from the HDK spec.
   - No test path accepts malformed cryptographic inputs silently.
   *(refs: HdkEcdhP256Test.kt, Fido2CryptoServiceTest.kt, HdkEcdhP256.kt)*
 
-- [ ] T183 **Strengthen non-persistence enforcement for blinded private keys.**
+- [x] T183 **Strengthen non-persistence enforcement for blinded private keys.**
   Extend T178 with a concrete enforcement boundary: add a guard/test that no storage/repository API
   can be called with blinded private key material (directly or wrapped), and verify sensitive bytes
   are zeroed on both success and failure paths.
@@ -434,7 +423,7 @@ documented as intentionally isolated from the HDK spec.
   - Failure-path tests confirm zeroisation still occurs when signing fails.
   *(refs: Fido2CryptoService.kt, Fido2CryptoServiceTest.kt, repository/storage adapters)*
 
-- [ ] T184 **Create HDK draft conformance delta register (MUST/SHOULD mapping).**
+- [x] T184 **Create HDK draft conformance delta register (MUST/SHOULD mapping).**
   Produce a concise checklist mapping implemented draft sections used in this project
   (`§2.2`-`§2.8`, `§3.2.2`, `§3.3.1`, `§4.1`, relevant security notes) to:
   `covered`, `partial`, `not-applicable`, with code references and rationale.

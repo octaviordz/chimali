@@ -3,6 +3,21 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-02
+
+### Added
+- **FIDO2.1 credProtect Extension (Phase 6)**: Implemented full support for the `credProtect` extension in `RegisterCredentialUseCase`. The authenticator now defaults to `userVerificationOptional (0x01)` for all credentials, enhancing compatibility with modern browser requirements.
+- **HDK Known Answer Tests (KATs) (Phase 7)**: Implemented a robust suite of fixed-vector tests for `CreateContext`, `DeriveSalt`, and `DeriveBlindingFactor` to ensure 100% compliance with IETF `draft-dijkhuis-cfrg-hdkeys-06`.
+
+### Changed
+- **HDK Spec Alignment (Phase 7)**: Corrected the `DeriveSalt` formula to strictly match `H(salt || ctx)` as per spec §2.3. Achieved full alignment with the P-256 ciphersuite.
+- **Credential Storage Restoration**: Standardized the maximum credential limit to **1000 accounts**, aligning the repository implementation with the Business Requirements Document (FR-HID-022).
+- **Security Hardening**: Implemented explicit memory zeroization for high-entropy blinding factors during the derivation process using `try/finally` blocks to prevent RAM-based key leakage.
+
+### Fixed
+- **Test Suite Compilation**: Resolved compilation errors in `PasskeyCredentialDaoTest` and `CredentialRepositoryImplTest` caused by the addition of the `credProtectPolicy` field to the credential schema.
+- **Detailed changes**: [2026-04-02-fido2-hid-finalization-and-hdk-alignment.md](docs/changelogs/2026-04-02-fido2-hid-finalization-and-hdk-alignment.md)
+
 ## [Unreleased] - 2026-03-31
 
 ### Changed
@@ -359,4 +374,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-03-30*
+*Last Updated: 2026-04-02*

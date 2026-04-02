@@ -11,7 +11,7 @@ interface Fido2SettingsRepository {
     /**
      * Returns the maximum number of passkey credentials the authenticator will store.
      *
-     * This limit is configurable and defaults to 1000 per FR-HID-022.
+     * This limit is configurable and defaults to 50 per FR-HID-022.
      */
     suspend fun getMaxCredentialCount(): Int
 

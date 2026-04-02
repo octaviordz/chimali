@@ -25,7 +25,7 @@ class RegisterCredentialUseCase @Inject constructor(
 ) {
 
     companion object {
-        private const val DEFAULT_STORAGE_LIMIT = 1000
+        private const val DEFAULT_STORAGE_LIMIT = 50
     }
 
     /**
@@ -77,7 +77,7 @@ class RegisterCredentialUseCase @Inject constructor(
 
             // FR-HID-022: Enforce global storage limit.
             // Query total credential count and fail with CTAP2_ERR_KEY_STORE_FULL (0x28)
-            // if the device has reached capacity (default 1000, configurable).
+            // if the device has reached capacity (default 50, configurable).
             val stats = credentialRepository.getCredentialStatistics()
             val limit = settingsRepository.getMaxCredentialCount()
             if (stats.totalCredentials >= limit) {
@@ -213,6 +213,8 @@ class RegisterCredentialUseCase @Inject constructor(
             // Generate AAGUID for this authenticator
             val aaguid = generateAAGUID()
 
+            val credProtectPolicy = options.extensions?.get("credProtect") as? Int ?: 1
+
             // Create the credential domain model
             val credential = PasskeyCredential.create(
                 id = credentialId.encoded,
@@ -224,7 +226,8 @@ class RegisterCredentialUseCase @Inject constructor(
                 privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
                 aaguid = aaguid,
                 credentialId = credentialId.toByteArray(),
-                coseAlgorithm = options.selectedAlgId ?: Fido2CryptoService.COSE_ES256
+                coseAlgorithm = options.selectedAlgId,
+                credProtectPolicy = credProtectPolicy
             )
 
             return Result.success(credential)

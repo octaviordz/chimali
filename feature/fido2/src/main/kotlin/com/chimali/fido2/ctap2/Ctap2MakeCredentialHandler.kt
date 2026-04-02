@@ -198,10 +198,12 @@ class Ctap2MakeCredentialHandler @Inject constructor(
                 req.credProtectPolicy)
         }
 
+        val extensionsMap = req.credProtectPolicy?.let { mapOf("credProtect" to it) }
         val makeCredentialOptions = MakeCredentialOptions.create(
             rp = rp, user = user,
             challenge = req.clientDataHash,
             pubKeyCredParams = pubKeyCredParams,
+            extensions = extensionsMap,
             selectedAlgId = selectedAlgId
         )
 

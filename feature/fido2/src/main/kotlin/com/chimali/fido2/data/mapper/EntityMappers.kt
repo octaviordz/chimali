@@ -28,7 +28,8 @@ fun PasskeyCredentialEntity.toDomainModel(publicKey: java.security.PublicKey): P
         lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) } ?: Instant.ofEpochMilli(this.createdAt),
         aaguid = Base64.getDecoder().decode(this.aaguid),
         credentialId = Base64.getDecoder().decode(this.credentialId),
-        coseAlgorithm = this.coseAlgorithm.toInt()
+        coseAlgorithm = this.coseAlgorithm.toInt(),
+        credProtectPolicy = this.credProtectPolicy.toInt()
     )
 }
 

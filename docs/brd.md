@@ -62,6 +62,15 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - **FR-UI-010: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.
 - **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase).*
 
+### 4.6 Passkey User Experience (UX) Alignment
+- **FR-UI-020: Standardized Passkey Iconography**: The application shall implement the official FIDO Passkey Icon across all passkey-related screens (registration, authentication, and management) to ensure immediate user recognition and trust, adhering to the FIDO Alliance Design Guidelines.
+- **FR-UI-030: Visual Relying Party Identification**: To enhance trust and reduce phishing risks, the application shall display the Relying Party's brand icon or favicon durante registration and authentication prompts.
+- **FR-UI-040: Contextual Authentication Messaging**: The application shall clearly distinguish between local device authentication and remote authentication (acting as a FIDO2 HID security key for another device) through explicit header labeling or contextual badges to provide clear user context.
+
+### 4.7 Validation & Interoperability Requirements
+- **FR-VAL-010: Multi-Device Interoperability**: The application must be verified to work correctly across a diverse range of Android device manufacturers (e.g., Samsung, Pixel) and OS versions (API 28+) to ensure hardware-level Bluetooth HID stack compatibility.
+- **FR-VAL-020: FIDO2 Protocol Compliance**: The implementation must be validated using official FIDO Alliance conformance tools and key interoperability platforms (e.g., webauthn.io, passkeys.dev) to ensure strict adherence to FIDO2.1/CTAP2.1 specifications.
+
 ## 5. Non-Functional Requirements
 ### 5.1 Security
 - **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) to enable hardware offloading, and **AES-256-SIV** for searchable encrypted metadata and key wrapping to provide nonce-misuse resistance. If the device supports Quantum-Resistant (Post-Quantum Cryptography) algorithms (e.g., ML-DSA-65), the application must utilize these as the primary cryptographic method.

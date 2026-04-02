@@ -13,6 +13,7 @@ CREATE TABLE PasskeyCredential (
     aaguid TEXT NOT NULL,
     credentialId TEXT NOT NULL,
     coseAlgorithm INTEGER NOT NULL DEFAULT -7,
+    credProtectPolicy INTEGER NOT NULL DEFAULT 1,
     UNIQUE(rpId, userId)
 );
 

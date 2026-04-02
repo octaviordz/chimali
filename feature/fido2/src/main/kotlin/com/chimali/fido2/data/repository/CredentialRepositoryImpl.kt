@@ -190,7 +190,8 @@ class CredentialRepositoryImpl @Inject constructor(
                     lastUsedAt   = entity.lastUsedAt
                         ?.let { java.time.Instant.ofEpochMilli(it) }
                         ?: java.time.Instant.ofEpochMilli(entity.createdAt),
-                    coseAlgorithm = entity.coseAlgorithm.toInt()
+                    coseAlgorithm = entity.coseAlgorithm.toInt(),
+                    credProtectPolicy = entity.credProtectPolicy.toInt()
                 )
             }
             Result.success(summaries)

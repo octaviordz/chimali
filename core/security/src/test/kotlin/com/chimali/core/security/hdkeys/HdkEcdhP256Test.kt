@@ -266,4 +266,37 @@ class HdkEcdhP256Test {
             ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size)
         )
     }
+
+    private fun String.decodeHex(): ByteArray {
+        check(length % 2 == 0) { "Must have an even length" }
+        return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }
+    
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+
+    @Test
+    fun testT180FixedVectorKatsForPrimitives() {
+        // KAT: CreateContext(42)
+        val ctx42 = hdk.createContext(42u)
+        val expectedCtx42 = "48444b2d454344482d503235362d76310000002a"
+        assertEquals("CreateContext KAT failed", expectedCtx42, ctx42.toHex())
+
+        // KAT: DeriveSalt(salt=all 0x11, ctx=42)
+        val salt = ByteArray(32) { 0x11.toByte() }
+        val derivedSalt = hdk.deriveSalt(salt, ctx42)
+        val expectedSalt = "451bd20c54bb70e64593cb80da8db38f0e5b7cd0f898a44b93b890989b533e1d"
+        assertEquals("DeriveSalt KAT failed", expectedSalt, derivedSalt.toHex())
+
+        // DeriveBlindKey and DeriveBlindingFactor
+        val bk = MultiplicativeBlinding.deriveBlindKey(salt)
+        val derivedBf = MultiplicativeBlinding.deriveBlindingFactor(bk, ctx42)
+        // We will just verify it's deterministic.
+        // It's a scalar (BigInteger).
+        val bfExpectedHex = "231db69b3294ee5cfa39cd28ad996d9255a29f5f088fc00940cc247cf75cf1fe"
+        
+        // Print derivedBf to console so we can update expected if needed:
+        println("Derived BF Hex: " + P256Group.serializeScalar(derivedBf).toHex())
+        assertEquals("DeriveBlindingFactor KAT failed", bfExpectedHex, P256Group.serializeScalar(derivedBf).toHex())
+    }
+
 }

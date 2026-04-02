@@ -65,7 +65,8 @@ class PasskeyCredentialDaoTest {
             aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
             credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
             publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
-            coseAlgorithm = testCredential.coseAlgorithm.toLong()
+            coseAlgorithm = testCredential.coseAlgorithm.toLong(),
+            credProtectPolicy = testCredential.credProtectPolicy.toLong()
         )
     }
 
@@ -74,7 +75,7 @@ class PasskeyCredentialDaoTest {
     inner class InsertUpdateOperations {
         @Test
         fun `should insert credential successfully`() = runTest {
-            every { queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } just Runs
+            every { queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } just Runs
 
             dao.insertCredential(testCredential)
 
@@ -93,7 +94,8 @@ class PasskeyCredentialDaoTest {
                     aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
                     credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
                     publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
-                    coseAlgorithm = testCredential.coseAlgorithm.toLong()
+                    coseAlgorithm = testCredential.coseAlgorithm.toLong(),
+                    credProtectPolicy = testCredential.credProtectPolicy.toLong()
                 ) 
             }
         }

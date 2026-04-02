@@ -46,12 +46,13 @@ data class CredentialSummary(
     val rpId: String,
     val credentialId: ByteArray,
     val lastUsedAt: Instant,
-    val coseAlgorithm: Int
+    val coseAlgorithm: Int,
+    val credProtectPolicy: Int = 1
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CredentialSummary) return false
-        return id == other.id && rpId == other.rpId && credentialId.contentEquals(other.credentialId) && coseAlgorithm == other.coseAlgorithm
+        return id == other.id && rpId == other.rpId && credentialId.contentEquals(other.credentialId) && coseAlgorithm == other.coseAlgorithm && credProtectPolicy == other.credProtectPolicy
     }
 
     override fun hashCode(): Int {
@@ -59,6 +60,7 @@ data class CredentialSummary(
         result = 31 * result + rpId.hashCode()
         result = 31 * result + credentialId.contentHashCode()
         result = 31 * result + coseAlgorithm
+        result = 31 * result + credProtectPolicy
         return result
     }
 }

@@ -123,25 +123,31 @@ class GetAssertionUseCase @Inject constructor(
         }
     }
 
-    /**
-     * Phase 1 — Returns lightweight [CredentialSummary] projections for the given RP,
-     * filtered by the allow-list if this is a non-discoverable flow.
-     *
-     * No HDK derivation is performed; this is a pure DB read via
-     * [CredentialRepository.getCredentialSummariesForRp].
-     */
     private suspend fun findCandidateSummaries(
         options: GetAssertionOptions
     ): List<CredentialSummary> {
         val all = credentialRepository.getCredentialSummariesForRp(options.rpId)
             .getOrDefault(emptyList())
-        return if (options.isDiscoverableFlow()) {
+            
+        val candidates = if (options.isDiscoverableFlow()) {
             // Discoverable: any resident credential for this RP
             all
         } else {
             // Non-discoverable: filter to allow-listed credential IDs only
             val allowIds = options.allowCredentials!!.map { it.id }
             all.filter { summary -> allowIds.any { it.contentEquals(summary.credentialId) } }
+        }
+        
+        // FIDO2.1 credProtect enforcement:
+        // If policy is 3 (userVerificationRequired) and UV is not requested (DISCOURAGED),
+        // the authenticator MUST NOT enumerate or use the credential.
+        val uvWillBePerformed = options.userVerification != UserVerificationRequirement.DISCOURAGED
+        return candidates.filter { summary ->
+            if (summary.credProtectPolicy == 3 && !uvWillBePerformed) {
+                false // Ignore this credential
+            } else {
+                true
+            }
         }
     }
 

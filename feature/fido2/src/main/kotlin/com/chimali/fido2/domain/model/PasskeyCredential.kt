@@ -21,7 +21,8 @@ data class PasskeyCredential(
     val lastUsedAt: Instant,
     val aaguid: ByteArray,
     val credentialId: ByteArray,
-    val coseAlgorithm: Int = COSE_ES256
+    val coseAlgorithm: Int = COSE_ES256,
+    val credProtectPolicy: Int = 1
 ) {
     
     init {
@@ -159,7 +160,8 @@ data class PasskeyCredential(
             privateKeyAlias: String,
             aaguid: ByteArray,
             credentialId: ByteArray,
-            coseAlgorithm: Int = COSE_ES256
+            coseAlgorithm: Int = COSE_ES256,
+            credProtectPolicy: Int = 1
         ): PasskeyCredential {
             val now = Instant.now()
             return PasskeyCredential(
@@ -175,7 +177,8 @@ data class PasskeyCredential(
                 lastUsedAt = now,
                 aaguid = aaguid,
                 credentialId = credentialId,
-                coseAlgorithm = coseAlgorithm
+                coseAlgorithm = coseAlgorithm,
+                credProtectPolicy = credProtectPolicy
             )
         }
 
@@ -187,7 +190,8 @@ data class PasskeyCredential(
             id: String,
             rpId: String,
             userName: String,
-            coseAlgorithm: Int = COSE_ES256
+            coseAlgorithm: Int = COSE_ES256,
+            credProtectPolicy: Int = 1
         ): PasskeyCredential {
             val now = Instant.now()
             val syntheticPubKey = object : PublicKey {
@@ -208,7 +212,8 @@ data class PasskeyCredential(
                 lastUsedAt       = now,
                 aaguid           = ByteArray(16),
                 credentialId     = id.toByteArray(),
-                coseAlgorithm    = coseAlgorithm
+                coseAlgorithm    = coseAlgorithm,
+                credProtectPolicy= credProtectPolicy
             )
         }
     }

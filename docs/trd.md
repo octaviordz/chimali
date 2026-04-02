@@ -70,6 +70,9 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 ## 6. User Interface & Experience (UI/UX Implementation)
 - **M3 Integration**: Use `MaterialTheme` color schemes derived from `dynamicLightColorScheme` or `dynamicDarkColorScheme`.
 - **Accessibility**: Implement `contentDescription` for all interactive elements and ensure touch targets meet the 48dp minimum.
+- **TR-UI-040: FIDO Passkey Icon Integration**: Implement the official FIDO Passkey Icon (glyph) as a high-fidelity vector resource. All generic security/lock icons in the FIDO2 presentation module must be transitioned to this standardized glyph.
+- **TR-UI-050: Relying Party Icon Loading**: Prompts must support display of the RP icon/favicon. Implement using an asynchronous image loading library (e.g., **Coil**) with an automatic fallback to `https://{rpId}/favicon.ico` if the request doesn't provide a specific icon URL.
+- **TR-UI-060: Multi-Transport UI Context**: Prompt ViewModels must determine the transport (Local/Credential Manager vs. Remote/HID) to display the correct contextual header (e.g. "Create a passkey on another device" vs. "Create a passkey for this device").
 
 ## 7. Technical Constraints & Data Schema
 ### 7.1 Platform Constraints

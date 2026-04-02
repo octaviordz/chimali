@@ -74,7 +74,8 @@ class CredentialRepositoryImplTest {
             aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
             credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
             publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded),
-            coseAlgorithm = PasskeyCredential.COSE_ES256.toLong()
+            coseAlgorithm = PasskeyCredential.COSE_ES256.toLong(),
+            credProtectPolicy = testCredential.credProtectPolicy.toLong()
         )
 
         testRp = RelyingParty.create(
