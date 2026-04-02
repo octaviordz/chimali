@@ -64,7 +64,7 @@ relative to `draft-dijkhuis-cfrg-hdkeys-06`. Entries reference the spec section 
 - **Impact**: Local two-level FIDO2 derivation is fully functional. Remote derivation
   is deferred to a future release.
 - **Status**: ⚠️ Partial. Remote flow is not exercised by any integration test.
-- **Tracking**: Phase 8 (future milestone).
+- **Tracking**: Future work.
 
 ---
 
@@ -138,5 +138,5 @@ relative to `draft-dijkhuis-cfrg-hdkeys-06`. Entries reference the spec section 
 
 | ID | Issue | Priority | Resolution |
 |----|-------|----------|-----------|
-| OI-001 | `acceptRemoteKey` issuer integration missing (Δ-003) | Low | Phase 8 |
-| OI-002 | Full uint32 index range unreachable from Kotlin API (Δ-004) | Very low | Acceptable for current scope |
+| OI-001 | `acceptRemoteKey` issuer integration missing (Δ-003) | Low | Future work |
+| OI-002 | Full uint32 index range unreachable from Kotlin API (Δ-004) | Very low | Resolved (UInt migration) |

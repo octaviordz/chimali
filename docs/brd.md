@@ -70,6 +70,13 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.7 Validation & Interoperability Requirements
 - **FR-VAL-010: Multi-Device Interoperability**: The application must be verified to work correctly across a diverse range of Android device manufacturers (e.g., Samsung, Pixel) and OS versions (API 28+) to ensure hardware-level Bluetooth HID stack compatibility.
 - **FR-VAL-020: FIDO2 Protocol Compliance**: The implementation must be validated using official FIDO Alliance conformance tools and key interoperability platforms (e.g., webauthn.io, passkeys.dev) to ensure strict adherence to FIDO2.1/CTAP2.1 specifications.
+- **FR-VAL-030: Performance Verification**: The application must include internal instrumentation to verify that FIDO2 HID operations meet the < 200ms latency target (NFR-PERF-030) during manual and automated verification passes.
+
+### 4.8 Documentation Requirements
+- **FR-DOC-010: User Guidance**: The application shall provide comprehensive user-facing documentation for Bluetooth pairing, passkey registration, and troubleshooting.
+
+### 4.9 HDK Extended Features
+- **FR-HID-024: Remote Key Derivation Primitives**: The system must implement the cryptographic decapsulation logic (KEM) prescribed by the HDK specification to support future remote key provisioning flows.
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
@@ -98,7 +105,8 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - **NFR-ARCH-020: Dependency Injection**: Use **Hilt** for standardized, compile-time safe dependency management.
 - **NFR-ARCH-030: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
 - **NFR-ARCH-040: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
-- **Documentation Deferral Note**: Comprehensive API documentation and user troubleshooting guides are deferred to a dedicated post-release documentation phase.
+- **Documentation**: Comprehensive API documentation and user troubleshooting guides are documented as part of the post-release stabilization phase.
+- **FR-DOC-010**: User guides must be available as localized Markdown files within the application's help system.
 
 ## 6. User Interface & Experience (UI/UX)
 - **Design System**: Material Design 3 (M3).

@@ -73,6 +73,10 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **TR-UI-040: FIDO Passkey Icon Integration**: Implement the official FIDO Passkey Icon (glyph) as a high-fidelity vector resource. All generic security/lock icons in the FIDO2 presentation module must be transitioned to this standardized glyph.
 - **TR-UI-050: Relying Party Icon Loading**: Prompts must support display of the RP icon/favicon. Implement using an asynchronous image loading library (e.g., **Coil**) with an automatic fallback to `https://{rpId}/favicon.ico` if the request doesn't provide a specific icon URL.
 - **TR-UI-060: Multi-Transport UI Context**: Prompt ViewModels must determine the transport (Local/Credential Manager vs. Remote/HID) to display the correct contextual header (e.g. "Create a passkey on another device" vs. "Create a passkey for this device").
+- **TR-PERF-010: Performance Monitoring Reporting**: Integrate `LatencyProfiler` metrics into an automated report to verify compliance with NFR-PERF-030.
+- **TR-UI-080: HDK Remote Flow (KEM)**: The core security module must implement the decapsulation (KEM) flow as defined in §4.1 of the HDK specification to support future remote key provisioning.
+- **TR-DOC-010: Help System Architecture**: User guidance must be maintained as internal static Markdown files, rendered via a specialized `MarkdownText` Composable to provide a localized, on-device help experience.
+- **TR-DOC-020: Technical Documentation**: Full API documentation and cryptographic architectural notes (specifically for HDK derivation) must be maintained for developer reference.
 
 ## 7. Technical Constraints & Data Schema
 ### 7.1 Platform Constraints
