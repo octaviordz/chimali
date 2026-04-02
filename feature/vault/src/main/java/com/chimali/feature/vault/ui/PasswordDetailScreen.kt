@@ -170,7 +170,12 @@ fun PasswordDetailScreen(
             }
             
             Spacer(modifier = Modifier.weight(1f))
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+            ) {
                 Text("Back to Vault")
             }
         }

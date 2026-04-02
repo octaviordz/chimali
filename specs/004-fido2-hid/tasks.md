@@ -281,6 +281,7 @@
 - [x] T163 Verify BRD requirements compliance (refs: [FR-HID-010-brd-compliance.md](checklists/FR-HID-010-brd-compliance.md))
 - [x] T164 Final compilation check and code review
 - [x] T165 Prepare feature for merge to main branch
+- [x] T185 [UI] Standardize button styling across application (FIDO2 prompts, Authenticator Home, Vault details) using Material 3 idiomatic `contentPadding` and `shape.large`.
 
 ## Phase 7: Hierarchical Key Derivation Refactor
 

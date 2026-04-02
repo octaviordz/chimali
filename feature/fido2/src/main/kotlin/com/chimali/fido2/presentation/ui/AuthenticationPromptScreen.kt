@@ -152,11 +152,21 @@ internal fun AuthenticationPromptContent(
                             }
                         }
                         Spacer(Modifier.height(24.dp))
-                        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Confirm authentication button" }) {
+                        Button(
+                            onClick = onConfirm,
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Confirm authentication button" },
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                        ) {
                             Text("Sign in")
                         }
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Cancel authentication button" }) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Cancel authentication button" },
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                        ) {
                             Text("Cancel")
                         }
                     }

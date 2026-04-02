@@ -138,7 +138,7 @@ fun Fido2HomeScreen(
                 onClick = onManageCredentials,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
             ) {
                 Icon(Icons.Default.List, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -234,10 +234,9 @@ fun TransportToggleButton(
 
     Button(
         onClick = onToggle,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
+        contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
             contentColor = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary

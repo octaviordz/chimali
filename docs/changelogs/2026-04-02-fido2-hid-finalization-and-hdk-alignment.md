@@ -19,6 +19,11 @@ This update marks the finalization of the FIDO2 HID implementation and full cryp
     - End-to-end two-level FIDO2 path derivation.
 - **Memory Security (Zeroization)**: Hardened the derivation logic with explicit `try/finally` blocks to ensure high-entropy blinding factors are zeroed out immediately after use, preventing private key leaks from RAM.
 
+## UX Refinements (UI Standardization)
+- **Standardized Button Styling**: Standardized button dimensions and appearances across `RegistrationPromptScreen`, `AuthenticationPromptScreen`, and `Fido2HomeScreen`.
+- **Material 3 Idiomatic Sizing**: Replaced the hardcoded `height(64.dp)` on the Authenticator toggle and the non-standard button sizes in prompts with M3-best-practice `contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)` and `shape = MaterialTheme.shapes.large`. This ensures buttons grow naturally with text scaling while providing a premium, high-density touch target.
+- **Vault Screen Alignment**: Applied the same button style to the "Back to Vault" actions in Password, Secure Note, and Credit Card detail screens for global visual consistency.
+
 ## Documentation & Validation
 - **HDK Conformance Register**: Created `hdk-conformance.md` to track implementation deltas and verify spec compliance.
 - **Requirement Transition**: Moved manual validation goals (Multi-device interoperability and FIDO conformance tool testing) to the **BRD (Section 4.7)**.

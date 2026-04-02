@@ -351,7 +351,9 @@ private fun AwaitingConsentContent(
             onClick  = onConfirm,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = "Confirm registration button" }
+                .semantics { contentDescription = "Confirm registration button" },
+            shape = MaterialTheme.shapes.large,
+            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
         ) {
             Text("Create Passkey")
         }
@@ -362,7 +364,9 @@ private fun AwaitingConsentContent(
             onClick  = onCancel,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = "Cancel registration button" }
+                .semantics { contentDescription = "Cancel registration button" },
+            shape = MaterialTheme.shapes.large,
+            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
         ) {
             Text("Cancel")
         }

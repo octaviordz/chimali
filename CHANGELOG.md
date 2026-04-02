@@ -13,6 +13,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **HDK Spec Alignment (Phase 7)**: Corrected the `DeriveSalt` formula to strictly match `H(salt || ctx)` as per spec §2.3. Achieved full alignment with the P-256 ciphersuite.
 - **Credential Storage Restoration**: Standardized the maximum credential limit to **1000 accounts**, aligning the repository implementation with the Business Requirements Document (FR-HID-022).
 - **Security Hardening**: Implemented explicit memory zeroization for high-entropy blinding factors during the derivation process using `try/finally` blocks to prevent RAM-based key leakage.
+- **UI Button Standardization**: Standardized button styling across FIDO2 prompts, the Authenticator Home screen, and Vault detail screens. Replaced hardcoded heights with Material 3 idiomatic `contentPadding` and `shape.large`, improving accessibility and visual consistency.
 
 ### Fixed
 - **Test Suite Compilation**: Resolved compilation errors in `PasskeyCredentialDaoTest` and `CredentialRepositoryImplTest` caused by the addition of the `credProtectPolicy` field to the credential schema.
