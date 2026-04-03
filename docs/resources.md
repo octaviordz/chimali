@@ -7,10 +7,16 @@ This file contains links, tools, and research materials that are useful for the 
 
 ## WebAuthn & FIDO2
 - **Awesome WebAuthn**: [GitHub Repository](https://github.com/yackermann/awesome-webauthn) - A curated list of awesome WebAuthn resources, libraries, and tools.
+- **OpenSK**: [GitHub Repository](https://github.com/google/OpenSK) - Google's reference implementation of a FIDO2 authenticator written in Rust that supports CTAP 2.1.
+- **Trussed FIDO Authenticator (ctap2.rs)**: [Source File](https://github.com/trussed-dev/fido-authenticator/blob/main/src/ctap2.rs) - Reference implementation of CTAP2 command handlers and response builders within the Trussed framework.
+- **FIDO Allowed Cryptography List**: [Official Specification](https://fidoalliance.org/specs/fido-security-requirements-v1.0-fd-20170524/fido-authenticator-allowed-cryptography-list_20170524.html) - The official list of cryptographic algorithms and parameters allowed for use in FIDO authenticators.
 
 ## Bluetooth & HID
 - **USBHIDTerminal**: [GitHub Repository](https://github.com/452/USBHIDTerminal) - Useful for testing HID communications and understanding endpoint interactions.
 - **HidPeripheral**: [GitHub Repository](https://github.com/LiangLuDev/HidPeripheral) - Android app demo for Bluetooth HID peripheral emulation (Mouse/Keyboard).
+
+## Security Frameworks & Hardware
+- **Trussed TOTP Tutorial**: [GitHub Repository](https://github.com/trussed-dev/trussed-totp-pc-tutorial) - A comprehensive tutorial for building Trussed-based security applications, with an example implementation of TOTP. Useful for understanding modular security architectures.
 
 ## Decentralized Identity & SSI
 - **walt.id Identity SDK**: [GitHub Repository](https://github.com/walt-id/waltid-identity) - Open-source Decentralized Identity (SSI) and Wallet solutions for developers.
