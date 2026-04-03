@@ -36,10 +36,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
@@ -66,6 +62,12 @@ android {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/LICENSE-notice.md"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
