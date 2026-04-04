@@ -8,14 +8,16 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
-import java.math.BigInteger
 import com.chimali.fido2.domain.model.CredentialSummary
+import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
-import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -25,8 +27,6 @@ import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.domain.usecase.SelectCredentialUseCase
@@ -44,6 +44,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.math.BigInteger
 import java.security.Security
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -71,9 +72,21 @@ class Fido2StressTest {
     private lateinit var assertionUseCase: GetAssertionUseCase
     private lateinit var userVerificationService: UserVerificationService
 
-    private val realSeed = ByteArray(32) { it.toByte() }
+    private val realSeed = ByteArray(SEED_SIZE) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
         P256Group.generateKeyPair().let { HdkKeyPair(it.first, it.second) }
+    }
+
+    companion object {
+        private const val STRESS_ITERATIONS = 100
+        private const val SUCCESS_THRESHOLD = 0.95
+        private const val MAX_CREDENTIAL_LIMIT = 2000
+        private const val SEED_SIZE = 32
+        private const val PERCENT_MULTIPLIER = 100
+        
+        // PIN/Biometric defaults for mock
+        private const val MOCK_MAX_PIN = 8
+        private const val MOCK_MIN_PIN = 4
     }
 
     @BeforeEach
@@ -106,7 +119,7 @@ class Fido2StressTest {
                 val childPubKey = P256Group.G.multiply(childScalar).normalize()
                 HdkResult(
                     publicKey = childPubKey,
-                    salt = ByteArray(32),
+                    salt = ByteArray(SEED_SIZE),
                     blindingFactor = childScalar
                 )
             }
@@ -127,8 +140,8 @@ class Fido2StressTest {
                 pinAvailable = true,
                 deviceLockAvailable = false,
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                maxPinLength = 8,
-                minPinLength = 4,
+                maxPinLength = MOCK_MAX_PIN,
+                minPinLength = MOCK_MIN_PIN,
                 biometricStrength = BiometricStrength.STRONG
             )
             coEvery { isUserVerificationRequired(any(), any(), any()) } returns ServiceVerificationRequirement.PREFERRED
@@ -138,7 +151,7 @@ class Fido2StressTest {
         val selectCredentialUseCase = SelectCredentialUseCase()
 
         val settingsRepository: Fido2SettingsRepository = mockk {
-            coEvery { getMaxCredentialCount() } returns 2000 // Stress test needs high limit
+            coEvery { getMaxCredentialCount() } returns MAX_CREDENTIAL_LIMIT // Stress test needs high limit
         }
 
         registerUseCase = RegisterCredentialUseCase(
@@ -165,18 +178,17 @@ class Fido2StressTest {
 
     @Test
     fun `100 consecutive registration operations succeed at a 95 percent rate`() = runTest {
-        val iterations = 100
         var successes = 0
 
-        repeat(iterations) { i ->
+        repeat(STRESS_ITERATIONS) { i ->
             val userId = "user-stress-$i"
             val options = buildMakeCredentialOptions(userId, "example.com")
             val result = registerUseCase(options)
             if (result.isSuccess) successes++
         }
 
-        val rate = successes.toDouble() / iterations
-        assertTrue(rate >= 0.95, "Registration success rate was ${"%.1f".format(rate * 100)}% (expected ≥95%)")
+        val rate = successes.toDouble() / STRESS_ITERATIONS
+        assertTrue(rate >= SUCCESS_THRESHOLD, "Registration success rate was ${"%.1f".format(rate * PERCENT_MULTIPLIER)}% (expected ≥95%)")
     }
 
     @Test
@@ -186,7 +198,7 @@ class Fido2StressTest {
         // to PublicKeyCredentialRpEntity.create — we must use the same value for lookups.
         val rpIdHost = "auth-stress.example.com"
         val rpId = "https://$rpIdHost"
-        for (i in 0 until 100) {
+        for (i in 0 until STRESS_ITERATIONS) {
             val options = buildMakeCredentialOptions("user-auth-$i", rpIdHost)
             registerUseCase(options)
         }
@@ -197,11 +209,11 @@ class Fido2StressTest {
 
         for (summary in allSummaries) {
             val allowList = listOf(
-                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = summary.credentialId)
+                PublicKeyCredentialDescriptor.create(id = summary.credentialId)
             )
             val options = GetAssertionOptions.create(
                 rpId = rpId,
-                clientDataHash = ByteArray(32) { 0xAB.toByte() },
+                clientDataHash = ByteArray(SEED_SIZE) { 0xAB.toByte() },
                 userVerification = UserVerificationRequirement.PREFERRED,
                 allowCredentials = allowList
             )
@@ -211,15 +223,15 @@ class Fido2StressTest {
 
         val rate = successes.toDouble() / allSummaries.size.coerceAtLeast(1)
         assertTrue(
-            rate >= 0.95,
-            "Authentication success rate was ${"%.1f".format(rate * 100)}% for ${allSummaries.size} credentials"
+            rate >= SUCCESS_THRESHOLD,
+            "Authentication success rate was ${"%.1f".format(rate * PERCENT_MULTIPLIER)}% for ${allSummaries.size} credentials"
         )
     }
 
     @Test
     fun `interleaved registration and authentication do not corrupt state`() = runTest {
         val rpIdHost = "interleaved-stress.example.com"
-        val rpId = "https://$rpIdHost"  // matches PasskeyCredential.rpId
+        val rpId = "https://$rpIdHost" // matches PasskeyCredential.rpId
         var regSuccesses = 0
         var authSuccesses = 0
         val registeredIds = mutableListOf<ByteArray>()
@@ -239,11 +251,11 @@ class Fido2StressTest {
             if (registeredIds.isNotEmpty()) {
                 val targetId = registeredIds.last()
                 val allowList = listOf(
-                    com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = targetId)
+                    PublicKeyCredentialDescriptor.create(id = targetId)
                 )
                 val authOptions = GetAssertionOptions.create(
                     rpId = rpId,
-                    clientDataHash = ByteArray(32) { 0xCD.toByte() },
+                    clientDataHash = ByteArray(SEED_SIZE) { 0xCD.toByte() },
                     userVerification = UserVerificationRequirement.PREFERRED,
                     allowCredentials = allowList
                 )
@@ -268,7 +280,7 @@ class Fido2StressTest {
         return MakeCredentialOptions.create(
             rp = rp,
             user = user,
-            challenge = ByteArray(32) { (it + 1).toByte() },
+            challenge = ByteArray(SEED_SIZE) { (it + 1).toByte() },
             pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
             selectedAlgId = Fido2CryptoService.COSE_ES256
         )

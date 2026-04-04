@@ -21,6 +21,15 @@ class UserVerificationServiceImpl @Inject constructor(
     private val biometricManager: BiometricManager
 ) : UserVerificationService {
 
+    companion object {
+        /** How long a cached availability result is considered fresh (10 seconds). */
+        private const val CACHE_TTL_MS = 10_000L
+        private const val MAX_PIN_LENGTH = 16
+        private const val MIN_PIN_LENGTH = 4
+        private const val DEFAULT_LOCKOUT_DURATION = 30_000L
+        private const val DEFAULT_MAX_ATTEMPTS = 3
+    }
+
     // ── Biometric availability cache ──────────────────────────────────────────
     //
     // Problem: BiometricManager.canAuthenticate() performs a synchronous Binder IPC
@@ -44,9 +53,6 @@ class UserVerificationServiceImpl @Inject constructor(
     // atomic on JVM. A minor TOCTOU window between the TTL check and the write-back
     // is intentionally tolerated — the worst outcome is one extra redundant IPC call
     // (a cache miss), never an inconsistent state.
-
-    /** How long a cached availability result is considered fresh (10 seconds). */
-    private val CACHE_TTL_MS = 10_000L
 
     /**
      * The most recently computed [UserVerificationAvailability], or null if never queried.
@@ -91,8 +97,8 @@ class UserVerificationServiceImpl @Inject constructor(
             pinAvailable = pinAvailable,
             deviceLockAvailable = pinAvailable,
             supportedBiometricTypes = if (biometricAvailable) listOf(BiometricType.FINGERPRINT) else emptyList(),
-            maxPinLength = 16,
-            minPinLength = 4,
+            maxPinLength = MAX_PIN_LENGTH,
+            minPinLength = MIN_PIN_LENGTH,
             biometricStrength = BiometricStrength.STRONG
         )
 
@@ -140,12 +146,12 @@ class UserVerificationServiceImpl @Inject constructor(
 
     override suspend fun getPinConfiguration(): PinConfiguration {
         return PinConfiguration(
-            minLength = 4,
-            maxLength = 16,
+            minLength = MIN_PIN_LENGTH,
+            maxLength = MAX_PIN_LENGTH,
             requireComplexity = false,
             allowedSpecialChars = null,
-            maxAttempts = 3,
-            lockoutDuration = 30_000L
+            maxAttempts = DEFAULT_MAX_ATTEMPTS,
+            lockoutDuration = DEFAULT_LOCKOUT_DURATION
         )
     }
 

@@ -2,14 +2,25 @@ package com.chimali.fido2.domain.usecase
 
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
-import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.AttestationObject
+import com.chimali.fido2.domain.model.AttestationStatement
+import com.chimali.fido2.domain.model.AuthenticatorData
+import com.chimali.fido2.domain.model.ClientData
+import com.chimali.fido2.domain.model.ConsentOperationType
 import com.chimali.fido2.domain.model.CredentialId
+import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
-import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
-import com.chimali.fido2.domain.service.*
-import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.VerificationContext
+import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import javax.inject.Inject
 
 /**
@@ -25,7 +36,20 @@ class RegisterCredentialUseCase @Inject constructor(
 ) {
 
     companion object {
-        private const val DEFAULT_STORAGE_LIMIT = 50
+        private const val MAX_CHALLENGE_SIZE = 64
+        private const val MAX_TIMEOUT_MS = 300_000 // 5 minutes
+        private const val MAX_CREDENTIALS_IN_LIST = 32
+        private const val DEFAULT_CRED_PROTECT_POLICY = 1
+        
+        // Authenticator Flags
+        private const val FLAG_USER_PRESENT = 0x01
+        private const val FLAG_USER_VERIFIED = 0x04
+        private const val FLAG_ATTESTED_CRED_DATA = 0x40
+
+        private val CHIMALI_AAGUID = byteArrayOf(
+            0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
+        )
     }
 
     /**
@@ -35,79 +59,78 @@ class RegisterCredentialUseCase @Inject constructor(
      * @return Result containing MakeCredentialResult (Attestation + Passkey) on success
      */
     suspend operator fun invoke(options: MakeCredentialOptions): Result<MakeCredentialResult> {
-        try {
+        return try {
             // Validate registration options
             validateRegistrationOptions(options)
 
             // Ensure relying party exists before creating consent records or credentials
             val rpResult = updateRelyingParty(options.rp)
             if (rpResult.isFailure) {
-                return Result.failure(rpResult.exceptionOrNull() ?: Fido2Exception.RelyingPartyUpdateFailed("Failed to register relying party"))
-            }
+                Result.failure(rpResult.exceptionOrNull() ?: Fido2Exception.RelyingPartyUpdateFailed("Failed to register relying party"))
+            } else {
+                // Check if user consent is required
+                val consentRequired = userVerificationService.isUserVerificationRequired(
+                    rpId = options.rp.id,
+                    operationType = "registration",
+                    context = VerificationContext.CREDENTIAL_CREATION
+                )
 
-            // Check if user consent is required
-            val consentRequired = userVerificationService.isUserVerificationRequired(
-                rpId = options.rp.id,
-                operationType = "registration",
-                context = VerificationContext.CREDENTIAL_CREATION
-            )
+                // Get user consent if required
+                if (consentRequired == ServiceVerificationRequirement.REQUIRED) {
+                    val consentResult = getUserConsentForRegistration(options)
+                    if (consentResult.isFailure) {
+                        return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied("User consent denied"))
+                    }
+                }
 
-            // Get user consent if required
-            if (consentRequired == ServiceVerificationRequirement.REQUIRED) {
-                val consentResult = getUserConsentForRegistration(options)
-                if (consentResult.isFailure) {
-                    return Result.failure(consentResult.exceptionOrNull() ?: Fido2Exception.ConsentDenied("User consent denied"))
+                // Verify user identity if required
+                val verificationResult = performUserVerification(options)
+                if (verificationResult.isFailure) {
+                    return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))
+                }
+
+                // Validate credential creation with repository
+                val validationResult = credentialRepository.validateCredentialCreation(
+                    rpId = options.rp.id,
+                    userId = String(options.user.id)
+                )
+                if (validationResult.isFailure) {
+                    return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"))
+                }
+
+                // FR-HID-022: Enforce global storage limit.
+                // Query total credential count and fail with CTAP2_ERR_KEY_STORE_FULL (0x28)
+                // if the device has reached capacity (default 50, configurable).
+                val stats = credentialRepository.getCredentialStatistics()
+                val limit = settingsRepository.getMaxCredentialCount()
+                if (stats.totalCredentials >= limit) {
+                    Result.failure(Fido2Exception.TooManyCredentials(limit))
+                } else {
+                    // Generate the credential
+                    val credentialGenerationResult = generateCredential(options)
+                    if (credentialGenerationResult.isFailure) {
+                        Result.failure(credentialGenerationResult.exceptionOrNull() ?: Fido2Exception.CredentialGenerationFailed("Credential generation failed"))
+                    } else {
+                        val credential = credentialGenerationResult.getOrThrow()
+
+                        // Store the credential
+                        val storageResult = credentialRepository.saveCredential(credential)
+                        if (storageResult.isFailure) {
+                            Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"))
+                        } else {
+                            // Create attestation object
+                            val attestationObject = createAttestationObject(
+                                options = options,
+                                credential = credential
+                            )
+
+                            Result.success(MakeCredentialResult(attestationObject, credential))
+                        }
+                    }
                 }
             }
-
-            // Verify user identity if required
-            val verificationResult = performUserVerification(options)
-            if (verificationResult.isFailure) {
-                return Result.failure(verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"))
-            }
-
-            // Validate credential creation with repository
-            val validationResult = credentialRepository.validateCredentialCreation(
-                rpId = options.rp.id,
-                userId = String(options.user.id)
-            )
-            if (validationResult.isFailure) {
-                return Result.failure(validationResult.exceptionOrNull() ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"))
-            }
-
-            // FR-HID-022: Enforce global storage limit.
-            // Query total credential count and fail with CTAP2_ERR_KEY_STORE_FULL (0x28)
-            // if the device has reached capacity (default 50, configurable).
-            val stats = credentialRepository.getCredentialStatistics()
-            val limit = settingsRepository.getMaxCredentialCount()
-            if (stats.totalCredentials >= limit) {
-                return Result.failure(
-                    Fido2Exception.TooManyCredentials(limit)
-                )
-            }
-
-            // Generate the credential
-            val credentialGenerationResult = generateCredential(options)
-            if (credentialGenerationResult.isFailure) {
-                return Result.failure(credentialGenerationResult.exceptionOrNull() ?: Fido2Exception.CredentialGenerationFailed("Credential generation failed"))
-            }
-            val credential = credentialGenerationResult.getOrThrow()
-
-            // Store the credential
-            val storageResult = credentialRepository.saveCredential(credential)
-            if (storageResult.isFailure) {
-                return Result.failure(storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"))
-            }
-
-            // Create attestation object
-            val attestationObject = createAttestationObject(
-                options = options,
-                credential = credential
-            )
-
-            return Result.success(MakeCredentialResult(attestationObject, credential))
         } catch (e: Exception) {
-            return Result.failure(Fido2Exception.RegistrationFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.RegistrationFailed(e.message ?: "Unknown error", e))
         }
     }
 
@@ -115,32 +138,24 @@ class RegisterCredentialUseCase @Inject constructor(
      * Validates the registration options according to FIDO2 specifications.
      */
     private fun validateRegistrationOptions(options: MakeCredentialOptions) {
-        // Validate RP entity
         options.rp.validate()
-
-        // Validate user entity
         options.user.validate()
-
-        // Validate cryptographic parameters
         options.pubKeyCredParams.validate()
 
-        // Validate challenge
         require(options.challenge.isNotEmpty()) { "Challenge cannot be empty" }
-        require(options.challenge.size <= 64) { "Challenge cannot exceed 64 bytes" }
+        require(options.challenge.size <= MAX_CHALLENGE_SIZE) { "Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes" }
 
-        // Validate timeout
         val timeout = options.getSafeTimeout()
         require(timeout > 0) { "Timeout must be positive" }
-        require(timeout <= 300000) { "Timeout cannot exceed 5 minutes" }
+        require(timeout <= MAX_TIMEOUT_MS) { "Timeout cannot exceed 5 minutes" }
 
-        // Validate credential lists
         options.allowCredentials?.let { allowList ->
-            require(allowList.size <= 32) { "Allow credentials list cannot exceed 32 items" }
+            require(allowList.size <= MAX_CREDENTIALS_IN_LIST) { "Allow credentials list cannot exceed $MAX_CREDENTIALS_IN_LIST items" }
             allowList.forEach { it.validate() }
         }
 
         options.excludeCredentials?.let { excludeList ->
-            require(excludeList.size <= 32) { "Exclude credentials list cannot exceed 32 items" }
+            require(excludeList.size <= MAX_CREDENTIALS_IN_LIST) { "Exclude credentials list cannot exceed $MAX_CREDENTIALS_IN_LIST items" }
             excludeList.forEach { it.validate() }
         }
     }
@@ -190,9 +205,9 @@ class RegisterCredentialUseCase @Inject constructor(
     private suspend fun generateCredential(
         options: MakeCredentialOptions
     ): Result<PasskeyCredential> {
-        try {
+        return try {
             // Generate random 32-byte credential ID (bytes + encoded string).
-            val credentialId = PasskeyCredential.generateRandomId()  // returns CredentialId
+            val credentialId = PasskeyCredential.generateRandomId()
 
             // Generate hardware-backed key pair via Fido2CryptoService
             val cryptoResult = cryptoService.generateCredentialKeyPair(
@@ -200,54 +215,39 @@ class RegisterCredentialUseCase @Inject constructor(
                 algId = options.selectedAlgId
             )
             if (cryptoResult.isFailure) {
-                return Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
+                Result.failure(cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"))
+            } else {
+                // Retrieve the public key object for PasskeyCredential
+                val publicKey = cryptoService.getPublicKey(
+                    credentialId = credentialId,
+                    algId = options.selectedAlgId
+                ) ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: ${credentialId.encoded}"))
+                
+                // Generate AAGUID for this authenticator
+                val aaguid = CHIMALI_AAGUID
+                val credProtectPolicy = options.extensions?.get("credProtect") as? Int ?: DEFAULT_CRED_PROTECT_POLICY
+
+                // Create the credential domain model
+                val credential = PasskeyCredential.create(
+                    id = credentialId.encoded,
+                    rpId = options.rp.id,
+                    userId = String(options.user.id),
+                    userName = options.user.name,
+                    userDisplayName = options.user.displayName,
+                    publicKey = publicKey,
+                    privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
+                    aaguid = aaguid,
+                    credentialId = credentialId.toByteArray(),
+                    coseAlgorithm = options.selectedAlgId,
+                    credProtectPolicy = credProtectPolicy
+                )
+
+                Result.success(credential)
             }
-            
-            // Retrieve the public key object for PasskeyCredential
-            val publicKey = cryptoService.getPublicKey(
-                credentialId = credentialId,
-                algId = options.selectedAlgId
-            )
-                ?: return Result.failure(Fido2Exception.KeyNotFound("Generated key not found in KeyStore: ${credentialId.encoded}"))
-            
-            // Generate AAGUID for this authenticator
-            val aaguid = generateAAGUID()
-
-            val credProtectPolicy = options.extensions?.get("credProtect") as? Int ?: 1
-
-            // Create the credential domain model
-            val credential = PasskeyCredential.create(
-                id = credentialId.encoded,
-                rpId = options.rp.id,
-                userId = String(options.user.id),
-                userName = options.user.name,
-                userDisplayName = options.user.displayName,
-                publicKey = publicKey,
-                privateKeyAlias = Fido2CryptoService.credentialAlias(credentialId),
-                aaguid = aaguid,
-                credentialId = credentialId.toByteArray(),
-                coseAlgorithm = options.selectedAlgId,
-                credProtectPolicy = credProtectPolicy
-            )
-
-            return Result.success(credential)
         } catch (e: Exception) {
-            return Result.failure(Fido2Exception.CredentialGenerationFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.CredentialGenerationFailed(e.message ?: "Unknown error", e))
         }
     }
-
-
-
-
-    /**
-     * Returns the fixed AAGUID for the Chimali authenticator (version 1).
-     * Must be identical to CHIMALI_AAGUID in Ctap2MakeCredentialHandler.
-     */
-    private fun generateAAGUID(): ByteArray = byteArrayOf(
-        0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
-    )
-
 
     /**
      * Updates relying party information in the repository.
@@ -301,14 +301,13 @@ class RegisterCredentialUseCase @Inject constructor(
         )
 
         // For CTAP2, the host already computed the clientDataHash and passed it in options.challenge.
-        val clientDataHash = options.challenge
-
-        // Sign authData || clientDataHash with the HDK-derived key (packed self-attestation)
+        // Sign authData || options.challenge (clientDataHash) with the HDK-derived key (packed self-attestation)
         val signatureResult = cryptoService.sign(
             credentialId = CredentialId.fromString(credential.id),
-            data         = authDataBytes + clientDataHash
+            data         = authDataBytes + options.challenge
         )
 
+        // Sign authData || options.challenge (clientDataHash) with the HDK-derived key (packed self-attestation)
         val (fmt, attStmt) = if (signatureResult.isSuccess) {
             val sig = signatureResult.getOrThrow()
             "packed" to AttestationStatement.create(
@@ -322,45 +321,30 @@ class RegisterCredentialUseCase @Inject constructor(
             "none" to AttestationStatement.createNone()
         }
 
-        val clientData = ClientData.create(
-            type      = "webauthn.create",
-            challenge = options.challenge,
-            origin    = options.rp.id
-        )
-
         return AttestationObject.create(
             fmt        = fmt,
             authData   = authData,
             attStmt    = attStmt,
-            clientData = clientData
+            clientData = ClientData.create(
+                type      = "webauthn.create",
+                challenge = options.challenge,
+                origin    = options.rp.id
+            )
         )
     }
 
-    /**
-     * Hashes the RP ID for authenticator data.
-     */
     private fun hashRpId(rpId: String): ByteArray {
         return java.security.MessageDigest.getInstance("SHA-256")
             .digest(rpId.toByteArray())
     }
 
-    /**
-     * Creates authenticator flags byte.
-     */
     private fun createAuthenticatorFlags(options: MakeCredentialOptions): ByteArray {
         var flags = 0x00
-
-        // Set user present flag (UP)
-        flags = flags or 0x01
-
-        // Set user verified flag (UV) if verification is required
+        flags = flags or FLAG_USER_PRESENT
         if (options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED) {
-            flags = flags or 0x04
+            flags = flags or FLAG_USER_VERIFIED
         }
-
-        // Set attested credential data included flag (AT)
-        flags = flags or 0x40
-
+        flags = flags or FLAG_ATTESTED_CRED_DATA
         return byteArrayOf(flags.toByte())
     }
 }

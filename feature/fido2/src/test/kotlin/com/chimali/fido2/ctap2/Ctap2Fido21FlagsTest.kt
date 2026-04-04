@@ -4,6 +4,7 @@ package com.chimali.fido2.ctap2
 
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import io.mockk.every
 import io.mockk.mockk
@@ -184,9 +185,9 @@ class Ctap2Fido21FlagsTest {
             "8"  to 255L,
             "9"  to listOf("usb"),
             "10" to listOf(
-                mapOf("alg" to COSE_ES256.toLong(),    "type" to "public-key"),
-                mapOf("alg" to COSE_ED25519.toLong(),  "type" to "public-key"),
-                mapOf("alg" to COSE_ML_DSA_65.toLong(),"type" to "public-key")
+                mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(),    "type" to "public-key"),
+                mapOf("alg" to PasskeyCredential.COSE_ED25519.toLong(),  "type" to "public-key"),
+                mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(),"type" to "public-key")
             )
         )
     }

@@ -20,7 +20,7 @@ import javax.inject.Inject
  */
 class SelectCredentialUseCase @Inject constructor() {
 
-    operator fun invoke(
+    suspend operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions
     ): Result<CredentialSummary> = runCatching {

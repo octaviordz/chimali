@@ -31,24 +31,24 @@ data class MakeCredentialOptions(
     private fun validate() {
         // Validate required fields
         require(challenge.isNotEmpty()) { "Challenge cannot be empty" }
-        require(challenge.size <= 64) { "Challenge cannot exceed 64 bytes" }
+        require(challenge.size <= MAX_CHALLENGE_SIZE) { "Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes" }
         
         // Validate timeout
         timeout?.let { timeout ->
             require(timeout > 0) { "Timeout must be positive" }
-            require(timeout <= 300000) { "Timeout cannot exceed 5 minutes (300000ms)" }
+            require(timeout <= MAX_TIMEOUT_MS) { "Timeout cannot exceed 5 minutes (300000ms)" }
         }
         
         // Validate credential lists
         allowCredentials?.let { allowList ->
-            require(allowList.size <= 32) { "Allow credentials list cannot exceed 32 items" }
+            require(allowList.size <= MAX_CREDENTIAL_LIST_SIZE) { "Allow credentials list cannot exceed $MAX_CREDENTIAL_LIST_SIZE items" }
             allowList.forEach { descriptor ->
                 descriptor.validate()
             }
         }
         
         excludeCredentials?.let { excludeList ->
-            require(excludeList.size <= 32) { "Exclude credentials list cannot exceed 32 items" }
+            require(excludeList.size <= MAX_CREDENTIAL_LIST_SIZE) { "Exclude credentials list cannot exceed $MAX_CREDENTIAL_LIST_SIZE items" }
             excludeList.forEach { descriptor ->
                 descriptor.validate()
             }
@@ -64,10 +64,10 @@ data class MakeCredentialOptions(
         
         // Validate extensions
         extensions?.let { ext ->
-            require(ext.size <= 32) { "Extensions map cannot exceed 32 entries" }
+            require(ext.size <= MAX_EXTENSIONS_SIZE) { "Extensions map cannot exceed $MAX_EXTENSIONS_SIZE entries" }
             ext.keys.forEach { key ->
                 require(key.isNotBlank()) { "Extension key cannot be blank" }
-                require(key.length <= 32) { "Extension key cannot exceed 32 characters" }
+                require(key.length <= MAX_EXTENSION_KEY_LENGTH) { "Extension key cannot exceed $MAX_EXTENSION_KEY_LENGTH characters" }
             }
         }
     }
@@ -106,7 +106,7 @@ data class MakeCredentialOptions(
      * Returns a safe timeout value.
      */
     fun getSafeTimeout(): Long {
-        return timeout ?: 60000L // Default 60 seconds
+        return timeout ?: DEFAULT_TIMEOUT_MS // Default 60 seconds
     }
     
     companion object {
@@ -118,6 +118,7 @@ data class MakeCredentialOptions(
         const val MAX_EXTENSIONS_SIZE = 32
         const val MAX_EXTENSION_KEY_LENGTH = 32
         const val DEFAULT_TIMEOUT_MS = 60000L // 60 seconds
+        private const val MAX_TIMEOUT_MS = 300000L
         
         /**
          * Creates a new MakeCredentialOptions with validation.

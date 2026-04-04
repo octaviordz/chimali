@@ -122,7 +122,7 @@ class Fido2CryptoService @Inject constructor(
                     ?: throw Fido2Exception.KeyGenerationFailed("ML-DSA not supported", null)
                 val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
                 derivedSeed.fill(0)
-                
+
                 Timber.d("ML-DSA key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
                 return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
             }
@@ -140,13 +140,13 @@ class Fido2CryptoService @Inject constructor(
                     update(seed)
                     update("Ed25519".toByteArray())
                     update(credentialId.toByteArray())
-                }.digest().copyOf(32)
+                }.digest().copyOf(ED25519_SEED_SIZE)
 
                 val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
                 val publicKeyBytes = privParams.generatePublicKey().encoded
-                
+
                 derivedSeed.fill(0)
-                
+
                 Timber.d("Ed25519 key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
                 return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
             }
@@ -202,8 +202,7 @@ class Fido2CryptoService @Inject constructor(
             } else if (algId == COSE_ED25519) {
                 val bcProvider = BouncyCastleProvider()
                 val kf = KeyFactory.getInstance("Ed25519", bcProvider)
-                val prefix = byteArrayOf(0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x70, 0x03, 0x21, 0x00)
-                val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
+                val x509Spec = java.security.spec.X509EncodedKeySpec(ED25519_X509_PREFIX + keyPair.publicKeyBytes)
                 kf.generatePublic(x509Spec)
             } else {
                 decodeUncompressedPoint(keyPair.publicKeyBytes)
@@ -226,7 +225,8 @@ class Fido2CryptoService @Inject constructor(
      * Credential metadata cleanup is handled by the repository.
      */
     @Suppress("RedundantSuspendModifier")
-    suspend fun deleteCredentialKey(@Suppress("UNUSED_PARAMETER") credentialId: CredentialId): Result<Unit> = Result.success(Unit)
+    suspend fun deleteCredentialKey(@Suppress("UNUSED_PARAMETER") credentialId: CredentialId): Result<Unit> =
+        Result.success(Unit)
 
     /**
      * Pre-warms the master seed cache to eliminate first-ceremony latency.
@@ -293,7 +293,8 @@ class Fido2CryptoService @Inject constructor(
             val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
             val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
 
-            val warmupPath = derivationPath(CredentialId.fromString("warmup")) // warms MessageDigest.getInstance("SHA-256")
+            val warmupPath =
+                derivationPath(CredentialId.fromString("warmup")) // warms MessageDigest.getInstance("SHA-256")
             val hdkResult = hdkManager.deriveHdk(
                 devicePublicKey = devicePubKeyBytes,
                 seed = seed,
@@ -304,14 +305,16 @@ class Fido2CryptoService @Inject constructor(
             withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
                 // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
                 // Result is discarded, dummy data avoids doing anything meaningful.
-                signWithRawScalar(blindedPrivKeyBytes, ByteArray(32) { it.toByte() })
+                signWithRawScalar(blindedPrivKeyBytes, ByteArray(WARMUP_DUMMY_SIZE) { it.toByte() })
             }
 
             // Zeroise sensitive warmup material
             devicePrivKeyBytes.fill(0)
 
-            Timber.d("Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
-                t1 - t0, System.currentTimeMillis() - t1, System.currentTimeMillis() - t0)
+            Timber.d(
+                "Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
+                t1 - t0, System.currentTimeMillis() - t1, System.currentTimeMillis() - t0
+            )
         }.onFailure { e ->
             Timber.w(e, "Master seed pre-warm FAILED (non-fatal): %s", e.message)
         }
@@ -328,14 +331,14 @@ class Fido2CryptoService @Inject constructor(
      * @return DER-encoded ECDSA signature bytes.
      */
     suspend fun sign(
-        credentialId: CredentialId, 
-        data: ByteArray, 
+        credentialId: CredentialId,
+        data: ByteArray,
         algId: Int = COSE_ES256
     ): Result<ByteArray> = withContext(defaultDispatcher) {
         runCatching {
             // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
             LatencyProfiler.start("Crypto.sign")
-            
+
             if (algId == COSE_ML_DSA_65) {
                 val pqChildSeed = masterSeedProvider.getPqChildSeed()
                     ?: throw Fido2Exception.KeyNotFound("PQ seed not available")
@@ -347,10 +350,15 @@ class Fido2CryptoService @Inject constructor(
                     ?: throw Fido2Exception.SigningFailed("ML-DSA generation failed", null)
                 val signature = postQuantumCrypto.sign(keyPair.private, data)
                     ?: throw Fido2Exception.SigningFailed("ML-DSA signing failed", null)
-                
+
                 derivedSeed.fill(0)
                 LatencyProfiler.end("Crypto.sign")
-                Timber.d("Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
+                Timber.d(
+                    "Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d",
+                    data.size,
+                    credentialId,
+                    signature.size
+                )
                 return@withContext Result.success(signature)
             }
 
@@ -364,18 +372,23 @@ class Fido2CryptoService @Inject constructor(
                     update(seed)
                     update("Ed25519".toByteArray())
                     update(credentialId.toByteArray())
-                }.digest().copyOf(32)
+                }.digest().copyOf(ED25519_SEED_SIZE)
 
                 val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
                 val signer = org.bouncycastle.crypto.signers.Ed25519Signer()
                 signer.init(true, privParams)
                 signer.update(data, 0, data.size)
                 val signature = signer.generateSignature()
-                
+
                 derivedSeed.fill(0)
-                
+
                 LatencyProfiler.end("Crypto.sign")
-                Timber.d("Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
+                Timber.d(
+                    "Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d",
+                    data.size,
+                    credentialId,
+                    signature.size
+                )
                 return@withContext Result.success(signature)
             }
 
@@ -441,7 +454,6 @@ class Fido2CryptoService @Inject constructor(
     }
 
 
-
     /**
      * Signs data using a raw P-256 private scalar via BouncyCastle.
      * Returns DER-encoded ECDSA signature.
@@ -479,7 +491,7 @@ class Fido2CryptoService @Inject constructor(
      * own stripped-down variant, which lacks EC KeyFactory support.
      */
     private fun decodeUncompressedPoint(bytes: ByteArray): PublicKey {
-        require(bytes.size == 65 && bytes[0] == 0x04.toByte()) {
+        require(bytes.size == P256_UNCOMPRESSED_SIZE && bytes[0] == UNCOMPRESSED_PREFIX) {
             "Expected uncompressed EC point (65 bytes, 0x04 prefix)"
         }
         val point = P256Group.deserializeElement(bytes)
@@ -516,6 +528,29 @@ class Fido2CryptoService @Inject constructor(
          */
         private const val FIDO2_APP_INDEX: UInt = 0x4649_4432u // ASCII "FID2"
 
+        /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
+        const val COSE_ES256 = -7
+        // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
+        // Working-draft value; IANA final assignment pending.
+        const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
+        // COSE algorithm identifier for Ed25519.
+        const val COSE_ED25519 = -19 // EdDSA
+
+        private const val ED25519_SEED_SIZE = 32
+        private const val P256_UNCOMPRESSED_SIZE = 65
+        private const val UNCOMPRESSED_PREFIX = 0x04.toByte()
+        private const val WARM_UP_LATENCY_MS = 150
+        private const val WARMUP_DUMMY_SIZE = 32
+
+        private const val INDEX_SHIFT_3 = 24
+        private const val INDEX_SHIFT_2 = 16
+        private const val INDEX_SHIFT_1 = 8
+        private const val BYTE_MASK = 0xFFu
+
+        private val ED25519_X509_PREFIX = byteArrayOf(
+            0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x70, 0x03, 0x21, 0x00
+        )
+
         /**
          * Computes a deterministic derivation path index from a credential ID.
          *
@@ -526,11 +561,10 @@ class Fido2CryptoService @Inject constructor(
         private fun derivationPath(credentialId: CredentialId): List<UInt> {
             val hashBytes = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(credentialId.toByteArray())
-            // Take first 4 bytes as a full 32-bit unsigned integer (extracting maximum entropy)
-            val credIndex = ((hashBytes[0].toUInt() and 0xFFu) shl 24) or
-                            ((hashBytes[1].toUInt() and 0xFFu) shl 16) or
-                            ((hashBytes[2].toUInt() and 0xFFu) shl 8)  or
-                             (hashBytes[3].toUInt() and 0xFFu)
+            val credIndex = ((hashBytes[0].toUInt() and BYTE_MASK) shl INDEX_SHIFT_3) or
+                    ((hashBytes[1].toUInt() and BYTE_MASK) shl INDEX_SHIFT_2) or
+                    ((hashBytes[2].toUInt() and BYTE_MASK) shl INDEX_SHIFT_1) or
+                    (hashBytes[3].toUInt() and BYTE_MASK)
             return listOf(FIDO2_APP_INDEX, credIndex)
         }
 
@@ -545,15 +579,5 @@ class Fido2CryptoService @Inject constructor(
             val path = derivationPath(credentialId)
             return "device-key/${path.joinToString("/")}"
         }
-
-        /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
-        const val COSE_ES256 = -7
-
-        // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
-        // Working-draft value; IANA final assignment pending.
-        const val COSE_ML_DSA_65 = -49
-
-        /** COSE algorithm identifier for Ed25519. */
-        const val COSE_ED25519 = -19
     }
 }

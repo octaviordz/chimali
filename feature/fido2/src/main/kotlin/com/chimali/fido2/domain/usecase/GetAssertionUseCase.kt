@@ -43,6 +43,19 @@ class GetAssertionUseCase @Inject constructor(
     private val cryptoService: Fido2CryptoService
 ) {
 
+    companion object {
+        private const val FLAG_USER_PRESENT = 0x01
+        private const val FLAG_USER_VERIFIED = 0x04
+        
+        /** FIDO2.1: credProtect policy 3 requires user verification. */
+        private const val POLICY_UV_REQUIRED = 3
+        
+        private const val COUNTER_BYTE_3_SHIFT = 24
+        private const val COUNTER_BYTE_2_SHIFT = 16
+        private const val COUNTER_BYTE_1_SHIFT = 8
+        private const val BYTE_MASK = 0xFF
+    }
+
     suspend operator fun invoke(
         options: GetAssertionOptions
     ): Result<AssertionObject> = runCatching {
@@ -143,7 +156,7 @@ class GetAssertionUseCase @Inject constructor(
         // the authenticator MUST NOT enumerate or use the credential.
         val uvWillBePerformed = options.userVerification != UserVerificationRequirement.DISCOURAGED
         return candidates.filter { summary ->
-            if (summary.credProtectPolicy == 3 && !uvWillBePerformed) {
+            if (summary.credProtectPolicy == POLICY_UV_REQUIRED && !uvWillBePerformed) {
                 false // Ignore this credential
             } else {
                 true
@@ -158,13 +171,13 @@ class GetAssertionUseCase @Inject constructor(
     ): ByteArray {
         var flags = 0
         // User Present (UP) bit is always set for assertions
-        flags = flags or 0x01
-        if (userVerified) flags = flags or 0x04
+        flags = flags or FLAG_USER_PRESENT
+        if (userVerified) flags = flags or FLAG_USER_VERIFIED
         val counter = byteArrayOf(
-            ((signCount shr 24) and 0xFF).toByte(),
-            ((signCount shr 16) and 0xFF).toByte(),
-            ((signCount shr 8)  and 0xFF).toByte(),
-            (signCount and 0xFF).toByte()
+            ((signCount shr COUNTER_BYTE_3_SHIFT) and BYTE_MASK.toLong()).toByte(),
+            ((signCount shr COUNTER_BYTE_2_SHIFT) and BYTE_MASK.toLong()).toByte(),
+            ((signCount shr COUNTER_BYTE_1_SHIFT) and BYTE_MASK.toLong()).toByte(),
+            (signCount and BYTE_MASK.toLong()).toByte()
         )
         return rpIdHash + byteArrayOf(flags.toByte()) + counter  // 37 bytes
     }

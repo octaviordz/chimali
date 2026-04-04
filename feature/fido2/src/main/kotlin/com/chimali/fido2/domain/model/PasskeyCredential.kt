@@ -24,11 +24,11 @@ data class PasskeyCredential(
     val coseAlgorithm: Int = COSE_ES256,
     val credProtectPolicy: Int = 1
 ) {
-    
+
     init {
         validate()
     }
-    
+
     /**
      * Validates the PasskeyCredential according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
@@ -41,112 +41,115 @@ data class PasskeyCredential(
         require(userName.isNotBlank()) { "User name cannot be blank" }
         require(userDisplayName.isNotBlank()) { "User display name cannot be blank" }
         require(privateKeyAlias.isNotBlank()) { "Private key alias cannot be blank" }
-        
+
         // Validate formats
-        require(RelyingParty.isValidRpId(rpId)) { 
-            "RP ID must be a valid domain or HTTPS origin: $rpId" 
+        require(RelyingParty.isValidRpId(rpId)) {
+            "RP ID must be a valid domain or HTTPS origin: $rpId"
         }
-        require(userId.length <= 64) { "User ID cannot exceed 64 bytes" }
-        require(userName.length <= 64) { "User name cannot exceed 64 bytes" }
-        require(userDisplayName.length <= 64) { "User display name cannot exceed 64 bytes" }
-        require(aaguid.size == 16) { "AAGUID must be exactly 16 bytes" }
+        require(userId.length <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
+        require(userName.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH bytes" }
+        require(userDisplayName.length <= MAX_DISPLAY_NAME_LENGTH) { "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes" }
+        require(aaguid.size == AAGUID_LENGTH) { "AAGUID must be exactly $AAGUID_LENGTH bytes" }
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
-        require(credentialId.size <= 1023) { "Credential ID cannot exceed 1023 bytes" }
-        
+        require(credentialId.size <= MAX_CREDENTIAL_ID_LENGTH) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_LENGTH bytes" }
+
         // Validate sign count
         require(signCount >= 0) { "Sign count cannot be negative" }
         require(signCount <= Long.MAX_VALUE) { "Sign count exceeds maximum value" }
-        
+
         // Validate timestamps
-        require(createdAt.isBefore(Instant.now().plusSeconds(60))) { 
-            "Creation time cannot be more than 60 seconds in the future" 
+        val now = Instant.now()
+        val futureGrace = 60L
+        require(createdAt.isBefore(now.plusSeconds(futureGrace))) {
+            "Creation time cannot be more than 60 seconds in the future"
         }
-        require(lastUsedAt.isBefore(Instant.now().plusSeconds(60))) { 
-            "Last used time cannot be more than 60 seconds in the future" 
+        require(lastUsedAt.isBefore(now.plusSeconds(futureGrace))) {
+            "Last used time cannot be more than 60 seconds in the future"
         }
-        require(!lastUsedAt.isBefore(createdAt)) { 
-            "Last used time cannot be before creation time" 
+        require(!lastUsedAt.isBefore(createdAt)) {
+            "Last used time cannot be before creation time"
         }
-        
+
         // Validate COSE Algorithm
         require(coseAlgorithm == COSE_ES256 || coseAlgorithm == COSE_ED25519 || coseAlgorithm == COSE_ML_DSA_65) {
             "Unsupported COSE algorithm ID: $coseAlgorithm"
         }
     }
-    
+
     /**
      * Checks if this credential is expired based on creation time.
      * Credentials typically expire after a certain period (e.g., 2 years).
      */
-    fun isExpired(maxAgeDays: Long = 730): Boolean {
-        val expiryTime = createdAt.plusSeconds(maxAgeDays * 24 * 60 * 60)
+    fun isExpired(maxAgeDays: Long = DEFAULT_MAX_AGE_DAYS): Boolean {
+        val secondsInDay = 86_400L
+        val expiryTime = createdAt.plusSeconds(maxAgeDays * secondsInDay)
         return Instant.now().isAfter(expiryTime)
     }
-    
+
     /**
      * Checks if this credential belongs to the specified relying party.
      */
     fun belongsToRelyingParty(rpId: String): Boolean {
         return this.rpId.trimEnd('/').equals(rpId.trimEnd('/'), ignoreCase = true)
     }
-    
+
     /**
      * Checks if this credential belongs to the specified user.
      */
     fun belongsToUser(userId: String): Boolean {
         return this.userId.equals(userId, ignoreCase = true)
     }
-    
+
     /**
      * Returns a safe display name for the credential.
      */
     fun getSafeDisplayName(): String {
         return userDisplayName.ifBlank { userName }
     }
-    
+
     /**
      * Returns the credential age in days.
      */
     fun getAgeInDays(): Long {
         return ChronoUnit.DAYS.between(createdAt, Instant.now())
     }
-    
+
     /**
      * Creates a copy with updated sign count.
      */
     fun withSignCount(newSignCount: Long): PasskeyCredential {
         return copy(signCount = newSignCount, lastUsedAt = Instant.now())
     }
-    
+
     /**
      * Creates a copy with updated last used time.
      */
     fun withLastUsedAt(newLastUsedAt: Instant): PasskeyCredential {
         return copy(lastUsedAt = newLastUsedAt)
     }
-    
+
     companion object {
         // COSE algorithm IDs
-        internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
-        internal const val COSE_ED25519 = -19 // EdDSA
+        const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
+        const val COSE_ED25519 = -19 // EdDSA
         /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID. */
-        internal const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
+        const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
-        /**
-         * Maximum allowed sizes for various fields according to FIDO2 specs.
-         */
+        // Maximum allowed sizes for various fields according to FIDO2 specs.
         const val MAX_USER_ID_LENGTH = 64
         const val MAX_NAME_LENGTH = 64
         const val MAX_DISPLAY_NAME_LENGTH = 64
         const val MAX_CREDENTIAL_ID_LENGTH = 1023
         const val AAGUID_LENGTH = 16
-        
+
+        private const val DEFAULT_MAX_AGE_DAYS = 730L
+
         /**
          * Generates a new cryptographically secure random credential ID.
          * Returns a [CredentialId] with 32 bytes of entropy and its Base64URL-safe encoding.
          */
         fun generateRandomId(): CredentialId = CredentialId.generate()
-        
+
         /**
          * Creates a new PasskeyCredential with validation.
          */
@@ -210,7 +213,7 @@ data class PasskeyCredential(
                 signCount        = 0L,
                 createdAt        = now,
                 lastUsedAt       = now,
-                aaguid           = ByteArray(16),
+                aaguid           = ByteArray(AAGUID_LENGTH),
                 credentialId     = id.toByteArray(),
                 coseAlgorithm    = coseAlgorithm,
                 credProtectPolicy= credProtectPolicy

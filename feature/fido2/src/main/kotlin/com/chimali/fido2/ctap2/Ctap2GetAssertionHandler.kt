@@ -12,13 +12,6 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// CTAP2 response keys (§6.2)
-// private const val KEY_CREDENTIAL  = 1
-// private const val KEY_AUTH_DATA   = 2
-// private const val KEY_SIGNATURE   = 3
-// private const val KEY_USER        = 4
-// private const val KEY_NUM_CREDS   = 5
-
 /**
  * T087 — CTAP2 authenticatorGetAssertion command handler.
  *
@@ -43,6 +36,35 @@ class Ctap2GetAssertionHandler @Inject constructor(
     private val hmacSecretProcessor: HmacSecretProcessor
 ) {
 
+    companion object {
+        // CTAP2 Request Keys (§6.2)
+        private const val REQ_RP_ID = "1"
+        private const val REQ_CLIENT_DATA_HASH = "2"
+        private const val REQ_ALLOW_LIST = "3"
+        private const val REQ_EXTENSIONS = "4"
+        private const val REQ_OPTIONS = "5"
+        
+        // CTAP2 Response Keys (§6.2)
+        private const val RESP_CREDENTIAL = "1"
+        private const val RESP_AUTH_DATA = "2"
+        private const val RESP_SIGNATURE = "3"
+        private const val RESP_USER = "4"
+        private const val RESP_NUM_CREDS = "5"
+
+        // Status and Error Codes
+        private const val CTAP2_OK: Byte = 0x00
+        private const val CTAP2_ERR_PROCESSING: Byte = 0x17
+        private const val CTAP2_ERR_NO_VERIFICATION: Byte = 0x26
+        private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x29
+        private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E
+        private const val CTAP1_ERR_OTHER: Byte = 0x7F.toByte()
+
+        // Authenticator Data Constants
+        private const val AUTH_DATA_FLAGS_INDEX = 32
+        private const val FLAG_ED_BIT = 0x80
+        private const val CLIENT_DATA_HASH_SIZE = 32
+    }
+
     /**
      * T087 — Handles a raw CTAP2 GetAssertion CBOR payload.
      *
@@ -60,7 +82,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
                 onSuccess = { assertion ->
                     Timber.d("Assertion success: credId=%s", assertion.credentialId)
                     val responseBytes = encodeResponse(assertion, options)
-                    byteArrayOf(0x00.toByte()) + responseBytes  // CTAP2_OK + response
+                    byteArrayOf(CTAP2_OK) + responseBytes
                 },
                 onFailure = { error ->
                     // CredentialNotFound is an expected probe response before registration.
@@ -71,38 +93,38 @@ class Ctap2GetAssertionHandler @Inject constructor(
                         Timber.e(error, "Assertion failed: %s", error.message)
                     }
                     val errorCode: Byte = when (error) {
-                        is Fido2Exception.CredentialNotFound      -> 0x2E.toByte() // CTAP2_ERR_NO_CREDENTIALS
-                        is Fido2Exception.UserVerificationFailed  -> 0x29.toByte() // CTAP2_ERR_OPERATION_DENIED
-                        is Fido2Exception.NoVerificationMethodAvailable -> 0x26.toByte()
-                        else                                       -> 0x7F.toByte() // CTAP1_ERR_OTHER
+                        is Fido2Exception.CredentialNotFound      -> CTAP2_ERR_NO_CREDENTIALS
+                        is Fido2Exception.UserVerificationFailed  -> CTAP2_ERR_OPERATION_DENIED
+                        is Fido2Exception.NoVerificationMethodAvailable -> CTAP2_ERR_NO_VERIFICATION
+                        else                                       -> CTAP1_ERR_OTHER
                     }
                     byteArrayOf(errorCode)
                 }
             )
         } catch (e: Exception) {
             Timber.e(e, "GetAssertion handler exception: %s", e.message)
-            byteArrayOf(0x17.toByte()) // CTAP2_ERR_PROCESSING
+            byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
 
     private fun decodeOptions(params: Map<String, Any>): GetAssertionOptions {
-        val rpId = params["1"] as? String
+        val rpId = params[REQ_RP_ID] as? String
             ?: throw Fido2Exception.InvalidParameter("Missing rpId (key 0x01)")
 
         // clientDataHash: real CBOR delivers this as a raw ByteArray.
         // The old JSON-based codec delivered it as a base64 string — handle both.
-        val clientDataHash: ByteArray = when (val raw = params["2"]) {
+        val clientDataHash: ByteArray = when (val raw = params[REQ_CLIENT_DATA_HASH]) {
             is ByteArray -> raw
             is String    -> java.util.Base64.getDecoder().decode(raw)
             else         -> throw Fido2Exception.InvalidParameter("Missing clientDataHash (key 0x02)")
         }
-        require(clientDataHash.size == 32) { "clientDataHash must be 32 bytes, got ${clientDataHash.size}" }
+        require(clientDataHash.size == CLIENT_DATA_HASH_SIZE) { "clientDataHash must be $CLIENT_DATA_HASH_SIZE bytes, got ${clientDataHash.size}" }
 
         // Optional allow-list: array of PublicKeyCredentialDescriptor maps.
         // credential ID is a byte string in CBOR → ByteArray, or legacy base64 String.
-        val allowListRaw = params["3"] as? List<*>
+        val allowListRaw = params[REQ_ALLOW_LIST] as? List<*>
         val allowCredentials = allowListRaw?.mapNotNull { descriptor ->
             (descriptor as? Map<*, *>)?.let { map ->
                 val idBytes: ByteArray = when (val rawId = map["id"]) {
@@ -115,14 +137,14 @@ class Ctap2GetAssertionHandler @Inject constructor(
         }
 
         // options map (key 0x05): {"uv": bool, "up": bool}
-        val optionsMap = params["5"] as? Map<*, *>
+        val optionsMap = params[REQ_OPTIONS] as? Map<*, *>
         val uvRaw = optionsMap?.get("uv") as? Boolean ?: false
         val userVerification = if (uvRaw) UserVerificationRequirement.REQUIRED
                                else       UserVerificationRequirement.PREFERRED
 
         // extensions map (key 0x04): e.g. {"hmac-secret": {...}}
         @Suppress("UNCHECKED_CAST")
-        val extensions = params["4"] as? Map<String, Any>
+        val extensions = params[REQ_EXTENSIONS] as? Map<String, Any>
 
         return GetAssertionOptions(
             rpId             = rpId,
@@ -153,7 +175,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
 
         // 0x01 — credential descriptor
         assertion.credential?.let { desc ->
-            responseMap["1"] = mapOf(
+            responseMap[RESP_CREDENTIAL] = mapOf(
                 "type" to "public-key",
                 "id"   to desc.id
             )
@@ -172,7 +194,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
             if (extMap != null) {
                 // Set the ED bit (0x80) in the flags byte (authData[32])
                 val extAuthData = assertion.authData.clone()
-                extAuthData[32] = (extAuthData[32].toInt() or 0x80).toByte()
+                extAuthData[AUTH_DATA_FLAGS_INDEX] = (extAuthData[AUTH_DATA_FLAGS_INDEX].toInt() or FLAG_ED_BIT).toByte()
                 // Append CBOR-encoded extensions to authData
                 val extCbor = cborCodec.encodeToFido2Format(extMap.mapKeys { it.key })
                 extAuthData + extCbor
@@ -184,14 +206,14 @@ class Ctap2GetAssertionHandler @Inject constructor(
         }
 
         // 0x02 — authData (with optional extension data)
-        responseMap["2"] = finalAuthData
+        responseMap[RESP_AUTH_DATA] = finalAuthData
 
         // 0x03 — DER-encoded ECDSA signature: raw bytes
-        responseMap["3"] = assertion.signature
+        responseMap[RESP_SIGNATURE] = assertion.signature
 
         // 0x04 — user entity (discoverable credential flow)
         assertion.user?.let { user ->
-            responseMap["4"] = mapOf(
+            responseMap[RESP_USER] = mapOf(
                 "id"          to user.id,
                 "name"        to user.name,
                 "displayName" to user.displayName.ifEmpty { user.name }
@@ -200,7 +222,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
 
         // 0x05 — numberOfCredentials (omit if == 1)
         assertion.numberOfCredentials?.let { n ->
-            if (n > 1) responseMap["5"] = n
+            if (n > 1) responseMap[RESP_NUM_CREDS] = n
         }
 
         return cborCodec.encodeToFido2Format(responseMap)

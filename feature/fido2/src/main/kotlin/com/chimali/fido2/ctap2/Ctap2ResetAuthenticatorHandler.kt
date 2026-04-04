@@ -14,19 +14,24 @@ class Ctap2ResetAuthenticatorHandler @Inject constructor(
     private val resetAuthenticatorUseCase: ResetAuthenticatorUseCase
 ) {
 
+    companion object {
+        private const val CTAP2_OK: Byte = 0x00
+        private const val CTAP2_ERR_PROCESSING: Byte = 0x17
+    }
+
     suspend fun handle(requestBytes: ByteArray): ByteArray {
         Timber.d("Handling authenticatorReset")
         
         return try {
             val result = resetAuthenticatorUseCase()
             if (result.isSuccess) {
-                byteArrayOf(0x00) // CTAP2_OK
+                byteArrayOf(CTAP2_OK)
             } else {
-                byteArrayOf(0x17) // CTAP2_ERR_PROCESSING
+                byteArrayOf(CTAP2_ERR_PROCESSING)
             }
         } catch (e: Exception) {
             Timber.e(e, "Exception handling authenticator reset")
-            byteArrayOf(0x17) // CTAP2_ERR_PROCESSING
+            byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }
 }

@@ -21,11 +21,11 @@ data class AttestationObject(
      * Validates the AttestationObject according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    internal fun validate() {
+    fun validate() {
         // Validate required fields
         require(fmt.isNotBlank()) { "Format cannot be blank" }
-        require(fmt in setOf("packed", "fido-u2f", "none", "android-safetynet", "android-key")) { 
-            "Format must be one of: packed, fido-u2f, none, android-safetynet, android-key" 
+        require(fmt in SUPPORTED_FORMATS) { 
+            "Format must be one of: ${SUPPORTED_FORMATS.joinToString()}" 
         }
         
         // Validate auth data
@@ -42,21 +42,21 @@ data class AttestationObject(
      * Checks if this attestation is self-attested.
      */
     fun isSelfAttested(): Boolean {
-        return fmt == "none"
+        return fmt == FORMAT_NONE
     }
     
     /**
      * Checks if this attestation uses packed format.
      */
     fun isPacked(): Boolean {
-        return fmt == "packed"
+        return fmt == FORMAT_PACKED
     }
     
     /**
      * Checks if this attestation is from Android SafetyNet.
      */
     fun isAndroidSafetyNet(): Boolean {
-        return fmt == "android-safetynet"
+        return fmt == FORMAT_ANDROID_SAFETYNET
     }
     
     /**
@@ -64,21 +64,32 @@ data class AttestationObject(
      */
     fun getFormatDescription(): String {
         return when (fmt) {
-            "packed" -> "Packed attestation format"
-            "fido-u2f" -> "FIDO U2F format"
-            "none" -> "No attestation"
-            "android-safetynet" -> "Android SafetyNet attestation"
-            "android-key" -> "Android Key attestation"
+            FORMAT_PACKED -> "Packed attestation format"
+            FORMAT_FIDO_U2F -> "FIDO U2F format"
+            FORMAT_NONE -> "No attestation"
+            FORMAT_ANDROID_SAFETYNET -> "Android SafetyNet attestation"
+            FORMAT_ANDROID_KEY -> "Android Key attestation"
             else -> "Unknown format: $fmt"
         }
     }
     
     companion object {
+        private const val FORMAT_PACKED = "packed"
+        private const val FORMAT_FIDO_U2F = "fido-u2f"
+        private const val FORMAT_NONE = "none"
+        private const val FORMAT_ANDROID_SAFETYNET = "android-safetynet"
+        private const val FORMAT_ANDROID_KEY = "android-key"
+
+        private val SUPPORTED_FORMATS = setOf(
+            FORMAT_PACKED, FORMAT_FIDO_U2F, FORMAT_NONE, 
+            FORMAT_ANDROID_SAFETYNET, FORMAT_ANDROID_KEY
+        )
+
         /**
          * Creates a new AttestationObject with validation.
          */
         fun create(
-            fmt: String = "packed",
+            fmt: String = FORMAT_PACKED,
             authData: AuthenticatorData,
             attStmt: AttestationStatement,
             clientData: ClientData
@@ -99,7 +110,7 @@ data class AttestationObject(
             clientData: ClientData
         ): AttestationObject {
             return create(
-                fmt = "none",
+                fmt = FORMAT_NONE,
                 authData = authData,
                 attStmt = AttestationStatement.createNone(),
                 clientData = clientData
@@ -128,14 +139,14 @@ data class AuthenticatorData(
     /**
      * Validates the AuthenticatorData according to FIDO2 specifications.
      */
-    internal fun validate() {
+    fun validate() {
         // Validate required fields
-        require(rpIdHash.size == 32) { "RP ID hash must be exactly 32 bytes" }
-        require(flags.size == 1) { "Flags must be exactly 1 byte" }
+        require(rpIdHash.size == RP_ID_HASH_SIZE) { "RP ID hash must be exactly $RP_ID_HASH_SIZE bytes" }
+        require(flags.size == FLAGS_SIZE) { "Flags must be exactly $FLAGS_SIZE byte" }
         require(counter >= 0) { "Counter cannot be negative" }
-        require(aaguid.size == 16) { "AAGUID must be exactly 16 bytes" }
+        require(aaguid.size == AAGUID_SIZE) { "AAGUID must be exactly $AAGUID_SIZE bytes" }
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
-        require(credentialId.size <= 1023) { "Credential ID cannot exceed 1023 bytes" }
+        require(credentialId.size <= MAX_CREDENTIAL_ID_SIZE) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_SIZE bytes" }
         require(publicKey.isNotEmpty()) { "Public key cannot be empty" }
         require(publicKey.size <= MAX_PUBLIC_KEY_BYTES) { "Public key cannot exceed $MAX_PUBLIC_KEY_BYTES bytes" }
     }
@@ -144,21 +155,21 @@ data class AuthenticatorData(
      * Checks if user verification is required.
      */
     fun isUserVerificationRequired(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and 0x04) != 0
+        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UV_MASK) != 0
     }
     
     /**
      * Checks if user was present.
      */
     fun isUserPresent(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and 0x01) != 0
+        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UP_MASK) != 0
     }
     
     /**
      * Checks if user verification is satisfied.
      */
     fun isUserVerified(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and 0x04) != 0
+        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UV_MASK) != 0
     }
     
     /**
@@ -195,6 +206,13 @@ data class AuthenticatorData(
     }
     
     companion object {
+        private const val RP_ID_HASH_SIZE = 32
+        private const val FLAGS_SIZE = 1
+        private const val AAGUID_SIZE = 16
+        private const val MAX_CREDENTIAL_ID_SIZE = 1023
+        private const val FLAG_UP_MASK = 0x01
+        private const val FLAG_UV_MASK = 0x04
+
         /** P-256 uncompressed point in COSE CBOR = ~77 bytes; ML-DSA-65 DER = ~1952 bytes → use 2048 as the cap. */
         const val MAX_PUBLIC_KEY_BYTES = 2048
 
@@ -240,23 +258,19 @@ data class AttestationStatement(
     /**
      * Validates the AttestationStatement according to FIDO2 specifications.
      */
-    internal fun validate() {
+    fun validate() {
         // Validate required fields
         // Validate algorithm
         when (alg) {
             is String -> {
                 require(alg.isNotBlank()) { "Algorithm cannot be blank" }
-                require(alg in setOf("ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "Ed25519", "none")) { 
+                require(alg in SUPPORTED_ALGORITHMS) { 
                     "Algorithm must be a valid signature algorithm string" 
                 }
             }
             is Int, is Long -> {
                 val algInt = (alg as Number).toInt()
-                require(algInt in setOf(
-                    COSE_ALG_ES256, COSE_ALG_ES384, COSE_ALG_ES512, 
-                    COSE_ALG_PS256, COSE_ALG_PS384, COSE_ALG_PS512, 
-                    COSE_ALG_EDDSA, COSE_ALG_ED25519, COSE_ALG_ML_DSA_65, COSE_ALG_RS256
-                )) { 
+                require(algInt in SUPPORTED_COSE_ALGORITHMS) { 
                     "Algorithm must be a valid COSE algorithm identifier" 
                 }
             }
@@ -264,14 +278,14 @@ data class AttestationStatement(
         }
         
         // Validate format
-        require(fmt in setOf("packed", "fido-u2f", "none", "android-safetynet", "android-key")) { 
-            "Format must be one of: packed, fido-u2f, none, android-safetynet, android-key" 
+        require(fmt in SUPPORTED_FORMATS) { 
+            "Format must be one of: ${SUPPORTED_FORMATS.joinToString()}" 
         }
         
         // Validate optional fields
         attCert?.let { cert ->
             require(cert.isNotEmpty()) { "Attestation certificate cannot be empty if provided" }
-            require(cert.size <= 2048) { "Attestation certificate cannot exceed 2048 bytes" }
+            require(cert.size <= MAX_CERT_SIZE) { "Attestation certificate cannot exceed $MAX_CERT_SIZE bytes" }
         }
         
         authData?.let { auth ->
@@ -281,10 +295,10 @@ data class AttestationStatement(
         
         x5c?.let { chain ->
             require(chain.isNotEmpty()) { "X5C chain cannot be empty if provided" }
-            require(chain.size <= 10) { "X5C chain cannot exceed 10 certificates" }
+            require(chain.size <= MAX_X5C_CHAIN_SIZE) { "X5C chain cannot exceed $MAX_X5C_CHAIN_SIZE certificates" }
             chain.forEach { cert ->
                 require(cert.isNotEmpty()) { "Certificate in chain cannot be empty" }
-                require(cert.size <= 2048) { "Certificate in chain cannot exceed 2048 bytes" }
+                require(cert.size <= MAX_CERT_SIZE) { "Certificate in chain cannot exceed $MAX_CERT_SIZE bytes" }
             }
         }
     }
@@ -360,6 +374,22 @@ data class AttestationStatement(
         const val COSE_ALG_ML_DSA_65 = -49
         const val COSE_ALG_RS256 = -257
 
+        private val SUPPORTED_ALGORITHMS = setOf(
+            "ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "Ed25519", "none"
+        )
+
+        private val SUPPORTED_COSE_ALGORITHMS = setOf(
+            COSE_ALG_ES256, COSE_ALG_ES384, COSE_ALG_ES512, 
+            COSE_ALG_PS256, COSE_ALG_PS384, COSE_ALG_PS512, 
+            COSE_ALG_EDDSA, COSE_ALG_ED25519, COSE_ALG_ML_DSA_65, COSE_ALG_RS256
+        )
+
+        private val SUPPORTED_FORMATS = setOf(
+            "packed", "fido-u2f", "none", "android-safetynet", "android-key"
+        )
+
+        private const val MAX_CERT_SIZE = 2048
+        private const val MAX_X5C_CHAIN_SIZE = 10
         const val MAX_AUTH_DATA_BYTES = 4096
 
         /**
@@ -415,19 +445,19 @@ data class ClientData(
     /**
      * Validates the ClientData according to FIDO2 specifications.
      */
-    internal fun validate() {
+    fun validate() {
         // Validate required fields
         require(type.isNotBlank()) { "Type cannot be blank" }
         require(challenge.isNotEmpty()) { "Challenge cannot be empty" }
-        require(challenge.size <= 64) { "Challenge cannot exceed 64 bytes" }
+        require(challenge.size <= MAX_CHALLENGE_SIZE) { "Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes" }
         require(origin.isNotBlank()) { "Origin cannot be blank" }
         require(RelyingParty.isValidRpId(origin)) { 
             "Origin must be a valid domain or HTTPS origin: $origin" 
         }
         
         // Validate timestamp
-        require(timestamp.isBefore(Instant.now().plusSeconds(60))) { 
-            "Timestamp cannot be more than 60 seconds in the future" 
+        require(timestamp.isBefore(Instant.now().plusSeconds(FUTURE_GRACE_PERIOD_SECONDS))) { 
+            "Timestamp cannot be more than $FUTURE_GRACE_PERIOD_SECONDS seconds in the future" 
         }
     }
     
@@ -442,14 +472,14 @@ data class ClientData(
      * Checks if this is for credential creation.
      */
     fun isCredentialCreation(): Boolean {
-        return type == "webauthn.create"
+        return type == TYPE_CREATE
     }
     
     /**
      * Checks if this is for credential assertion.
      */
     fun isCredentialAssertion(): Boolean {
-        return type == "webauthn.get"
+        return type == TYPE_GET
     }
 
     override fun equals(other: Any?): Boolean {
@@ -477,11 +507,16 @@ data class ClientData(
     }
     
     companion object {
+        private const val MAX_CHALLENGE_SIZE = 64
+        private const val FUTURE_GRACE_PERIOD_SECONDS = 60L
+        private const val TYPE_CREATE = "webauthn.create"
+        private const val TYPE_GET = "webauthn.get"
+
         /**
          * Creates a new ClientData with validation.
          */
         fun create(
-            type: String = "webauthn.create",
+            type: String = TYPE_CREATE,
             challenge: ByteArray,
             origin: String,
             crossOrigin: Boolean = false
@@ -499,7 +534,7 @@ data class ClientData(
          * Creates a ClientData from base64 challenge.
          */
         fun fromBase64Challenge(
-            type: String = "webauthn.create",
+            type: String = TYPE_CREATE,
             challengeBase64: String,
             origin: String,
             crossOrigin: Boolean = false

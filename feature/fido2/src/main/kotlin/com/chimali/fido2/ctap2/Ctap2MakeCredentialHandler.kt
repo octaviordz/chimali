@@ -21,32 +21,6 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// CTAPHID command codes
-private const val CTAPHID_CBOR: Byte = 0x10
-
-// CTAP2 command codes (first byte of CBOR payload)
-private const val CMD_MAKE_CREDENTIAL: Byte = 0x01
-
-// CTAP2 status codes
-private const val CTAP2_OK:                        Byte = 0x00
-private const val CTAP2_ERR_INVALID_CBOR:          Byte = 0x12.toByte()
-private const val CTAP2_ERR_MISSING_PARAMETER:     Byte = 0x14.toByte()
-private const val CTAP2_ERR_UNSUPPORTED_ALGORITHM: Byte = 0x26.toByte()
-private const val CTAP2_ERR_OPERATION_DENIED:      Byte = 0x27.toByte()
-private const val CTAP2_ERR_KEY_STORE_FULL:        Byte = 0x28.toByte()
-private const val CTAP2_ERR_NOT_ALLOWED:           Byte = 0x36.toByte()
-
-// COSE algorithm IDs
-internal const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
-/** COSE algorithm identifier for Ed25519. */
-internal const val COSE_ED25519 = -19 // Ed25519
-/** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID -49; IANA pending. */
-internal const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
-
-// AuthData flags
-private const val FLAG_UP: Int = 0x01  // User Present
-private const val FLAG_AT: Int = 0x40  // Attested Credential Data included
-
 /**
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
  * [BluetoothHidTransportImpl].
@@ -63,6 +37,51 @@ class Ctap2MakeCredentialHandler @Inject constructor(
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus
 ) {
+
+    companion object {
+        // CTAPHID command codes
+        private const val CTAPHID_CBOR: Byte = 0x10
+
+        // CTAP2 command codes (first byte of CBOR payload)
+        private const val CMD_MAKE_CREDENTIAL: Byte = 0x01
+
+        // CTAP2 status codes
+        private const val CTAP2_OK:                        Byte = 0x00
+        private const val CTAP2_ERR_INVALID_CBOR:          Byte = 0x12.toByte()
+        private const val CTAP2_ERR_MISSING_PARAMETER:     Byte = 0x14.toByte()
+        private const val CTAP2_ERR_UNSUPPORTED_ALGORITHM: Byte = 0x26.toByte()
+        private const val CTAP2_ERR_OPERATION_DENIED:      Byte = 0x27.toByte()
+        private const val CTAP2_ERR_KEY_STORE_FULL:        Byte = 0x28.toByte()
+        private const val CTAP2_ERR_NOT_ALLOWED:           Byte = 0x36.toByte()
+
+        // COSE algorithm IDs
+        private const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
+        private const val COSE_ED25519 = -19 // EdDSA
+        private const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
+
+        // AuthData flags
+        private const val FLAG_UP: Int = 0x01  // User Present
+        private const val FLAG_AT: Int = 0x40  // Attested Credential Data included
+
+        // Request Map Keys (§6.1)
+        private const val REQ_CLIENT_DATA_HASH = "1"
+        private const val REQ_RP = "2"
+        private const val REQ_USER = "3"
+        private const val REQ_PUB_KEY_PARAMS = "4"
+        private const val REQ_OPTIONS = "7"
+        private const val REQ_EXTENSIONS = "10"
+
+        // Response Map Keys (§6.1)
+        private const val RESP_FMT = "1"
+        private const val RESP_AUTH_DATA = "2"
+        private const val RESP_ATT_STMT = "3"
+
+        // Bitwise offsets
+        private const val SHIFT_24 = 24
+        private const val SHIFT_16 = 16
+        private const val SHIFT_8 = 8
+        private const val BYTE_MASK = 0xFF
+    }
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -103,12 +122,12 @@ class Ctap2MakeCredentialHandler @Inject constructor(
             ?: throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
 
         // 0x01: clientDataHash (required)
-        val clientDataHash = (map["1"] ?: map["clientDataHash"]) as? ByteArray
+        val clientDataHash = (map[REQ_CLIENT_DATA_HASH] ?: map["clientDataHash"]) as? ByteArray
             ?: throw Fido2Exception.InvalidFormatException("Missing clientDataHash (key 0x01)")
 
         // 0x02: rp (required)
         @Suppress("UNCHECKED_CAST")
-        val rpMap = (map["2"] ?: map["rp"]) as? Map<*, *>
+        val rpMap = (map[REQ_RP] ?: map["rp"]) as? Map<*, *>
             ?: throw Fido2Exception.InvalidFormatException("Missing rp entity (key 0x02)")
         val rpId = rpMap["id"] as? String
             ?: throw Fido2Exception.InvalidFormatException("Missing rp.id")
@@ -116,7 +135,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         // 0x03: user (required)
         @Suppress("UNCHECKED_CAST")
-        val userMap = (map["3"] ?: map["user"]) as? Map<*, *>
+        val userMap = (map[REQ_USER] ?: map["user"]) as? Map<*, *>
             ?: throw Fido2Exception.InvalidFormatException("Missing user entity (key 0x03)")
         val userId = userMap["id"] as? ByteArray
             ?: throw Fido2Exception.InvalidFormatException("Missing user.id")
@@ -125,7 +144,7 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         // 0x04: pubKeyCredParams (required)
         @Suppress("UNCHECKED_CAST")
-        val rawParams = (map["4"] ?: map["pubKeyCredParams"]) as? List<*>
+        val rawParams = (map[REQ_PUB_KEY_PARAMS] ?: map["pubKeyCredParams"]) as? List<*>
             ?: throw Fido2Exception.InvalidFormatException("Missing pubKeyCredParams (key 0x04)")
         val algorithms = rawParams.mapNotNull { entry ->
             (entry as? Map<*, *>)?.let { m ->
@@ -138,14 +157,14 @@ class Ctap2MakeCredentialHandler @Inject constructor(
 
         // 0x07: options (optional)
         @Suppress("UNCHECKED_CAST")
-        val options = (map["7"] ?: map["options"]) as? Map<*, *>
+        val options = (map[REQ_OPTIONS] ?: map["options"]) as? Map<*, *>
         val requireUserVerification = options?.get("uv") as? Boolean ?: false
         val requireResidentKey = options?.get("rk") as? Boolean ?: false
 
         // 0x0A / "extensions": optional FIDO2.1 extension map
         // T056a: Parse credentialProtectionPolicy (credProtect) if present.
         @Suppress("UNCHECKED_CAST")
-        val extensions = (map["10"] ?: map["extensions"]) as? Map<*, *>
+        val extensions = (map[REQ_EXTENSIONS] ?: map["extensions"]) as? Map<*, *>
         val credProtectPolicy: Int? = extensions?.let {
             (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
         }
@@ -251,9 +270,9 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         val authDataBytes = buildAuthenticatorData(attestation.authData)
         // Integer keys — not string keys — per CTAP2 §6.1
         val responseMap: Map<String, Any> = mapOf(
-            "1" to attestation.fmt,         // fmt
-            "2" to authDataBytes,           // authData (raw bytes, not base64)
-            "3" to buildAttestationStatementMap(attestation.attStmt)
+            RESP_FMT to attestation.fmt,         // fmt
+            RESP_AUTH_DATA to authDataBytes,           // authData (raw bytes, not base64)
+            RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt)
         )
         Timber.d("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size)
         Timber.d("authData hex: %s", authDataBytes.joinToString("") { "%02x".format(it) })
@@ -276,15 +295,15 @@ class Ctap2MakeCredentialHandler @Inject constructor(
         result.add(flags)                                 // 1 byte
         // signCount as 4-byte big-endian
         val cnt = authData.counter
-        result.add(((cnt shr 24) and 0xFF).toByte())
-        result.add(((cnt shr 16) and 0xFF).toByte())
-        result.add(((cnt shr  8) and 0xFF).toByte())
-        result.add(( cnt         and 0xFF).toByte())
+        result.add(((cnt shr SHIFT_24) and BYTE_MASK.toLong()).toByte())
+        result.add(((cnt shr SHIFT_16) and BYTE_MASK.toLong()).toByte())
+        result.add(((cnt shr  SHIFT_8) and BYTE_MASK.toLong()).toByte())
+        result.add(( cnt               and BYTE_MASK.toLong()).toByte())
         // Attested credential data
         result.addAll(authData.aaguid.toList())           // 16 bytes
         val credIdLen = authData.credentialId.size
-        result.add(((credIdLen shr 8) and 0xFF).toByte())
-        result.add(( credIdLen        and 0xFF).toByte())
+        result.add(((credIdLen shr SHIFT_8) and BYTE_MASK).toByte())
+        result.add(( credIdLen              and BYTE_MASK).toByte())
         result.addAll(authData.credentialId.toList())
         result.addAll(authData.publicKey.toList())
         return result.toByteArray()

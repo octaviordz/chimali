@@ -45,8 +45,45 @@ data class AssertionObject(
     /** ID of the credential that was used. Convenience field derived from [credential]. */
     val credentialId: String = credential?.getIdBase64Url() ?: ""
 ) {
+
+    companion object {
+        private const val MIN_AUTH_DATA_SIZE = 37
+        private const val FLAGS_OFFSET = 32
+        private const val SIGN_COUNT_OFFSET = 33
+        private const val SIGN_COUNT_BYTE_0_SHIFT = 24
+        private const val SIGN_COUNT_BYTE_1_SHIFT = 16
+        private const val SIGN_COUNT_BYTE_2_SHIFT = 8
+        private const val BYTE_MASK = 0xFF
+        
+        private const val FLAG_UP_MASK = 0x01
+        private const val FLAG_UV_MASK = 0x04
+        private const val TEST_FLAGS_UP_UV = 0x05
+        
+        private const val TEST_SIG_SIZE = 64
+
+        /**
+         * Creates a minimal AssertionObject for testing without real crypto.
+         */
+        fun createTest(
+            credentialId: String,
+            rpId: String
+        ): AssertionObject {
+            val rpIdHash = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(rpId.toByteArray())
+            val flags = byteArrayOf(TEST_FLAGS_UP_UV.toByte()) // UP | UV
+            val counter = byteArrayOf(0, 0, 0, 1)
+            val authData = rpIdHash + flags + counter // 37 bytes
+            return AssertionObject(
+                credential = PublicKeyCredentialDescriptor.create(id = credentialId.toByteArray()),
+                authData   = authData,
+                signature  = ByteArray(TEST_SIG_SIZE) { it.toByte() },
+                user       = null
+            )
+        }
+    }
+
     init {
-        require(authData.size >= 37) {
+        require(authData.size >= MIN_AUTH_DATA_SIZE) {
             "authData must be at least 37 bytes (rpIdHash+flags+counter), got ${authData.size}"
         }
         require(signature.isNotEmpty()) { "signature cannot be empty" }
@@ -54,18 +91,18 @@ data class AssertionObject(
 
     /** Extracts the sign-count from bytes 33–36 (big-endian uint32) of authData. */
     fun extractSignCount(): Long {
-        if (authData.size < 37) return 0L
-        return ((authData[33].toLong() and 0xFF) shl 24) or
-               ((authData[34].toLong() and 0xFF) shl 16) or
-               ((authData[35].toLong() and 0xFF) shl 8)  or
-               (authData[36].toLong()  and 0xFF)
+        if (authData.size < MIN_AUTH_DATA_SIZE) return 0L
+        return ((authData[SIGN_COUNT_OFFSET].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_0_SHIFT) or
+               ((authData[SIGN_COUNT_OFFSET + 1].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_1_SHIFT) or
+               ((authData[SIGN_COUNT_OFFSET + 2].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_2_SHIFT)  or
+               (authData[SIGN_COUNT_OFFSET + 3].toLong()  and BYTE_MASK.toLong())
     }
 
     /** Returns true if the UP (user present) flag is set in authData byte 32. */
-    fun isUserPresent(): Boolean = authData.size > 32 && (authData[32].toInt() and 0x01) != 0
+    fun isUserPresent(): Boolean = authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UP_MASK) != 0
 
     /** Returns true if the UV (user verified) flag is set in authData byte 32. */
-    fun isUserVerified(): Boolean = authData.size > 32 && (authData[32].toInt() and 0x04) != 0
+    fun isUserVerified(): Boolean = authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UV_MASK) != 0
 
     // ByteArray equality
     override fun equals(other: Any?): Boolean {
@@ -83,27 +120,5 @@ data class AssertionObject(
         result = 31 * result + (credential?.hashCode() ?: 0)
         result = 31 * result + (user?.hashCode() ?: 0)
         return result
-    }
-
-    companion object {
-        /**
-         * Creates a minimal AssertionObject for testing without real crypto.
-         */
-        fun createTest(
-            credentialId: String,
-            rpId: String
-        ): AssertionObject {
-            val rpIdHash = java.security.MessageDigest.getInstance("SHA-256")
-                .digest(rpId.toByteArray())
-            val flags = byteArrayOf(0x05.toByte()) // UP | UV
-            val counter = byteArrayOf(0, 0, 0, 1)
-            val authData = rpIdHash + flags + counter // 37 bytes
-            return AssertionObject(
-                credential = PublicKeyCredentialDescriptor.create(id = credentialId.toByteArray()),
-                authData   = authData,
-                signature  = ByteArray(64) { it.toByte() },
-                user       = null
-            )
-        }
     }
 }

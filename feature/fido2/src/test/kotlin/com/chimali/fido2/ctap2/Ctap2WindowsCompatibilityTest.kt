@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
@@ -65,7 +66,8 @@ class Ctap2WindowsCompatibilityTest {
     @Test
     fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() = runTest {
         val mockUseCase = mockk<GetAssertionUseCase>()
-        val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec)
+        val mockHmacProcessor = mockk<HmacSecretProcessor>()
+        val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, mockHmacProcessor)
 
         // Create dummy bytes
         val dummyAuthData = ByteArray(37) { 0xAA.toByte() }

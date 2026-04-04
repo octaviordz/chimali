@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-04
+
+### Changed
+- **FIDO2 Protocol Refinement**: Refactored domain models (`AttestationObject`, `AssertionObject`, `ClientData`) to replace hardcoded strings and magic numbers with standardized constants (e.g., `TYPE_CREATE`, `FLAG_USER_PRESENT`).
+- **Code Quality & Maintenance**: Performed module-wide clean-up of `RegisterCredentialUseCase` and `GetAssertionUseCase` to eliminate code smells and improve alignment with modern Kotlin idioms.
+- **Static Analysis Compliance**: Resolved residual Detekt and Ktlint warnings, ensuring 100% compliance with project quality gates (NFR-ARCH-040).
+- **Test Stability**: Enhanced `Fido2StressTest` with refined state management for more reliable automated verification.
+- **Detailed changes**: [2026-04-04-fido2-code-quality-and-refining.md](docs/changelogs/2026-04-04-fido2-code-quality-and-refining.md)
+
 ## [Unreleased] - 2026-04-03
 
 ### Added

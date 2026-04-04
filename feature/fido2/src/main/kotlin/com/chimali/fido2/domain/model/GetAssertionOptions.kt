@@ -1,7 +1,5 @@
 package com.chimali.fido2.domain.model
 
-import java.util.Base64
-
 /**
  * T078 — Domain model representing options for a FIDO2 GetAssertion (authentication) ceremony.
  *
@@ -28,22 +26,28 @@ data class GetAssertionOptions(
 
     private fun validate() {
         require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(clientDataHash.size == 32) {
+        require(clientDataHash.size == CLIENT_DATA_HASH_SIZE) {
             "clientDataHash must be 32 bytes (SHA-256), got ${clientDataHash.size}"
         }
         allowCredentials?.let { list ->
-            require(list.size <= 32) { "allowCredentials cannot exceed 32 items" }
-            list.forEach { it.validate() }
+            require(list.size <= MAX_ALLOW_CREDENTIALS) { "allowCredentials cannot exceed 32 items" }
+            // Individual descriptors are validated upon construction (init)
         }
-        timeout?.let { require(it in 1..300_000) { "Timeout must be 1–300000 ms" } }
+        timeout?.let { require(it in MIN_TIMEOUT_MS..MAX_TIMEOUT_MS) { "Timeout must be 1–300000 ms" } }
     }
 
-    fun getSafeTimeout(): Long = timeout ?: 60_000L
+    fun getSafeTimeout(): Long = timeout ?: DEFAULT_TIMEOUT_MS
 
     /** True when no allowCredentials list is provided — any resident credential is valid. */
     fun isDiscoverableFlow(): Boolean = allowCredentials.isNullOrEmpty()
 
     companion object {
+        private const val CLIENT_DATA_HASH_SIZE = 32
+        private const val MAX_ALLOW_CREDENTIALS = 32
+        private const val DEFAULT_TIMEOUT_MS = 60_000L
+        private const val MIN_TIMEOUT_MS = 1L
+        private const val MAX_TIMEOUT_MS = 300_000L
+
         /**
          * Quick factory for tests or internal use when clientDataHash is already computed.
          */

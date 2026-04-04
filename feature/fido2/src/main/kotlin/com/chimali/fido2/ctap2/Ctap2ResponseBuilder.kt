@@ -7,6 +7,7 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import timber.log.Timber
 import javax.inject.Inject
@@ -40,6 +41,35 @@ class Ctap2ResponseBuilder @Inject constructor(
     private val hidReportParser: HidReportParser
 ) {
 
+    companion object {
+        // Response keys (§6.1, §6.4)
+        private const val KEY_FMT = "1"
+        private const val KEY_AUTH_DATA = "2"
+        private const val KEY_ATT_STMT = "3"
+        private const val KEY_VERSIONS = "1"
+        private const val KEY_EXTENSIONS = "2"
+        private const val KEY_AAGUID = "3"
+        private const val KEY_OPTIONS = "4"
+        private const val KEY_MAX_MSG_SIZE = "5"
+        private const val KEY_MAX_CREDS = "7"
+        private const val KEY_MAX_CRED_ID_LEN = "8"
+        private const val KEY_TRANSPORTS = "9"
+        private const val KEY_ALGORITHMS = "10"
+
+        // Bitwise flags
+        private const val FLAG_AT_MASK = 0x40
+
+        // Shifts and masks
+        private const val SHIFT_24 = 24
+        private const val SHIFT_16 = 16
+        private const val SHIFT_8 = 8
+        private const val BYTE_MASK = 0xFF
+
+        // Response defaults
+        private const val MAX_MSG_SIZE = 1200L
+        private const val MAX_CRED_ID_LEN = 255L
+    }
+
     // ── MakeCredential response ───────────────────────────────────────────────
 
     /**
@@ -52,9 +82,9 @@ class Ctap2ResponseBuilder @Inject constructor(
         val authDataBytes = serializeAuthData(attestation.authData)
         // CTAP2 §6.1 integer keys: 1=fmt, 2=authData, 3=attStmt
         val responseMap: Map<String, Any> = mapOf(
-            "1" to attestation.fmt,
-            "2" to authDataBytes,          // raw ByteArray, not List
-            "3" to serializeAttStmt(attestation.attStmt)
+            KEY_FMT to attestation.fmt,
+            KEY_AUTH_DATA to authDataBytes,          // raw ByteArray, not List
+            KEY_ATT_STMT to serializeAttStmt(attestation.attStmt)
         )
         return successCborPackets(cid, responseMap)
     }
@@ -80,10 +110,10 @@ class Ctap2ResponseBuilder @Inject constructor(
         //   clientPin=true is advertised so clients know PIN is available.
         //   Out-of-scope: enterprise attestation, largeBlobKey.
         val responseMap: Map<String, Any> = mapOf(
-            "1" to listOf("FIDO_2_0", "FIDO_2_1"), // versions — include FIDO_2_1 for CTAP2.1 clients
-            "2" to listOf("credProtect", "hmac-secret", "minPinLength"), // extensions (FIDO2.1)
-            "3" to info.aaguid,                   // aaguid: raw ByteArray (16 bytes)
-            "4" to mapOf(                          // options
+            KEY_VERSIONS to listOf("FIDO_2_0", "FIDO_2_1"), // versions — include FIDO_2_1 for CTAP2.1 clients
+            KEY_EXTENSIONS to listOf("credProtect", "hmac-secret", "minPinLength"), // extensions (FIDO2.1)
+            KEY_AAGUID to info.aaguid,                   // aaguid: raw ByteArray (16 bytes)
+            KEY_OPTIONS to mapOf(                          // options
                 "rk" to info.supportsResidentKeys,
                 "up" to true,
                 "uv" to true,                      // device has internal UV (biometric)
@@ -91,13 +121,13 @@ class Ctap2ResponseBuilder @Inject constructor(
                 "credProtect" to true,             // credProtect extension supported (FIDO2.1)
                 "plat" to false                    // not platform-bound
             ),
-            "5" to 1200L,                          // maxMsgSize
-            "8" to 255L,                           // maxCredentialIdLength
-            "9" to listOf("usb"),                  // transports — Windows treats HID as USB-like
-            "10" to listOf(                        // algorithms
-                mapOf("alg" to COSE_ES256.toLong(), "type" to "public-key"),
-                mapOf("alg" to COSE_ED25519.toLong(), "type" to "public-key"),
-                mapOf("alg" to COSE_ML_DSA_65.toLong(), "type" to "public-key")
+            KEY_MAX_MSG_SIZE to MAX_MSG_SIZE,      // maxMsgSize
+            KEY_MAX_CRED_ID_LEN to MAX_CRED_ID_LEN,// maxCredentialIdLength
+            KEY_TRANSPORTS to listOf("usb"),       // transports — Windows treats HID as USB-like
+            KEY_ALGORITHMS to listOf(              // algorithms
+                mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(), "type" to "public-key"),
+                mapOf("alg" to PasskeyCredential.COSE_ED25519.toLong(), "type" to "public-key"),
+                mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key")
             )
         )
         Timber.d("getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=%dbytes", info.aaguid.size)
@@ -156,16 +186,16 @@ class Ctap2ResponseBuilder @Inject constructor(
         out.addAll(authData.rpIdHash.toList())    // 32 bytes
         out.addAll(authData.flags.toList())        // 1 byte
         val cnt = authData.counter
-        out.add(((cnt shr 24) and 0xFF).toByte())
-        out.add(((cnt shr 16) and 0xFF).toByte())
-        out.add(((cnt shr  8) and 0xFF).toByte())
-        out.add(( cnt         and 0xFF).toByte())
+        out.add(((cnt shr SHIFT_24) and BYTE_MASK.toLong()).toByte())
+        out.add(((cnt shr SHIFT_16) and BYTE_MASK.toLong()).toByte())
+        out.add(((cnt shr  SHIFT_8) and BYTE_MASK.toLong()).toByte())
+        out.add(( cnt               and BYTE_MASK.toLong()).toByte())
         // Attested credential data (bit6 of flags)
-        if (authData.flags.isNotEmpty() && (authData.flags[0].toInt() and 0x40) != 0) {
+        if (authData.flags.isNotEmpty() && (authData.flags[0].toInt() and FLAG_AT_MASK) != 0) {
             out.addAll(authData.aaguid.toList())
             val idLen = authData.credentialId.size
-            out.add(((idLen shr 8) and 0xFF).toByte())
-            out.add(( idLen        and 0xFF).toByte())
+            out.add(((idLen shr SHIFT_8) and BYTE_MASK).toByte())
+            out.add(( idLen              and BYTE_MASK).toByte())
             out.addAll(authData.credentialId.toList())
             out.addAll(authData.publicKey.toList())
         }
@@ -177,7 +207,7 @@ class Ctap2ResponseBuilder @Inject constructor(
      */
     private fun serializeAttStmt(attStmt: AttestationStatement): Map<String, Any> {
         if (attStmt.fmt == "none") return emptyMap()
-        
+
         val map = mutableMapOf<String, Any>()
         if (attStmt.fmt == "packed") {
             map["alg"] = attStmt.alg

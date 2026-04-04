@@ -1,20 +1,22 @@
 package com.chimali.fido2.data.repository
 
-import com.chimali.fido2.domain.model.*
-import com.chimali.fido2.domain.model.CredentialId
-import com.chimali.fido2.domain.repository.CredentialRepository
-import com.chimali.fido2.data.mapper.*
-import com.chimali.fido2.domain.repository.CredentialStatistics
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
-import com.chimali.fido2.data.service.CredentialStorageService
+import com.chimali.fido2.data.mapper.toDomainModel
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.CredentialId
+import com.chimali.fido2.domain.model.CredentialSummary
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.model.UserConsentRecord
+import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.repository.CredentialStatistics
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -31,6 +33,12 @@ class CredentialRepositoryImpl @Inject constructor(
     private val userConsentRecordDao: UserConsentRecordDao,
     private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService
 ) : CredentialRepository {
+
+    companion object {
+        private const val MAX_USER_CREDENTIALS_PER_RP = 10
+        private const val RECENT_USAGE_CUTOFF_DAYS = 90L
+        private const val EXPIRY_DAYS_THRESHOLD = 730L
+    }
 
     // ── Credential CRUD ──────────────────────────────────────────────────────
 
@@ -188,8 +196,8 @@ class CredentialRepositoryImpl @Inject constructor(
                     rpId         = entity.rpId,
                     credentialId = java.util.Base64.getDecoder().decode(entity.credentialId),
                     lastUsedAt   = entity.lastUsedAt
-                        ?.let { java.time.Instant.ofEpochMilli(it) }
-                        ?: java.time.Instant.ofEpochMilli(entity.createdAt),
+                        ?.let { Instant.ofEpochMilli(it) }
+                        ?: Instant.ofEpochMilli(entity.createdAt),
                     coseAlgorithm = entity.coseAlgorithm.toInt(),
                     credProtectPolicy = entity.credProtectPolicy.toInt()
                 )
@@ -301,8 +309,8 @@ class CredentialRepositoryImpl @Inject constructor(
                 list
             }
             val userCreds = existingCredentials.filter { it.userId.equals(userId, ignoreCase = true) }
-            if (userCreds.size >= 10) {
-                return Result.failure(Fido2Exception.TooManyCredentials(10))
+            if (userCreds.size >= MAX_USER_CREDENTIALS_PER_RP) {
+                return Result.failure(Fido2Exception.TooManyCredentials(MAX_USER_CREDENTIALS_PER_RP))
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -381,9 +389,9 @@ class CredentialRepositoryImpl @Inject constructor(
 
             val byRp = allCredentials.groupBy { it.rpId }.mapValues { it.value.size }
             val now = Instant.now()
-            val cutoff90 = now.minus(90, ChronoUnit.DAYS)
-            val expired = allCredentials.count { ChronoUnit.DAYS.between(it.createdAt, now) > 730 }
-            val recentlyUsed = allCredentials.count { it.lastUsedAt?.isAfter(cutoff90) == true }
+            val cutoff = now.minus(RECENT_USAGE_CUTOFF_DAYS, ChronoUnit.DAYS)
+            val expired = allCredentials.count { ChronoUnit.DAYS.between(it.createdAt, now) > EXPIRY_DAYS_THRESHOLD }
+            val recentlyUsed = allCredentials.count { it.lastUsedAt?.isAfter(cutoff) == true }
             val needsUV = 0 // Not implemented in current schema
             val avgAge = if (allCredentials.isNotEmpty())
                 allCredentials.map { ChronoUnit.DAYS.between(it.createdAt, now) }.average()
