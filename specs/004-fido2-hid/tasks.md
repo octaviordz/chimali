@@ -7,6 +7,15 @@
 **Goal**: Initialize project structure and dependencies for FIDO2 Virtual Authenticator feature
 
 **Independent Test Criteria**: Project compiles successfully with all dependencies configured
+# Implementation Tasks: FIDO2 Virtual Authenticator via BluetoothHidDevice
+
+**Branch**: `004-fido2-hid` | **Date**: 2026-03-01 | **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)
+
+## Phase 1: Setup Tasks
+
+**Goal**: Initialize project structure and dependencies for FIDO2 Virtual Authenticator feature
+
+**Independent Test Criteria**: Project compiles successfully with all dependencies configured
 
 - [X] T001 Create feature/fido2 module structure per implementation plan
 - [X] T002 Add FIDO2 dependencies to feature module build.gradle.kts
@@ -14,6 +23,7 @@
 - [X] T004 Create Hilt module for FIDO2 dependency injection
 - [X] T005 Configure SQLDelight database setup for credential storage
 - [X] T006 Set up ProGuard rules for FIDO2 and crypto libraries
+- [X] T006a Configure static analysis gates: initialize **Detekt** and **Ktlint** configurations for the feature module. *(refs: NFR-ARCH-040)*
 - [X] T007 Create base package structure for domain, data, presentation layers
 - [X] T008 [P] Set up unit test structure with JUnit5 and MockK
 - [X] T009 [P] Set up integration test structure with Compose UI Testing
@@ -37,7 +47,9 @@
 - [X] T017c [US1] Add PQC fallback logic for devices without quantum support
 - [X] T018 Create CBOR encoding/decoding utilities for FIDO2 messages
 - [X] T019 Implement memory zeroing utilities for sensitive data
+- [X] T019a Implement **AES-256-SIV** (Synthetic IV) for searchable encrypted metadata and key wrapping to ensure nonce-misuse resistance. *(Constitution §I.2)*
 - [X] T020 Create base Fido2Exception hierarchy for error handling
+- [X] T020a Implement Local-First `Timber.Tree` and rotating file sink (5MB cap) per `plan.md` to ensure privacy-compliant logging throughout development. *(refs: NFR-SEC-020)*
 - [X] T021 [P] Implement unit tests for database schemas and migrations
 - [X] T022 [P] Implement unit tests for KeyStore wrapper
 - [X] T023 [P] Implement unit tests for crypto utilities
@@ -74,7 +86,7 @@
 - [X] T043 [US1] Create RelyingParty DAO with SQLDelight queries
 - [X] T044 [US1] Implement UserConsentRecord DAO with SQLDelight queries
 - [X] T045 [US1] Create credential storage service with KeyStore integration
-- [X] T046 [US1] Implement secure credential encryption/decryption
+- [X] T046 [US1] Implement secure credential encryption/decryption: MUST use **AES-256-GCM** for individual credential blobs *before* database insertion. *(Constitution §I.1)*
 - [X] T047 [P] [US1] Implement unit tests for repository layer
 - [X] T048 [P] [US1] Implement unit tests for DAOs
 
@@ -84,6 +96,7 @@
 - [X] T051 [US1] Implement CTAP2 MakeCredential command handler
 - [X] T052 [US1] Create CTAP2 response builder for attestation
 - [X] T053 [US1] Implement Bluetooth HID transport layer
+- [X] T053a [US1] Implement thread-safe FIFO queuing mechanism for outgoing HID reports to prevent packet loss during fragmented transactions. *(Constitution §IV)*
 - [X] T054 [US1] Add connection state management for HID sessions
 - [X] T055 [P] [US1] Implement unit tests for Bluetooth HID layer
 - [X] T056 [P] [US1] Implement unit tests for CTAP2 protocol
@@ -139,6 +152,7 @@
 
 ### Core Bluetooth Tasks
 - [X] T087 [US2] Implement CTAP2 GetAssertion command handler
+- [X] T087a [US2] Implement `hmac-secret` extension logic in `GetAssertion` handler: derive extension secret using `HdkManager` and include in CTAP2 response. *(refs: FR-HID-020)*
 - [X] T088 [US2] Create CTAP2 response builder for assertion
 - [X] T089 [US2] Add credential selection support to CTAP2 layer
 - [X] T090 [P] [US2] Implement unit tests for GetAssertion handler
@@ -162,6 +176,7 @@
 - [X] T102 [US2] Connect authentication UI with ViewModel and use cases
 - [X] T103 [US2] Integrate credential selection with authentication flow
 - [X] T104 [US2] Implement error handling for authentication failures
+- [X] T104a [US2] Implement legacy U2F fallback probing/compatibility to ensure stability on Windows 11 host systems. *(Constitution §V)*
 - [X] T105 [US2] Add user consent logging for authentication
 - [X] T106 [P] [US2] Implement end-to-end integration tests for authentication
 - [X] T107 Verify authentication story compiles and passes all tests
@@ -181,10 +196,11 @@
 
 ### Data Layer Tasks
 - [X] T113 [US3] Add credential enumeration to repository
+- [X] T113a Refactor credential lookup tags to use **AES-256-SIV** deterministic ciphertext for metadata indexing. *(Constitution §I.2)*
 - [X] T114 [US3] Implement secure credential deletion
 - [X] T115 [US3] Add credential count tracking
-- [X] T115a [US1] Enforce 50-credential maximum in `RegisterCredentialUseCase`: before persisting a new credential, query `credentialCount()` from the repository; if count ≥ 50, throw `Fido2Exception.StorageFull` with CTAP error code `CTAP2_ERR_KEY_STORE_FULL` (0x27). *(refs: FR-HID-022)*
-- [X] T115b [P] [US1] Unit tests for the 50-credential storage limit: verify registration fails with `CTAP2_ERR_KEY_STORE_FULL` at count == 50 and succeeds at count == 49. *(refs: FR-HID-022)*
+- [X] T115a [US1] Enforce configurable credential maximum (default: 1000) in `RegisterCredentialUseCase`: before persisting a new credential, query `credentialCount()` from the repository; if count ≥ limit, throw `Fido2Exception.StorageFull` with CTAP error code `CTAP2_ERR_KEY_STORE_FULL` (0x27). *(refs: FR-HID-022)*
+- [X] T115b [P] [US1] Unit tests for the credential storage limit: verify registration fails with `CTAP2_ERR_KEY_STORE_FULL` at count == limit and succeeds at count == limit - 1. *(refs: FR-HID-022)*
 - [X] T116 [P] [US3] Implement unit tests for management repository methods
 
 ### Core Bluetooth Tasks
@@ -280,6 +296,7 @@
 - [x] T162a [P] Ensure algorithm consistency (Ed25519 & ML-DSA-65) across CryptoService and CTAP2 handlers
 - [x] T163 Verify BRD requirements compliance (refs: [FR-HID-010-brd-compliance.md](checklists/FR-HID-010-brd-compliance.md))
 - [x] T164 Final compilation check and code review
+- [X] T164a Run final static analysis check: verify all code passes **Detekt** and **Ktlint** gates with zero violations. *(refs: NFR-ARCH-040)*
 - [x] T165 Prepare feature for merge to main branch
 - [x] T185 [UI] Standardize button styling across application (FIDO2 prompts, Authenticator Home, Vault details) using Material 3 idiomatic `contentPadding` and `shape.large`.
 
@@ -496,13 +513,13 @@ Every task includes specific file paths and clear completion criteria to ensure 
 
 ## Total Task Count
 
-**Summary**: 173 total tasks
-- **Setup**: 10 tasks (T001-T010)
-- **Foundational**: 14 tasks (T011-T024)
-- **User Story 1**: 56 tasks (T025-T077, includes T056a-c for FR-HID-020 FIDO2.1 extensions, T115a-b for FR-HID-022 50-credential quota)
-- **User Story 2**: 30 tasks (T078-T107)
-- **User Story 3**: 25 tasks (T108-T132)
-- **Polish**: 36 tasks (T133-T165, includes T145a-c)
+**Summary**: 181 total tasks
+- **Setup**: 11 tasks (T001-T010, includes T006a)
+- **Foundational**: 16 tasks (T011-T024, includes T019a, T020a)
+- **User Story 1**: 57 tasks (T025-T077, includes T053a, T056a-c, T115a-b)
+- **User Story 2**: 32 tasks (T078-T107, includes T087a, T104a)
+- **User Story 3**: 26 tasks (T108-T132, includes T113a)
+- **Polish**: 39 tasks (T133-T165, includes T145a-c, T164a, T185)
 
 **Parallel Tasks**: 42 tasks marked with [P] for parallel execution
 **Independent Test Criteria**: Each phase has clear verification requirements

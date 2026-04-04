@@ -81,13 +81,12 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 
 ### Edge Cases
 
-- What happens when Bluetooth connection is lost during an operation?
 - **Bluetooth Connection Recovery**: When Bluetooth connection is lost during operation, system must queue the operation for retry and notify user with option to continue or cancel
 - **Connection State Persistence**: Maintain operation state across connection interruptions and allow seamless resume when reconnected
-- How does system handle credential storage when device memory is full?
-- What happens when user denies consent during registration/authentication?
-- How does system handle malformed FIDO2 requests from relying parties?
-- What happens when battery is critically low during authentication?
+- **Memory Full**: When credential limit (1000) is reached or disk is full, operations MUST fail deterministically with `CTAP2_ERR_KEY_STORE_FULL` (0x27)
+- **Consent Denied / Verification Failed**: When user denies consent or biometric verification fails, operations MUST fail deterministically with `CTAP2_ERR_OPERATION_DENIED` (0x29) or `CTAP2_ERR_ACTION_TIMEOUT` (0x23)
+- **Malformed FIDO2 Requests**: When relying parties send malformed requests, the transport layer MUST drop the payload or return `CTAP1_ERR_INVALID_LENGTH` (0x03) / `CTAP2_ERR_CBOR_PARSING` (0x11)
+- **Low Battery**: System MUST proceed normally but UI should indicate critical state if below 5%
 
 ## Requirements *(mandatory)*
 
@@ -100,14 +99,14 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 
 - **FR-HID-010**: System MUST act as a FIDO2 Virtual Authenticator via BluetoothHidDevice
 - **FR-HID-011**: System MUST support complete FIDO2 ceremony operations including registration, authentication, and credential management
-- **FR-HID-014**: System MUST implement proper user consent mechanisms
+- **FR-HID-014**: System MUST implement explicit MVI-driven biometric prompts for user consent on every MakeCredential and GetAssertion operation
 - **FR-HID-021**: System MUST support biometric (fingerprint/face) verification with PIN fallback for user authentication
 - **FR-HID-015**: System MUST securely store private keys and credentials
 - **FR-HID-016**: System MUST handle multiple credentials for different relying parties
 - **FR-HID-022**: System MUST support configurable storage of passkey credentials per user (default: 1000).
 - **FR-HID-017**: System MUST provide Bluetooth HID device functionality
 - **FR-HID-018**: System MUST support credential enumeration and management
-- **FR-HID-019**: System MUST implement proper error handling for FIDO2 protocol failures
+- **FR-HID-019**: System MUST map internal protocol failures to exact CTAP2 error codes mandated by §6 of CTAP2 spec (e.g., `0x27` for storage full, `0x2E` for no credentials)
 - **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions. Required FIDO2.1 extensions:
   - `credProtect` (credential protection policy — `userVerificationRequired` enforcement)
   - `minPinLength` reporting via `authenticatorGetInfo` response

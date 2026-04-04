@@ -26,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -86,6 +88,19 @@ class BluetoothHidTransportImpl @Inject constructor(
     private var receiveJob: Job? = null
     private var stateObserverJob: Job? = null
 
+    /**
+     * T053a — Thread-safe FIFO queue for outgoing HID reports (Constitution §IV).
+     *
+     * All outgoing 64-byte HID packets are enqueued here and drained by a single
+     * sender coroutine ([sendQueueJob]). This prevents packet interleaving between
+     * concurrent coroutines (e.g., keepalive loop + CBOR response), which would
+     * corrupt the framing of multi-packet CTAPHID messages on the host side.
+     *
+     * Capacity: 256 packets (~16 KB at 64 B/packet). Overflow: SUSPEND (backpressure).
+     */
+    private val sendQueue = Channel<ByteArray>(capacity = 256)
+    private var sendQueueJob: Job? = null
+
     // ── Fido2Transport interface ───────────────────────────────────────────────
 
     override suspend fun connect(): Result<Unit> {
@@ -94,7 +109,8 @@ class BluetoothHidTransportImpl @Inject constructor(
             hidWrapper.initialize().getOrThrow()
             Timber.d("hidWrapper initialized, now registering app...")
             hidWrapper.registerApp().getOrThrow()
-            Timber.d("hidWrapper app registered, starting receiver and observer...")
+            Timber.d("hidWrapper app registered, starting receiver, sender and observer...")
+            startSendQueue()       // T053a: start FIFO sender before receiving
             startReceiving()
             observeConnectionState()
             Timber.i("BluetoothHidTransport connected and advertising")
@@ -115,6 +131,8 @@ class BluetoothHidTransportImpl @Inject constructor(
             receiveJob = null
             stateObserverJob?.cancel()
             stateObserverJob = null
+            sendQueueJob?.cancel()  // T053a: stop FIFO sender
+            sendQueueJob = null
             hidWrapper.unregisterApp()
             channelRegistry.clear()
             hidReportParser.reset()
@@ -530,11 +548,36 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /**
+     * T053a — Enqueues all [packets] into the thread-safe FIFO send queue.
+     *
+     * The [sendQueueJob] coroutine drains the queue sequentially, ensuring packets
+     * from concurrent callers (keepalive loop, CBOR response, ping) never interleave.
+     * [trySendBlocking] is used for non-suspend contexts; the Channel capacity (256)
+     * ensures this blocks only under extremely high load, not in normal operation.
+     */
     private fun sendPackets(packets: List<ByteArray>) {
         for (packet in packets) {
-            if (!hidWrapper.sendReport(packet)) {
-                Timber.w("sendReport returned false — host may have disconnected")
-                break
+            val result = sendQueue.trySendBlocking(packet)
+            if (result.isFailure) {
+                Timber.w("Send queue full — dropping HID packet (queue capacity exceeded)")
+            }
+        }
+    }
+
+    /**
+     * T053a — Starts the FIFO sender coroutine that drains [sendQueue] serially.
+     *
+     * A single coroutine calls [BluetoothHidDeviceWrapper.sendReport] one packet at
+     * a time, preventing any concurrent access to the underlying HID driver.
+     */
+    private fun startSendQueue() {
+        sendQueueJob?.cancel()
+        sendQueueJob = scope.launch(Dispatchers.IO) {
+            for (packet in sendQueue) {
+                if (!hidWrapper.sendReport(packet)) {
+                    Timber.w("sendReport returned false — host may have disconnected")
+                }
             }
         }
     }

@@ -3,6 +3,20 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-03
+
+### Added
+- **Cryptography & Security**: Implemented `AesSivEncryptionManager` for deterministic, authenticated AES-256-SIV encryption, enabling exact-match database lookups on encrypted metadata (`EncryptedMetadataIndexService`). This ensures all RP ID tags and credential aliases are stored cryptographically secure per Constitution §I.2 constraints.
+- **FIDO2 Protocol Extensibility**: Added `HmacSecretProcessor` to construct, encrypt, and fulfill CTAP `hmac-secret` extensions natively over the authenticator interfaces.
+
+### Changed
+- **HID Transport Stability**: Introduced a thread-safe Kotlin `Channel<ByteArray>` based FIFO queuing system inside `BluetoothHidTransportImpl`. It explicitly enforces zero packet collisions between continuous internal probing and out-of-band CBOR telemetry mapping. 
+
+### Fixed
+- **Specification Parity**: Aligned documented failure paths (in `spec.md` and `plan.md`) directly with CTAP standard OS errors (0x27 Memory Full, 0x29 Consent Denied).
+- **Static Check Gate**: Resolved residual detekt exceptions resulting in clean analysis reports for all feature layers.
+- **Detailed changes**: [2026-04-03-fido2-cryptographic-and-transport-hardening.md](docs/changelogs/2026-04-03-fido2-cryptographic-and-transport-hardening.md)
+
 ## [Unreleased] - 2026-04-02
 
 ### Added

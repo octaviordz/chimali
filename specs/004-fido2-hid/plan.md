@@ -17,7 +17,7 @@ Implement the FIDO2 Virtual Authenticator via `BluetoothHidDevice`, allowing the
 **Project Type**: Mobile Application  
 **Performance Goals**: Local-First logging overhead < 5ms per event.   
 **Constraints**: Absolute privacy (no remote crash reporting tools like Crashlytics). Sensitive parameters must be masked.  
-**Scale/Scope**: Limit Local-First log files to 5MB rotating buffer to prevent disk exhaustion.
+**Scale/Scope**: Limit Local-First log files to 5MB rotating buffer to prevent disk exhaustion. Enforce a configurable maximum of 1000 stored credentials (FR-HID-022).
 
 ## Constitution Check
 

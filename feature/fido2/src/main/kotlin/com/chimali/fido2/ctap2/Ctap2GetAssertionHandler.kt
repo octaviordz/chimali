@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
@@ -38,7 +39,8 @@ import javax.inject.Singleton
 @Singleton
 class Ctap2GetAssertionHandler @Inject constructor(
     private val getAssertionUseCase: GetAssertionUseCase,
-    private val cborCodec: CborCodec
+    private val cborCodec: CborCodec,
+    private val hmacSecretProcessor: HmacSecretProcessor
 ) {
 
     /**
@@ -57,7 +59,7 @@ class Ctap2GetAssertionHandler @Inject constructor(
             result.fold(
                 onSuccess = { assertion ->
                     Timber.d("Assertion success: credId=%s", assertion.credentialId)
-                    val responseBytes = encodeResponse(assertion)
+                    val responseBytes = encodeResponse(assertion, options)
                     byteArrayOf(0x00.toByte()) + responseBytes  // CTAP2_OK + response
                 },
                 onFailure = { error ->
@@ -118,40 +120,79 @@ class Ctap2GetAssertionHandler @Inject constructor(
         val userVerification = if (uvRaw) UserVerificationRequirement.REQUIRED
                                else       UserVerificationRequirement.PREFERRED
 
+        // extensions map (key 0x04): e.g. {"hmac-secret": {...}}
+        @Suppress("UNCHECKED_CAST")
+        val extensions = params["4"] as? Map<String, Any>
+
         return GetAssertionOptions(
             rpId             = rpId,
             clientDataHash   = clientDataHash,
             allowCredentials = allowCredentials,
-            userVerification = userVerification
+            userVerification = userVerification,
+            extensions       = extensions
         )
     }
 
-    // ── T088: Response encoding ───────────────────────────────────────────────
+    // ── T087a: hmac-secret extension + T088: Response encoding ─────────────────
 
-    private fun encodeResponse(
-        assertion: AssertionObject
+    /**
+     * Encodes the GetAssertion response.
+     *
+     * If the request contained an `hmac-secret` extension, the extension output
+     * is appended to authData (with the ED flag set) before signing is complete.
+     * Note: The assertion's authData already carries the signature over the base
+     * authData; hmac-secret output is added as a separate extensions map in authData.
+     * Per CTAP2.1 §12.4, the ED bit and extensions CBOR are appended to authData
+     * after signing, and included in the response map as key 0x02.
+     */
+    private suspend fun encodeResponse(
+        assertion: AssertionObject,
+        options: GetAssertionOptions
     ): ByteArray {
         val responseMap = mutableMapOf<String, Any>()
 
         // 0x01 — credential descriptor
-        // Per CTAP2 §6.2, the credential id MUST be raw bytes (CBOR bstr), not base64.
         assertion.credential?.let { desc ->
             responseMap["1"] = mapOf(
                 "type" to "public-key",
-                "id"   to desc.id   // ByteArray — CborCodec encodes as CBOR bstr
+                "id"   to desc.id
             )
         }
 
-        // 0x02 — authData: raw bytes, NOT base64 text
-        responseMap["2"] = assertion.authData
+        // T087a: Process hmac-secret extension and build authData with extensions
+        val hmacOutput = if (hmacSecretProcessor.isPresent(options.extensions)) {
+            val extensionData = options.extensions?.get(HmacSecretProcessor.EXTENSION_KEY)
+            val selectedCredId = assertion.credentialId
+            hmacSecretProcessor.process(selectedCredId, extensionData)
+        } else null
 
-        // 0x03 — DER-encoded ECDSA signature: raw bytes, NOT base64 text
+        // Extend authData with extensions CBOR if hmac-secret output is present
+        val finalAuthData = if (hmacOutput != null) {
+            val extMap = hmacSecretProcessor.buildAuthDataExtensions(hmacOutput)
+            if (extMap != null) {
+                // Set the ED bit (0x80) in the flags byte (authData[32])
+                val extAuthData = assertion.authData.clone()
+                extAuthData[32] = (extAuthData[32].toInt() or 0x80).toByte()
+                // Append CBOR-encoded extensions to authData
+                val extCbor = cborCodec.encodeToFido2Format(extMap.mapKeys { it.key })
+                extAuthData + extCbor
+            } else {
+                assertion.authData
+            }
+        } else {
+            assertion.authData
+        }
+
+        // 0x02 — authData (with optional extension data)
+        responseMap["2"] = finalAuthData
+
+        // 0x03 — DER-encoded ECDSA signature: raw bytes
         responseMap["3"] = assertion.signature
 
         // 0x04 — user entity (discoverable credential flow)
         assertion.user?.let { user ->
             responseMap["4"] = mapOf(
-                "id"          to user.id,              // raw bytes
+                "id"          to user.id,
                 "name"        to user.name,
                 "displayName" to user.displayName.ifEmpty { user.name }
             )
