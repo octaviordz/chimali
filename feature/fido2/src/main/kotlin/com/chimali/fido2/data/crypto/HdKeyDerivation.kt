@@ -16,6 +16,7 @@ class HdKeyDerivation @Inject constructor() {
         private const val CURVE = "secp256r1"
         private const val KEY_AGREEMENT = "ECDH"
         private const val SIGNATURE_ALGO = "SHA256withECDSA"
+        private const val CHAIN_CODE_SIZE = 32
     }
     
     fun deriveChildKey(parentKeyPair: KeyPair, chainCode: ByteArray, index: Int): KeyPair {
@@ -36,7 +37,7 @@ class HdKeyDerivation @Inject constructor() {
     fun generateChainCode(): ByteArray {
         // Generate secure random chain code
         val secureRandom = java.security.SecureRandom()
-        val chainCode = ByteArray(32)
+        val chainCode = ByteArray(CHAIN_CODE_SIZE)
         secureRandom.nextBytes(chainCode)
         return chainCode
     }
