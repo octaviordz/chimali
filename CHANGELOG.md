@@ -3,6 +3,23 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-06
+
+### Changed
+- **Bluetooth HID Transport Hardening**: Refactored the HID transport layer to eliminate redundant internal queues and race conditions. Implemented a serialized, single-worker coroutine for packet dispatch with a mandatory 20ms inter-packet pacing delay (REPORT_PACE_DELAY_MS) to prevent HCI buffer overflows on constrained OEM Bluetooth stacks.
+- **Robust Bonding Lifecycle**: Implemented deferred connection acceptance for devices in the `BOND_BONDING` state. The authenticator now parks these connections and only promotes them to `Connected` once `ACTION_BOND_STATE_CHANGED` confirms a secure `BOND_BONDED` link, preventing Windows `0x8007000d` (ERROR_INVALID_DATA) errors caused by unencrypted L2CAP traffic.
+- **Protocol Precision**: Refactored `BluetoothHidTransportImpl` to replace magic numbers with named constants for CTAPHID/APDU offsets and DER encoding tags, improving specification parity and code maintainability.
+
+### Fixed
+- **Motorola HID Reconnection (Zombie Lockout)**: Resolved a critical edge case where Motorola's Bluetooth daemon would lock out incoming Windows connections for 66 seconds after app restart. Implemented a "Phantom Flush" exploit that commands native connecting/disconnecting to the zombie session MAC, forcing the baseband cache to clear and eliminating the 66-second reconnection lockout.
+- **Windows Error Mitigation**: Resolved the "Unknown Device State" (0x8007000d) error encountered during first registration by removing the malformed all-zeros HID "keepalive" report, which was incorrectly interpreted by the Windows CTAPHID parser.
+- **Reconnection Reliability**: Restored the mandatory disconnect of any existing matching device during app registration. This clears stale L2CAP sockets from the Bluetooth daemon, enabling reliable "one-click" reconnection without requiring the user to unpair/repair.
+- **Bluetooth Hardware Resilience**: Added an `ACTION_STATE_CHANGED` receiver to the HID wrapper to immediately clear proxy references and reset state when the user disables Bluetooth hardware.
+
+### Added
+- **OEM Quirk Management**: Introduced `BluetoothQuirks.kt` to centralize hardware-specific workarounds, including phantom-device disconnect logic for Motorola stacks.
+- **Detailed changes**: [2026-04-06-fido2-bluetooth-hid-reliability-and-pacing.md](docs/changelogs/2026-04-06-fido2-bluetooth-hid-reliability-and-pacing.md)
+
 ## [Unreleased] - 2026-04-04
 
 ### Changed
@@ -398,4 +415,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-02*
+*Last Updated: 2026-04-06*

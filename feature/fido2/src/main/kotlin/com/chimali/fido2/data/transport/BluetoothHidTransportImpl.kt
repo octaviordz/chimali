@@ -17,6 +17,7 @@ import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.util.performance.LatencyProfiler
@@ -43,11 +44,6 @@ import java.security.spec.ECGenParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// CTAPHID error codes (§8.4)
-private const val ERR_INVALID_CMD:   Byte = 0x01
-private const val ERR_INVALID_LEN:   Byte = 0x03
-private const val ERR_INVALID_SEQ:   Byte = 0x04
-private const val ERR_INVALID_CHANNEL: Byte = 0x0B
 
 /**
  * Central FIDO2 HID transport layer (T053 + T054).
@@ -79,6 +75,81 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val cryptoService: Fido2CryptoService
 ) : Fido2Transport {
 
+    companion object {
+        // CTAPHID error codes (§8.4)
+        private const val ERR_INVALID_CMD:   Byte = 0x01
+        private const val ERR_INVALID_LEN:   Byte = 0x03
+        private const val ERR_INVALID_SEQ:   Byte = 0x04
+        private const val ERR_INVALID_CHANNEL: Byte = 0x0B
+
+        // CTAP2 Command Codes
+        private const val CMD_MAKE_CREDENTIAL = 0x01
+        private const val CMD_GET_ASSERTION = 0x02
+        private const val CMD_GET_INFO = 0x04
+
+        // U2F/APDU Constants
+        private const val INS_REGISTER = 0x01
+        private const val INS_AUTHENTICATE = 0x02
+        private const val INS_VERSION = 0x03
+        private const val INS_CTAP2_OVER_MSG = 0x10
+        private const val SW_SUCCESS_1 = 0x90.toByte()
+        private const val SW_SUCCESS_2 = 0x00.toByte()
+        private const val SW_WRONG_DATA_1 = 0x6A.toByte()
+        private const val SW_WRONG_DATA_2 = 0x80.toByte()
+        private const val SW_UNKNOWN_1 = 0x6F.toByte()
+        private const val SW_UNKNOWN_2 = 0x00.toByte()
+        private const val SW_INS_NOT_SUPPORTED_1 = 0x6D.toByte()
+        private const val SW_INS_NOT_SUPPORTED_2 = 0x00.toByte()
+
+        private const val APDU_MIN_SIZE = 4
+        private const val APDU_LC_SHORT_OFFSET = 4
+        private const val APDU_LC_EXTENDED_OFFSET = 5
+        private const val APDU_LC_EXTENDED_MIN_SIZE = 7
+
+        /**
+         * Inter-report pacing delay in milliseconds.
+         *
+         * After each HID report is dispatched to [BluetoothHidDeviceWrapper.sendReport],
+         * the sender coroutine sleeps for this duration to let the Bluetooth HCI layer
+         * process the outbound HCI command before the next packet is queued.
+         *
+         * Background: Android's Classic BT L2CAP channel does not expose per-packet ACKs,
+         * so we rely on a fixed sleep to avoid overwhelming the driver's internal queue.
+         * 20 ms is a safe default observed across Pixel, Samsung, and Asus devices; it
+         * can be widened for particularly slow OEM stacks during field debugging by
+         * adjusting this constant (or making it injectable if future testing warrants it).
+         */
+        private const val REPORT_PACE_DELAY_MS = 20L
+        private const val KEEPALIVE_INITIAL_DELAY_MS = 75L
+        private const val KEEPALIVE_PERIOD_MS = 75L
+
+        // Protocol
+        private const val NONCE_SIZE = 8
+        private const val CID_SIZE = 4
+        private const val STATUS_PROCESSING: Byte = 0x01
+        private const val STATUS_UPNEEDED: Byte = 0x02
+        private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F   // 0x10
+
+        // DER Encoding Tags
+        private const val DER_SEQUENCE = 0x30
+        private const val DER_INTEGER = 0x02
+        private const val DER_BIT_STRING = 0x03
+        private const val DER_OCTET_STRING = 0x04
+        private const val DER_OID = 0x06
+        private const val DER_UTF8_STRING = 0x0C
+        private const val DER_UTC_TIME = 0x17
+        private const val DER_PRINTABLE_STRING = 0x13
+        private const val DER_SET = 0x31
+
+        private const val U2F_RESERVED_BYTE: Byte = 0x05
+        private const val P256_UNCOMPRESSED_SIZE = 65
+        private const val SEED_SIZE = 32
+        private const val BYTE_MASK = 0xFF
+        private const val SHIFT_8 = 8
+        private const val SHIFT_16 = 16
+        private const val SHIFT_24 = 24
+    }
+
     private val secureRandom = SecureRandom()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -87,6 +158,25 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     private var receiveJob: Job? = null
     private var stateObserverJob: Job? = null
+
+    /**
+     * Guard flag for zombie-kill auto-reregistration.
+     *
+     * On Motorola, the BT daemon keeps the previous session's HID registration alive for
+     * ~66 s after the process dies. When the zombie is finally cleaned up, the daemon fires
+     * [BluetoothHidDevice.Callback.onAppStatusChanged] with `registered=false`, driving
+     * [HidConnectionState.Idle] while the transport expects to be advertising.
+     *
+     * The [observeConnectionState] handler detects this unexpected Idle and re-invokes
+     * [BluetoothHidDeviceWrapper.registerApp]. The zombie is dead at that point so
+     * [android.bluetooth.BluetoothHidDevice.registerApp] returns `true` and properly
+     * binds the callback — new connections from the already-bonded host then succeed.
+     *
+     * This flag prevents a concurrent second re-registration if the prelude
+     * [android.bluetooth.BluetoothHidDevice.unregisterApp] inside [BluetoothHidDeviceWrapper.registerApp]
+     * triggers another transient [HidConnectionState.Idle] emission.
+     */
+    @Volatile private var isAutoReregistering = false
 
     /**
      * T053a — Thread-safe FIFO queue for outgoing HID reports (Constitution §IV).
@@ -129,7 +219,11 @@ class BluetoothHidTransportImpl @Inject constructor(
             Timber.d("disconnect() starting...")
             receiveJob?.cancel()
             receiveJob = null
-            stateObserverJob?.cancel()
+            // Use cancelAndJoin (not just cancel) so the observer coroutine is guaranteed dead
+            // before unregisterApp() fires registered=false →  Idle. Without this, the
+            // observer's Idle handler could race with the intentional disconnect and trigger
+            // an unwanted auto re-registration.
+            stateObserverJob?.cancelAndJoin()
             stateObserverJob = null
             sendQueueJob?.cancel()  // T053a: stop FIFO sender
             sendQueueJob = null
@@ -211,6 +305,32 @@ class BluetoothHidTransportImpl @Inject constructor(
                 }
                 is HidConnectionState.Idle -> {
                     Timber.d("HID transport idle")
+                    // Unexpected Idle while the observer is alive means the HID app registration
+                    // was lost outside of a user-initiated disconnect (most commonly: the Motorola
+                    // BT daemon zombie cleanup at ~66 s fires registered=false). At this point the
+                    // zombie is dead, so a fresh registerApp() will return true and properly bind
+                    // the callback. Any host that bonded during the zombie window will then connect.
+                    //
+                    // Why this is safe:
+                    //   - User-initiated disconnect: disconnect() calls stateObserverJob.cancelAndJoin()
+                    //     BEFORE unregisterApp(). So the observer is dead by the time Idle fires
+                    //     from the intentional unregister — this block never runs.
+                    //   - Zombie cleanup: the observer is alive → we reach here → re-register.
+                    if (!isAutoReregistering) {
+                        isAutoReregistering = true
+                        scope.launch {
+                            delay(200L) // brief breathing room
+                            Timber.i("Unexpected Idle (zombie cleanup?) — auto re-registering HID app.")
+                            try {
+                                hidWrapper.registerApp()
+                                    .onFailure { e ->
+                                        Timber.e("Auto re-registration failed: %s", e.message)
+                                    }
+                            } finally {
+                                isAutoReregistering = false
+                            }
+                        }
+                    }
                 }
                 is HidConnectionState.Error -> {
                     Timber.e("HID connection error: %s", state.message)
@@ -270,7 +390,7 @@ class BluetoothHidTransportImpl @Inject constructor(
     // ── CTAPHID_INIT ──────────────────────────────────────────────────────────
 
     private fun handleInit(message: CtapHidMessage) {
-        val nonce = message.payload.takeIf { it.size >= 8 }?.copyOfRange(0, 8)
+        val nonce = message.payload.takeIf { it.size >= NONCE_SIZE }?.copyOfRange(0, NONCE_SIZE)
         if (nonce == null) {
             sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_LEN))
             return
@@ -302,11 +422,11 @@ class BluetoothHidTransportImpl @Inject constructor(
             return
         }
 
-        val ctapCommand = payload[0].toInt() and 0xFF
+        val ctapCommand = payload[0].toInt() and BYTE_MASK
         val operationLabel = when (ctapCommand) {
-            0x01 -> "MakeCredential"
-            0x02 -> "GetAssertion"
-            0x04 -> "GetInfo"
+            CMD_MAKE_CREDENTIAL -> "MakeCredential"
+            CMD_GET_ASSERTION -> "GetAssertion"
+            CMD_GET_INFO -> "GetInfo"
             else -> "CTAP2_0x${ctapCommand.toString(16)}"
         }
         // NFR-PERF-030: Start measuring full CTAP2 processing time
@@ -323,32 +443,35 @@ class BluetoothHidTransportImpl @Inject constructor(
         // arrive at Windows BEFORE the real response, causing ERROR_INVALID_DATA.
         // The rauth-android reference always sleeps first, then sends.
         val keepaliveJob: Job = scope.launch(Dispatchers.IO) {
-            delay(75L)  // wait first; spec requires first ~100ms. Reference uses 75ms.
-            sendPackets(responseBuilder.keepAliveResponse(cid, 0x01)) // PROCESSING
+            delay(KEEPALIVE_INITIAL_DELAY_MS) // wait first; spec requires first ~100ms. Reference uses 75ms.
+            sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_PROCESSING))
             while (true) {
-                delay(75L) // 75ms between subsequent keepalives.
-                sendPackets(responseBuilder.keepAliveResponse(cid, 0x02)) // UPNEEDED
+                delay(KEEPALIVE_PERIOD_MS) // 75ms between subsequent keepalives.
+                sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_UPNEEDED))
             }
         }
 
         val responsePackets = try {
             when (ctapCommand) {
-                0x01 -> {
+                CMD_MAKE_CREDENTIAL -> {
                     // authenticatorMakeCredential — CTAP2 registration
                     val resp = makeCredentialHandler.handle(message)
                     publishSuccessEvent()
                     resp
                 }
-                0x02 -> {
+
+                CMD_GET_ASSERTION -> {
                     // authenticatorGetAssertion — CTAP2 authentication
                     val resp = handleGetAssertion(message)
                     publishSuccessEvent()
                     resp
                 }
-                0x04 -> handleGetInfo(cid)                            // authenticatorGetInfo
+
+                CMD_GET_INFO -> handleGetInfo(cid) // authenticatorGetInfo
+
                 else -> {
                     Timber.w("Unsupported CTAP2 command 0x%s", ctapCommand.toString(16))
-                    responseBuilder.errorResponse(cid, 0x01.toByte()) // CTAP1_ERR_INVALID_COMMAND
+                    responseBuilder.errorResponse(cid, ERR_INVALID_CMD)
                 }
             }
         } finally {
@@ -419,23 +542,23 @@ class BluetoothHidTransportImpl @Inject constructor(
         val payload = message.payload
         Timber.d("CTAPHID_MSG len=%d cid=%s", payload.size, cid.toHex())
 
-        if (payload.size < 4) {
+        if (payload.size < APDU_MIN_SIZE) {
             sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN))
             return
         }
 
-        val ins = payload[1].toInt() and 0xFF
+        val ins = payload[1].toInt() and BYTE_MASK
 
         // CTAP2-over-MSG: INS = 0x10, data is CBOR payload
-        if (ins == 0x10) {
+        if (ins == INS_CTAP2_OVER_MSG) {
             val cborData = extractApduData(payload)
             if (cborData == null || cborData.isEmpty()) {
                 Timber.w("CTAPHID_MSG INS=0x10 but APDU data is empty")
-                sendPackets(u2fErrorResponse(cid, 0x6F, 0x00)) // SW_UNKNOWN
+                sendPackets(u2fErrorResponse(cid, SW_UNKNOWN_1.toInt(), SW_UNKNOWN_2.toInt()))
                 return
             }
-            Timber.d("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and 0xFF).toString(16))
             // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
+            Timber.d("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and BYTE_MASK).toString(16))
             val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
             handleCbor(syntheticMsg)
             return
@@ -443,51 +566,52 @@ class BluetoothHidTransportImpl @Inject constructor(
 
         // Pure U2F commands (Register=0x01, Authenticate=0x02, Version=0x03)
         when (ins) {
-            0x03 -> {
+            INS_VERSION -> {
                 // U2F_VERSION — respond "U2F_V2" so the host knows we speak the FIDO protocol
                 val u2fVersion = "U2F_V2".toByteArray(Charsets.US_ASCII)
                 sendPackets(u2fSuccessResponse(cid, u2fVersion))
             }
-            0x01 -> {
+            INS_REGISTER -> {
                 // U2F_REGISTER — Windows requires a structurally valid U2F response before it
                 // will issue CTAP2 authenticatorMakeCredential. We build an ephemeral (discarded)
                 // U2F registration to pass Windows's mandatory probe.
                 Timber.d("CTAPHID_MSG U2F_REGISTER → sending dummy U2F registration to unlock CTAP2 path")
                 val apduData = extractApduData(payload)
-                if (apduData != null && apduData.size >= 64) {
-                    val clientDataHash = apduData.copyOfRange(0, 32)
-                    val appIdHash      = apduData.copyOfRange(32, 64)
+                if (apduData != null && apduData.size >= (SEED_SIZE * 2)) {
+                    val clientDataHash = apduData.copyOfRange(0, SEED_SIZE)
+                    val appIdHash      = apduData.copyOfRange(SEED_SIZE, SEED_SIZE * 2)
                     val u2fResp = buildDummyU2fRegistrationResponse(clientDataHash, appIdHash)
                     sendPackets(u2fSuccessResponse(cid, u2fResp))
                 } else {
-                    sendPackets(u2fErrorResponse(cid, 0x6A, 0x80)) // SW_WRONG_DATA
+                    sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
                 }
             }
-            0x02 -> {
+            INS_AUTHENTICATE -> {
                 // U2F_AUTHENTICATE — return SW_WRONG_DATA (0x6A80) to signal that we don't
                 // recognise this U2F key handle. Per the U2F spec, this tells the platform
                 // "credential not found here" and causes Windows to fall back to CTAP2 GetAssertion.
                 Timber.d("CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)")
-                sendPackets(u2fErrorResponse(cid, 0x6A, 0x80))
+                sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
             }
             else -> {
                 Timber.d("CTAPHID_MSG U2F INS=0x%s unknown — returning SW_INS_NOT_SUPPORTED", ins.toString(16))
-                sendPackets(u2fErrorResponse(cid, 0x6D, 0x00))
+                sendPackets(u2fErrorResponse(cid, SW_INS_NOT_SUPPORTED_1.toInt(), SW_INS_NOT_SUPPORTED_2.toInt()))
             }
         }
     }
 
     /** Extract data bytes from an ISO 7816-4 APDU (handles extended and short Lc). */
     private fun extractApduData(apdu: ByteArray): ByteArray? {
-        if (apdu.size < 4) return null
+        if (apdu.size < APDU_MIN_SIZE) return null
         return try {
-            if (apdu.size == 4) return ByteArray(0)          // no body
-            if (apdu[4] != 0x00.toByte()) {                  // short Lc
-                val lc = apdu[4].toInt() and 0xFF
+            if (apdu.size == APDU_MIN_SIZE) return ByteArray(0) // no body
+            if (apdu[APDU_LC_SHORT_OFFSET] != 0x00.toByte()) {  // short Lc
+                val lc = apdu[APDU_LC_SHORT_OFFSET].toInt() and BYTE_MASK
                 apdu.copyOfRange(5, 5 + lc)
             } else {                                         // extended Lc
-                if (apdu.size < 7) return null
-                val lc = ((apdu[5].toInt() and 0xFF) shl 8) or (apdu[6].toInt() and 0xFF)
+                if (apdu.size < APDU_LC_EXTENDED_MIN_SIZE) return null
+                val lc = ((apdu[APDU_LC_EXTENDED_OFFSET].toInt() and BYTE_MASK) shl SHIFT_8) or
+                         (apdu[APDU_LC_EXTENDED_OFFSET + 1].toInt() and BYTE_MASK)
                 apdu.copyOfRange(7, 7 + lc)
             }
         } catch (e: Exception) { null }
@@ -495,7 +619,7 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     /** Build a U2F success APDU response: data + SW1=0x90 SW2=0x00 */
     private fun u2fSuccessResponse(cid: ByteArray, data: ByteArray): List<ByteArray> {
-        val resp = data + byteArrayOf(0x90.toByte(), 0x00)
+        val resp = data + byteArrayOf(SW_SUCCESS_1, SW_SUCCESS_2)
         val msg  = CtapHidMessage(cid, CTAPHID_MSG, resp)
         return hidReportParser.encodeResponse(msg)
     }
@@ -570,6 +694,10 @@ class BluetoothHidTransportImpl @Inject constructor(
      *
      * A single coroutine calls [BluetoothHidDeviceWrapper.sendReport] one packet at
      * a time, preventing any concurrent access to the underlying HID driver.
+     *
+     * After each report, the coroutine sleeps for [REPORT_PACE_DELAY_MS] to allow
+     * the Bluetooth HCI layer to process the outbound command. See [REPORT_PACE_DELAY_MS]
+     * KDoc for rationale.
      */
     private fun startSendQueue() {
         sendQueueJob?.cancel()
@@ -578,12 +706,13 @@ class BluetoothHidTransportImpl @Inject constructor(
                 if (!hidWrapper.sendReport(packet)) {
                     Timber.w("sendReport returned false — host may have disconnected")
                 }
+                delay(REPORT_PACE_DELAY_MS)
             }
         }
     }
 
     private fun generateCid(): ByteArray {
-        val cid = ByteArray(4)
+        val cid = ByteArray(CID_SIZE)
         do {
             secureRandom.nextBytes(cid)
             // Avoid re-using BROADCAST_CID or already-allocated CIDs
@@ -618,13 +747,11 @@ class BluetoothHidTransportImpl @Inject constructor(
         kpg.initialize(ECGenParameterSpec("secp256r1"), secureRandom)
         val kp = kpg.generateKeyPair()
         val pub = kp.public as ECPublicKey
-
         // 2. Extract 65-byte uncompressed public key (0x04 || X || Y)
         val encoded = pub.encoded  // SubjectPublicKeyInfo DER
-        val pubKeyUncompressed = encoded.copyOfRange(encoded.size - 65, encoded.size)
-
+        val pubKeyUncompressed = encoded.copyOfRange(encoded.size - P256_UNCOMPRESSED_SIZE, encoded.size)
         // 3. Use a 32-byte random key handle (not stored anywhere)
-        val keyHandle = ByteArray(32).also { secureRandom.nextBytes(it) }
+        val keyHandle = ByteArray(SEED_SIZE).also { secureRandom.nextBytes(it) }
 
         // 4. Build the verification data: 0x00 || appIdHash || clientDataHash || keyHandle || pubKey
         val verificationData = ByteArrayOutputStream().apply {
@@ -648,7 +775,7 @@ class BluetoothHidTransportImpl @Inject constructor(
 
         // 7. Assemble the U2F registration response
         return ByteArrayOutputStream().apply {
-            write(0x05)                    // reserved
+            write(U2F_RESERVED_BYTE.toInt())// reserved
             write(pubKeyUncompressed)      // 65 bytes
             write(keyHandle.size)          // key handle length
             write(keyHandle)               // key handle
@@ -664,21 +791,19 @@ class BluetoothHidTransportImpl @Inject constructor(
     private fun buildMinimalU2fAttestationCert(pubKeyUncompressed: ByteArray): ByteArray {
         // SubjectPublicKeyInfo for P-256:
         // SEQUENCE { SEQUENCE { OID ecPublicKey, OID secp256r1 } BIT_STRING pubKey }
-        val ecOid       = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x02, 0x01) // 1.2.840.10045.2.1
-        val p256Oid     = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x03, 0x01, 0x07) // 1.2.840.10045.3.1.7
-        val algId       = der(0x30, der(0x06, ecOid) + der(0x06, p256Oid))
-        val pubKeyBit   = der(0x03, byteArrayOf(0x00) + pubKeyUncompressed)
-        val spki        = der(0x30, algId + pubKeyBit)
-
+        val ecOid       = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x02, 0x01)
+        val p256Oid     = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x03, 0x01, 0x07)
+        val algId       = der(DER_SEQUENCE, der(DER_OID, ecOid) + der(DER_OID, p256Oid))
+        val pubKeyBit   = der(DER_BIT_STRING, byteArrayOf(0x00) + pubKeyUncompressed)
+        val spki        = der(DER_SEQUENCE, algId + pubKeyBit)
         // Minimal TBSCertificate (version=v1, serial=1, subject/issuer=CN=Chimali, validity 1970)
-        val serial      = der(0x02, byteArrayOf(0x01))
-        val sigAlgSeq   = der(0x30, der(0x06, ecOid) + der(0x06, p256Oid))
-        val rdnName     = der(0x30, der(0x31, der(0x30, der(0x06,
-            byteArrayOf(0x55, 0x04, 0x03)) + der(0x0C, "Chimali".toByteArray()))))
-        val validity    = der(0x30, der(0x17, "700101000000Z".toByteArray()) +
-                                    der(0x17, "491231235959Z".toByteArray()))
-        val tbs         = der(0x30, serial + sigAlgSeq + rdnName + validity + rdnName + spki)
-
+        val serial      = der(DER_INTEGER, byteArrayOf(0x01))
+        val sigAlgSeq   = der(DER_SEQUENCE, der(DER_OID, ecOid) + der(DER_OID, p256Oid))
+        val rdnName     = der(DER_SEQUENCE, der(0x31, der(DER_SEQUENCE, der(DER_OID,
+            byteArrayOf(0x55, 0x04, 0x03)) + der(DER_UTF8_STRING, "Chimali".toByteArray()))))
+        val validity    = der(DER_SEQUENCE, der(DER_UTC_TIME, "700101000000Z".toByteArray()) +
+                                    der(DER_UTC_TIME, "491231235959Z".toByteArray()))
+        val tbs         = der(DER_SEQUENCE, serial + sigAlgSeq + rdnName + validity + rdnName + spki)
         // Signature over TBS (just reuse the ephemeral key)
         val kpg = KeyPairGenerator.getInstance("EC")
         kpg.initialize(ECGenParameterSpec("secp256r1"), secureRandom)
@@ -687,9 +812,9 @@ class BluetoothHidTransportImpl @Inject constructor(
         certSig.initSign(certKp.private)
         certSig.update(tbs)
         val certSigBytes = certSig.sign()
-        val certSigBit = der(0x03, byteArrayOf(0x00) + certSigBytes)
+        val certSigBit = der(DER_BIT_STRING, byteArrayOf(0x00) + certSigBytes)
 
-        return der(0x30, tbs + sigAlgSeq + certSigBit)
+        return der(DER_SEQUENCE, tbs + sigAlgSeq + certSigBit)
     }
 
     /** DER-encode a tag + value. */
@@ -698,7 +823,7 @@ class BluetoothHidTransportImpl @Inject constructor(
         val lenBytes = when {
             len < 0x80 -> byteArrayOf(len.toByte())
             len < 0x100 -> byteArrayOf(0x81.toByte(), len.toByte())
-            else -> byteArrayOf(0x82.toByte(), (len shr 8).toByte(), (len and 0xFF).toByte())
+            else -> byteArrayOf(0x82.toByte(), (len shr SHIFT_8).toByte(), (len and BYTE_MASK).toByte())
         }
         return byteArrayOf(tag.toByte()) + lenBytes + value
     }
