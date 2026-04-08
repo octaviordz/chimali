@@ -1,3 +1,5 @@
+@file:Suppress("MissingPermission")
+
 package com.chimali.fido2.bluetooth
 
 import android.bluetooth.BluetoothAdapter
@@ -12,6 +14,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import com.chimali.fido2.domain.exception.Fido2Exception
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.Executors
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,65 +28,65 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
-import java.util.concurrent.Executors
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+
+// ── FIDO2 HID report constants ────────────────────────────────────────────────
 
 /**
- * FIDO2 HID descriptor per FIDO Alliance CTAP HID spec (section 8).
- * Usage Page 0xF1D0 (FIDO Alliance), Usage 0x01 (U2F Authenticator Device).
- * Reports are 64 bytes (report ID 0).
+ * Report descriptor for a FIDO2 HID authenticator interface.
+ * Defines a vendor-specific HID usage page (0xF1D0) with 64-byte input and output reports.
  */
-// Android's Classic BT HID L2CAP MTU is hard-capped at 64 bytes total.
-// The HIDP layer consumes 2 bytes (protocol header + report ID), leaving
-// only 62 bytes available for the actual HID payload. Per wiokey-android.
+@Suppress("MagicNumber")
 private val FIDO_HID_REPORT_DESCRIPTOR = byteArrayOf(
-    0x06.toByte(), 0xD0.toByte(), 0xF1.toByte(), // Usage Page (FIDO Alliance)
-    0x09.toByte(), 0x01.toByte(),                  // Usage (U2F Authenticator Device)
-    0xA1.toByte(), 0x01.toByte(),                  // Collection (Application)
-    0x09.toByte(), 0x20.toByte(),                  //   Usage (Input Report Data)
-    0x15.toByte(), 0x00.toByte(),                  //   Logical Minimum (0)
-    0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),   //   Logical Maximum (255)
-    0x75.toByte(), 0x08.toByte(),                  //   Report Size (8)
-    0x95.toByte(), 0x3E.toByte(),                  //   Report Count (62) — MTU cap
-    0x81.toByte(), 0x02.toByte(),                  //   Input (Data, Var, Abs)
-    0x09.toByte(), 0x21.toByte(),                  //   Usage (Output Report Data)
-    0x15.toByte(), 0x00.toByte(),                  //   Logical Minimum (0)
-    0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),   //   Logical Maximum (255)
-    0x75.toByte(), 0x08.toByte(),                  //   Report Size (8)
-    0x95.toByte(), 0x3E.toByte(),                  //   Report Count (62) — MTU cap
-    0x91.toByte(), 0x02.toByte(),                  //   Output (Data, Var, Abs)
-    0xC0.toByte()                                   // End Collection
+    // Usage Page (FIDO Alliance)
+    0x06.toByte(), 0xD0.toByte(), 0xF1.toByte(),
+    // Usage (FIDO Usage Data In)
+    0x09.toByte(), 0x01.toByte(),
+    // Collection (Application)
+    0xA1.toByte(), 0x01.toByte(),
+    // ── Input Report ──
+    0x09.toByte(), 0x20.toByte(), // Usage (Input Report Data)
+    0x15.toByte(), 0x00.toByte(), // Logical Minimum (0)
+    0x26.toByte(), 0xFF.toByte(), 0x00.toByte(), // Logical Maximum (255)
+    0x75.toByte(), 0x08.toByte(), // Report Size (8 bits)
+    0x95.toByte(), 0x40.toByte(), // Report Count (64)
+    0x81.toByte(), 0x02.toByte(), // Input (Data, Variable, Absolute)
+    // ── Output Report ──
+    0x09.toByte(), 0x21.toByte(), // Usage (Output Report Data)
+    0x15.toByte(), 0x00.toByte(), // Logical Minimum (0)
+    0x26.toByte(), 0xFF.toByte(), 0x00.toByte(), // Logical Maximum (255)
+    0x75.toByte(), 0x08.toByte(), // Report Size (8 bits)
+    0x95.toByte(), 0x40.toByte(), // Report Count (64)
+    0x91.toByte(), 0x02.toByte(), // Output (Data, Variable, Absolute)
+    // End Collection
+    0xC0.toByte(),
 )
 
-/**
- * HID report payload size — 62 bytes (not 64) due to Android L2CAP MTU cap.
- * Android's Classic HID over L2CAP SCO has a hard 64-byte MTU. The HIDP
- * layer consumes 2 bytes for the protocol header and report ID, leaving
- * exactly 62 bytes for the FIDO HID payload. Per wiokey-android reference.
- */
-const val FIDO_HID_REPORT_SIZE = 62
-
-/** Report ID 0 — FIDO2 HID uses no report ID prefix (report ID 0 means bare data) */
+private const val FIDO_HID_REPORT_SIZE = 64
 private const val FIDO_REPORT_ID: Byte = 0
 
 /**
- * Wraps the Android [BluetoothHidDevice] profile to act as a FIDO2 HID
- * **peripheral/server**. The phone presents itself as a FIDO2 hardware
- * authenticator to any Bluetooth Classic host (e.g. Windows).
+ * Wraps [BluetoothHidDevice] profile proxy and manages the HID peripheral lifecycle
+ * for the FIDO2 authenticator.
  *
- * Lifecycle
- * ---------
- * 1. Call [initialize] once to acquire the [BluetoothHidDevice] proxy via
- *    [BluetoothProfile.ServiceListener].
- * 2. Call [registerApp] to SDP-register the FIDO2 HID application and start
- *    advertising.
- * 3. The host pairs and connects; [connectionState] transitions accordingly.
- * 4. Received HID interrupt-channel packets arrive on [incomingReports].
- * 5. Call [sendReport] to push a response to the host.
- * 6. Call [unregisterApp] / [close] on cleanup.
+ * ## Architecture (Clean Standard Lifecycle)
+ *
+ * This wrapper follows the standard Android BluetoothHidDevice lifecycle:
+ *
+ * 1. **initialize()** — acquire the HID_DEVICE profile proxy via getProfileProxy()
+ * 2. **registerApp()** — call unregisterApp() first (clears stale state), then registerApp()
+ * 3. **onAppStatusChanged(registered=true)** — app is now registered, set Advertising
+ * 4. **onConnectionStateChanged(CONNECTED)** — host connected, verify bond, accept
+ * 5. **unregisterApp() / close()** — cleanup
+ *
+ * ## Diagnostic Logging
+ *
+ * Every lifecycle transition logs:
+ * - getConnectedDevices() snapshot
+ * - getConnectionState() for relevant devices
+ * - Bond state of involved devices
+ * - Current _connectionState value
+ *
+ * This enables diagnosis of connectivity issues without speculative workarounds.
  */
 @Singleton
 class BluetoothHidDeviceWrapper @Inject constructor(
@@ -112,37 +120,80 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     @Volatile private var pendingBondDevice: BluetoothDevice? = null
 
     /**
-     * Device to reconnect to once the current L2CAP channel has fully torn down.
-     *
-     * Set in [BluetoothHidDevice.Callback.onAppStatusChanged] when a stale socket is cleared
-     * via [BluetoothHidDevice.disconnect]. The actual [BluetoothHidDevice.connect] call is
-     * deferred until [BluetoothHidDevice.Callback.onConnectionStateChanged] fires with
-     * [BluetoothProfile.STATE_DISCONNECTED], confirming the channel is fully released.
-     *
-     * This sequencing is required on OEM stacks (confirmed: Motorola) where calling
-     * `connect()` immediately after `disconnect()` races with the HCI teardown and causes
-     * the outbound connection attempt to time out after ~5 s.
-     */
-    @Volatile private var pendingReconnectDevice: BluetoothDevice? = null
-
-    /**
      * Channel that receives raw 64-byte HID reports from the host.
      * Consumers (e.g. [HidReportParser]) should collect from this channel.
      */
     val incomingReports: Channel<ByteArray> = Channel(capacity = Channel.UNLIMITED)
 
-    // ── Bluetooth adapter state broadcast receiver ────────────────────────────
+    // ── Diagnostic helpers ────────────────────────────────────────────────────
 
     /**
-     * Tears down the HID proxy and resets connection state when the user
-     * disables Bluetooth (STATE_OFF). This prevents a stale [hidDevice] reference
-     * from causing silent deadlocks on the next [connect] call.
-     *
-     * Also handles [BluetoothDevice.ACTION_BOND_STATE_CHANGED]: when a previously
-     * [pendingBondDevice] finishes bonding ([BluetoothDevice.BOND_BONDED]), the
-     * deferred connection acceptance is completed here.
-     *
-     * Registered dynamically in [initialize] and unregistered in [close].
+     * Logs a diagnostic snapshot of the HID profile state.
+     * Called at every significant lifecycle point for visibility.
+     */
+    private fun logDiagnosticSnapshot(tag: String) {
+        val hid = hidDevice
+        if (hid == null) {
+            Timber.d("[DIAG:%s] hidDevice=null, _connectionState=%s", tag, _connectionState.value)
+            return
+        }
+
+        try {
+            val connectedDevices = hid.getConnectedDevices()
+            val bondedDevices = bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
+
+            Timber.i(
+                "[DIAG:%s] _connectionState=%s, connectedDevice=%s, pendingBondDevice=%s",
+                tag,
+                _connectionState.value,
+                connectedDevice?.address,
+                pendingBondDevice?.address,
+            )
+            Timber.i(
+                "[DIAG:%s] getConnectedDevices()=[%s] (count=%d)",
+                tag,
+                connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" },
+                connectedDevices.size,
+            )
+            Timber.i(
+                "[DIAG:%s] bondedDevices=[%s] (count=%d)",
+                tag,
+                bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" },
+                bondedDevices.size,
+            )
+        } catch (e: SecurityException) {
+            Timber.w(e, "[DIAG:%s] SecurityException reading diagnostic state", tag)
+        } catch (e: Exception) {
+            Timber.w(e, "[DIAG:%s] Exception reading diagnostic state", tag)
+        }
+    }
+
+    /**
+     * Returns a human-readable name for a BluetoothProfile connection state int.
+     */
+    private fun connectionStateName(state: Int): String = when (state) {
+        BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED(0)"
+        BluetoothProfile.STATE_CONNECTING -> "CONNECTING(1)"
+        BluetoothProfile.STATE_CONNECTED -> "CONNECTED(2)"
+        BluetoothProfile.STATE_DISCONNECTING -> "DISCONNECTING(3)"
+        else -> "UNKNOWN($state)"
+    }
+
+    /**
+     * Returns a human-readable name for a bond state int.
+     */
+    private fun bondStateName(state: Int): String = when (state) {
+        BluetoothDevice.BOND_NONE -> "BOND_NONE(10)"
+        BluetoothDevice.BOND_BONDING -> "BOND_BONDING(11)"
+        BluetoothDevice.BOND_BONDED -> "BOND_BONDED(12)"
+        else -> "UNKNOWN($state)"
+    }
+
+    /**
+     * Handles system Bluetooth events:
+     * - ACTION_STATE_CHANGED: resets when Bluetooth is turned off
+     * - ACTION_BOND_STATE_CHANGED: completes deferred connections when bonding finishes
+     * - ACTION_ACL_CONNECTED: diagnostic logging for connection lifecycle monitoring
      */
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -166,20 +217,80 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                         BluetoothDevice.EXTRA_BOND_STATE,
                         BluetoothDevice.BOND_NONE,
                     )
-                    Timber.d("Bond state changed: device=%s bondState=%d", device.address, bondState)
-                    // Complete the deferred connection if a pending device is now fully bonded.
+                    val previousBondState = intent.getIntExtra(
+                        BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
+                        BluetoothDevice.BOND_NONE,
+                    )
+                    Timber.i(
+                        "Bond state changed: device=%s %s→%s",
+                        device.address,
+                        bondStateName(previousBondState),
+                        bondStateName(bondState),
+                    )
+
+                    // Log the HID connection state of this device
+                    val hid = hidDevice
+                    if (hid != null) {
+                        try {
+                            val hidState = hid.getConnectionState(device)
+                            Timber.i(
+                                "  HID connection state for %s: %s",
+                                device.address,
+                                connectionStateName(hidState),
+                            )
+                        } catch (e: Exception) {
+                            Timber.w(e, "  Could not query HID connection state for %s", device.address)
+                        }
+                    }
+
+                    logDiagnosticSnapshot("BOND_CHANGED")
+
                     val pending = pendingBondDevice
                     if (bondState == BluetoothDevice.BOND_BONDED &&
                         pending != null &&
                         pending.address == device.address
                     ) {
+                        // Path A: L2CAP channel opened while bonding was still in progress.
+                        // onConnectionStateChanged(CONNECTED) deferred us here — now the link
+                        // is encrypted, so it is safe to accept the device.
                         Timber.i(
                             "Pending device %s is now BOND_BONDED — completing deferred connection.",
                             device.address,
                         )
                         pendingBondDevice = null
                         acceptConnectedDevice(device)
+                    } else if (
+                        bondState == BluetoothDevice.BOND_BONDED &&
+                        pending == null &&
+                        _connectionState.value is HidConnectionState.Advertising
+                    ) {
+                        // Path B: Device bonded while we are Advertising.
+                        // Do NOT proactively call connect() here — evidence from the Asus phone
+                        // (logcat 2026-04-07 18:52) shows that calling connect() on a device
+                        // whose previous bond is stale causes btif_storage_remove_bonded_device,
+                        // destroying the pairing entirely. Let the host drive the natural
+                        // HID L2CAP connection flow after bonding completes.
+                        Timber.i(
+                            "BOND_BONDED for %s while Advertising — waiting for host-initiated HID connection.",
+                            device.address,
+                        )
                     }
+                }
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    // Diagnostic: log ACL connection events for connection lifecycle monitoring.
+                    // Do NOT proactively call connect() here — evidence from the Asus phone
+                    // (logcat 2026-04-07 18:52) shows that calling connect() on a device with
+                    // a stale bond causes the stack to remove the bond entirely
+                    // (btif_storage_remove_bonded_device), breaking the pairing flow.
+                    @Suppress("DEPRECATION")
+                    val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                        ?: return
+
+                    Timber.d("ACL_CONNECTED: device=%s bond=%s currentState=%s",
+                        device.address,
+                        bondStateName(device.bondState),
+                        _connectionState.value::class.simpleName,
+                    )
                 }
             }
         }
@@ -188,13 +299,14 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
     // ── Callbacks ─────────────────────────────────────────────────────────────
 
-    private var initContinuation: kotlinx.coroutines.CancellableContinuation<Result<Unit>>? = null
+    private var initContinuation: CancellableContinuation<Result<Unit>>? = null
 
     private val serviceListener = object : BluetoothProfile.ServiceListener {
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = proxy as BluetoothHidDevice
                 Timber.d("HID_DEVICE profile proxy acquired successfully")
+                logDiagnosticSnapshot("PROXY_ACQUIRED")
                 initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                 initContinuation = null
             } else {
@@ -215,41 +327,34 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     private val hidCallback = object : BluetoothHidDevice.Callback() {
 
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
-            Timber.d("onAppStatusChanged registered=%b device=%s", registered, pluggedDevice)
+            Timber.i(
+                "onAppStatusChanged registered=%b pluggedDevice=%s",
+                registered,
+                pluggedDevice?.address ?: "null",
+            )
+            logDiagnosticSnapshot("APP_STATUS_CHANGED")
+
             if (registered) {
                 if (pluggedDevice != null) {
-                    val isPhantomQuirk = BluetoothQuirks.requiresPhantomDeviceDisconnect()
+                    // A device is already reported at registration time.
+                    // This is a stale socket from a previous session — disconnect it to free
+                    // the L2CAP channel for new incoming connections.
                     Timber.w(
-                        "Device reported upon registration: %s (phantomQuirk=%b).",
+                        "Stale pluggedDevice %s reported at registration. " +
+                            "Disconnecting to free L2CAP socket.",
                         pluggedDevice.address,
-                        isPhantomQuirk,
                     )
-                    // In all cases — phantom-quirk OEMs (Motorola) or standard stacks —
-                    // disconnect the stale L2CAP socket and schedule a reconnect.
-                    //
-                    // IMPORTANT: We do NOT call connect() here immediately. On slower OEM
-                    // stacks (Motorola) the HCI teardown is still in progress when this
-                    // callback fires, so a back-to-back disconnect→connect races and times
-                    // out after ~5 s.  Instead we store the device in pendingReconnectDevice
-                    // and let onConnectionStateChanged(DISCONNECTED) fire connect() once the
-                    // channel is confirmed fully released.  This mirrors wiokey-android's
-                    // waitingForDevice pattern in HidDeviceController.updateDeviceList().
                     try {
                         val disconnected = hidDevice?.disconnect(pluggedDevice)
                         Timber.d(
-                            "Cleared stale socket for %s (phantomQuirk=%b) — result: %b. " +
-                                "Deferring connect() until DISCONNECTED callback.",
+                            "disconnect(%s) result=%b — socket should be freed for new connections.",
                             pluggedDevice.address,
-                            isPhantomQuirk,
                             disconnected,
                         )
-                        pendingReconnectDevice = pluggedDevice
                     } catch (e: SecurityException) {
-                        Timber.e(e, "Security error clearing stale socket for %s", pluggedDevice.address)
+                        Timber.e(e, "Security error disconnecting stale device %s", pluggedDevice.address)
                     }
-
                 }
-                // Return to advertising; onConnectionStateChanged will update state on connect.
                 _connectionState.value = HidConnectionState.Advertising
             } else {
                 _connectionState.value = HidConnectionState.Idle
@@ -257,16 +362,27 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         }
 
         override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) {
-            Timber.d("onConnectionStateChanged state=%d device=%s", state, device.address)
+            Timber.i(
+                "onConnectionStateChanged device=%s state=%s",
+                device.address,
+                connectionStateName(state),
+            )
+            logDiagnosticSnapshot("CONNECTION_STATE_CHANGED")
+
             when (state) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     val bondState = runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)
+                    Timber.i(
+                        "Device %s connected — bondState=%s",
+                        device.address,
+                        bondStateName(bondState),
+                    )
                     when (bondState) {
                         BluetoothDevice.BOND_NONE -> {
                             // No link key at all — reject immediately.
                             Timber.w(
                                 "Rejecting connection from completely unbonded device %s. " +
-                                    "No link key present — device has never paired with this authenticator.",
+                                    "No link key present — device has never paired.",
                                 device.address,
                             )
                             try {
@@ -276,11 +392,8 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                             }
                         }
                         BluetoothDevice.BOND_BONDING -> {
-                            // Link-key exchange still in progress. Accepting now would allow
-                            // FIDO2 operations over an unencrypted channel, causing Windows
-                            // to intermittently fail with 0x8007000d (ERROR_INVALID_DATA).
-                            // Park the device and complete the connection once BOND_BONDED
-                            // arrives via ACTION_BOND_STATE_CHANGED in bluetoothStateReceiver.
+                            // Link-key exchange still in progress. Defer acceptance until
+                            // BOND_BONDED arrives via ACTION_BOND_STATE_CHANGED.
                             Timber.d(
                                 "Device %s is still bonding — deferring connection acceptance until BOND_BONDED.",
                                 device.address,
@@ -302,27 +415,15 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     }
                     connectedDevice = null
                     _connectionState.value = HidConnectionState.Advertising
-
-                    // If a reconnect was deferred from onAppStatusChanged (stale-socket
-                    // clearance), now that the channel is fully down we can safely connect.
-                    val reconnectTarget = pendingReconnectDevice
-                    if (reconnectTarget != null && reconnectTarget.address == device.address) {
-                        pendingReconnectDevice = null
-                        try {
-                            val result = hidDevice?.connect(reconnectTarget)
-                            Timber.i(
-                                "Deferred connect(%s) result=%b — channel was clear.",
-                                reconnectTarget.address,
-                                result,
-                            )
-                        } catch (e: SecurityException) {
-                            Timber.e(e, "Security error during deferred connect for %s", reconnectTarget.address)
-                        }
-                    }
                 }
 
                 BluetoothProfile.STATE_CONNECTING -> {
+                    Timber.i("Device %s connecting...", device.address)
                     _connectionState.value = HidConnectionState.Connecting(device)
+                }
+
+                BluetoothProfile.STATE_DISCONNECTING -> {
+                    Timber.i("Device %s disconnecting...", device.address)
                 }
             }
         }
@@ -365,19 +466,12 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     /**
      * Completes a device connection: sets [connectedDevice], emits [HidConnectionState.Connected],
      * and notifies the transport layer.
-     *
-     * **No initial zero keepalive is sent.** Wiokey-android (a reference FIDO2 HID peripheral
-     * implementation that does not exhibit the Windows 0x8007000d error) never sends any HID
-     * report immediately on connect. The all-zeros report Chimali used to send is a malformed
-     * CTAPHID packet (CID=0x00000000, CMD=0x00) that Windows's CTAPHID parser can misinterpret
-     * as a stale continuation packet, contributing to intermittent ERROR_INVALID_DATA errors.
-     * The "Windows keepalive" concern is handled at the CTAPHID protocol level via KEEPALIVE
-     * packets sent during CBOR command processing.
      */
     private fun acceptConnectedDevice(device: BluetoothDevice) {
         Timber.i("Accepting connection from %s", device.address)
         connectedDevice = device
         _connectionState.value = HidConnectionState.Connected(device)
+        logDiagnosticSnapshot("DEVICE_ACCEPTED")
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -394,18 +488,25 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         Timber.d("initialize() called. Current hidDevice: %s", hidDevice)
         if (hidDevice != null) return Result.success(Unit)
 
-        // T2d — Register adapter-state receiver so we can react to BT hardware toggle
-        // and bond-state changes.
+        // Register adapter-state receiver for BT hardware toggle and bond-state changes.
         if (!receiverRegistered) {
-            context.registerReceiver(
-                bluetoothStateReceiver,
-                IntentFilter().apply {
-                    addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
-                    addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-                },
-            )
+            val filter = IntentFilter().apply {
+                addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+                addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            }
+            // CRITICAL: On Android 13+ (API 33), system broadcasts like
+            // ACTION_BOND_STATE_CHANGED are silently dropped unless we
+            // register with RECEIVER_EXPORTED. Without this flag, our
+            // proactive connect() on BOND_BONDED never fires.
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(bluetoothStateReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(bluetoothStateReceiver, filter)
+            }
             receiverRegistered = true
-            Timber.d("BluetoothAdapter state + bond-state receiver registered")
+            Timber.d("BluetoothAdapter state + bond-state receiver registered (exported=%b)",
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
         }
 
         var lastException: Exception? = null
@@ -448,7 +549,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
             when {
                 result == null -> {
-                    Timber.e("initialize() timed out after 5000ms - onServiceConnected never received. OEM stack may require a retry or Bluetooth stack isn't fully up.")
+                    Timber.e("initialize() timed out after 5000ms - onServiceConnected never received.")
                     lastException =
                         Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
                 }
@@ -485,45 +586,28 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * Registers the FIDO2 HID application and begins advertising so that a
      * Bluetooth host can discover and connect to this authenticator.
      *
-     * Suspends until the app is registered (i.e. [BluetoothHidDevice.Callback.onAppStatusChanged] fires
-     * with registered=true). Implements a timeout and retry mechanism for
-     * unreliable Bluetooth stacks that drop callbacks.
+     * ## Standard Lifecycle
+     *
+     * Per Android best practices and AOSP documentation:
+     * 1. Call `unregisterApp()` first to clear any stale registration
+     * 2. Wait briefly for the unregister to propagate
+     * 3. Call `registerApp()` with a fresh callback
+     * 4. Trust `onAppStatusChanged` as the source of truth for registration status
+     *
+     * The `registerApp()` return value only indicates whether the request was
+     * successfully *sent* to the system service, NOT whether registration succeeded.
+     * The actual registration outcome is delivered via `onAppStatusChanged`.
      */
     suspend fun registerApp(): Result<Unit> {
-        // NOTE: We deliberately do NOT call unregisterApp() here before registering.
-        //
-        // On Motorola, the BT daemon keeps the previous session's HID registration alive as
-        // a "zombie" in its routing table after the process dies (~66 s cleanup timeout).
-        // Calling unregisterApp() from the new session resets the daemon's internal cleanup
-        // timer to [now + 66s], which is WORSE — the daemon would have otherwise cleaned up
-        // the zombie at [old_process_death + 66s], which may be much sooner.
-        //
-        // We accept that registerApp() may return false (zombie alive). A zombie state-sync
-        // onAppStatusChanged(registered=true) keeps us in "Advertising" mode. When the
-        // zombie cleanup eventually fires (registered=false / Idle), the transport's
-        // observeConnectionState() auto-reregisters immediately so the next registerApp()
-        // call returns true and properly binds our callback to the HID L2CAP server.
-
+        val maxRetries = 5
+        var retryDelay = 2_000L
         var lastException: Exception? = null
-        // Up to 30 attempts × 3 s = 90 s — enough to survive the Motorola BT daemon
-        // zombie cleanup window (~66 s from old-process death).  Non-zombie failures
-        // (timeout, permission) still use exponential backoff with fewer retries.
-        val maxRetries = 30
-        val zombieRetryDelayMs = 3_000L
-        var normalRetryDelayMs = 1_000L
 
         for (attempt in 1..maxRetries) {
             Timber.d("registerApp attempt %d/%d", attempt, maxRetries)
+            logDiagnosticSnapshot("PRE_REGISTER_$attempt")
 
-            // Track whether the framework call itself returned true.
-            // The Motorola BT daemon sends a courtesy onAppStatusChanged(registered=true)
-            // callback even when registerApp() returns false (zombie active).  We must
-            // NOT treat that zombie sync as a genuine success — doing so would mask the
-            // failure and prevent the retry loop from ever running.
-            var frameworkReturnedTrue = false
-            var wasZombieAttempt = false
-
-            val result = withTimeoutOrNull(5000L) {
+            val result = withTimeoutOrNull(10_000L) {
                 suspendCancellableCoroutine<Result<Unit>> { cont ->
                     val hid = hidDevice
                     if (hid == null) {
@@ -552,7 +636,22 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                         return@suspendCancellableCoroutine
                     }
 
-                    Timber.d("Preparing SDP settings for 'Chimali Authenticator'...")
+                    // ── Step 1: Clear any stale registration ──
+                    // Best practice: call unregisterApp() before registerApp() to ensure
+                    // no previous app instance (same or different process) holds the
+                    // exclusive HID_DEVICE registration slot.
+                    Timber.d("Step 1: Calling unregisterApp() to clear any stale registration...")
+                    try {
+                        val unregResult = hid.unregisterApp()
+                        Timber.d("unregisterApp() result: %b", unregResult)
+                    } catch (e: Exception) {
+                        Timber.w(e, "unregisterApp() threw (non-fatal, proceeding with registerApp)")
+                    }
+
+                    logDiagnosticSnapshot("POST_UNREGISTER_$attempt")
+
+                    // ── Step 2: Register with fresh callback ──
+                    Timber.d("Step 2: Preparing SDP settings for 'Chimali Authenticator'...")
                     val sdp = BluetoothHidDeviceAppSdpSettings(
                         "Chimali Authenticator",
                         "FIDO2 Virtual Security Key",
@@ -561,43 +660,19 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                         FIDO_HID_REPORT_DESCRIPTOR
                     )
 
+                    // Wrapper callback that resolves the continuation on app status change
                     val registrationCallback = object : BluetoothHidDevice.Callback() {
                         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
-                            if (!frameworkReturnedTrue && registered) {
-                                Timber.w(
-                                    "Zombie session claimed by daemon (device=%s). Executing Phantom Flush.",
-                                    pluggedDevice?.address
-                                )
-                                if (pluggedDevice != null) {
-                                    try {
-                                        // The Phantom Flush Exploit:
-                                        // The Motorola daemon refuses to clear pluggedDevice because it has no
-                                        // active ACL link, making disconnect() fail silently. By calling connect()
-                                        // followed immediately by disconnect(), we force the baseband state machine
-                                        // to transition through CONNECTING -> DISCONNECTING, which explicitly
-                                        // zeroes out the `plugged_device` reference in BTA_HD, reopening the service
-                                        // to incoming connections from Windows.
-                                        Timber.d("Flushing BTA_HD cache via connect() -> disconnect().")
-                                        hid.connect(pluggedDevice)
-                                        hid.disconnect(pluggedDevice)
-                                    } catch (e: Exception) {
-                                        Timber.e(e, "Error executing Phantom Flush")
-                                    }
-                                }
-                                Timber.i("Phantom Flush complete. Assuming control of HID service.")
-                                
-                                hidCallback.onAppStatusChanged(null, registered) // Pass null so transport knows it's clear
-                                if (cont.isActive) cont.resume(Result.success(Unit))
-                                return
-                            }
-
-                            // Normal flow for non-zombie or subsequent events
+                            // Delegate to our persistent callback for state management
                             hidCallback.onAppStatusChanged(pluggedDevice, registered)
+
                             if (registered) {
+                                Timber.i("registerApp: onAppStatusChanged registered=true — registration confirmed")
                                 if (cont.isActive) cont.resume(Result.success(Unit))
                             } else {
+                                Timber.w("registerApp: onAppStatusChanged registered=false — registration lost")
                                 if (cont.isActive) cont.resume(Result.failure(
-                                    Fido2Exception.BluetoothException("HID app registration failed")
+                                    Fido2Exception.BluetoothException("HID app registration failed (registered=false)")
                                 ))
                             }
                         }
@@ -618,8 +693,8 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                             hidCallback.onVirtualCableUnplug(device)
                     }
 
-                    val registeredValue = try {
-                        Timber.d("Performing registerApp with SDP subclass COMBO and null QoS...")
+                    val registerResult = try {
+                        Timber.d("Step 3: Calling registerApp with SDP subclass COMBO and null QoS...")
                         val callResult = hid.registerApp(
                             sdp,
                             null,
@@ -627,10 +702,10 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                             Executors.newSingleThreadExecutor(),
                             registrationCallback
                         )
-                        Timber.d("registerApp framework call result: %b", callResult)
+                        Timber.i("registerApp() framework return value: %b", callResult)
                         callResult
                     } catch (e: SecurityException) {
-                        Timber.e(e, "SecurityException in registerApp - missing permissions?")
+                        Timber.e(e, "SecurityException in registerApp")
                         cont.resume(Result.failure(
                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e)
                         ))
@@ -643,46 +718,45 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                         return@suspendCancellableCoroutine
                     }
 
-                    frameworkReturnedTrue = registeredValue
-                    if (!registeredValue) {
-                        // Zombie active! The framework returned false because it is already registered in the daemon.
-                        // However, the daemon will dispatch the callback anyway. We wait here for it, without failing.
-                        wasZombieAttempt = true
-                        Timber.d("Zombie active: waiting for daemon's zombie sync callback to intercept and flush.")
+                    logDiagnosticSnapshot("POST_REGISTER_CALL_$attempt")
+
+                    if (!registerResult) {
+                        // registerApp() returned false — the request was not accepted by the
+                        // system service. This typically means another app or stale process
+                        // already holds the exclusive HID_DEVICE registration.
+                        Timber.w(
+                            "registerApp() returned false — system did not accept registration request. " +
+                                "Another app or stale process may hold the HID_DEVICE slot.",
+                        )
+                        // The callback may still fire (some OEMs send a courtesy callback).
+                        // We wait for the timeout to expire rather than immediately failing,
+                        // since the callback might still arrive with registered=true.
                     }
                 }
             }
 
             when {
                 result?.isSuccess == true -> {
-                    Timber.i("registerApp successful")
+                    Timber.i("registerApp() succeeded on attempt %d", attempt)
+                    logDiagnosticSnapshot("REGISTER_SUCCESS")
                     return Result.success(Unit)
                 }
-                wasZombieAttempt -> {
-                    // Zombie retry: fixed 3 s interval, no exponential backoff.
-                    Timber.d(
-                        "Zombie active — retrying in %dms (attempt %d/%d). " +
-                            "Daemon will clean up stale session in ~66 s from previous process death.",
-                        zombieRetryDelayMs, attempt, maxRetries
-                    )
-                    if (attempt < maxRetries) delay(zombieRetryDelayMs)
-                }
                 result == null -> {
-                    Timber.e("registerApp timed out after 5000ms on attempt %d", attempt)
+                    Timber.e("registerApp timed out after 10000ms on attempt %d", attempt)
                     lastException = Fido2Exception.BluetoothException("HID registration timed out")
-                    if (attempt < maxRetries) {
-                        delay(normalRetryDelayMs)
-                        normalRetryDelayMs = minOf(normalRetryDelayMs * 2, 8_000L)
-                    }
+                    logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
                 }
                 else -> {
                     lastException = result.exceptionOrNull() as? Exception
                     Timber.w("registerApp failure on attempt %d: %s", attempt, lastException?.message)
-                    if (attempt < maxRetries) {
-                        delay(normalRetryDelayMs)
-                        normalRetryDelayMs = minOf(normalRetryDelayMs * 2, 8_000L)
-                    }
+                    logDiagnosticSnapshot("REGISTER_FAILURE_$attempt")
                 }
+            }
+
+            if (attempt < maxRetries) {
+                Timber.d("Retrying registerApp in %dms...", retryDelay)
+                delay(retryDelay)
+                retryDelay = minOf(retryDelay * 2, 10_000L)
             }
         }
 
@@ -730,18 +804,21 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
     /** Unregisters the HID app (stops advertising / disconnects host). */
     fun unregisterApp() {
+        Timber.d("unregisterApp() called")
+        logDiagnosticSnapshot("PRE_UNREGISTER")
         try {
             hidDevice?.unregisterApp()
         } catch (e: SecurityException) {
             Timber.e(e, "unregisterApp: Bluetooth permission denied")
         }
         _connectionState.value = HidConnectionState.Idle
+        logDiagnosticSnapshot("POST_UNREGISTER")
     }
 
     /** Releases the profile proxy. Should be called from Application.onTerminate. */
     fun close() {
+        Timber.d("close() called")
         unregisterApp()
-        // T2d — Unregister the adapter-state receiver to prevent leaks.
         if (receiverRegistered) {
             runCatching { context.unregisterReceiver(bluetoothStateReceiver) }
                 .onFailure { Timber.w("close: failed to unregister BT state receiver: %s", it.message) }

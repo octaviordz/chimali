@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-08
+
+### Fixed
+- **FIDO2 HID Framing Accuracy**: Corrected a critical regression in `HidReportParser` where reports were incorrectly assumed to be 62 bytes. Aligned `HID_PACKET_SIZE` to exactly 64 bytes to match the HID Descriptor and Android's `onInterruptData` delivery, eliminating multi-packet CBOR corruption in `GetInfo` responses.
+- **Windows U2F Polling Loop**: Restored the `CAPABILITY_NMSG` (0x08) bit in `CTAPHID_INIT` responses to explicitly signal lack of U2F support. This prevents Windows from entering an infinite "Touch your security key" polling loop caused by legacy U2F registration probes.
+- **Asus Connectivity Stability**: Resolved an issue where proactive `connect()` calls triggered bond destruction on Asus Zenfone devices. Reverted to standard, passive OS-level connection management for better stability across OEM Bluetooth stacks.
+- **U2F-to-CTAP2 Escalation**: Refactored `BluetoothHidTransportImpl` to return `SW_CONDITIONS_NOT_SATISFIED` (0x6985) for `U2F_REGISTER` probes, correctly signaling to Windows to escalate to the CTAP2 MakeCredential flow.
+
+### Added
+- **Protocol Safeguards**: Added extensive documentation and in-code warnings regarding 64-byte report size invariants and `CAPABILITY_NMSG` requirements to prevent future "cleanup" regressions.
+- **Detailed changes**: [2026-04-08-fido2-bluetooth-hid-connectivity-fixes.md](docs/changelogs/2026-04-08-fido2-bluetooth-hid-connectivity-fixes.md)
+
 ## [Unreleased] - 2026-04-06
 
 ### Changed
@@ -415,4 +427,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-06*
+*Last Updated: 2026-04-08*

@@ -35,12 +35,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.ByteArrayOutputStream
-import java.security.KeyPairGenerator
 import java.security.SecureRandom
-import java.security.Signature
-import java.security.interfaces.ECPublicKey
-import java.security.spec.ECGenParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,6 +89,8 @@ class BluetoothHidTransportImpl @Inject constructor(
         private const val INS_CTAP2_OVER_MSG = 0x10
         private const val SW_SUCCESS_1 = 0x90.toByte()
         private const val SW_SUCCESS_2 = 0x00.toByte()
+        private const val SW_CONDITIONS_NOT_SATISFIED_1 = 0x69.toByte()
+        private const val SW_CONDITIONS_NOT_SATISFIED_2 = 0x85.toByte()
         private const val SW_WRONG_DATA_1 = 0x6A.toByte()
         private const val SW_WRONG_DATA_2 = 0x80.toByte()
         private const val SW_UNKNOWN_1 = 0x6F.toByte()
@@ -130,20 +127,6 @@ class BluetoothHidTransportImpl @Inject constructor(
         private const val STATUS_UPNEEDED: Byte = 0x02
         private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F   // 0x10
 
-        // DER Encoding Tags
-        private const val DER_SEQUENCE = 0x30
-        private const val DER_INTEGER = 0x02
-        private const val DER_BIT_STRING = 0x03
-        private const val DER_OCTET_STRING = 0x04
-        private const val DER_OID = 0x06
-        private const val DER_UTF8_STRING = 0x0C
-        private const val DER_UTC_TIME = 0x17
-        private const val DER_PRINTABLE_STRING = 0x13
-        private const val DER_SET = 0x31
-
-        private const val U2F_RESERVED_BYTE: Byte = 0x05
-        private const val P256_UNCOMPRESSED_SIZE = 65
-        private const val SEED_SIZE = 32
         private const val BYTE_MASK = 0xFF
         private const val SHIFT_8 = 8
         private const val SHIFT_16 = 16
@@ -176,7 +159,7 @@ class BluetoothHidTransportImpl @Inject constructor(
      * [android.bluetooth.BluetoothHidDevice.unregisterApp] inside [BluetoothHidDeviceWrapper.registerApp]
      * triggers another transient [HidConnectionState.Idle] emission.
      */
-    @Volatile private var isAutoReregistering = false
+
 
     /**
      * T053a — Thread-safe FIFO queue for outgoing HID reports (Constitution §IV).
@@ -305,32 +288,6 @@ class BluetoothHidTransportImpl @Inject constructor(
                 }
                 is HidConnectionState.Idle -> {
                     Timber.d("HID transport idle")
-                    // Unexpected Idle while the observer is alive means the HID app registration
-                    // was lost outside of a user-initiated disconnect (most commonly: the Motorola
-                    // BT daemon zombie cleanup at ~66 s fires registered=false). At this point the
-                    // zombie is dead, so a fresh registerApp() will return true and properly bind
-                    // the callback. Any host that bonded during the zombie window will then connect.
-                    //
-                    // Why this is safe:
-                    //   - User-initiated disconnect: disconnect() calls stateObserverJob.cancelAndJoin()
-                    //     BEFORE unregisterApp(). So the observer is dead by the time Idle fires
-                    //     from the intentional unregister — this block never runs.
-                    //   - Zombie cleanup: the observer is alive → we reach here → re-register.
-                    if (!isAutoReregistering) {
-                        isAutoReregistering = true
-                        scope.launch {
-                            delay(200L) // brief breathing room
-                            Timber.i("Unexpected Idle (zombie cleanup?) — auto re-registering HID app.")
-                            try {
-                                hidWrapper.registerApp()
-                                    .onFailure { e ->
-                                        Timber.e("Auto re-registration failed: %s", e.message)
-                                    }
-                            } finally {
-                                isAutoReregistering = false
-                            }
-                        }
-                    }
                 }
                 is HidConnectionState.Error -> {
                     Timber.e("HID connection error: %s", state.message)
@@ -572,19 +529,20 @@ class BluetoothHidTransportImpl @Inject constructor(
                 sendPackets(u2fSuccessResponse(cid, u2fVersion))
             }
             INS_REGISTER -> {
-                // U2F_REGISTER — Windows requires a structurally valid U2F response before it
-                // will issue CTAP2 authenticatorMakeCredential. We build an ephemeral (discarded)
-                // U2F registration to pass Windows's mandatory probe.
-                Timber.d("CTAPHID_MSG U2F_REGISTER → sending dummy U2F registration to unlock CTAP2 path")
-                val apduData = extractApduData(payload)
-                if (apduData != null && apduData.size >= (SEED_SIZE * 2)) {
-                    val clientDataHash = apduData.copyOfRange(0, SEED_SIZE)
-                    val appIdHash      = apduData.copyOfRange(SEED_SIZE, SEED_SIZE * 2)
-                    val u2fResp = buildDummyU2fRegistrationResponse(clientDataHash, appIdHash)
-                    sendPackets(u2fSuccessResponse(cid, u2fResp))
-                } else {
-                    sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
-                }
+                // U2F_REGISTER — return SW_CONDITIONS_NOT_SATISFIED (0x6985).
+                //
+                // We are a CTAP2-only authenticator; we do not implement the legacy U2F
+                // registration path. 0x6985 ("conditions of use not satisfied") is the
+                // correct refusal code per the U2F spec §5.2.7. Windows treats this as:
+                // "user-presence test failed on the U2F path" and escalates to sending
+                // authenticatorMakeCredential over CTAPHID_CBOR (0x10) instead.
+                //
+                // DO NOT send a fake/dummy registration response here. If we do, Windows
+                // stores a credential with an ephemeral key we don't hold, then immediately
+                // tries U2F_AUTHENTICATE (which fails with SW_WRONG_DATA), and concludes
+                // the device is broken — resulting in ERROR_NOT_READY (0x80070018).
+                Timber.i("CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2")
+                sendPackets(u2fErrorResponse(cid, SW_CONDITIONS_NOT_SATISFIED_1.toInt(), SW_CONDITIONS_NOT_SATISFIED_2.toInt()))
             }
             INS_AUTHENTICATE -> {
                 // U2F_AUTHENTICATE — return SW_WRONG_DATA (0x6A80) to signal that we don't
@@ -722,111 +680,6 @@ class BluetoothHidTransportImpl @Inject constructor(
 
     private fun ByteArray.toHex(): String =
         joinToString("") { "%02x".format(it) }
-
-    /**
-     * Builds a minimal but structurally valid U2F_REGISTER response using an ephemeral key pair.
-     *
-     * Windows CTAP service requires a conforming U2F registration response before it will issue
-     * CTAP2 authenticatorMakeCredential. This response uses a freshly-generated, immediately
-     * discarded EC key — the credential is never stored and cannot be used for real authentication.
-     *
-     * U2F Registration Response format (FIDO U2F spec §4.3):
-     *   0x05                         (1 byte  — reserved)
-     *   userPublicKey                (65 bytes — uncompressed P-256 point)
-     *   keyHandleLength              (1 byte)
-     *   keyHandle                    (L bytes)
-     *   attestationCertificate       (DER X.509 — we embed a minimal stub)
-     *   signature                    (DER ECDSA over verificationData)
-     */
-    private fun buildDummyU2fRegistrationResponse(
-        clientDataHash: ByteArray,
-        appIdHash: ByteArray
-    ): ByteArray {
-        // 1. Generate ephemeral P-256 key pair (discarded after this function returns)
-        val kpg = KeyPairGenerator.getInstance("EC")
-        kpg.initialize(ECGenParameterSpec("secp256r1"), secureRandom)
-        val kp = kpg.generateKeyPair()
-        val pub = kp.public as ECPublicKey
-        // 2. Extract 65-byte uncompressed public key (0x04 || X || Y)
-        val encoded = pub.encoded  // SubjectPublicKeyInfo DER
-        val pubKeyUncompressed = encoded.copyOfRange(encoded.size - P256_UNCOMPRESSED_SIZE, encoded.size)
-        // 3. Use a 32-byte random key handle (not stored anywhere)
-        val keyHandle = ByteArray(SEED_SIZE).also { secureRandom.nextBytes(it) }
-
-        // 4. Build the verification data: 0x00 || appIdHash || clientDataHash || keyHandle || pubKey
-        val verificationData = ByteArrayOutputStream().apply {
-            write(0x00)                    // reserved byte
-            write(appIdHash)
-            write(clientDataHash)
-            write(keyHandle)
-            write(pubKeyUncompressed)
-        }.toByteArray()
-
-        // 5. Sign verificationData with ephemeral private key
-        val sig = Signature.getInstance("SHA256withECDSA")
-        sig.initSign(kp.private)
-        sig.update(verificationData)
-        val sigBytes = sig.sign()           // DER-encoded ECDSA signature
-
-        // 6. Minimal DER-encoded attestation certificate stub (self-signed, not validated by Windows)
-        //    Windows only checks that the U2F response is parseable, not that cert chain is valid.
-        //    We reuse the ephemeral public key as the cert's subject public key.
-        val certDer = buildMinimalU2fAttestationCert(pubKeyUncompressed)
-
-        // 7. Assemble the U2F registration response
-        return ByteArrayOutputStream().apply {
-            write(U2F_RESERVED_BYTE.toInt())// reserved
-            write(pubKeyUncompressed)      // 65 bytes
-            write(keyHandle.size)          // key handle length
-            write(keyHandle)               // key handle
-            write(certDer)                 // attestation cert
-            write(sigBytes)                // signature
-        }.toByteArray()
-    }
-
-    /**
-     * Builds a minimal self-signed DER X.509 certificate for the U2F attestation stub.
-     * Windows only validates parse-ability; it doesn't check the certificate chain.
-     */
-    private fun buildMinimalU2fAttestationCert(pubKeyUncompressed: ByteArray): ByteArray {
-        // SubjectPublicKeyInfo for P-256:
-        // SEQUENCE { SEQUENCE { OID ecPublicKey, OID secp256r1 } BIT_STRING pubKey }
-        val ecOid       = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x02, 0x01)
-        val p256Oid     = byteArrayOf(0x2A, 0x86.toByte(), 0x48, 0xCE.toByte(), 0x3D, 0x03, 0x01, 0x07)
-        val algId       = der(DER_SEQUENCE, der(DER_OID, ecOid) + der(DER_OID, p256Oid))
-        val pubKeyBit   = der(DER_BIT_STRING, byteArrayOf(0x00) + pubKeyUncompressed)
-        val spki        = der(DER_SEQUENCE, algId + pubKeyBit)
-        // Minimal TBSCertificate (version=v1, serial=1, subject/issuer=CN=Chimali, validity 1970)
-        val serial      = der(DER_INTEGER, byteArrayOf(0x01))
-        val sigAlgSeq   = der(DER_SEQUENCE, der(DER_OID, ecOid) + der(DER_OID, p256Oid))
-        val rdnName     = der(DER_SEQUENCE, der(0x31, der(DER_SEQUENCE, der(DER_OID,
-            byteArrayOf(0x55, 0x04, 0x03)) + der(DER_UTF8_STRING, "Chimali".toByteArray()))))
-        val validity    = der(DER_SEQUENCE, der(DER_UTC_TIME, "700101000000Z".toByteArray()) +
-                                    der(DER_UTC_TIME, "491231235959Z".toByteArray()))
-        val tbs         = der(DER_SEQUENCE, serial + sigAlgSeq + rdnName + validity + rdnName + spki)
-        // Signature over TBS (just reuse the ephemeral key)
-        val kpg = KeyPairGenerator.getInstance("EC")
-        kpg.initialize(ECGenParameterSpec("secp256r1"), secureRandom)
-        val certKp = kpg.generateKeyPair()
-        val certSig = Signature.getInstance("SHA256withECDSA")
-        certSig.initSign(certKp.private)
-        certSig.update(tbs)
-        val certSigBytes = certSig.sign()
-        val certSigBit = der(DER_BIT_STRING, byteArrayOf(0x00) + certSigBytes)
-
-        return der(DER_SEQUENCE, tbs + sigAlgSeq + certSigBit)
-    }
-
-    /** DER-encode a tag + value. */
-    private fun der(tag: Int, value: ByteArray): ByteArray {
-        val len = value.size
-        val lenBytes = when {
-            len < 0x80 -> byteArrayOf(len.toByte())
-            len < 0x100 -> byteArrayOf(0x81.toByte(), len.toByte())
-            else -> byteArrayOf(0x82.toByte(), (len shr SHIFT_8).toByte(), (len and BYTE_MASK).toByte())
-        }
-        return byteArrayOf(tag.toByte()) + lenBytes + value
-    }
 
     /** Expose connection state for observing by the presentation layer. */
     override val connectionState: StateFlow<HidConnectionState> = hidWrapper.connectionState

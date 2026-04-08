@@ -157,11 +157,11 @@ fun Fido2HomeScreen(
 @Composable
 fun StatusIndicator(state: HidConnectionState) {
     val (statusText, color, icon) = when (state) {
-        is HidConnectionState.Idle -> Triple("Ready to Start", MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
+        is HidConnectionState.Idle       -> Triple("Ready to Start",  MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
         is HidConnectionState.Advertising -> Triple("Advertising...", Color(0xFF6200EE), Icons.Default.BluetoothSearching)
-        is HidConnectionState.Connecting -> Triple("Connecting...", Color(0xFFFF9800), Icons.Default.BluetoothAudio)
-        is HidConnectionState.Connected -> Triple("Connected to PC", Color(0xFF4CAF50), Icons.Default.Devices)
-        is HidConnectionState.Error -> Triple("Error Occurred", MaterialTheme.colorScheme.error, Icons.Default.Error)
+        is HidConnectionState.Connecting -> Triple("Connecting...",   Color(0xFFFF9800), Icons.Default.BluetoothAudio)
+        is HidConnectionState.Connected  -> Triple("Connected to PC", Color(0xFF4CAF50), Icons.Default.Devices)
+        is HidConnectionState.Error      -> Triple("Error Occurred",  MaterialTheme.colorScheme.error, Icons.Default.Error)
     }
 
     Card(

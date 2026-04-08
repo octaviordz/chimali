@@ -1,6 +1,5 @@
 package com.chimali.fido2.bluetooth
 
-import android.bluetooth.BluetoothDevice
 import timber.log.Timber
 
 /**

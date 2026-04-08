@@ -8,27 +8,27 @@ import javax.inject.Singleton
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
-// Android Classic HID L2CAP MTU = 64 bytes total. HIDP consumes 2 bytes
-// (protocol header + report ID), leaving 62 bytes for FIDO HID payload.
+// The FIDO CTAP HID specification relies on a fixed packet size agreed upon
+// in the HID Descriptor. Our HID Descriptor sets the report size to 64 bytes.
+// Therefore, the CTAPHID packet size is exactly 64 bytes.
+//
 //
 // Init packet (first in sequence):
-//   [CID 4B] [CMD 1B (bit7=1)] [BCNTH 1B] [BCNTL 1B] [DATA up to 55B]
+//   [CID 4B] [CMD 1B (bit7=1)] [BCNTH 1B] [BCNTL 1B] [DATA up to 57B]
 //
 // Continuation packet:
-//   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 57B]
-//
-// Total packet size = 62 bytes (FIDO_HID_REPORT_SIZE per wiokey-android)
+//   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 59B]
 
-private const val HID_PACKET_SIZE = 62
+private const val HID_PACKET_SIZE = 64  // Must match FIDO_HID_REPORT_SIZE (64) exactly
 private const val CID_SIZE = 4
 private const val INIT_CMD_OFFSET = 4
 private const val INIT_BCNTH_OFFSET = 5
 private const val INIT_BCNTL_OFFSET = 6
 private const val INIT_DATA_OFFSET = 7
-private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 55
+private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 57
 private const val CONT_SEQ_OFFSET = 4
 private const val CONT_DATA_OFFSET = 5
-private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 57
+private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 59
 
 private const val CMD_FLAG = 0x80  // bit7 set → init packet
 private const val CMD_MASK = 0x7F
@@ -46,12 +46,26 @@ internal const val CTAPHID_KEEPALIVE = 0x3B
 private const val INIT_NONCE_SIZE      = 8
 private const val INIT_RESPONSE_SIZE   = 17  // nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)
 
-private const val CAPABILITY_CBOR  = 0x04
-// Note: CAPABILITY_NMSG (0x08) intentionally NOT included.
-// Per FIDO CTAP HID spec, bit 3 (0x08) = "MSG command NOT supported".
-// Setting it causes Windows to think CTAPHID_MSG is unavailable and
-// may trip device-state validation errors on first connection.
-// rauth-android only advertises CAPABILITY_CBOR — we follow the same pattern.
+private const val CAPABILITY_CBOR  = 0x04  // Authenticator supports CTAPHID_CBOR (CTAP2)
+private const val CAPABILITY_NMSG  = 0x08  // Authenticator does NOT support CTAPHID_MSG (U2F)
+//
+// ⚠️  BOTH bits must be set for a CTAP2-only authenticator.
+//
+// Without CAPABILITY_NMSG, Windows assumes MSG is supported and sends
+// U2F_REGISTER (INS=0x01) as a legacy capability probe.  Any U2F APDU
+// error code returned — including 0x6985 SW_CONDITIONS_NOT_SATISFIED —
+// causes Windows to enter an infinite polling loop: it shows "Touch your
+// security key" and re-sends U2F_REGISTER every ~300 ms until it times out
+// and kills the process.  It NEVER escalates to CTAPHID_CBOR MakeCredential.
+//
+// With CAPABILITY_NMSG set, Windows reads from the INIT response that
+// CTAPHID_MSG is not supported, skips the U2F probe entirely, and goes
+// directly to CTAPHID_CBOR (0x10) for authenticatorMakeCredential.
+//
+// The prior concern "may trip device-state validation errors" was based on
+// early testing before CTAPHID_MSG handling existed and is no longer
+// applicable.  wiokey-android sets NMSG; we do the same.
+
 
 /** CID assigned to the broadcast channel (used for CTAPHID_INIT). */
 val BROADCAST_CID: ByteArray = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
@@ -127,7 +141,7 @@ class HidReportParser @Inject constructor() {
     private val pending = mutableMapOf<String, InProgress>()
 
     /**
-     * Processes one raw 64-byte HID report.
+     * Processes one raw HID report (62 bytes on BT HID — see [HID_PACKET_SIZE]).
      *
      * @return a [CtapHidMessage] when the full message is assembled, or null
      *         if more continuation packets are still expected.
@@ -222,8 +236,8 @@ class HidReportParser @Inject constructor() {
     // ── Response packing ──────────────────────────────────────────────────────
 
     /**
-     * Encodes a [CtapHidMessage] into one or more 64-byte HID reports that can
-     * be sent back to the host via [BluetoothHidDeviceWrapper.sendReport].
+     * Encodes a [CtapHidMessage] into one or more 62-byte BT HID reports (see [HID_PACKET_SIZE])
+     * that can be sent back to the host via [BluetoothHidDeviceWrapper.sendReport].
      */
     fun encodeResponse(message: CtapHidMessage): List<ByteArray> {
         val packets = mutableListOf<ByteArray>()
@@ -274,7 +288,8 @@ class HidReportParser @Inject constructor() {
             put(0x01.toByte())  // Major device version
             put(0x00.toByte())  // Minor device version
             put(0x00.toByte())  // Build number
-            put(CAPABILITY_CBOR.toByte())  // Only CBOR; no NMSG bit per rauth-android / FIDO spec
+            put((CAPABILITY_CBOR or CAPABILITY_NMSG).toByte())  // 0x0C: CBOR supported, MSG not — prevents U2F polling loop
+
         }.array()
 
         return CtapHidMessage(BROADCAST_CID, CTAPHID_INIT, payload)
