@@ -5,6 +5,7 @@ package com.chimali.fido2.bluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -33,8 +34,12 @@ import timber.log.Timber
 
 /**
  * Report descriptor for a FIDO2 HID authenticator interface.
- * Defines a vendor-specific HID usage page (0xF1D0) with 64-byte input and output reports.
  */
+// Note: The report count is 0x3E (62 bytes) instead of 64.
+// Bluetooth Classic L2CAP MTU for HID interrupt is capped at 64 bytes.
+// With 1 byte HID header + 1 byte Report ID, the payload must be 62.
+// Windows 11 bthid.sys strictly enforces this and returns ERROR_NOT_SUPPORTED (0x32)
+// if it is asked to fragment an Output Report over L2CAP.
 @Suppress("MagicNumber")
 private val FIDO_HID_REPORT_DESCRIPTOR = byteArrayOf(
     // Usage Page (FIDO Alliance)
@@ -48,20 +53,20 @@ private val FIDO_HID_REPORT_DESCRIPTOR = byteArrayOf(
     0x15.toByte(), 0x00.toByte(), // Logical Minimum (0)
     0x26.toByte(), 0xFF.toByte(), 0x00.toByte(), // Logical Maximum (255)
     0x75.toByte(), 0x08.toByte(), // Report Size (8 bits)
-    0x95.toByte(), 0x40.toByte(), // Report Count (64)
+    0x95.toByte(), 0x3E.toByte(), // Report Count (62)
     0x81.toByte(), 0x02.toByte(), // Input (Data, Variable, Absolute)
     // ── Output Report ──
     0x09.toByte(), 0x21.toByte(), // Usage (Output Report Data)
     0x15.toByte(), 0x00.toByte(), // Logical Minimum (0)
     0x26.toByte(), 0xFF.toByte(), 0x00.toByte(), // Logical Maximum (255)
     0x75.toByte(), 0x08.toByte(), // Report Size (8 bits)
-    0x95.toByte(), 0x40.toByte(), // Report Count (64)
+    0x95.toByte(), 0x3E.toByte(), // Report Count (62)
     0x91.toByte(), 0x02.toByte(), // Output (Data, Variable, Absolute)
     // End Collection
     0xC0.toByte(),
 )
 
-private const val FIDO_HID_REPORT_SIZE = 64
+private const val FIDO_HID_REPORT_SIZE = 62
 private const val FIDO_REPORT_ID: Byte = 0
 
 /**
@@ -120,7 +125,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
     @Volatile private var pendingBondDevice: BluetoothDevice? = null
 
     /**
-     * Channel that receives raw 64-byte HID reports from the host.
+     * Channel that receives raw 62-byte HID reports from the host.
      * Consumers (e.g. [HidReportParser]) should collect from this channel.
      */
     val incomingReports: Channel<ByteArray> = Channel(capacity = Channel.UNLIMITED)
@@ -335,7 +340,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             logDiagnosticSnapshot("APP_STATUS_CHANGED")
 
             if (registered) {
-                if (pluggedDevice != null) {
+                if (pluggedDevice != null && BluetoothHidConfigProvider.config.requiresPhantomDisconnect) {
                     // A device is already reported at registration time.
                     // This is a stale socket from a previous session — disconnect it to free
                     // the L2CAP channel for new incoming connections.
@@ -467,12 +472,27 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * Completes a device connection: sets [connectedDevice], emits [HidConnectionState.Connected],
      * and notifies the transport layer.
      */
-    private fun acceptConnectedDevice(device: BluetoothDevice) {
-        Timber.i("Accepting connection from %s", device.address)
-        connectedDevice = device
-        _connectionState.value = HidConnectionState.Connected(device)
-        logDiagnosticSnapshot("DEVICE_ACCEPTED")
-    }
+      private fun acceptConnectedDevice(device: BluetoothDevice) {
+          Timber.i("Accepting connection from %s", device.address)
+          connectedDevice = device
+          _connectionState.value = HidConnectionState.Connected(device)
+          logDiagnosticSnapshot("DEVICE_ACCEPTED")
+
+          // "?"? WORKAROUND: Prevent Windows 11 5-second HID timeout "?"?
+          // Windows 11 will aggressively disconnect Bluetooth HID peripherals exactly 5 seconds
+          // after channel open if the peripheral has not transmitted any reports. We fire a 64-byte
+          // report of all zeros (Channel ID 0x00000000). The FIDO spec mandates that packets with
+          // Channel ID 0 MUST be ignored by the host. This effectively acts as a transport-level
+          // keep-alive, proving to the Windows hidclass.sys driver that the device is alive.
+          //
+          // CRITICAL DELAY: We MUST delay this transmission by ~3 seconds. Sending an L2CAP DATA
+          // packet immediately upon channel creation causes the Motorola baseband to violently
+          // crash with hci_status=36 (LMP PDU Not Allowed). 3000ms ensures the link is fully
+          // stabilized (sniff/QoS parameters negotiated) while safely beating the 5000ms timeout.
+          // Delayed readiness packet removed. It causes the Motorola baseband to crash with hci_status=36
+          // because sending un-numbered L2CAP DATA on the Interrupt IN channel while Windows is aborting
+          // the connection is physically rejected by the Link Manager.
+      }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -510,13 +530,14 @@ class BluetoothHidDeviceWrapper @Inject constructor(
         }
 
         var lastException: Exception? = null
-        val maxRetries = 3
-        var retryDelay = 1000L
+        val cfg = BluetoothHidConfigProvider.config
+        val maxRetries = cfg.initMaxRetries
+        var retryDelay = cfg.initRetryDelayMs
 
         for (attempt in 1..maxRetries) {
             Timber.d("initialize attempt %d/%d", attempt, maxRetries)
 
-            val result = withTimeoutOrNull(5000L) {
+            val result = withTimeoutOrNull(cfg.initTimeoutMs) {
                 suspendCancellableCoroutine { cont ->
                     initContinuation = cont
                     try {
@@ -549,7 +570,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
 
             when {
                 result == null -> {
-                    Timber.e("initialize() timed out after 5000ms - onServiceConnected never received.")
+                    Timber.e("initialize() timed out after %dms - onServiceConnected never received.", cfg.initTimeoutMs)
                     lastException =
                         Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
                 }
@@ -599,15 +620,16 @@ class BluetoothHidDeviceWrapper @Inject constructor(
      * The actual registration outcome is delivered via `onAppStatusChanged`.
      */
     suspend fun registerApp(): Result<Unit> {
-        val maxRetries = 5
-        var retryDelay = 2_000L
+        val cfg = BluetoothHidConfigProvider.config
+        val maxRetries = cfg.registerMaxRetries
+        var retryDelay = cfg.registerRetryDelayMs
         var lastException: Exception? = null
 
         for (attempt in 1..maxRetries) {
             Timber.d("registerApp attempt %d/%d", attempt, maxRetries)
             logDiagnosticSnapshot("PRE_REGISTER_$attempt")
 
-            val result = withTimeoutOrNull(10_000L) {
+            val result = withTimeoutOrNull(cfg.registerTimeoutMs) {
                 suspendCancellableCoroutine<Result<Unit>> { cont ->
                     val hid = hidDevice
                     if (hid == null) {
@@ -651,12 +673,14 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     logDiagnosticSnapshot("POST_UNREGISTER_$attempt")
 
                     // ── Step 2: Register with fresh callback ──
-                    Timber.d("Step 2: Preparing SDP settings for 'Chimali Authenticator'...")
+                    val sdpSubclass = BluetoothHidDevice.SUBCLASS1_COMBO
+                    Timber.d("Step 2: Using SUBCLASS1_COMBO...")
+
                     val sdp = BluetoothHidDeviceAppSdpSettings(
                         "Chimali Authenticator",
                         "FIDO2 Virtual Security Key",
                         "Chimali",
-                        BluetoothHidDevice.SUBCLASS1_COMBO,
+                        sdpSubclass,
                         FIDO_HID_REPORT_DESCRIPTOR
                     )
 
@@ -742,7 +766,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
                     return Result.success(Unit)
                 }
                 result == null -> {
-                    Timber.e("registerApp timed out after 10000ms on attempt %d", attempt)
+                    Timber.e("registerApp timed out after %dms on attempt %d", cfg.registerTimeoutMs, attempt)
                     lastException = Fido2Exception.BluetoothException("HID registration timed out")
                     logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
                 }
@@ -756,7 +780,7 @@ class BluetoothHidDeviceWrapper @Inject constructor(
             if (attempt < maxRetries) {
                 Timber.d("Retrying registerApp in %dms...", retryDelay)
                 delay(retryDelay)
-                retryDelay = minOf(retryDelay * 2, 10_000L)
+                retryDelay = minOf(retryDelay * 2, cfg.registerRetryMaxDelayMs)
             }
         }
 

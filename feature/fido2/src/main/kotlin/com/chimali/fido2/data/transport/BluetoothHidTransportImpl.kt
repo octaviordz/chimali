@@ -38,6 +38,7 @@ import timber.log.Timber
 import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.chimali.fido2.bluetooth.BluetoothHidConfigProvider
 
 
 /**
@@ -110,15 +111,11 @@ class BluetoothHidTransportImpl @Inject constructor(
          * the sender coroutine sleeps for this duration to let the Bluetooth HCI layer
          * process the outbound HCI command before the next packet is queued.
          *
-         * Background: Android's Classic BT L2CAP channel does not expose per-packet ACKs,
-         * so we rely on a fixed sleep to avoid overwhelming the driver's internal queue.
-         * 20 ms is a safe default observed across Pixel, Samsung, and Asus devices; it
-         * can be widened for particularly slow OEM stacks during field debugging by
-         * adjusting this constant (or making it injectable if future testing warrants it).
+         * Actual value read from [BluetoothHidConfigProvider.config] at runtime.
          */
-        private const val REPORT_PACE_DELAY_MS = 20L
-        private const val KEEPALIVE_INITIAL_DELAY_MS = 75L
-        private const val KEEPALIVE_PERIOD_MS = 75L
+        private val REPORT_PACE_DELAY_MS get() = BluetoothHidConfigProvider.config.reportPaceDelayMs
+        private val KEEPALIVE_INITIAL_DELAY_MS get() = BluetoothHidConfigProvider.config.keepaliveInitialDelayMs
+        private val KEEPALIVE_PERIOD_MS get() = BluetoothHidConfigProvider.config.keepalivePeriodMs
 
         // Protocol
         private const val NONCE_SIZE = 8

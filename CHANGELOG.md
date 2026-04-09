@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-08 (Update 2)
+
+### Changed
+- **Bluetooth Configuration Centralization**: Refactored scattered Bluetooth connection lifecycle constants (timeouts, retries, and pacing delays) into a centralized `BluetoothHidConfigProvider`. It supplies a configurable `BluetoothHidConfig` data class that cleanly manages OEM-specific Bluetooth connection behaviors.
+
+### Fixed
+- **Windows 11 L2CAP MTU Compliance**: Resolved severe connection rejection (`ERROR_NOT_SUPPORTED 0x32`) by the Windows 11 `bthid.sys` driver. Reverted the FIDO HID report size from `64` bytes back to `62` bytes. Including the 2-byte HID header overhead, packets now fit exactly within the strict `64`-byte Classic Bluetooth L2CAP MTU enforced by Windows and Android.
+
+### Added
+- **Detailed changes**: [2026-04-08-fido2-bluetooth-mtu-and-config-refactor.md](docs/changelogs/2026-04-08-fido2-bluetooth-mtu-and-config-refactor.md)
+
 ## [Unreleased] - 2026-04-08
 
 ### Fixed

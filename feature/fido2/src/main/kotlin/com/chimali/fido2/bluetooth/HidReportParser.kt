@@ -9,8 +9,8 @@ import javax.inject.Singleton
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
 // The FIDO CTAP HID specification relies on a fixed packet size agreed upon
-// in the HID Descriptor. Our HID Descriptor sets the report size to 64 bytes.
-// Therefore, the CTAPHID packet size is exactly 64 bytes.
+// in the HID Descriptor. Our HID Descriptor sets the report size to 62 bytes.
+// Therefore, the CTAPHID packet size is exactly 62 bytes.
 //
 //
 // Init packet (first in sequence):
@@ -19,16 +19,16 @@ import javax.inject.Singleton
 // Continuation packet:
 //   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 59B]
 
-private const val HID_PACKET_SIZE = 64  // Must match FIDO_HID_REPORT_SIZE (64) exactly
+private const val HID_PACKET_SIZE = 62  // Must match FIDO_HID_REPORT_SIZE (62) exactly
 private const val CID_SIZE = 4
 private const val INIT_CMD_OFFSET = 4
 private const val INIT_BCNTH_OFFSET = 5
 private const val INIT_BCNTL_OFFSET = 6
 private const val INIT_DATA_OFFSET = 7
-private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 57
+private const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET       // 55
 private const val CONT_SEQ_OFFSET = 4
 private const val CONT_DATA_OFFSET = 5
-private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 59
+private const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET        // 57
 
 private const val CMD_FLAG = 0x80  // bit7 set → init packet
 private const val CMD_MASK = 0x7F
