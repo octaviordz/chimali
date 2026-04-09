@@ -89,6 +89,10 @@ Because the private half of the first key was immediately discarded when the fun
 **Analysis:** FIDO specifications mandate 64-byte packets. However, over Bluetooth Classic, the L2CAP interrupt channel enforces a strict 64-byte Maximum Transmission Unit (MTU). If a 64-byte HID Report is sent, it requires an additional 2 bytes of overhead (a 1-byte HID header and a 1-byte Report ID), totaling 66 bytes. The Windows 11 `bthid.sys` driver refuses to fragment output reports over L2CAP. When asked to send a 66-byte frame down a 64-byte pipe, it panics and throws `ERROR_NOT_SUPPORTED`. 
 **Fix:** The FIDO HID Report Descriptor was explicitly altered to specify a Report Size of **62 bytes** (`0x3E`) instead of 64 (`0x40`). The CTAPHID parser and assembler in the Android app were calibrated strictly to these boundaries. By delivering 62-byte payloads, the total L2CAP frame resolves to exactly 64 bytes, smoothly bypassing the Windows driver MTU fragmentation limitations and allowing stable end-to-end communication.
 
+## 7. Diagnostic Tools & Troubleshooting
+
+For practical debugging of the issues described above, including recommended Android Studio Logcat filters and Windows Event Viewer strategies, refer to the [Diagnostic Tools Guide](./research/diagnostic_tools.md).
+
 ## Conclusion
 
 Building a FIDO2 Bluetooth authenticator involves navigating severe undocumented constraints in the Windows OS CTAP stack. Minor encoding errors that might be ignored by a lenient parser (like a missing flag or a base64 string instead of a byte array) result in catastrophic localized failures (browser crashes, `E_INVALIDARG`). 
