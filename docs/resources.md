@@ -9,7 +9,14 @@ This file contains links, tools, and research materials that are useful for the 
 - **Awesome WebAuthn**: [GitHub Repository](https://github.com/yackermann/awesome-webauthn) - A curated list of awesome WebAuthn resources, libraries, and tools.
 - **OpenSK**: [GitHub Repository](https://github.com/google/OpenSK) - Google's reference implementation of a FIDO2 authenticator written in Rust that supports CTAP 2.1.
 - **Trussed FIDO Authenticator (ctap2.rs)**: [Source File](https://github.com/trussed-dev/fido-authenticator/blob/main/src/ctap2.rs) - Reference implementation of CTAP2 command handlers and response builders within the Trussed framework.
+- **FIDOk**: [GitHub Repository](https://github.com/BryanJacobs/FIDOk) - Kotlin/Multiplatform FIDO Platform implementation suitable for use in many contexts.
+- **FIDO2 Bridge**: [GitHub Repository](https://github.com/token2/FIDO2_Bridge) - Passkey credential provider for hardware security keys by Token2.
 - **FIDO Allowed Cryptography List**: [Official Specification](https://fidoalliance.org/specs/fido-security-requirements-v1.0-fd-20170524/fido-authenticator-allowed-cryptography-list_20170524.html) - The official list of cryptographic algorithms and parameters allowed for use in FIDO authenticators.
+
+## Testing & Compliance
+- **FIDO2/U2F Open Source Test Suites**: [Reddit Discussion](https://www.reddit.com/r/yubikey/comments/1nkhgrq/good_open_source_test_suite_for_fido2u2f/) - Community discussion on the lack of comprehensive open-source FIDO2 test suites and recommendations for building custom test environments using `libfido2`.
+- **WebAuthn.io**: [Testing Tool](https://webauthn.io/) - A demo site for testing WebAuthn registration and authentication flows.
+- **Passkeys.dev**: [Developer Resources](https://passkeys.dev/) - A site with resources for developers to learn about passkeys, including test environments.
 
 ## Bluetooth & HID
 - **USBHIDTerminal**: [GitHub Repository](https://github.com/452/USBHIDTerminal) - Useful for testing HID communications and understanding endpoint interactions.
@@ -24,6 +31,9 @@ This file contains links, tools, and research materials that are useful for the 
   - [Repositories List](https://github.com/eu-digital-identity-wallet/.github/blob/main/profile/repositories-list.md) - Official overview of EUDI repositories.
   - [Android Wallet UI](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui) - Reference implementation for the EU Wallet Android app.
   - [Android Wallet Core](https://github.com/eu-digital-identity-wallet/eudi-lib-android-wallet-core) - Core library coordinating identity/credential flows in EUDI.
+
+## Synchronization & Local-First
+- **Loro**: [GitHub Repository](https://github.com/loro-dev/loro) - High-performance CRDT library for local-first and collaborative applications, supporting JSON-like data with built-in version control.
 
 ## Cryptography & HD Keys
 - **HD Keys beyond Bitcoin**: [Google Share Link](https://share.google/aimode/7zIX8QRB2KWH6asT3) - Discussion on the broader applications of Hierarchical Deterministic keys.
