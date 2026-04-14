@@ -135,7 +135,7 @@ class PqcSigningTest {
 
     @Test
     fun coseAlgorithmConstantHasExpectedValue() {
-        // Regression: must remain -257 to match working-draft COSE assignment for ML-DSA-65
-        assertEquals(-257, COSE_ML_DSA_65)
+        // Regression: must remain -49 to match IANA COSE assignment for ML-DSA-65
+        assertEquals(-49, COSE_ML_DSA_65)
     }
 }

@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-14
+
+### Fixed
+- **ML-DSA WebAuthn Compatibility**: Resolved "Invalid data" and "Invalid key type" errors in WebAuthn registration. Corrected COSE algorithm ID to `-49` (ML-DSA-65), optimized key encoding to raw 1952-byte format, and implemented a custom `DeterministicSecureRandom` to ensure cryptographic consistency across Android application lifecycles.
+- **Attestation Statement Integrity**: Refactored the attestation response flow to use pre-signed `authData` bytes directly, eliminating signature verification failures caused by CBOR re-serialization divergences.
+- **Buffer Size Alignment**: Increased the attestation buffer limit to 4096 bytes to support large Post-Quantum (ML-DSA) signature payloads.
+
+### Added
+- **Detailed changes**: [2026-04-14-fido2-ml-dsa-webauthn-compat-fixes.md](docs/changelogs/2026-04-14-fido2-ml-dsa-webauthn-compat-fixes.md)
+
 ## [Unreleased] - 2026-04-08 (Update 2)
 
 ### Changed
@@ -438,4 +448,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-08*
+*Last Updated: 2026-04-14*

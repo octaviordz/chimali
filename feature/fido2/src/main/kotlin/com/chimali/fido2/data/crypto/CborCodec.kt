@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 
 /**
  * Minimal RFC 7049 (CBOR) codec for the CTAP2 HID protocol.
@@ -58,6 +59,9 @@ class CborCodec @Inject constructor() {
         private const val BSTR_HEADER_32 = 0x58
         private const val SIZE_32 = 32
         private const val SIZE_65 = 65
+
+        // ML-DSA-65 raw public key size per NIST FIPS 204 §5
+        private const val ML_DSA_65_RAW_KEY_SIZE = 1952
 
         private const val UNCOMPRESSED_EC_PREFIX = 0x04.toByte()
 
@@ -150,26 +154,22 @@ class CborCodec @Inject constructor() {
 
     /**
      * Encodes an ML-DSA-65 public key as a CBOR COSE_Key map.
-     * Based on draft-ietf-cose-dilithium, using AKP (Algorithm Key Pair).
-     *   COSE_KEY_KTY (1) = COSE_KEY_TYPE_AKP (5)
-     *   COSE_KEY_ALG (3) = COSE_ALG_ML_DSA_65 (-49)
-     *   COSE_KEY_PUB (-1) = bytes
+     * Based on draft-ietf-cose-dilithium / IANA COSE registry, using AKP key type.
      *
-     * However, since CTAP2 clients might not fully parse AKP yet, we provide what's
-     * defined in the COSE extensions or FIDO parameters.
-     * We'll use:
-     * kty(1) = 5 (AKP/OKP)
-     * alg(3) = -49
-     * -1 = publicKeyBytes
+     *   kty  (1)  = 7   (AKP — Algorithm Key Pair)
+     *   alg  (3)  = -49 (ML-DSA-65, per IANA COSE Algorithms registry)
+     *   pub  (-1) = 1952 raw bytes (NIST FIPS 204 §5 — NOT DER/SubjectPublicKeyInfo)
+     *
+     * @param publicKeyBytes Raw 1952-byte ML-DSA-65 public key (no DER wrapper).
      */
     fun encodeCoseMlDsaPublicKey(publicKeyBytes: ByteArray): ByteArray {
         val out = ByteArrayOutputStream()
         // CBOR map with 3 entries
         out.write(COSE_MAP_SIZE_3)   // map(3)
 
-        // kty: 1 = 5 (AKP/OKP)
+        // kty: 1 = 7 (AKP)
         out.write(0x01)              // uint(1) - kty
-        out.write(0x05)              // uint(5) - AKP or OKP
+        out.write(0x07)              // uint(7) - AKP
 
         // alg: 3 = -49
         out.write(0x03)              // uint(3) - alg
@@ -233,8 +233,15 @@ class CborCodec @Inject constructor() {
         val algorithm = publicKey.algorithm
 
         if (algorithm == "ML-DSA" || algorithm == "ML-DSA-65" || algorithm == "Dilithium") {
-            // ML-DSA public key bytes are the raw bytes or DER. we usually just use the encoded value
-            return encodeCoseMlDsaPublicKey(derEncoded)
+            // Strip the SubjectPublicKeyInfo DER wrapper — COSE pub (-1) must be the
+            // raw 1952-byte key body, NOT the DER-encoded SubjectPublicKeyInfo (~1988 bytes).
+            // Sending the full DER causes "byte string too long" on WebAuthn servers.
+            val spki = SubjectPublicKeyInfo.getInstance(derEncoded)
+            val rawKeyBytes = spki.publicKeyData.bytes
+            require(rawKeyBytes.size == ML_DSA_65_RAW_KEY_SIZE) {
+                "Expected $ML_DSA_65_RAW_KEY_SIZE-byte raw ML-DSA-65 key, got ${rawKeyBytes.size} bytes"
+            }
+            return encodeCoseMlDsaPublicKey(rawKeyBytes)
         }
 
         if (algorithm == "Ed25519" || algorithm == "EdDSA") {

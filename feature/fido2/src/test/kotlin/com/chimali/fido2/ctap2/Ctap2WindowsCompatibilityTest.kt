@@ -6,6 +6,7 @@ import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -67,6 +68,7 @@ class Ctap2WindowsCompatibilityTest {
     fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() = runTest {
         val mockUseCase = mockk<GetAssertionUseCase>()
         val mockHmacProcessor = mockk<HmacSecretProcessor>()
+        every { mockHmacProcessor.isPresent(any()) } returns false
         val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, mockHmacProcessor)
 
         // Create dummy bytes

@@ -265,19 +265,29 @@ class Ctap2MakeCredentialHandler @Inject constructor(
      * Encodes the AttestationObject as a CTAP2 authenticatorMakeCredential response.
      * Per CTAP2 spec §6.1, keys MUST be integers:
      *   0x01 = fmt, 0x02 = authData, 0x03 = attStmt
+     *
+     * CRITICAL: For packed self-attestation the server verifies `sig` over
+     * `authData_bytes || clientDataHash`. The `authData_bytes` we transmit here MUST be
+     * byte-for-byte identical to the bytes that were signed in RegisterCredentialUseCase.
+     * [AttestationStatement.authData] stores exactly those signed bytes; use them directly
+     * instead of re-serializing from AuthenticatorData fields (which risks divergence).
      */
     private fun encodeAttestationResponse(attestation: AttestationObject): ByteArray {
-        val authDataBytes = buildAuthenticatorData(attestation.authData)
+        // Use the pre-built, pre-signed authData bytes when available (packed attestation).
+        // Fall back to re-serialization only for none-attestation (where no sig exists).
+        val authDataBytes = attestation.attStmt.authData
+            ?.takeIf { it.isNotEmpty() }
+            ?: buildAuthenticatorData(attestation.authData)
+
         // Integer keys — not string keys — per CTAP2 §6.1
         val responseMap: Map<String, Any> = mapOf(
             RESP_FMT to attestation.fmt,         // fmt
-            RESP_AUTH_DATA to authDataBytes,           // authData (raw bytes, not base64)
+            RESP_AUTH_DATA to authDataBytes,      // authData (raw bytes, not base64)
             RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt)
         )
         Timber.d("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size)
-        Timber.d("authData hex: %s", authDataBytes.joinToString("") { "%02x".format(it) })
         val encoded = cborCodec.encodeToFido2Format(responseMap)
-        Timber.d("CBOR response hex: %s", encoded.joinToString("") { "%02x".format(it) })
+        Timber.d("MakeCredential CBOR response: %d bytes", encoded.size)
         return encoded
     }
 

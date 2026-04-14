@@ -3,8 +3,10 @@ package com.chimali.fido2.data.crypto
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
 import timber.log.Timber
+import java.io.ByteArrayOutputStream
 import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.PublicKey
 import java.security.SecureRandom
@@ -14,8 +16,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
-// Working-draft value; IANA final assignment pending.
-const val COSE_ML_DSA_65 = -257
+// IANA final assignment: https://www.iana.org/assignments/cose/cose.xhtml
+const val COSE_ML_DSA_65 = -49
 
 /**
  * T017a — Post-Quantum signing via **ML-DSA-65** (Dilithium, NIST FIPS 204 Level 3).
@@ -67,8 +69,17 @@ class PostQuantumCrypto @Inject constructor() {
     /**
      * Generates a deterministic ML-DSA-65 key pair from [pqChildSeed].
      *
-     * The seed is used to initialize a SHA1PRNG [SecureRandom] so the same seed always
-     * produces the same key pair (Known Answer Test property, required for credential replay).
+     * Per NIST FIPS 204 §5.1, ML-DSA.KeyGen needs 32 bytes of entropy (ξ) from
+     * which all key material is derived deterministically. We supply those 32 bytes
+     * via [DeterministicSecureRandom], which uses SHA-256 CTR expansion to produce
+     * a reproducible byte stream from the seed.
+     *
+     * **Why not SHA1PRNG?**
+     * Android's `SecureRandom("SHA1PRNG")` implementation *accumulates* system entropy
+     * even after `setSeed()`, so two calls with the same seed produce different key pairs.
+     * This would mean the public key stored at registration and the private key
+     * re-derived at signing time belong to **different** key pairs, causing every
+     * signature to fail ("Invalid data" on the WebAuthn server).
      *
      * @param pqChildSeed 64-byte BIP-85-derived PQ branch seed from [MasterSeedProvider.getPqChildSeed].
      * @return [KeyPair] or null if ML-DSA is not supported on this device.
@@ -76,9 +87,11 @@ class PostQuantumCrypto @Inject constructor() {
     fun generateMlDsaKeyPair(pqChildSeed: ByteArray): KeyPair? {
         require(pqChildSeed.size >= 32) { "PQ child seed must be at least 32 bytes" }
         return try {
-            val sr = SecureRandom.getInstance("SHA1PRNG").apply { setSeed(pqChildSeed) }
             val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-            kpg.initialize(MLDSAParameterSpec.ml_dsa_65, sr)
+            // SHA-256 of the seed is the 32-byte ξ for ML-DSA.KeyGen_internal (FIPS 204 Algorithm 6).
+            // DeterministicSecureRandom delivers it byte-by-byte with no external entropy injection.
+            val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
+            kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
             kpg.generateKeyPair().also {
                 Timber.d("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size)
             }
@@ -95,7 +108,7 @@ class PostQuantumCrypto @Inject constructor() {
      *
      * @param privateKey ML-DSA-65 private key from [generateMlDsaKeyPair].
      * @param data       Raw bytes to sign (typically `authData || clientDataHash` in CTAP2).
-     * @return DER-encoded ML-DSA signature bytes, or null on failure.
+     * @return ML-DSA signature bytes, or null on failure.
      */
     fun sign(privateKey: PrivateKey, data: ByteArray): ByteArray? = try {
         val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
@@ -133,4 +146,54 @@ class PostQuantumCrypto @Inject constructor() {
      * These bytes are stored in the credential repository alongside the COSE alg ID.
      */
     fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded
+}
+
+/**
+ * A [SecureRandom] that expands a fixed seed deterministically via SHA-256 CTR-DRBG.
+ *
+ * Unlike Android's `SHA1PRNG`, this class never injects external entropy — `setSeed`
+ * overrides are intentional no-ops. This guarantees that two calls with the same
+ * constructor seed always produce identical byte sequences, a requirement for
+ * re-deriving ML-DSA-65 key pairs from credential seeds.
+ *
+ * Byte stream: block_n = SHA-256(seed || n), blocks concatenated in order.
+ * Each 32-byte block supplies enough entropy for one ML-DSA KeyGen (ξ = 32 bytes
+ * per NIST FIPS 204 §5.1). The block counter prevents wrap-around aliasing.
+ */
+@Suppress("serial")
+internal class DeterministicSecureRandom(seed: ByteArray) : SecureRandom() {
+
+    private val md = MessageDigest.getInstance("SHA-256")
+    private val seedSnapshot: ByteArray = seed.copyOf()
+    private var block: ByteArray = nextBlock(0)
+    private var blockPos = 0
+    private var blockCounter = 1
+
+    private fun nextBlock(counter: Int): ByteArray {
+        md.reset()
+        md.update(seedSnapshot)
+        md.update(counter.toByte())
+        md.update((counter ushr 8).toByte())
+        md.update((counter ushr 16).toByte())
+        md.update((counter ushr 24).toByte())
+        return md.digest()
+    }
+
+    override fun nextBytes(bytes: ByteArray) {
+        var i = 0
+        while (i < bytes.size) {
+            if (blockPos >= block.size) {
+                block = nextBlock(blockCounter++)
+                blockPos = 0
+            }
+            bytes[i++] = block[blockPos++]
+        }
+    }
+
+    override fun generateSeed(numBytes: Int): ByteArray =
+        ByteArray(numBytes).also { nextBytes(it) }
+
+    // Reject all external entropy injection to preserve determinism.
+    override fun setSeed(seed: Long) = Unit
+    override fun setSeed(seed: ByteArray) = Unit
 }

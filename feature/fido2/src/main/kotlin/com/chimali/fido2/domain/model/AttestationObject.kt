@@ -388,7 +388,7 @@ data class AttestationStatement(
             "packed", "fido-u2f", "none", "android-safetynet", "android-key"
         )
 
-        private const val MAX_CERT_SIZE = 2048
+        private const val MAX_CERT_SIZE = 4096  // ML-DSA-65 signatures are 3309 bytes; 4096 covers all current PQC schemes
         private const val MAX_X5C_CHAIN_SIZE = 10
         const val MAX_AUTH_DATA_BYTES = 4096
 

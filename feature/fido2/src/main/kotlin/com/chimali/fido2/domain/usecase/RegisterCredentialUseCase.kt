@@ -270,16 +270,20 @@ class RegisterCredentialUseCase @Inject constructor(
         options: MakeCredentialOptions,
         credential: PasskeyCredential
     ): AttestationObject {
-        // Build authenticatorData
+        // Compute COSE public key once — used in both authDataBytes (signed) and AuthenticatorData (serialized).
+        // They MUST be the same bytes; signing authDataBytes with a different key than
+        // the COSE key embedded in it causes "Invalid data" on the server.
+        val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
+
+        // Build authenticatorData per WebAuthn §6.1
         val authDataBytes = run {
-            val rpIdHash   = hashRpId(options.rp.id)
-            val flags      = createAuthenticatorFlags(options)
-            val counter    = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
-            val credIdLen  = byteArrayOf(
+            val rpIdHash  = hashRpId(options.rp.id)
+            val flags     = createAuthenticatorFlags(options)
+            val counter   = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
+            val credIdLen = byteArrayOf(
                 (credential.credentialId.size shr 8).toByte(),
                 (credential.credentialId.size and 0xFF).toByte()
             )
-            val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
             java.io.ByteArrayOutputStream().apply {
                 write(rpIdHash)
                 write(flags)
@@ -292,28 +296,30 @@ class RegisterCredentialUseCase @Inject constructor(
         }
 
         val authData = AuthenticatorData.create(
-            rpIdHash = hashRpId(options.rp.id),
-            flags = createAuthenticatorFlags(options),
-            counter = 0L,
-            aaguid = credential.aaguid,
+            rpIdHash     = hashRpId(options.rp.id),
+            flags        = createAuthenticatorFlags(options),
+            counter      = 0L,
+            aaguid       = credential.aaguid,
             credentialId = credential.credentialId,
-            publicKey = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
+            publicKey    = pubKeyCose    // reuse — must match bytes in authDataBytes above
         )
 
         // For CTAP2, the host already computed the clientDataHash and passed it in options.challenge.
-        // Sign authData || options.challenge (clientDataHash) with the HDK-derived key (packed self-attestation)
+        // Sign authData || options.challenge (clientDataHash) with the SAME algorithm as the credential.
+        // Passing options.selectedAlgId ensures ML-DSA credentials are signed with ML-DSA,
+        // not the default ES256 — a mismatch causes "Invalid data" during server verification.
         val signatureResult = cryptoService.sign(
             credentialId = CredentialId.fromString(credential.id),
-            data         = authDataBytes + options.challenge
+            data         = authDataBytes + options.challenge,
+            algId        = options.selectedAlgId
         )
 
-        // Sign authData || options.challenge (clientDataHash) with the HDK-derived key (packed self-attestation)
         val (fmt, attStmt) = if (signatureResult.isSuccess) {
             val sig = signatureResult.getOrThrow()
             "packed" to AttestationStatement.create(
-                alg     = options.selectedAlgId,
-                fmt     = "packed",
-                attCert = sig,
+                alg      = options.selectedAlgId,
+                fmt      = "packed",
+                attCert  = sig,
                 authData = authDataBytes
             )
         } else {
