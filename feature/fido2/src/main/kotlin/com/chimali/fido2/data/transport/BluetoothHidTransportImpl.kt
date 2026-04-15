@@ -3,6 +3,7 @@ package com.chimali.fido2.data.transport
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.bluetooth.BROADCAST_CID
+import com.chimali.fido2.bluetooth.BluetoothHidConfigProvider
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
 import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
 import com.chimali.fido2.bluetooth.CTAPHID_CBOR
@@ -16,8 +17,8 @@ import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
 import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.data.crypto.Fido2CryptoService
+import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.util.performance.LatencyProfiler
@@ -38,7 +39,6 @@ import timber.log.Timber
 import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.chimali.fido2.bluetooth.BluetoothHidConfigProvider
 
 
 /**
@@ -67,6 +67,8 @@ class BluetoothHidTransportImpl @Inject constructor(
     private val responseBuilder: Ctap2ResponseBuilder,
     private val fido2Authenticator: Fido2Authenticator,
     private val fido2EventBus: Fido2EventBus,
+    // Injected to trigger background event observation
+    @Suppress("unused") private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator,
     private val userVerificationService: UserVerificationService,
     private val cryptoService: Fido2CryptoService
 ) : Fido2Transport {
