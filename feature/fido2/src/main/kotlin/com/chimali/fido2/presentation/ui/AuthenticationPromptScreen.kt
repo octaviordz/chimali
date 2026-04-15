@@ -31,6 +31,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.viewmodel.*
+import com.chimali.fido2.presentation.ui.components.*
 import kotlinx.coroutines.flow.collectLatest
 
 /** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
@@ -152,20 +153,16 @@ internal fun AuthenticationPromptContent(
                             }
                         }
                         Spacer(Modifier.height(24.dp))
-                        Button(
+                        ChimaliButton(
                             onClick = onConfirm,
-                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Confirm authentication button" },
-                            shape = MaterialTheme.shapes.large,
-                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Confirm authentication button" }
                         ) {
                             Text("Sign in")
                         }
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
+                        ChimaliOutlinedButton(
                             onClick = onCancel,
-                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Cancel authentication button" },
-                            shape = MaterialTheme.shapes.large,
-                            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Cancel authentication button" }
                         ) {
                             Text("Cancel")
                         }
@@ -221,8 +218,8 @@ internal fun AuthenticationPromptContent(
                         Text("Authentication failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { heading() })
                         Text(currentState.message, textAlign = TextAlign.Center)
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedButton(onClick = onCancel) { Text("Cancel") }
-                            if (currentState.isRetryable) Button(onClick = onRetry) { Text("Try again") }
+                            ChimaliOutlinedButton(onClick = onCancel) { Text("Cancel") }
+                            if (currentState.isRetryable) ChimaliButton(onClick = onRetry) { Text("Try again") }
                         }
                     }
                 }

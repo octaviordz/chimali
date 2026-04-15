@@ -27,6 +27,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.chimali.fido2.presentation.ui.components.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -186,7 +187,7 @@ internal fun DevelopmentToolsContent(
             }
 
             // ── Registration flow test trigger ────────────────────────────────
-            OutlinedButton(
+            ChimaliOutlinedButton(
                 onClick = {
                     val mockUserId = "user_${System.currentTimeMillis()}"
                     val algId = when (selectedAlgIndex) {
@@ -210,8 +211,7 @@ internal fun DevelopmentToolsContent(
                     )
                     onHomeTestRegistration(mockOptions)
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = MaterialTheme.shapes.large
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Trigger Test Registration UI")
             }
@@ -232,19 +232,19 @@ internal fun DevelopmentToolsContent(
 
                 // ── View Seed ────────────────────────────────────────────────
                 if (state.mnemonicWords == null) {
-                    OutlinedButton(
+                    ChimaliOutlinedButton(
                         onClick = {
-                            val activity = context as? FragmentActivity ?: return@OutlinedButton
-                            BiometricHelper.authenticate(
-                                activity = activity,
-                                title = "View Master Seed",
-                                description = "Authenticate to view your BIP39 mnemonic."
-                            ) {
-                                onIntent(DevToolsIntent.LoadMnemonic)
+                            (context as? FragmentActivity)?.let { activity ->
+                                BiometricHelper.authenticate(
+                                    activity = activity,
+                                    title = "View Master Seed",
+                                    description = "Authenticate to view your BIP39 mnemonic."
+                                ) {
+                                    onIntent(DevToolsIntent.LoadMnemonic)
+                                }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !state.isLoading
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = null)
@@ -260,10 +260,9 @@ internal fun DevelopmentToolsContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedButton(
+                        ChimaliOutlinedButton(
                             onClick = { onIntent(DevToolsIntent.CopyToClipboard) },
                             modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             FlowRow(
@@ -282,10 +281,9 @@ internal fun DevelopmentToolsContent(
                                 )
                             }
                         }
-                        OutlinedButton(
+                        ChimaliOutlinedButton(
                             onClick = { showQrCode = !showQrCode },
                             modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
                             FlowRow(
@@ -304,10 +302,9 @@ internal fun DevelopmentToolsContent(
                                 )
                             }
                         }
-                        OutlinedButton(
+                        ChimaliOutlinedButton(
                             onClick = { onIntent(DevToolsIntent.ClearMnemonic); showQrCode = false },
                             modifier = Modifier.weight(1f),
-                            shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             ),
@@ -367,7 +364,7 @@ internal fun DevelopmentToolsContent(
                 if (showRecoverForm) {
                     // QR scan button
                     if (!showScanner) {
-                        FilledTonalButton(
+                        ChimaliTonalButton(
                             onClick = {
                                 val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
                                 if (status == PackageManager.PERMISSION_GRANTED) {
@@ -376,8 +373,7 @@ internal fun DevelopmentToolsContent(
                                     cameraLauncher.launch(Manifest.permission.CAMERA)
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = MaterialTheme.shapes.large
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.CameraAlt, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
@@ -529,7 +525,7 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     }
 
     Spacer(Modifier.height(8.dp))
-    Button(
+    ChimaliButton(
         onClick = { onSubmit(fields.map { it.text.trim() }) },
         modifier = Modifier.fillMaxWidth(),
         enabled = fields.all { it.text.isNotBlank() }

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
+import com.chimali.fido2.presentation.ui.components.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,9 +57,9 @@ fun CredentialSelectionDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            ChimaliOutlinedButton(onClick = onDismiss) { Text("Cancel") }
         },
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     )
 }
 

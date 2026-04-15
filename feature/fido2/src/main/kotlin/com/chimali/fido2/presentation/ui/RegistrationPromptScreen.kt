@@ -33,6 +33,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.*
+import com.chimali.fido2.presentation.ui.components.*
 import kotlinx.coroutines.flow.collectLatest
 
 /** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
@@ -225,9 +226,9 @@ internal fun RegistrationPromptContent(
                             )
                             Text(currentState.message, textAlign = TextAlign.Center)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                OutlinedButton(onClick = onCancel) { Text("Cancel") }
+                                ChimaliOutlinedButton(onClick = onCancel) { Text("Cancel") }
                                 if (currentState.isRetryable) {
-                                    Button(onClick = onRetry) { Text("Try again") }
+                                    ChimaliButton(onClick = onRetry) { Text("Try again") }
                                 }
                             }
                         }
@@ -347,26 +348,22 @@ private fun AwaitingConsentContent(
         Spacer(Modifier.height(16.dp))
 
         // Action buttons
-        Button(
+        ChimaliButton(
             onClick  = onConfirm,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = "Confirm registration button" },
-            shape = MaterialTheme.shapes.large,
-            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                .semantics { contentDescription = "Confirm registration button" }
         ) {
             Text("Create Passkey")
         }
 
         Spacer(Modifier.height(8.dp))
 
-        OutlinedButton(
+        ChimaliOutlinedButton(
             onClick  = onCancel,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = "Cancel registration button" },
-            shape = MaterialTheme.shapes.large,
-            contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                .semantics { contentDescription = "Cancel registration button" }
         ) {
             Text("Cancel")
         }
