@@ -25,6 +25,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import kotlinx.coroutines.flow.filterIsInstance
 
 /**
@@ -134,11 +136,9 @@ fun Fido2HomeScreen(
                 }
             )
 
-            OutlinedButton(
+            ChimaliOutlinedButton(
                 onClick = onManageCredentials,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.List, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -232,11 +232,9 @@ fun TransportToggleButton(
     val isRunning = connectionState !is HidConnectionState.Idle && 
                     connectionState !is HidConnectionState.Error
 
-    Button(
+    ChimaliButton(
         onClick = onToggle,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
             contentColor = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary

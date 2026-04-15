@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 
 /** T122 — List Item */
 @Composable
@@ -47,21 +49,23 @@ fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
         icon = { if (isDestructive) Icon(Icons.Default.Warning, contentDescription = null) },
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(
+            ChimaliButton(
                 onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
                 )
             ) {
                 Text("Delete")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            ChimaliOutlinedButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
@@ -77,6 +81,7 @@ fun CredentialDetailsScreen(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
         icon = { Icon(Icons.Default.Info, contentDescription = null) },
         title = { Text("Passkey Details") },
         text = {
@@ -97,14 +102,16 @@ fun CredentialDetailsScreen(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            ChimaliButton(onClick = onDismiss) {
                 Text("Close")
             }
         },
         dismissButton = {
-            TextButton(
+            ChimaliOutlinedButton(
                 onClick = onDelete,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
             ) {
                 Text("Delete")
             }
