@@ -37,7 +37,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 ### 4.2 Virtual Authenticator & Bluetooth HID
 #### [FR-HID-010] FIDO2 Authenticator over HID
 - **Technical Detail**: Implement `BluetoothHidDevice.Callback`. 
-- **HID Report Descriptor**: Use a custom FIDO2 report descriptor (see [FIDO2 HID Specification](https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html#usb-hid-transport)).
+- **HID Report Descriptor**: Use a custom FIDO2 report descriptor (see [FIDO2 HID Specification](https://fidoalliance.org/specs/fido-v2.3-ps-20260226/fido-client-to-authenticator-protocol-v2.3-ps-20260226.html#usb-hid-transport)).
 - **CTAP2 Layer**: Implement a state machine to handle `CTAP2_GET_INFO`, `CTAP2_MAKE_CREDENTIAL`, and `CTAP2_GET_ASSERTION` commands.
 - **Supported Public Key Algorithms**: ES256, Ed25519, ML-DSA-65
 - **COSE Algorithm Mapping**: Algorithm identifiers (`alg`) must follow the [IANA COSE Registry](https://www.iana.org/assignments/cose/cose.xhtml#algorithms) (e.g., -7 for ES256, -257 for RS256, -49 for ML-DSA-65).
@@ -91,7 +91,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 | `RelyingParty` | `rpIdHash` | SHA-256 hash of the RP ID (used in CTAP2). |
 
 ## 8. Technical References (Specification Links)
-- **CTAP 2.2**: [Official Specification](https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html)
+- **CTAP 2.3**: [Official Specification](https://fidoalliance.org/specs/fido-v2.3-ps-20260226/fido-client-to-authenticator-protocol-v2.3-ps-20260226.html)
 - **WebAuthn L3**: [W3C Recommendation](https://www.w3.org/TR/webauthn-3/)
 - **COSE Algorithms**: [IANA Registry](https://www.iana.org/assignments/cose/cose.xhtml#algorithms)
 
