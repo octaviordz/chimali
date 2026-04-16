@@ -20,9 +20,11 @@ data class GetAssertionOptions(
     /** CTAP2 extensions map (param 0x06), pass-through opaque blob. */
     val extensions: Map<String, Any>? = null,
     /** Timeout in milliseconds — null means use device default (60 s). */
-    val timeout: Long? = null
+    val timeout: Long? = null,
 ) {
-    init { validate() }
+    init {
+        validate()
+    }
 
     private fun validate() {
         require(rpId.isNotBlank()) { "RP ID cannot be blank" }
@@ -57,14 +59,14 @@ data class GetAssertionOptions(
             allowCredentials: List<PublicKeyCredentialDescriptor>? = null,
             userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,
             extensions: Map<String, Any>? = null,
-            timeout: Long? = null
+            timeout: Long? = null,
         ) = GetAssertionOptions(
-            rpId             = rpId,
-            clientDataHash   = clientDataHash,
+            rpId = rpId,
+            clientDataHash = clientDataHash,
             allowCredentials = allowCredentials,
             userVerification = userVerification,
-            extensions       = extensions,
-            timeout          = timeout
+            extensions = extensions,
+            timeout = timeout,
         )
     }
 
@@ -73,9 +75,9 @@ data class GetAssertionOptions(
         if (this === other) return true
         if (other !is GetAssertionOptions) return false
         return rpId == other.rpId &&
-               clientDataHash.contentEquals(other.clientDataHash) &&
-               allowCredentials == other.allowCredentials &&
-               userVerification == other.userVerification
+            clientDataHash.contentEquals(other.clientDataHash) &&
+            allowCredentials == other.allowCredentials &&
+            userVerification == other.userVerification
     }
 
     override fun hashCode(): Int {

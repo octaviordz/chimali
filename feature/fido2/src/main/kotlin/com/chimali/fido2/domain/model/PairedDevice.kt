@@ -11,5 +11,5 @@ data class PairedDevice(
     val deviceClass: Int?,
     val alias: String? = null,
     val lastUsedAt: Long,
-    val createdAt: Long
+    val createdAt: Long,
 )

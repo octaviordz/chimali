@@ -24,7 +24,6 @@ import java.security.spec.X509EncodedKeySpec
  *  4. End-to-end sign/verify: the key derived for signing must match the key in authData.
  */
 class CborCodecTest {
-
     init {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
         Security.insertProviderAt(BouncyCastleProvider(), 1)
@@ -58,7 +57,7 @@ class CborCodecTest {
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair, "ML-DSA key pair must be generated")
 
-        val derEncodedKey = keyPair!!.public.encoded  // ~1988-byte SubjectPublicKeyInfo DER
+        val derEncodedKey = keyPair!!.public.encoded // ~1988-byte SubjectPublicKeyInfo DER
         val coseBytes = codec.encodeCosePublicKeyFromJavaKey(keyPair.public)
         val map = codec.decodeFromFido2Format(coseBytes)
 
@@ -70,9 +69,10 @@ class CborCodecTest {
         assertEquals(-49L, alg, "alg must be -49 (ML-DSA-65)")
         assertNotNull(pub, "pub (-1) must be present")
         assertEquals(
-            1952, pub!!.size,
+            1952,
+            pub!!.size,
             "pub (-1) must be the raw 1952-byte ML-DSA-65 key per FIPS 204, " +
-            "NOT the ${derEncodedKey.size}-byte DER SubjectPublicKeyInfo (causes 'byte string too long')"
+                "NOT the ${derEncodedKey.size}-byte DER SubjectPublicKeyInfo (causes 'byte string too long')",
         )
     }
 
@@ -90,8 +90,9 @@ class CborCodecTest {
 
         assertNotNull(actualPub)
         assertArrayEquals(
-            expectedRawBytes, actualPub,
-            "pub (-1) must exactly match the raw key extracted from SubjectPublicKeyInfo"
+            expectedRawBytes,
+            actualPub,
+            "pub (-1) must exactly match the raw key extracted from SubjectPublicKeyInfo",
         )
     }
 
@@ -114,9 +115,12 @@ class CborCodecTest {
         val out1 = ByteArray(128).also { rng1.nextBytes(it) }
         val out2 = ByteArray(128).also { rng2.nextBytes(it) }
 
-        assertArrayEquals(out1, out2,
+        assertArrayEquals(
+            out1,
+            out2,
             "DeterministicSecureRandom must produce identical bytes from the same seed " +
-            "on any JVM/Android runtime — no system entropy should be injected.")
+                "on any JVM/Android runtime — no system entropy should be injected.",
+        )
     }
 
     @Test
@@ -130,8 +134,11 @@ class CborCodecTest {
         rng.setSeed(999L)
 
         val after = ByteArray(32).also { rng.nextBytes(it) }
-        assertArrayEquals(before, after,
-            "setSeed must be a no-op — external entropy must never alter the deterministic stream.")
+        assertArrayEquals(
+            before,
+            after,
+            "setSeed must be a no-op — external entropy must never alter the deterministic stream.",
+        )
     }
 
     /**
@@ -151,9 +158,10 @@ class CborCodecTest {
         val rawPub2 = SubjectPublicKeyInfo.getInstance(keyPair2.public.encoded).publicKeyData.bytes
 
         assertArrayEquals(
-            rawPub1, rawPub2,
+            rawPub1,
+            rawPub2,
             "CRITICAL: same seed must always produce the same public key. " +
-            "Non-determinism causes 'Invalid data' on the server."
+                "Non-determinism causes 'Invalid data' on the server.",
         )
     }
 
@@ -176,7 +184,7 @@ class CborCodecTest {
         assertTrue(
             verified,
             "Signature made with re-derived keyPair2 must verify against keyPair1.public. " +
-            "Failure here causes 'Invalid data' on the server."
+                "Failure here causes 'Invalid data' on the server.",
         )
     }
 
@@ -226,7 +234,7 @@ class CborCodecTest {
         assertTrue(
             verified,
             "Server-side verification must succeed: reconstruct ML-DSA key from raw COSE pub " +
-            "and verify our signature. A failure proves the 'Invalid data' root cause."
+                "and verify our signature. A failure proves the 'Invalid data' root cause.",
         )
     }
 

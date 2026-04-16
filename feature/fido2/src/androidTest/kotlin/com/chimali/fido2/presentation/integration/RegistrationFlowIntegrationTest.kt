@@ -1,7 +1,6 @@
 package com.chimali.fido2.presentation.integration
 
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.ui.RegistrationPromptContent
 import com.chimali.fido2.presentation.viewmodel.RegistrationState
@@ -18,7 +17,6 @@ import org.junit.Test
  * performed with manual testing. These focus on the UI + ViewModel portion.
  */
 class RegistrationFlowIntegrationTest {
-
     // NOTE: Replace with your application's Activity once wired up
     // @get:Rule
     // val composeRule = createAndroidComposeRule<MainActivity>()
@@ -30,23 +28,24 @@ class RegistrationFlowIntegrationTest {
     @Test
     fun fullFlow_consentToProcessingShowsProgressIndicator() {
         val states = mutableListOf<RegistrationState>()
-        var currentState: RegistrationState = RegistrationState.AwaitingUserConsent(
-            rpId            = "example.com",
-            rpName          = "Example Corp",
-            userName        = "alice",
-            userDisplayName = "Alice",
-            availableMethod = VerificationMethod.NONE
-        )
+        var currentState: RegistrationState =
+            RegistrationState.AwaitingUserConsent(
+                rpId = "example.com",
+                rpName = "Example Corp",
+                userName = "alice",
+                userDisplayName = "Alice",
+                availableMethod = VerificationMethod.NONE,
+            )
 
         composeRule.setContent {
             RegistrationPromptContent(
-                state       = currentState,
-                onConfirm   = {
+                state = currentState,
+                onConfirm = {
                     currentState = RegistrationState.Processing
                     states.add(currentState)
                 },
-                onCancel    = {},
-                onRetry     = {}
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -63,16 +62,17 @@ class RegistrationFlowIntegrationTest {
         var cancelCalled = false
         composeRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example",
-                    userName        = "u",
-                    userDisplayName = "U",
-                    availableMethod = VerificationMethod.NONE
-                ),
-                onConfirm   = {},
-                onCancel    = { cancelCalled = true },
-                onRetry     = {}
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example",
+                        userName = "u",
+                        userDisplayName = "U",
+                        availableMethod = VerificationMethod.NONE,
+                    ),
+                onConfirm = {},
+                onCancel = { cancelCalled = true },
+                onRetry = {},
             )
         }
 
@@ -86,9 +86,9 @@ class RegistrationFlowIntegrationTest {
         composeRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Timeout", isRetryable = true),
-                onConfirm   = {},
-                onCancel    = {},
-                onRetry     = { retryCalled = true }
+                onConfirm = {},
+                onCancel = {},
+                onRetry = { retryCalled = true },
             )
         }
 
@@ -100,14 +100,17 @@ class RegistrationFlowIntegrationTest {
     fun successStateDisplaysPasskeyCreatedMessage() {
         composeRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.Success(
-                    com.chimali.fido2.domain.model.PasskeyCredential.createTest(
-                        id   = "cred-1",
-                        rpId = "example.com",
-                        userName = "alice"
-                    )
-                ),
-                onConfirm = {}, onCancel = {}, onRetry = {}
+                state =
+                    RegistrationState.Success(
+                        com.chimali.fido2.domain.model.PasskeyCredential.createTest(
+                            id = "cred-1",
+                            rpId = "example.com",
+                            userName = "alice",
+                        ),
+                    ),
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 

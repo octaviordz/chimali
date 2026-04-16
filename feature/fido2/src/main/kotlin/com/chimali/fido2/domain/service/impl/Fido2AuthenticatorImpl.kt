@@ -24,64 +24,98 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class Fido2AuthenticatorImpl @Inject constructor() : Fido2Authenticator {
+class Fido2AuthenticatorImpl
+    @Inject
+    constructor() : Fido2Authenticator {
+        companion object {
+            private const val MAX_CREDENTIAL_COUNT = 50
+            private const val MAX_CREDENTIAL_ID_LENGTH = 255
 
-    companion object {
-        private const val MAX_CREDENTIAL_COUNT = 50
-        private const val MAX_CREDENTIAL_ID_LENGTH = 255
-        
-        private val CHIMALI_AAGUID = byteArrayOf(
-            0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01  // ...version 1
-        )
-    }
+            private val CHIMALI_AAGUID =
+                byteArrayOf(
+                    0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00, // "CHIMALI\0"
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // ...version 1
+                )
+        }
 
-    override suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject> = Result.failure(NotImplementedError())
-    override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Result<AssertionObject> = Result.failure(NotImplementedError())
-    override suspend fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
-    override suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential> = emptyFlow()
-    override suspend fun deleteCredential(credentialId: String, rpId: String?): Result<Unit> = Result.success(Unit)
-    override suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Result<Unit> = Result.success(Unit)
-    override suspend fun getVerificationPreferences(): VerificationPreferences = VerificationPreferences.createDefault()
-    override suspend fun supportsAlgorithm(algorithm: String): Boolean = true
-    override suspend fun supportsResidentKeys(): Boolean = true
-    override suspend fun supportsUserVerification(): Boolean = true
-    
-    override suspend fun getAuthenticatorInfo(): AuthenticatorInfo {
-        return AuthenticatorInfo(
-            aaguid = CHIMALI_AAGUID,
-            version = "U2F_V2", // Also supports FIDO_2_0
-            supportedAlgorithms = listOf("ES256"),
-            supportedTransports = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE),
-            supportsResidentKeys = true,
-            supportsUserVerification = true,
-            maxCredentialCount = MAX_CREDENTIAL_COUNT,
-            maxCredentialIdLength = MAX_CREDENTIAL_ID_LENGTH,
-            firmwareVersion = "1.0",
-            serialNumber = "00000000",
-            isInitialized = true,
-            isLocked = false
-        )
+        override suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject> =
+            Result.failure(
+                NotImplementedError(),
+            )
+
+        override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Result<AssertionObject> =
+            Result.failure(
+                NotImplementedError(),
+            )
+
+        override suspend fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
+
+        override suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential> = emptyFlow()
+
+        override suspend fun deleteCredential(
+            credentialId: String,
+            rpId: String?,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getVerificationPreferences(): VerificationPreferences = VerificationPreferences.createDefault()
+
+        override suspend fun supportsAlgorithm(algorithm: String): Boolean = true
+
+        override suspend fun supportsResidentKeys(): Boolean = true
+
+        override suspend fun supportsUserVerification(): Boolean = true
+
+        override suspend fun getAuthenticatorInfo(): AuthenticatorInfo {
+            return AuthenticatorInfo(
+                aaguid = CHIMALI_AAGUID,
+                version = "U2F_V2", // Also supports FIDO_2_0
+                supportedAlgorithms = listOf("ES256"),
+                supportedTransports = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE),
+                supportsResidentKeys = true,
+                supportsUserVerification = true,
+                maxCredentialCount = MAX_CREDENTIAL_COUNT,
+                maxCredentialIdLength = MAX_CREDENTIAL_ID_LENGTH,
+                firmwareVersion = "1.0",
+                serialNumber = "00000000",
+                isInitialized = true,
+                isLocked = false,
+            )
+        }
+
+        override suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getAuthenticatorState(): AuthenticatorState = AuthenticatorState.READY
+
+        override suspend fun performHealthCheck(): Result<HealthCheckResult> =
+            Result.success(
+                HealthCheckResult(true, emptyMap(), java.time.Instant.now(), null),
+            )
+
+        override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Result<Unit> = Result.success(Unit)
+
+        override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration {
+            return AuthenticatorConfiguration(
+                requireUserVerification = true,
+                allowedAlgorithms = listOf("ES256"),
+                allowedTransports = listOf(AuthenticatorTransport.BLE),
+                enableResidentKeys = true,
+                maxCredentialCount = MAX_CREDENTIAL_COUNT,
+                biometricSettings = null,
+                pinSettings = null,
+                securityLevel = SecurityLevel.HIGH,
+            )
+        }
+
+        override suspend fun isReady(): Boolean = true
+
+        override suspend fun initiatePairing(pairingRequest: PairingRequest): Result<PairingResult> = Result.failure(NotImplementedError())
+
+        override suspend fun getSupportedTransports(): List<AuthenticatorTransport> = listOf(AuthenticatorTransport.BLE)
+
+        override suspend fun validateRequest(request: Fido2Request): Result<RequestValidationResult> =
+            Result.success(
+                RequestValidationResult(true, emptyList(), emptyList(), emptyList(), null),
+            )
     }
-    
-    override suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Result<Unit> = Result.success(Unit)
-    override suspend fun getAuthenticatorState(): AuthenticatorState = AuthenticatorState.READY
-    override suspend fun performHealthCheck(): Result<HealthCheckResult> = Result.success(HealthCheckResult(true, emptyMap(), java.time.Instant.now(), null))
-    override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Result<Unit> = Result.success(Unit)
-    override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration {
-        return AuthenticatorConfiguration(
-            requireUserVerification = true,
-            allowedAlgorithms = listOf("ES256"),
-            allowedTransports = listOf(AuthenticatorTransport.BLE),
-            enableResidentKeys = true,
-            maxCredentialCount = MAX_CREDENTIAL_COUNT,
-            biometricSettings = null,
-            pinSettings = null,
-            securityLevel = SecurityLevel.HIGH
-        )
-    }
-    override suspend fun isReady(): Boolean = true
-    override suspend fun initiatePairing(pairingRequest: PairingRequest): Result<PairingResult> = Result.failure(NotImplementedError())
-    override suspend fun getSupportedTransports(): List<AuthenticatorTransport> = listOf(AuthenticatorTransport.BLE)
-    override suspend fun validateRequest(request: Fido2Request): Result<RequestValidationResult> = Result.success(RequestValidationResult(true, emptyList(), emptyList(), emptyList(), null))
-}

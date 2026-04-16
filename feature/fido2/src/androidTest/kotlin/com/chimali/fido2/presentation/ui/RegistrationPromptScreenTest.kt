@@ -17,7 +17,6 @@ import org.junit.Test
  * which lets us drive the state machine from the outside.
  */
 class RegistrationPromptScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -27,16 +26,17 @@ class RegistrationPromptScreenTest {
     fun showsRpNameAndUserNameInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example Corp",
-                    userName        = "alice@example.com",
-                    userDisplayName = "Alice",
-                    availableMethod = VerificationMethod.BIOMETRIC
-                ),
-                onConfirm   = {},
-                onCancel    = {},
-                onRetry     = {}
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example Corp",
+                        userName = "alice@example.com",
+                        userDisplayName = "Alice",
+                        availableMethod = VerificationMethod.BIOMETRIC,
+                    ),
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -53,14 +53,17 @@ class RegistrationPromptScreenTest {
     fun rpAndUserCardsHaveMergedDescendantsForTalkBack() {
         composeTestRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example Corp",
-                    userName        = "alice@example.com",
-                    userDisplayName = "Alice",
-                    availableMethod = VerificationMethod.NONE
-                ),
-                onConfirm = {}, onCancel = {}, onRetry = {}
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example Corp",
+                        userName = "alice@example.com",
+                        userDisplayName = "Alice",
+                        availableMethod = VerificationMethod.NONE,
+                    ),
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -74,15 +77,17 @@ class RegistrationPromptScreenTest {
     fun showsCreatePasskeyButtonAndCancelButtonInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example",
-                    userName        = "user@example.com",
-                    userDisplayName = "User",
-                    availableMethod = VerificationMethod.NONE
-                ),
-                onConfirm = {}, onCancel = {},
-                onRetry = {}
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example",
+                        userName = "user@example.com",
+                        userDisplayName = "User",
+                        availableMethod = VerificationMethod.NONE,
+                    ),
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -95,15 +100,17 @@ class RegistrationPromptScreenTest {
         var confirmCalled = false
         composeTestRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example",
-                    userName        = "u",
-                    userDisplayName = "U",
-                    availableMethod = VerificationMethod.NONE
-                ),
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example",
+                        userName = "u",
+                        userDisplayName = "U",
+                        availableMethod = VerificationMethod.NONE,
+                    ),
                 onConfirm = { confirmCalled = true },
-                onCancel = {}, onRetry = {}
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -116,15 +123,17 @@ class RegistrationPromptScreenTest {
         var cancelCalled = false
         composeTestRule.setContent {
             RegistrationPromptContent(
-                state = RegistrationState.AwaitingUserConsent(
-                    rpId            = "example.com",
-                    rpName          = "Example",
-                    userName        = "u",
-                    userDisplayName = "U",
-                    availableMethod = VerificationMethod.NONE
-                ),
-                onConfirm = {}, onCancel = { cancelCalled = true },
-                onRetry = {}
+                state =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = "example.com",
+                        rpName = "Example",
+                        userName = "u",
+                        userDisplayName = "U",
+                        availableMethod = VerificationMethod.NONE,
+                    ),
+                onConfirm = {},
+                onCancel = { cancelCalled = true },
+                onRetry = {},
             )
         }
 
@@ -139,8 +148,9 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Processing,
-                onConfirm = {}, onCancel = {},
-                onRetry = {}
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -154,8 +164,9 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Something went wrong", isRetryable = true),
-                onConfirm = {}, onCancel = {},
-                onRetry = {}
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
@@ -172,13 +183,13 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state = RegistrationState.Error("Not allowed", isRetryable = false),
-                onConfirm = {}, onCancel = {},
-                onRetry = {}
+                onConfirm = {},
+                onCancel = {},
+                onRetry = {},
             )
         }
 
         composeTestRule.onNodeWithText("Not allowed").assertIsDisplayed()
         composeTestRule.onNodeWithText("Try again").assertDoesNotExist()
     }
-
 }

@@ -4,14 +4,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,22 +23,22 @@ import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 fun CredentialItem(
     credential: PasskeyCredential,
     onClick: (PasskeyCredential) -> Unit,
-    onDeleteClick: (PasskeyCredential) -> Unit
+    onDeleteClick: (PasskeyCredential) -> Unit,
 ) {
     ListItem(
-        headlineContent = { 
+        headlineContent = {
             Text(
                 text = credential.label ?: "User: ${credential.userName}",
-                fontWeight = if (credential.label != null) FontWeight.Bold else FontWeight.Normal
-            ) 
+                fontWeight = if (credential.label != null) FontWeight.Bold else FontWeight.Normal,
+            )
         },
-        supportingContent = { 
+        supportingContent = {
             Column {
                 if (credential.label != null) {
                     Text(
                         text = "User: ${credential.userName}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Text("RP: ${credential.rpId}")
@@ -49,7 +48,7 @@ fun CredentialItem(
             Icon(
                 imageVector = if (credential.label != null) Icons.Default.Label else Icons.Default.AccountCircle,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         },
         trailingContent = {
@@ -57,7 +56,7 @@ fun CredentialItem(
                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         },
-        modifier = Modifier.clickable { onClick(credential) }
+        modifier = Modifier.clickable { onClick(credential) },
     )
 }
 
@@ -68,7 +67,7 @@ fun DeleteConfirmationDialog(
     message: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -79,10 +78,11 @@ fun DeleteConfirmationDialog(
         confirmButton = {
             ChimaliButton(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                )
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
             ) {
                 Text("Delete")
             }
@@ -91,7 +91,7 @@ fun DeleteConfirmationDialog(
             ChimaliOutlinedButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -101,7 +101,7 @@ fun CredentialDetailsScreen(
     credential: PasskeyCredential,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onUpdateLabel: (String?) -> Unit
+    onUpdateLabel: (String?) -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -126,28 +126,28 @@ fun CredentialDetailsScreen(
                                 Icon(Icons.Default.Check, contentDescription = "Save label", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-                    }
+                    },
                 )
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "ID: ${credential.id}",
-                    fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily
-                )
-                Text("User: ${credential.userName}")
-                Text("Display Name: ${credential.userDisplayName}")
-                Text(
-                    text = "Relying Party: ${credential.rpId}",
-                    fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily
-                )
-                Text("Created: ${credential.createdAt}")
-                Text("Last Used: ${credential.lastUsedAt ?: "Never"}")
-                Text("Sign Count: ${credential.signCount}")
+                    Text(
+                        text = "ID: ${credential.id}",
+                        fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
+                    )
+                    Text("User: ${credential.userName}")
+                    Text("Display Name: ${credential.userDisplayName}")
+                    Text(
+                        text = "Relying Party: ${credential.rpId}",
+                        fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
+                    )
+                    Text("Created: ${credential.createdAt}")
+                    Text("Last Used: ${credential.lastUsedAt ?: "Never"}")
+                    Text("Sign Count: ${credential.signCount}")
                 }
             }
         },
@@ -159,12 +159,13 @@ fun CredentialDetailsScreen(
         dismissButton = {
             ChimaliOutlinedButton(
                 onClick = onDelete,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+                colors =
+                    ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
             ) {
                 Text("Delete")
             }
-        }
+        },
     )
 }

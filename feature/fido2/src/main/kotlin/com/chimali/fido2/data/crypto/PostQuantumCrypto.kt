@@ -1,9 +1,8 @@
 package com.chimali.fido2.data.crypto
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import timber.log.Timber
-import java.io.ByteArrayOutputStream
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
@@ -43,110 +42,123 @@ const val COSE_ML_DSA_65 = -49
  * - Signing does not require network access or Android KeyStore.
  */
 @Singleton
-class PostQuantumCrypto @Inject constructor() {
+class PostQuantumCrypto
+    @Inject
+    constructor() {
+        init {
+            // On Android, the system provides a crippled "BC" provider that lacks PQC.
+            // We must ensure our BouncyCastle 1.80 provider is used.
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+            Security.insertProviderAt(BouncyCastleProvider(), 1)
 
-    init {
-        // On Android, the system provides a crippled "BC" provider that lacks PQC.
-        // We must ensure our BouncyCastle 1.80 provider is used.
-        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
-        Security.insertProviderAt(BouncyCastleProvider(), 1)
-        
-        Timber.d("PQC Provider registered: %s (version %.1f)", 
-            BouncyCastleProvider.PROVIDER_NAME, 
-            Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0)
-    }
-
-    // ── Provider check ────────────────────────────────────────────────────────
-
-    fun isMlDsaSupported(): Boolean = try {
-        Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) != null
-    } catch (e: Exception) {
-        false
-    }
-
-    // ── Key generation ────────────────────────────────────────────────────────
-
-    /**
-     * Generates a deterministic ML-DSA-65 key pair from [pqChildSeed].
-     *
-     * Per NIST FIPS 204 §5.1, ML-DSA.KeyGen needs 32 bytes of entropy (ξ) from
-     * which all key material is derived deterministically. We supply those 32 bytes
-     * via [DeterministicSecureRandom], which uses SHA-256 CTR expansion to produce
-     * a reproducible byte stream from the seed.
-     *
-     * **Why not SHA1PRNG?**
-     * Android's `SecureRandom("SHA1PRNG")` implementation *accumulates* system entropy
-     * even after `setSeed()`, so two calls with the same seed produce different key pairs.
-     * This would mean the public key stored at registration and the private key
-     * re-derived at signing time belong to **different** key pairs, causing every
-     * signature to fail ("Invalid data" on the WebAuthn server).
-     *
-     * @param pqChildSeed 64-byte BIP-85-derived PQ branch seed from [MasterSeedProvider.getPqChildSeed].
-     * @return [KeyPair] or null if ML-DSA is not supported on this device.
-     */
-    fun generateMlDsaKeyPair(pqChildSeed: ByteArray): KeyPair? {
-        require(pqChildSeed.size >= 32) { "PQ child seed must be at least 32 bytes" }
-        return try {
-            val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-            // SHA-256 of the seed is the 32-byte ξ for ML-DSA.KeyGen_internal (FIPS 204 Algorithm 6).
-            // DeterministicSecureRandom delivers it byte-by-byte with no external entropy injection.
-            val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
-            kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
-            kpg.generateKeyPair().also {
-                Timber.d("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size)
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "ML-DSA key generation failed")
-            null
+            Timber.d(
+                "PQC Provider registered: %s (version %.1f)",
+                BouncyCastleProvider.PROVIDER_NAME,
+                Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0,
+            )
         }
+
+        // ── Provider check ────────────────────────────────────────────────────────
+
+        fun isMlDsaSupported(): Boolean =
+            try {
+                Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) != null
+            } catch (e: Exception) {
+                false
+            }
+
+        // ── Key generation ────────────────────────────────────────────────────────
+
+        /**
+         * Generates a deterministic ML-DSA-65 key pair from [pqChildSeed].
+         *
+         * Per NIST FIPS 204 §5.1, ML-DSA.KeyGen needs 32 bytes of entropy (ξ) from
+         * which all key material is derived deterministically. We supply those 32 bytes
+         * via [DeterministicSecureRandom], which uses SHA-256 CTR expansion to produce
+         * a reproducible byte stream from the seed.
+         *
+         * **Why not SHA1PRNG?**
+         * Android's `SecureRandom("SHA1PRNG")` implementation *accumulates* system entropy
+         * even after `setSeed()`, so two calls with the same seed produce different key pairs.
+         * This would mean the public key stored at registration and the private key
+         * re-derived at signing time belong to **different** key pairs, causing every
+         * signature to fail ("Invalid data" on the WebAuthn server).
+         *
+         * @param pqChildSeed 64-byte BIP-85-derived PQ branch seed from [MasterSeedProvider.getPqChildSeed].
+         * @return [KeyPair] or null if ML-DSA is not supported on this device.
+         */
+        fun generateMlDsaKeyPair(pqChildSeed: ByteArray): KeyPair? {
+            require(pqChildSeed.size >= 32) { "PQ child seed must be at least 32 bytes" }
+            return try {
+                val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
+                // SHA-256 of the seed is the 32-byte ξ for ML-DSA.KeyGen_internal (FIPS 204 Algorithm 6).
+                // DeterministicSecureRandom delivers it byte-by-byte with no external entropy injection.
+                val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
+                kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
+                kpg.generateKeyPair().also {
+                    Timber.d("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "ML-DSA key generation failed")
+                null
+            }
+        }
+
+        // ── Signing ───────────────────────────────────────────────────────────────
+
+        /**
+         * Signs [data] with an ML-DSA-65 private key.
+         *
+         * @param privateKey ML-DSA-65 private key from [generateMlDsaKeyPair].
+         * @param data       Raw bytes to sign (typically `authData || clientDataHash` in CTAP2).
+         * @return ML-DSA signature bytes, or null on failure.
+         */
+        fun sign(
+            privateKey: PrivateKey,
+            data: ByteArray,
+        ): ByteArray? =
+            try {
+                val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
+                sig.initSign(privateKey)
+                sig.update(data)
+                sig.sign().also { Timber.d("ML-DSA-65 signature produced; sigLen=%d", it.size) }
+            } catch (e: Exception) {
+                Timber.e(e, "ML-DSA signing failed")
+                null
+            }
+
+        // ── Verification ──────────────────────────────────────────────────────────
+
+        /**
+         * Verifies an ML-DSA-65 [signature] over [data] using [publicKey].
+         *
+         * Primarily used in unit tests and for local attestation checks.
+         *
+         * @return true if the signature is valid.
+         */
+        fun verify(
+            publicKey: PublicKey,
+            data: ByteArray,
+            signature: ByteArray,
+        ): Boolean =
+            try {
+                val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
+                sig.initVerify(publicKey)
+                sig.update(data)
+                sig.verify(signature)
+            } catch (e: Exception) {
+                Timber.e(e, "ML-DSA verification failed")
+                false
+            }
+
+        // ── Public key encoding ───────────────────────────────────────────────────
+
+        /**
+         * Returns the raw DER-encoded bytes of an ML-DSA-65 public key.
+         * These bytes are stored in the credential repository alongside the COSE alg ID.
+         */
+        fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded
     }
-
-    // ── Signing ───────────────────────────────────────────────────────────────
-
-    /**
-     * Signs [data] with an ML-DSA-65 private key.
-     *
-     * @param privateKey ML-DSA-65 private key from [generateMlDsaKeyPair].
-     * @param data       Raw bytes to sign (typically `authData || clientDataHash` in CTAP2).
-     * @return ML-DSA signature bytes, or null on failure.
-     */
-    fun sign(privateKey: PrivateKey, data: ByteArray): ByteArray? = try {
-        val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-        sig.initSign(privateKey)
-        sig.update(data)
-        sig.sign().also { Timber.d("ML-DSA-65 signature produced; sigLen=%d", it.size) }
-    } catch (e: Exception) {
-        Timber.e(e, "ML-DSA signing failed")
-        null
-    }
-
-    // ── Verification ──────────────────────────────────────────────────────────
-
-    /**
-     * Verifies an ML-DSA-65 [signature] over [data] using [publicKey].
-     *
-     * Primarily used in unit tests and for local attestation checks.
-     *
-     * @return true if the signature is valid.
-     */
-    fun verify(publicKey: PublicKey, data: ByteArray, signature: ByteArray): Boolean = try {
-        val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-        sig.initVerify(publicKey)
-        sig.update(data)
-        sig.verify(signature)
-    } catch (e: Exception) {
-        Timber.e(e, "ML-DSA verification failed")
-        false
-    }
-
-    // ── Public key encoding ───────────────────────────────────────────────────
-
-    /**
-     * Returns the raw DER-encoded bytes of an ML-DSA-65 public key.
-     * These bytes are stored in the credential repository alongside the COSE alg ID.
-     */
-    fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded
-}
 
 /**
  * A [SecureRandom] that expands a fixed seed deterministically via SHA-256 CTR-DRBG.
@@ -162,7 +174,6 @@ class PostQuantumCrypto @Inject constructor() {
  */
 @Suppress("serial")
 internal class DeterministicSecureRandom(seed: ByteArray) : SecureRandom() {
-
     private val md = MessageDigest.getInstance("SHA-256")
     private val seedSnapshot: ByteArray = seed.copyOf()
     private var block: ByteArray = nextBlock(0)
@@ -190,10 +201,10 @@ internal class DeterministicSecureRandom(seed: ByteArray) : SecureRandom() {
         }
     }
 
-    override fun generateSeed(numBytes: Int): ByteArray =
-        ByteArray(numBytes).also { nextBytes(it) }
+    override fun generateSeed(numBytes: Int): ByteArray = ByteArray(numBytes).also { nextBytes(it) }
 
     // Reject all external entropy injection to preserve determinism.
     override fun setSeed(seed: Long) = Unit
+
     override fun setSeed(seed: ByteArray) = Unit
 }

@@ -8,10 +8,12 @@ import javax.inject.Inject
 /**
  * T108 — Retrieves all FIDO2 credentials stored on the device across all relying parties.
  */
-class GetAllCredentialsUseCase @Inject constructor(
-    private val credentialRepository: CredentialRepository
-) {
-    suspend operator fun invoke(): Flow<PasskeyCredential> {
-        return credentialRepository.getAllCredentials()
+class GetAllCredentialsUseCase
+    @Inject
+    constructor(
+        private val credentialRepository: CredentialRepository,
+    ) {
+        suspend operator fun invoke(): Flow<PasskeyCredential> {
+            return credentialRepository.getAllCredentials()
+        }
     }
-}

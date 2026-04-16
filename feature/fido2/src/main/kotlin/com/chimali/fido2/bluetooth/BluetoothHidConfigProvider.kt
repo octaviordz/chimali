@@ -18,7 +18,6 @@ import timber.log.Timber
  * 4. Document the device, observed symptom, and tuning rationale in KDoc.
  */
 object BluetoothHidConfigProvider {
-
     /**
      * The resolved connection configuration for this device.
      *

@@ -24,12 +24,12 @@ import org.junit.jupiter.api.Test
  *  - T146g-p: importMnemonic coverage (Created, Replaced, cache invalidation, validation)
  */
 class WalletMasterSeedProviderTest {
-
-    private val fakeMnemonic = listOf(
-        "abandon", "abandon", "abandon", "abandon",
-        "abandon", "abandon", "abandon", "abandon",
-        "abandon", "abandon", "abandon", "about"
-    )
+    private val fakeMnemonic =
+        listOf(
+            "abandon", "abandon", "abandon", "abandon",
+            "abandon", "abandon", "abandon", "abandon",
+            "abandon", "abandon", "abandon", "about",
+        )
     private val fakeSeed = ByteArray(64) { it.toByte() }
     private val fakeKeyPair = mockk<HdkKeyPair>(relaxed = true)
 
@@ -50,151 +50,166 @@ class WalletMasterSeedProviderTest {
     }
 
     @Test
-    fun `getMasterSeed returns non-null seed on first call`() = runTest {
-        val seed = provider.getMasterSeed()
-        assertNotNull(seed)
-        assertArrayEquals(fakeSeed, seed)
-    }
+    fun `getMasterSeed returns non-null seed on first call`() =
+        runTest {
+            val seed = provider.getMasterSeed()
+            assertNotNull(seed)
+            assertArrayEquals(fakeSeed, seed)
+        }
 
     @Test
-    fun `getMasterSeed returns same seed on subsequent calls (cached)`() = runTest {
-        val seed1 = provider.getMasterSeed()
-        val seed2 = provider.getMasterSeed()
-        assertArrayEquals(seed1, seed2)
-    }
+    fun `getMasterSeed returns same seed on subsequent calls (cached)`() =
+        runTest {
+            val seed1 = provider.getMasterSeed()
+            val seed2 = provider.getMasterSeed()
+            assertArrayEquals(seed1, seed2)
+        }
 
     @Test
-    fun `mnemonic is generated only once even across multiple getSeed calls`() = runTest {
-        provider.getMasterSeed()
-        provider.getMasterSeed()
-        provider.getMasterSeed()
+    fun `mnemonic is generated only once even across multiple getSeed calls`() =
+        runTest {
+            provider.getMasterSeed()
+            provider.getMasterSeed()
+            provider.getMasterSeed()
 
-        verify(exactly = 1) { mockGenerator.generateMnemonic(24) }
-        verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
-    }
-
-    @Test
-    fun `getDeviceKeyPair returns non-null pair after initialization`() = runTest {
-        val keyPair = provider.getDeviceKeyPair()
-        assertNotNull(keyPair)
-    }
+            verify(exactly = 1) { mockGenerator.generateMnemonic(24) }
+            verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
+        }
 
     @Test
-    fun `getDeviceKeyPair returns same instance across calls`() = runTest {
-        val kp1 = provider.getDeviceKeyPair()
-        val kp2 = provider.getDeviceKeyPair()
-        assertSame(kp1, kp2)
-    }
+    fun `getDeviceKeyPair returns non-null pair after initialization`() =
+        runTest {
+            val keyPair = provider.getDeviceKeyPair()
+            assertNotNull(keyPair)
+        }
 
     @Test
-    fun `when persisted mnemonic exists it is reused without generating new one`() = runTest {
-        provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-
-        provider.getMasterSeed()
-
-        verify(exactly = 0) { mockGenerator.generateMnemonic(any()) }
-        verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
-    }
+    fun `getDeviceKeyPair returns same instance across calls`() =
+        runTest {
+            val kp1 = provider.getDeviceKeyPair()
+            val kp2 = provider.getDeviceKeyPair()
+            assertSame(kp1, kp2)
+        }
 
     @Test
-    fun `getMnemonic returns the persisted mnemonic as word list`() = runTest {
-        // T146: programmatic persistence verification
-        provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-        val words = provider.getMnemonic()
-        assertEquals(fakeMnemonic, words)
-    }
+    fun `when persisted mnemonic exists it is reused without generating new one`() =
+        runTest {
+            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
+
+            provider.getMasterSeed()
+
+            verify(exactly = 0) { mockGenerator.generateMnemonic(any()) }
+            verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
+        }
 
     @Test
-    fun `getMnemonic returns null when no mnemonic is persisted`() = runTest {
-        provider.persistedMnemonic = null
-        val words = provider.getMnemonic()
-        assertNull(words)
-    }
+    fun `getMnemonic returns the persisted mnemonic as word list`() =
+        runTest {
+            // T146: programmatic persistence verification
+            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
+            val words = provider.getMnemonic()
+            assertEquals(fakeMnemonic, words)
+        }
+
+    @Test
+    fun `getMnemonic returns null when no mnemonic is persisted`() =
+        runTest {
+            provider.persistedMnemonic = null
+            val words = provider.getMnemonic()
+            assertNull(words)
+        }
 
     // -----------------------------------------------------------------------
     // T146g-p: importMnemonic tests
     // -----------------------------------------------------------------------
 
     @Test
-    fun `importMnemonic returns Created when no mnemonic existed before`() = runTest {
-        // No mnemonic persisted yet.
-        provider.persistedMnemonic = null
+    fun `importMnemonic returns Created when no mnemonic existed before`() =
+        runTest {
+            // No mnemonic persisted yet.
+            provider.persistedMnemonic = null
 
-        val twentyFourWords = List(24) { "word${it + 1}" }
-        every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(64)
+            val twentyFourWords = List(24) { "word${it + 1}" }
+            every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(64)
 
-        val chars = twentyFourWords.joinToString(" ").toCharArray()
-        val result = provider.importMnemonic(chars)
+            val chars = twentyFourWords.joinToString(" ").toCharArray()
+            val result = provider.importMnemonic(chars)
 
-        assertEquals(ImportMnemonicResult.Created, result)
-        assertEquals(twentyFourWords.joinToString(" "), provider.persistedMnemonic)
-    }
-
-    @Test
-    fun `importMnemonic returns Replaced when a mnemonic already existed`() = runTest {
-        // Pre-populate storage with an existing mnemonic.
-        provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-
-        val newWords = List(24) { "new${it + 1}" }
-        every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(64)
-
-        val chars = newWords.joinToString(" ").toCharArray()
-        val result = provider.importMnemonic(chars)
-
-        assertEquals(ImportMnemonicResult.Replaced, result)
-        assertEquals(newWords.joinToString(" "), provider.persistedMnemonic)
-    }
-
-    @Test
-    fun `importMnemonic invalidates cache so getMasterSeed re-derives from new mnemonic`() = runTest {
-        // Warm the cache with the original mnemonic / seed.
-        val originalSeed = provider.getMasterSeed()
-
-        val newWords = List(24) { "cache${it + 1}" }
-        val newSeed = ByteArray(64) { (it + 10).toByte() }
-        every { mockGenerator.deriveSeed(newWords, "") } returns newSeed
-
-        val chars = newWords.joinToString(" ").toCharArray()
-        provider.importMnemonic(chars)
-
-        // After import the cache must be refreshed; getMasterSeed must return the new seed.
-        val seedAfterImport = provider.getMasterSeed()
-        assertFalse(originalSeed.contentEquals(seedAfterImport!!))
-        assertArrayEquals(newSeed, seedAfterImport)
-    }
-
-    @Test
-    fun `importMnemonic throws IllegalArgumentException for wrong word count`() = runTest {
-        val shortWords = listOf("only", "twelve", "words",
-            "here", "but", "need", "more",
-            "this", "will", "fail", "validation", "check")
-        val chars = shortWords.joinToString(" ").toCharArray()
-
-        assertThrows(IllegalArgumentException::class.java) {
-            kotlinx.coroutines.runBlocking { provider.importMnemonic(chars) }
+            assertEquals(ImportMnemonicResult.Created, result)
+            assertEquals(twentyFourWords.joinToString(" "), provider.persistedMnemonic)
         }
-    }
 
     @Test
-    fun `importMnemonic zeroes the CharArray after use`() = runTest {
-        val words = List(24) { "zero${it + 1}" }
-        every { mockGenerator.deriveSeed(words, "") } returns ByteArray(64)
+    fun `importMnemonic returns Replaced when a mnemonic already existed`() =
+        runTest {
+            // Pre-populate storage with an existing mnemonic.
+            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
 
-        val chars = words.joinToString(" ").toCharArray()
-        provider.importMnemonic(chars)
+            val newWords = List(24) { "new${it + 1}" }
+            every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(64)
 
-        // All chars must be null characters after importMnemonic returns.
-        assertTrue(chars.all { it == '\u0000' }, "CharArray must be zeroed after importMnemonic")
-    }
+            val chars = newWords.joinToString(" ").toCharArray()
+            val result = provider.importMnemonic(chars)
+
+            assertEquals(ImportMnemonicResult.Replaced, result)
+            assertEquals(newWords.joinToString(" "), provider.persistedMnemonic)
+        }
+
+    @Test
+    fun `importMnemonic invalidates cache so getMasterSeed re-derives from new mnemonic`() =
+        runTest {
+            // Warm the cache with the original mnemonic / seed.
+            val originalSeed = provider.getMasterSeed()
+
+            val newWords = List(24) { "cache${it + 1}" }
+            val newSeed = ByteArray(64) { (it + 10).toByte() }
+            every { mockGenerator.deriveSeed(newWords, "") } returns newSeed
+
+            val chars = newWords.joinToString(" ").toCharArray()
+            provider.importMnemonic(chars)
+
+            // After import the cache must be refreshed; getMasterSeed must return the new seed.
+            val seedAfterImport = provider.getMasterSeed()
+            assertFalse(originalSeed.contentEquals(seedAfterImport!!))
+            assertArrayEquals(newSeed, seedAfterImport)
+        }
+
+    @Test
+    fun `importMnemonic throws IllegalArgumentException for wrong word count`() =
+        runTest {
+            val shortWords =
+                listOf(
+                    "only", "twelve", "words",
+                    "here", "but", "need", "more",
+                    "this", "will", "fail", "validation", "check",
+                )
+            val chars = shortWords.joinToString(" ").toCharArray()
+
+            assertThrows(IllegalArgumentException::class.java) {
+                kotlinx.coroutines.runBlocking { provider.importMnemonic(chars) }
+            }
+        }
+
+    @Test
+    fun `importMnemonic zeroes the CharArray after use`() =
+        runTest {
+            val words = List(24) { "zero${it + 1}" }
+            every { mockGenerator.deriveSeed(words, "") } returns ByteArray(64)
+
+            val chars = words.joinToString(" ").toCharArray()
+            provider.importMnemonic(chars)
+
+            // All chars must be null characters after importMnemonic returns.
+            assertTrue(chars.all { it == '\u0000' }, "CharArray must be zeroed after importMnemonic")
+        }
 
     /**
      * Test double that replaces [EncryptedSharedPreferences] with an in-memory string variable.
      */
     private inner class TestableWalletMasterSeedProvider(
         private val gen: MasterSeedGenerator,
-        private val hdkMgr: HdkManager
+        private val hdkMgr: HdkManager,
     ) : MasterSeedProvider {
-
         var persistedMnemonic: String? = null
 
         @Volatile
@@ -207,12 +222,10 @@ class WalletMasterSeedProviderTest {
 
         override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInit().second
 
-        override suspend fun getMnemonic(): List<String>? =
-            persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
+        override suspend fun getMnemonic(): List<String>? = persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
 
         /** T017a: Returns a deterministic test PQ child seed. */
-        override suspend fun getPqChildSeed(): ByteArray? =
-            ByteArray(64) { (it + 99).toByte() }
+        override suspend fun getPqChildSeed(): ByteArray? = ByteArray(64) { (it + 99).toByte() }
 
         override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
             try {
@@ -240,13 +253,14 @@ class WalletMasterSeedProviderTest {
         private fun ensureInit(): Pair<ByteArray?, HdkKeyPair?> {
             if (cachedSeed != null) return Pair(cachedSeed, cachedKeyPair)
 
-            val mnemonic = if (!persistedMnemonic.isNullOrBlank()) {
-                persistedMnemonic!!.split(" ")
-            } else {
-                val newMnemonic = gen.generateMnemonic(24)
-                persistedMnemonic = newMnemonic.joinToString(" ")
-                newMnemonic
-            }
+            val mnemonic =
+                if (!persistedMnemonic.isNullOrBlank()) {
+                    persistedMnemonic!!.split(" ")
+                } else {
+                    val newMnemonic = gen.generateMnemonic(24)
+                    persistedMnemonic = newMnemonic.joinToString(" ")
+                    newMnemonic
+                }
 
             cachedSeed = gen.deriveSeed(mnemonic)
             cachedKeyPair = hdkMgr.generateDeviceKeyPair()
@@ -254,4 +268,3 @@ class WalletMasterSeedProviderTest {
         }
     }
 }
-

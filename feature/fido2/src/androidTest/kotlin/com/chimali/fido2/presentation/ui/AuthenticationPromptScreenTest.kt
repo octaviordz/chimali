@@ -17,7 +17,6 @@ import org.junit.Test
  * we can inject any [AuthenticationState] without Hilt/ViewModel wiring.
  */
 class AuthenticationPromptScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -27,16 +26,17 @@ class AuthenticationPromptScreenTest {
     fun awaitingUserConsent_displaysRpIdAndConfirmButton() {
         composeTestRule.setContent {
             AuthenticationPromptContent(
-                state = AuthenticationState.AwaitingUserConsent(
-                    rpId = "https://example.com",
-                    rpName = "Example",
-                    availableMethod = VerificationMethod.BIOMETRIC,
-                    credentialCount = 1
-                ),
+                state =
+                    AuthenticationState.AwaitingUserConsent(
+                        rpId = "https://example.com",
+                        rpName = "Example",
+                        availableMethod = VerificationMethod.BIOMETRIC,
+                        credentialCount = 1,
+                    ),
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -53,16 +53,17 @@ class AuthenticationPromptScreenTest {
     fun awaitingUserConsent_showsMultiplePasskeysHint() {
         composeTestRule.setContent {
             AuthenticationPromptContent(
-                state = AuthenticationState.AwaitingUserConsent(
-                    rpId = "https://example.com",
-                    rpName = "Example",
-                    availableMethod = VerificationMethod.BIOMETRIC,
-                    credentialCount = 3
-                ),
+                state =
+                    AuthenticationState.AwaitingUserConsent(
+                        rpId = "https://example.com",
+                        rpName = "Example",
+                        availableMethod = VerificationMethod.BIOMETRIC,
+                        credentialCount = 3,
+                    ),
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -79,7 +80,7 @@ class AuthenticationPromptScreenTest {
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -98,7 +99,7 @@ class AuthenticationPromptScreenTest {
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -108,7 +109,7 @@ class AuthenticationPromptScreenTest {
         // T143: Verify live region and heading for success state
         composeTestRule.onNodeWithText("Signed in!")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
-        
+
         composeTestRule.onNode(hasAnyDescendant(hasText("Signed in!")))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
@@ -123,7 +124,7 @@ class AuthenticationPromptScreenTest {
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -148,7 +149,7 @@ class AuthenticationPromptScreenTest {
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 
@@ -166,7 +167,7 @@ class AuthenticationPromptScreenTest {
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
-                onRetry = {}
+                onRetry = {},
             )
         }
 

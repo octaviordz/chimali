@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
-import com.chimali.fido2.presentation.ui.components.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.presentation.ui.components.*
 
 /**
  * T097 — Credential Selection Dialog.
@@ -29,7 +29,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 fun CredentialSelectionDialog(
     credentials: List<PasskeyCredential>,
     onSelect: (credential: PasskeyCredential) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -42,12 +42,12 @@ fun CredentialSelectionDialog(
                 Text(
                     "Multiple passkeys are available for this site. Select one to sign in.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.heightIn(max = 300.dp)
+                    modifier = Modifier.heightIn(max = 300.dp),
                 ) {
                     items(credentials) { credential ->
                         CredentialItem(credential = credential, onSelect = onSelect)
@@ -59,51 +59,53 @@ fun CredentialSelectionDialog(
         dismissButton = {
             ChimaliOutlinedButton(onClick = onDismiss) { Text("Cancel") }
         },
-        shape = MaterialTheme.shapes.large
+        shape = MaterialTheme.shapes.large,
     )
 }
 
 @Composable
 private fun CredentialItem(
     credential: PasskeyCredential,
-    onSelect: (PasskeyCredential) -> Unit
+    onSelect: (PasskeyCredential) -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect(credential) }
-            .semantics { contentDescription = "Select credential ${credential.userDisplayName}" },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onSelect(credential) }
+                .semantics { contentDescription = "Select credential ${credential.userDisplayName}" },
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
         Row(
-            modifier            = Modifier.padding(12.dp),
-            verticalAlignment   = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                imageVector        = Icons.Filled.AccountCircle,
+                imageVector = Icons.Filled.AccountCircle,
                 contentDescription = null,
-                modifier           = Modifier.size(40.dp),
-                tint               = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text       = credential.userDisplayName,
-                    style      = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    text = credential.userDisplayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text  = credential.userName,
+                    text = credential.userName,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text  = credential.rpId,
+                    text = credential.rpId,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

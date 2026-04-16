@@ -32,104 +32,108 @@ import androidx.compose.ui.unit.dp
 fun RegistrationProgressIndicator(
     message: String = "Registering passkey…",
     size: Dp = 120.dp,
-    strokeWidth: Dp = 6.dp
+    strokeWidth: Dp = 6.dp,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "fido2-progress")
 
     // Outer arc rotation
     val outerRotation by infiniteTransition.animateFloat(
-        initialValue   = 0f,
-        targetValue    = 360f,
-        animationSpec  = infiniteRepeatable(
-            animation  = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "outer-rotation"
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "outer-rotation",
     )
 
     // Inner arc rotation (counter-clockwise, slightly faster)
     val innerRotation by infiniteTransition.animateFloat(
-        initialValue   = 0f,
-        targetValue    = -360f,
-        animationSpec  = infiniteRepeatable(
-            animation  = tween(durationMillis = 900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "inner-rotation"
+        initialValue = 0f,
+        targetValue = -360f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 900, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "inner-rotation",
     )
 
     // Pulsating alpha for the center dot
     val centerAlpha by infiniteTransition.animateFloat(
-        initialValue  = 0.3f,
-        targetValue   = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation  = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "center-alpha"
+        initialValue = 0.3f,
+        targetValue = 1.0f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "center-alpha",
     )
 
-    val primary   = MaterialTheme.colorScheme.primary
+    val primary = MaterialTheme.colorScheme.primary
     val secondary = MaterialTheme.colorScheme.secondary
-    val tertiary  = MaterialTheme.colorScheme.tertiary
+    val tertiary = MaterialTheme.colorScheme.tertiary
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier            = Modifier
-            .padding(32.dp)
-            .semantics { contentDescription = "Registration in progress" }
+        modifier =
+            Modifier
+                .padding(32.dp)
+                .semantics { contentDescription = "Registration in progress" },
     ) {
         Canvas(
-            modifier = Modifier.size(size)
+            modifier = Modifier.size(size),
         ) {
-            val center     = Offset(size.toPx() / 2f, size.toPx() / 2f)
-            val radius     = (size.toPx() / 2f) - strokeWidth.toPx()
+            val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
+            val radius = (size.toPx() / 2f) - strokeWidth.toPx()
             val innerRadius = radius * 0.65f
-            val stroke     = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
             val innerStroke = Stroke(width = (strokeWidth.toPx() * 0.7f), cap = StrokeCap.Round)
 
             // Outer ring
             drawArc(
-                color        = primary,
-                startAngle   = outerRotation,
-                sweepAngle   = 240f,
-                useCenter    = false,
-                style        = stroke,
-                topLeft      = Offset(center.x - radius, center.y - radius),
-                size         = androidx.compose.ui.geometry.Size(radius * 2, radius * 2)
+                color = primary,
+                startAngle = outerRotation,
+                sweepAngle = 240f,
+                useCenter = false,
+                style = stroke,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
             )
 
             // Inner ring (counter-clockwise)
             drawArc(
-                color      = secondary,
+                color = secondary,
                 startAngle = innerRotation,
                 sweepAngle = 200f,
-                useCenter  = false,
-                style      = innerStroke,
-                topLeft    = Offset(center.x - innerRadius, center.y - innerRadius),
-                size       = androidx.compose.ui.geometry.Size(innerRadius * 2, innerRadius * 2)
+                useCenter = false,
+                style = innerStroke,
+                topLeft = Offset(center.x - innerRadius, center.y - innerRadius),
+                size = androidx.compose.ui.geometry.Size(innerRadius * 2, innerRadius * 2),
             )
 
             // Pulsating center dot
             drawCircle(
-                color  = tertiary.copy(alpha = centerAlpha),
+                color = tertiary.copy(alpha = centerAlpha),
                 radius = strokeWidth.toPx() * 1.5f,
-                center = center
+                center = center,
             )
         }
 
         Text(
-            text       = message,
-            style      = MaterialTheme.typography.bodyLarge,
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            textAlign  = TextAlign.Center,
-            color      = MaterialTheme.colorScheme.onBackground
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
         LinearProgressIndicator(
             modifier = Modifier.fillMaxWidth(0.6f),
-            color    = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

@@ -65,7 +65,7 @@ sealed interface RegistrationState {
         val rpName: String,
         val userName: String,
         val userDisplayName: String,
-        val availableMethod: VerificationMethod
+        val availableMethod: VerificationMethod,
     ) : RegistrationState
 
     /** User confirmed; awaiting system verification (Biometric/PIN). */
@@ -80,7 +80,7 @@ sealed interface RegistrationState {
     /** Registration failed; may be retried. */
     data class Error(
         val message: String,
-        val isRetryable: Boolean = true
+        val isRetryable: Boolean = true,
     ) : RegistrationState
 
     /** User canceled — presenter should dismiss and notify CTAP2 layer. */
@@ -91,8 +91,11 @@ sealed interface RegistrationState {
 
 sealed interface RegistrationEffect {
     data class LaunchSystemPrompt(val promptTitle: String, val promptSubtitle: String) : RegistrationEffect
+
     data class NavigateToSuccess(val credential: PasskeyCredential) : RegistrationEffect
-    data object NavigateBack             : RegistrationEffect
+
+    data object NavigateBack : RegistrationEffect
+
     data class ShowSnackbar(val message: String) : RegistrationEffect
 }
 
@@ -111,169 +114,173 @@ sealed interface RegistrationEffect {
  * 4. [Fido2Service] performs registration → [RegistrationState.Success] or [RegistrationState.Error]
  */
 @HiltViewModel
-class RegistrationPromptViewModel @Inject constructor(
-    private val fido2Service: Fido2Service,
-    private val userVerificationService: UserVerificationService,
-    private val uiEventBus: Fido2UiEventBus
-) : ViewModel() {
+class RegistrationPromptViewModel
+    @Inject
+    constructor(
+        private val fido2Service: Fido2Service,
+        private val userVerificationService: UserVerificationService,
+        private val uiEventBus: Fido2UiEventBus,
+    ) : ViewModel() {
+        private val _state = MutableStateFlow<RegistrationState>(RegistrationState.Idle)
+        val state: StateFlow<RegistrationState> = _state.asStateFlow()
 
-    private val _state = MutableStateFlow<RegistrationState>(RegistrationState.Idle)
-    val state: StateFlow<RegistrationState> = _state.asStateFlow()
+        private val _effects = Channel<RegistrationEffect>(Channel.BUFFERED)
+        val effects: Flow<RegistrationEffect> = _effects.receiveAsFlow()
 
-    private val _effects = Channel<RegistrationEffect>(Channel.BUFFERED)
-    val effects: Flow<RegistrationEffect> = _effects.receiveAsFlow()
+        private var pendingOptions: MakeCredentialOptions? = null
+        private var pendingDeferred: CompletableDeferred<Result<MakeCredentialResult>>? = null
 
-    private var pendingOptions: MakeCredentialOptions? = null
-    private var pendingDeferred: CompletableDeferred<Result<MakeCredentialResult>>? = null
-
-    init {
-        Timber.d("RegistrationPromptViewModel created — subscribing to event bus")
-        // Observe event bus for incoming registration requests from transport.
-        // Guard: if we are already showing an error to the user, do NOT let a PC retry
-        // silently overwrite the error screen — the user must dismiss/retry first.
-        uiEventBus.events
-            .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
-            .onEach { event ->
-                Timber.d("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id)
-                if (_state.value is RegistrationState.Error) {
-                    Timber.d("Ignoring incoming request — currently showing error to user")
-                    return@onEach
+        init {
+            Timber.d("RegistrationPromptViewModel created — subscribing to event bus")
+            // Observe event bus for incoming registration requests from transport.
+            // Guard: if we are already showing an error to the user, do NOT let a PC retry
+            // silently overwrite the error screen — the user must dismiss/retry first.
+            uiEventBus.events
+                .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
+                .onEach { event ->
+                    Timber.d("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id)
+                    if (_state.value is RegistrationState.Error) {
+                        Timber.d("Ignoring incoming request — currently showing error to user")
+                        return@onEach
+                    }
+                    pendingDeferred = event.deferred
+                    initRegistration(event.options)
                 }
+                .launchIn(viewModelScope)
+
+            // Also consume any event stored before this ViewModel was created (replay backup).
+            uiEventBus.currentRegistrationRequest?.let { event ->
+                Timber.d("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id)
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
-            }
-            .launchIn(viewModelScope)
-
-        // Also consume any event stored before this ViewModel was created (replay backup).
-        uiEventBus.currentRegistrationRequest?.let { event ->
-            Timber.d("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id)
-            pendingDeferred = event.deferred
-            initRegistration(event.options)
-            uiEventBus.clearRegistrationRequest()
-        } ?: Timber.d("No currentRegistrationRequest in cache at init time")
-    }
-
-    // ── Intent dispatch ───────────────────────────────────────────────────────
-
-    fun handleIntent(intent: RegistrationIntent) {
-        when (intent) {
-            is RegistrationIntent.InitRegistration      -> initRegistration(intent.options)
-            is RegistrationIntent.ConfirmRegistration   -> confirmRegistration()
-            is RegistrationIntent.CancelRegistration    -> cancelRegistration()
-            is RegistrationIntent.VerifyUser            -> startSystemVerification()
-            is RegistrationIntent.UserVerificationSuccess -> {
-                pendingOptions?.let { performRegistration(it) }
-            }
-            is RegistrationIntent.UserVerificationFailed -> {
-                _state.value = RegistrationState.Error(intent.message)
-                viewModelScope.launch { emit(RegistrationEffect.ShowSnackbar(intent.message)) }
-            }
-            is RegistrationIntent.Retry                 -> retryRegistration()
+                uiEventBus.clearRegistrationRequest()
+            } ?: Timber.d("No currentRegistrationRequest in cache at init time")
         }
-    }
 
-    // ── Intent handlers ───────────────────────────────────────────────────────
+        // ── Intent dispatch ───────────────────────────────────────────────────────
 
-    private fun initRegistration(options: MakeCredentialOptions) {
-        pendingOptions = options
-        viewModelScope.launch {
-            val availability = userVerificationService.getUserVerificationAvailability()
-            _state.value = RegistrationState.AwaitingUserConsent(
-                rpId             = options.rp.id,
-                rpName           = options.rp.name,
-                userName         = options.user.name,
-                userDisplayName  = options.user.displayName.ifEmpty { options.user.name },
-                availableMethod  = availability.getBestAvailableMethod()
-            )
-        }
-    }
-
-    private fun confirmRegistration() {
-        val options = pendingOptions ?: run {
-            _state.value = RegistrationState.Error("No pending registration request", false)
-            return
-        }
-        viewModelScope.launch {
-            val availability = userVerificationService.getUserVerificationAvailability()
-
-            if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
-                // No UV required / available — proceed without verification
-                performRegistration(options)
-            } else {
-                startSystemVerification()
+        fun handleIntent(intent: RegistrationIntent) {
+            when (intent) {
+                is RegistrationIntent.InitRegistration -> initRegistration(intent.options)
+                is RegistrationIntent.ConfirmRegistration -> confirmRegistration()
+                is RegistrationIntent.CancelRegistration -> cancelRegistration()
+                is RegistrationIntent.VerifyUser -> startSystemVerification()
+                is RegistrationIntent.UserVerificationSuccess -> {
+                    pendingOptions?.let { performRegistration(it) }
+                }
+                is RegistrationIntent.UserVerificationFailed -> {
+                    _state.value = RegistrationState.Error(intent.message)
+                    viewModelScope.launch { emit(RegistrationEffect.ShowSnackbar(intent.message)) }
+                }
+                is RegistrationIntent.Retry -> retryRegistration()
             }
         }
-    }
 
-    private fun startSystemVerification() {
-        val options = pendingOptions ?: return
-        viewModelScope.launch {
-            _state.value = RegistrationState.AwaitingUserVerification
-            val promptTitle = "Create Passkey"
-            val promptSubtitle = options.rp.name
-            emit(RegistrationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
-        }
-    }
+        // ── Intent handlers ───────────────────────────────────────────────────────
 
-    private fun cancelRegistration() {
-        pendingDeferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
-        pendingOptions = null
-        pendingDeferred = null
-        _state.value = RegistrationState.Cancelled
-        viewModelScope.launch { emit(RegistrationEffect.NavigateBack) }
-    }
-
-    private fun retryRegistration() {
-        val options = pendingOptions ?: run {
-            _state.value = RegistrationState.Error("No pending registration request", false)
-            return
-        }
-        initRegistration(options)
-    }
-
-    private fun performRegistration(options: MakeCredentialOptions) {
-        _state.value = RegistrationState.Processing
-        viewModelScope.launch {
-            val result = fido2Service.makeCredential(options)
-
-            result.onSuccess { makeResult ->
-                makeResult.attestationObject
-                val credential = makeResult.credential
-
-                // Complete transport's deferred only on success with the attestation object
-                pendingDeferred?.complete(Result.success(makeResult))
-
-                _state.value = RegistrationState.Success(credential)
-
-                // Hold the success screen for a moment so the user can read it before
-                // navigating away. The transport deferred is already resolved above.
-                delay(SUCCESS_DISPLAY_DURATION_MS)
-                emit(RegistrationEffect.NavigateToSuccess(credential))
-
-                // Clear pending only after success — on failure we keep them so Retry works
-                pendingOptions = null
-                pendingDeferred = null
-            }
-            result.onFailure { error ->
-                // Complete the transport deferred with the failure so the PC gets a response
-                pendingDeferred?.complete(Result.failure(error))
-                pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
-
-                Timber.e(error, "Registration process failed")
-
-                // T149 / T152 — delegate error classification to Fido2ErrorHandler
-                val ui = Fido2ErrorHandler.handle(error)
-                _state.value = RegistrationState.Error(ui.message, ui.isRetryable)
+        private fun initRegistration(options: MakeCredentialOptions) {
+            pendingOptions = options
+            viewModelScope.launch {
+                val availability = userVerificationService.getUserVerificationAvailability()
+                _state.value =
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = options.rp.id,
+                        rpName = options.rp.name,
+                        userName = options.user.name,
+                        userDisplayName = options.user.displayName.ifEmpty { options.user.name },
+                        availableMethod = availability.getBestAvailableMethod(),
+                    )
             }
         }
-    }
 
-    private suspend fun emit(effect: RegistrationEffect) {
-        _effects.send(effect)
-    }
+        private fun confirmRegistration() {
+            val options =
+                pendingOptions ?: run {
+                    _state.value = RegistrationState.Error("No pending registration request", false)
+                    return
+                }
+            viewModelScope.launch {
+                val availability = userVerificationService.getUserVerificationAvailability()
 
-    companion object {
-        /** How long the success screen is shown before automatically dismissing (ms). */
-        private const val SUCCESS_DISPLAY_DURATION_MS = 2_000L
+                if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
+                    // No UV required / available — proceed without verification
+                    performRegistration(options)
+                } else {
+                    startSystemVerification()
+                }
+            }
+        }
+
+        private fun startSystemVerification() {
+            val options = pendingOptions ?: return
+            viewModelScope.launch {
+                _state.value = RegistrationState.AwaitingUserVerification
+                val promptTitle = "Create Passkey"
+                val promptSubtitle = options.rp.name
+                emit(RegistrationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
+            }
+        }
+
+        private fun cancelRegistration() {
+            pendingDeferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
+            pendingOptions = null
+            pendingDeferred = null
+            _state.value = RegistrationState.Cancelled
+            viewModelScope.launch { emit(RegistrationEffect.NavigateBack) }
+        }
+
+        private fun retryRegistration() {
+            val options =
+                pendingOptions ?: run {
+                    _state.value = RegistrationState.Error("No pending registration request", false)
+                    return
+                }
+            initRegistration(options)
+        }
+
+        private fun performRegistration(options: MakeCredentialOptions) {
+            _state.value = RegistrationState.Processing
+            viewModelScope.launch {
+                val result = fido2Service.makeCredential(options)
+
+                result.onSuccess { makeResult ->
+                    makeResult.attestationObject
+                    val credential = makeResult.credential
+
+                    // Complete transport's deferred only on success with the attestation object
+                    pendingDeferred?.complete(Result.success(makeResult))
+
+                    _state.value = RegistrationState.Success(credential)
+
+                    // Hold the success screen for a moment so the user can read it before
+                    // navigating away. The transport deferred is already resolved above.
+                    delay(SUCCESS_DISPLAY_DURATION_MS)
+                    emit(RegistrationEffect.NavigateToSuccess(credential))
+
+                    // Clear pending only after success — on failure we keep them so Retry works
+                    pendingOptions = null
+                    pendingDeferred = null
+                }
+                result.onFailure { error ->
+                    // Complete the transport deferred with the failure so the PC gets a response
+                    pendingDeferred?.complete(Result.failure(error))
+                    pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
+
+                    Timber.e(error, "Registration process failed")
+
+                    // T149 / T152 — delegate error classification to Fido2ErrorHandler
+                    val ui = Fido2ErrorHandler.handle(error)
+                    _state.value = RegistrationState.Error(ui.message, ui.isRetryable)
+                }
+            }
+        }
+
+        private suspend fun emit(effect: RegistrationEffect) {
+            _effects.send(effect)
+        }
+
+        companion object {
+            /** How long the success screen is shown before automatically dismissing (ms). */
+            private const val SUCCESS_DISPLAY_DURATION_MS = 2_000L
+        }
     }
-}

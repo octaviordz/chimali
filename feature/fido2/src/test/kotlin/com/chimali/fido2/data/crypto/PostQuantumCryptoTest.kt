@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test
  * and the new ML-DSA API is wired up correctly.
  */
 class PostQuantumCryptoTest {
-
     private lateinit var pqCrypto: PostQuantumCrypto
 
     @BeforeEach
@@ -43,8 +42,8 @@ class PostQuantumCryptoTest {
         assertNotNull(keyPair)
         assertTrue(
             keyPair!!.public.algorithm.contains("ML-DSA", ignoreCase = true) ||
-            keyPair.public.algorithm.contains("Dilithium", ignoreCase = true),
-            "Expected ML-DSA or Dilithium algorithm, got: ${keyPair.public.algorithm}"
+                keyPair.public.algorithm.contains("Dilithium", ignoreCase = true),
+            "Expected ML-DSA or Dilithium algorithm, got: ${keyPair.public.algorithm}",
         )
     }
 

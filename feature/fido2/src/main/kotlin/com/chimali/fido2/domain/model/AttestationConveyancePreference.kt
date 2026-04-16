@@ -8,8 +8,9 @@ enum class AttestationConveyancePreference {
     NONE,
     INDIRECT,
     DIRECT,
-    ENTERPRISE;
-    
+    ENTERPRISE,
+    ;
+
     /**
      * Returns a description of the preference.
      */
@@ -21,28 +22,28 @@ enum class AttestationConveyancePreference {
             ENTERPRISE -> "Enterprise attestation"
         }
     }
-    
+
     /**
      * Checks if this preference allows attestation.
      */
     fun allowsAttestation(): Boolean {
         return this != NONE
     }
-    
+
     /**
      * Checks if this requires direct attestation.
      */
     fun requiresDirectAttestation(): Boolean {
         return this == DIRECT
     }
-    
+
     /**
      * Checks if this requires enterprise attestation.
      */
     fun requiresEnterpriseAttestation(): Boolean {
         return this == ENTERPRISE
     }
-    
+
     companion object {
         /**
          * Creates a preference from string value.
@@ -56,7 +57,7 @@ enum class AttestationConveyancePreference {
                 else -> NONE // Default to none
             }
         }
-        
+
         /**
          * Returns the default preference.
          */

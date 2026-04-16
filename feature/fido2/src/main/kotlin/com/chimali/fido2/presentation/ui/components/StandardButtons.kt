@@ -21,7 +21,7 @@ fun ChimaliButton(
     elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     Button(
         onClick = onClick,
@@ -32,7 +32,7 @@ fun ChimaliButton(
         elevation = elevation,
         border = border,
         contentPadding = contentPadding,
-        content = content
+        content = content,
     )
 }
 
@@ -49,7 +49,7 @@ fun ChimaliOutlinedButton(
     elevation: ButtonElevation? = null,
     border: BorderStroke? = ButtonDefaults.outlinedButtonBorder,
     contentPadding: PaddingValues = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -60,7 +60,7 @@ fun ChimaliOutlinedButton(
         elevation = elevation,
         border = border,
         contentPadding = contentPadding,
-        content = content
+        content = content,
     )
 }
 
@@ -77,7 +77,7 @@ fun ChimaliTonalButton(
     elevation: ButtonElevation? = ButtonDefaults.filledTonalButtonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     FilledTonalButton(
         onClick = onClick,
@@ -88,6 +88,6 @@ fun ChimaliTonalButton(
         elevation = elevation,
         border = border,
         contentPadding = contentPadding,
-        content = content
+        content = content,
     )
 }

@@ -4,7 +4,6 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.chimali.fido2.data.database.Fido2Database
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.io.File
 import java.nio.file.Files
 
 /**
@@ -29,7 +28,6 @@ import java.nio.file.Files
  * public key bytes) in clear-text on a rooted device.
  */
 class SecurityStorageIntegrityTest {
-
     /**
      * T148d-1: Plain SQLite baseline — verifies the file written by JdbcSqliteDriver starts
      * with the well-known SQLite magic bytes.
@@ -55,7 +53,7 @@ class SecurityStorageIntegrityTest {
             assertArrayEquals(
                 expectedHeader,
                 header.toByteArray(),
-                "Baseline: plain SQLite file must have the SQLite magic header"
+                "Baseline: plain SQLite file must have the SQLite magic header",
             )
         } finally {
             tempFile.delete()
@@ -94,7 +92,7 @@ class SecurityStorageIntegrityTest {
         assertNotEquals(
             sqliteMagic,
             sqlcipherHeader,
-            "Contract: SQLCipher-encrypted DB header must differ from plain SQLite magic"
+            "Contract: SQLCipher-encrypted DB header must differ from plain SQLite magic",
         )
     }
 
@@ -108,12 +106,13 @@ class SecurityStorageIntegrityTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         Fido2Database.Schema.create(driver)
 
-        val expectedTables = listOf(
-            "PasskeyCredential",
-            "RelyingParty",
-            "UserConsentRecord",
-            "BluetoothHidSession"
-        )
+        val expectedTables =
+            listOf(
+                "PasskeyCredential",
+                "RelyingParty",
+                "UserConsentRecord",
+                "BluetoothHidSession",
+            )
 
         val connection = (driver as JdbcSqliteDriver).getConnection()
         val meta = connection.metaData
@@ -128,7 +127,7 @@ class SecurityStorageIntegrityTest {
         expectedTables.forEach { table ->
             assertTrue(
                 actualTables.any { it.equals(table, ignoreCase = true) },
-                "Expected table '$table' not found in schema. Found: $actualTables"
+                "Expected table '$table' not found in schema. Found: $actualTables",
             )
         }
     }

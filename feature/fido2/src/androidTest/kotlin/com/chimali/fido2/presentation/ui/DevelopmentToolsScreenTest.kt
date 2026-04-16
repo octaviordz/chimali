@@ -14,7 +14,6 @@ import org.junit.Test
  * T143 — Accessibility tests for [DevelopmentToolsScreen].
  */
 class DevelopmentToolsScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -26,7 +25,7 @@ class DevelopmentToolsScreenTest {
                     state = DevToolsUiState(),
                     snackbarHostState = remember { SnackbarHostState() },
                     onIntent = {},
-                    onHomeTestRegistration = {}
+                    onHomeTestRegistration = {},
                 )
             }
         }
@@ -49,7 +48,7 @@ class DevelopmentToolsScreenTest {
                     state = DevToolsUiState(mnemonicWords = testWords),
                     snackbarHostState = remember { SnackbarHostState() },
                     onIntent = {},
-                    onHomeTestRegistration = {}
+                    onHomeTestRegistration = {},
                 )
             }
         }

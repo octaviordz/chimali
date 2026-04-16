@@ -10,28 +10,29 @@ import javax.inject.Singleton
  * Performs a master reset of the authenticator, clearing all credentials and settings.
  */
 @Singleton
-class Ctap2ResetAuthenticatorHandler @Inject constructor(
-    private val resetAuthenticatorUseCase: ResetAuthenticatorUseCase
-) {
+class Ctap2ResetAuthenticatorHandler
+    @Inject
+    constructor(
+        private val resetAuthenticatorUseCase: ResetAuthenticatorUseCase,
+    ) {
+        companion object {
+            private const val CTAP2_OK: Byte = 0x00
+            private const val CTAP2_ERR_PROCESSING: Byte = 0x17
+        }
 
-    companion object {
-        private const val CTAP2_OK: Byte = 0x00
-        private const val CTAP2_ERR_PROCESSING: Byte = 0x17
-    }
+        suspend fun handle(requestBytes: ByteArray): ByteArray {
+            Timber.d("Handling authenticatorReset")
 
-    suspend fun handle(requestBytes: ByteArray): ByteArray {
-        Timber.d("Handling authenticatorReset")
-        
-        return try {
-            val result = resetAuthenticatorUseCase()
-            if (result.isSuccess) {
-                byteArrayOf(CTAP2_OK)
-            } else {
+            return try {
+                val result = resetAuthenticatorUseCase()
+                if (result.isSuccess) {
+                    byteArrayOf(CTAP2_OK)
+                } else {
+                    byteArrayOf(CTAP2_ERR_PROCESSING)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Exception handling authenticator reset")
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Exception handling authenticator reset")
-            byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }
-}

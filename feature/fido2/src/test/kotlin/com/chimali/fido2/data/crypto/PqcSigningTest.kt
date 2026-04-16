@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test
  * provides its own BC provider without any Android KeyStore dependency.
  */
 class PqcSigningTest {
-
     private val pqc = PostQuantumCrypto()
 
     // ── Provider availability ─────────────────────────────────────────────────
@@ -29,7 +28,7 @@ class PqcSigningTest {
     fun providerSupportReturnsTrue() {
         assertTrue(
             pqc.isMlDsaSupported(),
-            "BouncyCastle BC provider must be available on JVM"
+            "BouncyCastle BC provider must be available on JVM",
         )
     }
 
@@ -47,7 +46,7 @@ class PqcSigningTest {
         assertArrayEquals(
             pqc.publicKeyBytes(kp1!!),
             pqc.publicKeyBytes(kp2!!),
-            "Same seed must produce the same public key (KAT)"
+            "Same seed must produce the same public key (KAT)",
         )
     }
 
@@ -63,7 +62,7 @@ class PqcSigningTest {
         assertNotNull(kp2)
         assertFalse(
             pqc.publicKeyBytes(kp1!!).contentEquals(pqc.publicKeyBytes(kp2!!)),
-            "Different seeds must produce different public keys"
+            "Different seeds must produce different public keys",
         )
     }
 
@@ -127,7 +126,7 @@ class PqcSigningTest {
         val keyBytes = pqc.publicKeyBytes(kp!!)
         assertTrue(
             keyBytes.size >= 1952,
-            "ML-DSA-65 public key DER must be at least 1952 bytes, was ${keyBytes.size}"
+            "ML-DSA-65 public key DER must be at least 1952 bytes, was ${keyBytes.size}",
         )
     }
 

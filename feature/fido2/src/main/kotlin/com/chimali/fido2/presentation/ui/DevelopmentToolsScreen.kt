@@ -27,7 +27,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.chimali.fido2.presentation.ui.components.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -46,6 +45,7 @@ import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.presentation.ui.components.*
 import com.chimali.fido2.presentation.viewmodel.DevToolsEffect
 import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
 import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
@@ -75,7 +75,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DevelopmentToolsScreen(
     homeViewModel: Fido2HomeViewModel = hiltViewModel(),
-    devToolsViewModel: DevToolsViewModel = hiltViewModel()
+    devToolsViewModel: DevToolsViewModel = hiltViewModel(),
 ) {
     val state by devToolsViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -100,7 +100,7 @@ fun DevelopmentToolsScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         onIntent = devToolsViewModel::onIntent,
-        onHomeTestRegistration = homeViewModel::testRegistration
+        onHomeTestRegistration = homeViewModel::testRegistration,
     )
 }
 
@@ -110,7 +110,7 @@ internal fun DevelopmentToolsContent(
     state: DevToolsUiState,
     snackbarHostState: SnackbarHostState,
     onIntent: (DevToolsIntent) -> Unit,
-    onHomeTestRegistration: (MakeCredentialOptions) -> Unit
+    onHomeTestRegistration: (MakeCredentialOptions) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -120,9 +120,10 @@ internal fun DevelopmentToolsContent(
     // 0 = ES256, 1 = ML-DSA-65
     var selectedAlgIndex by remember { mutableIntStateOf(0) }
 
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> if (granted) showScanner = true }
+    val cameraLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted -> if (granted) showScanner = true }
 
     Scaffold(
         topBar = {
@@ -132,37 +133,39 @@ internal fun DevelopmentToolsContent(
                         "Development Tools",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics { heading() }
+                        modifier = Modifier.semantics { heading() },
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.BugReport,
                 contentDescription = null,
                 modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
             Text(
                 text = "Test & Debug Utilities",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics { heading() }
+                modifier = Modifier.semantics { heading() },
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -172,7 +175,7 @@ internal fun DevelopmentToolsContent(
                 text = "Algorithm",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
             val algOptions = listOf("ES256", "Ed25519", "ML-DSA-65")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -181,7 +184,7 @@ internal fun DevelopmentToolsContent(
                         selected = selectedAlgIndex == index,
                         onClick = { selectedAlgIndex = index },
                         shape = SegmentedButtonDefaults.itemShape(index, algOptions.size),
-                        label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     )
                 }
             }
@@ -190,35 +193,41 @@ internal fun DevelopmentToolsContent(
             ChimaliOutlinedButton(
                 onClick = {
                     val mockUserId = "user_${System.currentTimeMillis()}"
-                    val algId = when (selectedAlgIndex) {
-                        0 -> Fido2CryptoService.COSE_ES256
-                        1 -> Fido2CryptoService.COSE_ED25519
-                        else -> Fido2CryptoService.COSE_ML_DSA_65
-                    }
-                    val params = when (selectedAlgIndex) {
-                        0 -> PublicKeyCredentialParameters.createES256P256()
-                        1 -> PublicKeyCredentialParameters.createEd25519()
-                        else -> PublicKeyCredentialParameters.createMlDsa65()
-                    }
-                    val mockOptions = MakeCredentialOptions.create(
-                        rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
-                        user = PublicKeyCredentialUserEntity.create(
-                            mockUserId.toByteArray(), mockUserId, "Chimali Test User"
-                        ),
-                        challenge = "challenge".toByteArray(),
-                        pubKeyCredParams = params,
-                        selectedAlgId = algId
-                    )
+                    val algId =
+                        when (selectedAlgIndex) {
+                            0 -> Fido2CryptoService.COSE_ES256
+                            1 -> Fido2CryptoService.COSE_ED25519
+                            else -> Fido2CryptoService.COSE_ML_DSA_65
+                        }
+                    val params =
+                        when (selectedAlgIndex) {
+                            0 -> PublicKeyCredentialParameters.createES256P256()
+                            1 -> PublicKeyCredentialParameters.createEd25519()
+                            else -> PublicKeyCredentialParameters.createMlDsa65()
+                        }
+                    val mockOptions =
+                        MakeCredentialOptions.create(
+                            rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
+                            user =
+                                PublicKeyCredentialUserEntity.create(
+                                    mockUserId.toByteArray(),
+                                    mockUserId,
+                                    "Chimali Test User",
+                                ),
+                            challenge = "challenge".toByteArray(),
+                            pubKeyCredParams = params,
+                            selectedAlgId = algId,
+                        )
                     onHomeTestRegistration(mockOptions)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Trigger Test Registration UI")
             }
             Text(
                 text = "Simulates an incoming FIDO2 MakeCredential request from a PC host.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // ── DEBUG ONLY: Mnemonic / Master Seed ───────────────────────────
@@ -227,7 +236,7 @@ internal fun DevelopmentToolsContent(
                 Text(
                     text = "⚠ Dev-only — Master Seed",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
                 )
 
                 // ── View Seed ────────────────────────────────────────────────
@@ -238,14 +247,14 @@ internal fun DevelopmentToolsContent(
                                 BiometricHelper.authenticate(
                                     activity = activity,
                                     title = "View Master Seed",
-                                    description = "Authenticate to view your BIP39 mnemonic."
+                                    description = "Authenticate to view your BIP39 mnemonic.",
                                 ) {
                                     onIntent(DevToolsIntent.LoadMnemonic)
                                 }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !state.isLoading
+                        enabled = !state.isLoading,
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -258,71 +267,75 @@ internal fun DevelopmentToolsContent(
                     // QR code toggle and Copy
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         ChimaliOutlinedButton(
                             onClick = { onIntent(DevToolsIntent.CopyToClipboard) },
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
                             ) {
                                 Icon(
                                     Icons.Default.CopyAll,
                                     contentDescription = null,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                                 Text(
                                     "Copy",
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                             }
                         }
                         ChimaliOutlinedButton(
                             onClick = { showQrCode = !showQrCode },
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
                             ) {
                                 Icon(
                                     if (showQrCode) Icons.Default.VisibilityOff else Icons.Default.QrCode,
                                     contentDescription = null,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                                 Text(
                                     if (showQrCode) "Hide QR" else "QR",
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                             }
                         }
                         ChimaliOutlinedButton(
-                            onClick = { onIntent(DevToolsIntent.ClearMnemonic); showQrCode = false },
+                            onClick = {
+                                onIntent(DevToolsIntent.ClearMnemonic)
+                                showQrCode = false
+                            },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            colors =
+                                ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically)
+                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
                             ) {
                                 Icon(
                                     Icons.Default.VisibilityOff,
                                     contentDescription = null,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                                 Text(
                                     "Clear",
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                    modifier = Modifier.align(Alignment.CenterVertically),
                                 )
                             }
                         }
@@ -337,7 +350,7 @@ internal fun DevelopmentToolsContent(
                     Text(
                         text = err,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
 
@@ -346,17 +359,17 @@ internal fun DevelopmentToolsContent(
                 // ── Recover Seed ─────────────────────────────────────────────
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Recover from Seed",
                         style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { showRecoverForm = !showRecoverForm }) {
                         Icon(
                             if (showRecoverForm) Icons.Default.VisibilityOff else Icons.Default.Refresh,
-                            contentDescription = "Toggle recover form"
+                            contentDescription = "Toggle recover form",
                         )
                     }
                 }
@@ -373,7 +386,7 @@ internal fun DevelopmentToolsContent(
                                     cameraLauncher.launch(Manifest.permission.CAMERA)
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(Icons.Default.CameraAlt, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
@@ -392,7 +405,7 @@ internal fun DevelopmentToolsContent(
                                 onError = { errMsg ->
                                     showScanner = false
                                     scope.launch { snackbarHostState.showSnackbar(errMsg) }
-                                }
+                                },
                             )
                         }
                         TextButton(onClick = { showScanner = false }) {
@@ -404,7 +417,7 @@ internal fun DevelopmentToolsContent(
                     Text(
                         "— or enter 24 words manually —",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     ManualMnemonicEntryForm { words ->
                         onIntent(DevToolsIntent.RecoverFromSeed(words))
@@ -415,7 +428,7 @@ internal fun DevelopmentToolsContent(
                     Text(
                         "✔ Mnemonic validated successfully!",
                         color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             } // end DEBUG
@@ -431,38 +444,40 @@ internal fun DevelopmentToolsContent(
 private fun MnemonicWordGrid(words: List<String>) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 360.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 360.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         itemsIndexed(words) { index, word ->
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(6.dp)
-                    )
-                    .semantics(mergeDescendants = true) { }
+                modifier =
+                    Modifier
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant,
+                            RoundedCornerShape(6.dp),
+                        )
+                        .semantics(mergeDescendants = true) { },
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "${index + 1}.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(24.dp)
+                        modifier = Modifier.width(24.dp),
                     )
                     Text(
                         text = word,
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -473,24 +488,26 @@ private fun MnemonicWordGrid(words: List<String>) {
 @Composable
 private fun MnemonicQrCodeView(words: List<String>) {
     val mnemonic = remember(words) { words.joinToString(" ") }
-    val painter = rememberQrCodePainter(
-        data = mnemonic,
-        shapes = QrShapes(
-            ball = QrBallShape.circle(),
-            frame = QrFrameShape.roundCorners(.25f),
-            darkPixel = QrPixelShape.roundCorners()
+    val painter =
+        rememberQrCodePainter(
+            data = mnemonic,
+            shapes =
+                QrShapes(
+                    ball = QrBallShape.circle(),
+                    frame = QrFrameShape.roundCorners(.25f),
+                    darkPixel = QrPixelShape.roundCorners(),
+                ),
         )
-    )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         androidx.compose.foundation.Image(
             painter = painter,
             contentDescription = "Master seed QR code",
-            modifier = Modifier.size(240.dp)
+            modifier = Modifier.size(240.dp),
         )
         Text(
             "Never screenshot this QR in a production scenario.",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.error,
         )
     }
 }
@@ -498,19 +515,21 @@ private fun MnemonicQrCodeView(words: List<String>) {
 @Composable
 private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     val wordCount = 24
-    val fields = remember {
-        mutableStateListOf<TextFieldValue>().also { list ->
-            repeat(wordCount) { list.add(TextFieldValue("")) }
+    val fields =
+        remember {
+            mutableStateListOf<TextFieldValue>().also { list ->
+                repeat(wordCount) { list.add(TextFieldValue("")) }
+            }
         }
-    }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 360.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 360.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         itemsIndexed(fields) { index, value ->
             OutlinedTextField(
@@ -519,7 +538,7 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
                 label = { Text("${index + 1}", style = MaterialTheme.typography.labelSmall) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -528,7 +547,7 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     ChimaliButton(
         onClick = { onSubmit(fields.map { it.text.trim() }) },
         modifier = Modifier.fillMaxWidth(),
-        enabled = fields.all { it.text.isNotBlank() }
+        enabled = fields.all { it.text.isNotBlank() },
     ) {
         Icon(Icons.Default.Key, contentDescription = null)
         Spacer(Modifier.width(8.dp))
@@ -542,27 +561,28 @@ private object BiometricHelper {
         activity: FragmentActivity,
         title: String,
         description: String,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
     ) {
         val executor = ContextCompat.getMainExecutor(activity)
-        val prompt = BiometricPrompt(
-            activity,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    onSuccess()
-                }
-            }
-        )
+        val prompt =
+            BiometricPrompt(
+                activity,
+                executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        onSuccess()
+                    }
+                },
+            )
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
                 .setTitle(title)
                 .setDescription(description)
                 .setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
                 )
-                .build()
+                .build(),
         )
     }
 }

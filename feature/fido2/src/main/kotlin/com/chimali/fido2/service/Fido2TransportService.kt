@@ -45,10 +45,9 @@ private const val AUTH_REQUEST_NOTIF_ID = 1002
  */
 @AndroidEntryPoint
 class Fido2TransportService : Service() {
-
     companion object {
         const val ACTION_START = "com.chimali.fido2.START_TRANSPORT"
-        const val ACTION_STOP  = "com.chimali.fido2.STOP_TRANSPORT"
+        const val ACTION_STOP = "com.chimali.fido2.STOP_TRANSPORT"
 
         fun startIntent(context: Context) =
             Intent(context, Fido2TransportService::class.java).apply {
@@ -62,6 +61,7 @@ class Fido2TransportService : Service() {
     }
 
     @Inject lateinit var transport: Fido2Transport
+
     @Inject lateinit var uiEventBus: Fido2UiEventBus
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -73,12 +73,16 @@ class Fido2TransportService : Service() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             ACTION_START -> startTransport()
-            ACTION_STOP  -> stopTransport()
+            ACTION_STOP -> stopTransport()
         }
-        return START_STICKY   // Restart if killed — keeps the key alive
+        return START_STICKY // Restart if killed — keeps the key alive
     }
 
     override fun onDestroy() {
@@ -90,7 +94,7 @@ class Fido2TransportService : Service() {
 
     private fun startTransport() {
         startForeground(NOTIFICATION_ID, buildAdvertisingNotification())
-        
+
         // Listen for incoming requests to push a Heads-Up notification if in background
         uiEventBus.events
             .onEach { event ->
@@ -123,31 +127,36 @@ class Fido2TransportService : Service() {
 
     private fun createNotificationChannel() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Chimali Authenticator",
-            NotificationManager.IMPORTANCE_LOW   // Silent — no sound/vibration
-        ).apply {
-            description = "Keeps the virtual security key active"
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                "Chimali Authenticator",
+                NotificationManager.IMPORTANCE_LOW, // Silent — no sound/vibration
+            ).apply {
+                description = "Keeps the virtual security key active"
+            }
         nm.createNotificationChannel(channel)
-        
-        val authChannel = NotificationChannel(
-            AUTH_REQUEST_CHANNEL_ID,
-            "Authentication Requests",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Notifies you when a passkey is requested"
-        }
+
+        val authChannel =
+            NotificationChannel(
+                AUTH_REQUEST_CHANNEL_ID,
+                "Authentication Requests",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Notifies you when a passkey is requested"
+            }
         nm.createNotificationChannel(authChannel)
     }
 
     private fun buildAdvertisingNotification(): Notification {
         // Tapping the notification (or the Stop action) will stop the service
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent(this),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val stopPendingIntent =
+            PendingIntent.getService(
+                this,
+                0,
+                stopIntent(this),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Chimali Authenticator")
@@ -158,7 +167,7 @@ class Fido2TransportService : Service() {
             .addAction(
                 android.R.drawable.ic_media_pause,
                 "Stop",
-                stopPendingIntent
+                stopPendingIntent,
             )
             .build()
     }
@@ -170,29 +179,35 @@ class Fido2TransportService : Service() {
     }
 
     private fun showAuthRequestNotification(event: Fido2UiEvent) {
-        val (title, text) = when (event) {
-            is Fido2UiEvent.RegistrationRequested -> "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
-            is Fido2UiEvent.AuthenticationRequested -> "Sign In" to "Windows is requesting a passkey for ${event.rpId}. Tap to authenticate."
-        }
+        val (title, text) =
+            when (event) {
+                is Fido2UiEvent.RegistrationRequested -> "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
+                is Fido2UiEvent.AuthenticationRequested -> "Sign In" to "Windows is requesting a passkey for ${event.rpId}. Tap to authenticate."
+            }
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        } ?: return
+        val launchIntent =
+            packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            } ?: return
 
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
-        val notification = NotificationCompat.Builder(this, AUTH_REQUEST_CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setAutoCancel(true)
-            .setFullScreenIntent(pendingIntent, true)
-            .build()
+        val notification =
+            NotificationCompat.Builder(this, AUTH_REQUEST_CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(android.R.drawable.ic_lock_lock)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setAutoCancel(true)
+                .setFullScreenIntent(pendingIntent, true)
+                .build()
 
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(AUTH_REQUEST_NOTIF_ID, notification)

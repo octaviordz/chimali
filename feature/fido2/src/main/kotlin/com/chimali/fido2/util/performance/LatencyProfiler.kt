@@ -16,7 +16,6 @@ import timber.log.Timber
  * ```
  */
 object LatencyProfiler {
-
     private val startTimes = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val userInteractionStarts = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val userAccumulatedMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -54,17 +53,24 @@ object LatencyProfiler {
      * @return Pure system latency in milliseconds.
      */
     fun end(id: String): Long {
-        val startNs = startTimes.remove(id) ?: run {
-            Timber.w("LatencyProfiler.end called without matching start for id='%s'", id)
-            return -1L
-        }
+        val startNs =
+            startTimes.remove(id) ?: run {
+                Timber.w("LatencyProfiler.end called without matching start for id='%s'", id)
+                return -1L
+            }
         val userMs = userAccumulatedMs.remove(id) ?: 0L
         val totalMs = (System.nanoTime() - startNs) / 1_000_000L
         val pureMs = maxOf(0L, totalMs - userMs)
-        
+
         val compliance = if (pureMs < 200) "✅ PASS" else "❌ OVER BUDGET"
-        Timber.d("[NFR-PERF-030] %s | %s = %dms (Total: %dms, User: %dms)",
-            compliance, id, pureMs, totalMs, userMs)
+        Timber.d(
+            "[NFR-PERF-030] %s | %s = %dms (Total: %dms, User: %dms)",
+            compliance,
+            id,
+            pureMs,
+            totalMs,
+            userMs,
+        )
         return pureMs
     }
 }

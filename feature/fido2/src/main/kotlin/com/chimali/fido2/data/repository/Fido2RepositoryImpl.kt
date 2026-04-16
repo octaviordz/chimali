@@ -10,27 +10,32 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class Fido2RepositoryImpl @Inject constructor(
-    private val credentialRepository: PasskeyCredentialRepository,
-    private val relyingPartyRepository: RelyingPartyRepository,
-    private val consentRepository: UserConsentRepository
-) : Fido2Repository {
+class Fido2RepositoryImpl
+    @Inject
+    constructor(
+        private val credentialRepository: PasskeyCredentialRepository,
+        private val relyingPartyRepository: RelyingPartyRepository,
+        private val consentRepository: UserConsentRepository,
+    ) : Fido2Repository {
+        override suspend fun registerCredential(
+            rpId: String,
+            userName: String,
+            userDisplayName: String,
+        ): Result<String> {
+            // TODO: Implement FIDO2 registration logic
+            return Result.success("mock-credential-id")
+        }
 
-    override suspend fun registerCredential(rpId: String, userName: String, userDisplayName: String): Result<String> {
-        // TODO: Implement FIDO2 registration logic
-        return Result.success("mock-credential-id")
-    }
+        override suspend fun authenticateCredential(rpId: String): Result<String> {
+            // TODO: Implement FIDO2 authentication logic
+            return Result.success("mock-authentication-id")
+        }
 
-    override suspend fun authenticateCredential(rpId: String): Result<String> {
-        // TODO: Implement FIDO2 authentication logic
-        return Result.success("mock-authentication-id")
-    }
+        override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
+            return credentialRepository.getAllCredentials()
+        }
 
-    override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
-        return credentialRepository.getAllCredentials()
+        override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+            return credentialRepository.deleteCredential(credentialId)
+        }
     }
-
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
-        return credentialRepository.deleteCredential(credentialId)
-    }
-}

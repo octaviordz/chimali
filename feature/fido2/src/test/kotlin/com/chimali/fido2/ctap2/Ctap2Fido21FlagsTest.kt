@@ -1,6 +1,6 @@
 @file:Suppress("FunctionNaming")
-package com.chimali.fido2.ctap2
 
+package com.chimali.fido2.ctap2
 
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
@@ -25,15 +25,15 @@ import org.junit.jupiter.api.Test
  * Also verifies credProtect extension parsing in MakeCredential requests (T056a).
  */
 class Ctap2Fido21FlagsTest {
-
     private val cborCodec = CborCodec()
     private val hidReportParser = mockk<HidReportParser>(relaxed = true)
     private val responseBuilder = Ctap2ResponseBuilder(cborCodec, hidReportParser)
 
-    private val dummyAaguid = byteArrayOf(
-        0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    )
+    private val dummyAaguid =
+        byteArrayOf(
+            0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        )
 
     private fun fakeInfo(supportsRk: Boolean = true): AuthenticatorInfo {
         val info = mockk<AuthenticatorInfo>()
@@ -54,12 +54,13 @@ class Ctap2Fido21FlagsTest {
 
         // Reconstruct the CBOR map by encoding via CborCodec and decoding it back
         val raw = buildGetInfoCborMap()
+
         @Suppress("UNCHECKED_CAST")
         val versions = raw["1"] as? List<String>
         assertNotNull(versions, "GetInfo key 0x01 (versions) must be present")
         assertTrue(
             versions!!.contains("FIDO_2_1"),
-            "GetInfo versions must include 'FIDO_2_1' (FR-HID-020). Actual: $versions"
+            "GetInfo versions must include 'FIDO_2_1' (FR-HID-020). Actual: $versions",
         )
     }
 
@@ -69,11 +70,12 @@ class Ctap2Fido21FlagsTest {
     @Test
     fun `t056b getInfoResponse retains FIDO_2_0 for backward compatibility`() {
         val raw = buildGetInfoCborMap()
+
         @Suppress("UNCHECKED_CAST")
         val versions = raw["1"] as? List<String>
         assertTrue(
             versions?.contains("FIDO_2_0") == true,
-            "GetInfo must retain 'FIDO_2_0' alongside 'FIDO_2_1'"
+            "GetInfo must retain 'FIDO_2_0' alongside 'FIDO_2_1'",
         )
     }
 
@@ -83,11 +85,12 @@ class Ctap2Fido21FlagsTest {
     @Test
     fun `t056b getInfoResponse advertises required FIDO2_1 extensions`() {
         val raw = buildGetInfoCborMap()
+
         @Suppress("UNCHECKED_CAST")
         val extensions = raw["2"] as? List<String>
         assertNotNull(extensions, "GetInfo key 0x02 (extensions) must be present (FIDO2.1)")
         assertTrue(extensions!!.contains("credProtect"), "Must advertise 'credProtect' extension")
-        assertTrue(extensions.contains("hmac-secret"),  "Must advertise 'hmac-secret' extension")
+        assertTrue(extensions.contains("hmac-secret"), "Must advertise 'hmac-secret' extension")
         assertTrue(extensions.contains("minPinLength"), "Must advertise 'minPinLength' extension")
     }
 
@@ -97,13 +100,14 @@ class Ctap2Fido21FlagsTest {
     @Test
     fun `t056b getInfoResponse options includes credProtect and clientPin`() {
         val raw = buildGetInfoCborMap()
+
         @Suppress("UNCHECKED_CAST")
         val options = raw["4"] as? Map<String, Any>
         assertNotNull(options, "GetInfo key 0x04 (options) must be present")
         assertEquals(true, options!!["credProtect"], "options.credProtect must be true (FIDO2.1)")
-        assertEquals(true, options["clientPin"],     "options.clientPin must be true (FIDO2.1)")
-        assertEquals(true, options["uv"],            "options.uv must be true")
-        assertEquals(true, options["rk"],            "options.rk must be true")
+        assertEquals(true, options["clientPin"], "options.clientPin must be true (FIDO2.1)")
+        assertEquals(true, options["uv"], "options.uv must be true")
+        assertEquals(true, options["rk"], "options.rk must be true")
     }
 
     // ── 2. MakeCredential credProtect parsing ─────────────────────────────────
@@ -116,26 +120,29 @@ class Ctap2Fido21FlagsTest {
     @Test
     fun `t056a MakeCredential extensions map credProtect policy is parsed`() {
         // Build a MakeCredential CBOR map with extensions["credProtect"] = 3
-        val requestMap = mapOf(
-            "1"  to ByteArray(32),             // clientDataHash
-            "2"  to mapOf("id" to "example.com", "name" to "Example"),    // rp
-            "3"  to mapOf("id" to ByteArray(8), "name" to "user"),         // user
-            "4"  to listOf(mapOf("alg" to -7L, "type" to "public-key")),  // pubKeyCredParams
-            "10" to mapOf("credProtect" to 3L)                             // extensions
-        )
+        val requestMap =
+            mapOf(
+                "1" to ByteArray(32), // clientDataHash
+                "2" to mapOf("id" to "example.com", "name" to "Example"), // rp
+                "3" to mapOf("id" to ByteArray(8), "name" to "user"), // user
+                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")), // pubKeyCredParams
+                "10" to mapOf("credProtect" to 3L), // extensions
+            )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
         // Decode the extensions key (0x0A = "10") — mirror the handler logic
         @Suppress("UNCHECKED_CAST")
         val decoded = cborCodec.decodeFromFido2Format(requestCbor)
         val extensions = (decoded["10"] ?: decoded["extensions"]) as? Map<*, *>
-        val credProtectPolicy = extensions?.let {
-            (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
-        }
+        val credProtectPolicy =
+            extensions?.let {
+                (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
+            }
 
         assertEquals(
-            3, credProtectPolicy,
-            "credProtect policy must be decoded as 3 (userVerificationRequired)"
+            3,
+            credProtectPolicy,
+            "credProtect policy must be decoded as 3 (userVerificationRequired)",
         )
     }
 
@@ -144,20 +151,23 @@ class Ctap2Fido21FlagsTest {
      */
     @Test
     fun `t056a MakeCredential without credProtect extension yields null policy`() {
-        val requestMap = mapOf(
-            "1" to ByteArray(32),
-            "2" to mapOf("id" to "example.com", "name" to "Example"),
-            "3" to mapOf("id" to ByteArray(8), "name" to "user"),
-            "4" to listOf(mapOf("alg" to -7L, "type" to "public-key"))
-            // No "10" extensions key
-        )
+        val requestMap =
+            mapOf(
+                "1" to ByteArray(32),
+                "2" to mapOf("id" to "example.com", "name" to "Example"),
+                "3" to mapOf("id" to ByteArray(8), "name" to "user"),
+                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")),
+                // No "10" extensions key
+            )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
+
         @Suppress("UNCHECKED_CAST")
         val decoded = cborCodec.decodeFromFido2Format(requestCbor)
         val extensions = (decoded["10"] ?: decoded["extensions"]) as? Map<*, *>
-        val credProtectPolicy = extensions?.let {
-            (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
-        }
+        val credProtectPolicy =
+            extensions?.let {
+                (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
+            }
 
         assertEquals(null, credProtectPolicy, "Missing extensions map should yield null credProtect policy")
     }
@@ -173,22 +183,24 @@ class Ctap2Fido21FlagsTest {
             "1" to listOf("FIDO_2_0", "FIDO_2_1"),
             "2" to listOf("credProtect", "hmac-secret", "minPinLength"),
             "3" to dummyAaguid,
-            "4" to mapOf(
-                "rk"          to true,
-                "up"          to true,
-                "uv"          to true,
-                "clientPin"   to true,
-                "credProtect" to true,
-                "plat"        to false
-            ),
-            "5"  to 1200L,
-            "8"  to 255L,
-            "9"  to listOf("usb"),
-            "10" to listOf(
-                mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(),    "type" to "public-key"),
-                mapOf("alg" to PasskeyCredential.COSE_ED25519.toLong(),  "type" to "public-key"),
-                mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(),"type" to "public-key")
-            )
+            "4" to
+                mapOf(
+                    "rk" to true,
+                    "up" to true,
+                    "uv" to true,
+                    "clientPin" to true,
+                    "credProtect" to true,
+                    "plat" to false,
+                ),
+            "5" to 1200L,
+            "8" to 255L,
+            "9" to listOf("usb"),
+            "10" to
+                listOf(
+                    mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(), "type" to "public-key"),
+                    mapOf("alg" to PasskeyCredential.COSE_ED25519.toLong(), "type" to "public-key"),
+                    mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
+                ),
         )
     }
 }

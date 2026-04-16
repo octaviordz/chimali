@@ -11,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class DeleteAllCredentialsUseCaseTest {
-
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase
 
@@ -22,44 +21,47 @@ class DeleteAllCredentialsUseCaseTest {
     }
 
     @Test
-    fun `invoke without rpId should delete all credentials`() = runTest {
-        // Arrange
-        coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.success(Unit)
+    fun `invoke without rpId should delete all credentials`() =
+        runTest {
+            // Arrange
+            coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.success(Unit)
 
-        // Act
-        val result = deleteAllCredentialsUseCase()
+            // Act
+            val result = deleteAllCredentialsUseCase()
 
-        // Assert
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(null) }
-    }
-
-    @Test
-    fun `invoke with rpId should delete only credentials for that rpId`() = runTest {
-        // Arrange
-        val rpId = "example.com"
-        coEvery { credentialRepository.deleteAllCredentials(rpId) } returns Result.success(Unit)
-
-        // Act
-        val result = deleteAllCredentialsUseCase(rpId)
-
-        // Assert
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(rpId) }
-    }
+            // Assert
+            assertTrue(result.isSuccess)
+            coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(null) }
+        }
 
     @Test
-    fun `invoke should return failure when repository fails`() = runTest {
-        // Arrange
-        val exception = Exception("Database error")
-        coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.failure(exception)
+    fun `invoke with rpId should delete only credentials for that rpId`() =
+        runTest {
+            // Arrange
+            val rpId = "example.com"
+            coEvery { credentialRepository.deleteAllCredentials(rpId) } returns Result.success(Unit)
 
-        // Act
-        val result = deleteAllCredentialsUseCase()
+            // Act
+            val result = deleteAllCredentialsUseCase(rpId)
 
-        // Assert
-        assertTrue(result.isFailure)
-        assertEquals(exception, result.exceptionOrNull())
-        coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(null) }
-    }
+            // Assert
+            assertTrue(result.isSuccess)
+            coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(rpId) }
+        }
+
+    @Test
+    fun `invoke should return failure when repository fails`() =
+        runTest {
+            // Arrange
+            val exception = Exception("Database error")
+            coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.failure(exception)
+
+            // Act
+            val result = deleteAllCredentialsUseCase()
+
+            // Assert
+            assertTrue(result.isFailure)
+            assertEquals(exception, result.exceptionOrNull())
+            coVerify(exactly = 1) { credentialRepository.deleteAllCredentials(null) }
+        }
 }

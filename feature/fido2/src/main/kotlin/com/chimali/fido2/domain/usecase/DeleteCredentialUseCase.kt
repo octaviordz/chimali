@@ -6,10 +6,12 @@ import javax.inject.Inject
 /**
  * T109 — Deletes a specific FIDO2 credential by its identifier.
  */
-class DeleteCredentialUseCase @Inject constructor(
-    private val credentialRepository: CredentialRepository
-) {
-    suspend operator fun invoke(credentialId: String): Result<Unit> {
-        return credentialRepository.deleteCredential(credentialId)
+class DeleteCredentialUseCase
+    @Inject
+    constructor(
+        private val credentialRepository: CredentialRepository,
+    ) {
+        suspend operator fun invoke(credentialId: String): Result<Unit> {
+            return credentialRepository.deleteCredential(credentialId)
+        }
     }
-}

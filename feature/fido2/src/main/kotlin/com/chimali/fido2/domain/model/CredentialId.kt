@@ -18,9 +18,8 @@ import java.util.Base64
 @JvmInline
 value class CredentialId(
     /** Base64URL-safe, no-padding string encoding of the identifier. */
-    val encoded: String
+    val encoded: String,
 ) {
-
     fun toByteArray(charset: Charset = Charsets.UTF_8): ByteArray {
         return encoded.toByteArray(charset)
     }

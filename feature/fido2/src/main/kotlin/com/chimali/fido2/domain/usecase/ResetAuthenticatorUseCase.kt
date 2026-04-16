@@ -4,13 +4,15 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import javax.inject.Inject
 
 /**
- * T111 — Resets the authenticator completely. 
+ * T111 — Resets the authenticator completely.
  * This wipes all credentials, master PIN, biometric state, and restores factory defaults.
  */
-class ResetAuthenticatorUseCase @Inject constructor(
-    private val credentialRepository: CredentialRepository
-) {
-    suspend operator fun invoke(): Result<Unit> {
-        return credentialRepository.resetAuthenticator()
+class ResetAuthenticatorUseCase
+    @Inject
+    constructor(
+        private val credentialRepository: CredentialRepository,
+    ) {
+        suspend operator fun invoke(): Result<Unit> {
+            return credentialRepository.resetAuthenticator()
+        }
     }
-}

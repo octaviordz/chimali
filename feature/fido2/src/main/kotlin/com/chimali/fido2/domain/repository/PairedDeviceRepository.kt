@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
  * successfully authenticated or registered via FIDO2.
  */
 interface PairedDeviceRepository {
-    
     /**
      * Retrieves all paired devices currently tracked by the authenticator,
      * ordered by their last usage time (most recent first).
@@ -26,9 +25,12 @@ interface PairedDeviceRepository {
      * sever the Android OS Bluetooth bond.
      */
     suspend fun deleteDevice(macAddress: String): Result<Unit>
-    
+
     /**
      * Updates the user-defined alias for a paired device.
      */
-    suspend fun updateAlias(macAddress: String, alias: String?): Result<Unit>
+    suspend fun updateAlias(
+        macAddress: String,
+        alias: String?,
+    ): Result<Unit>
 }

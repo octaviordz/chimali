@@ -8,13 +8,12 @@ data class PublicKeyCredentialUserEntity(
     val id: ByteArray,
     val name: String,
     val displayName: String,
-    val icon: String?
+    val icon: String?,
 ) {
-    
     init {
         validate()
     }
-    
+
     /**
      * Validates the PublicKeyCredentialUserEntity according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
@@ -25,17 +24,17 @@ data class PublicKeyCredentialUserEntity(
         require(id.size <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
         require(name.isNotBlank()) { "User name cannot be blank" }
         require(displayName.isNotBlank()) { "User display name cannot be blank" }
-        
+
         // Validate formats
         require(name.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH characters" }
         require(displayName.length <= MAX_DISPLAY_NAME_LENGTH) { "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH characters" }
-        
+
         // Validate icon if present
         icon?.let { iconUrl ->
             require(iconUrl.isNotBlank()) { "Icon cannot be blank if provided" }
             require(iconUrl.length <= MAX_ICON_LENGTH) { "Icon cannot exceed $MAX_ICON_LENGTH characters" }
-            require(iconUrl.startsWith("https://") || iconUrl.startsWith("http://")) { 
-                "Icon must use HTTP or HTTPS protocol" 
+            require(iconUrl.startsWith("https://") || iconUrl.startsWith("http://")) {
+                "Icon must use HTTP or HTTPS protocol"
             }
         }
     }
@@ -98,7 +97,7 @@ data class PublicKeyCredentialUserEntity(
         const val MAX_NAME_LENGTH = 64
         const val MAX_DISPLAY_NAME_LENGTH = 64
         const val MAX_ICON_LENGTH = 128
-        
+
         /**
          * Creates a new PublicKeyCredentialUserEntity with validation.
          */
@@ -106,16 +105,16 @@ data class PublicKeyCredentialUserEntity(
             id: ByteArray,
             name: String,
             displayName: String,
-            icon: String? = null
+            icon: String? = null,
         ): PublicKeyCredentialUserEntity {
             return PublicKeyCredentialUserEntity(
                 id = id,
                 name = name,
                 displayName = displayName,
-                icon = icon
+                icon = icon,
             )
         }
-        
+
         /**
          * Creates a new PublicKeyCredentialUserEntity from base64 user ID.
          */
@@ -123,14 +122,15 @@ data class PublicKeyCredentialUserEntity(
             idBase64: String,
             name: String,
             displayName: String,
-            icon: String? = null
+            icon: String? = null,
         ): PublicKeyCredentialUserEntity {
-            val id = try {
-                java.util.Base64.getUrlDecoder().decode(idBase64)
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid base64 user ID", e)
-            }
-            
+            val id =
+                try {
+                    java.util.Base64.getUrlDecoder().decode(idBase64)
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Invalid base64 user ID", e)
+                }
+
             return create(id, name, displayName, icon)
         }
     }

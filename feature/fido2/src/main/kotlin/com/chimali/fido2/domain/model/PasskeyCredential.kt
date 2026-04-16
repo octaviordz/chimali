@@ -23,9 +23,8 @@ data class PasskeyCredential(
     val credentialId: ByteArray,
     val coseAlgorithm: Int = COSE_ES256,
     val credProtectPolicy: Int = 1,
-    val label: String? = null
+    val label: String? = null,
 ) {
-
     init {
         validate()
     }
@@ -131,8 +130,9 @@ data class PasskeyCredential(
 
     companion object {
         // COSE algorithm IDs
-        const val COSE_ES256 = -7    // ECDSA with SHA-256 / P-256
+        const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
         const val COSE_ED25519 = -19 // EdDSA
+
         /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID. */
         const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
@@ -166,7 +166,7 @@ data class PasskeyCredential(
             credentialId: ByteArray,
             coseAlgorithm: Int = COSE_ES256,
             credProtectPolicy: Int = 1,
-            label: String? = null
+            label: String? = null,
         ): PasskeyCredential {
             val now = Instant.now()
             return PasskeyCredential(
@@ -184,7 +184,7 @@ data class PasskeyCredential(
                 credentialId = credentialId,
                 coseAlgorithm = coseAlgorithm,
                 credProtectPolicy = credProtectPolicy,
-                label = label
+                label = label,
             )
         }
 
@@ -198,30 +198,33 @@ data class PasskeyCredential(
             userName: String,
             coseAlgorithm: Int = COSE_ES256,
             credProtectPolicy: Int = 1,
-            label: String? = null
+            label: String? = null,
         ): PasskeyCredential {
             val now = Instant.now()
-            val syntheticPubKey = object : PublicKey {
-                override fun getAlgorithm(): String = "EC"
-                override fun getFormat(): String = "X.509"
-                override fun getEncoded(): ByteArray = ByteArray(0)
-            }
+            val syntheticPubKey =
+                object : PublicKey {
+                    override fun getAlgorithm(): String = "EC"
+
+                    override fun getFormat(): String = "X.509"
+
+                    override fun getEncoded(): ByteArray = ByteArray(0)
+                }
             return PasskeyCredential(
-                id               = id,
-                rpId             = rpId,
-                userId           = "user_$id",
-                userName         = userName,
-                userDisplayName  = userName,
-                publicKey        = syntheticPubKey,
-                privateKeyAlias  = "fido2_cred_$id",
-                signCount        = 0L,
-                createdAt        = now,
-                lastUsedAt       = now,
-                aaguid           = ByteArray(AAGUID_LENGTH),
-                credentialId     = id.toByteArray(),
-                coseAlgorithm    = coseAlgorithm,
-                credProtectPolicy= credProtectPolicy,
-                label            = label
+                id = id,
+                rpId = rpId,
+                userId = "user_$id",
+                userName = userName,
+                userDisplayName = userName,
+                publicKey = syntheticPubKey,
+                privateKeyAlias = "fido2_cred_$id",
+                signCount = 0L,
+                createdAt = now,
+                lastUsedAt = now,
+                aaguid = ByteArray(AAGUID_LENGTH),
+                credentialId = id.toByteArray(),
+                coseAlgorithm = coseAlgorithm,
+                credProtectPolicy = credProtectPolicy,
+                label = label,
             )
         }
     }

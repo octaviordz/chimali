@@ -1,14 +1,12 @@
 package com.chimali.fido2.ctap2
 
-import com.chimali.fido2.bluetooth.CTAPHID_CBOR
-import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
-import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.model.AuthenticatorTransport
+import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -24,7 +22,6 @@ import java.time.Instant
  * - Correct 64-byte HID packet framing from [HidReportParser]
  */
 class Ctap2ProtocolTest {
-
     private lateinit var cborCodec: CborCodec
     private lateinit var hidReportParser: HidReportParser
     private lateinit var responseBuilder: Ctap2ResponseBuilder
@@ -52,31 +49,33 @@ class Ctap2ProtocolTest {
             counter = 1L,
             aaguid = aaguid,
             credentialId = credId,
-            publicKey = pubKey
+            publicKey = pubKey,
         )
     }
 
     private fun makeAttestationObject(): AttestationObject {
         val authData = makeAuthData()
-        val attStmt = AttestationStatement(
-            alg = "ES256",
-            fmt = "none",
-            attCert = null,
-            authData = null,
-            x5c = null
-        )
-        val clientData = ClientData(
-            type = "webauthn.create",
-            challenge = ByteArray(16) { 0x77.toByte() },
-            origin = "https://example.com",
-            crossOrigin = false,
-            timestamp = Instant.now()
-        )
+        val attStmt =
+            AttestationStatement(
+                alg = "ES256",
+                fmt = "none",
+                attCert = null,
+                authData = null,
+                x5c = null,
+            )
+        val clientData =
+            ClientData(
+                type = "webauthn.create",
+                challenge = ByteArray(16) { 0x77.toByte() },
+                origin = "https://example.com",
+                crossOrigin = false,
+                timestamp = Instant.now(),
+            )
         return AttestationObject(
             fmt = "none",
             authData = authData,
             attStmt = attStmt,
-            clientData = clientData
+            clientData = clientData,
         )
     }
 
@@ -144,20 +143,21 @@ class Ctap2ProtocolTest {
 
     @Test
     fun `getInfoResponse success starts with CTAP2_OK`() {
-        val info = AuthenticatorInfo(
-            aaguid = aaguid,
-            version = "1.0",
-            supportedAlgorithms = listOf("ES256"),
-            supportedTransports = listOf(AuthenticatorTransport.BLE),
-            supportsResidentKeys = true,
-            supportsUserVerification = true,
-            maxCredentialCount = 50,
-            maxCredentialIdLength = 128,
-            firmwareVersion = "1.0.0",
-            serialNumber = "CHIMALI-0001",
-            isInitialized = true,
-            isLocked = false
-        )
+        val info =
+            AuthenticatorInfo(
+                aaguid = aaguid,
+                version = "1.0",
+                supportedAlgorithms = listOf("ES256"),
+                supportedTransports = listOf(AuthenticatorTransport.BLE),
+                supportsResidentKeys = true,
+                supportsUserVerification = true,
+                maxCredentialCount = 50,
+                maxCredentialIdLength = 128,
+                firmwareVersion = "1.0.0",
+                serialNumber = "CHIMALI-0001",
+                isInitialized = true,
+                isLocked = false,
+            )
         val packets = responseBuilder.getInfoResponse(testCid, info)
         assertTrue(packets.isNotEmpty())
         assertEquals(0x00.toByte(), packets[0][7])
@@ -177,15 +177,22 @@ class Ctap2ProtocolTest {
 
     @Test
     fun `statusDescription returns non-empty for known codes`() {
-        val knownCodes = listOf(
-            0x00.toByte(), 0x12.toByte(), 0x14.toByte(),
-            0x27.toByte(), 0x28.toByte(), 0x36.toByte()
-        )
+        val knownCodes =
+            listOf(
+                0x00.toByte(),
+                0x12.toByte(),
+                0x14.toByte(),
+                0x27.toByte(),
+                0x28.toByte(),
+                0x36.toByte(),
+            )
         knownCodes.forEach { code ->
             val desc = responseBuilder.statusDescription(code)
             assertTrue(desc.isNotBlank())
-            assertFalse(desc.startsWith("UNKNOWN"),
-                "Known code should not produce UNKNOWN: $desc")
+            assertFalse(
+                desc.startsWith("UNKNOWN"),
+                "Known code should not produce UNKNOWN: $desc",
+            )
         }
     }
 

@@ -1,6 +1,7 @@
 build:
   maxIssues: 0
   excludeCorrectable: false
+  excludes: "**/build/**,**/resources/**,**/reports/**"
   weights:
     # complexity: 2
     # LongParameterList: 1
@@ -11,8 +12,7 @@ config:
   validation: true
   warningsAsErrors: false
   checkExhaustiveness: false
-  # when writing own rules with new properties, exclude the property path e.g.: 'my_rule_set,.*>.*>[my_property]'
-  excludes: '**/build/**;**/resources/**;**/build/reports/**;**/build/generated/**'
+  excludes: '.*/build/.*,.*/resources/.*,.*/build/reports/.*,.*/build/generated/.*'
 
 processors:
   active: true
@@ -442,16 +442,13 @@ potential-bugs:
     restrictToConfig: true
     returnValueAnnotations:
       - 'CheckResult'
-      - '*.CheckResult'
       - 'CheckReturnValue'
-      - '*.CheckReturnValue'
     ignoreReturnValueAnnotations:
       - 'CanIgnoreReturnValue'
-      - '*.CanIgnoreReturnValue'
     returnValueTypes:
       - 'kotlin.sequences.Sequence'
-      - 'kotlinx.coroutines.flow.*Flow'
-      - 'java.util.stream.*Stream'
+      - 'kotlinx.coroutines.flow.Flow'
+      - 'java.util.stream.Stream'
     ignoreFunctionCall: []
   ImplicitDefaultLocale:
     active: true

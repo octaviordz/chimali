@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class GetAllCredentialsUseCaseTest {
-
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
 
@@ -24,32 +23,34 @@ class GetAllCredentialsUseCaseTest {
     }
 
     @Test
-    fun `invoke should return empty flow when no credentials exist`() = runTest {
-        // Arrange
-        coEvery { credentialRepository.getAllCredentials() } returns flowOf()
+    fun `invoke should return empty flow when no credentials exist`() =
+        runTest {
+            // Arrange
+            coEvery { credentialRepository.getAllCredentials() } returns flowOf()
 
-        // Act
-        val result = getAllCredentialsUseCase().toList()
+            // Act
+            val result = getAllCredentialsUseCase().toList()
 
-        // Assert
-        assertEquals(0, result.size)
-        coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
-    }
+            // Assert
+            assertEquals(0, result.size)
+            coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
+        }
 
     @Test
-    fun `invoke should return all credentials from repository`() = runTest {
-        // Arrange
-        val mockCredential1 = mockk<PasskeyCredential>()
-        val mockCredential2 = mockk<PasskeyCredential>()
-        coEvery { credentialRepository.getAllCredentials() } returns flowOf(mockCredential1, mockCredential2)
+    fun `invoke should return all credentials from repository`() =
+        runTest {
+            // Arrange
+            val mockCredential1 = mockk<PasskeyCredential>()
+            val mockCredential2 = mockk<PasskeyCredential>()
+            coEvery { credentialRepository.getAllCredentials() } returns flowOf(mockCredential1, mockCredential2)
 
-        // Act
-        val result = getAllCredentialsUseCase().toList()
+            // Act
+            val result = getAllCredentialsUseCase().toList()
 
-        // Assert
-        assertEquals(2, result.size)
-        assertEquals(mockCredential1, result[0])
-        assertEquals(mockCredential2, result[1])
-        coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
-    }
+            // Assert
+            assertEquals(2, result.size)
+            assertEquals(mockCredential1, result[0])
+            assertEquals(mockCredential2, result[1])
+            coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
+        }
 }

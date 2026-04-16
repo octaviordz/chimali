@@ -7,7 +7,6 @@ package com.chimali.fido2.domain.repository
  * authenticator's behavior and limits.
  */
 interface Fido2SettingsRepository {
-
     /**
      * Returns the maximum number of passkey credentials the authenticator will store.
      *

@@ -24,16 +24,17 @@ import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 fun EditPairedDeviceScreen(
     macAddress: String,
     onNavigateUp: () -> Unit,
-    viewModel: PairedDevicesViewModel = hiltViewModel()
+    viewModel: PairedDevicesViewModel = hiltViewModel(),
 ) {
     val devices by viewModel.pairedDevices.collectAsState()
-    val device = remember(devices, macAddress) {
-        devices.find { it.macAddress == macAddress }
-    }
+    val device =
+        remember(devices, macAddress) {
+            devices.find { it.macAddress == macAddress }
+        }
 
     // Capture initial alias or empty string
-    var aliasText by remember(device) { 
-        mutableStateOf(device?.alias ?: "") 
+    var aliasText by remember(device) {
+        mutableStateOf(device?.alias ?: "")
     }
 
     if (device == null) {
@@ -57,31 +58,32 @@ fun EditPairedDeviceScreen(
                             val targetDevice = device
                             onNavigateUp()
                             viewModel.pendingRemove(targetDevice)
-                        }
+                        },
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete device",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
-                }
+                },
             )
         },
         bottomBar = {
             Surface(
                 tonalElevation = 2.dp,
-                shadowElevation = 8.dp
+                shadowElevation = 8.dp,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     ChimaliOutlinedButton(
                         onClick = onNavigateUp,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Cancel")
                     }
@@ -90,38 +92,40 @@ fun EditPairedDeviceScreen(
                             viewModel.updateAlias(macAddress, aliasText.ifBlank { null })
                             onNavigateUp()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Save Changes")
                     }
                 }
             }
-        }
+        },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             // Summary Header
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = device.name ?: "Unknown Device",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "MAC: ${device.macAddress}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -131,7 +135,7 @@ fun EditPairedDeviceScreen(
                 Text(
                     text = "Device Alias",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 OutlinedTextField(
                     value = aliasText,
@@ -140,12 +144,12 @@ fun EditPairedDeviceScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
-                    leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) }
+                    leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) },
                 )
                 Text(
                     text = "This name is only visible to you inside Chimali.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

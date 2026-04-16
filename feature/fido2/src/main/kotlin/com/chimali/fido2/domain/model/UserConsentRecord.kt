@@ -16,13 +16,12 @@ data class UserConsentRecord(
     val pinUsed: Boolean,
     val ipAddress: String?,
     val userAgent: String?,
-    val deviceId: String?
+    val deviceId: String?,
 ) {
-    
     init {
         validate()
     }
-    
+
     /**
      * Validates the UserConsentRecord according to security requirements.
      * Throws IllegalArgumentException if validation fails.
@@ -31,43 +30,43 @@ data class UserConsentRecord(
         // Validate required fields
         require(id.isNotBlank()) { "Consent record ID cannot be blank" }
         require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(timestamp.isBefore(Instant.now().plusSeconds(60))) { 
-            "Timestamp cannot be more than 60 seconds in the future" 
+        require(timestamp.isBefore(Instant.now().plusSeconds(60))) {
+            "Timestamp cannot be more than 60 seconds in the future"
         }
-        
+
         // Validate RP ID format
         require(
-            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
+            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$")),
         ) { "RP ID must be a valid domain or HTTPS origin" }
-        
+
         // Validate credential ID if present
         credentialId?.let { credId ->
             require(credId.isNotBlank()) { "Credential ID cannot be blank if provided" }
             require(credId.length <= 1023) { "Credential ID cannot exceed 1023 bytes" }
         }
-        
+
         // Validate optional fields
         ipAddress?.let { ip ->
             require(ip.isNotBlank()) { "IP address cannot be blank if provided" }
             require(ip.length <= 45) { "IP address cannot exceed 45 characters" }
             require(isValidIpAddress(ip)) { "IP address must be valid IPv4 or IPv6 format" }
         }
-        
+
         userAgent?.let { ua ->
             require(ua.isNotBlank()) { "User agent cannot be blank if provided" }
             require(ua.length <= 512) { "User agent cannot exceed 512 characters" }
         }
-        
+
         deviceId?.let { device ->
             require(device.isNotBlank()) { "Device ID cannot be blank if provided" }
             require(device.length <= 64) { "Device ID cannot exceed 64 characters" }
         }
-        
+
         // Consent method validation is intentionally not enforced here;
         // silent/implicit consent (no biometric or PIN) is valid when
         // the relying party does not require explicit user verification.
     }
-    
+
     /**
      * Checks if this consent was given recently.
      */
@@ -75,21 +74,21 @@ data class UserConsentRecord(
         val cutoff = timestamp.plusSeconds(minutes * 60)
         return Instant.now().isBefore(cutoff)
     }
-    
+
     /**
      * Checks if this consent was for a specific credential.
      */
     fun isForCredential(credentialId: String): Boolean {
         return this.credentialId?.equals(credentialId, ignoreCase = true) ?: false
     }
-    
+
     /**
      * Checks if this consent was for a specific relying party.
      */
     fun isForRelyingParty(rpId: String): Boolean {
         return this.rpId.equals(rpId, ignoreCase = true)
     }
-    
+
     /**
      * Returns the consent method used.
      */
@@ -101,28 +100,28 @@ data class UserConsentRecord(
             else -> ConsentMethod.NONE
         }
     }
-    
+
     /**
      * Returns a safe representation of the credential ID.
      */
     fun getSafeCredentialId(): String {
         return credentialId ?: "N/A"
     }
-    
+
     /**
      * Checks if this consent record is for registration.
      */
     fun isRegistrationConsent(): Boolean {
         return operationType == ConsentOperationType.REGISTRATION
     }
-    
+
     /**
      * Checks if this consent record is for authentication.
      */
     fun isAuthenticationConsent(): Boolean {
         return operationType == ConsentOperationType.AUTHENTICATION
     }
-    
+
     companion object {
         /**
          * Maximum allowed sizes for various fields.
@@ -131,7 +130,7 @@ data class UserConsentRecord(
         const val MAX_USER_AGENT_LENGTH = 512
         const val MAX_DEVICE_ID_LENGTH = 64
         const val MAX_CREDENTIAL_ID_LENGTH = 1023
-        
+
         /**
          * Creates a new UserConsentRecord with validation.
          */
@@ -143,7 +142,7 @@ data class UserConsentRecord(
             pinUsed: Boolean,
             ipAddress: String? = null,
             userAgent: String? = null,
-            deviceId: String? = null
+            deviceId: String? = null,
         ): UserConsentRecord {
             return UserConsentRecord(
                 id = java.util.UUID.randomUUID().toString(),
@@ -155,10 +154,10 @@ data class UserConsentRecord(
                 pinUsed = pinUsed,
                 ipAddress = ipAddress,
                 userAgent = userAgent,
-                deviceId = deviceId
+                deviceId = deviceId,
             )
         }
-        
+
         /**
          * Validates IP address format (IPv4 or IPv6).
          */
@@ -167,16 +166,16 @@ data class UserConsentRecord(
                 // IPv4 validation
                 val ipv4Regex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
                 if (ipv4Regex.matches(ip)) return true
-                
+
                 // IPv6 validation (supports compression)
                 if (ip.contains(':')) {
                     if (ip.contains(":::")) return false
                     val colons = ip.count { it == ':' }
                     if (colons !in 2..7) return false
-                    
+
                     val validChars = ip.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' }
                     if (!validChars) return false
-                    
+
                     val groups = ip.split(":")
                     return groups.all { it.length <= 4 }
                 }
@@ -195,7 +194,7 @@ enum class ConsentOperationType {
     REGISTRATION,
     AUTHENTICATION,
     CREDENTIAL_DELETION,
-    CREDENTIAL_UPDATE
+    CREDENTIAL_UPDATE,
 }
 
 /**
@@ -205,5 +204,5 @@ enum class ConsentMethod {
     NONE,
     BIOMETRIC,
     PIN,
-    BIOMETRIC_AND_PIN
+    BIOMETRIC_AND_PIN,
 }

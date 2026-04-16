@@ -1,6 +1,5 @@
 package com.chimali.fido2.presentation.ui
 
-import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.*
@@ -43,7 +42,7 @@ fun BiometricPromptComponent(
     negativeButtonText: String = "Use PIN instead",
     onSuccess: () -> Unit,
     onError: (errorCode: Int, message: String) -> Unit,
-    onFallback: () -> Unit
+    onFallback: () -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -52,40 +51,51 @@ fun BiometricPromptComponent(
         val executor = ContextCompat.getMainExecutor(context)
         val activity = context as? FragmentActivity
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
-            .setSubtitle(subtitle)
-            .apply {
-                description?.let { setDescription(it) }
-                setNegativeButtonText(negativeButtonText)
-                val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                        BiometricManager.Authenticators.BIOMETRIC_WEAK
-                setAllowedAuthenticators(authenticators)
-            }
-            .build()
-
-        val biometricPrompt = if (activity != null) {
-            BiometricPrompt(
-                activity,
-                executor,
-                object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                        onSuccess()
-                    }
-                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                        if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
-                            errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
-                            onFallback()
-                        } else {
-                            onError(errorCode, errString.toString())
-                        }
-                    }
-                    override fun onAuthenticationFailed() {
-                        // Partial attempt — dialog remains open, no action needed
-                    }
+        val promptInfo =
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .apply {
+                    description?.let { setDescription(it) }
+                    setNegativeButtonText(negativeButtonText)
+                    val authenticators =
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                            BiometricManager.Authenticators.BIOMETRIC_WEAK
+                    setAllowedAuthenticators(authenticators)
                 }
-            )
-        } else null
+                .build()
+
+        val biometricPrompt =
+            if (activity != null) {
+                BiometricPrompt(
+                    activity,
+                    executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            onSuccess()
+                        }
+
+                        override fun onAuthenticationError(
+                            errorCode: Int,
+                            errString: CharSequence,
+                        ) {
+                            if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+                                errorCode == BiometricPrompt.ERROR_USER_CANCELED
+                            ) {
+                                onFallback()
+                            } else {
+                                onError(errorCode, errString.toString())
+                            }
+                        }
+
+                        override fun onAuthenticationFailed() {
+                            // Partial attempt — dialog remains open, no action needed
+                        }
+                    },
+                )
+            } else {
+                null
+            }
 
         biometricPrompt?.authenticate(promptInfo)
 
@@ -96,51 +106,52 @@ fun BiometricPromptComponent(
 
     // Visual affordance while system dialog is being shown
     Box(
-        modifier            = Modifier
-            .fillMaxSize()
-            .semantics { contentDescription = "Biometric authentication prompt" },
-        contentAlignment    = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .semantics { contentDescription = "Biometric authentication prompt" },
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier            = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Surface(
-                shape    = CircleShape,
-                color    = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(96.dp)
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(96.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector        = Icons.Filled.Face,
+                        imageVector = Icons.Filled.Face,
                         contentDescription = "Fingerprint icon",
-                        modifier           = Modifier.size(56.dp),
-                        tint               = MaterialTheme.colorScheme.onPrimaryContainer
+                        modifier = Modifier.size(56.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
 
             Text(
-                text       = title,
-                style      = MaterialTheme.typography.titleLarge,
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                textAlign  = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             Text(
-                text      = subtitle,
-                style     = MaterialTheme.typography.bodyMedium,
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color     = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             description?.let {
                 Text(
-                    text      = it,
-                    style     = MaterialTheme.typography.bodySmall,
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
-                    color     = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

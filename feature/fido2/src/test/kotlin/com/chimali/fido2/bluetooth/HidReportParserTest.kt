@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test
  * - Short-report rejection
  */
 class HidReportParserTest {
-
     private lateinit var parser: HidReportParser
 
     // Fixed test CID
@@ -35,11 +34,11 @@ class HidReportParserTest {
     private fun initPacket(
         cid: ByteArray,
         cmd: Int,
-        payload: ByteArray
+        payload: ByteArray,
     ): ByteArray {
         val packet = ByteArray(62)
         cid.copyInto(packet, 0)
-        packet[4] = (cmd or 0x80).toByte()          // CMD with init flag
+        packet[4] = (cmd or 0x80).toByte() // CMD with init flag
         packet[5] = ((payload.size shr 8) and 0xFF).toByte()
         packet[6] = (payload.size and 0xFF).toByte()
         payload.copyInto(packet, 7, 0, minOf(payload.size, 55))
@@ -51,7 +50,7 @@ class HidReportParserTest {
         cid: ByteArray,
         seq: Int,
         payload: ByteArray,
-        offset: Int
+        offset: Int,
     ): ByteArray {
         val packet = ByteArray(62)
         cid.copyInto(packet, 0)
@@ -190,13 +189,13 @@ class HidReportParserTest {
         // Verify CMD with init flag
         assertEquals((CTAPHID_CBOR or 0x80).toByte(), packets[0][4])
         // Verify length
-        assertEquals(0, packets[0][5].toInt())         // BCNTH
+        assertEquals(0, packets[0][5].toInt()) // BCNTH
         assertEquals(data.size, packets[0][6].toInt()) // BCNTL
     }
 
     @Test
     fun `encode large payload produces multiple packets`() {
-        val data = ByteArray(130) { it.toByte() }  // needs 3 packets
+        val data = ByteArray(130) { it.toByte() } // needs 3 packets
         val msg = CtapHidMessage(testCid, CTAPHID_CBOR, data)
         val packets = parser.encodeResponse(msg)
 

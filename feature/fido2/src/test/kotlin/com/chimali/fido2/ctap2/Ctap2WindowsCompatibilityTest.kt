@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test
  * preventing regressions that cause E_INVALIDARG or Browser crashes.
  */
 class Ctap2WindowsCompatibilityTest {
-
     private val cborCodec = CborCodec()
 
     // ── 1. CBOR Encoding Strictness ──────────────────────────────────────────
@@ -54,10 +53,10 @@ class Ctap2WindowsCompatibilityTest {
         val baseFlags = 0x05 // UP (0x01) and UV (0x04)
         val FLAG_AT = 0x40
         val FLAG_UP = 0x01
-        
+
         // Emulate the bitwise forced OR in the handler
         val finalFlags = (baseFlags or FLAG_AT or FLAG_UP).toByte()
-        
+
         assertEquals(0x45.toByte(), finalFlags, "Flags should correctly combine UP, UV, and AT")
         assertTrue((finalFlags.toInt() and 0x40) != 0, "AT flag (bit 6) must be logically set")
     }
@@ -65,55 +64,64 @@ class Ctap2WindowsCompatibilityTest {
     // ── 3. GetAssertion Raw Byte Array vs Base64 Serialization ───────────────
 
     @Test
-    fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() = runTest {
-        val mockUseCase = mockk<GetAssertionUseCase>()
-        val mockHmacProcessor = mockk<HmacSecretProcessor>()
-        every { mockHmacProcessor.isPresent(any()) } returns false
-        val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, mockHmacProcessor)
+    fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() =
+        runTest {
+            val mockUseCase = mockk<GetAssertionUseCase>()
+            val mockHmacProcessor = mockk<HmacSecretProcessor>()
+            every { mockHmacProcessor.isPresent(any()) } returns false
+            val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, mockHmacProcessor)
 
-        // Create dummy bytes
-        val dummyAuthData = ByteArray(37) { 0xAA.toByte() }
-        val dummySignature = ByteArray(72) { 0xBB.toByte() }
-        val dummyCredId = ByteArray(16) { 0xCC.toByte() }
+            // Create dummy bytes
+            val dummyAuthData = ByteArray(37) { 0xAA.toByte() }
+            val dummySignature = ByteArray(72) { 0xBB.toByte() }
+            val dummyCredId = ByteArray(16) { 0xCC.toByte() }
 
-        val assertion = AssertionObject(
-            credential = PublicKeyCredentialDescriptor.create(id = dummyCredId),
-            authData = dummyAuthData,
-            signature = dummySignature,
-            user = null
-        )
+            val assertion =
+                AssertionObject(
+                    credential = PublicKeyCredentialDescriptor.create(id = dummyCredId),
+                    authData = dummyAuthData,
+                    signature = dummySignature,
+                    user = null,
+                )
 
-        coEvery { mockUseCase(any()) } returns Result.success(assertion)
+            coEvery { mockUseCase(any()) } returns Result.success(assertion)
 
-        // Construct a raw GetAssertion request (rpId, clientDataHash)
-        val requestMap = mapOf(
-            "1" to "webauthn.io",
-            "2" to ByteArray(32) { 0x01 }
-        )
-        val requestCbor = cborCodec.encodeToFido2Format(requestMap)
-        
-        // Execute the handler
-        val responseBytes = handler.handle(requestCbor)
+            // Construct a raw GetAssertion request (rpId, clientDataHash)
+            val requestMap =
+                mapOf(
+                    "1" to "webauthn.io",
+                    "2" to ByteArray(32) { 0x01 },
+                )
+            val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
-        // Status code 0x00 is first byte, followed by actual CBOR map
-        assertEquals(0x00.toByte(), responseBytes[0], "Response should start with CTAP2_OK (0x00)")
-        
-        val cborPayload = responseBytes.copyOfRange(1, responseBytes.size)
-        // We expect the payload to contain the raw byte sequences, not the ASCII strings "qqqq..." (Base64 of 0xAA)
-        
-        val base64AuthData = java.util.Base64.getEncoder().encodeToString(dummyAuthData).toByteArray()
-        
-        // Verify the raw dummy sequences exist in the CBOR
-        assertTrue(containsSubArray(cborPayload, dummyAuthData), "CBOR must contain raw authData bytes")
-        assertTrue(containsSubArray(cborPayload, dummySignature), "CBOR must contain raw signature bytes")
-        assertTrue(containsSubArray(cborPayload, dummyCredId), "CBOR must contain raw credential ID bytes")
-        
-        // Verify Base64 textual representations DO NOT exist in the CBOR
-        assertFalse(containsSubArray(cborPayload, base64AuthData), "CBOR MUST NOT contain Base64 text representations (Windows E_INVALIDARG)")
-    }
+            // Execute the handler
+            val responseBytes = handler.handle(requestCbor)
+
+            // Status code 0x00 is first byte, followed by actual CBOR map
+            assertEquals(0x00.toByte(), responseBytes[0], "Response should start with CTAP2_OK (0x00)")
+
+            val cborPayload = responseBytes.copyOfRange(1, responseBytes.size)
+            // We expect the payload to contain the raw byte sequences, not the ASCII strings "qqqq..." (Base64 of 0xAA)
+
+            val base64AuthData = java.util.Base64.getEncoder().encodeToString(dummyAuthData).toByteArray()
+
+            // Verify the raw dummy sequences exist in the CBOR
+            assertTrue(containsSubArray(cborPayload, dummyAuthData), "CBOR must contain raw authData bytes")
+            assertTrue(containsSubArray(cborPayload, dummySignature), "CBOR must contain raw signature bytes")
+            assertTrue(containsSubArray(cborPayload, dummyCredId), "CBOR must contain raw credential ID bytes")
+
+            // Verify Base64 textual representations DO NOT exist in the CBOR
+            assertFalse(
+                containsSubArray(cborPayload, base64AuthData),
+                "CBOR MUST NOT contain Base64 text representations (Windows E_INVALIDARG)",
+            )
+        }
 
     // Helper to search for subarray
-    private fun containsSubArray(haystack: ByteArray, needle: ByteArray): Boolean {
+    private fun containsSubArray(
+        haystack: ByteArray,
+        needle: ByteArray,
+    ): Boolean {
         if (needle.isEmpty()) return true
         for (i in 0..haystack.size - needle.size) {
             var match = true

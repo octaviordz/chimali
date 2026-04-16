@@ -1,13 +1,12 @@
 package com.chimali.fido2.integration
 
 import android.util.Log
-import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
-import com.chimali.fido2.presentation.management.CredentialManagementEffect
 import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
 import io.mockk.coEvery
@@ -22,8 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -39,7 +38,6 @@ import java.time.Instant
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagementIntegrationTest {
-
     private lateinit var repository: CredentialRepository
     private lateinit var viewModel: CredentialManagementViewModel
     private val credentials = MutableStateFlow<List<PasskeyCredential>>(emptyList())
@@ -80,12 +78,13 @@ class ManagementIntegrationTest {
         val deleteAllUseCase = DeleteAllCredentialsUseCase(repository)
         val updateLabelUseCase = UpdateCredentialLabelUseCase(repository)
 
-        viewModel = CredentialManagementViewModel(
-            getAllUseCase,
-            deleteUseCase,
-            deleteAllUseCase,
-            updateLabelUseCase
-        )
+        viewModel =
+            CredentialManagementViewModel(
+                getAllUseCase,
+                deleteUseCase,
+                deleteAllUseCase,
+                updateLabelUseCase,
+            )
     }
 
     @AfterEach
@@ -93,7 +92,10 @@ class ManagementIntegrationTest {
         Dispatchers.resetMain()
     }
 
-    private fun createDummyCredential(id: String, rpId: String = "https://example.com"): PasskeyCredential {
+    private fun createDummyCredential(
+        id: String,
+        rpId: String = "https://example.com",
+    ): PasskeyCredential {
         val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
         return PasskeyCredential(
             id = id,
@@ -107,192 +109,203 @@ class ManagementIntegrationTest {
             createdAt = Instant.now(),
             lastUsedAt = Instant.now(),
             aaguid = ByteArray(16),
-            credentialId = id.toByteArray()
+            credentialId = id.toByteArray(),
         )
     }
 
     // ── Credential Loading ───────────────────────────────────────────────────
 
     @Test
-    fun `refresh populates state with credentials`() = runTest {
-        val cred1 = createDummyCredential("cred1", "https://example.com")
-        val cred2 = createDummyCredential("cred2", "https://google.com")
-        credentials.value = listOf(cred1, cred2)
+    fun `refresh populates state with credentials`() =
+        runTest {
+            val cred1 = createDummyCredential("cred1", "https://example.com")
+            val cred2 = createDummyCredential("cred2", "https://google.com")
+            credentials.value = listOf(cred1, cred2)
 
-        // Use setCredentials since loadCredentials has flow type mismatch
-        viewModel.setCredentials(credentials.value)
-        advanceUntilIdle()
+            // Use setCredentials since loadCredentials has flow type mismatch
+            viewModel.setCredentials(credentials.value)
+            advanceUntilIdle()
 
-        val state = viewModel.state.value
-        assertEquals(2, state.credentials.size)
-        assertFalse(state.isLoading)
-    }
+            val state = viewModel.state.value
+            assertEquals(2, state.credentials.size)
+            assertFalse(state.isLoading)
+        }
 
     @Test
-    fun `empty credentials list results in empty state`() = runTest {
-        credentials.value = emptyList()
-        viewModel.setCredentials(credentials.value)
-        advanceUntilIdle()
+    fun `empty credentials list results in empty state`() =
+        runTest {
+            credentials.value = emptyList()
+            viewModel.setCredentials(credentials.value)
+            advanceUntilIdle()
 
-        val state = viewModel.state.value
-        assertTrue(state.credentials.isEmpty())
-    }
+            val state = viewModel.state.value
+            assertTrue(state.credentials.isEmpty())
+        }
 
     // ── Credential Selection ─────────────────────────────────────────────────
 
     @Test
-    fun `selecting credential updates selectedCredential state`() = runTest {
-        val cred = createDummyCredential("cred1")
-        viewModel.setCredentials(listOf(cred))
-        advanceUntilIdle()
+    fun `selecting credential updates selectedCredential state`() =
+        runTest {
+            val cred = createDummyCredential("cred1")
+            viewModel.setCredentials(listOf(cred))
+            advanceUntilIdle()
 
-        viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred))
-        val state = viewModel.state.value
+            viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred))
+            val state = viewModel.state.value
 
-        assertEquals(cred.id, state.selectedCredential?.id)
-    }
+            assertEquals(cred.id, state.selectedCredential?.id)
+        }
 
     @Test
-    fun `dismiss clears dialog state`() = runTest {
-        val cred = createDummyCredential("cred1")
-        viewModel.setCredentials(listOf(cred))
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-        advanceUntilIdle()
+    fun `dismiss clears dialog state`() =
+        runTest {
+            val cred = createDummyCredential("cred1")
+            viewModel.setCredentials(listOf(cred))
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
+            advanceUntilIdle()
 
-        viewModel.onIntent(CredentialManagementIntent.DismissDialog)
-        val state = viewModel.state.value
+            viewModel.onIntent(CredentialManagementIntent.DismissDialog)
+            val state = viewModel.state.value
 
-        // dismissDialogs only clears dialog-related state, NOT selectedCredential
-        assertNull(state.credentialToDelete)
-        assertFalse(state.showDeleteAllWarning)
-    }
+            // dismissDialogs only clears dialog-related state, NOT selectedCredential
+            assertNull(state.credentialToDelete)
+            assertFalse(state.showDeleteAllWarning)
+        }
 
     // ── Delete Single Credential ─────────────────────────────────────────────
 
     @Test
-    fun `show delete dialog sets credentialToDelete`() = runTest {
-        val cred = createDummyCredential("cred1")
-        viewModel.setCredentials(listOf(cred))
-        advanceUntilIdle()
+    fun `show delete dialog sets credentialToDelete`() =
+        runTest {
+            val cred = createDummyCredential("cred1")
+            viewModel.setCredentials(listOf(cred))
+            advanceUntilIdle()
 
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
-        val state = viewModel.state.value
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
+            val state = viewModel.state.value
 
-        assertEquals(cred.id, state.credentialToDelete?.id)
-    }
-
-    @Test
-    fun `confirm delete removes credential from repository`() = runTest {
-        val cred1 = createDummyCredential("cred1", "https://example.com")
-        val cred2 = createDummyCredential("cred2", "https://google.com")
-        credentials.value = listOf(cred1, cred2)
-        viewModel.setCredentials(credentials.value)
-        advanceUntilIdle()
-
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
-        advanceUntilIdle()
-
-        // Repository-level: cred1 should be removed
-        assertEquals(1, credentials.value.size)
-        assertEquals("cred2", credentials.value.first().id)
-    }
+            assertEquals(cred.id, state.credentialToDelete?.id)
+        }
 
     @Test
-    fun `delete failure sets error state`() = runTest {
-        // Override mock to simulate failure
-        coEvery { repository.deleteCredential(any()) } returns
-            Result.failure(Exception("Database error"))
+    fun `confirm delete removes credential from repository`() =
+        runTest {
+            val cred1 = createDummyCredential("cred1", "https://example.com")
+            val cred2 = createDummyCredential("cred2", "https://google.com")
+            credentials.value = listOf(cred1, cred2)
+            viewModel.setCredentials(credentials.value)
+            advanceUntilIdle()
 
-        val cred = createDummyCredential("cred1")
-        viewModel.setCredentials(listOf(cred))
-        advanceUntilIdle()
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
+            advanceUntilIdle()
 
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred.id))
-        advanceUntilIdle()
+            // Repository-level: cred1 should be removed
+            assertEquals(1, credentials.value.size)
+            assertEquals("cred2", credentials.value.first().id)
+        }
 
-        val state = viewModel.state.value
-        assertNotNull(state.error)
-    }
+    @Test
+    fun `delete failure sets error state`() =
+        runTest {
+            // Override mock to simulate failure
+            coEvery { repository.deleteCredential(any()) } returns
+                Result.failure(Exception("Database error"))
+
+            val cred = createDummyCredential("cred1")
+            viewModel.setCredentials(listOf(cred))
+            advanceUntilIdle()
+
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred.id))
+            advanceUntilIdle()
+
+            val state = viewModel.state.value
+            assertNotNull(state.error)
+        }
 
     // ── Delete All Credentials ───────────────────────────────────────────────
 
     @Test
-    fun `show delete all dialog sets warning flag`() = runTest {
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-        val state = viewModel.state.value
+    fun `show delete all dialog sets warning flag`() =
+        runTest {
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
+            val state = viewModel.state.value
 
-        assertTrue(state.showDeleteAllWarning)
-    }
-
-    @Test
-    fun `confirm delete all empties repository`() = runTest {
-        val cred1 = createDummyCredential("cred1")
-        val cred2 = createDummyCredential("cred2")
-        credentials.value = listOf(cred1, cred2)
-        viewModel.setCredentials(credentials.value)
-        advanceUntilIdle()
-
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
-        advanceUntilIdle()
-
-        assertTrue(credentials.value.isEmpty())
-    }
+            assertTrue(state.showDeleteAllWarning)
+        }
 
     @Test
-    fun `delete all failure sets error state`() = runTest {
-        coEvery { repository.deleteAllCredentials(any()) } returns
-            Result.failure(Exception("Wipe failed"))
+    fun `confirm delete all empties repository`() =
+        runTest {
+            val cred1 = createDummyCredential("cred1")
+            val cred2 = createDummyCredential("cred2")
+            credentials.value = listOf(cred1, cred2)
+            viewModel.setCredentials(credentials.value)
+            advanceUntilIdle()
 
-        viewModel.setCredentials(listOf(createDummyCredential("cred1")))
-        advanceUntilIdle()
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
+            advanceUntilIdle()
 
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
-        advanceUntilIdle()
+            assertTrue(credentials.value.isEmpty())
+        }
 
-        val state = viewModel.state.value
-        assertNotNull(state.error)
-    }
+    @Test
+    fun `delete all failure sets error state`() =
+        runTest {
+            coEvery { repository.deleteAllCredentials(any()) } returns
+                Result.failure(Exception("Wipe failed"))
+
+            viewModel.setCredentials(listOf(createDummyCredential("cred1")))
+            advanceUntilIdle()
+
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
+            advanceUntilIdle()
+
+            val state = viewModel.state.value
+            assertNotNull(state.error)
+        }
 
     // ── Full Flow ────────────────────────────────────────────────────────────
 
     @Test
-    fun `full management flow - add select delete wipe`() = runTest {
-        // 1 — Seed credentials
-        val cred1 = createDummyCredential("cred1", "https://example.com")
-        val cred2 = createDummyCredential("cred2", "https://google.com")
-        credentials.value = listOf(cred1, cred2)
-        viewModel.setCredentials(credentials.value)
-        advanceUntilIdle()
+    fun `full management flow - add select delete wipe`() =
+        runTest {
+            // 1 — Seed credentials
+            val cred1 = createDummyCredential("cred1", "https://example.com")
+            val cred2 = createDummyCredential("cred2", "https://google.com")
+            credentials.value = listOf(cred1, cred2)
+            viewModel.setCredentials(credentials.value)
+            advanceUntilIdle()
 
-        assertEquals(2, viewModel.state.value.credentials.size)
+            assertEquals(2, viewModel.state.value.credentials.size)
 
-        // 2 — Select
-        viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred1))
-        assertEquals(cred1, viewModel.state.value.selectedCredential)
+            // 2 — Select
+            viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred1))
+            assertEquals(cred1, viewModel.state.value.selectedCredential)
 
-        // 3 — Dismiss (clears dialog state only, not selection)
-        viewModel.onIntent(CredentialManagementIntent.DismissDialog)
-        assertNull(viewModel.state.value.credentialToDelete)
-        assertFalse(viewModel.state.value.showDeleteAllWarning)
+            // 3 — Dismiss (clears dialog state only, not selection)
+            viewModel.onIntent(CredentialManagementIntent.DismissDialog)
+            assertNull(viewModel.state.value.credentialToDelete)
+            assertFalse(viewModel.state.value.showDeleteAllWarning)
 
-        // 4 — Delete single
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
-        advanceUntilIdle()
+            // 4 — Delete single
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
+            advanceUntilIdle()
 
-        assertEquals(1, credentials.value.size)
-        assertEquals("cred2", credentials.value.first().id)
+            assertEquals(1, credentials.value.size)
+            assertEquals("cred2", credentials.value.first().id)
 
-        // 5 — Wipe all
-        viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-        assertTrue(viewModel.state.value.showDeleteAllWarning)
+            // 5 — Wipe all
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
+            assertTrue(viewModel.state.value.showDeleteAllWarning)
 
-        viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
-        advanceUntilIdle()
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
+            advanceUntilIdle()
 
-        assertTrue(credentials.value.isEmpty())
-    }
+            assertTrue(credentials.value.isEmpty())
+        }
 }

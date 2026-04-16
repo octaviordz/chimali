@@ -14,38 +14,40 @@ import javax.inject.Singleton
  * Allows the transport to wait for user interaction results.
  */
 @Singleton
-class Fido2UiEventBus @Inject constructor() {
-    private val _events = MutableSharedFlow<Fido2UiEvent>(replay = 0, extraBufferCapacity = 1)
-    val events: SharedFlow<Fido2UiEvent> = _events.asSharedFlow()
+class Fido2UiEventBus
+    @Inject
+    constructor() {
+        private val _events = MutableSharedFlow<Fido2UiEvent>(replay = 0, extraBufferCapacity = 1)
+        val events: SharedFlow<Fido2UiEvent> = _events.asSharedFlow()
 
-    var currentRegistrationRequest: Fido2UiEvent.RegistrationRequested? = null
-    var currentAuthenticationRequest: Fido2UiEvent.AuthenticationRequested? = null
+        var currentRegistrationRequest: Fido2UiEvent.RegistrationRequested? = null
+        var currentAuthenticationRequest: Fido2UiEvent.AuthenticationRequested? = null
 
-    fun dispatch(event: Fido2UiEvent) {
-        when (event) {
-            is Fido2UiEvent.RegistrationRequested -> currentRegistrationRequest = event
-            is Fido2UiEvent.AuthenticationRequested -> currentAuthenticationRequest = event
+        fun dispatch(event: Fido2UiEvent) {
+            when (event) {
+                is Fido2UiEvent.RegistrationRequested -> currentRegistrationRequest = event
+                is Fido2UiEvent.AuthenticationRequested -> currentAuthenticationRequest = event
+            }
+            _events.tryEmit(event)
         }
-        _events.tryEmit(event)
-    }
 
-    fun clearRegistrationRequest() {
-        currentRegistrationRequest = null
-    }
+        fun clearRegistrationRequest() {
+            currentRegistrationRequest = null
+        }
 
-    fun clearAuthenticationRequest() {
-        currentAuthenticationRequest = null
+        fun clearAuthenticationRequest() {
+            currentAuthenticationRequest = null
+        }
     }
-}
 
 sealed interface Fido2UiEvent {
     data class RegistrationRequested(
         val options: MakeCredentialOptions,
-        val deferred: CompletableDeferred<Result<MakeCredentialResult>>
+        val deferred: CompletableDeferred<Result<MakeCredentialResult>>,
     ) : Fido2UiEvent
 
     data class AuthenticationRequested(
         val rpId: String,
-        val deferred: CompletableDeferred<Result<String>> // Returning credential ID or error
+        val deferred: CompletableDeferred<Result<String>>, // Returning credential ID or error
     ) : Fido2UiEvent
 }

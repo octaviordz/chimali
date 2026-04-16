@@ -13,8 +13,6 @@ import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
-import com.chimali.fido2.domain.service.VerificationMethod
-import java.time.Instant
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -25,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 /**
  * T082 — Unit tests for [GetAssertionUseCase].
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test
  * a mock [Fido2CryptoService].
  */
 class GetAssertionUseCaseTest {
-
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
     private lateinit var selectCredentialUseCase: SelectCredentialUseCase
@@ -70,7 +68,7 @@ class GetAssertionUseCaseTest {
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                 maxPinLength = 8,
                 minPinLength = 4,
-                biometricStrength = BiometricStrength.STRONG
+                biometricStrength = BiometricStrength.STRONG,
             )
 
         useCase = GetAssertionUseCase(credentialRepository, userVerificationService, selectCredentialUseCase, cryptoService)
@@ -78,13 +76,13 @@ class GetAssertionUseCaseTest {
 
     private fun createOptions(
         uv: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,
-        allowCredentials: List<PublicKeyCredentialDescriptor>? = null
+        allowCredentials: List<PublicKeyCredentialDescriptor>? = null,
     ): GetAssertionOptions {
         return GetAssertionOptions.create(
             rpId = testRpId,
             clientDataHash = testClientDataHash,
             allowCredentials = allowCredentials,
-            userVerification = uv
+            userVerification = uv,
         )
     }
 
@@ -94,111 +92,118 @@ class GetAssertionUseCaseTest {
             rpId = testRpId,
             credentialId = id.toByteArray(),
             lastUsedAt = Instant.now(),
-            coseAlgorithm = PasskeyCredential.COSE_ES256
+            coseAlgorithm = PasskeyCredential.COSE_ES256,
         )
     }
 
     // ── No credentials found ──────────────────────────────────────────────────
 
     @Test
-    fun `returns failure when no credentials found for RP`() = runTest {
-        coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(emptyList())
+    fun `returns failure when no credentials found for RP`() =
+        runTest {
+            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(emptyList())
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-        assertTrue(result.isFailure)
-        val exception = result.exceptionOrNull()
-        assertTrue(exception is Fido2Exception.CredentialNotFound || exception is Fido2Exception.AuthenticationFailed)
-    }
+            assertTrue(result.isFailure)
+            val exception = result.exceptionOrNull()
+            assertTrue(exception is Fido2Exception.CredentialNotFound || exception is Fido2Exception.AuthenticationFailed)
+        }
 
     // ── User verification required but fails ─────────────────────────────────
 
     @Test
-    fun `returns failure when user verification required but fails`() = runTest {
-        coEvery { userVerificationService.getUserVerificationAvailability() } returns
-            UserVerificationAvailability(
-                biometricAvailable = false,
-                pinAvailable = false,
-                deviceLockAvailable = false,
-                supportedBiometricTypes = emptyList(),
-                maxPinLength = 0,
-                minPinLength = 0,
-                biometricStrength = BiometricStrength.WEAK
-            )
+    fun `returns failure when user verification required but fails`() =
+        runTest {
+            coEvery { userVerificationService.getUserVerificationAvailability() } returns
+                UserVerificationAvailability(
+                    biometricAvailable = false,
+                    pinAvailable = false,
+                    deviceLockAvailable = false,
+                    supportedBiometricTypes = emptyList(),
+                    maxPinLength = 0,
+                    minPinLength = 0,
+                    biometricStrength = BiometricStrength.WEAK,
+                )
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.REQUIRED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.REQUIRED))
 
-        assertTrue(result.isFailure)
-    }
+            assertTrue(result.isFailure)
+        }
 
     // ── Credential selection delegation ───────────────────────────────────────
 
     @Test
-    fun `delegates to SelectCredentialUseCase when multiple credentials found`() = runTest {
-        val s1 = createSummary("cred1")
-        val s2 = createSummary("cred2")
-        coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1, s2))
-        coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-        coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
-        coEvery { credentialRepository.updateSignCount("cred1", 6L) } returns Result.success(Unit)
+    fun `delegates to SelectCredentialUseCase when multiple credentials found`() =
+        runTest {
+            val s1 = createSummary("cred1")
+            val s2 = createSummary("cred2")
+            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1, s2))
+            coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
+            coEvery { credentialRepository.updateSignCount("cred1", 6L) } returns Result.success(Unit)
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-        coVerify { selectCredentialUseCase(any(), any()) }
+            coVerify { selectCredentialUseCase(any(), any()) }
 
-        if (result.isSuccess) {
-            val assertion = result.getOrThrow()
-            assertNotNull(assertion.authData)
-            assertNotNull(assertion.signature)
-            assertTrue(assertion.authData.size >= 37)
+            if (result.isSuccess) {
+                val assertion = result.getOrThrow()
+                assertNotNull(assertion.authData)
+                assertNotNull(assertion.signature)
+                assertTrue(assertion.authData.size >= 37)
+            }
         }
-    }
 
     // ── SelectCredentialUseCase fails ─────────────────────────────────────────
 
     @Test
-    fun `returns failure when credential selection fails`() = runTest {
-        val s1 = createSummary("cred1")
-        coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
-        coEvery { selectCredentialUseCase(any(), any()) } returns
-            Result.failure(Fido2Exception.CredentialNotFound("No eligible credential"))
+    fun `returns failure when credential selection fails`() =
+        runTest {
+            val s1 = createSummary("cred1")
+            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
+            coEvery { selectCredentialUseCase(any(), any()) } returns
+                Result.failure(Fido2Exception.CredentialNotFound("No eligible credential"))
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-        assertTrue(result.isFailure)
-    }
+            assertTrue(result.isFailure)
+        }
 
     // ── Sign count is incremented ─────────────────────────────────────────────
 
     @Test
-    fun `increments sign count on successful assertion`() = runTest {
-        val s1 = createSummary("cred1")
-        coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
-        coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-        coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(10L)
-        coEvery { credentialRepository.updateSignCount("cred1", 11L) } returns Result.success(Unit)
+    fun `increments sign count on successful assertion`() =
+        runTest {
+            val s1 = createSummary("cred1")
+            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
+            coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(10L)
+            coEvery { credentialRepository.updateSignCount("cred1", 11L) } returns Result.success(Unit)
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-        if (result.isSuccess) {
-            coVerify { credentialRepository.updateSignCount("cred1", 11L) }
+            if (result.isSuccess) {
+                coVerify { credentialRepository.updateSignCount("cred1", 11L) }
+            }
         }
-    }
 
     // ── Signing failure is surfaced ───────────────────────────────────────────
 
     @Test
-    fun `returns failure when cryptoService signing fails`() = runTest {
-        val s1 = createSummary("cred1")
-        coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
-        coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-        coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
-        coEvery { cryptoService.sign(any(), any()) } returns Result.failure(
-            Fido2Exception.SigningFailed("Master seed unavailable")
-        )
+    fun `returns failure when cryptoService signing fails`() =
+        runTest {
+            val s1 = createSummary("cred1")
+            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
+            coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
+            coEvery { cryptoService.sign(any(), any()) } returns
+                Result.failure(
+                    Fido2Exception.SigningFailed("Master seed unavailable"),
+                )
 
-        val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-        assertTrue(result.isFailure)
-    }
+            assertTrue(result.isFailure)
+        }
 }

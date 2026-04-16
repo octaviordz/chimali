@@ -47,7 +47,7 @@ data class CredentialSummary(
     val credentialId: ByteArray,
     val lastUsedAt: Instant,
     val coseAlgorithm: Int,
-    val credProtectPolicy: Int = 1
+    val credProtectPolicy: Int = 1,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

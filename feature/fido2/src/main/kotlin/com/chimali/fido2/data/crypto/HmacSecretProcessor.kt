@@ -1,6 +1,5 @@
 package com.chimali.fido2.data.crypto
 
-import com.chimali.fido2.domain.exception.Fido2Exception
 import timber.log.Timber
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -39,123 +38,128 @@ import javax.inject.Singleton
  * @see [CTAP2.1 §12.4](https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#sctn-hmac-secret-extension)
  */
 @Singleton
-class HmacSecretProcessor @Inject constructor(
-    private val masterSeedProvider: MasterSeedProvider
-) {
+class HmacSecretProcessor
+    @Inject
+    constructor(
+        private val masterSeedProvider: MasterSeedProvider,
+    ) {
+        companion object {
+            const val EXTENSION_KEY = "hmac-secret"
+            private const val SALT_SIZE = 32
+            private val DOMAIN_SEPARATOR = "hmac-secret".toByteArray(Charsets.UTF_8)
+        }
 
-    companion object {
-        const val EXTENSION_KEY = "hmac-secret"
-        private const val SALT_SIZE = 32
-        private val DOMAIN_SEPARATOR = "hmac-secret".toByteArray(Charsets.UTF_8)
-    }
+        /**
+         * Processes the `hmac-secret` extension for a GetAssertion ceremony.
+         *
+         * @param credentialId  The credential ID string used to derive the per-credential secret.
+         * @param extensionData The raw extension map value for key "hmac-secret".
+         *                      Expected: a map with key "saltEnc" → ByteArray (32 or 64 bytes).
+         * @return CBOR-encodable extension result map entry, or null if processing failed
+         *         and the extension should be silently omitted.
+         */
+        suspend fun process(
+            credentialId: String,
+            extensionData: Any?,
+        ): ByteArray? {
+            if (extensionData == null) return null
 
-    /**
-     * Processes the `hmac-secret` extension for a GetAssertion ceremony.
-     *
-     * @param credentialId  The credential ID string used to derive the per-credential secret.
-     * @param extensionData The raw extension map value for key "hmac-secret".
-     *                      Expected: a map with key "saltEnc" → ByteArray (32 or 64 bytes).
-     * @return CBOR-encodable extension result map entry, or null if processing failed
-     *         and the extension should be silently omitted.
-     */
-    suspend fun process(
-        credentialId: String,
-        extensionData: Any?
-    ): ByteArray? {
-        if (extensionData == null) return null
-
-        return try {
-            // Parse extension input
-            val saltEnc: ByteArray = when {
-                extensionData is Map<*, *> -> {
-                    val saltRaw = extensionData["saltEnc"]
-                    when (saltRaw) {
-                        is ByteArray -> saltRaw
+            return try {
+                // Parse extension input
+                val saltEnc: ByteArray =
+                    when {
+                        extensionData is Map<*, *> -> {
+                            val saltRaw = extensionData["saltEnc"]
+                            when (saltRaw) {
+                                is ByteArray -> saltRaw
+                                else -> {
+                                    Timber.w("hmac-secret: saltEnc missing or wrong type")
+                                    return null
+                                }
+                            }
+                        }
+                        extensionData is ByteArray -> extensionData // direct salt (simplified mode)
                         else -> {
-                            Timber.w("hmac-secret: saltEnc missing or wrong type")
+                            Timber.w("hmac-secret: unexpected extension data type %s", extensionData::class.simpleName)
                             return null
                         }
                     }
-                }
-                extensionData is ByteArray -> extensionData  // direct salt (simplified mode)
-                else -> {
-                    Timber.w("hmac-secret: unexpected extension data type %s", extensionData::class.simpleName)
+
+                if (saltEnc.size != SALT_SIZE && saltEnc.size != SALT_SIZE * 2) {
+                    Timber.w("hmac-secret: invalid saltEnc length %d (expected 32 or 64)", saltEnc.size)
                     return null
                 }
-            }
 
-            if (saltEnc.size != SALT_SIZE && saltEnc.size != SALT_SIZE * 2) {
-                Timber.w("hmac-secret: invalid saltEnc length %d (expected 32 or 64)", saltEnc.size)
+                // Derive per-credential HMAC secret
+                val credSecret =
+                    deriveCredentialSecret(credentialId)
+                        ?: return null
+
+                // Compute output(s)
+                val output = ByteArray(saltEnc.size)
+                val salt1 = saltEnc.copyOfRange(0, SALT_SIZE)
+                val hmacOutput1 = hmacSha256(credSecret, salt1)
+                hmacOutput1.copyInto(output, 0)
+
+                if (saltEnc.size == SALT_SIZE * 2) {
+                    val salt2 = saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2)
+                    val hmacOutput2 = hmacSha256(credSecret, salt2)
+                    hmacOutput2.copyInto(output, SALT_SIZE)
+                }
+
+                // Zeroise sensitive material
+                credSecret.fill(0)
+                salt1.fill(0)
+                if (saltEnc.size == SALT_SIZE * 2) saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2).fill(0)
+
+                Timber.d("hmac-secret: computed output (%d bytes) for credentialId=%s", output.size, credentialId)
+                output
+            } catch (e: Exception) {
+                Timber.e(e, "hmac-secret processing failed: %s", e.message)
+                null
+            }
+        }
+
+        /**
+         * Derives a 32-byte per-credential secret: HMAC-SHA-256(masterSeed, "hmac-secret" || credentialId).
+         *
+         * The credential secret is deterministic and unique per credential — different credentials
+         * for the same RP produce different secrets, satisfying the FIDO2 isolation requirement.
+         */
+        private suspend fun deriveCredentialSecret(credentialId: String): ByteArray? {
+            val masterSeed = masterSeedProvider.getMasterSeed()
+            if (masterSeed == null) {
+                Timber.w("hmac-secret: master seed unavailable, cannot derive credential secret")
                 return null
             }
-
-            // Derive per-credential HMAC secret
-            val credSecret = deriveCredentialSecret(credentialId)
-                ?: return null
-
-            // Compute output(s)
-            val output = ByteArray(saltEnc.size)
-            val salt1 = saltEnc.copyOfRange(0, SALT_SIZE)
-            val hmacOutput1 = hmacSha256(credSecret, salt1)
-            hmacOutput1.copyInto(output, 0)
-
-            if (saltEnc.size == SALT_SIZE * 2) {
-                val salt2 = saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2)
-                val hmacOutput2 = hmacSha256(credSecret, salt2)
-                hmacOutput2.copyInto(output, SALT_SIZE)
-            }
-
-            // Zeroise sensitive material
-            credSecret.fill(0)
-            salt1.fill(0)
-            if (saltEnc.size == SALT_SIZE * 2) saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2).fill(0)
-
-            Timber.d("hmac-secret: computed output (%d bytes) for credentialId=%s", output.size, credentialId)
-            output
-        } catch (e: Exception) {
-            Timber.e(e, "hmac-secret processing failed: %s", e.message)
-            null
+            return hmacSha256(masterSeed, DOMAIN_SEPARATOR + credentialId.toByteArray(Charsets.UTF_8))
         }
-    }
 
-    /**
-     * Derives a 32-byte per-credential secret: HMAC-SHA-256(masterSeed, "hmac-secret" || credentialId).
-     *
-     * The credential secret is deterministic and unique per credential — different credentials
-     * for the same RP produce different secrets, satisfying the FIDO2 isolation requirement.
-     */
-    private suspend fun deriveCredentialSecret(credentialId: String): ByteArray? {
-        val masterSeed = masterSeedProvider.getMasterSeed()
-        if (masterSeed == null) {
-            Timber.w("hmac-secret: master seed unavailable, cannot derive credential secret")
-            return null
+        /** Computes HMAC-SHA-256(key, data). */
+        private fun hmacSha256(
+            key: ByteArray,
+            data: ByteArray,
+        ): ByteArray {
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(key, "HmacSHA256"))
+            return mac.doFinal(data)
         }
-        return hmacSha256(masterSeed, DOMAIN_SEPARATOR + credentialId.toByteArray(Charsets.UTF_8))
-    }
 
-    /** Computes HMAC-SHA-256(key, data). */
-    private fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(key, "HmacSHA256"))
-        return mac.doFinal(data)
-    }
+        /**
+         * Builds the CBOR extensions map for authData when [hmacSecretOutput] is present.
+         *
+         * The extension data bit (ED bit = 0x80) in the authData flags byte must also be set
+         * by the caller when this method returns a non-null result.
+         *
+         * @return CBOR-encodable extensions map `{"hmac-secret": <output_bytes>}`, or null.
+         */
+        fun buildAuthDataExtensions(hmacSecretOutput: ByteArray?): Map<String, Any>? {
+            if (hmacSecretOutput == null) return null
+            return mapOf(EXTENSION_KEY to hmacSecretOutput)
+        }
 
-    /**
-     * Builds the CBOR extensions map for authData when [hmacSecretOutput] is present.
-     *
-     * The extension data bit (ED bit = 0x80) in the authData flags byte must also be set
-     * by the caller when this method returns a non-null result.
-     *
-     * @return CBOR-encodable extensions map `{"hmac-secret": <output_bytes>}`, or null.
-     */
-    fun buildAuthDataExtensions(hmacSecretOutput: ByteArray?): Map<String, Any>? {
-        if (hmacSecretOutput == null) return null
-        return mapOf(EXTENSION_KEY to hmacSecretOutput)
+        /**
+         * Returns true if [extensions] map contains a processable `hmac-secret` entry.
+         */
+        fun isPresent(extensions: Map<String, Any>?): Boolean = extensions?.containsKey(EXTENSION_KEY) == true
     }
-
-    /**
-     * Returns true if [extensions] map contains a processable `hmac-secret` entry.
-     */
-    fun isPresent(extensions: Map<String, Any>?): Boolean =
-        extensions?.containsKey(EXTENSION_KEY) == true
-}

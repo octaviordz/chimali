@@ -16,36 +16,29 @@ data class AssertionObject(
      * May be omitted if only one credential was in the allowCredentials list.
      */
     val credential: PublicKeyCredentialDescriptor?,
-
     /**
      * CTAP2 response 0x02 — serialised authenticatorData.
      * Contains: rpIdHash (32) | flags (1) | signCount (4) | [extensions-CBOR].
      */
     val authData: ByteArray,
-
     /**
      * CTAP2 response 0x03 — DER-encoded ECDSA P-256 signature over (authData || clientDataHash).
      */
     val signature: ByteArray,
-
     /**
      * CTAP2 response 0x04 — user entity (optional; present for discoverable credentials).
      */
     val user: PublicKeyCredentialUserEntity?,
-
     /**
      * CTAP2 response 0x05 — number of credentials in the allowCredentials list
      * that matched this RP. Present only when > 1 match found.
      */
     val numberOfCredentials: Int? = null,
-
     /** Timestamp of when this assertion was produced. */
     val timestamp: Instant = Instant.now(),
-
     /** ID of the credential that was used. Convenience field derived from [credential]. */
-    val credentialId: String = credential?.getIdBase64Url() ?: ""
+    val credentialId: String = credential?.getIdBase64Url() ?: "",
 ) {
-
     companion object {
         private const val MIN_AUTH_DATA_SIZE = 37
         private const val FLAGS_OFFSET = 32
@@ -54,11 +47,11 @@ data class AssertionObject(
         private const val SIGN_COUNT_BYTE_1_SHIFT = 16
         private const val SIGN_COUNT_BYTE_2_SHIFT = 8
         private const val BYTE_MASK = 0xFF
-        
+
         private const val FLAG_UP_MASK = 0x01
         private const val FLAG_UV_MASK = 0x04
         private const val TEST_FLAGS_UP_UV = 0x05
-        
+
         private const val TEST_SIG_SIZE = 64
 
         /**
@@ -66,18 +59,19 @@ data class AssertionObject(
          */
         fun createTest(
             credentialId: String,
-            rpId: String
+            rpId: String,
         ): AssertionObject {
-            val rpIdHash = java.security.MessageDigest.getInstance("SHA-256")
-                .digest(rpId.toByteArray())
+            val rpIdHash =
+                java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(rpId.toByteArray())
             val flags = byteArrayOf(TEST_FLAGS_UP_UV.toByte()) // UP | UV
             val counter = byteArrayOf(0, 0, 0, 1)
             val authData = rpIdHash + flags + counter // 37 bytes
             return AssertionObject(
                 credential = PublicKeyCredentialDescriptor.create(id = credentialId.toByteArray()),
-                authData   = authData,
-                signature  = ByteArray(TEST_SIG_SIZE) { it.toByte() },
-                user       = null
+                authData = authData,
+                signature = ByteArray(TEST_SIG_SIZE) { it.toByte() },
+                user = null,
             )
         }
     }
@@ -93,9 +87,9 @@ data class AssertionObject(
     fun extractSignCount(): Long {
         if (authData.size < MIN_AUTH_DATA_SIZE) return 0L
         return ((authData[SIGN_COUNT_OFFSET].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_0_SHIFT) or
-               ((authData[SIGN_COUNT_OFFSET + 1].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_1_SHIFT) or
-               ((authData[SIGN_COUNT_OFFSET + 2].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_2_SHIFT)  or
-               (authData[SIGN_COUNT_OFFSET + 3].toLong()  and BYTE_MASK.toLong())
+            ((authData[SIGN_COUNT_OFFSET + 1].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_1_SHIFT) or
+            ((authData[SIGN_COUNT_OFFSET + 2].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_2_SHIFT) or
+            (authData[SIGN_COUNT_OFFSET + 3].toLong() and BYTE_MASK.toLong())
     }
 
     /** Returns true if the UP (user present) flag is set in authData byte 32. */
@@ -109,9 +103,9 @@ data class AssertionObject(
         if (this === other) return true
         if (other !is AssertionObject) return false
         return authData.contentEquals(other.authData) &&
-               signature.contentEquals(other.signature) &&
-               credential == other.credential &&
-               user == other.user
+            signature.contentEquals(other.signature) &&
+            credential == other.credential &&
+            user == other.user
     }
 
     override fun hashCode(): Int {

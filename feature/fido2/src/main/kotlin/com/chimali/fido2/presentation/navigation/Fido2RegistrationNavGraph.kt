@@ -36,24 +36,26 @@ object Fido2Destinations {
 private sealed class BottomNavItem(
     val route: String,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 ) {
     object Authenticator : BottomNavItem(
         route = Fido2Destinations.HOME_ROUTE,
         label = "Authenticator",
-        icon = Icons.Default.Security
+        icon = Icons.Default.Security,
     )
+
     object DevTools : BottomNavItem(
         route = Fido2Destinations.DEVELOPMENT_ROUTE,
         label = "Dev Tools",
-        icon = Icons.Default.BugReport
+        icon = Icons.Default.BugReport,
     )
 }
 
-private val bottomNavItems = listOf(
-    BottomNavItem.Authenticator,
-    BottomNavItem.DevTools
-)
+private val bottomNavItems =
+    listOf(
+        BottomNavItem.Authenticator,
+        BottomNavItem.DevTools,
+    )
 
 @Composable
 fun Fido2RegistrationNavGraph(
@@ -61,7 +63,7 @@ fun Fido2RegistrationNavGraph(
     onRegistrationCancelled: () -> Unit,
     navController: NavHostController = rememberNavController(),
     startDestination: String = Fido2Destinations.HOME_ROUTE,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -91,21 +93,21 @@ fun Fido2RegistrationNavGraph(
                             icon = {
                                 Icon(imageVector = item.icon, contentDescription = item.label)
                             },
-                            label = { Text(item.label) }
+                            label = { Text(item.label) },
                         )
                     }
                 }
             }
-        }
+        },
     ) { innerPadding ->
         Box(modifier = modifier.padding(innerPadding)) {
             NavHost(
                 navController = navController,
-                startDestination = startDestination
+                startDestination = startDestination,
             ) {
                 composable(Fido2Destinations.HOME_ROUTE) { entry ->
                     val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(entry)
-                    
+
                     com.chimali.fido2.presentation.ui.Fido2HomeScreen(
                         onManageCredentials = {
                             navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
@@ -116,7 +118,7 @@ fun Fido2RegistrationNavGraph(
                         onEditDevice = { macAddress ->
                             navController.navigate("${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress")
                         },
-                        pairedDevicesViewModel = pairedViewModel
+                        pairedDevicesViewModel = pairedViewModel,
                     )
                 }
 
@@ -133,7 +135,7 @@ fun Fido2RegistrationNavGraph(
                         onCancel = {
                             navController.popBackStack()
                             onRegistrationCancelled()
-                        }
+                        },
                     )
                 }
 
@@ -141,27 +143,28 @@ fun Fido2RegistrationNavGraph(
                     com.chimali.fido2.presentation.management.CredentialListScreen(
                         onNavigateUp = {
                             navController.popBackStack()
-                        }
+                        },
                     )
                 }
 
                 composable(
-                    route = "${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/{macAddress}"
+                    route = "${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/{macAddress}",
                 ) { backStackEntry ->
                     val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-                    
+
                     // Scope the ViewModel to the HOME_ROUTE so it's shared with PairedDevicesSection
                     // This ensures that onDeleteTriggered calls pendingRemove on the same instance
                     // that the list is observing, so the snackbar shows up when we pop back.
-                    val parentBackStackEntry = remember(backStackEntry) {
-                        navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)
-                    }
+                    val parentBackStackEntry =
+                        remember(backStackEntry) {
+                            navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)
+                        }
                     val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(parentBackStackEntry)
 
                     com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(
                         macAddress = macAddress,
                         onNavigateUp = { navController.popBackStack() },
-                        viewModel = viewModel
+                        viewModel = viewModel,
                     )
                 }
             }

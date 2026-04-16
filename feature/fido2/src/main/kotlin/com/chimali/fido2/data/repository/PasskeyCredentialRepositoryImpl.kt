@@ -8,35 +8,39 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PasskeyCredentialRepositoryImpl @Inject constructor() : PasskeyCredentialRepository {
+class PasskeyCredentialRepositoryImpl
+    @Inject
+    constructor() : PasskeyCredentialRepository {
+        override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
+            // TODO: Implement database save logic
+            return Result.success(Unit)
+        }
 
-    override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
-        // TODO: Implement database save logic
-        return Result.success(Unit)
-    }
+        override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
+            // TODO: Implement database get logic
+            return null
+        }
 
-    override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
-        // TODO: Implement database get logic
-        return null
-    }
+        override suspend fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredential>> {
+            // TODO: Implement database query logic
+            return flowOf(emptyList())
+        }
 
-    override suspend fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredential>> {
-        // TODO: Implement database query logic
-        return flowOf(emptyList())
-    }
+        override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
+            // TODO: Implement database query logic
+            return flowOf(emptyList())
+        }
 
-    override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
-        // TODO: Implement database query logic
-        return flowOf(emptyList())
-    }
+        override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+            // TODO: Implement database delete logic
+            return Result.success(Unit)
+        }
 
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
-        // TODO: Implement database delete logic
-        return Result.success(Unit)
+        override suspend fun updateSignCount(
+            credentialId: String,
+            signCount: Long,
+        ): Result<Unit> {
+            // TODO: Implement database update logic
+            return Result.success(Unit)
+        }
     }
-
-    override suspend fun updateSignCount(credentialId: String, signCount: Long): Result<Unit> {
-        // TODO: Implement database update logic
-        return Result.success(Unit)
-    }
-}

@@ -21,6 +21,7 @@ import com.chimali.fido2.BuildConfig
  * - Providing the device key pair derived from that seed.
  * - Returning null when the seed is not available (vault locked / not yet created).
  */
+
 /**
  * Result of a [MasterSeedProvider.importMnemonic] operation.
  *
@@ -30,6 +31,7 @@ import com.chimali.fido2.BuildConfig
  */
 sealed interface ImportMnemonicResult {
     data object Created : ImportMnemonicResult
+
     data object Replaced : ImportMnemonicResult
 }
 

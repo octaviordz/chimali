@@ -10,16 +10,15 @@ data class UserVerificationAvailability(
     val supportedBiometricTypes: List<BiometricType>,
     val maxPinLength: Int,
     val minPinLength: Int,
-    val biometricStrength: BiometricStrength
+    val biometricStrength: BiometricStrength,
 ) {
-    
     /**
      * Checks if any verification method is available.
      */
     fun hasAnyVerificationMethod(): Boolean {
         return biometricAvailable || pinAvailable || deviceLockAvailable
     }
-    
+
     /**
      * Returns the best available verification method.
      */
@@ -41,14 +40,13 @@ data class BiometricVerificationResult(
     val biometricType: BiometricType,
     val confidence: Float,
     val timestamp: java.time.Instant,
-    val errorMessage: String?
+    val errorMessage: String?,
 ) {
-    
     /**
      * Checks if verification was successful.
      */
     fun isSuccessful(): Boolean = success
-    
+
     /**
      * Checks if confidence level is sufficient.
      */
@@ -63,19 +61,18 @@ data class PinVerificationResult(
     val attemptsRemaining: Int,
     val isLocked: Boolean,
     val timestamp: java.time.Instant,
-    val errorMessage: String?
+    val errorMessage: String?,
 ) {
-    
     /**
      * Checks if verification was successful.
      */
     fun isSuccessful(): Boolean = success
-    
+
     /**
      * Checks if PIN attempts are exhausted.
      */
     fun isAttemptsExhausted(): Boolean = attemptsRemaining <= 0
-    
+
     /**
      * Checks if PIN is temporarily locked.
      */
@@ -90,14 +87,13 @@ data class CombinedVerificationResult(
     val biometricResult: BiometricVerificationResult?,
     val pinResult: PinVerificationResult?,
     val verificationMethod: VerificationMethod,
-    val timestamp: java.time.Instant
+    val timestamp: java.time.Instant,
 ) {
-    
     /**
      * Checks if verification was successful.
      */
     fun isSuccessful(): Boolean = success
-    
+
     /**
      * Returns the successful verification method.
      */
@@ -116,9 +112,8 @@ data class CombinedVerificationResult(
 data class DeviceLockVerificationResult(
     val success: Boolean,
     val timestamp: java.time.Instant,
-    val errorMessage: String?
+    val errorMessage: String?,
 ) {
-    
     /**
      * Checks if verification was successful.
      */
@@ -132,14 +127,13 @@ data class BiometricEnrollmentStatus(
     val isEnrolled: Boolean,
     val enrolledTypes: List<BiometricType>,
     val enrollmentStrength: BiometricStrength,
-    val lastUpdated: java.time.Instant
+    val lastUpdated: java.time.Instant,
 ) {
-    
     /**
      * Checks if any biometric is enrolled.
      */
     fun hasAnyEnrollment(): Boolean = isEnrolled && enrolledTypes.isNotEmpty()
-    
+
     /**
      * Returns the strongest enrolled biometric type.
      */
@@ -157,7 +151,7 @@ data class PinConfiguration(
     val requireComplexity: Boolean,
     val allowedSpecialChars: String?,
     val maxAttempts: Int,
-    val lockoutDuration: Long
+    val lockoutDuration: Long,
 ) {
     /**
      * Validates a PIN against this configuration.
@@ -167,19 +161,20 @@ data class PinConfiguration(
         if (requireComplexity && !meetsComplexityRequirements(pin)) return false
         return true
     }
-    
+
     /**
      * Checks if PIN meets complexity requirements.
      */
     private fun meetsComplexityRequirements(pin: String): Boolean {
         if (!requireComplexity) return true
-        
+
         val hasLetter = pin.any { it.isLetter() }
         val hasDigit = pin.any { it.isDigit() }
-        val hasSpecial = allowedSpecialChars?.let { chars ->
-            pin.any { it in chars }
-        } ?: false
-        
+        val hasSpecial =
+            allowedSpecialChars?.let { chars ->
+                pin.any { it in chars }
+            } ?: false
+
         return hasLetter && hasDigit && (hasSpecial || true)
     }
 }
@@ -192,7 +187,7 @@ enum class VerificationMethod {
     BIOMETRIC,
     PIN,
     DEVICE_LOCK,
-    BIOMETRIC_AND_PIN
+    BIOMETRIC_AND_PIN,
 }
 
 /**
@@ -203,8 +198,9 @@ enum class BiometricType(val level: Int) {
     FINGERPRINT(1),
     FACE(2),
     IRIS(3),
-    VOICE(4);
-    
+    VOICE(4),
+    ;
+
     companion object {
         fun fromString(type: String): BiometricType {
             return when (type.lowercase()) {
@@ -225,7 +221,7 @@ enum class BiometricStrength(val level: Int) {
     WEAK(1),
     MEDIUM(2),
     STRONG(3),
-    VERY_STRONG(4)
+    VERY_STRONG(4),
 }
 
 /**
@@ -235,7 +231,7 @@ enum class UserVerificationRequirement {
     NOT_REQUIRED,
     PREFERRED,
     REQUIRED,
-    DISCOURAGED
+    DISCOURAGED,
 }
 
 /**
@@ -245,7 +241,7 @@ enum class VerificationContext {
     CREDENTIAL_CREATION,
     AUTHENTICATION,
     CREDENTIAL_DELETION,
-    CREDENTIAL_UPDATE
+    CREDENTIAL_UPDATE,
 }
 
 /**
@@ -258,5 +254,5 @@ enum class VerificationState {
     DEVICE_LOCK_PENDING,
     COMBINED_PENDING,
     ERROR,
-    CANCELLED
+    CANCELLED,
 }

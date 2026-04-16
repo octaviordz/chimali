@@ -19,7 +19,6 @@ import java.security.spec.ECGenParameterSpec
  *   2. [warmUpAndroidKeyStore] — warms the AndroidKeyStore HAL / TEE IPC channel
  */
 object WarmUpHelper {
-
     // ── AndroidKeyStore warm-up ─────────────────────────────────────────────
 
     /**
@@ -67,19 +66,21 @@ object WarmUpHelper {
             // reset / full uninstall). Subsequent app starts skip straight to the sign step.
             if (!keyStore.containsAlias(WARMUP_KEY_ALIAS)) {
                 Timber.d("AndroidKeyStore warm-up: generating warmup key (first run)")
-                val kpg = KeyPairGenerator.getInstance(
-                    KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore"
-                )
+                val kpg =
+                    KeyPairGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_EC,
+                        "AndroidKeyStore",
+                    )
                 kpg.initialize(
                     KeyGenParameterSpec.Builder(
                         WARMUP_KEY_ALIAS,
-                        KeyProperties.PURPOSE_SIGN
+                        KeyProperties.PURPOSE_SIGN,
                     )
                         .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                         .setDigests(KeyProperties.DIGEST_SHA256)
                         // No user authentication required — this key is for warmup only,
                         // never for protecting user credentials.
-                        .build()
+                        .build(),
                 )
                 kpg.generateKeyPair()
                 Timber.d("AndroidKeyStore warm-up: key created in %dms", System.currentTimeMillis() - t0)
@@ -95,7 +96,7 @@ object WarmUpHelper {
             val sig = Signature.getInstance("SHA256withECDSA")
             sig.initSign(privateKey as java.security.PrivateKey)
             sig.update(byteArrayOf(0x00))
-            sig.sign()  // result intentionally discarded
+            sig.sign() // result intentionally discarded
 
             Timber.d("AndroidKeyStore warm-up DONE: sign=%dms total=%dms", System.currentTimeMillis() - t1, System.currentTimeMillis() - t0)
         } catch (e: Exception) {
@@ -134,7 +135,7 @@ object WarmUpHelper {
             val sig = Signature.getInstance("SHA256withECDSA", bcProvider)
             sig.initSign(ephemeralKeyPair.private)
             sig.update(byteArrayOf(0x00))
-            sig.sign()  // result intentionally discarded
+            sig.sign() // result intentionally discarded
 
             Timber.d("BouncyCastle warm-up DONE: %dms", System.currentTimeMillis() - t0)
         } catch (e: Exception) {

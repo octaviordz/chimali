@@ -49,7 +49,7 @@ import java.util.concurrent.Executors
 fun MnemonicQrScanner(
     modifier: Modifier = Modifier,
     onScanned: (List<String>) -> Unit,
-    onError: (String) -> Unit = {}
+    onError: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -68,13 +68,15 @@ fun MnemonicQrScanner(
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
 
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
+                    val preview =
+                        Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
 
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
+                    val imageAnalysis =
+                        ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         if (!hasScanned) {
@@ -97,7 +99,7 @@ fun MnemonicQrScanner(
                             lifecycleOwner,
                             CameraSelector.DEFAULT_BACK_CAMERA,
                             preview,
-                            imageAnalysis
+                            imageAnalysis,
                         )
                     } catch (exc: Exception) {
                         Timber.e(exc, "Camera bind failed")
@@ -106,22 +108,26 @@ fun MnemonicQrScanner(
                 }, ContextCompat.getMainExecutor(ctx))
                 previewView
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         )
 
         Text(
             text = "Point at the 24-word seed QR code",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp),
         )
     }
 }
 
 @OptIn(ExperimentalGetImage::class)
-private fun processImageProxy(imageProxy: ImageProxy, onResult: (String) -> Unit) {
+private fun processImageProxy(
+    imageProxy: ImageProxy,
+    onResult: (String) -> Unit,
+) {
     val mediaImage = imageProxy.image ?: return imageProxy.close()
     val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
     val scanner = BarcodeScanning.getClient()

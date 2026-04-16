@@ -7,5 +7,5 @@ package com.chimali.fido2.domain.model
  */
 data class MakeCredentialResult(
     val attestationObject: AttestationObject,
-    val credential: PasskeyCredential
+    val credential: PasskeyCredential,
 )

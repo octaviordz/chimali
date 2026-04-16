@@ -17,7 +17,6 @@ import java.security.PublicKey
 import java.time.Instant
 
 class CredentialListScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -31,7 +30,7 @@ class CredentialListScreenTest {
             getAllCredentialsUseCase,
             deleteCredentialUseCase,
             deleteAllCredentialsUseCase,
-            updateCredentialLabelUseCase
+            updateCredentialLabelUseCase,
         )
     }
 
@@ -51,21 +50,22 @@ class CredentialListScreenTest {
     @Test
     fun screen_displaysCredentials_whenAvailable() {
         val mockPublicKey = mockk<PublicKey>(relaxed = true)
-        val mockCredential = PasskeyCredential(
-            id = "mock_id",
-            rpId = "example.com",
-            userId = "test_user_id",
-            userName = "testuser",
-            userDisplayName = "Test User",
-            publicKey = mockPublicKey,
-            privateKeyAlias = "test_alias",
-            signCount = 0L,
-            createdAt = Instant.now(),
-            lastUsedAt = Instant.now(),
-            aaguid = ByteArray(16),
-            credentialId = byteArrayOf(1, 2, 3)
-        )
-        
+        val mockCredential =
+            PasskeyCredential(
+                id = "mock_id",
+                rpId = "example.com",
+                userId = "test_user_id",
+                userName = "testuser",
+                userDisplayName = "Test User",
+                publicKey = mockPublicKey,
+                privateKeyAlias = "test_alias",
+                signCount = 0L,
+                createdAt = Instant.now(),
+                lastUsedAt = Instant.now(),
+                aaguid = ByteArray(16),
+                credentialId = byteArrayOf(1, 2, 3),
+            )
+
         coEvery { getAllCredentialsUseCase() } returns flowOf(mockCredential)
 
         val viewModel = setupViewModel()
@@ -84,21 +84,22 @@ class CredentialListScreenTest {
     @Test
     fun screen_showsDeleteDialog_whenDeleteIconClicked() {
         val mockPublicKey = mockk<PublicKey>(relaxed = true)
-        val mockCredential = PasskeyCredential(
-            id = "mock_id",
-            rpId = "example.com",
-            userId = "test_user_id",
-            userName = "testuser",
-            userDisplayName = "Test User",
-            publicKey = mockPublicKey,
-            privateKeyAlias = "test_alias",
-            signCount = 0L,
-            createdAt = Instant.now(),
-            lastUsedAt = Instant.now(),
-            aaguid = ByteArray(16),
-            credentialId = byteArrayOf(1, 2, 3)
-        )
-        
+        val mockCredential =
+            PasskeyCredential(
+                id = "mock_id",
+                rpId = "example.com",
+                userId = "test_user_id",
+                userName = "testuser",
+                userDisplayName = "Test User",
+                publicKey = mockPublicKey,
+                privateKeyAlias = "test_alias",
+                signCount = 0L,
+                createdAt = Instant.now(),
+                lastUsedAt = Instant.now(),
+                aaguid = ByteArray(16),
+                credentialId = byteArrayOf(1, 2, 3),
+            )
+
         coEvery { getAllCredentialsUseCase() } returns flowOf(mockCredential)
 
         val viewModel = setupViewModel()
@@ -108,8 +109,10 @@ class CredentialListScreenTest {
         }
 
         composeTestRule.onNodeWithContentDescription("Delete credential").performClick()
-        
+
         composeTestRule.onNodeWithText("Delete Passkey?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Are you sure you want to delete the passkey for testuser? This cannot be undone.").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            "Are you sure you want to delete the passkey for testuser? This cannot be undone.",
+        ).assertIsDisplayed()
     }
 }

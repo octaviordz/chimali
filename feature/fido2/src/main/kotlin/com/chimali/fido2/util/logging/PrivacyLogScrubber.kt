@@ -7,7 +7,6 @@ import java.util.regex.Pattern
  * Scrubs sensitive data (mnemonics, private keys, biometric states) from log messages.
  */
 object PrivacyLogScrubber {
-
     private const val REDACTED = "[REDACTED]"
 
     // A heuristic to catch mnemonics: 12 or 24 words separated by spaces.
@@ -19,16 +18,17 @@ object PrivacyLogScrubber {
     private val KEY_MATERIAL_PATTERN = Pattern.compile("([A-Fa-f0-9]{64,})|([A-Za-z0-9+/=]{80,})")
 
     // Sensitive keys/terms
-    private val SENSITIVE_KEYWORDS = listOf(
-        "password",
-        "pin",
-        "privateKey",
-        "private_key",
-        "seed",
-        "mnemonic",
-        "secret",
-        "secretKey"
-    )
+    private val SENSITIVE_KEYWORDS =
+        listOf(
+            "password",
+            "pin",
+            "privateKey",
+            "private_key",
+            "seed",
+            "mnemonic",
+            "secret",
+            "secretKey",
+        )
 
     fun scrub(message: String): String {
         var scrubbed = message

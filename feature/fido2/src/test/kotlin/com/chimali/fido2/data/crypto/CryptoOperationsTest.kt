@@ -1,10 +1,10 @@
 package com.chimali.fido2.data.crypto
 
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.BeforeEach
-import java.security.MessageDigest
 import com.chimali.fido2.domain.model.CredentialId
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import java.security.MessageDigest
 
 /**
  * T061 — Unit tests for Core Crypto operations.
@@ -15,7 +15,6 @@ import com.chimali.fido2.domain.model.CredentialId
  * and are covered in AndroidKeyStoreWrapperTest (instrumented).
  */
 class CryptoOperationsTest {
-
     // ── ClientDataHashService ─────────────────────────────────────────────────
 
     private lateinit var clientDataHashService: ClientDataHashService
@@ -29,12 +28,13 @@ class CryptoOperationsTest {
 
     @Test
     fun `computeHash returns 32 bytes`() {
-        val hash = clientDataHashService.computeHash(
-            type      = "webauthn.create",
-            challenge = ByteArray(16) { 0xAB.toByte() },
-            origin    = "https://example.com",
-            crossOrigin = false
-        )
+        val hash =
+            clientDataHashService.computeHash(
+                type = "webauthn.create",
+                challenge = ByteArray(16) { 0xAB.toByte() },
+                origin = "https://example.com",
+                crossOrigin = false,
+            )
         assertEquals(32, hash.size)
     }
 
@@ -50,7 +50,7 @@ class CryptoOperationsTest {
     fun `computeHash differs for different types`() {
         val challenge = ByteArray(16) { 0x11.toByte() }
         val create = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
-        val get    = clientDataHashService.computeHash("webauthn.get",    challenge, "https://example.com")
+        val get = clientDataHashService.computeHash("webauthn.get", challenge, "https://example.com")
         assertFalse(create.contentEquals(get))
     }
 
@@ -73,19 +73,20 @@ class CryptoOperationsTest {
     fun `computeHashFromJson matches SHA-256 of same string`() {
         val json = """{"type":"webauthn.create","challenge":"AAEC","origin":"https://example.com","crossOrigin":false}"""
         val expected = MessageDigest.getInstance("SHA-256").digest(json.toByteArray(Charsets.UTF_8))
-        val actual   = clientDataHashService.computeHashFromJson(json)
+        val actual = clientDataHashService.computeHashFromJson(json)
         assertArrayEquals(expected, actual)
     }
 
     @Test
     fun `buildClientDataJson produces valid JSON with base64url challenge`() {
         val challenge = byteArrayOf(0x00, 0x01, 0x02)
-        val json = clientDataHashService.buildClientDataJson(
-            type        = "webauthn.create",
-            challenge   = challenge,
-            origin      = "https://example.com",
-            crossOrigin = false
-        )
+        val json =
+            clientDataHashService.buildClientDataJson(
+                type = "webauthn.create",
+                challenge = challenge,
+                origin = "https://example.com",
+                crossOrigin = false,
+            )
         assertTrue(json.startsWith("{"), "Must start with {")
         assertTrue(json.contains("\"type\":\"webauthn.create\""))
         assertTrue(json.contains("\"origin\":\"https://example.com\""))
@@ -100,7 +101,7 @@ class CryptoOperationsTest {
     fun `rpIdHash produces 32-byte SHA-256 of rpId`() {
         val rpId = "example.com"
         val expected = MessageDigest.getInstance("SHA-256").digest(rpId.toByteArray(Charsets.UTF_8))
-        val actual   = ClientDataHashService.rpIdHash(rpId)
+        val actual = ClientDataHashService.rpIdHash(rpId)
         assertArrayEquals(expected, actual)
     }
 

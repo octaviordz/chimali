@@ -26,16 +26,16 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
-    
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    
+
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
@@ -81,30 +81,30 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    
+
     // Biometric
     implementation(libs.androidx.biometric)
-    
+
     // Security - EncryptedSharedPreferences for persisting BIP39 mnemonic
     implementation(libs.androidx.security.crypto)
-    
+
     // FIDO2 & Crypto
     implementation(libs.bouncycastle.provider)
     implementation(libs.kotlinx.coroutines.android)
-    
+
     // Serialization
     implementation(libs.kotlinx.serialization.json)
-    
+
     // Database
     implementation(libs.sqldelight.android)
     implementation(libs.sqldelight.coroutines)
     implementation(libs.sqlcipher)
-    
+
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
-    
+
     // Compose
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -112,7 +112,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.icons.extended)
     implementation(libs.androidx.navigation.compose)
-    
+
     // Testing
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit.jupiter.api)
@@ -122,13 +122,13 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.sqldelight.sqlite.driver)
     testImplementation(libs.kotlinx.serialization.json)
-    
+
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.compiler)
-    
+
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.mockk.android)

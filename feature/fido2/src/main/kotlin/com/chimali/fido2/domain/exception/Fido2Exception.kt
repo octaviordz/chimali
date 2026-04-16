@@ -9,9 +9,8 @@ package com.chimali.fido2.domain.exception
 sealed class Fido2Exception(
     message: String,
     cause: Throwable? = null,
-    val errorCode: String? = null
+    val errorCode: String? = null,
 ) : Exception(message, cause) {
-
     // ── Cryptographic ─────────────────────────────────────────────────────────
 
     class CryptographicException(message: String, cause: Throwable? = null) :
