@@ -6,6 +6,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import com.chimali.fido2.presentation.management.CredentialManagementEffect
 import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
@@ -77,11 +78,13 @@ class ManagementIntegrationTest {
         val getAllUseCase = GetAllCredentialsUseCase(repository)
         val deleteUseCase = DeleteCredentialUseCase(repository)
         val deleteAllUseCase = DeleteAllCredentialsUseCase(repository)
+        val updateLabelUseCase = UpdateCredentialLabelUseCase(repository)
 
         viewModel = CredentialManagementViewModel(
             getAllUseCase,
             deleteUseCase,
-            deleteAllUseCase
+            deleteAllUseCase,
+            updateLabelUseCase
         )
     }
 

@@ -26,15 +26,15 @@ class UserConsentRecordDao @Inject constructor(
     suspend fun insertConsent(consent: UserConsentRecord) {
         database.userConsentRecordQueries.insert(
             id = consent.id,
-            operationType = consent.operationType.name,
-            rpId = consent.rpId,
-            credentialId = consent.credentialId,
             timestamp = consent.timestamp.toEpochMilli(),
             biometricUsed = if (consent.biometricUsed) 1L else 0L,
-            pinUsed = if (consent.pinUsed) 1L else 0L,
+            credentialId = consent.credentialId,
+            deviceId = consent.deviceId,
             ipAddress = consent.ipAddress,
-            userAgent = consent.userAgent,
-            deviceId = consent.deviceId
+            operationType = consent.operationType.name,
+            pinUsed = if (consent.pinUsed) 1L else 0L,
+            rpId = consent.rpId,
+            userAgent = consent.userAgent
         )
     }
     

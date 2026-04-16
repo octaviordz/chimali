@@ -8,8 +8,10 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,6 +29,7 @@ object Fido2Destinations {
     const val REGISTRATION_ROUTE = "fido2/register"
     const val REGISTRATION_SUCCESS_ROUTE = "fido2/register/success"
     const val MANAGEMENT_ROUTE = "fido2/management"
+    const val EDIT_PAIRED_DEVICE_ROUTE = "fido2/edit-host"
     const val DEVELOPMENT_ROUTE = "fido2/dev-tools"
 }
 
@@ -100,14 +103,20 @@ fun Fido2RegistrationNavGraph(
                 navController = navController,
                 startDestination = startDestination
             ) {
-                composable(Fido2Destinations.HOME_ROUTE) {
+                composable(Fido2Destinations.HOME_ROUTE) { entry ->
+                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(entry)
+                    
                     com.chimali.fido2.presentation.ui.Fido2HomeScreen(
                         onManageCredentials = {
                             navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
                         },
                         onRegisterRequest = {
                             navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
-                        }
+                        },
+                        onEditDevice = { macAddress ->
+                            navController.navigate("${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress")
+                        },
+                        pairedDevicesViewModel = pairedViewModel
                     )
                 }
 
@@ -133,6 +142,26 @@ fun Fido2RegistrationNavGraph(
                         onNavigateUp = {
                             navController.popBackStack()
                         }
+                    )
+                }
+
+                composable(
+                    route = "${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/{macAddress}"
+                ) { backStackEntry ->
+                    val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
+                    
+                    // Scope the ViewModel to the HOME_ROUTE so it's shared with PairedDevicesSection
+                    // This ensures that onDeleteTriggered calls pendingRemove on the same instance
+                    // that the list is observing, so the snackbar shows up when we pop back.
+                    val parentBackStackEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)
+                    }
+                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(parentBackStackEntry)
+
+                    com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(
+                        macAddress = macAddress,
+                        onNavigateUp = { navController.popBackStack() },
+                        viewModel = viewModel
                     )
                 }
             }

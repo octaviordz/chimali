@@ -263,6 +263,11 @@ interface CredentialRepository {
      * @return Result indicating success or failure
      */
     suspend fun resetAuthenticator(): Result<Unit>
+    
+    /**
+     * Updates the custom label or note for a specific credential.
+     */
+    suspend fun updateLabel(credentialId: String, label: String?): Result<Unit>
 }
 
 /**

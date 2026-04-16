@@ -4,6 +4,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class CredentialManagementViewModelTest {
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
     private lateinit var deleteCredentialUseCase: DeleteCredentialUseCase
     private lateinit var deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase
+    private lateinit var updateCredentialLabelUseCase: UpdateCredentialLabelUseCase
     private lateinit var viewModel: CredentialManagementViewModel
     
     private val testDispatcher = StandardTestDispatcher()
@@ -33,6 +35,7 @@ class CredentialManagementViewModelTest {
         getAllCredentialsUseCase = mockk()
         deleteCredentialUseCase = mockk()
         deleteAllCredentialsUseCase = mockk()
+        updateCredentialLabelUseCase = mockk()
 
         // Default mock for loadCredentials on init
         coEvery { getAllCredentialsUseCase() } returns flowOf()
@@ -40,7 +43,8 @@ class CredentialManagementViewModelTest {
         viewModel = CredentialManagementViewModel(
             getAllCredentialsUseCase,
             deleteCredentialUseCase,
-            deleteAllCredentialsUseCase
+            deleteAllCredentialsUseCase,
+            updateCredentialLabelUseCase
         )
     }
 

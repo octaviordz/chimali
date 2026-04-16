@@ -101,6 +101,9 @@ fun CredentialListScreen(
             onDelete = { 
                 viewModel.onIntent(CredentialManagementIntent.DismissDialog)
                 viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(credential))
+            },
+            onUpdateLabel = { label -> 
+                viewModel.onIntent(CredentialManagementIntent.UpdateLabel(credential.id, label))
             }
         )
     }

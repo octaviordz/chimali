@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import kotlinx.coroutines.flow.filterIsInstance
@@ -38,9 +39,12 @@ import kotlinx.coroutines.flow.filterIsInstance
 fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
     onRegisterRequest: () -> Unit,
-    viewModel: Fido2HomeViewModel = hiltViewModel()
+    onEditDevice: (String) -> Unit,
+    viewModel: Fido2HomeViewModel = hiltViewModel(),
+    pairedDevicesViewModel: PairedDevicesViewModel = hiltViewModel()
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
+    val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
 
     // Observe incoming FIDO2 events (e.g. from PC via Bluetooth)
     LaunchedEffect(Unit) {
@@ -113,11 +117,13 @@ fun Fido2HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Compact Status Card
-            StatusIndicator(connectionState)
+            StatusIndicator(connectionState, connectedDisplayName)
 
             // Paired Devices List — takes all remaining vertical space
             PairedDevicesSection(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onEditDevice = onEditDevice,
+                viewModel = pairedDevicesViewModel
             )
 
             // Primary Action
@@ -155,7 +161,7 @@ fun Fido2HomeScreen(
 }
 
 @Composable
-fun StatusIndicator(state: HidConnectionState) {
+fun StatusIndicator(state: HidConnectionState, displayName: String?) {
     val (statusText, color, icon) = when (state) {
         is HidConnectionState.Idle       -> Triple("Ready to Start",  MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
         is HidConnectionState.Advertising -> Triple("Advertising...", Color(0xFF6200EE), Icons.Default.BluetoothSearching)
@@ -194,7 +200,7 @@ fun StatusIndicator(state: HidConnectionState) {
             Column {
                 if (state is HidConnectionState.Connected) {
                     Text(
-                        text = state.device.name ?: "Unknown",
+                        text = displayName ?: "Connected",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = color

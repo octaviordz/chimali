@@ -420,4 +420,11 @@ private class InMemoryCredentialRepository : CredentialRepository {
         relyingParties.clear()
         return Result.success(Unit)
     }
+
+    override suspend fun updateLabel(credentialId: String, label: String?): Result<Unit> {
+        credentials[credentialId]?.let {
+            credentials[credentialId] = it.copy(label = label)
+        }
+        return Result.success(Unit)
+    }
 }

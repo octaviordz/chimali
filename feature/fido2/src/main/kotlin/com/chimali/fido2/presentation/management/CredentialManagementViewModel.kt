@@ -6,6 +6,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class CredentialManagementViewModel @Inject constructor(
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
     private val deleteCredentialUseCase: DeleteCredentialUseCase,
-    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase
+    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase,
+    private val updateCredentialLabelUseCase: UpdateCredentialLabelUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CredentialManagementState())
@@ -41,6 +43,7 @@ class CredentialManagementViewModel @Inject constructor(
             is CredentialManagementIntent.ShowDeleteDialog -> showDeleteDialog(intent.credential)
             is CredentialManagementIntent.ShowDeleteAllDialog -> showDeleteAllDialog()
             is CredentialManagementIntent.DismissDialog -> dismissDialogs()
+            is CredentialManagementIntent.UpdateLabel -> updateLabel(intent.credentialId, intent.label)
         }
     }
 
@@ -107,6 +110,16 @@ class CredentialManagementViewModel @Inject constructor(
             }
         }
     }
+
+    private fun updateLabel(credentialId: String, label: String?) {
+        viewModelScope.launch {
+            val result = updateCredentialLabelUseCase(credentialId, label)
+            if (result.isSuccess) {
+                _effect.emit(CredentialManagementEffect.ShowToast("Label updated"))
+                loadCredentials()
+            }
+        }
+    }
 }
 
 data class CredentialManagementState(
@@ -126,6 +139,7 @@ sealed interface CredentialManagementIntent {
     object DismissDialog : CredentialManagementIntent
     data class ConfirmDelete(val credentialId: String) : CredentialManagementIntent
     object ConfirmDeleteAll : CredentialManagementIntent
+    data class UpdateLabel(val credentialId: String, val label: String?) : CredentialManagementIntent
 }
 
 sealed interface CredentialManagementEffect {

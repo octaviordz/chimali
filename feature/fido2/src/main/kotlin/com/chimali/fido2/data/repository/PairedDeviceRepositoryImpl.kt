@@ -27,6 +27,7 @@ class PairedDeviceRepositoryImpl @Inject constructor(
                         macAddress = row.macAddress,
                         name = row.name,
                         deviceClass = row.deviceClass?.toInt(),
+                        alias = row.alias,
                         lastUsedAt = row.lastUsedAt,
                         createdAt = row.createdAt
                     )
@@ -52,11 +53,16 @@ class PairedDeviceRepositoryImpl @Inject constructor(
 
         database.pairedDeviceQueries.insertOrReplace(
             macAddress = device.macAddress,
-            name = device.name ?: existing?.name,
-            deviceClass = finalClassToSave,
+            createdAt = existing?.createdAt ?: device.createdAt,
             lastUsedAt = device.lastUsedAt,
-            createdAt = existing?.createdAt ?: device.createdAt
+            alias = device.alias ?: existing?.alias,
+            deviceClass = finalClassToSave,
+            name = device.name ?: existing?.name
         )
+    }
+
+    override suspend fun updateAlias(macAddress: String, alias: String?): Result<Unit> = runCatching {
+        database.pairedDeviceQueries.updateAlias(alias, macAddress)
     }
 
     override suspend fun deleteDevice(macAddress: String): Result<Unit> = runCatching {

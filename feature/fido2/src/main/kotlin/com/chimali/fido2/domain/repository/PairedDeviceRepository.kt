@@ -26,4 +26,9 @@ interface PairedDeviceRepository {
      * sever the Android OS Bluetooth bond.
      */
     suspend fun deleteDevice(macAddress: String): Result<Unit>
+    
+    /**
+     * Updates the user-defined alias for a paired device.
+     */
+    suspend fun updateAlias(macAddress: String, alias: String?): Result<Unit>
 }

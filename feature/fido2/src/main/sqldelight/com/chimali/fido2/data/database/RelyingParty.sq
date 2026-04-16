@@ -1,10 +1,10 @@
 insert:
-INSERT INTO RelyingParty (id, name, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)
+INSERT INTO RelyingParty (id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 update:
 UPDATE RelyingParty
-SET name = ?, iconUrl = ?, credentialCount = ?, lastUsedAt = ?, isBlocked = ?
+SET lastUsedAt = ?, credentialCount = ?, iconUrl = ?, isBlocked = ?, name = ?
 WHERE id = ?;
 
 selectById:

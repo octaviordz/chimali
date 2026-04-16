@@ -6,11 +6,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
@@ -24,10 +27,30 @@ fun CredentialItem(
     onDeleteClick: (PasskeyCredential) -> Unit
 ) {
     ListItem(
-        headlineContent = { Text(credential.userName) },
-        supportingContent = { Text(credential.rpId) },
+        headlineContent = { 
+            Text(
+                text = credential.label ?: "User: ${credential.userName}",
+                fontWeight = if (credential.label != null) FontWeight.Bold else FontWeight.Normal
+            ) 
+        },
+        supportingContent = { 
+            Column {
+                if (credential.label != null) {
+                    Text(
+                        text = "User: ${credential.userName}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text("RP: ${credential.rpId}")
+            }
+        },
         leadingContent = {
-            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
+            Icon(
+                imageVector = if (credential.label != null) Icons.Default.Label else Icons.Default.AccountCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
         },
         trailingContent = {
             IconButton(onClick = { onDeleteClick(credential) }) {
@@ -77,7 +100,8 @@ fun DeleteConfirmationDialog(
 fun CredentialDetailsScreen(
     credential: PasskeyCredential,
     onDismiss: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onUpdateLabel: (String?) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -85,7 +109,32 @@ fun CredentialDetailsScreen(
         icon = { Icon(Icons.Default.Info, contentDescription = null) },
         title = { Text("Passkey Details") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            var labelText by remember { mutableStateOf(credential.label ?: "") }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = labelText,
+                    onValueChange = { labelText = it },
+                    label = { Text("Custom Label / Note") },
+                    placeholder = { Text("e.g. Work Account") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) },
+                    trailingIcon = {
+                        if (labelText != (credential.label ?: "")) {
+                            IconButton(onClick = { onUpdateLabel(labelText.ifBlank { null }) }) {
+                                Icon(Icons.Default.Check, contentDescription = "Save label", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "ID: ${credential.id}",
                     fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily
@@ -99,6 +148,7 @@ fun CredentialDetailsScreen(
                 Text("Created: ${credential.createdAt}")
                 Text("Last Used: ${credential.lastUsedAt ?: "Never"}")
                 Text("Sign Count: ${credential.signCount}")
+                }
             }
         },
         confirmButton = {

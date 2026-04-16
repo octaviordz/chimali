@@ -25,12 +25,12 @@ class RelyingPartyDao @Inject constructor(
     suspend fun insertRelyingParty(rp: RelyingParty) {
         database.relyingPartyQueries.insert(
             id = rp.id,
-            name = rp.name,
-            iconUrl = rp.iconUrl,
-            credentialCount = rp.credentialCount.toLong(),
             createdAt = rp.createdAt.toEpochMilli(),
             lastUsedAt = rp.lastUsedAt?.toEpochMilli(),
-            isBlocked = if (rp.isBlocked) 1L else 0L
+            credentialCount = rp.credentialCount.toLong(),
+            iconUrl = rp.iconUrl,
+            isBlocked = if (rp.isBlocked) 1L else 0L,
+            name = rp.name
         )
     }
     
@@ -56,12 +56,12 @@ class RelyingPartyDao @Inject constructor(
      */
     suspend fun updateRelyingParty(rp: RelyingParty) {
         database.relyingPartyQueries.update(
-            id = rp.id,
-            name = rp.name,
-            iconUrl = rp.iconUrl,
-            credentialCount = rp.credentialCount.toLong(),
             lastUsedAt = rp.lastUsedAt?.toEpochMilli(),
-            isBlocked = if (rp.isBlocked) 1L else 0L
+            credentialCount = rp.credentialCount.toLong(),
+            iconUrl = rp.iconUrl,
+            isBlocked = if (rp.isBlocked) 1L else 0L,
+            name = rp.name,
+            id = rp.id
         )
     }
     

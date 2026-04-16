@@ -53,20 +53,21 @@ class PasskeyCredentialDaoTest {
 
         testEntity = PasskeyCredential(
             id = "test_id",
-            rpId = "example.com",
-            rpName = "example.com",
-            userId = "user123",
-            userName = "testuser",
-            userDisplayName = "Test User",
-            privateKeyAlias = "test_alias",
-            signCount = 0L,
             createdAt = testCredential.createdAt.toEpochMilli(),
             lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
             aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
-            credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
-            publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
             coseAlgorithm = testCredential.coseAlgorithm.toLong(),
-            credProtectPolicy = testCredential.credProtectPolicy.toLong()
+            credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+            credProtectPolicy = testCredential.credProtectPolicy.toLong(),
+            label = "Test Label",
+            privateKeyAlias = "test_alias",
+            publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
+            rpId = "example.com",
+            rpName = "example.com",
+            signCount = 0L,
+            userDisplayName = "Test User",
+            userId = "user123",
+            userName = "testuser"
         )
     }
 
@@ -75,44 +76,46 @@ class PasskeyCredentialDaoTest {
     inner class InsertUpdateOperations {
         @Test
         fun `should insert credential successfully`() = runTest {
-            every { queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } just Runs
+            every { queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } just Runs
 
             dao.insertCredential(testCredential)
 
             coVerify(exactly = 1) { 
                 queries.insert(
                     id = testCredential.id,
-                    rpId = testCredential.rpId,
-                    rpName = testCredential.rpId,
-                    userId = testCredential.userId,
-                    userName = testCredential.userName,
-                    userDisplayName = testCredential.userDisplayName,
-                    privateKeyAlias = testCredential.privateKeyAlias,
-                    signCount = testCredential.signCount,
                     createdAt = testCredential.createdAt.toEpochMilli(),
                     lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
                     aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
-                    credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
-                    publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
                     coseAlgorithm = testCredential.coseAlgorithm.toLong(),
-                    credProtectPolicy = testCredential.credProtectPolicy.toLong()
+                    credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+                    credProtectPolicy = testCredential.credProtectPolicy.toLong(),
+                    label = testCredential.label,
+                    privateKeyAlias = testCredential.privateKeyAlias,
+                    publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
+                    rpId = testCredential.rpId,
+                    rpName = testCredential.rpId,
+                    signCount = testCredential.signCount,
+                    userDisplayName = testCredential.userDisplayName,
+                    userId = testCredential.userId,
+                    userName = testCredential.userName
                 ) 
             }
         }
 
         @Test
         fun `should update credential successfully`() = runTest {
-            every { queries.update(any(), any(), any(), any(), any(), any()) } just Runs
+            every { queries.update(any(), any(), any(), any(), any(), any(), any()) } just Runs
 
             dao.updateCredential(testCredential)
 
             coVerify(exactly = 1) {
                 queries.update(
-                    rpName = testCredential.rpId,
-                    userName = testCredential.userName,
-                    userDisplayName = testCredential.userDisplayName,
-                    signCount = testCredential.signCount,
                     lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
+                    label = testCredential.label,
+                    rpName = testCredential.rpId,
+                    signCount = testCredential.signCount,
+                    userDisplayName = testCredential.userDisplayName,
+                    userName = testCredential.userName,
                     id = testCredential.id
                 )
             }

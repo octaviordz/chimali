@@ -62,20 +62,21 @@ class CredentialRepositoryImplTest {
 
         testEntity = com.chimali.fido2.data.database.PasskeyCredential(
             id = "test_credential_id",
-            rpId = "https://example.com",
-            rpName = "example",
-            userId = "user123",
-            userName = "testuser",
-            userDisplayName = "Test User",
-            privateKeyAlias = "test_private_key_alias",
-            signCount = 0L,
             createdAt = testCredential.createdAt.toEpochMilli(),
             lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
             aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
-            credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
-            publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded),
             coseAlgorithm = PasskeyCredential.COSE_ES256.toLong(),
-            credProtectPolicy = testCredential.credProtectPolicy.toLong()
+            credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+            credProtectPolicy = testCredential.credProtectPolicy.toLong(),
+            label = null,
+            privateKeyAlias = "test_private_key_alias",
+            publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded),
+            rpId = "https://example.com",
+            rpName = "example",
+            signCount = 0L,
+            userDisplayName = "Test User",
+            userId = "user123",
+            userName = "testuser"
         )
 
         testRp = RelyingParty.create(

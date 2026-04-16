@@ -21,6 +21,7 @@ class SavePairedDeviceUseCase @Inject constructor(
             macAddress = macAddress,
             name = name,
             deviceClass = deviceClass,
+            alias = null,
             lastUsedAt = now,
             createdAt = now // Ignored on SQL OR REPLACE if already exists, typically.
                             // In a real app we might first query to preserve createdAt 

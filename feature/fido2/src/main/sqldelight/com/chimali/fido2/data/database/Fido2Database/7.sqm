@@ -1,0 +1,104 @@
+-- Migration 7: Global Database Schema Standardization
+-- Reorders columns to PK first, then audit (createdAt/lastUsedAt/timestamp), then alphabetized others.
+
+-- 1. PasskeyCredential
+ALTER TABLE PasskeyCredential RENAME TO PasskeyCredential_old;
+
+CREATE TABLE PasskeyCredential (
+    id TEXT NOT NULL PRIMARY KEY,
+    createdAt INTEGER NOT NULL,
+    lastUsedAt INTEGER,
+    aaguid TEXT NOT NULL,
+    coseAlgorithm INTEGER NOT NULL DEFAULT -7,
+    credentialId TEXT NOT NULL,
+    credProtectPolicy INTEGER NOT NULL DEFAULT 1,
+    label TEXT,
+    privateKeyAlias TEXT NOT NULL,
+    publicKey TEXT NOT NULL,
+    rpId TEXT NOT NULL,
+    rpName TEXT NOT NULL,
+    signCount INTEGER NOT NULL DEFAULT 0,
+    userDisplayName TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    userName TEXT NOT NULL,
+    UNIQUE(rpId, userId)
+);
+
+INSERT INTO PasskeyCredential (id, createdAt, lastUsedAt, aaguid, coseAlgorithm, credentialId, credProtectPolicy, label, privateKeyAlias, publicKey, rpId, rpName, signCount, userDisplayName, userId, userName)
+SELECT id, createdAt, lastUsedAt, aaguid, coseAlgorithm, credentialId, credProtectPolicy, label, privateKeyAlias, publicKey, rpId, rpName, signCount, userDisplayName, userId, userName FROM PasskeyCredential_old;
+
+DROP TABLE PasskeyCredential_old;
+
+-- 2. RelyingParty
+ALTER TABLE RelyingParty RENAME TO RelyingParty_old;
+
+CREATE TABLE RelyingParty (
+    id TEXT NOT NULL PRIMARY KEY,
+    createdAt INTEGER NOT NULL,
+    lastUsedAt INTEGER,
+    credentialCount INTEGER NOT NULL DEFAULT 0,
+    iconUrl TEXT,
+    isBlocked INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL
+);
+
+INSERT INTO RelyingParty (id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name)
+SELECT id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name FROM RelyingParty_old;
+
+DROP TABLE RelyingParty_old;
+
+-- 3. UserConsentRecord
+ALTER TABLE UserConsentRecord RENAME TO UserConsentRecord_old;
+
+CREATE TABLE UserConsentRecord (
+    id TEXT NOT NULL PRIMARY KEY,
+    timestamp INTEGER NOT NULL,
+    biometricUsed INTEGER NOT NULL DEFAULT 0,
+    credentialId TEXT,
+    deviceId TEXT,
+    ipAddress TEXT,
+    operationType TEXT NOT NULL,
+    pinUsed INTEGER NOT NULL DEFAULT 0,
+    rpId TEXT NOT NULL,
+    userAgent TEXT,
+    FOREIGN KEY(rpId) REFERENCES RelyingParty(id) ON DELETE CASCADE
+);
+
+INSERT INTO UserConsentRecord (id, timestamp, biometricUsed, credentialId, deviceId, ipAddress, operationType, pinUsed, rpId, userAgent)
+SELECT id, timestamp, biometricUsed, credentialId, deviceId, ipAddress, operationType, pinUsed, rpId, userAgent FROM UserConsentRecord_old;
+
+DROP TABLE UserConsentRecord_old;
+
+-- 4. BluetoothHidSession
+ALTER TABLE BluetoothHidSession RENAME TO BluetoothHidSession_old;
+
+CREATE TABLE BluetoothHidSession (
+    sessionId TEXT NOT NULL PRIMARY KEY,
+    startTime INTEGER NOT NULL,
+    lastActivityTime INTEGER NOT NULL,
+    hostDeviceAddress TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    protocolVersion TEXT NOT NULL
+);
+
+INSERT INTO BluetoothHidSession (sessionId, startTime, lastActivityTime, hostDeviceAddress, isActive, protocolVersion)
+SELECT sessionId, startTime, lastActivityTime, hostDeviceAddress, isActive, protocolVersion FROM BluetoothHidSession_old;
+
+DROP TABLE BluetoothHidSession_old;
+
+-- 5. PairedDevice
+ALTER TABLE PairedDevice RENAME TO PairedDevice_old;
+
+CREATE TABLE PairedDevice (
+    macAddress TEXT NOT NULL PRIMARY KEY,
+    createdAt INTEGER NOT NULL,
+    lastUsedAt INTEGER NOT NULL,
+    alias TEXT,
+    deviceClass INTEGER,
+    name TEXT
+);
+
+INSERT INTO PairedDevice (macAddress, createdAt, lastUsedAt, alias, deviceClass, name)
+SELECT macAddress, createdAt, lastUsedAt, alias, deviceClass, name FROM PairedDevice_old;
+
+DROP TABLE PairedDevice_old;

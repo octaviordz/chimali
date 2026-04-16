@@ -9,6 +9,7 @@ data class PairedDevice(
     val macAddress: String,
     val name: String?,
     val deviceClass: Int?,
+    val alias: String? = null,
     val lastUsedAt: Long,
     val createdAt: Long
 )

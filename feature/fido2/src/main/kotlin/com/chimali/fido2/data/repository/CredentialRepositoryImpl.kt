@@ -435,4 +435,13 @@ class CredentialRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun updateLabel(credentialId: String, label: String?): Result<Unit> {
+        return try {
+            passkeyCredentialDao.updateLabel(credentialId, label)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update label", e))
+        }
+    }
 }

@@ -6,6 +6,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
@@ -23,12 +24,14 @@ class CredentialListScreenTest {
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase = mockk()
     private val deleteCredentialUseCase: DeleteCredentialUseCase = mockk()
     private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase = mockk()
+    private val updateCredentialLabelUseCase: UpdateCredentialLabelUseCase = mockk()
 
     private fun setupViewModel(): CredentialManagementViewModel {
         return CredentialManagementViewModel(
             getAllCredentialsUseCase,
             deleteCredentialUseCase,
-            deleteAllCredentialsUseCase
+            deleteAllCredentialsUseCase,
+            updateCredentialLabelUseCase
         )
     }
 

@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TabletMac
 import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,16 +29,37 @@ import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PairedDevicesSection(
     modifier: Modifier = Modifier,
+    onEditDevice: (String) -> Unit,
     viewModel: PairedDevicesViewModel = hiltViewModel()
 ) {
     val devices by viewModel.pairedDevices.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    
+    // Collect removal events to show the Undo snackbar
+    LaunchedEffect(Unit) {
+        viewModel.removalEvents.collect { device ->
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = "\"${device.alias ?: device.name ?: "Device"}\" removed",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoRemove(device.macAddress)
+                } else {
+                    viewModel.commitRemove(device.macAddress)
+                }
+            }
+        }
+    }
 
     AnimatedVisibility(visible = true, modifier = modifier) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -69,25 +92,9 @@ fun PairedDevicesSection(
                                 PairedDeviceItem(
                                     device = device,
                                     onSwipedAway = {
-                                        // 1. Immediately hide the item via ViewModel
-                                        viewModel.pendingRemove(device.macAddress)
-
-                                        // 2. Show undo snackbar (Long = ~10s)
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = "\"${device.name ?: "Device"}\" removed",
-                                                actionLabel = "Undo",
-                                                duration = SnackbarDuration.Long
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                // Undo — restore item to the list
-                                                viewModel.undoRemove(device.macAddress)
-                                            } else {
-                                                // Timed out or dismissed — commit deletion to DB
-                                                viewModel.commitRemove(device.macAddress)
-                                            }
-                                        }
-                                    }
+                                        viewModel.pendingRemove(device)
+                                    },
+                                    onEditClick = { onEditDevice(device.macAddress) }
                                 )
                             }
                         }
@@ -108,7 +115,8 @@ fun PairedDevicesSection(
 @Composable
 private fun PairedDeviceItem(
     device: PairedDevice,
-    onSwipedAway: () -> Unit
+    onSwipedAway: () -> Unit,
+    onEditClick: () -> Unit
 ) {
     val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
     val lastUsed = dateFormat.format(Date(device.lastUsedAt))
@@ -171,14 +179,39 @@ private fun PairedDeviceItem(
         val iconInfo = getDeviceIcon(device.deviceClass)
 
         ListItem(
-            headlineContent = { Text(device.name ?: "Unknown Device") },
-            supportingContent = { Text("Last used: $lastUsed") },
+            headlineContent = { 
+                Text(
+                    text = device.alias ?: device.name ?: "Unknown Device",
+                    fontWeight = if (device.alias != null) FontWeight.Bold else FontWeight.Normal
+                ) 
+            },
+            supportingContent = { 
+                Column {
+                    if (device.alias != null && device.name != null) {
+                        Text(
+                            text = "Device: ${device.name}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text("Last used: $lastUsed")
+                }
+            },
             leadingContent = {
                 Icon(
                     imageVector = iconInfo.first,
                     contentDescription = iconInfo.second,
                     tint = MaterialTheme.colorScheme.primary
                 )
+            },
+            trailingContent = {
+                IconButton(onClick = onEditClick) {
+                    Icon(
+                        imageVector = if (device.alias != null) Icons.Default.Label else Icons.Default.Edit,
+                        contentDescription = "Edit name",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
+                }
             },
             colors = ListItemDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow

@@ -259,4 +259,11 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Result<Int> = Result.success(0)
     override suspend fun deleteAllCredentials(rpId: String?): Result<Unit> = Result.success(Unit)
     override suspend fun resetAuthenticator(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun updateLabel(credentialId: String, label: String?): Result<Unit> {
+        credentials[credentialId]?.let {
+            credentials[credentialId] = it.copy(label = label)
+        }
+        return Result.success(Unit)
+    }
 }

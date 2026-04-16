@@ -1,14 +1,18 @@
 CREATE TABLE PairedDevice (
     macAddress TEXT NOT NULL PRIMARY KEY,
-    name TEXT,
-    lastUsedAt INTEGER NOT NULL,
     createdAt INTEGER NOT NULL,
-    deviceClass INTEGER
+    lastUsedAt INTEGER NOT NULL,
+    alias TEXT,
+    deviceClass INTEGER,
+    name TEXT
 );
 
 insertOrReplace:
-INSERT OR REPLACE INTO PairedDevice (macAddress, name, lastUsedAt, createdAt, deviceClass)
-VALUES (?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO PairedDevice (macAddress, createdAt, lastUsedAt, alias, deviceClass, name)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateAlias:
+UPDATE PairedDevice SET alias = ? WHERE macAddress = ?;
 
 selectAll:
 SELECT * FROM PairedDevice ORDER BY lastUsedAt DESC;

@@ -11,8 +11,12 @@ import com.chimali.fido2.service.Fido2TransportService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 
 /**
@@ -25,12 +29,36 @@ import javax.inject.Inject
 @HiltViewModel
 class Fido2HomeViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    fido2Transport: Fido2Transport,
+    fido2Transport: com.chimali.fido2.data.transport.Fido2Transport,
+    private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
     private val uiEventBus: Fido2UiEventBus
 ) : ViewModel() {
 
     val connectionState: StateFlow<HidConnectionState> = fido2Transport.connectionState
     val uiEvents: SharedFlow<Fido2UiEvent> = uiEventBus.events
+
+    /** 
+     * Resolves the display name for the connected host, prioritizing user-defined aliases.
+     */
+    val connectedDeviceDisplayName: StateFlow<String?> = combine(
+        connectionState,
+        repository.getAllPairedDevices()
+    ) { state, devices ->
+        when (state) {
+            is HidConnectionState.Connected -> {
+                val match = devices.find { it.macAddress == state.device.address }
+                match?.alias ?: state.device.name ?: "Unknown PC"
+            }
+            is HidConnectionState.Connecting -> {
+                state.device.name ?: "Connecting..."
+            }
+            else -> null
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
     /**
      * Starts the foreground [Fido2TransportService] when idle/errored, or stops

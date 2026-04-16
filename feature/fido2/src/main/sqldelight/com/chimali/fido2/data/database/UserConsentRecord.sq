@@ -1,5 +1,5 @@
 insert:
-INSERT INTO UserConsentRecord (id, operationType, rpId, credentialId, timestamp, biometricUsed, pinUsed, ipAddress, userAgent, deviceId)
+INSERT INTO UserConsentRecord (id, timestamp, biometricUsed, credentialId, deviceId, ipAddress, operationType, pinUsed, rpId, userAgent)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectById:

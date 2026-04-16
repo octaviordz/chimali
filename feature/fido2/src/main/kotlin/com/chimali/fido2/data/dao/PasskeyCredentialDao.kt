@@ -25,20 +25,21 @@ class PasskeyCredentialDao @Inject constructor(
     suspend fun insertCredential(credential: PasskeyCredential) {
         database.passkeyCredentialQueries.insert(
             id = credential.id,
-            rpId = credential.rpId,
-            rpName = credential.rpId, // fallback
-            userId = credential.userId,
-            userName = credential.userName,
-            userDisplayName = credential.userDisplayName,
-            privateKeyAlias = credential.privateKeyAlias,
-            signCount = credential.signCount,
             createdAt = credential.createdAt.toEpochMilli(),
             lastUsedAt = credential.lastUsedAt.toEpochMilli(),
             aaguid = java.util.Base64.getEncoder().encodeToString(credential.aaguid),
-            credentialId = java.util.Base64.getEncoder().encodeToString(credential.credentialId),
-            publicKey = java.util.Base64.getEncoder().encodeToString(credential.publicKey.encoded),
             coseAlgorithm = credential.coseAlgorithm.toLong(),
-            credProtectPolicy = credential.credProtectPolicy.toLong()
+            credentialId = java.util.Base64.getEncoder().encodeToString(credential.credentialId),
+            credProtectPolicy = credential.credProtectPolicy.toLong(),
+            label = credential.label,
+            privateKeyAlias = credential.privateKeyAlias,
+            publicKey = java.util.Base64.getEncoder().encodeToString(credential.publicKey.encoded),
+            rpId = credential.rpId,
+            rpName = credential.rpId, // fallback
+            signCount = credential.signCount,
+            userDisplayName = credential.userDisplayName,
+            userId = credential.userId,
+            userName = credential.userName
         )
     }
     
@@ -82,12 +83,23 @@ class PasskeyCredentialDao @Inject constructor(
      */
     suspend fun updateCredential(credential: PasskeyCredential) {
         database.passkeyCredentialQueries.update(
-            rpName = credential.rpId, // fallback
-            userName = credential.userName,
-            userDisplayName = credential.userDisplayName,
-            signCount = credential.signCount,
             lastUsedAt = credential.lastUsedAt.toEpochMilli(),
+            label = credential.label,
+            rpName = credential.rpId, // fallback
+            signCount = credential.signCount,
+            userDisplayName = credential.userDisplayName,
+            userName = credential.userName,
             id = credential.id
+        )
+    }
+
+    /**
+     * Updates the custom label for a credential.
+     */
+    suspend fun updateLabel(credentialId: String, label: String?) {
+        database.passkeyCredentialQueries.updateLabel(
+            label = label,
+            id = credentialId
         )
     }
     
@@ -258,6 +270,7 @@ class PasskeyCredentialDao @Inject constructor(
                     userDisplayName = credential.userDisplayName,
                     signCount = credential.signCount,
                     lastUsedAt = credential.lastUsedAt.toEpochMilli(),
+                    label = credential.label,
                     id = credential.id
                 )
             }

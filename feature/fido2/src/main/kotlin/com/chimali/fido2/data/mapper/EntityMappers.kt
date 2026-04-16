@@ -29,7 +29,8 @@ fun PasskeyCredentialEntity.toDomainModel(publicKey: java.security.PublicKey): P
         aaguid = Base64.getDecoder().decode(this.aaguid),
         credentialId = Base64.getDecoder().decode(this.credentialId),
         coseAlgorithm = this.coseAlgorithm.toInt(),
-        credProtectPolicy = this.credProtectPolicy.toInt()
+        credProtectPolicy = this.credProtectPolicy.toInt(),
+        label = this.label
     )
 }
 
