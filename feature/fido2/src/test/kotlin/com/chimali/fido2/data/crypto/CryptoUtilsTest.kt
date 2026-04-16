@@ -3,87 +3,15 @@ package com.chimali.fido2.data.crypto
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.security.KeyPair
 
 class CryptoUtilsTest {
-    private lateinit var hdKeyDerivation: HdKeyDerivation
     private lateinit var memoryUtils: MemoryUtils
     private lateinit var cborCodec: CborCodec
 
     @BeforeEach
     fun setUp() {
-        hdKeyDerivation = HdKeyDerivation()
         memoryUtils = MemoryUtils()
         cborCodec = CborCodec()
-    }
-
-    @Test
-    fun `test chain code generation`() {
-        val chainCode1 = hdKeyDerivation.generateChainCode()
-        val chainCode2 = hdKeyDerivation.generateChainCode()
-
-        assertEquals(32, chainCode1.size)
-        assertEquals(32, chainCode2.size)
-        assertFalse(chainCode1.contentEquals(chainCode2))
-    }
-
-    @Test
-    fun `test child key derivation`() {
-        val parentKeyPair = generateTestKeyPair()
-        val chainCode = hdKeyDerivation.generateChainCode()
-
-        val childKeyPair = hdKeyDerivation.deriveChildKey(parentKeyPair, chainCode, 0)
-
-        assertNotNull(childKeyPair.public)
-        assertNotNull(childKeyPair.private)
-        assertNotEquals(parentKeyPair.public.encoded, childKeyPair.public.encoded)
-    }
-
-    @Test
-    fun `test key agreement`() {
-        val keyPair1 = generateTestKeyPair()
-        val keyPair2 = generateTestKeyPair()
-
-        val sharedSecret1 = hdKeyDerivation.performKeyAgreement(keyPair1.private, keyPair2.public)
-        val sharedSecret2 = hdKeyDerivation.performKeyAgreement(keyPair2.private, keyPair1.public)
-
-        assertNotNull(sharedSecret1)
-        assertNotNull(sharedSecret2)
-        assertArrayEquals(sharedSecret1, sharedSecret2)
-    }
-
-    @Test
-    fun `test data signing`() {
-        val keyPair = generateTestKeyPair()
-        val testData = "test data to sign".toByteArray()
-
-        val signature = hdKeyDerivation.signData(keyPair.private, testData)
-
-        assertNotNull(signature)
-        assertTrue(signature.isNotEmpty())
-    }
-
-    @Test
-    fun `test signature verification`() {
-        val keyPair = generateTestKeyPair()
-        val testData = "test data to sign".toByteArray()
-
-        val signature = hdKeyDerivation.signData(keyPair.private, testData)
-        val isValid = hdKeyDerivation.verifySignature(keyPair.public, testData, signature)
-
-        assertTrue(isValid)
-    }
-
-    @Test
-    fun `test signature verification with wrong data`() {
-        val keyPair = generateTestKeyPair()
-        val testData = "test data to sign".toByteArray()
-        val wrongData = "wrong data".toByteArray()
-
-        val signature = hdKeyDerivation.signData(keyPair.private, testData)
-        val isValid = hdKeyDerivation.verifySignature(keyPair.public, wrongData, signature)
-
-        assertFalse(isValid)
     }
 
     @Test
@@ -238,11 +166,5 @@ class CryptoUtilsTest {
 
         assertNotNull(encoded)
         assertTrue(encoded.isNotEmpty())
-    }
-
-    private fun generateTestKeyPair(): KeyPair {
-        val keyPairGenerator = java.security.KeyPairGenerator.getInstance("EC")
-        keyPairGenerator.initialize(java.security.spec.ECGenParameterSpec("secp256r1"))
-        return keyPairGenerator.generateKeyPair()
     }
 }

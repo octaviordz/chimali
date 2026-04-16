@@ -1,11 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.9.1 → 0.9.2
-- List of modified principles: II (Master Seed Architecture — T166 DeriveSalt fix decision encoded; T167 formally closed)
+- Version change: 0.9.4 → 0.9.5
+- List of modified principles: II. Master Seed Architecture (Removed transient task tracking IDs)
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates: None
-- Follow-up TODOs: Implement T166 fix in HdkEcdhP256.kt (PRIORITY); update KATs in T172; check T168 ID constant
+- Follow-up TODOs: None
 -->
 
 # Chimali Constitution
@@ -36,15 +36,9 @@ The root of trust is established via a **Master Seed (Master Key)** architecture
 
 **PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses a **BIP-85-style** hardened CKD derivation (`m/83696968'/83286642'/2'`) to produce a child seed that is cryptographically isolated from the ECDSA HDK branch. This BIP-32 CKD usage is intentional, limited to the PQ branch only, and does **not** conflict with the HDK spec because that child seed never enters the `HdkEcdhP256` derivation tree. The ECDSA branch uses `HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
 
-**Spec alignment status** (Phase 7 `specs/004-fido2-hid/tasks.md`):
-- `DeriveSalt` **MUST** conform to §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`. The normative definition is:
-  ```
-  def DeriveSalt(salt, ctx):
-      salt' = H(salt || ctx)
-      return salt'
-  ```
-  The `ID` domain separator is already embedded in `ctx` via §2.3 (`ctx = ID || I2OSP(index, 4)`); it **MUST NOT** be prepended again to the hash input. The current implementation `H(ID || salt || ctx)` is a confirmed deviation. **Decision (2026-03-28): conform strictly to spec.** Fix is tracked as **T166 (PRIORITY)** in `specs/004-fido2-hid/tasks.md`; KAT vectors must be regenerated afterward (T172). **Until T166 is merged, existing derived keys are non-interoperable with conforming HDK implementations.**
-- `DST = "ECDH Key Blind"` for `HashToScalar` — **✅ CLOSED (T167)**: verified conformant with §4.1 of `draft-dijkhuis-cfrg-hdkeys-06`. No change required.
+**Spec alignment**:
+- `DeriveSalt` conforms to §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`. The normative definition `H(salt || ctx)` is strictly implemented. The `ID` domain separator is embedded in `ctx` via §2.3 (`ctx = ID || I2OSP(index, 4)`) and is not prepended again to the hash input.
+- `DST = "ECDH Key Blind"` for `HashToScalar` conforms to §4.1 of `draft-dijkhuis-cfrg-hdkeys-06`.
 
 ### III. Uncompromising Architecture & Quality
 The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Hilt**. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards. **The use of 'magic numbers' is strictly prohibited; all numeric literals with domain significance must be extracted into meaningful named constants or enums to ensure maintainability and readability.**
@@ -79,7 +73,7 @@ All project documentation must be kept up to date and aligned with the codebase 
 
 ## Development Workflow & Testing
 
-- **Testing Methodology**: Test-Driven Development (TDD) where feasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **JUnit 5** and **MockK**.
+- **Development Methodology**: Test-Driven Development (TDD) SHOULD be prioritized as the standard engineering methodology. Exemptions are permitted only when a test-first approach is demonstrably unfeasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **JUnit 5** and **MockK**.
 - **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components must be verified using **Compose UI Testing**.
 
 ## Governance
@@ -88,4 +82,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.9.3 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-03-30
+**Version**: 0.9.5 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-15
