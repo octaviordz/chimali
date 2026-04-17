@@ -7,7 +7,7 @@ Any FIDO2 protocol failure MUST be mapped to a specific `ErrorUi` presentation s
 - `Fido2Exception.UserVerificationFailed` -> Inform biometric failure, `isRetryable = true`
 
 ## 2. Privacy-Safe Logging Contract
-Any structured local sink (e.g., rotating file appender via Timber) MUST implement a scrubbing middleware that intercepts the log string and replaces values matching these keys with `[REDACTED]`:
+Any structured local sink (e.g., rotating file appender via Kermit) MUST implement a scrubbing middleware that intercepts the log string and replaces values matching these keys with `[REDACTED]`:
 - Mnemonic arrays (`CharArray`, `ByteArray`)
 - Private scalar keys
 - Password/PIN values

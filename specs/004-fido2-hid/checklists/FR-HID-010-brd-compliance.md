@@ -36,7 +36,7 @@
 | **NFR-ARCH-010** | Clean Architecture with MVI pattern. | [x] | `feature:fido2` module structure |
 | **NFR-ARCH-020** | Hilt Dependency Injection. | [x] | `Fido2Module.kt`, `T004` |
 | **NFR-PERF-030** | HID Latency < 200ms. | [x] | **VERIFIED**: `LatencyProfiler` metrics confirm average system latency of ~80ms (excluding user). Regression fix applied to prevent UI time leak. |
-| **NFR-SEC-010** | No Sensitive Logging. | [x] | **VERIFIED**: `Fido2CryptoService` and handlers explicitly exclude raw keys/IDs from `Timber` logs. |
+| **NFR-SEC-010** | No Sensitive Logging. | [x] | **VERIFIED**: `Fido2CryptoService` and handlers explicitly exclude raw keys/IDs from `Kermit` logs. |
 | **NFR-SEC-020** | Prohibit Cloud Telemetry. | [x] | **VERIFIED**: System strictly uses Local-First logging with no remote sync implementation. |
 | **NFR-ARCH-040** | Static Analysis. | [x] | **VERIFIED**: Project passes `detekt` and `ktlintCheck` with local baseline established. |
 | **NFR-SEC-050** | Root of Trust Verification. | [x] | **VERIFIED**: Unit tests confirm 24-word seed derivation consistency (`T148b`). |

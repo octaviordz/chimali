@@ -13,18 +13,19 @@
 
 ## Phase 1: Setup Tasks
 
-**Goal**: Initialize project structure and dependencies for FIDO2 Virtual Authenticator feature
+**Goal**: Initialize KMP-ready project structure and dependencies for FIDO2 Virtual Authenticator feature
 
 **Independent Test Criteria**: Project compiles successfully with all dependencies configured
 
-- [X] T001 Create feature/fido2 module structure per implementation plan
-- [X] T002 Add FIDO2 dependencies to feature module build.gradle.kts
+- [X] T001 Create feature/fido2 KMP module structure with `commonMain` and `androidMain` source sets per implementation plan
+- [X] T002 Configure Kotlin Multiplatform and Compose Multiplatform (CMP) plugins in build.gradle.kts
+- [X] T002a Add shared dependencies (SQLDelight, Ktor-crypto, Kermit) to `commonMain` and platform dependencies to `androidMain`
 - [X] T003 Add required permissions to AndroidManifest.xml
-- [X] T004 Create Hilt module for FIDO2 dependency injection
+- [X] T004 Create Hilt module in `androidMain` linking Android specific instances to `commonMain` interfaces
 - [X] T005 Configure SQLDelight database setup for credential storage
 - [X] T006 Set up ProGuard rules for FIDO2 and crypto libraries
 - [X] T006a Configure static analysis gates: initialize **Detekt** and **Ktlint** configurations for the feature module. *(refs: NFR-ARCH-040)*
-- [X] T007 Create base package structure for domain, data, presentation layers
+- [X] T007 Create base package structure for domain, data, presentation layers within `commonMain`
 - [X] T008 [P] Set up unit test structure with JUnit5 and MockK
 - [X] T009 [P] Set up integration test structure with Compose UI Testing
 - [X] T010 Verify project compilation and dependency resolution
@@ -40,7 +41,7 @@
 - [X] T013 Create SQLDelight database schema for UserConsentRecord entity
 - [X] T014 Create SQLDelight database schema for BluetoothHidSession entity
 - [X] T015 Implement SQLCipher encryption wrapper for secure database access
-- [X] T016 Create Android KeyStore wrapper for private key storage
+- [X] T016 Define `expect class PlatformKeyStore` in `commonMain` and implement actual `AndroidKeyStoreWrapper` in `androidMain`
 - [X] T017 Implement hierarchical deterministic key derivation (HDK-ECDH-P256)
 - [X] T017a [US1] Research and integrate ML-KEM/Kyber PQC library for quantum-resistant cryptography
 - [X] T017b [US1] Implement PQC key generation and management alongside ECDSA
@@ -49,7 +50,7 @@
 - [X] T019 Implement memory zeroing utilities for sensitive data
 - [X] T019a Implement **AES-256-SIV** (Synthetic IV) for searchable encrypted metadata and key wrapping to ensure nonce-misuse resistance. *(Constitution §I.2)*
 - [X] T020 Create base Fido2Exception hierarchy for error handling
-- [X] T020a Implement Local-First `Timber.Tree` and rotating file sink (5MB cap) per `plan.md` to ensure privacy-compliant logging throughout development. *(refs: NFR-SEC-020)*
+- [X] T020a Implement Local-First rotating file sink (5MB cap) using Kermit per `plan.md` framework to ensure privacy-compliant logging multiplatform support. *(refs: NFR-SEC-020)*
 - [X] T021 [P] Implement unit tests for database schemas and migrations
 - [X] T022 [P] Implement unit tests for KeyStore wrapper
 - [X] T023 [P] Implement unit tests for crypto utilities
@@ -91,7 +92,7 @@
 - [X] T048 [P] [US1] Implement unit tests for DAOs
 
 ### Core Bluetooth Tasks
-- [X] T049 [US1] Implement BluetoothHidDevice wrapper for HID profile
+- [X] T049 [US1] Define `expect class BleTransportHandler` in `commonMain` and implement `actual` `BluetoothHidDeviceWrapper` in `androidMain`
 - [X] T050 [US1] Create HID report parser for CTAP2 messages
 - [X] T051 [US1] Implement CTAP2 MakeCredential command handler
 - [X] T052 [US1] Create CTAP2 response builder for attestation
@@ -113,8 +114,8 @@
 
 ### Presentation Layer Tasks
 - [X] T062 [US1] Create RegistrationPromptViewModel with MVI pattern
-- [X] T063 [US1] Implement RegistrationPrompt Compose screen
-- [X] T064 [US1] Create BiometricPrompt Compose component
+- [X] T063 [US1] Implement RegistrationPrompt screen as a Compose Multiplatform component in `commonMain`
+- [X] T064 [US1] Create BiometricPrompt UI interface in `commonMain` and connect to Android `BiometricPrompt` framework in `androidMain`
 - [X] T065 [US1] Implement PIN entry dialog Compose component
 - [X] T066 [US1] Create registration progress indicator
 - [X] T067 [US1] Add navigation for registration flow
@@ -497,30 +498,45 @@ Focus on User Story 1 (FIDO2 Registration) to deliver minimum viable product:
 3. **Sprint 3**: Management (T108-T132)
 4. **Sprint 4**: Polish & Production Readiness (T133-T165)
 
-### Risk Mitigation
-- Start with Bluetooth HID implementation (highest technical risk)
-- Implement comprehensive unit tests before integration
-- Use reference implementations as validation baseline
-- Test on multiple Android versions early
+## Phase 8: KMP Multiplatform & iOS Transition (Koin + Signum)
 
-## Compilation Verification
+**Goal**: Full project migration from Android Hilt to KMP Koin and implementation of Signum for cryptography.
 
-Every task includes specific file paths and clear completion criteria to ensure the project compiles at each checkpoint:
-- **Phase 1**: Basic project structure and dependencies
-- **Phase 2**: Core infrastructure components
-- **Phase 3-5**: Each user story independently compilable
-- **Phase 6**: Full feature compilation and optimization
+**Independent Test Criteria**: Project compiles and tests pass for both Android and iOS targets.
+
+- [ ] T186 Update `libs.versions.toml` with KMP (Kotlin 2.1+), Koin (4.2.1 + Compiler 1.0.0-RC1), and Signum (3.20.0 indispensable)
+- [ ] T187 Refactor root `build.gradle.kts` to apply Koin Compiler plugin and KMP target configurations
+- [ ] T188 Migrate `core:common` and `core:security` to KMP; rewrite `HdkManager` and `P256Group` using Signum
+- [ ] T189 Replace Hilt with Koin globally: migrate all modules from `@Inject` / `@HiltViewModel` to Koin annotations/DSL
+- [ ] T190 Migrate `feature:fido2` to KMP/CMP: move UI and domain logic to `commonMain`
+- [ ] T191 Implement `expect` declarations for `UserVerificationService` (Biometric) and `BluetoothHidDevice` in `commonMain`; implement `actual` bindings for Android only.
+- [ ] T192 Setup `iosMain` directory structure across all modules without functional code.
+- [ ] T193 [P] Update all unit tests in `commonTest` to verify core logic remains consistent after KMP migration
+- [ ] T194 Verify full project compilation for Android and iOS targets with zero static analysis violations
+
+---
+
+## Dependencies
+
+### Story Completion Order
+1. **Phase 1-2** (Legacy Setup) → **Phase 8** (Multiplatform Refactor) → **Phase 3-6** (Feature Logic Migration)
+
+### Critical Path Dependencies
+- T186-T189 must complete before any platform expansion
+- T190 must complete before iOS UI development
+- T194 is the gate for production readiness
 
 ## Total Task Count
 
-**Summary**: 181 total tasks
+**Summary**: 194 total tasks
 - **Setup**: 11 tasks (T001-T010, includes T006a)
 - **Foundational**: 16 tasks (T011-T024, includes T019a, T020a)
-- **User Story 1**: 57 tasks (T025-T077, includes T053a, T056a-c, T115a-b)
-- **User Story 2**: 32 tasks (T078-T107, includes T087a, T104a)
-- **User Story 3**: 26 tasks (T108-T132, includes T113a)
-- **Polish**: 39 tasks (T133-T165, includes T145a-c, T164a, T185)
+- **User Story 1-3**: 115 tasks (T025-T132, includes extensions)
+- **Polish**: 39 tasks (T133-T165, includes T185)
+- **Refactor (Phase 7)**: 19 tasks (T166-T184)
+- **KMP Migration (Phase 8)**: 9 tasks (T186-T194)
 
-**Parallel Tasks**: 42 tasks marked with [P] for parallel execution
+**Parallel Tasks**: 43 tasks marked with [P] for parallel execution
 **Independent Test Criteria**: Each phase has clear verification requirements
-**MVP Focus**: First 77 tasks deliver core registration functionality
+**MVP Focus**: First 77 tasks deliver core registration functionality; Phase 8 completes platform parity
+
