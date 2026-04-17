@@ -279,6 +279,7 @@
 - [x] T151 Add privacy-safe debug logging (excluding sensitive data)
 - [x] T152 Create user-friendly error messages for connection issues
 - [x] T153 [P] Implement error handling tests
+- [x] ~~T153a Implement Bluetooth connection recovery UX and queue operation for retry UI state tracking~~ (Delayed for future work)
 
 ### Documentation & Deployment Tasks
 - [x] ~~T154 Update API documentation with examples~~ (Delayed for future work)

@@ -20,7 +20,7 @@ Implement the FIDO2 Virtual Authenticator via `BluetoothHidDevice`, allowing the
 **Testing**: Kotest/JUnit 5, MockK (testing shared KMP logic).
 **Target Platforms**: 
 - **Android 9.0+ (API 28+)**: Bluetooth HID and KeyStore support.
-- **iOS 15.0+**: Apple CryptoKit and Secure Enclave integration via Signum.
+- **iOS 15.0+**: Placeholder directory structure for future native integration.
 **Project Type**: Kotlin Multiplatform Mobile (KMM) Application
 **Performance Goals**: Local-First logging overhead < 5ms per event.
 **Constraints**: Absolute privacy (no remote crash reporting tools). Sensitive parameters must be masked.
@@ -72,8 +72,8 @@ feature/fido2/
 │   ├── platform/              # BluetoothHidDevice actual bindings
 │   └── di/                    # Android-specific Koin module providers
 ├── src/iosMain/kotlin/
-│   ├── platform/              # Apple CryptoKit / Secure Enclave bindings via Signum
-│   └── di/                    # iOS-specific Koin module providers
+│   ├── platform/              # Placeholder for future native iOS bindings
+│   └── di/                    # Placeholder for future iOS Koin providers
 ├── src/commonTest/kotlin/     # Shared behavior tests
 ```
 

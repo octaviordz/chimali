@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.9.4 → 0.9.5
-- List of modified principles: II. Master Seed Architecture (Removed transient task tracking IDs)
+- Version change: 0.9.5 → 0.9.6
+- List of modified principles: III. Uncompromising Architecture & Quality (Updated DI standard from Hilt to Koin for KMP support)
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates: None
@@ -41,7 +41,7 @@ The root of trust is established via a **Master Seed (Master Key)** architecture
 - `DST = "ECDH Key Blind"` for `HashToScalar` conforms to §4.1 of `draft-dijkhuis-cfrg-hdkeys-06`.
 
 ### III. Uncompromising Architecture & Quality
-The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Hilt**. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards. **The use of 'magic numbers' is strictly prohibited; all numeric literals with domain significance must be extracted into meaningful named constants or enums to ensure maintainability and readability.**
+The application strictly follows Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern. Dependency injection is standardized using **Koin** (with Koin Compiler Plugin) to support Kotlin Multiplatform. The codebase must be highly modularized (Feature-by-module). Static analysis via **Detekt** and **Ktlint** is mandatory to enforce coding standards. **The use of 'magic numbers' is strictly prohibited; all numeric literals with domain significance must be extracted into meaningful named constants or enums to ensure maintainability and readability.**
 
 ### IV. Performance & Reliability Excellence
 The application must adhere to strict Android Vitals targets:
@@ -82,4 +82,4 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.9.5 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-15
+**Version**: 0.9.6 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-16

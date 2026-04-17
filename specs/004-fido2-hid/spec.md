@@ -86,7 +86,6 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **Memory Full**: When credential limit (1000) is reached or disk is full, operations MUST fail deterministically with `CTAP2_ERR_KEY_STORE_FULL` (0x27)
 - **Consent Denied / Verification Failed**: When user denies consent or biometric verification fails, operations MUST fail deterministically with `CTAP2_ERR_OPERATION_DENIED` (0x29) or `CTAP2_ERR_ACTION_TIMEOUT` (0x23)
 - **Malformed FIDO2 Requests**: When relying parties send malformed requests, the transport layer MUST drop the payload or return `CTAP1_ERR_INVALID_LENGTH` (0x03) / `CTAP2_ERR_CBOR_PARSING` (0x11)
-- **Low Battery**: System MUST proceed normally but UI should indicate critical state if below 5%
 
 ## Requirements *(mandatory)*
 
@@ -104,7 +103,6 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **FR-HID-015**: System MUST securely store private keys and credentials
 - **FR-HID-016**: System MUST handle multiple credentials for different relying parties
 - **FR-HID-022**: System MUST support configurable storage of passkey credentials per user (default: 1000).
-- **FR-HID-017**: System MUST provide Bluetooth HID device functionality
 - **FR-HID-018**: System MUST support credential enumeration and management
 - **FR-HID-019**: System MUST map internal protocol failures to exact CTAP2 error codes mandated by §6 of CTAP2 spec (e.g., `0x27` for storage full, `0x2E` for no credentials)
 - **FR-HID-020**: System MUST support both FIDO2.0 and FIDO2.1 protocol versions. Required FIDO2.1 extensions:
@@ -121,6 +119,7 @@ As a user, I want to view and manage my stored passkey credentials so that I can
 - **NFR-SEC-010**: System MUST ensure no sensitive cryptographic material or credential data is logged to Local-First crash reports or output streams.
 - **NFR-SEC-020**: System MUST explicitly prohibit cloud telemetry (all diagnostics and crash reports must remain on-device).
 - **NFR-ARCH-040**: Codebase MUST pass static analysis gates (Detekt and Ktlint) prior to completion.
+- **NFR-ARCH-050**: Codebase MUST be structured for Kotlin Multiplatform (KMP), separating shared logic (`commonMain`) from platform bindings (`androidMain`), and explicitly including placeholder directory structures for future iOS support (`iosMain`) without implementing native iOS functional code.
 
 ### Key Entities *(include if feature involves data)*
 
