@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.ui.components.*
@@ -54,7 +54,7 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
 fun AuthenticationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
-    viewModel: AuthenticationPromptViewModel = hiltViewModel(),
+    viewModel: AuthenticationPromptViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

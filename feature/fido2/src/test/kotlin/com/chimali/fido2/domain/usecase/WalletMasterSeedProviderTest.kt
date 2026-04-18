@@ -7,9 +7,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 /**
  * Unit tests for [WalletMasterSeedProvider].
@@ -37,7 +38,7 @@ class WalletMasterSeedProviderTest {
     private lateinit var mockHdkManager: HdkManager
     private lateinit var provider: TestableWalletMasterSeedProvider
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         mockGenerator = mockk()
         mockHdkManager = mockk()
@@ -54,7 +55,7 @@ class WalletMasterSeedProviderTest {
         runTest {
             val seed = provider.getMasterSeed()
             assertNotNull(seed)
-            assertArrayEquals(fakeSeed, seed)
+            assertContentEquals(fakeSeed, seed)
         }
 
     @Test
@@ -62,7 +63,7 @@ class WalletMasterSeedProviderTest {
         runTest {
             val seed1 = provider.getMasterSeed()
             val seed2 = provider.getMasterSeed()
-            assertArrayEquals(seed1, seed2)
+            assertContentEquals(seed1, seed2)
         }
 
     @Test
@@ -171,7 +172,7 @@ class WalletMasterSeedProviderTest {
             // After import the cache must be refreshed; getMasterSeed must return the new seed.
             val seedAfterImport = provider.getMasterSeed()
             assertFalse(originalSeed.contentEquals(seedAfterImport!!))
-            assertArrayEquals(newSeed, seedAfterImport)
+            assertContentEquals(newSeed, seedAfterImport)
         }
 
     @Test
@@ -185,7 +186,7 @@ class WalletMasterSeedProviderTest {
                 )
             val chars = shortWords.joinToString(" ").toCharArray()
 
-            assertThrows(IllegalArgumentException::class.java) {
+            assertFailsWith<IllegalArgumentException> {
                 kotlinx.coroutines.runBlocking { provider.importMnemonic(chars) }
             }
         }

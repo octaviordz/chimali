@@ -7,9 +7,9 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import io.mockk.every
 import io.mockk.mockkStatic
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.time.Instant
 
 /**
@@ -18,7 +18,7 @@ import java.time.Instant
 class SelectCredentialUseCaseTest {
     private lateinit var useCase: SelectCredentialUseCase
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         mockkStatic(Log::class)
         every { Log.d(any<String>(), any<String>()) } returns 0
@@ -56,7 +56,7 @@ class SelectCredentialUseCaseTest {
             val result = useCase(emptyList(), createOptions())
 
             assertTrue(result.isFailure)
-            assertInstanceOf(Fido2Exception.CredentialNotFound::class.java, result.exceptionOrNull())
+            assertIs<Fido2Exception.CredentialNotFound>(result.exceptionOrNull())
         }
 
     // ── Single credential ────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 package com.chimali.fido2
 
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 /**
  * Example local unit test, which will execute on the development machine (host).

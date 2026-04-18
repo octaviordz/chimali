@@ -2,11 +2,11 @@ package com.chimali.fido2.data.crypto
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.junit.jupiter.api.Assertions.assertArrayEquals
+import kotlin.test.assertContentEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import java.security.KeyFactory
 import java.security.Security
 import java.security.Signature
@@ -46,7 +46,7 @@ class CborCodecTest {
 
         assertEquals(7L, kty, "kty must be 7 (AKP) per IANA COSE Key Types")
         assertEquals(-49L, alg, "alg must be -49 (ML-DSA-65) per IANA COSE Algorithms")
-        assertArrayEquals(dummyPubKey, pub, "pub (-1) must round-trip correctly")
+        assertContentEquals(dummyPubKey, pub, "pub (-1) must round-trip correctly")
     }
 
     // ── DER stripping ─────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ class CborCodecTest {
         val actualPub = map["-1"] as? ByteArray
 
         assertNotNull(actualPub)
-        assertArrayEquals(
+        assertContentEquals(
             expectedRawBytes,
             actualPub,
             "pub (-1) must exactly match the raw key extracted from SubjectPublicKeyInfo",
@@ -115,7 +115,7 @@ class CborCodecTest {
         val out1 = ByteArray(128).also { rng1.nextBytes(it) }
         val out2 = ByteArray(128).also { rng2.nextBytes(it) }
 
-        assertArrayEquals(
+        assertContentEquals(
             out1,
             out2,
             "DeterministicSecureRandom must produce identical bytes from the same seed " +
@@ -134,7 +134,7 @@ class CborCodecTest {
         rng.setSeed(999L)
 
         val after = ByteArray(32).also { rng.nextBytes(it) }
-        assertArrayEquals(
+        assertContentEquals(
             before,
             after,
             "setSeed must be a no-op — external entropy must never alter the deterministic stream.",
@@ -157,7 +157,7 @@ class CborCodecTest {
         val rawPub1 = SubjectPublicKeyInfo.getInstance(keyPair1.public.encoded).publicKeyData.bytes
         val rawPub2 = SubjectPublicKeyInfo.getInstance(keyPair2.public.encoded).publicKeyData.bytes
 
-        assertArrayEquals(
+        assertContentEquals(
             rawPub1,
             rawPub2,
             "CRITICAL: same seed must always produce the same public key. " +

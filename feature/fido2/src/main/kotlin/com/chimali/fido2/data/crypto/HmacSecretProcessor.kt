@@ -1,10 +1,10 @@
-package com.chimali.fido2.data.crypto
+﻿package com.chimali.fido2.data.crypto
+
+import org.koin.core.annotation.Single
 
 import timber.log.Timber
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * T087a — FIDO2.1 `hmac-secret` extension processor.
@@ -37,10 +37,8 @@ import javax.inject.Singleton
  *
  * @see [CTAP2.1 §12.4](https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#sctn-hmac-secret-extension)
  */
-@Singleton
-class HmacSecretProcessor
-    @Inject
-    constructor(
+@Single
+class HmacSecretProcessor(
         private val masterSeedProvider: MasterSeedProvider,
     ) {
         companion object {

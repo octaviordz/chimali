@@ -7,13 +7,11 @@ import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.hdkeys.P256Group
-import dagger.hilt.android.qualifiers.ApplicationContext
+import org.koin.core.annotation.Single
 import timber.log.Timber
 import java.math.BigInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val PREFS_FILE_NAME = "chimali_wallet_seed"
 private const val KEY_MNEMONIC = "bip39_mnemonic"
@@ -37,11 +35,9 @@ private const val KEY_MNEMONIC = "bip39_mnemonic"
  * ⚠️ **Migration note**: Any credentials registered with `EphemeralMasterSeedProvider`
  * (T145a era) are bound to a transient seed and will be orphaned. Users must re-register.
  */
-@Singleton
-class WalletMasterSeedProvider
-    @Inject
-    constructor(
-        @param:ApplicationContext private val context: Context,
+@Single
+class WalletMasterSeedProvider(
+        private val context: Context,
         private val masterSeedGenerator: MasterSeedGenerator,
         private val hdkManager: HdkManager,
     ) : MasterSeedProvider {
@@ -192,7 +188,10 @@ class WalletMasterSeedProvider
             val pkPoint = P256Group.scalarBaseMult(skScalar)
             raw.fill(0) // zeroise immediately
             Timber.d("Device key pair derived deterministically from master seed")
-            return HdkKeyPair(skScalar, pkPoint)
+            return HdkKeyPair(
+                privateKey = P256Group.serializeScalar(skScalar),
+                publicKey = P256Group.serializeElement(pkPoint)
+            )
         }
 
         // ── T017a: BIP-85-style PQ branch seed derivation ─────────────────────────

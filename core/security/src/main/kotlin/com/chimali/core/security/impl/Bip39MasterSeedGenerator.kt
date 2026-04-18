@@ -2,12 +2,11 @@ package com.chimali.core.security.impl
 
 import android.content.Context
 import com.chimali.core.security.api.MasterSeedGenerator
-import dagger.hilt.android.qualifiers.ApplicationContext
+import org.koin.core.annotation.Single
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
-import javax.inject.Inject
 
 /**
  * BIP39-compliant implementation of [MasterSeedGenerator].
@@ -22,8 +21,9 @@ import javax.inject.Inject
  * Seed derivation uses PBKDF2-HMAC-SHA512 with 2048 iterations and the "mnemonic[passphrase]"
  * salt as specified in BIP39.
  */
-class Bip39MasterSeedGenerator @Inject constructor(
-    @ApplicationContext private val context: Context
+@Single
+class Bip39MasterSeedGenerator(
+    private val context: Context
 ) : MasterSeedGenerator {
 
     private val wordList: List<String> by lazy {

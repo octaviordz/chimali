@@ -103,7 +103,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ### 5.3 Maintainability
 - **NFR-ARCH-010: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.
-- **NFR-ARCH-020: Dependency Injection**: Use **Hilt** for standardized, compile-time safe dependency management.
+- **NFR-ARCH-020: Dependency Injection**: Use **Koin** (with Koin Compiler) for standardized, compile-time safe dependency management across Kotlin Multiplatform targets.
 - **NFR-ARCH-030: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
 - **NFR-ARCH-040: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
 - **Documentation**: Comprehensive API documentation and user troubleshooting guides are documented as part of the post-release stabilization phase.

@@ -1,10 +1,10 @@
 package com.chimali.fido2.data.crypto
 
+import org.koin.core.annotation.Single
+
 import timber.log.Timber
 import java.security.MessageDigest
 import java.util.Base64
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * T059 — Client data hash generation per WebAuthn / CTAP2 spec.
@@ -24,10 +24,8 @@ import javax.inject.Singleton
  * request — however this service is used when the Android side is the "client" (e.g.
  * during integration testing or when the authenticator drives the full ceremony).
  */
-@Singleton
-class ClientDataHashService
-    @Inject
-    constructor() {
+@Single
+class ClientDataHashService {
         // ── Public API ────────────────────────────────────────────────────────────
 
         /**

@@ -1,4 +1,6 @@
-package com.chimali.fido2.ctap2
+﻿package com.chimali.fido2.ctap2
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -7,8 +9,6 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import kotlinx.coroutines.flow.toList
 import timber.log.Timber
 import java.security.MessageDigest
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // CTAP2 status codes
 private const val CTAP2_OK: Byte = 0x00
@@ -29,10 +29,8 @@ private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x30
  *   5 — enumerateCredentialsGetNextCredential
  *   6 — deleteCredential
  */
-@Singleton
-class Ctap2CredentialManagementHandler
-    @Inject
-    constructor(
+@Single
+class Ctap2CredentialManagementHandler(
         private val cborCodec: CborCodec,
         private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
         private val deleteCredentialUseCase: DeleteCredentialUseCase,

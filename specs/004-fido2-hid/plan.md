@@ -12,8 +12,8 @@ Implement the FIDO2 Virtual Authenticator via `BluetoothHidDevice`, allowing the
 **Language/Version**: Kotlin 2.1+ (Kotlin Multiplatform)
 **Primary Dependencies**: 
 - **JetBrains Compose Multiplatform (CMP)**: Shared UI across Android and iOS.
-- **Koin (with Compiler Plugin)**: Dependency injection for the entire KMP project.
-- **Signum**: KMP-native cryptography and PKI library (replaces BouncyCastle/Ktor-crypto).
+- **Koin Annotations (with KSP Compiler)**: Compile-time safe dependency injection using `@Single`, `@Factory`, `@KoinViewModel`, and `@Module`/`@ComponentScan` annotations. Both new and existing code MUST use annotations instead of the manual DSL.
+- **Signum**: KMP-native cryptography and PKI library. Used as primary crypto engine in `commonMain`. BouncyCastle is retained **only** in `androidMain` for AES-SIV (no cross-platform alternative available); all other operations MUST use Signum.
 - **Kermit**: KMP structured Local-First logging.
 - **SQLDelight**: KMP database layer.
 **Storage**: Local App Data directory for crash logs (custom rotating file sink via Kermit LogWriter).
@@ -36,7 +36,7 @@ Implement the FIDO2 Virtual Authenticator via `BluetoothHidDevice`, allowing the
 - ✅ Kermit LogWriters will mask or exclude sensitive values.
 
 ### III. Uncompromising Architecture & Quality 
-- ✅ **Koin Compiler** ensures compile-time safety and validation of the dependency graph.
+- ✅ **Koin Annotations** (`@Single`, `@Factory`, `@KoinViewModel`, `@Module`) ensure compile-time safety via KSP code generation for the entire dependency graph.
 - ✅ Clean Architecture with KMP source set boundaries (`commonMain`, `androidMain`, `iosMain`).
 
 ### IV. Performance & Reliability Excellence 

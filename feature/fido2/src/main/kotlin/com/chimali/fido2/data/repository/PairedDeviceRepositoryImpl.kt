@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.repository
+﻿package com.chimali.fido2.data.repository
+
+import org.koin.core.annotation.Single
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
@@ -8,13 +10,9 @@ import com.chimali.fido2.domain.repository.PairedDeviceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class PairedDeviceRepositoryImpl
-    @Inject
-    constructor(
+@Single
+class PairedDeviceRepositoryImpl(
         private val database: Fido2Database,
     ) : PairedDeviceRepository {
         override fun getAllPairedDevices(): Flow<List<PairedDevice>> {

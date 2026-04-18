@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.repository
+﻿package com.chimali.fido2.data.repository
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
@@ -6,13 +8,9 @@ import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
 import com.chimali.fido2.domain.repository.UserConsentRepository
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class Fido2RepositoryImpl
-    @Inject
-    constructor(
+@Single
+class Fido2RepositoryImpl(
         private val credentialRepository: PasskeyCredentialRepository,
         private val relyingPartyRepository: RelyingPartyRepository,
         private val consentRepository: UserConsentRepository,

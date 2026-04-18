@@ -1,8 +1,9 @@
 package com.chimali.fido2.bluetooth
 
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 /**
  * Unit tests for [HidReportParser] — CTAP2-over-HID packet reassembly (T055).
@@ -23,7 +24,7 @@ class HidReportParserTest {
     private val testCid = byteArrayOf(0x01, 0x02, 0x03, 0x04)
     private val testCidKey = "01020304"
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         parser = HidReportParser()
     }
@@ -72,8 +73,8 @@ class HidReportParserTest {
         val msg = result.getOrNull()
         assertNotNull(msg)
         assertEquals(CTAPHID_CBOR, msg!!.command)
-        assertArrayEquals(testCid, msg.channelId)
-        assertArrayEquals(payload, msg.payload)
+        assertContentEquals(testCid, msg.channelId)
+        assertContentEquals(payload, msg.payload)
     }
 
     @Test
@@ -119,7 +120,7 @@ class HidReportParserTest {
         assertTrue(r2.isSuccess)
         val msg = r2.getOrNull()
         assertNotNull(msg)
-        assertArrayEquals(fullPayload, msg!!.payload)
+        assertContentEquals(fullPayload, msg!!.payload)
     }
 
     @Test
@@ -136,7 +137,7 @@ class HidReportParserTest {
         val r3 = parser.processReport(contPacket(testCid, 1, fullPayload, 112))
         val msg = r3.getOrNull()
         assertNotNull(msg)
-        assertArrayEquals(fullPayload, msg!!.payload)
+        assertContentEquals(fullPayload, msg!!.payload)
     }
 
     // ── Sequence mismatch ─────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ class HidReportParserTest {
         val result = parser.processReport(contWrong)
 
         assertTrue(result.isFailure)
-        assertInstanceOf(Exception::class.java, result.exceptionOrNull())
+        assertIs<Exception>(result.exceptionOrNull())
     }
 
     @Test
@@ -185,7 +186,7 @@ class HidReportParserTest {
         assertEquals(62, packets[0].size)
 
         // Verify CID in first packet
-        assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
+        assertContentEquals(testCid, packets[0].copyOfRange(0, 4))
         // Verify CMD with init flag
         assertEquals((CTAPHID_CBOR or 0x80).toByte(), packets[0][4])
         // Verify length
@@ -219,16 +220,16 @@ class HidReportParserTest {
         assertEquals(CTAPHID_INIT, response.command)
         assertEquals(17, response.payload.size)
         // First 8 bytes = nonce echo
-        assertArrayEquals(nonce, response.payload.copyOfRange(0, 8))
+        assertContentEquals(nonce, response.payload.copyOfRange(0, 8))
         // Next 4 bytes = assigned CID
-        assertArrayEquals(newCid, response.payload.copyOfRange(8, 12))
+        assertContentEquals(newCid, response.payload.copyOfRange(8, 12))
         // Byte 12 = CTAPHID protocol version = 0x02
         assertEquals(0x02.toByte(), response.payload[12])
     }
 
     @Test
     fun `buildInitResponse rejects wrong nonce size`() {
-        assertThrows(IllegalArgumentException::class.java) {
+        assertFailsWith<IllegalArgumentException> {
             parser.buildInitResponse(ByteArray(4), byteArrayOf(1, 2, 3, 4))
         }
     }

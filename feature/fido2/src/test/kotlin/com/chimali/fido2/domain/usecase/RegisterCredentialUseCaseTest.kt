@@ -11,14 +11,14 @@ import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import java.security.KeyPairGenerator
 
-@DisplayName("RegisterCredential Use Case Tests")
 class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
@@ -34,7 +34,7 @@ class RegisterCredentialUseCaseTest {
     private lateinit var testUser: PublicKeyCredentialUserEntity
     private lateinit var testParams: PublicKeyCredentialParameters
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             credentialRepository = mockk()
@@ -131,10 +131,8 @@ class RegisterCredentialUseCaseTest {
         }
 
     @Nested
-    @DisplayName("Successful Registration Tests")
     inner class SuccessfulRegistrationTests {
         @Test
-        @DisplayName("Should successfully register credential with biometric verification")
         fun `should successfully register credential with biometric verification`() =
             runTest {
                 val result = registerCredentialUseCase(testOptions)
@@ -159,7 +157,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should successfully register credential with PIN verification")
         fun `should successfully register credential with pin verification`() =
             runTest {
                 // Mock PIN as the only available method
@@ -186,7 +183,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should successfully register credential without verification when not required")
         fun `should successfully register credential without verification when not required`() =
             runTest {
                 // Mock no verification required
@@ -223,7 +219,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should update existing RP information")
         fun `should update existing rp information`() =
             runTest {
                 val existingRp =
@@ -244,13 +239,11 @@ class RegisterCredentialUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Validation Failure Tests")
     inner class ValidationFailureTests {
         @Test
-        @DisplayName("Should fail when RP validation fails")
         fun `should fail when rp validation fails`() =
             runTest {
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialRpEntity.create(
                         id = "ftp://invalid-rp.com", // ftp is invalid scheme
                         name = "Test RP",
@@ -259,10 +252,9 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when user validation fails")
         fun `should fail when user validation fails`() =
             runTest {
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialUserEntity.create(
                         id = "user123".toByteArray(),
                         name = "", // Blank name is invalid
@@ -272,10 +264,9 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when challenge is empty")
         fun `should fail when challenge is empty`() =
             runTest {
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,
@@ -286,10 +277,9 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when challenge exceeds maximum size")
         fun `should fail when challenge exceeds maximum size`() =
             runTest {
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,
@@ -300,10 +290,9 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when timeout is invalid")
         fun `should fail when timeout is invalid`() =
             runTest {
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,
@@ -315,7 +304,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when credential creation validation fails")
         fun `should fail when credential creation validation fails`() =
             runTest {
                 coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns
@@ -331,10 +319,8 @@ class RegisterCredentialUseCaseTest {
     }
 
     @Nested
-    @DisplayName("User Verification Failure Tests")
     inner class UserVerificationFailureTests {
         @Test
-        @DisplayName("Should fail when no verification method is available")
         fun `should fail when no verification method is available`() =
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
@@ -355,7 +341,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when user consent recording fails")
         fun `should fail when user consent recording fails`() =
             runTest {
                 coEvery { userVerificationService.recordUserConsent(any()) } returns
@@ -371,10 +356,8 @@ class RegisterCredentialUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Storage Failure Tests")
     inner class StorageFailureTests {
         @Test
-        @DisplayName("Should fail when credential storage fails")
         fun `should fail when credential storage fails`() =
             runTest {
                 coEvery { credentialRepository.saveCredential(any()) } returns
@@ -389,7 +372,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when RP update fails")
         fun `should fail when rp update fails`() =
             runTest {
                 coEvery { credentialRepository.saveRelyingParty(any()) } returns
@@ -405,10 +387,8 @@ class RegisterCredentialUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Algorithm Support Tests")
     inner class AlgorithmSupportTests {
         @Test
-        @DisplayName("Should support ES256 algorithm")
         fun `should support es256 algorithm`() =
             runTest {
                 val es256Options =
@@ -422,7 +402,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should support RS256 algorithm")
         fun `should support rs256 algorithm`() =
             runTest {
                 val rs256Options =
@@ -436,22 +415,19 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail with unsupported algorithm")
         fun `should fail with unsupported algorithm`() =
             runTest {
                 // PublicKeyCredentialParameters validates algorithm in init, so creating with unsupported
                 // algorithm throws IllegalArgumentException before the use case is even called.
-                assertThrows(IllegalArgumentException::class.java) {
+                assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialParameters.create(algorithm = "UNSUPPORTED")
                 }
             }
     }
 
     @Nested
-    @DisplayName("Verification Preference Tests")
     inner class VerificationPreferenceTests {
         @Test
-        @DisplayName("Should handle preferred verification with biometric available")
         fun `should handle preferred verification with biometric available`() =
             runTest {
                 coEvery {
@@ -473,7 +449,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle discouraged verification")
         fun `should handle discouraged verification`() =
             runTest {
                 coEvery {
@@ -496,10 +471,8 @@ class RegisterCredentialUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Edge Cases")
     inner class EdgeCases {
         @Test
-        @DisplayName("Should handle exclude credentials list")
         fun `should handle exclude credentials list`() =
             runTest {
                 val excludeCredentials =
@@ -520,7 +493,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle allow credentials list")
         fun `should handle allow credentials list`() =
             runTest {
                 val allowCredentials =
@@ -541,7 +513,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle resident key requirements")
         fun `should handle resident key requirements`() =
             runTest {
                 val residentKeyOptions =
@@ -559,7 +530,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle attestation preferences")
         fun `should handle attestation preferences`() =
             runTest {
                 val directAttestationOptions =
@@ -584,7 +554,6 @@ class RegisterCredentialUseCaseTest {
      * before generating a new credential.
      */
     @Nested
-    @DisplayName("T115b: Dynamic Credential Storage Limit Tests (FR-HID-022)")
     inner class CredentialLimitTests {
         private fun stubCountAndLimit(
             count: Int,
@@ -603,7 +572,6 @@ class RegisterCredentialUseCaseTest {
         }
 
         @Test
-        @DisplayName("T115b: registration succeeds when credential count is below dynamic limit")
         fun `T115b registration succeeds below limit`() =
             runTest {
                 stubCountAndLimit(count = 49, limit = 50)
@@ -615,7 +583,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("T115b: registration fails when count is at dynamic limit")
         fun `T115b registration fails at limit`() =
             runTest {
                 stubCountAndLimit(count = 1000, limit = 1000)
@@ -627,7 +594,6 @@ class RegisterCredentialUseCaseTest {
             }
 
         @Test
-        @DisplayName("T115b: registration correctly respects an increased limit")
         fun `T115b registration respects increased limit`() =
             runTest {
                 stubCountAndLimit(count = 1000, limit = 2000)

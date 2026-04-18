@@ -1,14 +1,12 @@
-package com.chimali.fido2.data.storage
+﻿package com.chimali.fido2.data.storage
+
+import org.koin.core.annotation.Single
 
 import android.content.Context
 import java.security.SecureRandom
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SqlCipherWrapper
-    @Inject
-    constructor(
+@Single
+class SqlCipherWrapper(
         private val context: Context,
     ) {
         private val secureRandom = SecureRandom()

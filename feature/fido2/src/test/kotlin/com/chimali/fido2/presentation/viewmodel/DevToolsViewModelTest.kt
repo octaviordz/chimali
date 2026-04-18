@@ -13,10 +13,10 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
+import kotlin.test.*
+import kotlin.test.BeforeTest
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 
 /**
  * T146a — Unit tests for [DevToolsViewModel].
@@ -30,7 +30,7 @@ class DevToolsViewModelTest {
 
     private lateinit var viewModel: DevToolsViewModel
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         coEvery { mockProvider.getMasterSeed() } returns ByteArray(64)

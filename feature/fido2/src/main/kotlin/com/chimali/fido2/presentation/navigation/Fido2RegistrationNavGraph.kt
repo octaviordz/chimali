@@ -11,7 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -106,7 +106,7 @@ fun Fido2RegistrationNavGraph(
                 startDestination = startDestination,
             ) {
                 composable(Fido2Destinations.HOME_ROUTE) { entry ->
-                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(entry)
+                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = koinViewModel(viewModelStoreOwner = entry)
 
                     com.chimali.fido2.presentation.ui.Fido2HomeScreen(
                         onManageCredentials = {
@@ -159,7 +159,7 @@ fun Fido2RegistrationNavGraph(
                         remember(backStackEntry) {
                             navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)
                         }
-                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = hiltViewModel(parentBackStackEntry)
+                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = koinViewModel(viewModelStoreOwner = parentBackStackEntry)
 
                     com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(
                         macAddress = macAddress,

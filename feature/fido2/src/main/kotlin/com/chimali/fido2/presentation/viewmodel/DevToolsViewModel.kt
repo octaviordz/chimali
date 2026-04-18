@@ -1,11 +1,12 @@
-package com.chimali.fido2.presentation.viewmodel
+﻿package com.chimali.fido2.presentation.viewmodel
+
+import org.koin.android.annotation.KoinViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 // ---------------------------------------------------------------------------
 // State
@@ -83,10 +83,8 @@ sealed interface DevToolsEffect {
  * are JVM `String` objects (interned), so callers should also call [System.gc] after
  * clearing; a future improvement would store them as `CharArray`.
  */
-@HiltViewModel
-class DevToolsViewModel
-    @Inject
-    constructor(
+@KoinViewModel
+class DevToolsViewModel(
         private val masterSeedProvider: MasterSeedProvider,
         private val clipboardManagerService: ClipboardManagerService,
     ) : ViewModel() {

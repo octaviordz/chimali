@@ -1,11 +1,11 @@
 package com.chimali.fido2.data.crypto
 
-import org.junit.jupiter.api.Assertions.assertArrayEquals
+import kotlin.test.assertContentEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 
 /**
  * T017a — Unit tests for [PostQuantumCrypto] (ML-DSA-65 / NIST FIPS 204).
@@ -43,7 +43,7 @@ class PqcSigningTest {
 
         assertNotNull(kp1, "Key pair must not be null")
         assertNotNull(kp2, "Key pair must not be null")
-        assertArrayEquals(
+        assertContentEquals(
             pqc.publicKeyBytes(kp1!!),
             pqc.publicKeyBytes(kp2!!),
             "Same seed must produce the same public key (KAT)",

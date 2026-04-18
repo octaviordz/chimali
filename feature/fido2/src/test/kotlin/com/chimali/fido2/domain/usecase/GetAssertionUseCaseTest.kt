@@ -21,8 +21,8 @@ import io.mockk.mockkStatic
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.time.Instant
 
 /**
@@ -43,7 +43,7 @@ class GetAssertionUseCaseTest {
     private val testClientDataHash = ByteArray(32) { it.toByte() }
     private val fakeSignature = ByteArray(72) { 0x30.toByte() } // plausible DER signature size
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         mockkStatic(Log::class)
         every { Log.d(any<String>(), any<String>()) } returns 0

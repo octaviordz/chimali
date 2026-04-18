@@ -1,14 +1,14 @@
 package com.chimali.fido2.data.crypto
 
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 class CryptoUtilsTest {
     private lateinit var memoryUtils: MemoryUtils
     private lateinit var cborCodec: CborCodec
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         memoryUtils = MemoryUtils()
         cborCodec = CborCodec()
@@ -48,7 +48,7 @@ class CryptoUtilsTest {
         val chars = memoryUtils.secureStringToChars(originalString)
 
         assertEquals(originalString.length, chars.size)
-        assertArrayEquals(originalString.toCharArray(), chars)
+        assertContentEquals(originalString.toCharArray(), chars)
     }
 
     @Test
@@ -57,7 +57,7 @@ class CryptoUtilsTest {
         val bytes = memoryUtils.secureStringToBytes(originalString)
 
         assertEquals(originalString.toByteArray().size, bytes.size)
-        assertArrayEquals(originalString.toByteArray(), bytes)
+        assertContentEquals(originalString.toByteArray(), bytes)
     }
 
     @Test
@@ -65,7 +65,7 @@ class CryptoUtilsTest {
         val original = "original data".toByteArray()
         val copy = memoryUtils.createSecureCopy(original)
 
-        assertArrayEquals(original, copy)
+        assertContentEquals(original, copy)
         assertNotSame(original, copy)
     }
 
@@ -74,7 +74,7 @@ class CryptoUtilsTest {
         val original = "original data".toCharArray()
         val copy = memoryUtils.createSecureCopy(original)
 
-        assertArrayEquals(original, copy)
+        assertContentEquals(original, copy)
         assertNotSame(original, copy)
     }
 

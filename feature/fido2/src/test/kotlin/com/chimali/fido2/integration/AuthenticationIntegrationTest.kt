@@ -24,9 +24,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 /**
  * T100, T106 — Integration tests for the FIDO2 authentication flow.
@@ -42,7 +42,7 @@ class AuthenticationIntegrationTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
 
@@ -93,7 +93,7 @@ class AuthenticationIntegrationTest {
             advanceUntilIdle()
 
             val state = viewModel.state.value
-            assertInstanceOf(AuthenticationState.AwaitingUserConsent::class.java, state)
+            assertIs<AuthenticationState.AwaitingUserConsent>(state)
             assertEquals("https://example.com", (state as AuthenticationState.AwaitingUserConsent).rpId)
         }
 
@@ -108,7 +108,7 @@ class AuthenticationIntegrationTest {
             viewModel.handleIntent(AuthenticationIntent.CancelAuthentication)
             advanceUntilIdle()
 
-            assertInstanceOf(AuthenticationState.Cancelled::class.java, viewModel.state.value)
+            assertIs<AuthenticationState.Cancelled>(viewModel.state.value)
         }
 
     // ── Successful authentication flow ───────────────────────────────────────
@@ -171,6 +171,6 @@ class AuthenticationIntegrationTest {
             viewModel.handleIntent(AuthenticationIntent.Retry)
             advanceUntilIdle()
 
-            assertInstanceOf(AuthenticationState.AwaitingUserConsent::class.java, viewModel.state.value)
+            assertIs<AuthenticationState.AwaitingUserConsent>(viewModel.state.value)
         }
 }

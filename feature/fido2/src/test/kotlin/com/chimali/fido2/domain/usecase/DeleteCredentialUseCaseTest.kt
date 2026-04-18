@@ -7,14 +7,14 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 class DeleteCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var deleteCredentialUseCase: DeleteCredentialUseCase
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         credentialRepository = mockk()
         deleteCredentialUseCase = DeleteCredentialUseCase(credentialRepository)

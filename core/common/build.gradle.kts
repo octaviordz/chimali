@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
 
@@ -35,14 +34,17 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Hilt
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    
+    // Koin Annotations — compile-time DI (replaces DSL, T189)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.annotations)
+
     // Testing
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.platform.launcher)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Koin Annotations code generator — runs via KSP (T189)
+    ksp(libs.koin.ksp.compiler)
 }

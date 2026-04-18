@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.dao
+﻿package com.chimali.fido2.data.dao
+
+import org.koin.core.annotation.Single
 
 import app.cash.sqldelight.coroutines.asFlow
 import com.chimali.fido2.data.database.Fido2Database
@@ -7,18 +9,14 @@ import com.chimali.fido2.domain.model.UserConsentRecord
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
-import javax.inject.Inject
-import javax.inject.Singleton
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
 
 /**
  * Data Access Object for UserConsentRecord entities using SQLDelight.
  * Provides database operations for user consent tracking.
  */
-@Singleton
-class UserConsentRecordDao
-    @Inject
-    constructor(
+@Single
+class UserConsentRecordDao(
         private val database: Fido2Database,
     ) {
         /**

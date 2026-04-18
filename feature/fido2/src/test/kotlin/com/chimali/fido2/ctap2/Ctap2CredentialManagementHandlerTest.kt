@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.time.Instant
 
 class Ctap2CredentialManagementHandlerTest {
@@ -26,7 +26,7 @@ class Ctap2CredentialManagementHandlerTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var handler: Ctap2CredentialManagementHandler
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         mockkStatic(Log::class)
         every { Log.e(any<String>(), any<String>()) } returns 0

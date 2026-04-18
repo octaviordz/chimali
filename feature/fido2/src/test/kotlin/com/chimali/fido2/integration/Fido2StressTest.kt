@@ -41,8 +41,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.math.BigInteger
 import java.security.Security
 import java.time.Instant
@@ -73,7 +73,7 @@ class Fido2StressTest {
 
     private val realSeed = ByteArray(SEED_SIZE) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let { HdkKeyPair(it.first, it.second) }
+        P256Group.generateKeyPair().let { HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second)) }
     }
 
     companion object {
@@ -88,7 +88,7 @@ class Fido2StressTest {
         private const val MOCK_MIN_PIN = 4
     }
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
         mockkStatic(android.util.Log::class)
@@ -120,9 +120,9 @@ class Fido2StressTest {
                         }
                     val childPubKey = P256Group.G.multiply(childScalar).normalize()
                     HdkResult(
-                        publicKey = childPubKey,
+                        publicKey = P256Group.serializeElement(childPubKey),
                         salt = ByteArray(SEED_SIZE),
-                        blindingFactor = childScalar,
+                        blindingFactor = P256Group.serializeScalar(childScalar),
                     )
                 }
                 every { blindPrivateKey(any(), any()) } answers {

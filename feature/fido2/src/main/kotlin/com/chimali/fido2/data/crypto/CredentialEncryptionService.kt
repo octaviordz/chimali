@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.crypto
+﻿package com.chimali.fido2.data.crypto
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.data.service.CredentialStorageService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -11,17 +13,13 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Service for encrypting and decrypting sensitive credential data.
  * Uses AES-GCM for authenticated encryption with additional data.
  */
-@Singleton
-class CredentialEncryptionService
-    @Inject
-    constructor(
+@Single
+class CredentialEncryptionService(
         private val credentialStorageService: CredentialStorageService,
     ) {
         companion object {

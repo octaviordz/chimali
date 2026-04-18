@@ -1,7 +1,7 @@
 package com.chimali.core.security.hdkeys
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 /**
  * Tests for HashToScalar — RFC 9380 expand_message_xmd and hash_to_field.
@@ -18,7 +18,7 @@ class HashToScalarTest {
         val result = HashToScalar.expandMessageXmd(msg, dst, 0x20)
 
         val expected = hexToBytes("68a985b87eb6b46952128911f2a4412bbc302a9d759667f87f7a21d803f07235")
-        assertArrayEquals(expected, result)
+        assertContentEquals(expected, result)
     }
 
     @Test
@@ -28,7 +28,7 @@ class HashToScalarTest {
         val result = HashToScalar.expandMessageXmd(msg, dst, 0x20)
 
         val expected = hexToBytes("d8ccab23b5985ccea865c6c97b6e5b8350e794e603b4b97902f53a8a0d605615")
-        assertArrayEquals(expected, result)
+        assertContentEquals(expected, result)
     }
 
     @Test
@@ -43,7 +43,7 @@ class HashToScalarTest {
             "eda8576c412b18ffb658e3dd6ec849469b979d444cf7b26911a08e63cf31f9dc" +
             "c541708d3491184472c2c29bb749d4286b004ceb5ee6b9a7fa5b646c993f0ced"
         )
-        assertArrayEquals(expected, result)
+        assertContentEquals(expected, result)
     }
 
     @Test
@@ -52,8 +52,8 @@ class HashToScalarTest {
         val msg = "test message".toByteArray(Charsets.US_ASCII)
         val scalar = HashToScalar.hashToScalar(msg, dst)
 
-        assertTrue("Scalar must be positive", scalar.signum() > 0)
-        assertTrue("Scalar must be less than order", scalar < P256Group.ORDER)
+        assertTrue(scalar.signum() > 0, "Scalar must be positive")
+        assertTrue(scalar < P256Group.ORDER, "Scalar must be less than order")
     }
 
     @Test
@@ -67,10 +67,10 @@ class HashToScalarTest {
 
     @Test
     fun `i2osp produces correct encoding`() {
-        assertArrayEquals(byteArrayOf(0x00), HashToScalar.i2osp(0, 1))
-        assertArrayEquals(byteArrayOf(0x01), HashToScalar.i2osp(1, 1))
-        assertArrayEquals(byteArrayOf(0x00, 0x20), HashToScalar.i2osp(32, 2))
-        assertArrayEquals(byteArrayOf(0x00, 0x00, 0x00, 0x2A), HashToScalar.i2osp(42, 4))
+        assertContentEquals(byteArrayOf(0x00), HashToScalar.i2osp(0, 1))
+        assertContentEquals(byteArrayOf(0x01), HashToScalar.i2osp(1, 1))
+        assertContentEquals(byteArrayOf(0x00, 0x20), HashToScalar.i2osp(32, 2))
+        assertContentEquals(byteArrayOf(0x00, 0x00, 0x00, 0x2A), HashToScalar.i2osp(42, 4))
     }
 
     private fun hexToBytes(hex: String): ByteArray {

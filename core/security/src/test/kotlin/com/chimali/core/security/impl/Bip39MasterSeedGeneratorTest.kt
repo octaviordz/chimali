@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.res.AssetManager
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 
 /**
  * Unit tests for [Bip39MasterSeedGenerator].
@@ -23,7 +23,7 @@ class Bip39MasterSeedGeneratorTest {
     private lateinit var generator: Bip39MasterSeedGenerator
     private lateinit var mockContext: Context
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         val wordListText = generateSequentialWordList()
         mockContext = mockk()
@@ -75,7 +75,7 @@ class Bip39MasterSeedGeneratorTest {
 
     @Test
     fun `entropyToMnemonic with invalid entropy size throws IllegalArgumentException`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             generator.entropyToMnemonic(ByteArray(15))
         }
     }
@@ -92,7 +92,7 @@ class Bip39MasterSeedGeneratorTest {
         val mnemonic = (0 until 12).map { "word${it.toString().padStart(4, '0')}" }
         val seed1 = generator.deriveSeed(mnemonic, "")
         val seed2 = generator.deriveSeed(mnemonic, "")
-        assertArrayEquals(seed1, seed2)
+        assertContentEquals(seed1, seed2)
     }
 
     @Test
@@ -105,7 +105,7 @@ class Bip39MasterSeedGeneratorTest {
 
     @Test
     fun `generateMnemonic with invalid word count throws IllegalArgumentException`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             generator.generateMnemonic(18)
         }
     }

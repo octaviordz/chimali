@@ -55,3 +55,7 @@ com_google_firebase_crashlytics_*.properties
 # Secret files
 secrets.properties
 .agent/tmp/
+
+# Kotlin KMP local caches
+.kotlin/
+*.klib

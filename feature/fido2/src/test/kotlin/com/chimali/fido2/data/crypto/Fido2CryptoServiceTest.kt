@@ -17,9 +17,9 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
+import kotlin.test.BeforeTest
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import java.security.Security
 
 /**
@@ -37,9 +37,9 @@ class Fido2CryptoServiceTest {
 
     // Use a real root key pair and seed so we can verify math
     private val realSeed = ByteArray(32) { it.toByte() }
-    private val realDeviceKeyPair: HdkKeyPair by lazy { P256Group.generateKeyPair().let { HdkKeyPair(it.first, it.second) } }
+    private val realDeviceKeyPair: HdkKeyPair by lazy { P256Group.generateKeyPair().let { HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second)) } }
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
         mockkStatic(android.util.Log::class)
@@ -69,12 +69,12 @@ class Fido2CryptoServiceTest {
         fun `generateCredentialKeyPair delegates to HdkManager deriveHdk`() =
             runTest {
                 val credentialId = "test-cred-id-1"
-                val devicePubKeyBytes = P256Group.serializeElement(realDeviceKeyPair.publicKey)
+                val devicePubKeyBytes = realDeviceKeyPair.publicKey
                 val fakeResult =
                     HdkResult(
                         publicKey = realDeviceKeyPair.publicKey, // reuse for simplicity
                         salt = ByteArray(32),
-                        blindingFactor = P256Group.randomScalar(),
+                        blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
                     )
 
                 val capturedPath = slot<List<UInt>>()
@@ -102,7 +102,7 @@ class Fido2CryptoServiceTest {
             runTest {
                 val credentialId = "stable-cred"
                 val (sk, pk) = P256Group.generateKeyPair()
-                val fakeResult = HdkResult(pk, ByteArray(32), P256Group.randomScalar())
+                val fakeResult = HdkResult(P256Group.serializeElement(pk), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
 
                 every { hdkManager.deriveHdk(any(), any(), any()) } returns fakeResult
 
@@ -120,9 +120,9 @@ class Fido2CryptoServiceTest {
                 var callCount = 0
                 every { hdkManager.deriveHdk(any(), any(), any()) } answers {
                     if (callCount++ == 0) {
-                        HdkResult(pk1, ByteArray(32), P256Group.randomScalar())
+                        HdkResult(P256Group.serializeElement(pk1), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
                     } else {
-                        HdkResult(pk2, ByteArray(32), P256Group.randomScalar())
+                        HdkResult(P256Group.serializeElement(pk2), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
                     }
                 }
 
@@ -171,7 +171,7 @@ class Fido2CryptoServiceTest {
         fun `getPublicKey returns non-null PublicKey for valid credentialId`() =
             runTest {
                 val (_, pk) = P256Group.generateKeyPair()
-                every { hdkManager.deriveHdk(any(), any(), any()) } returns HdkResult(pk, ByteArray(32), P256Group.randomScalar())
+                every { hdkManager.deriveHdk(any(), any(), any()) } returns HdkResult(P256Group.serializeElement(pk), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
 
                 val publicKey = service.getPublicKey(CredentialId.fromString("some-cred"), Fido2CryptoService.COSE_ES256)
 
@@ -289,7 +289,7 @@ class Fido2CryptoServiceTest {
 
                 val fixedDeviceSk = java.math.BigInteger.ONE
                 val fixedDevicePk = com.chimali.core.security.hdkeys.P256Group.G
-                val fixedDeviceKeyPair = HdkKeyPair(fixedDeviceSk, fixedDevicePk)
+                val fixedDeviceKeyPair = HdkKeyPair(P256Group.serializeScalar(fixedDeviceSk), P256Group.serializeElement(fixedDevicePk))
 
                 coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
                 coEvery { masterSeedProvider.getDeviceKeyPair() } returns fixedDeviceKeyPair

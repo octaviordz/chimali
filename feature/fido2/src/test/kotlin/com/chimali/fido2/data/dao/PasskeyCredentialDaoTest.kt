@@ -9,14 +9,13 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import java.security.KeyPairGenerator
 
-@DisplayName("PasskeyCredentialDao Tests")
 class PasskeyCredentialDaoTest {
     private lateinit var database: Fido2Database
     private lateinit var queries: PasskeyCredentialQueries
@@ -25,7 +24,7 @@ class PasskeyCredentialDaoTest {
     private lateinit var testEntity: PasskeyCredential
     private lateinit var publicKey: java.security.PublicKey
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         database = mockk()
         queries = mockk()
@@ -70,7 +69,6 @@ class PasskeyCredentialDaoTest {
     }
 
     @Nested
-    @DisplayName("Insert and Update Operations")
     inner class InsertUpdateOperations {
         @Test
         fun `should insert credential successfully`() =
@@ -137,7 +135,6 @@ class PasskeyCredentialDaoTest {
     }
 
     @Nested
-    @DisplayName("Get Operations")
     inner class GetOperations {
         @Test
         fun `getCredentialById should return entity`() =

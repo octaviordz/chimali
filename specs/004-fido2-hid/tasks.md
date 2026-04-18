@@ -505,15 +505,15 @@ Focus on User Story 1 (FIDO2 Registration) to deliver minimum viable product:
 
 **Independent Test Criteria**: Project compiles and tests pass for both Android and iOS targets.
 
-- [ ] T186 Update `libs.versions.toml` with KMP (Kotlin 2.1+), Koin (4.2.1 + Compiler 1.0.0-RC1), and Signum (3.20.0 indispensable)
-- [ ] T187 Refactor root `build.gradle.kts` to apply Koin Compiler plugin and KMP target configurations
-- [ ] T188 Migrate `core:common` and `core:security` to KMP; rewrite `HdkManager` and `P256Group` using Signum
-- [ ] T189 Replace Hilt with Koin globally: migrate all modules from `@Inject` / `@HiltViewModel` to Koin annotations/DSL
-- [ ] T190 Migrate `feature:fido2` to KMP/CMP: move UI and domain logic to `commonMain`
-- [ ] T191 Implement `expect` declarations for `UserVerificationService` (Biometric) and `BluetoothHidDevice` in `commonMain`; implement `actual` bindings for Android only.
-- [ ] T192 Setup `iosMain` directory structure across all modules without functional code.
-- [ ] T193 [P] Update all unit tests in `commonTest` to verify core logic remains consistent after KMP migration
-- [ ] T194 Verify full project compilation for Android and iOS targets with zero static analysis violations
+- [X] T186 Update `libs.versions.toml` with KMP (Kotlin 2.1+), Koin (4.2.1 + Compiler 1.0.0-RC1), and Signum (3.20.0 indispensable)
+- [X] T187 Refactor root `build.gradle.kts` to apply Koin Compiler plugin and KMP target configurations
+- [X] T188 Migrate `core:common` and `core:security` to KMP; rewrite `HdkManager` and `P256Group` using Signum
+- [X] T189 Replace Hilt with Koin globally: migrate all modules from `@Inject` / `@HiltViewModel` to Koin annotations/DSL
+- [X] T190 Migrate `feature:fido2` to KMP/CMP: move UI and domain logic to `commonMain`
+- [X] T191 Implement `expect` declarations for `UserVerificationService` (Biometric) and `BluetoothHidDevice` in `commonMain`; implement `actual` bindings for Android only.
+- [X] T192 Setup `iosMain` directory structure across all modules without functional code.
+- [X] T193 [P] Update all unit tests in `commonTest` to verify core logic remains consistent after KMP migration
+- [X] T194 Verify full project compilation for Android and iOS targets with zero static analysis violations
 
 ---
 

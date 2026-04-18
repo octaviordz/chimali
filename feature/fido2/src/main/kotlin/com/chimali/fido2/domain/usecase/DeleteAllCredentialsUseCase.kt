@@ -1,14 +1,14 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.repository.CredentialRepository
-import javax.inject.Inject
 
 /**
  * T110 — Deletes all FIDO2 credentials (or all credentials for a specific RP).
  */
 class DeleteAllCredentialsUseCase
-    @Inject
-    constructor(
+   (
         private val credentialRepository: CredentialRepository,
     ) {
         /**

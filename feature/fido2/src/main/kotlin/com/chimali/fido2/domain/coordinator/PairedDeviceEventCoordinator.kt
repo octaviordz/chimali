@@ -1,4 +1,6 @@
-package com.chimali.fido2.domain.coordinator
+﻿package com.chimali.fido2.domain.coordinator
+
+import org.koin.core.annotation.Single
 
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
@@ -8,18 +10,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Singleton coordinator that listens to FIDO2 events across the application
  * and performs side-effects (like tracking paired devices).
  * Operates independently of the Bluetooth transport lifecycle.
  */
-@Singleton
-class PairedDeviceEventCoordinator
-    @Inject
-    constructor(
+@Single
+class PairedDeviceEventCoordinator(
         private val fido2EventBus: Fido2EventBus,
         private val savePairedDeviceUseCase: SavePairedDeviceUseCase,
     ) {

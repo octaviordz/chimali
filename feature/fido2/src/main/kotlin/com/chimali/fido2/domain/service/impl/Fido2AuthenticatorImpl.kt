@@ -20,13 +20,10 @@ import com.chimali.fido2.domain.service.SecurityLevel
 import com.chimali.fido2.domain.service.VerificationPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
-import javax.inject.Inject
-import javax.inject.Singleton
+import org.koin.core.annotation.Single
 
-@Singleton
-class Fido2AuthenticatorImpl
-    @Inject
-    constructor() : Fido2Authenticator {
+@Single
+class Fido2AuthenticatorImpl : Fido2Authenticator {
         companion object {
             private const val MAX_CREDENTIAL_COUNT = 50
             private const val MAX_CREDENTIAL_ID_LENGTH = 255

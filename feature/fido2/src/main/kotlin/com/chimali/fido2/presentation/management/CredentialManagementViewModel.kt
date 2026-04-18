@@ -7,19 +7,16 @@ import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+import org.koin.android.annotation.KoinViewModel
 
 /**
  * T120 — ViewModel for managing FIDO2 Credentials.
  * Uses MVI pattern: Intent -> State -> Effect
  */
-@HiltViewModel
-class CredentialManagementViewModel
-    @Inject
-    constructor(
+@KoinViewModel
+class CredentialManagementViewModel(
         private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
         private val deleteCredentialUseCase: DeleteCredentialUseCase,
         private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase,

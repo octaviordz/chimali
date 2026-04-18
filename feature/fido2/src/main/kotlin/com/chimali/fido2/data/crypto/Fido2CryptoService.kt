@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.crypto
 
-import com.chimali.core.common.di.DefaultDispatcher
+import org.koin.core.annotation.Named
+import org.koin.core.annotation.Single
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
@@ -20,8 +21,6 @@ import java.security.Security
 import java.security.Signature
 import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Data class representing a FIDO2 key pair derived via HDK.
@@ -64,14 +63,12 @@ data class Fido2KeyPair(
  * - Private keys are derived in-memory on demand and never persisted to disk.
  * - Public key bytes (uncompressed, 65 bytes) are stored alongside credential metadata.
  */
-@Singleton
-class Fido2CryptoService
-    @Inject
-    constructor(
+@Single
+class Fido2CryptoService(
         private val hdkManager: HdkManager,
         private val masterSeedProvider: MasterSeedProvider,
         private val postQuantumCrypto: PostQuantumCrypto,
-        @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+        @Named("DefaultDispatcher") private val defaultDispatcher: CoroutineDispatcher,
     ) {
         init {
             // Ensure BouncyCastle is registered for Signature operations
@@ -166,7 +163,7 @@ class Fido2CryptoService
                         masterSeedProvider.getDeviceKeyPair()
                             ?: throw Fido2Exception.KeyGenerationFailed("Device key pair not available", null)
 
-                    val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
+                    val devicePubKeyBytes = deviceKeyPair.publicKey
                     val path = derivationPath(credentialId)
 
                     Timber.d("Deriving HDK key pair for credentialId=%s path=%s", credentialId, path)
@@ -178,7 +175,7 @@ class Fido2CryptoService
                             path = path,
                         )
 
-                    val publicKeyBytes = P256Group.serializeElement(hdkResult.publicKey) // 65 bytes uncompressed
+                    val publicKeyBytes = hdkResult.publicKey // 65 bytes uncompressed
 
                     Timber.d("HDK key pair derived: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
                     Fido2KeyPair(
@@ -308,8 +305,8 @@ class Fido2CryptoService
                 //
                 //  After this, every code path in sign() is JIT-compiled. The first real ceremony
                 //  should cost only the steady-state amount (~80-100ms HDK + ECDSA).
-                val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
-                val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
+                val devicePubKeyBytes = deviceKeyPair.publicKey
+                val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
 
                 val warmupPath =
                     derivationPath(CredentialId.fromString("warmup")) // warms MessageDigest.getInstance("SHA-256")
@@ -320,7 +317,7 @@ class Fido2CryptoService
                         path = warmupPath, // real 2-level path derived same way as sign()
                     )
 
-                val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
+                val blindingFactorBytes = hdkResult.blindingFactor
                 withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
                     // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
                     // Result is discarded, dummy data avoids doing anything meaningful.
@@ -428,8 +425,8 @@ class Fido2CryptoService
                         masterSeedProvider.getDeviceKeyPair()
                             ?: throw Fido2Exception.KeyNotFound("Device key pair not available")
 
-                    val devicePubKeyBytes = P256Group.serializeElement(deviceKeyPair.publicKey)
-                    val devicePrivKeyBytes = P256Group.serializeScalar(deviceKeyPair.privateKey)
+                    val devicePubKeyBytes = deviceKeyPair.publicKey
+                    val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
 
                     val path = derivationPath(credentialId)
                     val hdkResult =
@@ -440,7 +437,7 @@ class Fido2CryptoService
                         )
 
                     // Derive the blinded private key safely scoped
-                    val blindingFactorBytes = P256Group.serializeScalar(hdkResult.blindingFactor)
+                    val blindingFactorBytes = hdkResult.blindingFactor
 
                     val signature =
                         try {

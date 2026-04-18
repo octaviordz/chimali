@@ -24,9 +24,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.security.KeyPairGenerator
 import java.time.Instant
 
@@ -44,7 +44,7 @@ class ManagementIntegrationTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
 

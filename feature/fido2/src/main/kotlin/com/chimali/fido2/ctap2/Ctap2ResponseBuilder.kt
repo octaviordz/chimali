@@ -1,4 +1,6 @@
-package com.chimali.fido2.ctap2
+﻿package com.chimali.fido2.ctap2
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.bluetooth.CtapHidMessage
@@ -10,8 +12,6 @@ import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // CTAP2 status codes
 private const val CTAP2_OK: Byte = 0x00
@@ -35,10 +35,8 @@ private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F // 0x10
  *   - 1-byte CTAP2 status code
  *   - (Optional) JSON-encoded response body (using the project's CborCodec)
  */
-@Singleton
-class Ctap2ResponseBuilder
-    @Inject
-    constructor(
+@Single
+class Ctap2ResponseBuilder(
         private val cborCodec: CborCodec,
         private val hidReportParser: HidReportParser,
     ) {

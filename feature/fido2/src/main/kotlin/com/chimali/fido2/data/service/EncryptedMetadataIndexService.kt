@@ -1,9 +1,9 @@
-package com.chimali.fido2.data.service
+﻿package com.chimali.fido2.data.service
+
+import org.koin.core.annotation.Single
 
 import com.chimali.core.security.api.SivEncryptionManager
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * T113a — AES-256-SIV metadata indexing service for encrypted credential lookup tags.
@@ -42,10 +42,8 @@ import javax.inject.Singleton
  * db.query("SELECT * FROM credentials WHERE rpIdTag = ?", lookupTag)
  * ```
  */
-@Singleton
-class EncryptedMetadataIndexService
-    @Inject
-    constructor(
+@Single
+class EncryptedMetadataIndexService(
         private val sivEncryptionManager: SivEncryptionManager,
     ) {
         companion object {

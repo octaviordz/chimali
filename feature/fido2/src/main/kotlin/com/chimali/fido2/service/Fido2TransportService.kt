@@ -14,7 +14,6 @@ import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,8 +21,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import timber.log.Timber
-import javax.inject.Inject
 
 private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
@@ -43,7 +42,6 @@ private const val AUTH_REQUEST_NOTIF_ID = 1002
  * - Stopped via [ACTION_STOP] when the user presses "Stop Authenticator" or
  *   explicitly dismisses the notification.
  */
-@AndroidEntryPoint
 class Fido2TransportService : Service() {
     companion object {
         const val ACTION_START = "com.chimali.fido2.START_TRANSPORT"
@@ -60,9 +58,9 @@ class Fido2TransportService : Service() {
             }
     }
 
-    @Inject lateinit var transport: Fido2Transport
+    private val transport: Fido2Transport by inject()
 
-    @Inject lateinit var uiEventBus: Fido2UiEventBus
+    private val uiEventBus: Fido2UiEventBus by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

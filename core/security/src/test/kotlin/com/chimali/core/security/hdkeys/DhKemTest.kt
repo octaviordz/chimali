@@ -1,7 +1,7 @@
 package com.chimali.core.security.hdkeys
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 import java.math.BigInteger
 
 /**
@@ -17,14 +17,14 @@ class DhKemTest {
 
         val prk = DhKem.extract(salt, ikm)
         val expectedPrk = hexToBytes("077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5")
-        assertArrayEquals("PRK mismatch", expectedPrk, prk)
+        assertContentEquals(expectedPrk, prk, "PRK mismatch")
 
         val okm = DhKem.expand(prk, info, 42)
         val expectedOkm = hexToBytes(
             "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf" +
             "34007208d5b887185865"
         )
-        assertArrayEquals("OKM mismatch", expectedOkm, okm)
+        assertContentEquals(expectedOkm, okm, "OKM mismatch")
     }
 
     @Test
@@ -35,7 +35,7 @@ class DhKemTest {
         val expectedSk = BigInteger(
             "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb", 16
         )
-        assertEquals("DeriveKeyPair sk mismatch", expectedSk, sk)
+        assertEquals(expectedSk, sk, "DeriveKeyPair sk mismatch")
 
         // Verify pk = sk * G
         val expectedPk = P256Group.scalarBaseMult(expectedSk)
@@ -54,10 +54,8 @@ class DhKemTest {
         // Decap: recover shared secret
         val recoveredSecret = DhKem.decap(enc, skR)
 
-        assertArrayEquals(
-            "Encap/Decap round-trip: shared secrets must match",
-            sharedSecret, recoveredSecret
-        )
+        assertContentEquals(sharedSecret, recoveredSecret
+        , "Encap/Decap round-trip: shared secrets must match")
         assertEquals(32, sharedSecret.size)
     }
 

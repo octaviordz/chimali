@@ -1,9 +1,9 @@
 package com.chimali.fido2.data.crypto
 
 import com.chimali.fido2.domain.model.CredentialId
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.security.MessageDigest
 
 /**
@@ -19,7 +19,7 @@ class CryptoOperationsTest {
 
     private lateinit var clientDataHashService: ClientDataHashService
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         clientDataHashService = ClientDataHashService()
     }
@@ -43,7 +43,7 @@ class CryptoOperationsTest {
         val challenge = ByteArray(32) { it.toByte() }
         val h1 = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
         val h2 = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
-        assertArrayEquals(h1, h2)
+        assertContentEquals(h1, h2)
     }
 
     @Test
@@ -74,7 +74,7 @@ class CryptoOperationsTest {
         val json = """{"type":"webauthn.create","challenge":"AAEC","origin":"https://example.com","crossOrigin":false}"""
         val expected = MessageDigest.getInstance("SHA-256").digest(json.toByteArray(Charsets.UTF_8))
         val actual = clientDataHashService.computeHashFromJson(json)
-        assertArrayEquals(expected, actual)
+        assertContentEquals(expected, actual)
     }
 
     @Test
@@ -102,7 +102,7 @@ class CryptoOperationsTest {
         val rpId = "example.com"
         val expected = MessageDigest.getInstance("SHA-256").digest(rpId.toByteArray(Charsets.UTF_8))
         val actual = ClientDataHashService.rpIdHash(rpId)
-        assertArrayEquals(expected, actual)
+        assertContentEquals(expected, actual)
     }
 
     @Test
@@ -110,7 +110,7 @@ class CryptoOperationsTest {
         val data = "test data".toByteArray()
         val h1 = ClientDataHashService.sha256(data)
         val h2 = ClientDataHashService.sha256(data)
-        assertArrayEquals(h1, h2)
+        assertContentEquals(h1, h2)
         assertEquals(32, h1.size)
     }
 
@@ -118,7 +118,7 @@ class CryptoOperationsTest {
     fun `sha256 companion helper matches MessageDigest`() {
         val data = "hello fido2".toByteArray()
         val expected = MessageDigest.getInstance("SHA-256").digest(data)
-        assertArrayEquals(expected, ClientDataHashService.sha256(data))
+        assertContentEquals(expected, ClientDataHashService.sha256(data))
     }
 
     // ── Fido2CryptoService constants ──────────────────────────────────────────

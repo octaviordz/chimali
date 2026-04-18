@@ -1,18 +1,16 @@
-package com.chimali.fido2.ctap2
+﻿package com.chimali.fido2.ctap2
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * T117 — CTAP2 authenticatorReset (0x07) handler.
  * Performs a master reset of the authenticator, clearing all credentials and settings.
  */
-@Singleton
-class Ctap2ResetAuthenticatorHandler
-    @Inject
-    constructor(
+@Single
+class Ctap2ResetAuthenticatorHandler(
         private val resetAuthenticatorUseCase: ResetAuthenticatorUseCase,
     ) {
         companion object {

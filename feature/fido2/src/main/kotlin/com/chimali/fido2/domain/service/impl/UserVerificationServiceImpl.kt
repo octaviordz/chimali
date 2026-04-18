@@ -1,4 +1,6 @@
-package com.chimali.fido2.domain.service.impl
+﻿package com.chimali.fido2.domain.service.impl
+
+import org.koin.core.annotation.Single
 
 import androidx.biometric.BiometricManager
 import com.chimali.fido2.domain.model.UserConsentRecord
@@ -13,13 +15,9 @@ import com.chimali.fido2.domain.service.VerificationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import java.time.Instant
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class UserVerificationServiceImpl
-    @Inject
-    constructor(
+@Single
+class UserVerificationServiceImpl(
         private val biometricManager: BiometricManager,
     ) : UserVerificationService {
         companion object {

@@ -1,16 +1,15 @@
 package com.chimali.fido2.domain.model
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import java.time.Instant
 import java.util.*
 
-@DisplayName("UserConsentRecord Domain Model Tests")
 class UserConsentRecordTest {
     private lateinit var testTimestamp: Instant
     private lateinit var testRpId: String
@@ -19,7 +18,7 @@ class UserConsentRecordTest {
     private lateinit var testUserAgent: String
     private lateinit var testDeviceId: String
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             testTimestamp = Instant.now()
@@ -31,10 +30,8 @@ class UserConsentRecordTest {
         }
 
     @Nested
-    @DisplayName("Validation Tests")
     inner class ValidationTests {
         @Test
-        @DisplayName("Should create valid consent record with all fields")
         fun `should create valid consent record with all fields`() =
             runTest {
                 val consent =
@@ -65,7 +62,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should create valid consent record with minimal fields")
         fun `should create valid consent record with minimal fields`() =
             runTest {
                 val consent =
@@ -96,10 +92,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when ID is blank")
         fun `should throw exception when id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -116,10 +111,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when RP ID is blank")
         fun `should throw exception when rp id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -136,10 +130,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when RP ID is invalid")
         fun `should throw exception when rp id is invalid`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -156,11 +149,10 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when timestamp is in the future")
         fun `should throw exception when timestamp is in the future`() =
             runTest {
                 val futureTimestamp = Instant.now().plusSeconds(120)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -177,10 +169,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when credential ID is blank")
         fun `should throw exception when credential id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -197,11 +188,10 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when credential ID exceeds maximum length")
         fun `should throw exception when credential id exceeds maximum length`() =
             runTest {
                 val longCredentialId = "a".repeat(1024)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -218,10 +208,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when IP address is invalid")
         fun `should throw exception when ip address is invalid`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -238,10 +227,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when user agent is blank")
         fun `should throw exception when user agent is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -258,10 +246,9 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when device ID is blank")
         fun `should throw exception when device id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
                         operationType = ConsentOperationType.REGISTRATION,
@@ -278,7 +265,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when no consent method is used")
         fun `should throw exception when no consent method is used`() =
             runTest {
                 // The domain model allows consent records with no explicit verification
@@ -302,11 +288,10 @@ class UserConsentRecordTest {
     }
 
     @Nested
-    @DisplayName("Business Logic Tests")
     inner class BusinessLogicTests {
         private lateinit var consent: UserConsentRecord
 
-        @BeforeEach
+        @BeforeTest
         fun setUp() =
             runTest {
                 consent =
@@ -325,7 +310,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if consent is recent")
         fun `should correctly check if consent is recent`() =
             runTest {
                 assertTrue(consent.isRecent(5)) // Should be recent within 5 minutes
@@ -338,7 +322,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if consent is for specific credential")
         fun `should correctly check if consent is for specific credential`() =
             runTest {
                 assertTrue(consent.isForCredential(testCredentialId))
@@ -351,7 +334,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if consent is for specific RP")
         fun `should correctly check if consent is for specific rp`() =
             runTest {
                 assertTrue(consent.isForRelyingParty(testRpId))
@@ -361,7 +343,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should return correct consent method")
         fun `should return correct consent method`() =
             runTest {
                 assertEquals(ConsentMethod.BIOMETRIC, consent.getConsentMethod())
@@ -377,7 +358,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should return safe credential ID")
         fun `should return safe credential id`() =
             runTest {
                 assertEquals(testCredentialId, consent.getSafeCredentialId())
@@ -387,7 +367,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should correctly identify registration consent")
         fun `should correctly identify registration consent`() =
             runTest {
                 assertTrue(consent.isRegistrationConsent())
@@ -397,7 +376,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should correctly identify authentication consent")
         fun `should correctly identify authentication consent`() =
             runTest {
                 assertFalse(consent.isAuthenticationConsent())
@@ -408,10 +386,8 @@ class UserConsentRecordTest {
     }
 
     @Nested
-    @DisplayName("Companion Object Tests")
     inner class CompanionObjectTests {
         @Test
-        @DisplayName("Should create consent record using companion object factory method")
         fun `should create consent record using companion object factory method`() =
             runTest {
                 val consent =
@@ -440,7 +416,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should create consent record with minimal parameters")
         fun `should create consent record with minimal parameters`() =
             runTest {
                 val consent =
@@ -463,7 +438,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should have correct constant values")
         fun `should have correct constant values`() =
             runTest {
                 assertEquals(45, UserConsentRecord.MAX_IP_ADDRESS_LENGTH)
@@ -474,10 +448,8 @@ class UserConsentRecordTest {
     }
 
     @Nested
-    @DisplayName("IP Address Validation Tests")
     inner class IpAddressValidationTests {
         @Test
-        @DisplayName("Should accept valid IPv4 addresses")
         fun `should accept valid ipv4 addresses`() =
             runTest {
                 val validIpAddresses =
@@ -510,7 +482,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should accept valid IPv6 addresses")
         fun `should accept valid ipv6 addresses`() =
             runTest {
                 val validIpAddresses =
@@ -542,7 +513,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should reject invalid IP addresses")
         fun `should reject invalid ip addresses`() =
             runTest {
                 val invalidIpAddresses =
@@ -559,7 +529,7 @@ class UserConsentRecordTest {
                     )
 
                 invalidIpAddresses.forEach { ip ->
-                    assertThrows<IllegalArgumentException> {
+                    assertFailsWith<IllegalArgumentException> {
                         UserConsentRecord(
                             id = "test_id",
                             operationType = ConsentOperationType.REGISTRATION,
@@ -578,10 +548,8 @@ class UserConsentRecordTest {
     }
 
     @Nested
-    @DisplayName("Edge Cases")
     inner class EdgeCases {
         @Test
-        @DisplayName("Should handle maximum allowed field sizes")
         fun `should handle maximum allowed field sizes`() =
             runTest {
                 val maxCredentialId = "a".repeat(1023)
@@ -611,7 +579,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should handle all operation types")
         fun `should handle all operation types`() =
             runTest {
                 val operationTypes =
@@ -643,7 +610,6 @@ class UserConsentRecordTest {
             }
 
         @Test
-        @DisplayName("Should handle combined biometric and PIN consent")
         fun `should handle combined biometric and pin consent`() =
             runTest {
                 val consent =

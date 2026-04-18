@@ -42,8 +42,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.math.BigInteger
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
@@ -60,11 +60,11 @@ class MultiAlgorithmIntegrationTest {
     private val realSeed = ByteArray(32) { it.toByte() }
     private val realPqSeed = ByteArray(64) { (it + 1).toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let { HdkKeyPair(it.first, it.second) }
+        P256Group.generateKeyPair().let { HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second)) }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
         mockkStatic(android.util.Log::class)
@@ -93,9 +93,9 @@ class MultiAlgorithmIntegrationTest {
                         }
                     val childPubKey = P256Group.G.multiply(childScalar).normalize()
                     HdkResult(
-                        publicKey = childPubKey,
+                        publicKey = P256Group.serializeElement(childPubKey),
                         salt = ByteArray(32),
-                        blindingFactor = childScalar,
+                        blindingFactor = P256Group.serializeScalar(childScalar),
                     )
                 }
                 every { blindPrivateKey(any(), any()) } answers {

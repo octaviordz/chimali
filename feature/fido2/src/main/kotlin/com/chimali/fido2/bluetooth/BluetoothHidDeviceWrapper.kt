@@ -13,7 +13,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.chimali.fido2.domain.exception.Fido2Exception
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -24,8 +23,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.util.concurrent.Executors
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -93,11 +90,8 @@ private const val FIDO_REPORT_ID: Byte = 0
  *
  * This enables diagnosis of connectivity issues without speculative workarounds.
  */
-@Singleton
-class BluetoothHidDeviceWrapper
-    @Inject
-    constructor(
-        @param:ApplicationContext private val context: Context,
+class BluetoothHidDeviceWrapper(
+        private val context: Context,
     ) {
         // ── Bluetooth infrastructure ──────────────────────────────────────────────
 

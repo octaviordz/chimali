@@ -4,9 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
+
 
 private const val PREFS_FILE_NAME = "fido2_settings"
 
@@ -16,11 +14,8 @@ private const val PREFS_FILE_NAME = "fido2_settings"
  * This ensures that critical authenticator limits are stored securely and persist
  * across application restarts.
  */
-@Singleton
-class Fido2SettingsRepositoryImpl
-    @Inject
-    constructor(
-        @param:ApplicationContext private val context: Context,
+class Fido2SettingsRepositoryImpl(
+        private val context: Context,
     ) : Fido2SettingsRepository {
         companion object {
             private const val KEY_MAX_CREDENTIALS = "max_credential_count"

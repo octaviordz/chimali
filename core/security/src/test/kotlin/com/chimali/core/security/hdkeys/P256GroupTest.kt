@@ -1,7 +1,7 @@
 package com.chimali.core.security.hdkeys
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 import java.math.BigInteger
 
 /**
@@ -25,7 +25,7 @@ class P256GroupTest {
     @Test
     fun `ScalarMult with order produces infinity`() {
         val result = P256Group.scalarMult(P256Group.G, P256Group.ORDER)
-        assertTrue("ScalarMult(G, n) should be point at infinity", result.isInfinity)
+        assertTrue(result.isInfinity, "ScalarMult(G, n) should be point at infinity")
     }
 
     @Test
@@ -62,7 +62,7 @@ class P256GroupTest {
         val (skB, pkB) = P256Group.generateKeyPair()
         val secretAB = P256Group.createSharedSecret(skA, pkB)
         val secretBA = P256Group.createSharedSecret(skB, pkA)
-        assertArrayEquals(secretAB, secretBA)
+        assertContentEquals(secretAB, secretBA)
         assertEquals(32, secretAB.size)
     }
 }

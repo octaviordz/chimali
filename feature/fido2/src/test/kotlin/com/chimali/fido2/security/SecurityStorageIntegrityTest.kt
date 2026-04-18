@@ -2,8 +2,8 @@ package com.chimali.fido2.security
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.chimali.fido2.data.database.Fido2Database
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.Test
 import java.nio.file.Files
 
 /**
@@ -50,7 +50,7 @@ class SecurityStorageIntegrityTest {
             // Plain SQLite files start with "SQLite format 3\u0000" (16 bytes)
             val header = tempFile.readBytes().take(16)
             val expectedHeader = "SQLite format 3\u0000".toByteArray(Charsets.UTF_8)
-            assertArrayEquals(
+            assertContentEquals(
                 expectedHeader,
                 header.toByteArray(),
                 "Baseline: plain SQLite file must have the SQLite magic header",

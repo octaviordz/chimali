@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -19,6 +18,8 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:database"))
     implementation(project(":core:security"))
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+
+    // Koin (replaces Hilt)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
 }

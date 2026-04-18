@@ -1,8 +1,10 @@
 package com.chimali.feature.vault.internal
 
-import javax.inject.Inject
+import org.koin.core.annotation.Single
 
-class ClipboardManagerWrapper @Inject constructor() {
+
+@Single
+class ClipboardManagerWrapper() {
     
     // Future: Use Android ClipboardManager to actually clear
     // This wrapper allows tests to verify behavior without Android framework dependencies

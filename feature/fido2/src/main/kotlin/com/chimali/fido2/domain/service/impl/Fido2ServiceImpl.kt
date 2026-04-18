@@ -7,20 +7,17 @@ import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
-import javax.inject.Singleton
+import org.koin.core.annotation.Single
 
 /**
  * T070 — Wires [Fido2Service] to [RegisterCredentialUseCase] so the presentation layer
  * has a single entry-point for all FIDO2 operations.
  */
-@Singleton
-class Fido2ServiceImpl
-    @Inject
-    constructor(
-        private val fido2Repository: Fido2Repository,
-        private val registerCredentialUseCase: RegisterCredentialUseCase,
-    ) : Fido2Service {
+@Single
+class Fido2ServiceImpl(
+    private val fido2Repository: Fido2Repository,
+    private val registerCredentialUseCase: RegisterCredentialUseCase,
+) : Fido2Service {
         /**
          * T070 — Full FIDO2 registration via CTAP2 MakeCredential.
          *

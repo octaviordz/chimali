@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.repository
+﻿package com.chimali.fido2.data.repository
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
@@ -19,17 +21,13 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Implementation of CredentialRepository using SQLDelight for data persistence
  * and Android KeyStore for secure credential storage.
  */
-@Singleton
-class CredentialRepositoryImpl
-    @Inject
-    constructor(
+@Single
+class CredentialRepositoryImpl(
         private val passkeyCredentialDao: PasskeyCredentialDao,
         private val relyingPartyDao: RelyingPartyDao,
         private val userConsentRecordDao: UserConsentRecordDao,

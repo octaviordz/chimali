@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
@@ -13,7 +15,6 @@ import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * T080 — Authenticate use case: executes a FIDO2 GetAssertion ceremony.
@@ -37,8 +38,7 @@ import javax.inject.Inject
  * Binder IPC call during an active ceremony.
  */
 class GetAssertionUseCase
-    @Inject
-    constructor(
+   (
         private val credentialRepository: CredentialRepository,
         private val userVerificationService: UserVerificationService,
         private val selectCredentialUseCase: SelectCredentialUseCase,

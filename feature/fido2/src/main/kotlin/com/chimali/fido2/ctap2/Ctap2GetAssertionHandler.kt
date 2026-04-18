@@ -1,4 +1,6 @@
-package com.chimali.fido2.ctap2
+﻿package com.chimali.fido2.ctap2
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
@@ -9,8 +11,6 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * T087 — CTAP2 authenticatorGetAssertion command handler.
@@ -29,10 +29,8 @@ import javax.inject.Singleton
  * | 0x05 | map  | options         |
  * | 0x06 | map  | pinUvAuthParam  |
  */
-@Singleton
-class Ctap2GetAssertionHandler
-    @Inject
-    constructor(
+@Single
+class Ctap2GetAssertionHandler(
         private val getAssertionUseCase: GetAssertionUseCase,
         private val cborCodec: CborCodec,
         private val hmacSecretProcessor: HmacSecretProcessor,

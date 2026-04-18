@@ -2,7 +2,7 @@ package com.chimali.fido2.util.logging
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 
 class PrivacyLogScrubberTest {
     @Test

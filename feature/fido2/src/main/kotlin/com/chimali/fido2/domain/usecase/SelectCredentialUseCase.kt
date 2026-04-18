@@ -1,10 +1,11 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Selects the best [CredentialSummary] from a list of candidates for a [GetAssertionOptions].
@@ -19,8 +20,7 @@ import javax.inject.Inject
  * 2. If multiple candidates exist, select the Most Recently Used (MRU) one.
  */
 class SelectCredentialUseCase
-    @Inject
-    constructor() {
+   () {
         suspend operator fun invoke(
             candidates: List<CredentialSummary>,
             options: GetAssertionOptions,

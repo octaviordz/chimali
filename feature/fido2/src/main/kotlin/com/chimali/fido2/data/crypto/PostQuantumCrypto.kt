@@ -1,5 +1,7 @@
 package com.chimali.fido2.data.crypto
 
+import org.koin.core.annotation.Single
+
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import timber.log.Timber
@@ -11,8 +13,6 @@ import java.security.PublicKey
 import java.security.SecureRandom
 import java.security.Security
 import java.security.Signature
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
 // IANA final assignment: https://www.iana.org/assignments/cose/cose.xhtml
@@ -41,10 +41,8 @@ const val COSE_ML_DSA_65 = -49
  * - The 64-byte PQ child seed is kept in memory only; never persisted to disk.
  * - Signing does not require network access or Android KeyStore.
  */
-@Singleton
-class PostQuantumCrypto
-    @Inject
-    constructor() {
+@Single
+class PostQuantumCrypto {
         init {
             // On Android, the system provides a crippled "BC" provider that lacks PQC.
             // We must ensure our BouncyCastle 1.80 provider is used.

@@ -10,7 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
@@ -24,7 +24,7 @@ import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 fun EditPairedDeviceScreen(
     macAddress: String,
     onNavigateUp: () -> Unit,
-    viewModel: PairedDevicesViewModel = hiltViewModel(),
+    viewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
     val devices by viewModel.pairedDevices.collectAsState()
     val device =

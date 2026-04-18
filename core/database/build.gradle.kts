@@ -2,8 +2,6 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.sqldelight)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
 }
 
 android {
@@ -36,8 +34,8 @@ dependencies {
     implementation(libs.sqldelight.android)
     implementation(libs.sqldelight.coroutines)
     implementation(libs.sqlcipher)
-    
-    // Hilt for dependency injection
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+
+    // Koin (replaces Hilt)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
 }

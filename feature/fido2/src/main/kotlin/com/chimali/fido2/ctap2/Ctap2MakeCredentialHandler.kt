@@ -1,4 +1,6 @@
-package com.chimali.fido2.ctap2
+﻿package com.chimali.fido2.ctap2
+
+import org.koin.core.annotation.Single
 
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -18,8 +20,6 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.LatencyProfiler
 import kotlinx.coroutines.CompletableDeferred
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
@@ -31,10 +31,8 @@ import javax.inject.Singleton
  * - Delegate credential creation to UI/Service layer via event bus
  * - Encode the success / error CTAP2 response back as a [CtapHidMessage]
  */
-@Singleton
-class Ctap2MakeCredentialHandler
-    @Inject
-    constructor(
+@Single
+class Ctap2MakeCredentialHandler(
         private val cborCodec: CborCodec,
         private val hidReportParser: HidReportParser,
         private val uiEventBus: Fido2UiEventBus,

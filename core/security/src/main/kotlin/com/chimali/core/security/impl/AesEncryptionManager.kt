@@ -1,13 +1,14 @@
 package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.EncryptionManager
+import org.koin.core.annotation.Single
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import javax.inject.Inject
 
-class AesEncryptionManager @Inject constructor() : EncryptionManager {
+@Single
+class AesEncryptionManager : EncryptionManager {
     private val random = SecureRandom()
     private val ALGORITHM = "AES/GCM/NoPadding"
     private val TAG_LENGTH = 128

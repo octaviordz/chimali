@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.transport
+﻿package com.chimali.fido2.data.transport
+
+import org.koin.core.annotation.Single
 
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
@@ -37,8 +39,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.security.SecureRandom
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Central FIDO2 HID transport layer (T053 + T054).
@@ -57,10 +57,8 @@ import javax.inject.Singleton
  * CTAPHID_INIT. The broadcast CID (0xFFFFFFFF) is used only for INIT.
  * Each connected host gets its own CID tracked in [channelRegistry].
  */
-@Singleton
-class BluetoothHidTransportImpl
-    @Inject
-    constructor(
+@Single
+class BluetoothHidTransportImpl(
         private val hidWrapper: BluetoothHidDeviceWrapper,
         private val hidReportParser: HidReportParser,
         private val makeCredentialHandler: Ctap2MakeCredentialHandler,

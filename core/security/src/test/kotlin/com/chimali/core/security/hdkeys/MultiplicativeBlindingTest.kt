@@ -1,7 +1,7 @@
 package com.chimali.core.security.hdkeys
 
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.*
+import kotlin.test.Test
 import java.math.BigInteger
 
 /**
@@ -29,10 +29,7 @@ class MultiplicativeBlindingTest {
         val blindedPkX = MultiplicativeBlinding.blindPublicKey(pkX, bk, ctx)
         val readerSecret = P256Group.createSharedSecret(skY, blindedPkX)
 
-        assertArrayEquals(
-            "BlindDH must equal reader's shared secret",
-            deviceSecret, readerSecret
-        )
+        assertContentEquals(deviceSecret, readerSecret, "BlindDH must equal reader's shared secret")
     }
 
     @Test
@@ -61,10 +58,7 @@ class MultiplicativeBlindingTest {
         val combinedBf = MultiplicativeBlinding.combine(bf1, bf2)
         val combinedSecret = MultiplicativeBlinding.blindDh(sk, combinedBf, P256Group.G)
 
-        assertArrayEquals(
-            "Chained blinding must equal combined blinding factor",
-            chainedSecret, combinedSecret
-        )
+        assertContentEquals(chainedSecret, combinedSecret, "Chained blinding must equal combined blinding factor")
     }
 
     @Test
@@ -72,7 +66,7 @@ class MultiplicativeBlindingTest {
         val ikm = byteArrayOf(1, 2, 3)
         val bk1 = MultiplicativeBlinding.deriveBlindKey(ikm)
         val bk2 = MultiplicativeBlinding.deriveBlindKey(ikm)
-        assertArrayEquals(bk1, bk2)
+        assertContentEquals(bk1, bk2)
         assertEquals(32, bk1.size)
     }
 
@@ -107,9 +101,6 @@ class MultiplicativeBlindingTest {
         // Derive key through the public path
         val blindedPk = MultiplicativeBlinding.blindPublicKey(pk, bk, ctx)
 
-        assertEquals(
-            "ScalarBaseMult(BlindPrivateKey(sk, bf)) must equal BlindPublicKey(pk, bk, ctx)",
-            pkFromBlindedSk.normalize(), blindedPk.normalize()
-        )
+        assertEquals(pkFromBlindedSk.normalize(), blindedPk.normalize(), "ScalarBaseMult(BlindPrivateKey(sk, bf)) must equal BlindPublicKey(pk, bk, ctx)")
     }
 }

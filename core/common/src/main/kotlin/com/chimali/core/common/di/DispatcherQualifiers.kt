@@ -1,35 +1,32 @@
 package com.chimali.core.common.di
 
-import javax.inject.Qualifier
-
 /**
- * Hilt qualifier for injecting [kotlinx.coroutines.Dispatchers.Default].
+ * Koin `@Named` qualifier string constants for coroutine dispatchers.
  *
- * Use this to offload CPU-bound work (cryptography, heavy math) off the
- * Main thread, satisfying Constitution §IV performance targets.
+ * Used with Koin Annotations `@Named` or Koin DSL `named()` to select a specific
+ * [kotlinx.coroutines.CoroutineDispatcher] from the DI graph.
  *
- * Usage:
+ * These replace the Hilt `@Qualifier` annotation classes. Provided by
+ * [DispatchersModule] (KSP-generated from `@Single @Named(...)` factory methods).
+ *
+ * Injection examples:
  * ```kotlin
- * class MyService @Inject constructor(
- *     @DefaultDispatcher private val dispatcher: CoroutineDispatcher
+ * // Koin Annotations (constructor injection):
+ * class MyService(
+ *     @Named(DISPATCHER_DEFAULT) private val dispatcher: CoroutineDispatcher
  * )
+ *
+ * // Koin DSL (get with qualifier):
+ * val dispatcher: CoroutineDispatcher = get(named(DISPATCHER_IO))
  * ```
  */
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class DefaultDispatcher
+object DispatcherQualifiers {
+    /** CPU-bound work (cryptography, computation). Maps to [kotlinx.coroutines.Dispatchers.Default]. */
+    const val DISPATCHER_DEFAULT = "DefaultDispatcher"
 
-/**
- * Hilt qualifier for injecting [kotlinx.coroutines.Dispatchers.IO].
- * Use for I/O-bound operations (disk, network).
- */
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class IoDispatcher
+    /** I/O-bound work (disk, network). Maps to [kotlinx.coroutines.Dispatchers.IO]. */
+    const val DISPATCHER_IO = "IoDispatcher"
 
-/**
- * Hilt qualifier for injecting [kotlinx.coroutines.Dispatchers.Main].
- */
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class MainDispatcher
+    /** UI-thread work. Maps to [kotlinx.coroutines.Dispatchers.Main]. */
+    const val DISPATCHER_MAIN = "MainDispatcher"
+}

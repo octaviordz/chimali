@@ -1,13 +1,11 @@
 package com.chimali.fido2.data.crypto
 
-import java.util.Arrays
-import javax.inject.Inject
-import javax.inject.Singleton
+import org.koin.core.annotation.Single
 
-@Singleton
-class MemoryUtils
-    @Inject
-    constructor() {
+import java.util.Arrays
+
+@Single
+class MemoryUtils {
         fun zeroByteArray(array: ByteArray) {
             try {
                 Arrays.fill(array, 0.toByte())

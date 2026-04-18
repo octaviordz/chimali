@@ -1,8 +1,8 @@
 package com.chimali.fido2.data.crypto
 
+import org.koin.core.annotation.Single
+
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val AUTH_DATA_MIN_LENGTH = 37 // rpIdHash(32) + flags(1) + counter(4)
 
@@ -26,10 +26,8 @@ private const val AUTH_DATA_MIN_LENGTH = 37 // rpIdHash(32) + flags(1) + counter
  * - 0x40 (AT)  Attested Credential Data present (MakeCredential only)
  * - 0x80 (ED)  Extension Data present
  */
-@Singleton
-class AuthenticatorDataBuilder
-    @Inject
-    constructor() {
+@Single
+class AuthenticatorDataBuilder {
         // ── Assertion (GetAssertion) ───────────────────────────────────────────────
 
         /**

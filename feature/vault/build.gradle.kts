@@ -2,9 +2,8 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.jetbrains.compose)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -39,11 +38,16 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.compose.material3)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
-    implementation("androidx.compose.material:material-icons-extended")
-    
+    implementation(libs.compose.icons.extended)
+
+    // Koin (replaces Hilt)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
+    implementation(libs.koin.annotations)
+    ksp(libs.koin.ksp.compiler)
+
     // Google Fonts for legibility fonts
     implementation("androidx.compose.ui:ui-text-google-fonts")
 

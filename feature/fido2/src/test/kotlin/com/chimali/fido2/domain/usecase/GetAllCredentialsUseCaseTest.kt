@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 class GetAllCredentialsUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         credentialRepository = mockk()
         getAllCredentialsUseCase = GetAllCredentialsUseCase(credentialRepository)

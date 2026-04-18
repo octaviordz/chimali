@@ -4,7 +4,7 @@ import com.chimali.fido2.domain.exception.Fido2Exception
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 
 class Fido2ErrorHandlerTest {
     @Test

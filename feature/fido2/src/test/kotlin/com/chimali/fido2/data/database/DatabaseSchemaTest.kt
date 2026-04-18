@@ -1,18 +1,18 @@
 package com.chimali.fido2.data.database
 
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.Test
 
 class DatabaseSchemaTest {
     @Test
     fun `test database schema compilation`() {
         // Test that SQLDelight schema compiles without errors
         // This is a basic compilation test - actual database tests would require SQLDelight runtime
-        assertDoesNotThrow {
+        runCatching {
             // Verify schema files exist and are parseable
             val schemaPath = "src/main/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq"
             // In a real test, we'd use SQLDelight's schema validation
-        }
+        }.getOrThrow()
     }
 
     @Test

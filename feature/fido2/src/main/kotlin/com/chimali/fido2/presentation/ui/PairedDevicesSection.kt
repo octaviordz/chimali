@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 import kotlinx.coroutines.launch
@@ -33,7 +33,7 @@ import java.util.Date
 fun PairedDevicesSection(
     modifier: Modifier = Modifier,
     onEditDevice: (String) -> Unit,
-    viewModel: PairedDevicesViewModel = hiltViewModel(),
+    viewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
     val devices by viewModel.pairedDevices.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

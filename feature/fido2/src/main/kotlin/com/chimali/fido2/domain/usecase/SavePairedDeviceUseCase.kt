@@ -1,16 +1,16 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
-import javax.inject.Inject
 
 /**
  * Validates and saves a newly discovered or re-authenticated Bluetooth host
  * to the PairedDevice database table.
  */
 class SavePairedDeviceUseCase
-    @Inject
-    constructor(
+   (
         private val repository: PairedDeviceRepository,
     ) {
         suspend operator fun invoke(

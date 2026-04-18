@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
@@ -39,8 +39,8 @@ fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
     onRegisterRequest: () -> Unit,
     onEditDevice: (String) -> Unit,
-    viewModel: Fido2HomeViewModel = hiltViewModel(),
-    pairedDevicesViewModel: PairedDevicesViewModel = hiltViewModel(),
+    viewModel: Fido2HomeViewModel = koinViewModel(),
+    pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()

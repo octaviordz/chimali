@@ -1,10 +1,10 @@
 package com.chimali.fido2.bluetooth
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.exception.Fido2Exception
 import timber.log.Timber
 import java.nio.ByteBuffer
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
@@ -106,11 +106,9 @@ data class CtapHidMessage(
  * Usage: feed each report from [BluetoothHidDeviceWrapper.incomingReports]
  * to [processReport]. When a result is non-null the full message is ready.
  */
-@Singleton
-class HidReportParser
-    @Inject
-    constructor() {
-        private data class InProgress(
+@Single
+class HidReportParser {
+    private data class InProgress(
             val channelId: ByteArray,
             val command: Int,
             val totalLength: Int,

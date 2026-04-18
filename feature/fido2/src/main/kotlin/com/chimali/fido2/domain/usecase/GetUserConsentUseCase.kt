@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.*
 import com.chimali.fido2.domain.model.UserVerificationRequirement
@@ -10,15 +12,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.toList
 import java.time.Instant
-import javax.inject.Inject
 
 /**
  * Use case for managing user consent in FIDO2 operations.
  * Handles consent recording, retrieval, and validation.
  */
 class GetUserConsentUseCase
-    @Inject
-    constructor(
+   (
         private val credentialRepository: CredentialRepository,
         private val userVerificationService: UserVerificationService,
     ) {

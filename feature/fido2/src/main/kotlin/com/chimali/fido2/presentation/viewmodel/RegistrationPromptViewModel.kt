@@ -1,4 +1,6 @@
-package com.chimali.fido2.presentation.viewmodel
+﻿package com.chimali.fido2.presentation.viewmodel
+
+import org.koin.android.annotation.KoinViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,7 +14,6 @@ import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 // ── MVI: Intent (user actions) ────────────────────────────────────────────────
 
@@ -113,10 +113,8 @@ sealed interface RegistrationEffect {
  * 3. User confirms → biometric or PIN → [RegistrationState.Processing]
  * 4. [Fido2Service] performs registration → [RegistrationState.Success] or [RegistrationState.Error]
  */
-@HiltViewModel
-class RegistrationPromptViewModel
-    @Inject
-    constructor(
+@KoinViewModel
+class RegistrationPromptViewModel(
         private val fido2Service: Fido2Service,
         private val userVerificationService: UserVerificationService,
         private val uiEventBus: Fido2UiEventBus,

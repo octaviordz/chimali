@@ -1,13 +1,13 @@
 package com.chimali.fido2.data.service
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.domain.exception.Fido2Exception
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Provides symmetric AES-CBC encryption and decryption for local credential metadata.
@@ -18,10 +18,8 @@ import javax.inject.Singleton
  * - Only the AES-GCM symmetric helpers remain so that [CredentialEncryptionService] can
  *   protect metadata at rest without any change to its public API.
  */
-@Singleton
-class CredentialStorageService
-    @Inject
-    constructor() {
+@Single
+class CredentialStorageService {
         companion object {
             private const val ANDROID_KEYSTORE = "AndroidKeyStore"
             private const val KEY_ALGORITHM_AES = "AES"

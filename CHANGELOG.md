@@ -3,6 +3,19 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-17
+
+### Changed
+- **KMP & CMP Migration**: Finalized the transition to Kotlin Multiplatform and Compose Multiplatform for the `:feature:fido2` and `:feature:vault` modules. This includes migrating from Hilt to Koin for dependency injection (Constitution §III) and integrating CMP plugins for multi-environment UI sharing.
+- **KMP-Native Cryptography**: Introduced the Signum library to the project dependency graph to support multiplatform-native cryptographic operations.
+
+### Fixed
+- **KMP Test Suite Stabilization**: Migrated 300+ assertions to `kotlin.test`, resolved cryptographic TypeMismatch bindings in HDK tests, and eliminated platform-specific context instantiation conflicts in common source sets.
+- **Git Hygiene**: Updated the root `.gitignore` to exclude `.kotlin/` metadata and `*.klib` artifacts, preventing local build caches from being tracked.
+
+### Added
+- **Detailed changes**: [2026-04-17-kmp-cmp-migration-and-stabilization.md](docs/changelogs/2026-04-17-kmp-cmp-migration-and-stabilization.md)
+
 ## [Unreleased] - 2026-04-14
 
 ### Fixed
@@ -448,4 +461,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-14*
+*Last Updated: 2026-04-17*

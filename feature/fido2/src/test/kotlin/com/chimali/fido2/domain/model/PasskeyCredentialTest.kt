@@ -1,17 +1,16 @@
 package com.chimali.fido2.domain.model
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import java.security.KeyPairGenerator
 import java.time.Instant
 import java.util.*
 
-@DisplayName("PasskeyCredential Domain Model Tests")
 class PasskeyCredentialTest {
     private lateinit var testPublicKey: java.security.PublicKey
     private lateinit var testPrivateKeyAlias: String
@@ -19,7 +18,7 @@ class PasskeyCredentialTest {
     private lateinit var testCredentialId: ByteArray
     private lateinit var testTimestamp: Instant
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             val keyPairGenerator = KeyPairGenerator.getInstance("EC")
@@ -32,10 +31,8 @@ class PasskeyCredentialTest {
         }
 
     @Nested
-    @DisplayName("Validation Tests")
     inner class ValidationTests {
         @Test
-        @DisplayName("Should create valid credential with all required fields")
         fun `should create valid credential with all required fields`() =
             runTest {
                 val credential =
@@ -65,15 +62,14 @@ class PasskeyCredentialTest {
                 assertEquals(0L, credential.signCount)
                 assertEquals(testTimestamp, credential.createdAt)
                 assertEquals(testTimestamp, credential.lastUsedAt)
-                assertArrayEquals(testAaguid, credential.aaguid)
-                assertArrayEquals(testCredentialId, credential.credentialId)
+                assertContentEquals(testAaguid, credential.aaguid)
+                assertContentEquals(testCredentialId, credential.credentialId)
             }
 
         @Test
-        @DisplayName("Should throw exception when ID is blank")
         fun `should throw exception when id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "",
                         rpId = "https://example.com",
@@ -92,10 +88,9 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when RP ID is invalid")
         fun `should throw exception when rp id is invalid`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "ftp://example.com/invalid",
@@ -114,11 +109,10 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when user ID exceeds maximum length")
         fun `should throw exception when user id exceeds maximum length`() =
             runTest {
                 val longUserId = "a".repeat(65)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "https://example.com",
@@ -137,11 +131,10 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when AAGUID size is incorrect")
         fun `should throw exception when aaguid size is incorrect`() =
             runTest {
                 val wrongSizeAaguid = ByteArray(15) { it.toByte() }
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "https://example.com",
@@ -160,10 +153,9 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when credential ID is empty")
         fun `should throw exception when credential id is empty`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "https://example.com",
@@ -182,10 +174,9 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when sign count is negative")
         fun `should throw exception when sign count is negative`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "https://example.com",
@@ -204,11 +195,10 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when last used time is before creation time")
         fun `should throw exception when last used time is before creation time`() =
             runTest {
                 val pastTimestamp = testTimestamp.minusSeconds(60)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
                         rpId = "https://example.com",
@@ -228,11 +218,10 @@ class PasskeyCredentialTest {
     }
 
     @Nested
-    @DisplayName("Business Logic Tests")
     inner class BusinessLogicTests {
         private lateinit var credential: PasskeyCredential
 
-        @BeforeEach
+        @BeforeTest
         fun setUp() =
             runTest {
                 credential =
@@ -253,7 +242,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if credential is expired")
         fun `should correctly check if credential is expired`() =
             runTest {
                 val oldTimestamp = Instant.now().minusSeconds(800 * 24 * 60 * 60) // 800 days ago
@@ -265,7 +253,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if credential belongs to relying party")
         fun `should correctly check if credential belongs to relying party`() =
             runTest {
                 assertTrue(credential.belongsToRelyingParty("https://example.com"))
@@ -275,7 +262,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if credential belongs to user")
         fun `should correctly check if credential belongs to user`() =
             runTest {
                 assertTrue(credential.belongsToUser("user123"))
@@ -284,14 +270,12 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should return safe display name")
         fun `should return safe display name`() =
             runTest {
                 assertEquals("Test User", credential.getSafeDisplayName())
             }
 
         @Test
-        @DisplayName("Should return correct age in days")
         fun `should return correct age in days`() =
             runTest {
                 val age = credential.getAgeInDays()
@@ -300,7 +284,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should create credential with updated sign count")
         fun `should create credential with updated sign count`() =
             runTest {
                 val updatedCredential = credential.withSignCount(5L)
@@ -312,7 +295,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should create credential with updated last used time")
         fun `should create credential with updated last used time`() =
             runTest {
                 val newLastUsedAt = credential.createdAt.plusSeconds(30)
@@ -325,10 +307,8 @@ class PasskeyCredentialTest {
     }
 
     @Nested
-    @DisplayName("Companion Object Tests")
     inner class CompanionObjectTests {
         @Test
-        @DisplayName("Should create credential using companion object factory method")
         fun `should create credential using companion object factory method`() =
             runTest {
                 val credential =
@@ -351,7 +331,6 @@ class PasskeyCredentialTest {
             }
 
         @Test
-        @DisplayName("Should have correct constant values")
         fun `should have correct constant values`() =
             runTest {
                 assertEquals(64, PasskeyCredential.MAX_USER_ID_LENGTH)
@@ -363,10 +342,8 @@ class PasskeyCredentialTest {
     }
 
     @Nested
-    @DisplayName("Edge Cases")
     inner class EdgeCases {
         @Test
-        @DisplayName("Should handle maximum allowed field sizes")
         fun `should handle maximum allowed field sizes`() =
             runTest {
                 val maxUserId = "a".repeat(64)
@@ -394,11 +371,10 @@ class PasskeyCredentialTest {
                 assertEquals(maxUserId, credential.userId)
                 assertEquals(maxUserName, credential.userName)
                 assertEquals(maxDisplayName, credential.userDisplayName)
-                assertArrayEquals(maxCredentialId, credential.credentialId)
+                assertContentEquals(maxCredentialId, credential.credentialId)
             }
 
         @Test
-        @DisplayName("Should handle HTTP RP ID (not just HTTPS)")
         fun `should handle http rp id`() =
             runTest {
                 val credential =

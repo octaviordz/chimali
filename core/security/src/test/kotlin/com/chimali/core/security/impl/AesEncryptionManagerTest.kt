@@ -1,8 +1,9 @@
 package com.chimali.core.security.impl
 
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertFalse
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import java.util.*
 
 class AesEncryptionManagerTest {
@@ -16,7 +17,7 @@ class AesEncryptionManagerTest {
         val ciphertext = encryptionManager.encrypt(testPlaintext, testKey)
         val decrypted = encryptionManager.decrypt(ciphertext, testKey)
         
-        assertArrayEquals(testPlaintext, decrypted)
+        assertContentEquals(testPlaintext, decrypted)
     }
 
     @Test
@@ -26,11 +27,13 @@ class AesEncryptionManagerTest {
         assertFalse(testPlaintext.contentEquals(ciphertext))
     }
 
-    @Test(expected = Exception::class)
+    @Test
     fun `decrypt with wrong key should throw exception`() {
         val ciphertext = encryptionManager.encrypt(testPlaintext, testKey)
         val wrongKey = ByteArray(32).apply { Random().nextBytes(this) }
         
-        encryptionManager.decrypt(ciphertext, wrongKey)
+        assertFailsWith<Exception> {
+            encryptionManager.decrypt(ciphertext, wrongKey)
+        }
     }
 }

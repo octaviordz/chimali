@@ -1,29 +1,26 @@
 package com.chimali.fido2.domain.model
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import java.time.Instant
 
-@DisplayName("RelyingParty Domain Model Tests")
 class RelyingPartyTest {
     private lateinit var testTimestamp: Instant
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             testTimestamp = Instant.now()
         }
 
     @Nested
-    @DisplayName("Validation Tests")
     inner class ValidationTests {
         @Test
-        @DisplayName("Should create valid RP with all required fields")
         fun `should create valid rp with all required fields`() =
             runTest {
                 val rp =
@@ -46,7 +43,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should create valid RP with icon URL")
         fun `should create valid rp with icon url`() =
             runTest {
                 val rp =
@@ -69,10 +65,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when ID is blank")
         fun `should throw exception when id is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "",
                         name = "Example Website",
@@ -85,10 +80,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when name is blank")
         fun `should throw exception when name is blank`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = "",
@@ -101,10 +95,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when RP ID is invalid")
         fun `should throw exception when rp id is invalid`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "ftp://invalid-rp-id",
                         name = "Example Website",
@@ -117,11 +110,10 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when name exceeds maximum length")
         fun `should throw exception when name exceeds maximum length`() =
             runTest {
                 val longName = "a".repeat(65)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = longName,
@@ -134,10 +126,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when credential count is negative")
         fun `should throw exception when credential count is negative`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = "Example Website",
@@ -150,10 +141,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when icon URL is invalid")
         fun `should throw exception when icon url is invalid`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = "Example Website",
@@ -166,10 +156,9 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when icon URL uses unsupported protocol")
         fun `should throw exception when icon url uses unsupported protocol`() =
             runTest {
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = "Example Website",
@@ -182,11 +171,10 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should throw exception when last used time is before creation time")
         fun `should throw exception when last used time is before creation time`() =
             runTest {
                 val pastTimestamp = testTimestamp.minusSeconds(60)
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
                         name = "Example Website",
@@ -200,11 +188,10 @@ class RelyingPartyTest {
     }
 
     @Nested
-    @DisplayName("Business Logic Tests")
     inner class BusinessLogicTests {
         private lateinit var rp: RelyingParty
 
-        @BeforeEach
+        @BeforeTest
         fun setUp() =
             runTest {
                 rp =
@@ -219,7 +206,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if RP has credentials")
         fun `should correctly check if rp has credentials`() =
             runTest {
                 assertTrue(rp.hasCredentials())
@@ -229,7 +215,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should extract domain from RP ID")
         fun `should extract domain from rp id`() =
             runTest {
                 assertEquals("example.com", rp.getDomain())
@@ -242,18 +227,16 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should handle invalid RP ID when extracting domain")
         fun `should handle invalid rp id when extracting domain`() =
             runTest {
                 // A bare hostname without a dot (e.g. "invalid-url") is now rejected
                 // by domain validation. This verifies that behavior.
-                assertThrows<IllegalArgumentException> {
+                assertFailsWith<IllegalArgumentException> {
                     rp.copy(id = "invalid-url")
                 }
             }
 
         @Test
-        @DisplayName("Should correctly check if RP is trusted")
         fun `should correctly check if rp is trusted`() =
             runTest {
                 val trustedDomains = setOf("example.com", "trusted.com")
@@ -265,7 +248,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should return safe name")
         fun `should return safe name`() =
             runTest {
                 assertEquals("Example Website", rp.name)
@@ -275,7 +257,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should return correct age in days")
         fun `should return correct age in days`() =
             runTest {
                 val age = rp.getAgeInDays()
@@ -284,7 +265,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should create RP with updated credential count")
         fun `should create rp with updated credential count`() =
             runTest {
                 val updatedRp = rp.withCredentialCount(10)
@@ -296,7 +276,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should create RP with updated last used time")
         fun `should create rp with updated last used time`() =
             runTest {
                 val newLastUsedAt = rp.createdAt.plusSeconds(30)
@@ -308,7 +287,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should correctly check if RP was recently used")
         fun `should correctly check if rp was recently used`() =
             runTest {
                 assertTrue(rp.isRecentlyUsed(30)) // Should be recent
@@ -332,10 +310,8 @@ class RelyingPartyTest {
     }
 
     @Nested
-    @DisplayName("Companion Object Tests")
     inner class CompanionObjectTests {
         @Test
-        @DisplayName("Should create RP using companion object factory method")
         fun `should create rp using companion object factory method`() =
             runTest {
                 val rp =
@@ -354,7 +330,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should create RP without icon using companion object")
         fun `should create rp without icon using companion object`() =
             runTest {
                 val rp =
@@ -370,7 +345,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should validate RP ID format correctly")
         fun `should validate rp id format correctly`() =
             runTest {
                 assertTrue(RelyingParty.isValidRpId("https://example.com"))
@@ -384,7 +358,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should normalize RP ID to HTTPS format")
         fun `should normalize rp id to https format`() =
             runTest {
                 assertEquals("https://example.com", RelyingParty.normalizeRpId("example.com"))
@@ -394,7 +367,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should have correct constant values")
         fun `should have correct constant values`() =
             runTest {
                 assertEquals(64, RelyingParty.MAX_NAME_LENGTH)
@@ -403,10 +375,8 @@ class RelyingPartyTest {
     }
 
     @Nested
-    @DisplayName("Edge Cases")
     inner class EdgeCases {
         @Test
-        @DisplayName("Should handle maximum allowed field sizes")
         fun `should handle maximum allowed field sizes`() =
             runTest {
                 val maxName = "a".repeat(64)
@@ -428,7 +398,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should handle HTTP RP ID")
         fun `should handle http rp id`() =
             runTest {
                 val rp =
@@ -446,7 +415,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should handle RP with subdomains and paths")
         fun `should handle rp with subdomains and paths`() =
             runTest {
                 val rp =
@@ -464,7 +432,6 @@ class RelyingPartyTest {
             }
 
         @Test
-        @DisplayName("Should handle RP with port numbers")
         fun `should handle rp with port numbers`() =
             runTest {
                 val rp =

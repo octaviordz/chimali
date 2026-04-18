@@ -4,10 +4,10 @@ import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import org.bouncycastle.math.ec.ECPoint
+import org.koin.core.annotation.Single
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.security.SecureRandom
-import javax.inject.Inject
 
 /**
  * HDK-ECDH-P256 instantiation as defined in draft-dijkhuis-cfrg-hdkeys-06.
@@ -20,7 +20,8 @@ import javax.inject.Inject
  *
  * Implements [HdkManager] for integration with the Chimali security module.
  */
-class HdkEcdhP256 @Inject constructor() : HdkManager {
+@Single
+class HdkEcdhP256 : HdkManager {
 
     companion object {
         /**
@@ -145,7 +146,10 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
 
     override fun generateDeviceKeyPair(): HdkKeyPair {
         val (sk, pk) = P256Group.generateKeyPair()
-        return HdkKeyPair(sk, pk)
+        return HdkKeyPair(
+            privateKey = P256Group.serializeScalar(sk),
+            publicKey = P256Group.serializeElement(pk)
+        )
     }
 
     override fun deriveHdk(
@@ -160,7 +164,11 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
         // Note: index non-negativity is securely guaranteed by the signature's UInt type.
         val pk = P256Group.deserializeElement(devicePublicKey)
         val (derivedPk, derivedSalt, derivedBf) = fold(path, pk, seed)
-        return HdkResult(derivedPk, derivedSalt, derivedBf)
+        return HdkResult(
+            publicKey = P256Group.serializeElement(derivedPk),
+            salt = derivedSalt,
+            blindingFactor = P256Group.serializeScalar(derivedBf)
+        )
     }
 
     override fun blindPrivateKey(
@@ -216,6 +224,10 @@ class HdkEcdhP256 @Inject constructor() : HdkManager {
             "Derived public key does not match expected public key"
         }
 
-        return HdkResult(derivedPk, derivedSalt, derivedBf)
+        return HdkResult(
+            publicKey = P256Group.serializeElement(derivedPk),
+            salt = derivedSalt,
+            blindingFactor = P256Group.serializeScalar(derivedBf)
+        )
     }
 }

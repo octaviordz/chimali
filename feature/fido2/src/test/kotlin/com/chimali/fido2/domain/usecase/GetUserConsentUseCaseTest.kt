@@ -9,14 +9,13 @@ import io.mockk.*
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import java.time.Instant
 
-@DisplayName("GetUserConsent Use Case Tests")
 class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
@@ -25,7 +24,7 @@ class GetUserConsentUseCaseTest {
     private lateinit var testTimestamp: Instant
     private lateinit var testConsentRecord: UserConsentRecord
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             credentialRepository = mockk()
@@ -72,10 +71,8 @@ class GetUserConsentUseCaseTest {
         }
 
     @Nested
-    @DisplayName("Successful Consent Recording Tests")
     inner class SuccessfulConsentRecordingTests {
         @Test
-        @DisplayName("Should successfully record consent with biometric verification")
         fun `should successfully record consent with biometric verification`() =
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
@@ -112,7 +109,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should successfully record consent with PIN verification")
         fun `should successfully record consent with pin verification`() =
             runTest {
                 // Mock PIN as the only available method
@@ -145,7 +141,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should successfully record consent without verification when not required")
         fun `should successfully record consent without verification when not required`() =
             runTest {
                 // Mock no verification required
@@ -172,7 +167,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should successfully record consent without credential ID")
         fun `should successfully record consent without credential id`() =
             runTest {
                 val result =
@@ -190,7 +184,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should use custom prompt when provided")
         fun `should use custom prompt when provided`() =
             runTest {
                 val customPrompt = "Custom verification message"
@@ -211,10 +204,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Consent Retrieval Tests")
     inner class ConsentRetrievalTests {
         @Test
-        @DisplayName("Should retrieve recent consent records")
         fun `should retrieve recent consent records`() =
             runTest {
                 val consentRecords =
@@ -240,7 +231,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should retrieve consent records by operation type")
         fun `should retrieve consent records by operation type`() =
             runTest {
                 val registrationConsent =
@@ -273,7 +263,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should retrieve consent records by credential ID")
         fun `should retrieve consent records by credential id`() =
             runTest {
                 val targetCredentialId = "target_credential_id"
@@ -304,7 +293,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should retrieve consent records by RP ID")
         fun `should retrieve consent records by rp id`() =
             runTest {
                 val targetRpId = "https://target.com"
@@ -333,7 +321,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should retrieve consent records by time range")
         fun `should retrieve consent records by time range`() =
             runTest {
                 val startTime = Instant.now().minusSeconds(3600) // 1 hour ago
@@ -366,10 +353,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Consent Statistics Tests")
     inner class ConsentStatisticsTests {
         @Test
-        @DisplayName("Should calculate consent statistics correctly")
         fun `should calculate consent statistics correctly`() =
             runTest {
                 val consentRecords =
@@ -410,7 +395,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should calculate statistics for specific RP")
         fun `should calculate statistics for specific rp`() =
             runTest {
                 val targetRpConsent =
@@ -441,7 +425,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should identify most used consent method")
         fun `should identify most used consent method`() =
             runTest {
                 val consentRecords =
@@ -476,10 +459,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Recent Consent Check Tests")
     inner class RecentConsentCheckTests {
         @Test
-        @DisplayName("Should correctly identify recent consent")
         fun `should correctly identify recent consent`() =
             runTest {
                 val recentConsent =
@@ -503,7 +484,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should correctly identify non-recent consent")
         fun `should correctly identify non recent consent`() =
             runTest {
                 val oldConsent =
@@ -527,7 +507,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle no consent records")
         fun `should handle no consent records`() =
             runTest {
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf()
@@ -544,10 +523,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Validation Failure Tests")
     inner class ValidationFailureTests {
         @Test
-        @DisplayName("Should fail when RP ID is blank")
         fun `should fail when rp id is blank`() =
             runTest {
                 val result =
@@ -563,7 +540,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when RP ID is invalid")
         fun `should fail when rp id is invalid`() =
             runTest {
                 val result =
@@ -579,7 +555,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when credential ID is blank")
         fun `should fail when credential id is blank`() =
             runTest {
                 val result =
@@ -595,7 +570,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when credential ID exceeds maximum length")
         fun `should fail when credential id exceeds maximum length`() =
             runTest {
                 val longCredentialId = "a".repeat(1024)
@@ -614,10 +588,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("User Verification Failure Tests")
     inner class UserVerificationFailureTests {
         @Test
-        @DisplayName("Should fail when no verification method is available")
         fun `should fail when no verification method is available`() =
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
@@ -644,7 +616,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should fail when consent storage fails")
         fun `should fail when consent storage fails`() =
             runTest {
                 coEvery { credentialRepository.saveUserConsent(any()) } returns
@@ -666,10 +637,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Operation Type Tests")
     inner class OperationTypeTests {
         @Test
-        @DisplayName("Should handle all operation types")
         fun `should handle all operation types`() =
             runTest {
                 val operationTypes =
@@ -696,7 +665,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should use appropriate prompts for different operation types")
         fun `should use appropriate prompts for different operation types`() =
             runTest {
                 val operationTypes =
@@ -724,10 +692,8 @@ class GetUserConsentUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Edge Cases")
     inner class EdgeCases {
         @Test
-        @DisplayName("Should handle maximum allowed credential ID length")
         fun `should handle maximum allowed credential id length`() =
             runTest {
                 val maxCredentialId = "a".repeat(1023)
@@ -746,7 +712,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle HTTP RP ID")
         fun `should handle http rp id`() =
             runTest {
                 val httpRpId = "http://localhost:8080"
@@ -765,7 +730,6 @@ class GetUserConsentUseCaseTest {
             }
 
         @Test
-        @DisplayName("Should handle empty consent statistics")
         fun `should handle empty consent statistics`() =
             runTest {
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf()

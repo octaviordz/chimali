@@ -9,14 +9,13 @@ import io.mockk.*
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import java.security.KeyPairGenerator
 
-@DisplayName("CredentialRepositoryImpl Tests")
 class CredentialRepositoryImplTest {
     private lateinit var passkeyCredentialDao: PasskeyCredentialDao
     private lateinit var relyingPartyDao: RelyingPartyDao
@@ -30,7 +29,7 @@ class CredentialRepositoryImplTest {
     private lateinit var testPublicKey: java.security.PublicKey
     private lateinit var testEntity: com.chimali.fido2.data.database.PasskeyCredential
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() =
         runTest {
             passkeyCredentialDao = mockk()
@@ -122,7 +121,6 @@ class CredentialRepositoryImplTest {
         }
 
     @Nested
-    @DisplayName("Credential Management Tests")
     inner class CredentialManagementTests {
         @Test
         fun `should successfully save credential`() =

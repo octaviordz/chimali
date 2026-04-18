@@ -1,4 +1,6 @@
-package com.chimali.fido2.data.dao
+﻿package com.chimali.fido2.data.dao
+
+import org.koin.core.annotation.Single
 
 import app.cash.sqldelight.coroutines.asFlow
 import com.chimali.fido2.data.database.Fido2Database
@@ -6,18 +8,14 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
-import javax.inject.Inject
-import javax.inject.Singleton
 import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEntity
 
 /**
  * Data Access Object for PasskeyCredential entities using SQLDelight.
  * Provides database operations for credential metadata storage.
  */
-@Singleton
-class PasskeyCredentialDao
-    @Inject
-    constructor(
+@Single
+class PasskeyCredentialDao(
         private val database: Fido2Database,
     ) {
         /**

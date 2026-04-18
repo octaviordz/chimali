@@ -8,9 +8,9 @@ import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.AuthenticatorTransport
 import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import java.time.Instant
 
 /**
@@ -32,7 +32,7 @@ class Ctap2ProtocolTest {
     private val rpIdHash = ByteArray(32) { 0x99.toByte() }
     private val pubKey = ByteArray(65) { 0x04 }
 
-    @BeforeEach
+    @BeforeTest
     fun setUp() {
         cborCodec = CborCodec()
         hidReportParser = HidReportParser()
@@ -88,7 +88,7 @@ class Ctap2ProtocolTest {
 
         assertTrue(packets.isNotEmpty())
         assertEquals(62, packets[0].size)
-        assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
+        assertContentEquals(testCid, packets[0].copyOfRange(0, 4))
 
         // Init flag must be set in CMD byte
         val cmdByte = packets[0][4].toInt() and 0xFF
@@ -107,7 +107,7 @@ class Ctap2ProtocolTest {
         val packets = responseBuilder.keepAliveResponse(testCid, 0x01)
         assertTrue(packets.isNotEmpty())
         assertEquals(62, packets[0].size)
-        assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
+        assertContentEquals(testCid, packets[0].copyOfRange(0, 4))
     }
 
     // ── makeCredentialResponse ────────────────────────────────────────────────
@@ -170,7 +170,7 @@ class Ctap2ProtocolTest {
         val packets = responseBuilder.hidErrorResponse(testCid, 0x01)
         assertTrue(packets.isNotEmpty())
         assertEquals(62, packets[0].size)
-        assertArrayEquals(testCid, packets[0].copyOfRange(0, 4))
+        assertContentEquals(testCid, packets[0].copyOfRange(0, 4))
     }
 
     // ── statusDescription ─────────────────────────────────────────────────────

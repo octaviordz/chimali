@@ -9,13 +9,11 @@ import android.content.Context
 import android.util.Log
 import com.chimali.core.bluetooth.api.AuthenticatorState
 import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.annotation.RequiresPermission
 import java.util.concurrent.Executors
-import javax.inject.Inject
 
 /**
  * Concrete implementation of [BluetoothHidAuthenticator] backed by the Android
@@ -38,7 +36,7 @@ import javax.inject.Inject
  * handlers (MakeCredential, GetAssertion, GetInfo).
  *
  * ## Lifecycle
- * 1. Constructed by Hilt — immediately calls [initializeProfileProxy] to
+ * 1. Constructed by Koin — immediately calls [initializeProfileProxy] to
  *    register as a [BluetoothProfile.ServiceListener].
  * 2. When [onServiceConnected] fires, the [BluetoothHidDevice] proxy is stored.
  * 3. [startAdvertising] registers the SDP record and sets the app ready for
@@ -49,8 +47,8 @@ import javax.inject.Inject
  * 5. [sendConfirmation] is a skeleton call for explicit user-presence signals;
  *    the actual FIDO2 packet sending is done via [BluetoothHidWrapper].
  */
-class BluetoothHidAuthenticatorImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+class BluetoothHidAuthenticatorImpl(
+    private val context: Context
 ) : BluetoothHidAuthenticator, BluetoothProfile.ServiceListener {
 
     /** Underlying Bluetooth HID Device profile proxy, provided by the Android framework. */

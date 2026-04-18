@@ -1,5 +1,7 @@
 package com.chimali.feature.vault.internal
 
+import org.koin.core.annotation.Single
+
 import com.chimali.core.database.ChimaliDatabase
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultService
@@ -7,8 +9,8 @@ import com.chimali.feature.vault.api.VaultType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
-import javax.inject.Inject
 
+@Single
 class VaultRepositoryImpl(
     private val database: ChimaliDatabase
 ) : VaultService {

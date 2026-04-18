@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Single
+
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -20,7 +22,6 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
-import javax.inject.Inject
 import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 
 /**
@@ -28,8 +29,7 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
  * Handles the complete credential registration flow with user verification.
  */
 class RegisterCredentialUseCase
-    @Inject
-    constructor(
+   (
         private val credentialRepository: CredentialRepository,
         private val userVerificationService: UserVerificationService,
         private val cborCodec: CborCodec,

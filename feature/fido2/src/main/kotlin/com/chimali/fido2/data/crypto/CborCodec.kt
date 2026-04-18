@@ -1,10 +1,10 @@
 package com.chimali.fido2.data.crypto
 
+import org.koin.core.annotation.Single
+
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Minimal RFC 7049 (CBOR) codec for the CTAP2 HID protocol.
@@ -22,10 +22,8 @@ import javax.inject.Singleton
  * - Major type 5: map               → Map<String, Any>  (int keys → "1","2",…)
  * - Major type 7 / simple:          → Boolean / null
  */
-@Singleton
-class CborCodec
-    @Inject
-    constructor() {
+@Single
+class CborCodec {
         companion object {
             // CBOR Major Types
             private const val MAJOR_TYPE_UNSIGNED_INT = 0

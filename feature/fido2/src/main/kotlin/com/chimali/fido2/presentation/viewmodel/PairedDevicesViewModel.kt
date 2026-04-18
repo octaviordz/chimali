@@ -1,10 +1,11 @@
-package com.chimali.fido2.presentation.viewmodel
+﻿package com.chimali.fido2.presentation.viewmodel
+
+import org.koin.android.annotation.KoinViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,12 +14,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class PairedDevicesViewModel
-    @Inject
-    constructor(
+@KoinViewModel
+class PairedDevicesViewModel(
         private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
         private val updateDeviceAliasUseCase: com.chimali.fido2.domain.usecase.UpdateDeviceAliasUseCase,
     ) : ViewModel() {

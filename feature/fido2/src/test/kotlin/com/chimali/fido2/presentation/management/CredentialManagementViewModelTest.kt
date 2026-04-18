@@ -14,9 +14,9 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CredentialManagementViewModelTest {
@@ -28,7 +28,7 @@ class CredentialManagementViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         getAllCredentialsUseCase = mockk()

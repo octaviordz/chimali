@@ -12,7 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * T121 — List Screen to show all FIDO2 Passkeys.
@@ -21,7 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun CredentialListScreen(
     onNavigateUp: () -> Unit,
-    viewModel: CredentialManagementViewModel = hiltViewModel(),
+    viewModel: CredentialManagementViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 

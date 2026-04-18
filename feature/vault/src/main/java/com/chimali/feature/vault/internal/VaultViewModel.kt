@@ -5,16 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.chimali.feature.vault.api.VaultIntent
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultState
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class VaultViewModel @Inject constructor(
+class VaultViewModel(
     private val vaultService: VaultService,
     private val clipboardManager: ClipboardManagerWrapper
 ) : ViewModel() {

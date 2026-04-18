@@ -6,7 +6,7 @@ import org.bouncycastle.crypto.macs.CMac
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
-import javax.inject.Inject
+import org.koin.core.annotation.Single
 
 /**
  * T019a — AES-256-SIV (Synthetic IV / Deterministic Authenticated Encryption) implementation.
@@ -39,7 +39,8 @@ import javax.inject.Inject
  *
  * @see [RFC 5297](https://www.rfc-editor.org/rfc/rfc5297)
  */
-class AesSivEncryptionManager @Inject constructor() : SivEncryptionManager {
+@Single
+class AesSivEncryptionManager : SivEncryptionManager {
 
     companion object {
         /** AES block size in bytes. Always 16 for AES. */

@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.core.ui.theme.LegibilityType
 import com.chimali.fido2.BuildConfig
@@ -74,8 +74,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevelopmentToolsScreen(
-    homeViewModel: Fido2HomeViewModel = hiltViewModel(),
-    devToolsViewModel: DevToolsViewModel = hiltViewModel(),
+    homeViewModel: Fido2HomeViewModel = koinViewModel(),
+    devToolsViewModel: DevToolsViewModel = koinViewModel(),
 ) {
     val state by devToolsViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

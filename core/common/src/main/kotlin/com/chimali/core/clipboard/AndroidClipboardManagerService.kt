@@ -3,18 +3,14 @@ package com.chimali.core.clipboard
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class AndroidClipboardManagerService @Inject constructor(
-    @ApplicationContext private val context: Context
+class AndroidClipboardManagerService(
+    private val context: Context
 ) : ClipboardManagerService {
 
     private val clipboardManager: ClipboardManager? by lazy {
