@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -7,6 +8,7 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 /**
  * Update the user-defined label or note for a specific FIDO2 credential.
  */
+@Factory
 class UpdateCredentialLabelUseCase
    (
         private val credentialRepository: CredentialRepository,

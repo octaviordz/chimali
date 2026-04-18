@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -19,6 +20,7 @@ import timber.log.Timber
  * 1. If only one candidate exists, auto-select it.
  * 2. If multiple candidates exist, select the Most Recently Used (MRU) one.
  */
+@Factory
 class SelectCredentialUseCase
    () {
         suspend operator fun invoke(

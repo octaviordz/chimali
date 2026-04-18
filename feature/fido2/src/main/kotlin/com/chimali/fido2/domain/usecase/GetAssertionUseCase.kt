@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
@@ -37,6 +38,7 @@ import timber.log.Timber
  * [UserVerificationService.getUserVerificationAvailability] never blocks on a cold
  * Binder IPC call during an active ceremony.
  */
+@Factory
 class GetAssertionUseCase
    (
         private val credentialRepository: CredentialRepository,

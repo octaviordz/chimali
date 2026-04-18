@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -17,6 +18,7 @@ import java.time.Instant
  * Use case for managing user consent in FIDO2 operations.
  * Handles consent recording, retrieval, and validation.
  */
+@Factory
 class GetUserConsentUseCase
    (
         private val credentialRepository: CredentialRepository,

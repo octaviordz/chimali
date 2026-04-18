@@ -90,6 +90,7 @@ private const val FIDO_REPORT_ID: Byte = 0
  *
  * This enables diagnosis of connectivity issues without speculative workarounds.
  */
+@org.koin.core.annotation.Single
 class BluetoothHidDeviceWrapper(
         private val context: Context,
     ) {

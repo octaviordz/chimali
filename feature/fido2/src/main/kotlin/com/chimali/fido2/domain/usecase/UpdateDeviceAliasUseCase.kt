@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
@@ -7,6 +8,7 @@ import com.chimali.fido2.domain.repository.PairedDeviceRepository
 /**
  * Update the user-defined alias for a paired host device.
  */
+@Factory
 class UpdateDeviceAliasUseCase
    (
         private val pairedDeviceRepository: PairedDeviceRepository,

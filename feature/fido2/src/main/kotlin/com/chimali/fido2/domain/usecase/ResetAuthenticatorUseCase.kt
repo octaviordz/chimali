@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -8,6 +9,7 @@ import com.chimali.fido2.domain.repository.CredentialRepository
  * T111 — Resets the authenticator completely.
  * This wipes all credentials, master PIN, biometric state, and restores factory defaults.
  */
+@Factory
 class ResetAuthenticatorUseCase
    (
         private val credentialRepository: CredentialRepository,

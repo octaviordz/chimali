@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-18
+
+### Fixed
+- **Koin DI Stabilization**: Resolved cascading `NoDefinitionFoundException` runtime crashes by adding missing `@Single` annotations to `BluetoothHidDeviceWrapper` and `HidReportParser`, allowing KSP to correctly generate the DI graph for the `fido2` module.
+- **Android 12+ Bluetooth Permissions**: Fixed a `SecurityException` triggered when users interacted with the "Start Authenticator" button. Updated `Fido2HomeScreen` to explicitly check and dynamically request `BLUETOOTH_CONNECT` and `BLUETOOTH_ADVERTISE` via `ActivityResultContracts.RequestMultiplePermissions` on Android API 31+.
+
+### Added
+- **Detailed changes**: [2026-04-18-fido2-koin-di-and-bluetooth-permissions-fixes.md](docs/changelogs/2026-04-18-fido2-koin-di-and-bluetooth-permissions-fixes.md)
+
 ## [Unreleased] - 2026-04-17
 
 ### Changed
@@ -461,4 +470,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-17*
+*Last Updated: 2026-04-18*

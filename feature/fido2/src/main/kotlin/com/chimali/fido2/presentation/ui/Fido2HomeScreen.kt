@@ -18,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
@@ -42,6 +44,7 @@ fun Fido2HomeScreen(
     viewModel: Fido2HomeViewModel = koinViewModel(),
     pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
+    val context = LocalContext.current
     val connectionState by viewModel.connectionState.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
 
@@ -74,6 +77,26 @@ fun Fido2HomeScreen(
                 viewModel.toggleTransport()
             } else {
                 // User denied or failed to enable Bluetooth/Discoverable
+                showBluetoothError = true
+            }
+        }
+
+    val bluetoothPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions(),
+        ) { permissions ->
+            val allGranted = permissions.entries.all { it.value }
+            if (allGranted) {
+                try {
+                    val discoverableIntent =
+                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                        }
+                    bluetoothDiscoverableLauncher.launch(discoverableIntent)
+                } catch (e: SecurityException) {
+                    showBluetoothError = true
+                }
+            } else {
                 showBluetoothError = true
             }
         }
@@ -140,11 +163,28 @@ fun Fido2HomeScreen(
                     if (isRunning) {
                         viewModel.toggleTransport()
                     } else {
-                        val discoverableIntent =
-                            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (!connectGranted || !advertiseGranted) {
+                                bluetoothPermissionLauncher.launch(
+                                    arrayOf(
+                                        android.Manifest.permission.BLUETOOTH_CONNECT,
+                                        android.Manifest.permission.BLUETOOTH_ADVERTISE
+                                    )
+                                )
+                                return@TransportToggleButton
                             }
-                        bluetoothDiscoverableLauncher.launch(discoverableIntent)
+                        }
+                        try {
+                            val discoverableIntent =
+                                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                                }
+                            bluetoothDiscoverableLauncher.launch(discoverableIntent)
+                        } catch (e: SecurityException) {
+                            showBluetoothError = true
+                        }
                     }
                 },
             )

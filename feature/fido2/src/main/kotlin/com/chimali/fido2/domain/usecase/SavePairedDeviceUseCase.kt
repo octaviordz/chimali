@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.model.PairedDevice
@@ -9,6 +10,7 @@ import com.chimali.fido2.domain.repository.PairedDeviceRepository
  * Validates and saves a newly discovered or re-authenticated Bluetooth host
  * to the PairedDevice database table.
  */
+@Factory
 class SavePairedDeviceUseCase
    (
         private val repository: PairedDeviceRepository,

@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.usecase
 
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.data.crypto.CborCodec
@@ -28,6 +29,7 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
  * Use case for registering new FIDO2 credentials.
  * Handles the complete credential registration flow with user verification.
  */
+@Factory
 class RegisterCredentialUseCase
    (
         private val credentialRepository: CredentialRepository,
