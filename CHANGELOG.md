@@ -6,6 +6,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-20
 
 ### Changed
+- **KMP Migration of `core:common`**: Converted the `:core:common` module to Kotlin Multiplatform (KMP), enabling shared code across Android and iOS. Standardized on Koin Annotations (Constitution §III) using a robust `expect`/`actual` bridge pattern for dispatchers and clipboard services.
 - **Kermit Logging Migration**: Completed the refactor of 50+ legacy `Timber` calls to `co.touchlab.kermit.Logger` lambda syntax across the `:feature:fido2` module. Standardized all structured diagnostic logging to use native Kotlin string templates instead of `String.format()`, ensuring KMP compatibility and eliminating unnecessary object allocations.
 - **KMP Logging Infrastructure**: Refactored `LocalCrashReportingLogWriter` and `PrivacyLogScrubber` to be fully Kotlin Multiplatform (KMP) compliant. Migrated file I/O to Okio and timestamping to `kotlinx-datetime` (via `kotlin.time`), enabling reliable cross-platform crash logging and log rotation in `commonMain` for Android and iOS targets.
 
@@ -15,7 +16,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
     - Eliminated "OVER BUDGET" ceremony latency by replacing `@Synchronized` with a `Mutex` in `WalletMasterSeedProvider` and implementing proactive master seed pre-warming in the FIDO2 dashboard.
 
 ### Added
-- **Detailed changes**: [2026-04-20-fido2-logging-migration-and-performance-optimizations.md](docs/changelogs/2026-04-20-fido2-logging-migration-and-performance-optimizations.md)
+- **Detailed changes**: [2026-04-20-core-common-kmp-migration-and-di-refactor.md](docs/changelogs/2026-04-20-core-common-kmp-migration-and-di-refactor.md) & [2026-04-20-fido2-logging-migration-and-performance-optimizations.md](docs/changelogs/2026-04-20-fido2-logging-migration-and-performance-optimizations.md)
 
 ## [Unreleased] - 2026-04-19
 

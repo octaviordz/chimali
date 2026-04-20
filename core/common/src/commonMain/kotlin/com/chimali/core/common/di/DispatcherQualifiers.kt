@@ -7,17 +7,14 @@ package com.chimali.core.common.di
  * [kotlinx.coroutines.CoroutineDispatcher] from the DI graph.
  *
  * These replace the Hilt `@Qualifier` annotation classes. Provided by
- * [DispatchersModule] (KSP-generated from `@Single @Named(...)` factory methods).
+ * [DispatchersModule] (Koin Annotations).
  *
  * Injection examples:
  * ```kotlin
- * // Koin Annotations (constructor injection):
+ * // Koin Annotations (constructor injection - Recommended):
  * class MyService(
  *     @Named(DISPATCHER_DEFAULT) private val dispatcher: CoroutineDispatcher
  * )
- *
- * // Koin DSL (get with qualifier):
- * val dispatcher: CoroutineDispatcher = get(named(DISPATCHER_IO))
  * ```
  */
 object DispatcherQualifiers {

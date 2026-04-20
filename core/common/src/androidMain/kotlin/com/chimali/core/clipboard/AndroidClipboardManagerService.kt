@@ -9,6 +9,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import org.koin.core.annotation.Single
+
+@Single(binds = [ClipboardManagerService::class])
 class AndroidClipboardManagerService(
     private val context: Context
 ) : ClipboardManagerService {

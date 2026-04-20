@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.ksp)
 }
 
@@ -25,27 +25,44 @@ android {
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
+    iosArm64()
+    iosSimulatorArm64()
+
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation(libs.kotlinx.coroutines.core)
+                api(libs.kermit)
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
+            }
+        }
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.junit.jupiter)
+                implementation(libs.junit.jupiter.api)
+                implementation(libs.junit.platform.launcher)
+                implementation(libs.mockk)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.androidx.core.ktx)
+                implementation(libs.kotlinx.coroutines.android)
+                implementation(libs.koin.android)
+            }
+        }
     }
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.coroutines.android)
-    api(libs.kermit)
-
-    // Koin Annotations — compile-time DI (replaces DSL, T189)
-    implementation(libs.koin.core)
-    implementation(libs.koin.android)
-    implementation(libs.koin.annotations)
-
-    // Testing
-    testImplementation(libs.junit.jupiter)
-    testImplementation(libs.junit.jupiter.api)
-    testImplementation(libs.junit.platform.launcher)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
     // Koin Annotations code generator — runs via KSP (T189)
     ksp(libs.koin.ksp.compiler)
 }

@@ -15,7 +15,7 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create directory structure for KMP in `core/common/src/` (`commonMain`, `androidMain`, `iosMain`, `commonTest`)
+- [X] T001 Create directory structure for KMP in `core/common/src/` (`commonMain`, `androidMain`, `iosMain`, `commonTest`)
 
 ---
 
@@ -25,9 +25,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Refactor `core/common/build.gradle.kts` to apply `kotlin("multiplatform")` and configure source sets (`androidTarget`, `ios`)
-- [ ] T003 Move common dependencies (coroutines-core, kermit, koin-core) to `commonMain` in `core/common/build.gradle.kts`
-- [ ] T004 Move Android-specific dependencies (core-ktx, coroutines-android, koin-android) to `androidMain` in `core/common/build.gradle.kts`
+- [X] T002 Refactor `core/common/build.gradle.kts` to apply `kotlin("multiplatform")` and configure source sets (`androidTarget`, `ios`)
+- [X] T003 Move common dependencies (coroutines-core, kermit, koin-core) to `commonMain` in `core/common/build.gradle.kts`
+- [X] T004 Move Android-specific dependencies (core-ktx, coroutines-android, koin-android) to `androidMain` in `core/common/build.gradle.kts`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -41,11 +41,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Move `ClipboardManagerService.kt` interface to `core/common/src/commonMain/kotlin/com/chimali/core/clipboard/ClipboardManagerService.kt`
-- [ ] T006 [P] [US1] Move `Fido2EventBus.kt` and `Fido2Event.kt` to `core/common/src/commonMain/kotlin/com/chimali/core/events/`
-- [ ] T007 [US1] Move `AndroidClipboardManagerService.kt` to `androidMain` and verify that the 60s clipboard clearing logic remains functional (Constitution IV)
-- [ ] T008 [P] [US1] Create `IosClipboardManagerService.kt` placeholder in `core/common/src/iosMain/kotlin/com/chimali/core/clipboard/IosClipboardManagerService.kt`
-- [ ] T009 [US1] Update `ClipboardModule.kt` to handle platform-specific Koin module inclusion and move to `core/common/src/commonMain/kotlin/com/chimali/core/clipboard/di/ClipboardModule.kt`
+- [X] T005 [P] [US1] Move `ClipboardManagerService.kt` interface to `core/common/src/commonMain/kotlin/com/chimali/core/clipboard/ClipboardManagerService.kt`
+- [X] T006 [P] [US1] Move `Fido2EventBus.kt` and `Fido2Event.kt` to `core/common/src/commonMain/kotlin/com/chimali/core/events/`
+- [X] T007 [US1] Move `AndroidClipboardManagerService.kt` to `androidMain` and verify that the 60s clipboard clearing logic remains functional (Constitution IV)
+- [X] T008 [P] [US1] Create `IosClipboardManagerService.kt` placeholder in `core/common/src/iosMain/kotlin/com/chimali/core/clipboard/IosClipboardManagerService.kt`
+- [X] T009 [US1] Update `ClipboardModule.kt` to handle platform-specific Koin module inclusion and move to `core/common/src/commonMain/kotlin/com/chimali/core/clipboard/di/ClipboardModule.kt`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
@@ -59,9 +59,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T010 [P] [US2] Move `DispatcherQualifiers.kt` to `core/common/src/commonMain/kotlin/com/chimali/core/common/di/DispatcherQualifiers.kt`
-- [ ] T011 [US2] Move `DispatchersModule.kt` to `commonMain` and refactor to use platform-specific Koin module inclusion
-- [ ] T012 [P] [US2] Create platform-specific dispatcher providers in `androidMain` and `iosMain`
+- [X] T010 [P] [US2] Move `DispatcherQualifiers.kt` to `core/common/src/commonMain/kotlin/com/chimali/core/common/di/DispatcherQualifiers.kt`
+- [X] T011 [US2] Move `DispatchersModule.kt` to `commonMain` and refactor to use platform-specific Koin module inclusion
+- [X] T012 [P] [US2] Create platform-specific dispatcher providers in `androidMain` and `iosMain`
 
 **Checkpoint**: At this point, User Story 2 should be fully functional and testable independently.
 
@@ -71,12 +71,12 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T013 [P] Move non-Android unit tests from `core/common/src/test` to `core/common/src/commonTest`
-- [ ] T014 [P] Update `Fido2Initializer.kt` in `:feature:fido2` to ensure it still correctly initializes the moved components
-- [ ] T015 Clean up unused `core/common/src/main` directory
-- [ ] T016 Run `./gradlew :core:common:test` to verify Android stability
-- [ ] T017 Run `./gradlew :core:common:compileKotlinIosArm64` to verify iOS compatibility
-- [ ] T018 [P] Verify `commonMain` purity by checking for `android.*` or `java.*` imports (excluding permitted KMP libs)
+- [X] T013 [P] Move non-Android unit tests from `core/common/src/test` to `core/common/src/commonTest`
+- [X] T014 [P] Update `Fido2Initializer.kt` in `:feature:fido2` to ensure it still correctly initializes the moved components
+- [X] T015 Clean up unused `core/common/src/main` directory
+- [X] T016 Run `./gradlew :core:common:test` to verify Android stability
+- [X] T017 Run `./gradlew :core:common:compileKotlinIosArm64` to verify iOS compatibility
+- [X] T018 [P] Verify `commonMain` purity by checking for `android.*` or `java.*` imports (excluding permitted KMP libs)
 
 ---
 
