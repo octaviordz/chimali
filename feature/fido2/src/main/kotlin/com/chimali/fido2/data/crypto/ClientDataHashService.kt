@@ -2,7 +2,7 @@ package com.chimali.fido2.data.crypto
 
 import org.koin.core.annotation.Single
 
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -45,7 +45,7 @@ class ClientDataHashService {
             crossOrigin: Boolean = false,
         ): ByteArray {
             val clientDataJson = buildClientDataJson(type, challenge, origin, crossOrigin)
-            Timber.d("clientDataJSON: %s", clientDataJson)
+            Logger.d { String.format("clientDataJSON: %s", clientDataJson) }
             return sha256(clientDataJson.toByteArray(Charsets.UTF_8))
         }
 

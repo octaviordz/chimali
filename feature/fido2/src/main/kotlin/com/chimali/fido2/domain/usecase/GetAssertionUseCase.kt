@@ -15,7 +15,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationService
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * T080 — Authenticate use case: executes a FIDO2 GetAssertion ceremony.
@@ -61,7 +61,7 @@ class GetAssertionUseCase
 
         suspend operator fun invoke(options: GetAssertionOptions): Result<AssertionObject> =
             runCatching {
-                Timber.d("GetAssertion for rpId=%s", options.rpId)
+                Logger.d { String.format("GetAssertion for rpId=%s", options.rpId) }
 
                 // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
                 performUserVerification(options)
@@ -98,12 +98,12 @@ class GetAssertionUseCase
 
                 // 5 — persist incremented sign count
                 credentialRepository.updateSignCount(selectedId, newSignCount)
-                    .getOrElse { e -> Timber.w("Failed to update sign count: %s", e.message) }
+                    .getOrElse { e -> Logger.w { String.format("Failed to update sign count: %s", e.message) } }
 
                 // Use credentialId bytes from the summary — no full object hydration needed.
                 val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)
 
-                Timber.d("Assertion complete: credId=%s signCount=%d", selectedId, newSignCount)
+                Logger.d { String.format("Assertion complete: credId=%s signCount=%d", selectedId, newSignCount) }
                 AssertionObject(
                     credential = credDesc,
                     authData = authData,
@@ -114,9 +114,9 @@ class GetAssertionUseCase
             }.recoverCatching { e ->
                 // CredentialNotFound is expected during pre-registration probes -- log at debug level.
                 if (e is Fido2Exception.CredentialNotFound) {
-                    Timber.d("GetAssertion (expected): %s", e.message)
+                    Logger.d { String.format("GetAssertion (expected): %s", e.message) }
                 } else {
-                    Timber.e(e, "GetAssertion failed: %s", e.message)
+                    Logger.e(e) { String.format("GetAssertion failed: %s", e.message) }
                 }
                 throw when (e) {
                     is Fido2Exception -> e

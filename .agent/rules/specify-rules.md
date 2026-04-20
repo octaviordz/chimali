@@ -1,6 +1,6 @@
-# Chimali Development Guidelines
+﻿# Chimali Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-20
+Auto-generated from all feature plans. Last updated: 2026-04-19
 
 ## Active Technologies
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (001-store-credentials)
@@ -34,10 +34,9 @@ tests/
 Kotlin 1.9.20+: Follow standard conventions
 
 ## Recent Changes
+- 005-kermit-logging-migration: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 - 004-fido2-hid: Added Kotlin + BouncyCastle 1.80
 - 004-fido2-hid: Added Kotlin 1.9+ (Android Native) + AndroidX, Jetpack Compose, Timber (for structured local logging)
-- 004-fido2-hid: Added Kotlin 1.9+ (Android Native) + AndroidX BiometricPrompt, Android KeyStore, BluetoothHidDevice, SQLCipher, SQLDelight, Hilt, Jetpack Compose, Bouncy Castle (PQC), ML-KEM/Kyber library
-- 002-password-legibility: Added Kotlin 1.9+, Jetpack Compose + Google Fonts (for Atkinson Hyperlegible), Material 3
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.viewmodel
+package com.chimali.fido2.presentation.viewmodel
 
 import org.koin.android.annotation.KoinViewModel
 
@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 // ---------------------------------------------------------------------------
 // State
@@ -123,7 +123,7 @@ class DevToolsViewModel(
             errorCode: Int,
             message: String,
         ) {
-            Timber.w("Biometric error received: code=%d, message=%s", errorCode, message)
+            Logger.w { String.format("Biometric error received: code=%d, message=%s", errorCode, message) }
             _state.update {
                 it.copy(
                     mnemonicWords = null,
@@ -200,10 +200,10 @@ class DevToolsViewModel(
                     _state.update { it.copy(isLoading = false, recoverSuccess = true) }
                     _effects.send(DevToolsEffect.ShowSnackbar(message))
                 } catch (e: IllegalArgumentException) {
-                    Timber.e(e, "Invalid mnemonic provided for recovery")
+                    Logger.e(e) { "Invalid mnemonic provided for recovery" }
                     _state.update { it.copy(isLoading = false, error = e.message) }
                 } catch (e: Exception) {
-                    Timber.e(e, "Failed to import mnemonic: %s", e.message ?: "Unknown error")
+                    Logger.e(e) { String.format("Failed to import mnemonic: %s", e.message ?: "Unknown error") }
                     _state.update {
                         it.copy(
                             isLoading = false,

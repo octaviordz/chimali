@@ -3,7 +3,7 @@ package com.chimali.fido2.util.performance
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Security
@@ -58,14 +58,14 @@ object WarmUpHelper {
     fun warmUpAndroidKeyStore() {
         try {
             val t0 = System.currentTimeMillis()
-            Timber.d("AndroidKeyStore warm-up START")
+            Logger.d("AndroidKeyStore warm-up START")
 
             val keyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
 
             // Generate the warmup key if it doesn't yet exist (first install or after factory
             // reset / full uninstall). Subsequent app starts skip straight to the sign step.
             if (!keyStore.containsAlias(WARMUP_KEY_ALIAS)) {
-                Timber.d("AndroidKeyStore warm-up: generating warmup key (first run)")
+                Logger.d("AndroidKeyStore warm-up: generating warmup key (first run)")
                 val kpg =
                     KeyPairGenerator.getInstance(
                         KeyProperties.KEY_ALGORITHM_EC,
@@ -83,9 +83,9 @@ object WarmUpHelper {
                         .build(),
                 )
                 kpg.generateKeyPair()
-                Timber.d("AndroidKeyStore warm-up: key created in %dms", System.currentTimeMillis() - t0)
+                Logger.d { String.format("AndroidKeyStore warm-up: key created in %dms", System.currentTimeMillis() - t0) }
             } else {
-                Timber.d("AndroidKeyStore warm-up: reusing existing warmup key")
+                Logger.d("AndroidKeyStore warm-up: reusing existing warmup key")
             }
 
             // Retrieve the private key and run one throwaway ECDSA sign.
@@ -98,10 +98,10 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Timber.d("AndroidKeyStore warm-up DONE: sign=%dms total=%dms", System.currentTimeMillis() - t1, System.currentTimeMillis() - t0)
+            Logger.d { String.format("AndroidKeyStore warm-up DONE: sign=%dms total=%dms", System.currentTimeMillis() - t1, System.currentTimeMillis() - t0) }
         } catch (e: Exception) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
-            Timber.w(e, "AndroidKeyStore warm-up FAILED (non-fatal): %s", e.message)
+            Logger.w(e) { String.format("AndroidKeyStore warm-up FAILED (non-fatal): %s", e.message) }
         }
     }
 
@@ -121,7 +121,7 @@ object WarmUpHelper {
     fun warmUpBouncyCastle() {
         try {
             val t0 = System.currentTimeMillis()
-            Timber.d("BouncyCastle warm-up START")
+            Logger.d("BouncyCastle warm-up START")
 
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
                 Security.addProvider(BouncyCastleProvider())
@@ -137,9 +137,9 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Timber.d("BouncyCastle warm-up DONE: %dms", System.currentTimeMillis() - t0)
+            Logger.d { String.format("BouncyCastle warm-up DONE: %dms", System.currentTimeMillis() - t0) }
         } catch (e: Exception) {
-            Timber.w(e, "BouncyCastle warm-up FAILED (non-fatal): %s", e.message)
+            Logger.w(e) { String.format("BouncyCastle warm-up FAILED (non-fatal): %s", e.message) }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.viewmodel
+package com.chimali.fido2.presentation.viewmodel
 
 import org.koin.android.annotation.KoinViewModel
 
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 // ── MVI: Intent ───────────────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ class AuthenticationPromptViewModel(
                         emit(AuthenticationEffect.NavigateToSuccess(assertion))
                     }
                     .onFailure { error ->
-                        Timber.e(error, "Authentication process failed")
+                        Logger.e(error) { "Authentication process failed" }
                         val ui = Fido2ErrorHandler.handle(error)
                         _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
                     }

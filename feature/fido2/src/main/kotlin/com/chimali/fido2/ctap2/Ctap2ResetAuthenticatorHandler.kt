@@ -3,7 +3,7 @@
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * T117 — CTAP2 authenticatorReset (0x07) handler.
@@ -19,7 +19,7 @@ class Ctap2ResetAuthenticatorHandler(
         }
 
         suspend fun handle(requestBytes: ByteArray): ByteArray {
-            Timber.d("Handling authenticatorReset")
+            Logger.d("Handling authenticatorReset")
 
             return try {
                 val result = resetAuthenticatorUseCase()
@@ -29,7 +29,7 @@ class Ctap2ResetAuthenticatorHandler(
                     byteArrayOf(CTAP2_ERR_PROCESSING)
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Exception handling authenticator reset")
+                Logger.e(e) { "Exception handling authenticator reset" }
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
         }

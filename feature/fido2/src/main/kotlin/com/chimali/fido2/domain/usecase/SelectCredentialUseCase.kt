@@ -6,7 +6,7 @@ import org.koin.core.annotation.Single
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Selects the best [CredentialSummary] from a list of candidates for a [GetAssertionOptions].
@@ -34,12 +34,12 @@ class SelectCredentialUseCase
                     )
 
                     candidates.size == 1 -> {
-                        Timber.d("Auto-selecting single credential: %s", candidates.first().id)
+                        Logger.d { String.format("Auto-selecting single credential: %s", candidates.first().id) }
                         candidates.first()
                     }
 
                     else -> {
-                        Timber.d("Multiple credentials (%d), selecting MRU for rpId=%s", candidates.size, options.rpId)
+                        Logger.d { String.format("Multiple credentials (%d), selecting MRU for rpId=%s", candidates.size, options.rpId) }
                         selectMostRecentlyUsed(candidates)
                     }
                 }
@@ -50,7 +50,7 @@ class SelectCredentialUseCase
                 candidates.maxByOrNull { it.lastUsedAt }
                     ?: throw Fido2Exception.CredentialNotFound("Could not resolve credential from candidates")
 
-            Timber.d("MRU selected credential: %s (lastUsed=%s)", selected.id, selected.lastUsedAt)
+            Logger.d { String.format("MRU selected credential: %s (lastUsed=%s)", selected.id, selected.lastUsedAt) }
             return selected
         }
     }

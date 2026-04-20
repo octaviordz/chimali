@@ -3,6 +3,19 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-20
+
+### Changed
+- **Kermit Logging Migration**: Completed the refactor of 50+ legacy `Timber` calls to `co.touchlab.kermit.Logger` lambda syntax across the `:feature:fido2` module, ensuring KMP compatibility and structured logging safety.
+
+### Fixed
+- **FIDO2 Performance Optimization (NFR-PERF-030)**:
+    - Resolved app startup hangs by offloading BouncyCastle/AndroidKeyStore warm-ups to background threads.
+    - Eliminated "OVER BUDGET" ceremony latency by replacing `@Synchronized` with a `Mutex` in `WalletMasterSeedProvider` and implementing proactive master seed pre-warming in the FIDO2 dashboard.
+
+### Added
+- **Detailed changes**: [2026-04-20-fido2-logging-migration-and-performance-optimizations.md](docs/changelogs/2026-04-20-fido2-logging-migration-and-performance-optimizations.md)
+
 ## [Unreleased] - 2026-04-19
 
 ### Fixed
@@ -480,4 +493,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-18*
+*Last Updated: 2026-04-20*

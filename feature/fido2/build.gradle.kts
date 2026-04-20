@@ -140,7 +140,7 @@ kotlin {
             implementation(libs.sqldelight.android)
             implementation(libs.sqldelight.coroutines)
             implementation(libs.sqlcipher)
-            implementation(libs.timber)
+
             // Compose UI (CMP — androidMain target)
             // Note: BOM applied via outer dependencies{} block (platform() deprecated in KMP sourceSets)
             implementation(project(":core:ui"))

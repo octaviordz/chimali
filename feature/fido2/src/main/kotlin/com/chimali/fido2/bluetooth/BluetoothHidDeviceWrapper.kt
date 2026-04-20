@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -136,7 +136,7 @@ class BluetoothHidDeviceWrapper(
         private fun logDiagnosticSnapshot(tag: String) {
             val hid = hidDevice
             if (hid == null) {
-                Timber.d("[DIAG:%s] hidDevice=null, _connectionState=%s", tag, _connectionState.value)
+                Logger.d { String.format("[DIAG:%s] hidDevice=null, _connectionState=%s", tag, _connectionState.value) }
                 return
             }
 
@@ -144,29 +144,35 @@ class BluetoothHidDeviceWrapper(
                 val connectedDevices = hid.getConnectedDevices()
                 val bondedDevices = bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
 
-                Timber.i(
-                    "[DIAG:%s] _connectionState=%s, connectedDevice=%s, pendingBondDevice=%s",
-                    tag,
-                    _connectionState.value,
-                    connectedDevice?.address,
-                    pendingBondDevice?.address,
-                )
-                Timber.i(
-                    "[DIAG:%s] getConnectedDevices()=[%s] (count=%d)",
-                    tag,
-                    connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" },
-                    connectedDevices.size,
-                )
-                Timber.i(
-                    "[DIAG:%s] bondedDevices=[%s] (count=%d)",
-                    tag,
-                    bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" },
-                    bondedDevices.size,
-                )
+                Logger.i {
+                    String.format(
+                        "[DIAG:%s] _connectionState=%s, connectedDevice=%s, pendingBondDevice=%s",
+                        tag,
+                        _connectionState.value,
+                        connectedDevice?.address,
+                        pendingBondDevice?.address,
+                    )
+                }
+                Logger.i {
+                    String.format(
+                        "[DIAG:%s] getConnectedDevices()=[%s] (count=%d)",
+                        tag,
+                        connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" },
+                        connectedDevices.size,
+                    )
+                }
+                Logger.i {
+                    String.format(
+                        "[DIAG:%s] bondedDevices=[%s] (count=%d)",
+                        tag,
+                        bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" },
+                        bondedDevices.size,
+                    )
+                }
             } catch (e: SecurityException) {
-                Timber.w(e, "[DIAG:%s] SecurityException reading diagnostic state", tag)
+                Logger.w(e) { String.format("[DIAG:%s] SecurityException reading diagnostic state", tag) }
             } catch (e: Exception) {
-                Timber.w(e, "[DIAG:%s] Exception reading diagnostic state", tag)
+                Logger.w(e) { String.format("[DIAG:%s] Exception reading diagnostic state", tag) }
             }
         }
 
@@ -208,9 +214,9 @@ class BluetoothHidDeviceWrapper(
                     when (intent.action) {
                         BluetoothAdapter.ACTION_STATE_CHANGED -> {
                             val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                            Timber.d("BluetoothAdapter state changed: %d", state)
+                            Logger.d { String.format("BluetoothAdapter state changed: %d", state) }
                             if (state == BluetoothAdapter.STATE_OFF) {
-                                Timber.w("Bluetooth turned OFF — resetting HID proxy and connection state")
+                                Logger.w { "Bluetooth turned OFF — resetting HID proxy and connection state" }
                                 pendingBondDevice = null
                                 hidDevice = null
                                 connectedDevice = null
@@ -232,25 +238,29 @@ class BluetoothHidDeviceWrapper(
                                     BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
                                     BluetoothDevice.BOND_NONE,
                                 )
-                            Timber.i(
-                                "Bond state changed: device=%s %s→%s",
-                                device.address,
-                                bondStateName(previousBondState),
-                                bondStateName(bondState),
-                            )
+                            Logger.i {
+                                String.format(
+                                    "Bond state changed: device=%s %s→%s",
+                                    device.address,
+                                    bondStateName(previousBondState),
+                                    bondStateName(bondState),
+                                )
+                            }
 
                             // Log the HID connection state of this device
                             val hid = hidDevice
                             if (hid != null) {
                                 try {
                                     val hidState = hid.getConnectionState(device)
-                                    Timber.i(
-                                        "  HID connection state for %s: %s",
-                                        device.address,
-                                        connectionStateName(hidState),
-                                    )
+                                    Logger.i {
+                                        String.format(
+                                            "  HID connection state for %s: %s",
+                                            device.address,
+                                            connectionStateName(hidState),
+                                        )
+                                    }
                                 } catch (e: Exception) {
-                                    Timber.w(e, "  Could not query HID connection state for %s", device.address)
+                                    Logger.w(e) { String.format("  Could not query HID connection state for %s", device.address) }
                                 }
                             }
 
@@ -264,10 +274,12 @@ class BluetoothHidDeviceWrapper(
                                 // Path A: L2CAP channel opened while bonding was still in progress.
                                 // onConnectionStateChanged(CONNECTED) deferred us here — now the link
                                 // is encrypted, so it is safe to accept the device.
-                                Timber.i(
-                                    "Pending device %s is now BOND_BONDED — completing deferred connection.",
-                                    device.address,
-                                )
+                                Logger.i {
+                                    String.format(
+                                        "Pending device %s is now BOND_BONDED — completing deferred connection.",
+                                        device.address,
+                                    )
+                                }
                                 pendingBondDevice = null
                                 acceptConnectedDevice(device)
                             } else if (
@@ -281,10 +293,12 @@ class BluetoothHidDeviceWrapper(
                                 // whose previous bond is stale causes btif_storage_remove_bonded_device,
                                 // destroying the pairing entirely. Let the host drive the natural
                                 // HID L2CAP connection flow after bonding completes.
-                                Timber.i(
-                                    "BOND_BONDED for %s while Advertising — waiting for host-initiated HID connection.",
-                                    device.address,
-                                )
+                                Logger.i {
+                                    String.format(
+                                        "BOND_BONDED for %s while Advertising — waiting for host-initiated HID connection.",
+                                        device.address,
+                                    )
+                                }
                             }
                         }
                         BluetoothDevice.ACTION_ACL_CONNECTED -> {
@@ -298,12 +312,14 @@ class BluetoothHidDeviceWrapper(
                                 intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                                     ?: return
 
-                            Timber.d(
-                                "ACL_CONNECTED: device=%s bond=%s currentState=%s",
-                                device.address,
-                                bondStateName(device.bondState),
-                                _connectionState.value::class.simpleName,
-                            )
+                            Logger.d {
+                                String.format(
+                                    "ACL_CONNECTED: device=%s bond=%s currentState=%s",
+                                    device.address,
+                                    bondStateName(device.bondState),
+                                    _connectionState.value::class.simpleName,
+                                )
+                            }
                         }
                     }
                 }
@@ -322,12 +338,12 @@ class BluetoothHidDeviceWrapper(
                 ) {
                     if (profile == BluetoothProfile.HID_DEVICE) {
                         hidDevice = proxy as BluetoothHidDevice
-                        Timber.d("HID_DEVICE profile proxy acquired successfully")
+                        Logger.d { "HID_DEVICE profile proxy acquired successfully" }
                         logDiagnosticSnapshot("PROXY_ACQUIRED")
                         initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                         initContinuation = null
                     } else {
-                        Timber.w("onServiceConnected received for profile %d, expected HID_DEVICE", profile)
+                        Logger.w { String.format("onServiceConnected received for profile %d, expected HID_DEVICE", profile) }
                     }
                 }
 
@@ -335,7 +351,7 @@ class BluetoothHidDeviceWrapper(
                     if (profile == BluetoothProfile.HID_DEVICE) {
                         hidDevice = null
                         _connectionState.value = HidConnectionState.Idle
-                        Timber.d("HID_DEVICE profile proxy released (service disconnected)")
+                        Logger.d { "HID_DEVICE profile proxy released (service disconnected)" }
                     }
                 }
             }
@@ -347,11 +363,13 @@ class BluetoothHidDeviceWrapper(
                     pluggedDevice: BluetoothDevice?,
                     registered: Boolean,
                 ) {
-                    Timber.i(
-                        "onAppStatusChanged registered=%b pluggedDevice=%s",
-                        registered,
-                        pluggedDevice?.address ?: "null",
-                    )
+                    Logger.i {
+                        String.format(
+                            "onAppStatusChanged registered=%b pluggedDevice=%s",
+                            registered,
+                            pluggedDevice?.address ?: "null",
+                        )
+                    }
                     logDiagnosticSnapshot("APP_STATUS_CHANGED")
 
                     if (registered) {
@@ -359,20 +377,24 @@ class BluetoothHidDeviceWrapper(
                             // A device is already reported at registration time.
                             // This is a stale socket from a previous session — disconnect it to free
                             // the L2CAP channel for new incoming connections.
-                            Timber.w(
-                                "Stale pluggedDevice %s reported at registration. " +
-                                    "Disconnecting to free L2CAP socket.",
-                                pluggedDevice.address,
-                            )
+                            Logger.w {
+                                String.format(
+                                    "Stale pluggedDevice %s reported at registration. " +
+                                        "Disconnecting to free L2CAP socket.",
+                                    pluggedDevice.address,
+                                )
+                            }
                             try {
                                 val disconnected = hidDevice?.disconnect(pluggedDevice)
-                                Timber.d(
-                                    "disconnect(%s) result=%b — socket should be freed for new connections.",
-                                    pluggedDevice.address,
-                                    disconnected,
-                                )
+                                Logger.d {
+                                    String.format(
+                                        "disconnect(%s) result=%b — socket should be freed for new connections.",
+                                        pluggedDevice.address,
+                                        disconnected,
+                                    )
+                                }
                             } catch (e: SecurityException) {
-                                Timber.e(e, "Security error disconnecting stale device %s", pluggedDevice.address)
+                                Logger.e(e) { String.format("Security error disconnecting stale device %s", pluggedDevice.address) }
                             }
                         }
                         _connectionState.value = HidConnectionState.Advertising
@@ -385,42 +407,50 @@ class BluetoothHidDeviceWrapper(
                     device: BluetoothDevice,
                     state: Int,
                 ) {
-                    Timber.i(
-                        "onConnectionStateChanged device=%s state=%s",
-                        device.address,
-                        connectionStateName(state),
-                    )
+                    Logger.i {
+                        String.format(
+                            "onConnectionStateChanged device=%s state=%s",
+                            device.address,
+                            connectionStateName(state),
+                        )
+                    }
                     logDiagnosticSnapshot("CONNECTION_STATE_CHANGED")
 
                     when (state) {
                         BluetoothProfile.STATE_CONNECTED -> {
                             val bondState = runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)
-                            Timber.i(
-                                "Device %s connected — bondState=%s",
-                                device.address,
-                                bondStateName(bondState),
-                            )
+                            Logger.i {
+                                String.format(
+                                    "Device %s connected — bondState=%s",
+                                    device.address,
+                                    bondStateName(bondState),
+                                )
+                            }
                             when (bondState) {
                                 BluetoothDevice.BOND_NONE -> {
                                     // No link key at all — reject immediately.
-                                    Timber.w(
-                                        "Rejecting connection from completely unbonded device %s. " +
-                                            "No link key present — device has never paired.",
-                                        device.address,
-                                    )
+                                    Logger.w {
+                                        String.format(
+                                            "Rejecting connection from completely unbonded device %s. " +
+                                                "No link key present — device has never paired.",
+                                            device.address,
+                                        )
+                                    }
                                     try {
                                         hidDevice?.disconnect(device)
                                     } catch (e: SecurityException) {
-                                        Timber.e(e, "Failed to disconnect unbonded device")
+                                        Logger.e(e) { "Failed to disconnect unbonded device" }
                                     }
                                 }
                                 BluetoothDevice.BOND_BONDING -> {
                                     // Link-key exchange still in progress. Defer acceptance until
                                     // BOND_BONDED arrives via ACTION_BOND_STATE_CHANGED.
-                                    Timber.d(
-                                        "Device %s is still bonding — deferring connection acceptance until BOND_BONDED.",
-                                        device.address,
-                                    )
+                                    Logger.d {
+                                        String.format(
+                                            "Device %s is still bonding — deferring connection acceptance until BOND_BONDED.",
+                                            device.address,
+                                        )
+                                    }
                                     pendingBondDevice = device
                                 }
                                 else -> {
@@ -431,9 +461,9 @@ class BluetoothHidDeviceWrapper(
                         }
 
                         BluetoothProfile.STATE_DISCONNECTED -> {
-                            Timber.d("Device disconnected: %s", device.address)
+                            Logger.d { String.format("Device disconnected: %s", device.address) }
                             if (pendingBondDevice?.address == device.address) {
-                                Timber.d("Pending bond device %s disconnected — clearing deferred state.", device.address)
+                                Logger.d { String.format("Pending bond device %s disconnected — clearing deferred state.", device.address) }
                                 pendingBondDevice = null
                             }
                             connectedDevice = null
@@ -441,12 +471,12 @@ class BluetoothHidDeviceWrapper(
                         }
 
                         BluetoothProfile.STATE_CONNECTING -> {
-                            Timber.i("Device %s connecting...", device.address)
+                            Logger.i { String.format("Device %s connecting...", device.address) }
                             _connectionState.value = HidConnectionState.Connecting(device)
                         }
 
                         BluetoothProfile.STATE_DISCONNECTING -> {
-                            Timber.i("Device %s disconnecting...", device.address)
+                            Logger.i { String.format("Device %s disconnecting...", device.address) }
                         }
                     }
                 }
@@ -458,7 +488,7 @@ class BluetoothHidDeviceWrapper(
                     id: Byte,
                     data: ByteArray,
                 ) {
-                    Timber.d("onSetReport type=%d id=%d len=%d", type, id, data.size)
+                    Logger.d { String.format("onSetReport type=%d id=%d len=%d", type, id, data.size) }
                     incomingReports.trySend(ensureReportSize(data))
                 }
 
@@ -468,7 +498,7 @@ class BluetoothHidDeviceWrapper(
                     reportId: Byte,
                     data: ByteArray,
                 ) {
-                    Timber.d("onInterruptData reportId=%d len=%d", reportId, data.size)
+                    Logger.d { String.format("onInterruptData reportId=%d len=%d", reportId, data.size) }
                     incomingReports.trySend(ensureReportSize(data))
                 }
 
@@ -482,12 +512,12 @@ class BluetoothHidDeviceWrapper(
                     try {
                         hidDevice?.replyReport(device, type, id, ByteArray(FIDO_HID_REPORT_SIZE))
                     } catch (e: SecurityException) {
-                        Timber.e(e, "onGetReport: BLUETOOTH_CONNECT permission denied")
+                        Logger.e(e) { "onGetReport: BLUETOOTH_CONNECT permission denied" }
                     }
                 }
 
                 override fun onVirtualCableUnplug(device: BluetoothDevice) {
-                    Timber.d("onVirtualCableUnplug device=%s", device.address)
+                    Logger.d { String.format("onVirtualCableUnplug device=%s", device.address) }
                     connectedDevice = null
                     _connectionState.value = HidConnectionState.Advertising
                 }
@@ -500,7 +530,7 @@ class BluetoothHidDeviceWrapper(
          * and notifies the transport layer.
          */
         private fun acceptConnectedDevice(device: BluetoothDevice) {
-            Timber.i("Accepting connection from %s", device.address)
+            Logger.i { String.format("Accepting connection from %s", device.address) }
             connectedDevice = device
             _connectionState.value = HidConnectionState.Connected(device)
             logDiagnosticSnapshot("DEVICE_ACCEPTED")
@@ -532,7 +562,7 @@ class BluetoothHidDeviceWrapper(
          * used in [registerApp] to handle this gracefully.
          */
         suspend fun initialize(): Result<Unit> {
-            Timber.d("initialize() called. Current hidDevice: %s", hidDevice)
+            Logger.d { String.format("initialize() called. Current hidDevice: %s", hidDevice) }
             if (hidDevice != null) return Result.success(Unit)
 
             // Register adapter-state receiver for BT hardware toggle and bond-state changes.
@@ -553,10 +583,12 @@ class BluetoothHidDeviceWrapper(
                     context.registerReceiver(bluetoothStateReceiver, filter)
                 }
                 receiverRegistered = true
-                Timber.d(
-                    "BluetoothAdapter state + bond-state receiver registered (exported=%b)",
-                    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU,
-                )
+                Logger.d {
+                    String.format(
+                        "BluetoothAdapter state + bond-state receiver registered (exported=%b)",
+                        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU,
+                    )
+                }
             }
 
             var lastException: Exception? = null
@@ -565,7 +597,7 @@ class BluetoothHidDeviceWrapper(
             var retryDelay = cfg.initRetryDelayMs
 
             for (attempt in 1..maxRetries) {
-                Timber.d("initialize attempt %d/%d", attempt, maxRetries)
+                Logger.d { String.format("initialize attempt %d/%d", attempt, maxRetries) }
 
                 val result =
                     withTimeoutOrNull(cfg.initTimeoutMs) {
@@ -573,23 +605,23 @@ class BluetoothHidDeviceWrapper(
                             initContinuation = cont
                             try {
                                 val adapterState = bluetoothAdapter?.state
-                                Timber.d("Bluetooth adapter state before getProfileProxy: %s (STATE_ON=12)", adapterState)
-                                Timber.d("Calling getProfileProxy for HID_DEVICE...")
+                                Logger.d { String.format("Bluetooth adapter state before getProfileProxy: %s (STATE_ON=12)", adapterState) }
+                                Logger.d { "Calling getProfileProxy for HID_DEVICE..." }
                                 val success =
                                     bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
                                         ?: false
-                                Timber.d("getProfileProxy returned: %b", success)
+                                Logger.d { String.format("getProfileProxy returned: %b", success) }
                                 if (!success) {
-                                    Timber.e("getProfileProxy returned false - Bluetooth may be off or profile unsupported")
+                                    Logger.e { "getProfileProxy returned false - Bluetooth may be off or profile unsupported" }
                                     cont.resumeWithException(
                                         Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"),
                                     )
                                     initContinuation = null
                                 } else {
-                                    Timber.d("getProfileProxy returned true - waiting for onServiceConnected callback...")
+                                    Logger.d { "getProfileProxy returned true - waiting for onServiceConnected callback..." }
                                 }
                             } catch (e: SecurityException) {
-                                Timber.e(e, "SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?")
+                                Logger.e(e) { "SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?" }
                                 cont.resumeWithException(
                                     Fido2Exception.BluetoothPermissionDenied(
                                         "Bluetooth permission denied",
@@ -603,19 +635,19 @@ class BluetoothHidDeviceWrapper(
 
                 when {
                     result == null -> {
-                        Timber.e("initialize() timed out after %dms - onServiceConnected never received.", cfg.initTimeoutMs)
+                        Logger.e { String.format("initialize() timed out after %dms - onServiceConnected never received.", cfg.initTimeoutMs) }
                         lastException =
                             Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
                     }
 
                     result.isSuccess -> {
-                        Timber.i("initialize() succeeded on attempt %d", attempt)
+                        Logger.i { String.format("initialize() succeeded on attempt %d", attempt) }
                         return Result.success(Unit)
                     }
 
                     else -> {
                         lastException = result.exceptionOrNull() as? Exception
-                        Timber.w("initialize() failed on attempt %d: %s", attempt, lastException?.message)
+                        Logger.w { String.format("initialize() failed on attempt %d: %s", attempt, lastException?.message) }
                         // If it's a permission error, don't retry — user action needed
                         if (lastException is Fido2Exception.BluetoothPermissionDenied) {
                             return Result.failure(lastException)
@@ -624,13 +656,13 @@ class BluetoothHidDeviceWrapper(
                 }
 
                 if (attempt < maxRetries) {
-                    Timber.d("Retrying initialize() in %dms...", retryDelay)
+                    Logger.d { String.format("Retrying initialize() in %dms...", retryDelay) }
                     delay(retryDelay)
                     retryDelay *= 2
                 }
             }
 
-            Timber.e("initialize() failed after %d attempts", maxRetries)
+            Logger.e { String.format("initialize() failed after %d attempts", maxRetries) }
             return Result.failure(
                 lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries"),
             )
@@ -659,7 +691,7 @@ class BluetoothHidDeviceWrapper(
             var lastException: Exception? = null
 
             for (attempt in 1..maxRetries) {
-                Timber.d("registerApp attempt %d/%d", attempt, maxRetries)
+                Logger.d { String.format("registerApp attempt %d/%d", attempt, maxRetries) }
                 logDiagnosticSnapshot("PRE_REGISTER_$attempt")
 
                 // ── Step 0: Ensure Bluetooth is ON ──
@@ -668,7 +700,7 @@ class BluetoothHidDeviceWrapper(
                 var bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
                 var waitAttempt = 0
                 while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON && waitAttempt < 10) {
-                    Timber.d("Bluetooth is turning on, waiting 500ms (attempt %d)...", waitAttempt + 1)
+                    Logger.d { String.format("Bluetooth is turning on, waiting 500ms (attempt %d)...", waitAttempt + 1) }
                     delay(500)
                     bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
                     waitAttempt++
@@ -688,7 +720,7 @@ class BluetoothHidDeviceWrapper(
                             }
 
                             if (bluetoothState != BluetoothAdapter.STATE_ON) {
-                                Timber.w("Bluetooth is not ON (current state: %d), cannot register HID app", bluetoothState)
+                                Logger.w { String.format("Bluetooth is not ON (current state: %d), cannot register HID app", bluetoothState) }
                                 cont.resume(
                                     Result.failure(
                                         Fido2Exception.BluetoothException("Bluetooth must be enabled to start the authenticator"),
@@ -701,19 +733,19 @@ class BluetoothHidDeviceWrapper(
                             // Best practice: call unregisterApp() before registerApp() to ensure
                             // no previous app instance (same or different process) holds the
                             // exclusive HID_DEVICE registration slot.
-                            Timber.d("Step 1: Calling unregisterApp() to clear any stale registration...")
+                            Logger.d { "Step 1: Calling unregisterApp() to clear any stale registration..." }
                             try {
                                 val unregResult = hid.unregisterApp()
-                                Timber.d("unregisterApp() result: %b", unregResult)
+                                Logger.d { String.format("unregisterApp() result: %b", unregResult) }
                             } catch (e: Exception) {
-                                Timber.w(e, "unregisterApp() threw (non-fatal, proceeding with registerApp)")
+                                Logger.w(e) { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
                             }
 
                             logDiagnosticSnapshot("POST_UNREGISTER_$attempt")
 
                             // ── Step 2: Register with fresh callback ──
                             val sdpSubclass = BluetoothHidDevice.SUBCLASS1_COMBO
-                            Timber.d("Step 2: Using SUBCLASS1_COMBO...")
+                            Logger.d { "Step 2: Using SUBCLASS1_COMBO..." }
 
                             val sdp =
                                 BluetoothHidDeviceAppSdpSettings(
@@ -735,10 +767,10 @@ class BluetoothHidDeviceWrapper(
                                         hidCallback.onAppStatusChanged(pluggedDevice, registered)
 
                                         if (registered) {
-                                            Timber.i("registerApp: onAppStatusChanged registered=true — registration confirmed")
+                                            Logger.i { "registerApp: onAppStatusChanged registered=true — registration confirmed" }
                                             if (cont.isActive) cont.resume(Result.success(Unit))
                                         } else {
-                                            Timber.w("registerApp: onAppStatusChanged registered=false — registration lost")
+                                            Logger.w { "registerApp: onAppStatusChanged registered=false — registration lost" }
                                             if (cont.isActive) {
                                                 cont.resume(
                                                     Result.failure(
@@ -779,7 +811,7 @@ class BluetoothHidDeviceWrapper(
 
                             val registerResult =
                                 try {
-                                    Timber.d("Step 3: Calling registerApp with SDP subclass COMBO and null QoS...")
+                                    Logger.d("Step 3: Calling registerApp with SDP subclass COMBO and null QoS...")
                                     val callResult =
                                         hid.registerApp(
                                             sdp,
@@ -788,10 +820,10 @@ class BluetoothHidDeviceWrapper(
                                             Executors.newSingleThreadExecutor(),
                                             registrationCallback,
                                         )
-                                    Timber.i("registerApp() framework return value: %b", callResult)
+                                    Logger.i { String.format("registerApp() framework return value: %b", callResult) }
                                     callResult
                                 } catch (e: SecurityException) {
-                                    Timber.e(e, "SecurityException in registerApp")
+                                    Logger.e(e) { "SecurityException in registerApp" }
                                     cont.resume(
                                         Result.failure(
                                             Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_ADVERTISE permission denied", e),
@@ -799,7 +831,7 @@ class BluetoothHidDeviceWrapper(
                                     )
                                     return@suspendCancellableCoroutine
                                 } catch (e: Exception) {
-                                    Timber.e(e, "Unexpected Exception in registerApp")
+                                    Logger.e(e) { "Unexpected Exception in registerApp" }
                                     cont.resume(
                                         Result.failure(
                                             Fido2Exception.BluetoothException("Unexpected error during app registration: ${e.message}"),
@@ -814,7 +846,7 @@ class BluetoothHidDeviceWrapper(
                                 // registerApp() returned false — the request was not accepted by the
                                 // system service. This typically means another app or stale process
                                 // already holds the exclusive HID_DEVICE registration.
-                                Timber.w(
+                                Logger.w(
                                     "registerApp() returned false — system did not accept registration request. " +
                                         "Another app or stale process may hold the HID_DEVICE slot.",
                                 )
@@ -827,24 +859,24 @@ class BluetoothHidDeviceWrapper(
 
                 when {
                     result?.isSuccess == true -> {
-                        Timber.i("registerApp() succeeded on attempt %d", attempt)
+                        Logger.i { String.format("registerApp() succeeded on attempt %d", attempt) }
                         logDiagnosticSnapshot("REGISTER_SUCCESS")
                         return Result.success(Unit)
                     }
                     result == null -> {
-                        Timber.e("registerApp timed out after %dms on attempt %d", cfg.registerTimeoutMs, attempt)
+                        Logger.e { String.format("registerApp timed out after %dms on attempt %d", cfg.registerTimeoutMs, attempt) }
                         lastException = Fido2Exception.BluetoothException("HID registration timed out")
                         logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
                     }
                     else -> {
                         lastException = result.exceptionOrNull() as? Exception
-                        Timber.w("registerApp failure on attempt %d: %s", attempt, lastException?.message)
+                        Logger.w { String.format("registerApp failure on attempt %d: %s", attempt, lastException?.message) }
                         logDiagnosticSnapshot("REGISTER_FAILURE_$attempt")
                     }
                 }
 
                 if (attempt < maxRetries) {
-                    Timber.d("Retrying registerApp in %dms...", retryDelay)
+                    Logger.d { String.format("Retrying registerApp in %dms...", retryDelay) }
                     delay(retryDelay)
                     retryDelay = minOf(retryDelay * 2, cfg.registerRetryMaxDelayMs)
                 }
@@ -870,36 +902,36 @@ class BluetoothHidDeviceWrapper(
             val device = connectedDevice
 
             if (hid == null) {
-                Timber.w("sendReport: HID device not available")
+                Logger.w("sendReport: HID device not available")
                 return false
             }
             if (device == null) {
-                Timber.w("sendReport: no connected device")
+                Logger.w("sendReport: no connected device")
                 return false
             }
 
             val report = ensureReportSize(data)
             return try {
                 val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-                Timber.d("sendReport dispatched len=%d success=%b", report.size, sent)
+                Logger.d { String.format("sendReport dispatched len=%d success=%b", report.size, sent) }
                 sent
             } catch (e: SecurityException) {
-                Timber.e(e, "sendReport: BLUETOOTH_CONNECT permission denied")
+                Logger.e(e) { "sendReport: BLUETOOTH_CONNECT permission denied" }
                 false
             } catch (e: Exception) {
-                Timber.e(e, "sendReport: exception — %s", e.message)
+                Logger.e(e) { String.format("sendReport: exception — %s", e.message) }
                 false
             }
         }
 
         /** Unregisters the HID app (stops advertising / disconnects host). */
         fun unregisterApp() {
-            Timber.d("unregisterApp() called")
+            Logger.d("unregisterApp() called")
             logDiagnosticSnapshot("PRE_UNREGISTER")
             try {
                 hidDevice?.unregisterApp()
             } catch (e: SecurityException) {
-                Timber.e(e, "unregisterApp: Bluetooth permission denied")
+                Logger.e(e) { "unregisterApp: Bluetooth permission denied" }
             }
             _connectionState.value = HidConnectionState.Idle
             logDiagnosticSnapshot("POST_UNREGISTER")
@@ -907,17 +939,17 @@ class BluetoothHidDeviceWrapper(
 
         /** Releases the profile proxy. Should be called from Application.onTerminate. */
         fun close() {
-            Timber.d("close() called")
+            Logger.d("close() called")
             unregisterApp()
             if (receiverRegistered) {
                 runCatching { context.unregisterReceiver(bluetoothStateReceiver) }
-                    .onFailure { Timber.w("close: failed to unregister BT state receiver: %s", it.message) }
+                    .onFailure { Logger.w { String.format("close: failed to unregister BT state receiver: %s", it.message) } }
                 receiverRegistered = false
             }
             try {
                 hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }
             } catch (e: SecurityException) {
-                Timber.e(e, "close: Bluetooth permission denied")
+                Logger.e(e) { "close: Bluetooth permission denied" }
             }
             hidDevice = null
             incomingReports.close()

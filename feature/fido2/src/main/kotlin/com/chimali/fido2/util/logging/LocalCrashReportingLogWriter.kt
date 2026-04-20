@@ -2,7 +2,8 @@ package com.chimali.fido2.util.logging
 
 import android.content.Context
 import android.util.Log
-import timber.log.Timber
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Severity
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -14,7 +15,7 @@ import java.util.Locale
  * Writes logs to a rotating file in the app's internal storage.
  * Implements privacy-safe logging via [PrivacyLogScrubber].
  */
-class LocalCrashReportingTree(context: Context) : Timber.Tree() {
+class LocalCrashReportingLogWriter(context: Context) : LogWriter() {
     private val logDir = File(context.filesDir, "logs")
     private val currentLogFile = File(logDir, "fido2_crash_log.txt")
     private val maxFileSize = 5L * 1024 * 1024 // 5MB limit
@@ -27,36 +28,33 @@ class LocalCrashReportingTree(context: Context) : Timber.Tree() {
     }
 
     override fun log(
-        priority: Int,
-        tag: String?,
+        severity: Severity,
         message: String,
-        t: Throwable?,
+        tag: String,
+        throwable: Throwable?
     ) {
         val scrubbedMessage = PrivacyLogScrubber.scrub(message)
 
-        // Log to Logcat if debug, but we'll let a separate DebugTree handle simple Logcatting.
-        // This tree writes EVERYTHING >= INFO to the local file for post-crash analysis,
-        // but especially focuses on ERRORs.
-
-        if (priority < Log.INFO) {
+        // This writer writes EVERYTHING >= INFO to the local file for post-crash analysis
+        if (severity < Severity.Info) {
             return
         }
 
         val threadName = Thread.currentThread().name
         val time = dateFormat.format(Date())
         val priorityStr =
-            when (priority) {
-                Log.INFO -> "I"
-                Log.WARN -> "W"
-                Log.ERROR -> "E"
-                Log.ASSERT -> "WTF"
+            when (severity) {
+                Severity.Info -> "I"
+                Severity.Warn -> "W"
+                Severity.Error -> "E"
+                Severity.Assert -> "WTF"
                 else -> "V"
             }
 
         val formattedLog =
             buildString {
                 append("$time [$threadName] $priorityStr/$tag: $scrubbedMessage\n")
-                t?.let {
+                throwable?.let {
                     val scrubbedTrace = PrivacyLogScrubber.scrub(Log.getStackTraceString(it))
                     append("$scrubbedTrace\n")
                 }
@@ -77,8 +75,8 @@ class LocalCrashReportingTree(context: Context) : Timber.Tree() {
                 writer.append(logEntry)
             }
         } catch (e: Exception) {
-            // Cannot log this to Timber without infinite recursion. Let standard Logcat catch it.
-            Timber.e(e, "Failed to write local log")
+            // Fallback for debugging writer issues
+            Log.e("CrashReportingWriter", "Failed to write local log", e)
         }
     }
 

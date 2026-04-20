@@ -8,7 +8,9 @@ import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.hdkeys.P256Group
 import org.koin.core.annotation.Single
-import timber.log.Timber
+import co.touchlab.kermit.Logger
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.math.BigInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -50,34 +52,42 @@ class WalletMasterSeedProvider(
         @Volatile
         private var cachedPqChildSeed: ByteArray? = null
 
+        private val initializationMutex = Mutex()
+
         override suspend fun getMasterSeed(): ByteArray? = ensureInitialized().first
 
         override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInitialized().second
 
-        @Synchronized
-        private fun ensureInitialized(): Pair<ByteArray?, HdkKeyPair?> {
+        private suspend fun ensureInitialized(): Pair<ByteArray?, HdkKeyPair?> {
             if (cachedSeed != null) {
                 return Pair(cachedSeed, cachedDeviceKeyPair)
             }
 
-            val mnemonic = getOrCreateMnemonic()
-            // BIP39 PBKDF2-SHA512 produces 64 bytes, but the HDK spec (§2.2) requires
-            // Ns = 32 bytes for the seed.  We take the first 32 bytes as the HDK seed
-            // and keep the full 64-byte material only for the device key pair derivation,
-            // which operates via HMAC-SHA512 anyway (deriveDeviceKeyPair).
-            val bip39Seed = masterSeedGenerator.deriveSeed(mnemonic)
-            val hdkSeed = bip39Seed.copyOf(32) // first 32 bytes → HDK Ns bytes (§2.2)
+            return initializationMutex.withLock {
+                // Double-check after acquiring lock
+                if (cachedSeed != null) {
+                    return@withLock Pair(cachedSeed, cachedDeviceKeyPair)
+                }
 
-            cachedSeed = hdkSeed
-            // Derive the device key pair deterministically from the master seed so it
-            // is identical across app restarts. A random key pair here was the cause of
-            // "Could not verify authentication signature" errors after restart.
-            cachedDeviceKeyPair = deriveDeviceKeyPair(bip39Seed)
+                val mnemonic = getOrCreateMnemonic()
+                // BIP39 PBKDF2-SHA512 produces 64 bytes, but the HDK spec (§2.2) requires
+                // Ns = 32 bytes for the seed.  We take the first 32 bytes as the HDK seed
+                // and keep the full 64-byte material only for the device key pair derivation,
+                // which operates via HMAC-SHA512 anyway (deriveDeviceKeyPair).
+                val bip39Seed = masterSeedGenerator.deriveSeed(mnemonic)
+                val hdkSeed = bip39Seed.copyOf(32) // first 32 bytes → HDK Ns bytes (§2.2)
 
-            bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
+                cachedSeed = hdkSeed
+                // Derive the device key pair deterministically from the master seed so it
+                // is identical across app restarts. A random key pair here was the cause of
+                // "Could not verify authentication signature" errors after restart.
+                cachedDeviceKeyPair = deriveDeviceKeyPair(bip39Seed)
 
-            Timber.d("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size)
-            return Pair(cachedSeed, cachedDeviceKeyPair)
+                bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
+
+                Logger.d { String.format("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size) }
+                Pair(cachedSeed, cachedDeviceKeyPair)
+            }
         }
 
         /**
@@ -87,11 +97,11 @@ class WalletMasterSeedProvider(
             val prefs = openEncryptedPrefs()
             val existing = prefs.getString(KEY_MNEMONIC, null)
             if (!existing.isNullOrBlank()) {
-                Timber.d("Loaded existing BIP39 mnemonic from secure storage")
+                Logger.d { "Loaded existing BIP39 mnemonic from secure storage" }
                 return existing.split(" ")
             }
 
-            Timber.i("Generating new BIP39 mnemonic (first launch)")
+            Logger.i { "Generating new BIP39 mnemonic (first launch)" }
             val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = 24)
             prefs.edit {
                 putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
@@ -154,7 +164,7 @@ class WalletMasterSeedProvider(
                 // Re-derive immediately so the new seed is live for any in-flight FIDO2 operations.
                 ensureInitialized()
 
-                Timber.i("Master seed imported (%s)", if (alreadyExisted) "replaced existing" else "first import")
+                Logger.i { String.format("Master seed imported (%s)", if (alreadyExisted) "replaced existing" else "first import") }
                 return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
             } finally {
                 mnemonic.fill('\u0000')
@@ -187,7 +197,7 @@ class WalletMasterSeedProvider(
             val skScalar = BigInteger(1, raw.copyOfRange(0, 32)).mod(P256Group.ORDER)
             val pkPoint = P256Group.scalarBaseMult(skScalar)
             raw.fill(0) // zeroise immediately
-            Timber.d("Device key pair derived deterministically from master seed")
+            Logger.d { "Device key pair derived deterministically from master seed" }
             return HdkKeyPair(
                 privateKey = P256Group.serializeScalar(skScalar),
                 publicKey = P256Group.serializeElement(pkPoint)
@@ -272,7 +282,7 @@ class WalletMasterSeedProvider(
 
             // BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", derivedKey)
             val childSeed = hmacSha512("bip-entropy-from-k".toByteArray(Charsets.UTF_8), currentKey)
-            Timber.d("PQ child seed derived; seedLen=%d", childSeed.size)
+            Logger.d { String.format("PQ child seed derived; seedLen=%d", childSeed.size) }
             return childSeed
         }
 

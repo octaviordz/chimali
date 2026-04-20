@@ -1,9 +1,9 @@
-﻿package com.chimali.fido2.data.service
+package com.chimali.fido2.data.service
 
 import org.koin.core.annotation.Single
 
 import com.chimali.core.security.api.SivEncryptionManager
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * T113a — AES-256-SIV metadata indexing service for encrypted credential lookup tags.
@@ -77,7 +77,7 @@ class EncryptedMetadataIndexService(
                 "SIV index key must be $KEY_LENGTH bytes, got ${rawKey.size}"
             }
             indexKey = rawKey.clone()
-            Timber.d("EncryptedMetadataIndexService: index key provisioned (%d bytes)", rawKey.size)
+            Logger.d { String.format("EncryptedMetadataIndexService: index key provisioned (%d bytes)", rawKey.size) }
         }
 
         /**
@@ -86,7 +86,7 @@ class EncryptedMetadataIndexService(
         fun clearKey() {
             indexKey?.fill(0)
             indexKey = null
-            Timber.d("EncryptedMetadataIndexService: index key cleared")
+            Logger.d { "EncryptedMetadataIndexService: index key cleared" }
         }
 
         /**
@@ -104,14 +104,14 @@ class EncryptedMetadataIndexService(
         fun encryptRpIdTag(rpId: String): ByteArray? {
             val key =
                 indexKey ?: run {
-                    Timber.w("EncryptedMetadataIndexService: key not provisioned, returning plaintext tag fallback")
+                Logger.w { "EncryptedMetadataIndexService: key not provisioned, returning plaintext tag fallback" }
                     return null
                 }
             return try {
                 val plaintext = RP_ID_DOMAIN + rpId.toByteArray(Charsets.UTF_8)
                 sivEncryptionManager.encrypt(plaintext, key)
             } catch (e: Exception) {
-                Timber.e(e, "encryptRpIdTag failed for rpId=%s", rpId)
+                Logger.e(e) { String.format("encryptRpIdTag failed for rpId=%s", rpId) }
                 null
             }
         }
@@ -125,14 +125,14 @@ class EncryptedMetadataIndexService(
         fun encryptAliasTag(alias: String): ByteArray? {
             val key =
                 indexKey ?: run {
-                    Timber.w("EncryptedMetadataIndexService: key not provisioned, returning null")
+                Logger.w { "EncryptedMetadataIndexService: key not provisioned, returning null" }
                     return null
                 }
             return try {
                 val plaintext = ALIAS_DOMAIN + alias.toByteArray(Charsets.UTF_8)
                 sivEncryptionManager.encrypt(plaintext, key)
             } catch (e: Exception) {
-                Timber.e(e, "encryptAliasTag failed for alias=%s", alias)
+                Logger.e(e) { String.format("encryptAliasTag failed for alias=%s", alias) }
                 null
             }
         }
@@ -154,10 +154,10 @@ class EncryptedMetadataIndexService(
                 val rpIdBytes = plaintext.drop(RP_ID_DOMAIN.size).toByteArray()
                 String(rpIdBytes, Charsets.UTF_8)
             } catch (e: SecurityException) {
-                Timber.w("decryptRpIdTag: authentication failed — tag may be tampered")
+                Logger.w { "decryptRpIdTag: authentication failed — tag may be tampered" }
                 null
             } catch (e: Exception) {
-                Timber.e(e, "decryptRpIdTag failed")
+                Logger.e(e) { "decryptRpIdTag failed" }
                 null
             }
         }

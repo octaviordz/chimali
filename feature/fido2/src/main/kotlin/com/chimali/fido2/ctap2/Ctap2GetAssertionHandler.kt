@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.ctap2
+package com.chimali.fido2.ctap2
 
 import org.koin.core.annotation.Single
 
@@ -10,7 +10,7 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * T087 — CTAP2 authenticatorGetAssertion command handler.
@@ -74,12 +74,12 @@ class Ctap2GetAssertionHandler(
             return try {
                 val params = cborCodec.decodeFromFido2Format(requestBytes)
                 val options = decodeOptions(params)
-                Timber.d("GetAssertion: rpId=%s allowCredentials=%s", options.rpId, options.allowCredentials?.size ?: "discoverable")
+                Logger.d { String.format("GetAssertion: rpId=%s allowCredentials=%s", options.rpId, options.allowCredentials?.size ?: "discoverable") }
 
                 val result = getAssertionUseCase(options)
                 result.fold(
                     onSuccess = { assertion ->
-                        Timber.d("Assertion success: credId=%s", assertion.credentialId)
+                        Logger.d { String.format("Assertion success: credId=%s", assertion.credentialId) }
                         val responseBytes = encodeResponse(assertion, options)
                         byteArrayOf(CTAP2_OK) + responseBytes
                     },
@@ -87,9 +87,9 @@ class Ctap2GetAssertionHandler(
                         // CredentialNotFound is an expected probe response before registration.
                         // All other errors are unexpected and warrant an error-level log.
                         if (error is Fido2Exception.CredentialNotFound) {
-                            Timber.d("Assertion failed (expected): %s", error.message)
+                            Logger.d { String.format("Assertion failed (expected): %s", error.message) }
                         } else {
-                            Timber.e(error, "Assertion failed: %s", error.message)
+                            Logger.e(error) { String.format("Assertion failed: %s", error.message) }
                         }
                         val errorCode: Byte =
                             when (error) {
@@ -102,7 +102,7 @@ class Ctap2GetAssertionHandler(
                     },
                 )
             } catch (e: Exception) {
-                Timber.e(e, "GetAssertion handler exception: %s", e.message)
+                Logger.e(e) { String.format("GetAssertion handler exception: %s", e.message) }
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
         }

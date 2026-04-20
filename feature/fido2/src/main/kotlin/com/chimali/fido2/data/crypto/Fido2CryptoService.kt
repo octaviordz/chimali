@@ -13,7 +13,7 @@ import com.chimali.fido2.util.performance.WarmUpHelper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
@@ -125,7 +125,7 @@ class Fido2CryptoService(
                         val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
                         derivedSeed.fill(0)
 
-                        Timber.d("ML-DSA key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
+                        Logger.d { String.format("ML-DSA key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
                         return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                     }
 
@@ -151,7 +151,7 @@ class Fido2CryptoService(
 
                         derivedSeed.fill(0)
 
-                        Timber.d("Ed25519 key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
+                        Logger.d { String.format("Ed25519 key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
                         return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                     }
 
@@ -166,7 +166,7 @@ class Fido2CryptoService(
                     val devicePubKeyBytes = deviceKeyPair.publicKey
                     val path = derivationPath(credentialId)
 
-                    Timber.d("Deriving HDK key pair for credentialId=%s path=%s", credentialId, path)
+                    Logger.d { String.format("Deriving HDK key pair for credentialId=%s path=%s", credentialId, path) }
 
                     val hdkResult =
                         hdkManager.deriveHdk(
@@ -177,13 +177,13 @@ class Fido2CryptoService(
 
                     val publicKeyBytes = hdkResult.publicKey // 65 bytes uncompressed
 
-                    Timber.d("HDK key pair derived: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size)
+                    Logger.d { String.format("HDK key pair derived: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
                     Fido2KeyPair(
                         alias = credentialAlias(credentialId),
                         publicKeyBytes = publicKeyBytes,
                     )
                 }.recoverCatching { e ->
-                    Timber.e(e, "Key derivation failed")
+                    Logger.e(e) { "Key derivation failed" }
                     throw Fido2Exception.KeyGenerationFailed(e.message ?: "Key derivation failed", e)
                 }
             }
@@ -218,7 +218,7 @@ class Fido2CryptoService(
                     decodeUncompressedPoint(keyPair.publicKeyBytes)
                 }
             } catch (e: Exception) {
-                Timber.w(e, "getPublicKey failed for %s", credentialId)
+                Logger.w(e) { String.format("getPublicKey failed for %s", credentialId) }
                 null
             }
         }
@@ -269,26 +269,26 @@ class Fido2CryptoService(
         suspend fun warmUpMasterSeed() {
             runCatching {
                 val t0 = System.currentTimeMillis()
-                Timber.d("Master seed pre-warm START")
+                Logger.d("Master seed pre-warm START")
 
                 // (1) Decrypt BIP39 mnemonic from EncryptedSharedPreferences (~150ms first call).
                 //     WalletMasterSeedProvider caches the result; subsequent calls return in ~0ms.
                 val seed =
                     masterSeedProvider.getMasterSeed()
                         ?: run {
-                            Timber.w("Master seed pre-warm: seed not available — skipping full warmup")
+                            Logger.w("Master seed pre-warm: seed not available — skipping full warmup")
                             return@runCatching
                         }
 
                 val deviceKeyPair =
                     masterSeedProvider.getDeviceKeyPair()
                         ?: run {
-                            Timber.w("Master seed pre-warm: device key pair not available — skipping full warmup")
+                            Logger.w("Master seed pre-warm: device key pair not available — skipping full warmup")
                             return@runCatching
                         }
 
                 val t1 = System.currentTimeMillis()
-                Timber.d("Master seed pre-warm: seed loaded in %dms — warming full sign() path", t1 - t0)
+                Logger.d { String.format("Master seed pre-warm: seed loaded in %dms — warming full sign() path", t1 - t0) }
 
                 // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
                 //
@@ -327,14 +327,16 @@ class Fido2CryptoService(
                 // Zeroise sensitive warmup material
                 devicePrivKeyBytes.fill(0)
 
-                Timber.d(
-                    "Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
-                    t1 - t0,
-                    System.currentTimeMillis() - t1,
-                    System.currentTimeMillis() - t0,
-                )
+                Logger.d {
+                    String.format(
+                        "Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
+                        t1 - t0,
+                        System.currentTimeMillis() - t1,
+                        System.currentTimeMillis() - t0,
+                    )
+                }
             }.onFailure { e ->
-                Timber.w(e, "Master seed pre-warm FAILED (non-fatal): %s", e.message)
+                Logger.w(e) { String.format("Master seed pre-warm FAILED (non-fatal): %s", e.message) }
             }
         }
 
@@ -376,12 +378,14 @@ class Fido2CryptoService(
 
                         derivedSeed.fill(0)
                         LatencyProfiler.end("Crypto.sign")
-                        Timber.d(
-                            "Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d",
-                            data.size,
-                            credentialId,
-                            signature.size,
-                        )
+                        Logger.d {
+                            String.format(
+                                "Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d",
+                                data.size,
+                                credentialId,
+                                signature.size,
+                            )
+                        }
                         return@withContext Result.success(signature)
                     }
 
@@ -408,12 +412,14 @@ class Fido2CryptoService(
                         derivedSeed.fill(0)
 
                         LatencyProfiler.end("Crypto.sign")
-                        Timber.d(
-                            "Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d",
-                            data.size,
-                            credentialId,
-                            signature.size,
-                        )
+                        Logger.d {
+                            String.format(
+                                "Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d",
+                                data.size,
+                                credentialId,
+                                signature.size,
+                            )
+                        }
                         return@withContext Result.success(signature)
                     }
 
@@ -454,11 +460,11 @@ class Fido2CryptoService(
                     devicePrivKeyBytes.fill(0)
 
                     LatencyProfiler.end("Crypto.sign")
-                    Timber.d("Signed %d bytes for credentialId=%s sigLen=%d", data.size, credentialId, signature.size)
+                    Logger.d { String.format("Signed %d bytes for credentialId=%s sigLen=%d", data.size, credentialId, signature.size) }
                     signature
                 }.recoverCatching { e ->
                     LatencyProfiler.end("Crypto.sign") // ensure timer ends on failure path too
-                    Timber.e(e, "Signing failed for %s", credentialId)
+                    Logger.e(e) { String.format("Signing failed for %s", credentialId) }
                     throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
                 }
             }

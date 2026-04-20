@@ -29,7 +29,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.util.concurrent.Executors
 
 /**
@@ -86,7 +86,7 @@ fun MnemonicQrScanner(
                                     hasScanned = true
                                     onScanned(words)
                                 } else {
-                                    Timber.w("QR scan had %d words, need 24", words.size)
+                                    Logger.w { String.format("QR scan had %d words, need 24", words.size) }
                                     onError("QR code must encode exactly 24 words (found ${words.size}).")
                                 }
                             }
@@ -102,7 +102,7 @@ fun MnemonicQrScanner(
                             imageAnalysis,
                         )
                     } catch (exc: Exception) {
-                        Timber.e(exc, "Camera bind failed")
+                        Logger.e(exc) { "Camera bind failed" }
                         onError("Camera error: ${exc.message}")
                     }
                 }, ContextCompat.getMainExecutor(ctx))

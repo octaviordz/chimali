@@ -33,6 +33,7 @@ kotlin {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    api(libs.kermit)
 
     // Koin Annotations — compile-time DI (replaces DSL, T189)
     implementation(libs.koin.core)

@@ -2,7 +2,7 @@ package com.chimali.fido2.data.crypto
 
 import org.koin.core.annotation.Single
 
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 private const val AUTH_DATA_MIN_LENGTH = 37 // rpIdHash(32) + flags(1) + counter(4)
 
@@ -46,7 +46,7 @@ class AuthenticatorDataBuilder {
             signCount: Long,
             extensions: ByteArray? = null,
         ): ByteArray {
-            Timber.d("Building assertion authData for rpId=%s signCount=%d", rpId, signCount)
+            Logger.d { String.format("Building assertion authData for rpId=%s signCount=%d", rpId, signCount) }
             val rpIdHash = rpIdHash(rpId)
             val flags =
                 assembleFlags(
@@ -84,7 +84,7 @@ class AuthenticatorDataBuilder {
             cosePublicKey: ByteArray,
             extensions: ByteArray? = null,
         ): ByteArray {
-            Timber.d("Building attestation authData for rpId=%s credLen=%d", rpId, credentialId.size)
+            Logger.d { String.format("Building attestation authData for rpId=%s credLen=%d", rpId, credentialId.size) }
             require(aaguid.size == 16) { "AAGUID must be 16 bytes" }
 
             val rpIdHash = rpIdHash(rpId)

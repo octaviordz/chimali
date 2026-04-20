@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.ctap2
+package com.chimali.fido2.ctap2
 
 import org.koin.core.annotation.Single
 
@@ -11,7 +11,7 @@ import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.AuthenticatorInfo
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 // CTAP2 status codes
 private const val CTAP2_OK: Byte = 0x00
@@ -136,10 +136,12 @@ class Ctap2ResponseBuilder(
                             mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
                         ),
                 )
-            Timber.d(
-                "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=%dbytes",
-                info.aaguid.size,
-            )
+            Logger.d {
+                String.format(
+                    "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=%dbytes",
+                    info.aaguid.size,
+                )
+            }
             return successCborPackets(cid, responseMap)
         }
 

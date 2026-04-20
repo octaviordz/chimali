@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.viewmodel
+package com.chimali.fido2.presentation.viewmodel
 
 import org.koin.android.annotation.KoinViewModel
 
@@ -12,6 +12,7 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.service.Fido2TransportService
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,9 +32,16 @@ class Fido2HomeViewModel(
         fido2Transport: com.chimali.fido2.data.transport.Fido2Transport,
         private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
         private val uiEventBus: Fido2UiEventBus,
+        private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService,
     ) : ViewModel() {
         val connectionState: StateFlow<HidConnectionState> = fido2Transport.connectionState
         val uiEvents: SharedFlow<Fido2UiEvent> = uiEventBus.events
+
+        init {
+            viewModelScope.launch {
+                cryptoService.warmUpMasterSeed()
+            }
+        }
 
         /**
          * Resolves the display name for the connected host, prioritizing user-defined aliases.

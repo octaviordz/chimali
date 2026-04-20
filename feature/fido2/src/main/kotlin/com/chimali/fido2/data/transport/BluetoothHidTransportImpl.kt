@@ -37,7 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.security.SecureRandom
 
 /**
@@ -174,22 +174,22 @@ class BluetoothHidTransportImpl(
 
         override suspend fun connect(): Result<Unit> {
             return try {
-                Timber.d("connect() starting...")
+                Logger.d { "connect() starting..." }
                 hidWrapper.initialize().getOrThrow()
-                Timber.d("hidWrapper initialized, now registering app...")
+                Logger.d { "hidWrapper initialized, now registering app..." }
                 hidWrapper.registerApp().getOrThrow()
-                Timber.d("hidWrapper app registered, starting receiver, sender and observer...")
+                Logger.d { "hidWrapper app registered, starting receiver, sender and observer..." }
                 startSendQueue() // T053a: start FIFO sender before receiving
                 startReceiving()
                 observeConnectionState()
-                Timber.i("BluetoothHidTransport connected and advertising")
+                Logger.i("BluetoothHidTransport connected and advertising")
                 Result.success(Unit)
             } catch (e: Fido2Exception) {
-                Timber.e("connect() failed with Fido2Exception: %s", e.message)
+                Logger.e { String.format("connect() failed with Fido2Exception: %s", e.message) }
                 hidWrapper.reportError(e.message ?: "HID connection failed")
                 Result.failure(e)
             } catch (e: Exception) {
-                Timber.e(e, "connect() unexpected failure: %s", e.message)
+                Logger.e(e) { String.format("connect() unexpected failure: %s", e.message) }
                 val msg = "Failed to start HID transport: ${e.message}"
                 hidWrapper.reportError(msg)
                 Result.failure(Fido2Exception.TransportException(msg))
@@ -198,7 +198,7 @@ class BluetoothHidTransportImpl(
 
         override suspend fun disconnect(): Result<Unit> {
             return try {
-                Timber.d("disconnect() starting...")
+                Logger.d { "disconnect() starting..." }
                 receiveJob?.cancel()
                 receiveJob = null
                 // Use cancelAndJoin (not just cancel) so the observer coroutine is guaranteed dead
@@ -212,10 +212,10 @@ class BluetoothHidTransportImpl(
                 hidWrapper.unregisterApp()
                 channelRegistry.clear()
                 hidReportParser.reset()
-                Timber.i("BluetoothHidTransport disconnected")
+                Logger.i { "BluetoothHidTransport disconnected" }
                 Result.success(Unit)
             } catch (e: Exception) {
-                Timber.e(e, "disconnect() failed: %s", e.message)
+                Logger.e(e) { String.format("disconnect() failed: %s", e.message) }
                 Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
             }
         }
@@ -242,7 +242,7 @@ class BluetoothHidTransportImpl(
                 hidWrapper.connectionState.onEach { state ->
                     when (state) {
                         is HidConnectionState.Connected -> {
-                            Timber.i("Host connected: %s", state.device.address)
+                            Logger.i { String.format("Host connected: %s", state.device.address) }
                             // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
                             // real GetAssertion ceremony doesn't pay cold-start costs.
                             //
@@ -257,7 +257,7 @@ class BluetoothHidTransportImpl(
                                 //     Binder IPC into Android SystemServer on first UV check.
                                 runCatching { userVerificationService.getUserVerificationAvailability() }
                                     .onFailure { e ->
-                                        Timber.w("BiometricManager pre-warm failed (non-fatal): %s", e.message)
+                                        Logger.w { String.format("BiometricManager pre-warm failed (non-fatal): %s", e.message) }
                                     }
 
                                 // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
@@ -281,16 +281,16 @@ class BluetoothHidTransportImpl(
                             // Transport is now ready for CTAPHID_INIT from the host
                         }
                         is HidConnectionState.Advertising -> {
-                            Timber.d("Advertising for host connections")
+                            Logger.d { "Advertising for host connections" }
                             // Clean up any channels from prior host session
                             channelRegistry.clear()
                             hidReportParser.reset()
                         }
                         is HidConnectionState.Idle -> {
-                            Timber.d("HID transport idle")
+                            Logger.d { "HID transport idle" }
                         }
                         is HidConnectionState.Error -> {
-                            Timber.e("HID connection error: %s", state.message)
+                            Logger.e { String.format("HID connection error: %s", state.message) }
                         }
                         else -> { /* Connecting — nothing to do */ }
                     }
@@ -312,7 +312,7 @@ class BluetoothHidTransportImpl(
         private suspend fun processReport(report: ByteArray) {
             val result = hidReportParser.processReport(report)
             if (result.isFailure) {
-                Timber.e("Report parse error: %s", result.exceptionOrNull()?.message)
+                Logger.e { String.format("Report parse error: %s", result.exceptionOrNull()?.message) }
                 // Can't identify CID from a broken packet; send broadcast error
                 sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_SEQ))
                 return
@@ -320,12 +320,14 @@ class BluetoothHidTransportImpl(
 
             val message = result.getOrNull() ?: return // null = still accumulating
 
-            Timber.d(
-                "CTAPHID cmd=0x%s cid=%s payloadLen=%d",
-                message.command.toString(16).uppercase(),
-                message.channelId.toHex(),
-                message.payload.size,
-            )
+            Logger.d {
+                String.format(
+                    "CTAPHID cmd=0x%s cid=%s payloadLen=%d",
+                    message.command.toString(16).uppercase(),
+                    message.channelId.toHex(),
+                    message.payload.size,
+                )
+            }
 
             dispatchMessage(message)
         }
@@ -341,7 +343,7 @@ class BluetoothHidTransportImpl(
                 CTAPHID_PING -> handlePing(message)
                 CTAPHID_CANCEL -> handleCancel(message)
                 else -> {
-                    Timber.w("Unknown CTAPHID command 0x%s", message.command.toString(16))
+                     Logger.w { String.format("Unknown CTAPHID command 0x%s", message.command.toString(16)) }
                     sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_CMD))
                 }
             }
@@ -359,7 +361,7 @@ class BluetoothHidTransportImpl(
             // Assign a new CID for this session
             val newCid = generateCid()
             channelRegistry[newCid.toHex()] = newCid
-            Timber.i("CTAPHID_INIT: assigned CID=%s", newCid.toHex())
+            Logger.i { String.format("CTAPHID_INIT: assigned CID=%s", newCid.toHex()) }
 
             val initResponse = hidReportParser.buildInitResponse(nonce, newCid)
             sendPackets(hidReportParser.encodeResponse(initResponse))
@@ -392,11 +394,13 @@ class BluetoothHidTransportImpl(
                 }
             // NFR-PERF-030: Start measuring full CTAP2 processing time
             LatencyProfiler.start(operationLabel)
-            Timber.d(
-                "CTAP2 command=0x%s on CID=%s",
-                ctapCommand.toString(16),
-                cid.toHex(),
-            )
+            Logger.d {
+                String.format(
+                    "CTAP2 command=0x%s on CID=%s",
+                    ctapCommand.toString(16),
+                    cid.toHex(),
+                )
+            }
 
             // ── Periodic keepalive loop ────────────────────────────────────────────
             // CTAP HID spec §8.5.5: the authenticator MUST send CTAPHID_KEEPALIVE
@@ -436,7 +440,7 @@ class BluetoothHidTransportImpl(
                         CMD_GET_INFO -> handleGetInfo(cid) // authenticatorGetInfo
 
                         else -> {
-                            Timber.w("Unsupported CTAP2 command 0x%s", ctapCommand.toString(16))
+                             Logger.w { String.format("Unsupported CTAP2 command 0x%s", ctapCommand.toString(16)) }
                             responseBuilder.errorResponse(cid, ERR_INVALID_CMD)
                         }
                     }
@@ -473,7 +477,7 @@ class BluetoothHidTransportImpl(
                         null
                     }
 
-                Timber.d("FIDO2 Operation succeeded for host: %s (%s), Class: %d", name, mac, devClass)
+                Logger.d { String.format("FIDO2 Operation succeeded for host: %s (%s), Class: %d", name, mac, devClass) }
                 fido2EventBus.publish(
                     Fido2Event.InteractionSuccessful(
                         hostDeviceAddress = mac,
@@ -514,7 +518,7 @@ class BluetoothHidTransportImpl(
         private suspend fun handleMsg(message: CtapHidMessage) {
             val cid = message.channelId
             val payload = message.payload
-            Timber.d("CTAPHID_MSG len=%d cid=%s", payload.size, cid.toHex())
+            Logger.d { String.format("CTAPHID_MSG len=%d cid=%s", payload.size, cid.toHex()) }
 
             if (payload.size < APDU_MIN_SIZE) {
                 sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN))
@@ -527,12 +531,12 @@ class BluetoothHidTransportImpl(
             if (ins == INS_CTAP2_OVER_MSG) {
                 val cborData = extractApduData(payload)
                 if (cborData == null || cborData.isEmpty()) {
-                    Timber.w("CTAPHID_MSG INS=0x10 but APDU data is empty")
+                    Logger.w { "CTAPHID_MSG INS=0x10 but APDU data is empty" }
                     sendPackets(u2fErrorResponse(cid, SW_UNKNOWN_1.toInt(), SW_UNKNOWN_2.toInt()))
                     return
                 }
                 // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
-                Timber.d("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and BYTE_MASK).toString(16))
+                Logger.d { String.format("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and BYTE_MASK).toString(16)) }
                 val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
                 handleCbor(syntheticMsg)
                 return
@@ -558,18 +562,18 @@ class BluetoothHidTransportImpl(
                     // stores a credential with an ephemeral key we don't hold, then immediately
                     // tries U2F_AUTHENTICATE (which fails with SW_WRONG_DATA), and concludes
                     // the device is broken — resulting in ERROR_NOT_READY (0x80070018).
-                    Timber.i("CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2")
+                    Logger.i { "CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2" }
                     sendPackets(u2fErrorResponse(cid, SW_CONDITIONS_NOT_SATISFIED_1.toInt(), SW_CONDITIONS_NOT_SATISFIED_2.toInt()))
                 }
                 INS_AUTHENTICATE -> {
                     // U2F_AUTHENTICATE — return SW_WRONG_DATA (0x6A80) to signal that we don't
                     // recognise this U2F key handle. Per the U2F spec, this tells the platform
                     // "credential not found here" and causes Windows to fall back to CTAP2 GetAssertion.
-                    Timber.d("CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)")
+                    Logger.d { "CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)" }
                     sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
                 }
                 else -> {
-                    Timber.d("CTAPHID_MSG U2F INS=0x%s unknown — returning SW_INS_NOT_SUPPORTED", ins.toString(16))
+                    Logger.d { String.format("CTAPHID_MSG U2F INS=0x%s unknown — returning SW_INS_NOT_SUPPORTED", ins.toString(16)) }
                     sendPackets(u2fErrorResponse(cid, SW_INS_NOT_SUPPORTED_1.toInt(), SW_INS_NOT_SUPPORTED_2.toInt()))
                 }
             }
@@ -617,7 +621,7 @@ class BluetoothHidTransportImpl(
         }
 
         private fun handleCancel(message: CtapHidMessage) {
-            Timber.d("CTAPHID_CANCEL on CID=%s", message.channelId.toHex())
+            Logger.d { String.format("CTAPHID_CANCEL on CID=%s", message.channelId.toHex()) }
             // Acknowledge cancel — no response payload per spec
         }
 
@@ -632,7 +636,7 @@ class BluetoothHidTransportImpl(
                 val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
                 hidReportParser.encodeResponse(responseMsg)
             } catch (e: Exception) {
-                Timber.e(e, "GetAssertion handler exception: %s", e.message)
+                Logger.e(e) { String.format("GetAssertion handler exception: %s", e.message) }
                 responseBuilder.errorResponse(cid, 0x30.toByte())
             }
         }
@@ -646,11 +650,11 @@ class BluetoothHidTransportImpl(
                 // Debug: log the first packet hex so we can diagnose Windows rejection
                 if (packets.isNotEmpty()) {
                     val hex = packets.first().joinToString("") { "%02x".format(it) }
-                    Timber.d("GetInfo response packet[0] hex: %s", hex)
+                    Logger.d { String.format("GetInfo response packet[0] hex: %s", hex) }
                 }
                 packets
             } catch (e: Exception) {
-                Timber.e(e, "GetInfo failed: %s", e.message)
+                Logger.e(e) { String.format("GetInfo failed: %s", e.message) }
                 responseBuilder.errorResponse(cid, 0x30.toByte())
             }
         }
@@ -669,7 +673,7 @@ class BluetoothHidTransportImpl(
             for (packet in packets) {
                 val result = sendQueue.trySendBlocking(packet)
                 if (result.isFailure) {
-                    Timber.w("Send queue full — dropping HID packet (queue capacity exceeded)")
+                    Logger.w { "Send queue full — dropping HID packet (queue capacity exceeded)" }
                 }
             }
         }
@@ -690,7 +694,7 @@ class BluetoothHidTransportImpl(
                 scope.launch(Dispatchers.IO) {
                     for (packet in sendQueue) {
                         if (!hidWrapper.sendReport(packet)) {
-                            Timber.w("sendReport returned false — host may have disconnected")
+                            Logger.w { "sendReport returned false — host may have disconnected" }
                         }
                         delay(REPORT_PACE_DELAY_MS)
                     }

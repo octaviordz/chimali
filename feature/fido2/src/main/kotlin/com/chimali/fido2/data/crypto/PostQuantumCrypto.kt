@@ -4,7 +4,7 @@ import org.koin.core.annotation.Single
 
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
@@ -49,11 +49,13 @@ class PostQuantumCrypto {
             Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
             Security.insertProviderAt(BouncyCastleProvider(), 1)
 
-            Timber.d(
-                "PQC Provider registered: %s (version %.1f)",
-                BouncyCastleProvider.PROVIDER_NAME,
-                Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0,
-            )
+            Logger.d {
+                String.format(
+                    "PQC Provider registered: %s (version %.1f)",
+                    BouncyCastleProvider.PROVIDER_NAME,
+                    Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0,
+                )
+            }
         }
 
         // ── Provider check ────────────────────────────────────────────────────────
@@ -94,10 +96,10 @@ class PostQuantumCrypto {
                 val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
                 kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
                 kpg.generateKeyPair().also {
-                    Timber.d("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size)
+                    Logger.d { String.format("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size) }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "ML-DSA key generation failed")
+                Logger.e(e) { "ML-DSA key generation failed" }
                 null
             }
         }
@@ -119,9 +121,9 @@ class PostQuantumCrypto {
                 val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
                 sig.initSign(privateKey)
                 sig.update(data)
-                sig.sign().also { Timber.d("ML-DSA-65 signature produced; sigLen=%d", it.size) }
+                sig.sign().also { Logger.d { String.format("ML-DSA-65 signature produced; sigLen=%d", it.size) } }
             } catch (e: Exception) {
-                Timber.e(e, "ML-DSA signing failed")
+                Logger.e(e) { "ML-DSA signing failed" }
                 null
             }
 
@@ -145,7 +147,7 @@ class PostQuantumCrypto {
                 sig.update(data)
                 sig.verify(signature)
             } catch (e: Exception) {
-                Timber.e(e, "ML-DSA verification failed")
+                Logger.e(e) { "ML-DSA verification failed" }
                 false
             }
 

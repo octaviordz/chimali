@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
@@ -110,10 +110,10 @@ class Fido2TransportService : Service() {
         scope.launch {
             val result = transport.connect()
             if (result.isFailure) {
-                Timber.e("Transport connect failed: %s", result.exceptionOrNull()?.message)
+                Logger.e(result.exceptionOrNull()) { "Transport connect failed" }
                 stopSelf()
             } else {
-                Timber.i("HID transport connected — service running in foreground")
+                Logger.i("HID transport connected — service running in foreground")
             }
         }
     }

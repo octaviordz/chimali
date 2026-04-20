@@ -102,6 +102,18 @@ fun Fido2HomeScreen(
             }
         }
 
+    fun startBluetoothDiscoverability() {
+        try {
+            val discoverableIntent =
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                }
+            bluetoothDiscoverableLauncher.launch(discoverableIntent)
+        } catch (e: SecurityException) {
+            showBluetoothError = true
+        }
+    }
+
     val handleToggle = {
         val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
         if (isRunning) {
@@ -147,18 +159,6 @@ fun Fido2HomeScreen(
             } else {
                 startBluetoothDiscoverability()
             }
-        }
-    }
-
-    fun startBluetoothDiscoverability() {
-        try {
-            val discoverableIntent =
-                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
-                }
-            bluetoothDiscoverableLauncher.launch(discoverableIntent)
-        } catch (e: SecurityException) {
-            showBluetoothError = true
         }
     }
 

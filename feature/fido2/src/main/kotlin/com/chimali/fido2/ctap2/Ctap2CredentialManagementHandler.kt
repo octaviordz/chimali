@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.ctap2
+package com.chimali.fido2.ctap2
 
 import org.koin.core.annotation.Single
 
@@ -7,7 +7,7 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import kotlinx.coroutines.flow.toList
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.security.MessageDigest
 
 // CTAP2 status codes
@@ -53,7 +53,7 @@ class Ctap2CredentialManagementHandler(
                     (params["1"] as? Number)?.toInt()
                         ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
-                Timber.d("Credential Management subCommand: %d", subCommand)
+                Logger.d { String.format("Credential Management subCommand: %d", subCommand) }
 
                 when (subCommand) {
                     1 -> handleGetCredsMetadata()
@@ -65,7 +65,7 @@ class Ctap2CredentialManagementHandler(
                     else -> byteArrayOf(CTAP2_ERR_UNSUPPORTED_OPTION)
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Exception handling credential management")
+                Logger.e(e) { "Exception handling credential management" }
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
         }

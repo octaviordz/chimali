@@ -3,7 +3,7 @@ package com.chimali.fido2.bluetooth
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.exception.Fido2Exception
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.nio.ByteBuffer
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
@@ -179,7 +179,7 @@ class HidReportParser {
 
             // Abort any prior pending message on this channel
             if (pending.containsKey(cidKey)) {
-                Timber.w("New init packet received while %s was pending — aborting old", cidKey)
+                Logger.w { String.format("New init packet received while %s was pending — aborting old", cidKey) }
                 pending.remove(cidKey)
             }
 

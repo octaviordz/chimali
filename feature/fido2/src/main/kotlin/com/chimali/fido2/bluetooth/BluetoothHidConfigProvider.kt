@@ -1,6 +1,6 @@
 package com.chimali.fido2.bluetooth
 
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Centralised registry of Bluetooth HID connection tuning parameters.
@@ -40,12 +40,14 @@ object BluetoothHidConfigProvider {
         //
         val resolved = BluetoothHidConfig()
 
-        Timber.i(
-            "BluetoothHidConfigProvider: resolved config for manufacturer=%s model=%s → %s",
-            manufacturer.ifEmpty { "<unknown>" },
-            model.ifEmpty { "<unknown>" },
-            resolved,
-        )
+        Logger.i {
+            String.format(
+                "BluetoothHidConfigProvider: resolved config for manufacturer=%s model=%s → %s",
+                manufacturer.ifEmpty { "<unknown>" },
+                model.ifEmpty { "<unknown>" },
+                resolved,
+            )
+        }
         return resolved
     }
 

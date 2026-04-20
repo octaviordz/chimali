@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.ctap2
+package com.chimali.fido2.ctap2
 
 import org.koin.core.annotation.Single
 
@@ -19,7 +19,7 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.LatencyProfiler
 import kotlinx.coroutines.CompletableDeferred
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
@@ -105,10 +105,10 @@ class Ctap2MakeCredentialHandler(
                 val params = decodeMakeCredentialRequest(cborData)
                 handleMakeCredential(cid, params)
             } catch (e: Fido2Exception) {
-                Timber.e(e, "MakeCredential error: %s", e.message)
+                Logger.e(e) { String.format("MakeCredential error: %s", e.message) }
                 errorPackets(cid, mapExceptionToStatus(e))
             } catch (e: Exception) {
-                Timber.e(e, "Unexpected error in MakeCredential")
+                Logger.e(e) { "Unexpected error in MakeCredential" }
                 errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
             }
         }
@@ -197,7 +197,7 @@ class Ctap2MakeCredentialHandler(
             cid: ByteArray,
             req: MakeCredentialRequest,
         ): List<ByteArray> {
-            Timber.d("handleMakeCredential START rpId=%s user=%s", req.rpId, req.userName)
+            Logger.d { String.format("handleMakeCredential START rpId=%s user=%s", req.rpId, req.userName) }
 
             val rp = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
             val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
@@ -212,24 +212,28 @@ class Ctap2MakeCredentialHandler(
                         else -> null
                     }
                 } ?: run {
-                    Timber.e("Algorithm negotiation failed: None of the requested algorithms %s are supported", req.algorithms)
+                    Logger.e { String.format("Algorithm negotiation failed: None of the requested algorithms %s are supported", req.algorithms) }
                     return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
                 }
 
-            Timber.i(
-                "Algorithm negotiation: RP requested %s, selected COSE alg %d (%s)",
-                req.algorithms,
-                selectedAlgId,
-                pubKeyCredParams.algorithm,
-            )
+            Logger.i {
+                String.format(
+                    "Algorithm negotiation: RP requested %s, selected COSE alg %d (%s)",
+                    req.algorithms,
+                    selectedAlgId,
+                    pubKeyCredParams.algorithm,
+                )
+            }
 
             // T056a: Log credProtect policy for auditability. Policy enforcement (blocking
             // GetAssertion without UV when policy == 3) is handled in GetAssertionHandler.
             if (req.credProtectPolicy != null) {
-                Timber.i(
-                    "MakeCredential: credProtect policy=%d (1=optional,2=uvOptional,3=uvRequired)",
-                    req.credProtectPolicy,
-                )
+                Logger.i {
+                    String.format(
+                        "MakeCredential: credProtect policy=%d (1=optional,2=uvOptional,3=uvRequired)",
+                        req.credProtectPolicy,
+                    )
+                }
             }
 
             val extensionsMap = req.credProtectPolicy?.let { mapOf("credProtect" to it) }
@@ -244,23 +248,25 @@ class Ctap2MakeCredentialHandler(
                 )
 
             val deferred = CompletableDeferred<Result<MakeCredentialResult>>()
-            Timber.d("Dispatching RegistrationRequested event to UI")
+            Logger.d("Dispatching RegistrationRequested event to UI")
             uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
-            Timber.d("Event dispatched — awaiting user response via deferred")
+            Logger.d("Event dispatched — awaiting user response via deferred")
 
             // NFR-PERF-030: Exclude UI interaction time from system latency
             LatencyProfiler.startUserInteraction("MakeCredential")
             val makeCredentialResult = deferred.await()
             LatencyProfiler.endUserInteraction("MakeCredential")
-            Timber.d(
-                "Deferred resolved — success=%b error=%s",
-                makeCredentialResult.isSuccess,
-                makeCredentialResult.exceptionOrNull()?.message,
-            )
+            Logger.d {
+                String.format(
+                    "Deferred resolved — success=%b error=%s",
+                    makeCredentialResult.isSuccess,
+                    makeCredentialResult.exceptionOrNull()?.message,
+                )
+            }
 
             if (makeCredentialResult.isFailure) {
                 val ex = makeCredentialResult.exceptionOrNull()
-                Timber.e(ex, "Registration failed or cancelled: %s", ex?.message)
+                Logger.e(ex) { String.format("Registration failed or cancelled: %s", ex?.message) }
                 return when (ex) {
                     is Fido2Exception.CredentialException ->
                         errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
@@ -271,12 +277,12 @@ class Ctap2MakeCredentialHandler(
             }
 
             val attestation = makeCredentialResult.getOrThrow().attestationObject
-            Timber.d("Encoding MakeCredential response for credId=%dbytes", attestation.authData.credentialId.size)
+            Logger.d { String.format("Encoding MakeCredential response for credId=%dbytes", attestation.authData.credentialId.size) }
             val responseCbor = encodeAttestationResponse(attestation)
             val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
             // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
             val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
-            Timber.d("MakeCredential response ready payloadLen=%d", responsePayload.size)
+            Logger.d { String.format("MakeCredential response ready payloadLen=%d", responsePayload.size) }
             return hidReportParser.encodeResponse(responseMsg)
         }
 
@@ -308,9 +314,9 @@ class Ctap2MakeCredentialHandler(
                     RESP_AUTH_DATA to authDataBytes, // authData (raw bytes, not base64)
                     RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt),
                 )
-            Timber.d("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size)
+            Logger.d { String.format("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size) }
             val encoded = cborCodec.encodeToFido2Format(responseMap)
-            Timber.d("MakeCredential CBOR response: %d bytes", encoded.size)
+            Logger.d { String.format("MakeCredential CBOR response: %d bytes", encoded.size) }
             return encoded
         }
 

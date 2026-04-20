@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.viewmodel
+package com.chimali.fido2.presentation.viewmodel
 
 import org.koin.android.annotation.KoinViewModel
 
@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 // ── MVI: Intent (user actions) ────────────────────────────────────────────────
 
@@ -129,16 +129,16 @@ class RegistrationPromptViewModel(
         private var pendingDeferred: CompletableDeferred<Result<MakeCredentialResult>>? = null
 
         init {
-            Timber.d("RegistrationPromptViewModel created — subscribing to event bus")
+            Logger.d { "RegistrationPromptViewModel created — subscribing to event bus" }
             // Observe event bus for incoming registration requests from transport.
             // Guard: if we are already showing an error to the user, do NOT let a PC retry
             // silently overwrite the error screen — the user must dismiss/retry first.
             uiEventBus.events
                 .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
                 .onEach { event ->
-                    Timber.d("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id)
+                    Logger.d { String.format("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id) }
                     if (_state.value is RegistrationState.Error) {
-                        Timber.d("Ignoring incoming request — currently showing error to user")
+                        Logger.d { "Ignoring incoming request — currently showing error to user" }
                         return@onEach
                     }
                     pendingDeferred = event.deferred
@@ -148,11 +148,11 @@ class RegistrationPromptViewModel(
 
             // Also consume any event stored before this ViewModel was created (replay backup).
             uiEventBus.currentRegistrationRequest?.let { event ->
-                Timber.d("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id)
+                Logger.d { String.format("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id) }
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
                 uiEventBus.clearRegistrationRequest()
-            } ?: Timber.d("No currentRegistrationRequest in cache at init time")
+            } ?: Logger.d { "No currentRegistrationRequest in cache at init time" }
         }
 
         // ── Intent dispatch ───────────────────────────────────────────────────────
@@ -264,7 +264,7 @@ class RegistrationPromptViewModel(
                     pendingDeferred?.complete(Result.failure(error))
                     pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
 
-                    Timber.e(error, "Registration process failed")
+                    Logger.e(error) { "Registration process failed" }
 
                     // T149 / T152 — delegate error classification to Fido2ErrorHandler
                     val ui = Fido2ErrorHandler.handle(error)
