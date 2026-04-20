@@ -5,6 +5,7 @@ import android.util.Log
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 import java.io.File
+import java.io.FileOutputStream
 import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -15,10 +16,12 @@ import java.util.Locale
  * Writes logs to a rotating file in the app's internal storage.
  * Implements privacy-safe logging via [PrivacyLogScrubber].
  */
-class LocalCrashReportingLogWriter(context: Context) : LogWriter() {
+class LocalCrashReportingLogWriter(
+    context: Context,
+    private val maxFileSize: Long = 5L * 1024 * 1024, // 5MB limit default
+) : LogWriter() {
     private val logDir = File(context.filesDir, "logs")
     private val currentLogFile = File(logDir, "fido2_crash_log.txt")
-    private val maxFileSize = 5L * 1024 * 1024 // 5MB limit
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
     init {
@@ -71,8 +74,8 @@ class LocalCrashReportingLogWriter(context: Context) : LogWriter() {
                 rotateLogs()
             }
 
-            FileWriter(currentLogFile, true).use { writer ->
-                writer.append(logEntry)
+            FileOutputStream(currentLogFile, true).bufferedWriter().use { writer ->
+                writer.write(logEntry)
             }
         } catch (e: Exception) {
             // Fallback for debugging writer issues

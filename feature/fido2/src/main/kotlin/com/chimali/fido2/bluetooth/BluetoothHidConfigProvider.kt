@@ -41,12 +41,9 @@ object BluetoothHidConfigProvider {
         val resolved = BluetoothHidConfig()
 
         Logger.i {
-            String.format(
-                "BluetoothHidConfigProvider: resolved config for manufacturer=%s model=%s → %s",
-                manufacturer.ifEmpty { "<unknown>" },
-                model.ifEmpty { "<unknown>" },
-                resolved,
-            )
+            val mfr = manufacturer.ifEmpty { "<unknown>" }
+            val mdl = model.ifEmpty { "<unknown>" }
+            "BluetoothHidConfigProvider: resolved config for manufacturer=$mfr model=$mdl → $resolved"
         }
         return resolved
     }

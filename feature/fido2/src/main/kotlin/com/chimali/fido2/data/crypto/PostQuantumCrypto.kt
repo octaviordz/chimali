@@ -50,11 +50,7 @@ class PostQuantumCrypto {
             Security.insertProviderAt(BouncyCastleProvider(), 1)
 
             Logger.d {
-                String.format(
-                    "PQC Provider registered: %s (version %.1f)",
-                    BouncyCastleProvider.PROVIDER_NAME,
-                    Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0,
-                )
+                "PQC Provider registered: ${BouncyCastleProvider.PROVIDER_NAME} (version ${Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0})"
             }
         }
 
@@ -96,7 +92,7 @@ class PostQuantumCrypto {
                 val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
                 kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
                 kpg.generateKeyPair().also {
-                    Logger.d { String.format("ML-DSA-65 key pair generated; pubKeyLen=%d", it.public.encoded.size) }
+                    Logger.d { "ML-DSA-65 key pair generated; pubKeyLen=${it.public.encoded.size}" }
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "ML-DSA key generation failed" }
@@ -121,7 +117,7 @@ class PostQuantumCrypto {
                 val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
                 sig.initSign(privateKey)
                 sig.update(data)
-                sig.sign().also { Logger.d { String.format("ML-DSA-65 signature produced; sigLen=%d", it.size) } }
+                sig.sign().also { Logger.d { "ML-DSA-65 signature produced; sigLen=${it.size}" } }
             } catch (e: Exception) {
                 Logger.e(e) { "ML-DSA signing failed" }
                 null

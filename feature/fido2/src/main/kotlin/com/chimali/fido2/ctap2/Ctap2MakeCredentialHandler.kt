@@ -105,7 +105,7 @@ class Ctap2MakeCredentialHandler(
                 val params = decodeMakeCredentialRequest(cborData)
                 handleMakeCredential(cid, params)
             } catch (e: Fido2Exception) {
-                Logger.e(e) { String.format("MakeCredential error: %s", e.message) }
+                Logger.e(e) { "MakeCredential error: ${e.message}" }
                 errorPackets(cid, mapExceptionToStatus(e))
             } catch (e: Exception) {
                 Logger.e(e) { "Unexpected error in MakeCredential" }
@@ -197,7 +197,7 @@ class Ctap2MakeCredentialHandler(
             cid: ByteArray,
             req: MakeCredentialRequest,
         ): List<ByteArray> {
-            Logger.d { String.format("handleMakeCredential START rpId=%s user=%s", req.rpId, req.userName) }
+            Logger.d { "handleMakeCredential START rpId=${req.rpId} user=${req.userName}" }
 
             val rp = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
             val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
@@ -212,27 +212,19 @@ class Ctap2MakeCredentialHandler(
                         else -> null
                     }
                 } ?: run {
-                    Logger.e { String.format("Algorithm negotiation failed: None of the requested algorithms %s are supported", req.algorithms) }
+                    Logger.e { "Algorithm negotiation failed: None of the requested algorithms ${req.algorithms} are supported" }
                     return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
                 }
 
             Logger.i {
-                String.format(
-                    "Algorithm negotiation: RP requested %s, selected COSE alg %d (%s)",
-                    req.algorithms,
-                    selectedAlgId,
-                    pubKeyCredParams.algorithm,
-                )
+                "Algorithm negotiation: RP requested ${req.algorithms}, selected COSE alg $selectedAlgId (${pubKeyCredParams.algorithm})"
             }
 
             // T056a: Log credProtect policy for auditability. Policy enforcement (blocking
             // GetAssertion without UV when policy == 3) is handled in GetAssertionHandler.
             if (req.credProtectPolicy != null) {
                 Logger.i {
-                    String.format(
-                        "MakeCredential: credProtect policy=%d (1=optional,2=uvOptional,3=uvRequired)",
-                        req.credProtectPolicy,
-                    )
+                    "MakeCredential: credProtect policy=${req.credProtectPolicy} (1=optional,2=uvOptional,3=uvRequired)"
                 }
             }
 
@@ -257,16 +249,12 @@ class Ctap2MakeCredentialHandler(
             val makeCredentialResult = deferred.await()
             LatencyProfiler.endUserInteraction("MakeCredential")
             Logger.d {
-                String.format(
-                    "Deferred resolved — success=%b error=%s",
-                    makeCredentialResult.isSuccess,
-                    makeCredentialResult.exceptionOrNull()?.message,
-                )
+                "Deferred resolved — success=${makeCredentialResult.isSuccess} error=${makeCredentialResult.exceptionOrNull()?.message}"
             }
 
             if (makeCredentialResult.isFailure) {
                 val ex = makeCredentialResult.exceptionOrNull()
-                Logger.e(ex) { String.format("Registration failed or cancelled: %s", ex?.message) }
+                Logger.e(ex) { "Registration failed or cancelled: ${ex?.message}" }
                 return when (ex) {
                     is Fido2Exception.CredentialException ->
                         errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
@@ -277,12 +265,12 @@ class Ctap2MakeCredentialHandler(
             }
 
             val attestation = makeCredentialResult.getOrThrow().attestationObject
-            Logger.d { String.format("Encoding MakeCredential response for credId=%dbytes", attestation.authData.credentialId.size) }
+            Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
             val responseCbor = encodeAttestationResponse(attestation)
             val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
             // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
             val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
-            Logger.d { String.format("MakeCredential response ready payloadLen=%d", responsePayload.size) }
+            Logger.d { "MakeCredential response ready payloadLen=${responsePayload.size}" }
             return hidReportParser.encodeResponse(responseMsg)
         }
 
@@ -314,9 +302,9 @@ class Ctap2MakeCredentialHandler(
                     RESP_AUTH_DATA to authDataBytes, // authData (raw bytes, not base64)
                     RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt),
                 )
-            Logger.d { String.format("encodeAttestationResponse: fmt=%s authDataLen=%d", attestation.fmt, authDataBytes.size) }
+            Logger.d { "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}" }
             val encoded = cborCodec.encodeToFido2Format(responseMap)
-            Logger.d { String.format("MakeCredential CBOR response: %d bytes", encoded.size) }
+            Logger.d { "MakeCredential CBOR response: ${encoded.size} bytes" }
             return encoded
         }
 

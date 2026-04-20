@@ -45,7 +45,7 @@ class ClientDataHashService {
             crossOrigin: Boolean = false,
         ): ByteArray {
             val clientDataJson = buildClientDataJson(type, challenge, origin, crossOrigin)
-            Logger.d { String.format("clientDataJSON: %s", clientDataJson) }
+            Logger.d { "clientDataJSON: $clientDataJson" }
             return sha256(clientDataJson.toByteArray(Charsets.UTF_8))
         }
 

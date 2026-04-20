@@ -46,7 +46,7 @@ class AuthenticatorDataBuilder {
             signCount: Long,
             extensions: ByteArray? = null,
         ): ByteArray {
-            Logger.d { String.format("Building assertion authData for rpId=%s signCount=%d", rpId, signCount) }
+            Logger.d { "Building assertion authData for rpId=$rpId signCount=$signCount" }
             val rpIdHash = rpIdHash(rpId)
             val flags =
                 assembleFlags(
@@ -84,7 +84,7 @@ class AuthenticatorDataBuilder {
             cosePublicKey: ByteArray,
             extensions: ByteArray? = null,
         ): ByteArray {
-            Logger.d { String.format("Building attestation authData for rpId=%s credLen=%d", rpId, credentialId.size) }
+            Logger.d { "Building attestation authData for rpId=$rpId credLen=${credentialId.size}" }
             require(aaguid.size == 16) { "AAGUID must be 16 bytes" }
 
             val rpIdHash = rpIdHash(rpId)

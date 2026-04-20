@@ -77,7 +77,7 @@ class EncryptedMetadataIndexService(
                 "SIV index key must be $KEY_LENGTH bytes, got ${rawKey.size}"
             }
             indexKey = rawKey.clone()
-            Logger.d { String.format("EncryptedMetadataIndexService: index key provisioned (%d bytes)", rawKey.size) }
+            Logger.d { "EncryptedMetadataIndexService: index key provisioned (${rawKey.size} bytes)" }
         }
 
         /**
@@ -111,7 +111,7 @@ class EncryptedMetadataIndexService(
                 val plaintext = RP_ID_DOMAIN + rpId.toByteArray(Charsets.UTF_8)
                 sivEncryptionManager.encrypt(plaintext, key)
             } catch (e: Exception) {
-                Logger.e(e) { String.format("encryptRpIdTag failed for rpId=%s", rpId) }
+                Logger.e(e) { "encryptRpIdTag failed for rpId=$rpId" }
                 null
             }
         }
@@ -132,7 +132,7 @@ class EncryptedMetadataIndexService(
                 val plaintext = ALIAS_DOMAIN + alias.toByteArray(Charsets.UTF_8)
                 sivEncryptionManager.encrypt(plaintext, key)
             } catch (e: Exception) {
-                Logger.e(e) { String.format("encryptAliasTag failed for alias=%s", alias) }
+                Logger.e(e) { "encryptAliasTag failed for alias=$alias" }
                 null
             }
         }

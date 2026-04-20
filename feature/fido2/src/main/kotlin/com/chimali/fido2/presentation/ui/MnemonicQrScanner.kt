@@ -86,7 +86,7 @@ fun MnemonicQrScanner(
                                     hasScanned = true
                                     onScanned(words)
                                 } else {
-                                    Logger.w { String.format("QR scan had %d words, need 24", words.size) }
+                                    Logger.w { "QR scan had ${words.size} words, need 24" }
                                     onError("QR code must encode exactly 24 words (found ${words.size}).")
                                 }
                             }

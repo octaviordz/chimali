@@ -34,12 +34,12 @@ class SelectCredentialUseCase
                     )
 
                     candidates.size == 1 -> {
-                        Logger.d { String.format("Auto-selecting single credential: %s", candidates.first().id) }
+                        Logger.d { "Auto-selecting single credential: ${candidates.first().id}" }
                         candidates.first()
                     }
 
                     else -> {
-                        Logger.d { String.format("Multiple credentials (%d), selecting MRU for rpId=%s", candidates.size, options.rpId) }
+                        Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId}" }
                         selectMostRecentlyUsed(candidates)
                     }
                 }
@@ -50,7 +50,7 @@ class SelectCredentialUseCase
                 candidates.maxByOrNull { it.lastUsedAt }
                     ?: throw Fido2Exception.CredentialNotFound("Could not resolve credential from candidates")
 
-            Logger.d { String.format("MRU selected credential: %s (lastUsed=%s)", selected.id, selected.lastUsedAt) }
+            Logger.d { "MRU selected credential: ${selected.id} (lastUsed=${selected.lastUsedAt})" }
             return selected
         }
     }

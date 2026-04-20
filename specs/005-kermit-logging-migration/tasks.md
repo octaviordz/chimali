@@ -1,7 +1,7 @@
 # Tasks: Kermit Logging Migration
 
 **Input**: Design documents from `/specs/005-kermit-logging-migration/`
-**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, quickstart.md
+**Prerequisites**: plan.md (required), **Spec**: [spec.md](spec.md) | **Handover**: [handover.md](handover.md) (required for user stories), research.md, data-model.md, quickstart.md
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -52,11 +52,11 @@
 ### Implementation for User Story 1
 
 - [x] T008 [US1] Update `Fido2Initializer` to initialize Kermit `Logger` and add the new `LocalCrashReportingLogWriter` in `feature/fido2/src/main/kotlin/com/chimali/fido2/Fido2Initializer.kt`
-- [ ] T009 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `feature/fido2` source files
-- [ ] T010 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `core/security` source files
-- [ ] T011 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `app` source files
+- [x] T009 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `feature/fido2` source files
+- [x] T010 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `core/security` source files
+- [x] T011 [P] [US1] Replace Timber imports with `co.touchlab.kermit.Logger` in `app` source files
 
-**Checkpoint**: At this point, the application uses Kermit completely. Timber is fully eradicated.
+**Checkpoint**: The application now uses Kermit completely. Timber has been fully eradicated across all modules.
 
 ---
 
@@ -64,8 +64,8 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T012 Run app to verify startup time impact is <50ms and logging output is visible in Logcat
-- [ ] T013 Simulate a log burst to verify 5MB log file rotation
+- [x] T012 Run app to verify startup time impact is <50ms and logging output is visible in Logcat
+- [x] T013 Simulate a log burst to verify 5MB log file rotation
 
 ---
 

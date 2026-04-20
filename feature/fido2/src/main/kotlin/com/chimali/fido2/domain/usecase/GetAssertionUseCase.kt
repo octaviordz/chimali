@@ -61,7 +61,7 @@ class GetAssertionUseCase
 
         suspend operator fun invoke(options: GetAssertionOptions): Result<AssertionObject> =
             runCatching {
-                Logger.d { String.format("GetAssertion for rpId=%s", options.rpId) }
+                Logger.d { "GetAssertion for rpId=${options.rpId}" }
 
                 // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
                 performUserVerification(options)
@@ -98,12 +98,12 @@ class GetAssertionUseCase
 
                 // 5 — persist incremented sign count
                 credentialRepository.updateSignCount(selectedId, newSignCount)
-                    .getOrElse { e -> Logger.w { String.format("Failed to update sign count: %s", e.message) } }
+                    .getOrElse { e -> Logger.w { "Failed to update sign count: ${e.message}" } }
 
                 // Use credentialId bytes from the summary — no full object hydration needed.
                 val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)
 
-                Logger.d { String.format("Assertion complete: credId=%s signCount=%d", selectedId, newSignCount) }
+                Logger.d { "Assertion complete: credId=$selectedId signCount=$newSignCount" }
                 AssertionObject(
                     credential = credDesc,
                     authData = authData,
@@ -114,9 +114,9 @@ class GetAssertionUseCase
             }.recoverCatching { e ->
                 // CredentialNotFound is expected during pre-registration probes -- log at debug level.
                 if (e is Fido2Exception.CredentialNotFound) {
-                    Logger.d { String.format("GetAssertion (expected): %s", e.message) }
+                    Logger.d { "GetAssertion (expected): ${e.message}" }
                 } else {
-                    Logger.e(e) { String.format("GetAssertion failed: %s", e.message) }
+                    Logger.e(e) { "GetAssertion failed: ${e.message}" }
                 }
                 throw when (e) {
                     is Fido2Exception -> e

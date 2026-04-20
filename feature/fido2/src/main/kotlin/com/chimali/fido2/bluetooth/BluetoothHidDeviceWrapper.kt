@@ -136,7 +136,7 @@ class BluetoothHidDeviceWrapper(
         private fun logDiagnosticSnapshot(tag: String) {
             val hid = hidDevice
             if (hid == null) {
-                Logger.d { String.format("[DIAG:%s] hidDevice=null, _connectionState=%s", tag, _connectionState.value) }
+                Logger.d { "[DIAG:$tag] hidDevice=null, _connectionState=${_connectionState.value}" }
                 return
             }
 
@@ -145,34 +145,22 @@ class BluetoothHidDeviceWrapper(
                 val bondedDevices = bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
 
                 Logger.i {
-                    String.format(
-                        "[DIAG:%s] _connectionState=%s, connectedDevice=%s, pendingBondDevice=%s",
-                        tag,
-                        _connectionState.value,
-                        connectedDevice?.address,
-                        pendingBondDevice?.address,
-                    )
+                    "[DIAG:$tag] _connectionState=${_connectionState.value}, " +
+                        "connectedDevice=${connectedDevice?.address}, " +
+                        "pendingBondDevice=${pendingBondDevice?.address}"
                 }
                 Logger.i {
-                    String.format(
-                        "[DIAG:%s] getConnectedDevices()=[%s] (count=%d)",
-                        tag,
-                        connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" },
-                        connectedDevices.size,
-                    )
+                    "[DIAG:$tag] getConnectedDevices()=[${connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" }}] " +
+                        "(count=${connectedDevices.size})"
                 }
                 Logger.i {
-                    String.format(
-                        "[DIAG:%s] bondedDevices=[%s] (count=%d)",
-                        tag,
-                        bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" },
-                        bondedDevices.size,
-                    )
+                    "[DIAG:$tag] bondedDevices=[${bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" }}] " +
+                        "(count=${bondedDevices.size})"
                 }
             } catch (e: SecurityException) {
-                Logger.w(e) { String.format("[DIAG:%s] SecurityException reading diagnostic state", tag) }
+                Logger.w(e) { "[DIAG:$tag] SecurityException reading diagnostic state" }
             } catch (e: Exception) {
-                Logger.w(e) { String.format("[DIAG:%s] Exception reading diagnostic state", tag) }
+                Logger.w(e) { "[DIAG:$tag] Exception reading diagnostic state" }
             }
         }
 
@@ -214,7 +202,7 @@ class BluetoothHidDeviceWrapper(
                     when (intent.action) {
                         BluetoothAdapter.ACTION_STATE_CHANGED -> {
                             val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                            Logger.d { String.format("BluetoothAdapter state changed: %d", state) }
+                            Logger.d { "BluetoothAdapter state changed: $state" }
                             if (state == BluetoothAdapter.STATE_OFF) {
                                 Logger.w { "Bluetooth turned OFF — resetting HID proxy and connection state" }
                                 pendingBondDevice = null
@@ -239,12 +227,8 @@ class BluetoothHidDeviceWrapper(
                                     BluetoothDevice.BOND_NONE,
                                 )
                             Logger.i {
-                                String.format(
-                                    "Bond state changed: device=%s %s→%s",
-                                    device.address,
-                                    bondStateName(previousBondState),
-                                    bondStateName(bondState),
-                                )
+                                "Bond state changed: device=${device.address} " +
+                                    "${bondStateName(previousBondState)}→${bondStateName(bondState)}"
                             }
 
                             // Log the HID connection state of this device
@@ -253,14 +237,10 @@ class BluetoothHidDeviceWrapper(
                                 try {
                                     val hidState = hid.getConnectionState(device)
                                     Logger.i {
-                                        String.format(
-                                            "  HID connection state for %s: %s",
-                                            device.address,
-                                            connectionStateName(hidState),
-                                        )
+                                        "  HID connection state for ${device.address}: ${connectionStateName(hidState)}"
                                     }
                                 } catch (e: Exception) {
-                                    Logger.w(e) { String.format("  Could not query HID connection state for %s", device.address) }
+                                    Logger.w(e) { "  Could not query HID connection state for ${device.address}" }
                                 }
                             }
 
@@ -275,10 +255,7 @@ class BluetoothHidDeviceWrapper(
                                 // onConnectionStateChanged(CONNECTED) deferred us here — now the link
                                 // is encrypted, so it is safe to accept the device.
                                 Logger.i {
-                                    String.format(
-                                        "Pending device %s is now BOND_BONDED — completing deferred connection.",
-                                        device.address,
-                                    )
+                                    "Pending device ${device.address} is now BOND_BONDED — completing deferred connection."
                                 }
                                 pendingBondDevice = null
                                 acceptConnectedDevice(device)
@@ -294,10 +271,7 @@ class BluetoothHidDeviceWrapper(
                                 // destroying the pairing entirely. Let the host drive the natural
                                 // HID L2CAP connection flow after bonding completes.
                                 Logger.i {
-                                    String.format(
-                                        "BOND_BONDED for %s while Advertising — waiting for host-initiated HID connection.",
-                                        device.address,
-                                    )
+                                    "BOND_BONDED for ${device.address} while Advertising — waiting for host-initiated HID connection."
                                 }
                             }
                         }
@@ -313,12 +287,8 @@ class BluetoothHidDeviceWrapper(
                                     ?: return
 
                             Logger.d {
-                                String.format(
-                                    "ACL_CONNECTED: device=%s bond=%s currentState=%s",
-                                    device.address,
-                                    bondStateName(device.bondState),
-                                    _connectionState.value::class.simpleName,
-                                )
+                                "ACL_CONNECTED: device=${device.address} bond=${bondStateName(device.bondState)} " +
+                                    "currentState=${_connectionState.value::class.simpleName}"
                             }
                         }
                     }
@@ -343,7 +313,7 @@ class BluetoothHidDeviceWrapper(
                         initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                         initContinuation = null
                     } else {
-                        Logger.w { String.format("onServiceConnected received for profile %d, expected HID_DEVICE", profile) }
+                        Logger.w { "onServiceConnected received for profile $profile, expected HID_DEVICE" }
                     }
                 }
 
@@ -364,11 +334,7 @@ class BluetoothHidDeviceWrapper(
                     registered: Boolean,
                 ) {
                     Logger.i {
-                        String.format(
-                            "onAppStatusChanged registered=%b pluggedDevice=%s",
-                            registered,
-                            pluggedDevice?.address ?: "null",
-                        )
+                        "onAppStatusChanged registered=$registered pluggedDevice=${pluggedDevice?.address ?: "null"}"
                     }
                     logDiagnosticSnapshot("APP_STATUS_CHANGED")
 
@@ -378,23 +344,17 @@ class BluetoothHidDeviceWrapper(
                             // This is a stale socket from a previous session — disconnect it to free
                             // the L2CAP channel for new incoming connections.
                             Logger.w {
-                                String.format(
-                                    "Stale pluggedDevice %s reported at registration. " +
-                                        "Disconnecting to free L2CAP socket.",
-                                    pluggedDevice.address,
-                                )
+                                "Stale pluggedDevice ${pluggedDevice.address} reported at registration. " +
+                                    "Disconnecting to free L2CAP socket."
                             }
                             try {
                                 val disconnected = hidDevice?.disconnect(pluggedDevice)
                                 Logger.d {
-                                    String.format(
-                                        "disconnect(%s) result=%b — socket should be freed for new connections.",
-                                        pluggedDevice.address,
-                                        disconnected,
-                                    )
+                                    "disconnect(${pluggedDevice.address}) result=$disconnected — " +
+                                        "socket should be freed for new connections."
                                 }
                             } catch (e: SecurityException) {
-                                Logger.e(e) { String.format("Security error disconnecting stale device %s", pluggedDevice.address) }
+                                Logger.e(e) { "Security error disconnecting stale device ${pluggedDevice.address}" }
                             }
                         }
                         _connectionState.value = HidConnectionState.Advertising
@@ -408,34 +368,18 @@ class BluetoothHidDeviceWrapper(
                     state: Int,
                 ) {
                     Logger.i {
-                        String.format(
-                            "onConnectionStateChanged device=%s state=%s",
-                            device.address,
-                            connectionStateName(state),
-                        )
+                        "onConnectionStateChanged device=${device.address} state=${connectionStateName(state)}"
                     }
                     logDiagnosticSnapshot("CONNECTION_STATE_CHANGED")
 
                     when (state) {
                         BluetoothProfile.STATE_CONNECTED -> {
                             val bondState = runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)
-                            Logger.i {
-                                String.format(
-                                    "Device %s connected — bondState=%s",
-                                    device.address,
-                                    bondStateName(bondState),
-                                )
-                            }
+                            Logger.i { "Device ${device.address} connected — bondState=${bondStateName(bondState)}" }
                             when (bondState) {
                                 BluetoothDevice.BOND_NONE -> {
                                     // No link key at all — reject immediately.
-                                    Logger.w {
-                                        String.format(
-                                            "Rejecting connection from completely unbonded device %s. " +
-                                                "No link key present — device has never paired.",
-                                            device.address,
-                                        )
-                                    }
+                                    Logger.w { "Rejecting connection from completely unbonded device ${device.address}. No link key present — device has never paired." }
                                     try {
                                         hidDevice?.disconnect(device)
                                     } catch (e: SecurityException) {
@@ -445,12 +389,7 @@ class BluetoothHidDeviceWrapper(
                                 BluetoothDevice.BOND_BONDING -> {
                                     // Link-key exchange still in progress. Defer acceptance until
                                     // BOND_BONDED arrives via ACTION_BOND_STATE_CHANGED.
-                                    Logger.d {
-                                        String.format(
-                                            "Device %s is still bonding — deferring connection acceptance until BOND_BONDED.",
-                                            device.address,
-                                        )
-                                    }
+                                    Logger.d { "Device ${device.address} is still bonding — deferring connection acceptance until BOND_BONDED." }
                                     pendingBondDevice = device
                                 }
                                 else -> {
@@ -461,9 +400,9 @@ class BluetoothHidDeviceWrapper(
                         }
 
                         BluetoothProfile.STATE_DISCONNECTED -> {
-                            Logger.d { String.format("Device disconnected: %s", device.address) }
+                            Logger.d { "Device disconnected: ${device.address}" }
                             if (pendingBondDevice?.address == device.address) {
-                                Logger.d { String.format("Pending bond device %s disconnected — clearing deferred state.", device.address) }
+                                Logger.d { "Pending bond device ${device.address} disconnected — clearing deferred state." }
                                 pendingBondDevice = null
                             }
                             connectedDevice = null
@@ -471,12 +410,12 @@ class BluetoothHidDeviceWrapper(
                         }
 
                         BluetoothProfile.STATE_CONNECTING -> {
-                            Logger.i { String.format("Device %s connecting...", device.address) }
+                            Logger.i { "Device ${device.address} connecting..." }
                             _connectionState.value = HidConnectionState.Connecting(device)
                         }
 
                         BluetoothProfile.STATE_DISCONNECTING -> {
-                            Logger.i { String.format("Device %s disconnecting...", device.address) }
+                            Logger.i { "Device ${device.address} disconnecting..." }
                         }
                     }
                 }
@@ -488,7 +427,7 @@ class BluetoothHidDeviceWrapper(
                     id: Byte,
                     data: ByteArray,
                 ) {
-                    Logger.d { String.format("onSetReport type=%d id=%d len=%d", type, id, data.size) }
+                    Logger.d { "onSetReport type=$type id=$id len=${data.size}" }
                     incomingReports.trySend(ensureReportSize(data))
                 }
 
@@ -498,7 +437,7 @@ class BluetoothHidDeviceWrapper(
                     reportId: Byte,
                     data: ByteArray,
                 ) {
-                    Logger.d { String.format("onInterruptData reportId=%d len=%d", reportId, data.size) }
+                    Logger.d { "onInterruptData reportId=$reportId len=${data.size}" }
                     incomingReports.trySend(ensureReportSize(data))
                 }
 
@@ -517,7 +456,7 @@ class BluetoothHidDeviceWrapper(
                 }
 
                 override fun onVirtualCableUnplug(device: BluetoothDevice) {
-                    Logger.d { String.format("onVirtualCableUnplug device=%s", device.address) }
+                    Logger.d { "onVirtualCableUnplug device=${device.address}" }
                     connectedDevice = null
                     _connectionState.value = HidConnectionState.Advertising
                 }
@@ -530,7 +469,7 @@ class BluetoothHidDeviceWrapper(
          * and notifies the transport layer.
          */
         private fun acceptConnectedDevice(device: BluetoothDevice) {
-            Logger.i { String.format("Accepting connection from %s", device.address) }
+            Logger.i { "Accepting connection from ${device.address}" }
             connectedDevice = device
             _connectionState.value = HidConnectionState.Connected(device)
             logDiagnosticSnapshot("DEVICE_ACCEPTED")
@@ -562,7 +501,7 @@ class BluetoothHidDeviceWrapper(
          * used in [registerApp] to handle this gracefully.
          */
         suspend fun initialize(): Result<Unit> {
-            Logger.d { String.format("initialize() called. Current hidDevice: %s", hidDevice) }
+            Logger.d { "initialize() called. Current hidDevice: $hidDevice" }
             if (hidDevice != null) return Result.success(Unit)
 
             // Register adapter-state receiver for BT hardware toggle and bond-state changes.
@@ -584,10 +523,8 @@ class BluetoothHidDeviceWrapper(
                 }
                 receiverRegistered = true
                 Logger.d {
-                    String.format(
-                        "BluetoothAdapter state + bond-state receiver registered (exported=%b)",
-                        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU,
-                    )
+                    "BluetoothAdapter state + bond-state receiver registered (exported=" +
+                        "${android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU})"
                 }
             }
 
@@ -597,7 +534,7 @@ class BluetoothHidDeviceWrapper(
             var retryDelay = cfg.initRetryDelayMs
 
             for (attempt in 1..maxRetries) {
-                Logger.d { String.format("initialize attempt %d/%d", attempt, maxRetries) }
+                Logger.d { "initialize attempt $attempt/$maxRetries" }
 
                 val result =
                     withTimeoutOrNull(cfg.initTimeoutMs) {
@@ -605,12 +542,12 @@ class BluetoothHidDeviceWrapper(
                             initContinuation = cont
                             try {
                                 val adapterState = bluetoothAdapter?.state
-                                Logger.d { String.format("Bluetooth adapter state before getProfileProxy: %s (STATE_ON=12)", adapterState) }
+                                Logger.d { "Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)" }
                                 Logger.d { "Calling getProfileProxy for HID_DEVICE..." }
                                 val success =
                                     bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
                                         ?: false
-                                Logger.d { String.format("getProfileProxy returned: %b", success) }
+                                Logger.d { "getProfileProxy returned: $success" }
                                 if (!success) {
                                     Logger.e { "getProfileProxy returned false - Bluetooth may be off or profile unsupported" }
                                     cont.resumeWithException(
@@ -635,19 +572,19 @@ class BluetoothHidDeviceWrapper(
 
                 when {
                     result == null -> {
-                        Logger.e { String.format("initialize() timed out after %dms - onServiceConnected never received.", cfg.initTimeoutMs) }
+                        Logger.e { "initialize() timed out after ${cfg.initTimeoutMs}ms - onServiceConnected never received." }
                         lastException =
                             Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
                     }
 
                     result.isSuccess -> {
-                        Logger.i { String.format("initialize() succeeded on attempt %d", attempt) }
+                        Logger.i { "initialize() succeeded on attempt $attempt" }
                         return Result.success(Unit)
                     }
 
                     else -> {
                         lastException = result.exceptionOrNull() as? Exception
-                        Logger.w { String.format("initialize() failed on attempt %d: %s", attempt, lastException?.message) }
+                        Logger.w { "initialize() failed on attempt $attempt: ${lastException?.message}" }
                         // If it's a permission error, don't retry — user action needed
                         if (lastException is Fido2Exception.BluetoothPermissionDenied) {
                             return Result.failure(lastException)
@@ -656,13 +593,13 @@ class BluetoothHidDeviceWrapper(
                 }
 
                 if (attempt < maxRetries) {
-                    Logger.d { String.format("Retrying initialize() in %dms...", retryDelay) }
+                    Logger.d { "Retrying initialize() in ${retryDelay}ms..." }
                     delay(retryDelay)
                     retryDelay *= 2
                 }
             }
 
-            Logger.e { String.format("initialize() failed after %d attempts", maxRetries) }
+            Logger.e { "initialize() failed after $maxRetries attempts" }
             return Result.failure(
                 lastException ?: Fido2Exception.BluetoothException("HID proxy acquisition failed after retries"),
             )
@@ -691,7 +628,7 @@ class BluetoothHidDeviceWrapper(
             var lastException: Exception? = null
 
             for (attempt in 1..maxRetries) {
-                Logger.d { String.format("registerApp attempt %d/%d", attempt, maxRetries) }
+                Logger.d { "registerApp attempt $attempt/$maxRetries" }
                 logDiagnosticSnapshot("PRE_REGISTER_$attempt")
 
                 // ── Step 0: Ensure Bluetooth is ON ──
@@ -700,7 +637,7 @@ class BluetoothHidDeviceWrapper(
                 var bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
                 var waitAttempt = 0
                 while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON && waitAttempt < 10) {
-                    Logger.d { String.format("Bluetooth is turning on, waiting 500ms (attempt %d)...", waitAttempt + 1) }
+                    Logger.d { "Bluetooth is turning on, waiting 500ms (attempt ${waitAttempt + 1})..." }
                     delay(500)
                     bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
                     waitAttempt++
@@ -720,7 +657,7 @@ class BluetoothHidDeviceWrapper(
                             }
 
                             if (bluetoothState != BluetoothAdapter.STATE_ON) {
-                                Logger.w { String.format("Bluetooth is not ON (current state: %d), cannot register HID app", bluetoothState) }
+                                Logger.w { "Bluetooth is not ON (current state: $bluetoothState), cannot register HID app" }
                                 cont.resume(
                                     Result.failure(
                                         Fido2Exception.BluetoothException("Bluetooth must be enabled to start the authenticator"),
@@ -736,7 +673,7 @@ class BluetoothHidDeviceWrapper(
                             Logger.d { "Step 1: Calling unregisterApp() to clear any stale registration..." }
                             try {
                                 val unregResult = hid.unregisterApp()
-                                Logger.d { String.format("unregisterApp() result: %b", unregResult) }
+                                Logger.d { "unregisterApp() result: $unregResult" }
                             } catch (e: Exception) {
                                 Logger.w(e) { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
                             }
@@ -820,7 +757,7 @@ class BluetoothHidDeviceWrapper(
                                             Executors.newSingleThreadExecutor(),
                                             registrationCallback,
                                         )
-                                    Logger.i { String.format("registerApp() framework return value: %b", callResult) }
+                                    Logger.i { "registerApp() framework return value: $callResult" }
                                     callResult
                                 } catch (e: SecurityException) {
                                     Logger.e(e) { "SecurityException in registerApp" }
@@ -859,24 +796,24 @@ class BluetoothHidDeviceWrapper(
 
                 when {
                     result?.isSuccess == true -> {
-                        Logger.i { String.format("registerApp() succeeded on attempt %d", attempt) }
+                        Logger.i { "registerApp() succeeded on attempt $attempt" }
                         logDiagnosticSnapshot("REGISTER_SUCCESS")
                         return Result.success(Unit)
                     }
                     result == null -> {
-                        Logger.e { String.format("registerApp timed out after %dms on attempt %d", cfg.registerTimeoutMs, attempt) }
+                        Logger.e { "registerApp timed out after ${cfg.registerTimeoutMs}ms on attempt $attempt" }
                         lastException = Fido2Exception.BluetoothException("HID registration timed out")
                         logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
                     }
                     else -> {
                         lastException = result.exceptionOrNull() as? Exception
-                        Logger.w { String.format("registerApp failure on attempt %d: %s", attempt, lastException?.message) }
+                        Logger.w { "registerApp failure on attempt $attempt: ${lastException?.message}" }
                         logDiagnosticSnapshot("REGISTER_FAILURE_$attempt")
                     }
                 }
 
                 if (attempt < maxRetries) {
-                    Logger.d { String.format("Retrying registerApp in %dms...", retryDelay) }
+                    Logger.d { "Retrying registerApp in ${retryDelay}ms..." }
                     delay(retryDelay)
                     retryDelay = minOf(retryDelay * 2, cfg.registerRetryMaxDelayMs)
                 }
@@ -913,13 +850,13 @@ class BluetoothHidDeviceWrapper(
             val report = ensureReportSize(data)
             return try {
                 val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-                Logger.d { String.format("sendReport dispatched len=%d success=%b", report.size, sent) }
+                Logger.d { "sendReport dispatched len=${report.size} success=$sent" }
                 sent
             } catch (e: SecurityException) {
                 Logger.e(e) { "sendReport: BLUETOOTH_CONNECT permission denied" }
                 false
             } catch (e: Exception) {
-                Logger.e(e) { String.format("sendReport: exception — %s", e.message) }
+                Logger.e(e) { "sendReport: exception — ${e.message}" }
                 false
             }
         }
@@ -943,7 +880,7 @@ class BluetoothHidDeviceWrapper(
             unregisterApp()
             if (receiverRegistered) {
                 runCatching { context.unregisterReceiver(bluetoothStateReceiver) }
-                    .onFailure { Logger.w { String.format("close: failed to unregister BT state receiver: %s", it.message) } }
+                    .onFailure { Logger.w { "close: failed to unregister BT state receiver: ${it.message}" } }
                 receiverRegistered = false
             }
             try {

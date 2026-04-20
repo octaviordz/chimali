@@ -5,7 +5,7 @@ Refactored the entire `:feature:fido2` module to comply with the project's multi
 
 ### Key Changes
 - **Lambda Syntax Enforcement**: Converted all static logging calls to lazy lambdas: `Logger.d { "message" }`.
-- **String Formatting**: Integrated `String.format()` within lambdas to support structured logging while maintaining KMP compatibility.
+- **Idiomatic String Templates**: Refactored diagnostic logging to use native Kotlin string templates instead of `String.format()`, improving readability and ensuring multiplatform compatibility for structured logs like `[DIAG:...]`.
 - **Exception Logging**: Standardized error reporting with `Logger.e(throwable) { "message" }`.
 - **Module Coverage**: Cleaned up the following layers:
     - CTAP2 Handlers (`Ctap2GetAssertionHandler`, `Ctap2MakeCredentialHandler`, etc.)

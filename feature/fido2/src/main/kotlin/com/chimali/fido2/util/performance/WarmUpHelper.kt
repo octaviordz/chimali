@@ -83,7 +83,7 @@ object WarmUpHelper {
                         .build(),
                 )
                 kpg.generateKeyPair()
-                Logger.d { String.format("AndroidKeyStore warm-up: key created in %dms", System.currentTimeMillis() - t0) }
+                Logger.d { "AndroidKeyStore warm-up: key created in ${System.currentTimeMillis() - t0}ms" }
             } else {
                 Logger.d("AndroidKeyStore warm-up: reusing existing warmup key")
             }
@@ -98,10 +98,10 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Logger.d { String.format("AndroidKeyStore warm-up DONE: sign=%dms total=%dms", System.currentTimeMillis() - t1, System.currentTimeMillis() - t0) }
+            Logger.d { "AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms" }
         } catch (e: Exception) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
-            Logger.w(e) { String.format("AndroidKeyStore warm-up FAILED (non-fatal): %s", e.message) }
+            Logger.w(e) { "AndroidKeyStore warm-up FAILED (non-fatal): ${e.message}" }
         }
     }
 
@@ -137,9 +137,9 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Logger.d { String.format("BouncyCastle warm-up DONE: %dms", System.currentTimeMillis() - t0) }
+            Logger.d { "BouncyCastle warm-up DONE: ${System.currentTimeMillis() - t0}ms" }
         } catch (e: Exception) {
-            Logger.w(e) { String.format("BouncyCastle warm-up FAILED (non-fatal): %s", e.message) }
+            Logger.w(e) { "BouncyCastle warm-up FAILED (non-fatal): ${e.message}" }
         }
     }
 }

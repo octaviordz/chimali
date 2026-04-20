@@ -78,13 +78,13 @@ class HmacSecretProcessor(
                         }
                         extensionData is ByteArray -> extensionData // direct salt (simplified mode)
                         else -> {
-                            Logger.w { String.format("hmac-secret: unexpected extension data type %s", extensionData::class.simpleName) }
+                            Logger.w { "hmac-secret: unexpected extension data type ${extensionData::class.simpleName}" }
                             return null
                         }
                     }
 
                 if (saltEnc.size != SALT_SIZE && saltEnc.size != SALT_SIZE * 2) {
-                    Logger.w { String.format("hmac-secret: invalid saltEnc length %d (expected 32 or 64)", saltEnc.size) }
+                    Logger.w { "hmac-secret: invalid saltEnc length ${saltEnc.size} (expected 32 or 64)" }
                     return null
                 }
 
@@ -110,10 +110,10 @@ class HmacSecretProcessor(
                 salt1.fill(0)
                 if (saltEnc.size == SALT_SIZE * 2) saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2).fill(0)
 
-                Logger.d { String.format("hmac-secret: computed output (%d bytes) for credentialId=%s", output.size, credentialId) }
+                Logger.d { "hmac-secret: computed output (${output.size} bytes) for credentialId=$credentialId" }
                 output
             } catch (e: Exception) {
-                Logger.e(e) { String.format("hmac-secret processing failed: %s", e.message) }
+                Logger.e(e) { "hmac-secret processing failed: ${e.message}" }
                 null
             }
         }

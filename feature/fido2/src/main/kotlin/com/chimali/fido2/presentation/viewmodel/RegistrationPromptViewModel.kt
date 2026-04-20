@@ -136,7 +136,7 @@ class RegistrationPromptViewModel(
             uiEventBus.events
                 .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
                 .onEach { event ->
-                    Logger.d { String.format("RegistrationRequested received via SharedFlow: rpId=%s", event.options.rp.id) }
+                    Logger.d { "RegistrationRequested received via SharedFlow: rpId=${event.options.rp.id}" }
                     if (_state.value is RegistrationState.Error) {
                         Logger.d { "Ignoring incoming request — currently showing error to user" }
                         return@onEach
@@ -148,7 +148,7 @@ class RegistrationPromptViewModel(
 
             // Also consume any event stored before this ViewModel was created (replay backup).
             uiEventBus.currentRegistrationRequest?.let { event ->
-                Logger.d { String.format("RegistrationRequested present in currentRequest cache: rpId=%s", event.options.rp.id) }
+                Logger.d { "RegistrationRequested present in currentRequest cache: rpId=${event.options.rp.id}" }
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
                 uiEventBus.clearRegistrationRequest()

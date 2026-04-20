@@ -185,11 +185,11 @@ class BluetoothHidTransportImpl(
                 Logger.i("BluetoothHidTransport connected and advertising")
                 Result.success(Unit)
             } catch (e: Fido2Exception) {
-                Logger.e { String.format("connect() failed with Fido2Exception: %s", e.message) }
+                Logger.e { "connect() failed with Fido2Exception: ${e.message}" }
                 hidWrapper.reportError(e.message ?: "HID connection failed")
                 Result.failure(e)
             } catch (e: Exception) {
-                Logger.e(e) { String.format("connect() unexpected failure: %s", e.message) }
+                Logger.e(e) { "connect() unexpected failure: ${e.message}" }
                 val msg = "Failed to start HID transport: ${e.message}"
                 hidWrapper.reportError(msg)
                 Result.failure(Fido2Exception.TransportException(msg))
@@ -215,7 +215,7 @@ class BluetoothHidTransportImpl(
                 Logger.i { "BluetoothHidTransport disconnected" }
                 Result.success(Unit)
             } catch (e: Exception) {
-                Logger.e(e) { String.format("disconnect() failed: %s", e.message) }
+                Logger.e(e) { "disconnect() failed: ${e.message}" }
                 Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
             }
         }
@@ -242,7 +242,7 @@ class BluetoothHidTransportImpl(
                 hidWrapper.connectionState.onEach { state ->
                     when (state) {
                         is HidConnectionState.Connected -> {
-                            Logger.i { String.format("Host connected: %s", state.device.address) }
+                            Logger.i { "Host connected: ${state.device.address}" }
                             // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
                             // real GetAssertion ceremony doesn't pay cold-start costs.
                             //
@@ -257,7 +257,7 @@ class BluetoothHidTransportImpl(
                                 //     Binder IPC into Android SystemServer on first UV check.
                                 runCatching { userVerificationService.getUserVerificationAvailability() }
                                     .onFailure { e ->
-                                        Logger.w { String.format("BiometricManager pre-warm failed (non-fatal): %s", e.message) }
+                                        Logger.w { "BiometricManager pre-warm failed (non-fatal): ${e.message}" }
                                     }
 
                                 // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
@@ -290,7 +290,7 @@ class BluetoothHidTransportImpl(
                             Logger.d { "HID transport idle" }
                         }
                         is HidConnectionState.Error -> {
-                            Logger.e { String.format("HID connection error: %s", state.message) }
+                            Logger.e { "HID connection error: ${state.message}" }
                         }
                         else -> { /* Connecting — nothing to do */ }
                     }
@@ -312,7 +312,7 @@ class BluetoothHidTransportImpl(
         private suspend fun processReport(report: ByteArray) {
             val result = hidReportParser.processReport(report)
             if (result.isFailure) {
-                Logger.e { String.format("Report parse error: %s", result.exceptionOrNull()?.message) }
+                Logger.e { "Report parse error: ${result.exceptionOrNull()?.message}" }
                 // Can't identify CID from a broken packet; send broadcast error
                 sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_SEQ))
                 return
@@ -321,12 +321,8 @@ class BluetoothHidTransportImpl(
             val message = result.getOrNull() ?: return // null = still accumulating
 
             Logger.d {
-                String.format(
-                    "CTAPHID cmd=0x%s cid=%s payloadLen=%d",
-                    message.command.toString(16).uppercase(),
-                    message.channelId.toHex(),
-                    message.payload.size,
-                )
+                "CTAPHID cmd=0x${message.command.toString(16).uppercase()} " +
+                    "cid=${message.channelId.toHex()} payloadLen=${message.payload.size}"
             }
 
             dispatchMessage(message)
@@ -343,7 +339,7 @@ class BluetoothHidTransportImpl(
                 CTAPHID_PING -> handlePing(message)
                 CTAPHID_CANCEL -> handleCancel(message)
                 else -> {
-                     Logger.w { String.format("Unknown CTAPHID command 0x%s", message.command.toString(16)) }
+                    Logger.w { "Unknown CTAPHID command 0x${message.command.toString(16)}" }
                     sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_CMD))
                 }
             }
@@ -361,7 +357,7 @@ class BluetoothHidTransportImpl(
             // Assign a new CID for this session
             val newCid = generateCid()
             channelRegistry[newCid.toHex()] = newCid
-            Logger.i { String.format("CTAPHID_INIT: assigned CID=%s", newCid.toHex()) }
+            Logger.i { "CTAPHID_INIT: assigned CID=${newCid.toHex()}" }
 
             val initResponse = hidReportParser.buildInitResponse(nonce, newCid)
             sendPackets(hidReportParser.encodeResponse(initResponse))
@@ -395,11 +391,7 @@ class BluetoothHidTransportImpl(
             // NFR-PERF-030: Start measuring full CTAP2 processing time
             LatencyProfiler.start(operationLabel)
             Logger.d {
-                String.format(
-                    "CTAP2 command=0x%s on CID=%s",
-                    ctapCommand.toString(16),
-                    cid.toHex(),
-                )
+                "CTAP2 command=0x${ctapCommand.toString(16)} on CID=${cid.toHex()}"
             }
 
             // ── Periodic keepalive loop ────────────────────────────────────────────
@@ -440,7 +432,7 @@ class BluetoothHidTransportImpl(
                         CMD_GET_INFO -> handleGetInfo(cid) // authenticatorGetInfo
 
                         else -> {
-                             Logger.w { String.format("Unsupported CTAP2 command 0x%s", ctapCommand.toString(16)) }
+                            Logger.w { "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}" }
                             responseBuilder.errorResponse(cid, ERR_INVALID_CMD)
                         }
                     }
@@ -477,7 +469,7 @@ class BluetoothHidTransportImpl(
                         null
                     }
 
-                Logger.d { String.format("FIDO2 Operation succeeded for host: %s (%s), Class: %d", name, mac, devClass) }
+                Logger.d { "FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass" }
                 fido2EventBus.publish(
                     Fido2Event.InteractionSuccessful(
                         hostDeviceAddress = mac,
@@ -518,7 +510,7 @@ class BluetoothHidTransportImpl(
         private suspend fun handleMsg(message: CtapHidMessage) {
             val cid = message.channelId
             val payload = message.payload
-            Logger.d { String.format("CTAPHID_MSG len=%d cid=%s", payload.size, cid.toHex()) }
+            Logger.d { "CTAPHID_MSG len=${payload.size} cid=${cid.toHex()}" }
 
             if (payload.size < APDU_MIN_SIZE) {
                 sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN))
@@ -536,7 +528,9 @@ class BluetoothHidTransportImpl(
                     return
                 }
                 // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
-                Logger.d { String.format("CTAPHID_MSG routing CTAP2 cmd=0x%s as CBOR", (cborData[0].toInt() and BYTE_MASK).toString(16)) }
+                Logger.d {
+                    "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and BYTE_MASK).toString(16)} as CBOR"
+                }
                 val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
                 handleCbor(syntheticMsg)
                 return
@@ -573,7 +567,7 @@ class BluetoothHidTransportImpl(
                     sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
                 }
                 else -> {
-                    Logger.d { String.format("CTAPHID_MSG U2F INS=0x%s unknown — returning SW_INS_NOT_SUPPORTED", ins.toString(16)) }
+                    Logger.d { "CTAPHID_MSG U2F INS=0x${ins.toString(16)} unknown — returning SW_INS_NOT_SUPPORTED" }
                     sendPackets(u2fErrorResponse(cid, SW_INS_NOT_SUPPORTED_1.toInt(), SW_INS_NOT_SUPPORTED_2.toInt()))
                 }
             }
@@ -621,7 +615,7 @@ class BluetoothHidTransportImpl(
         }
 
         private fun handleCancel(message: CtapHidMessage) {
-            Logger.d { String.format("CTAPHID_CANCEL on CID=%s", message.channelId.toHex()) }
+            Logger.d { "CTAPHID_CANCEL on CID=${message.channelId.toHex()}" }
             // Acknowledge cancel — no response payload per spec
         }
 
@@ -636,7 +630,7 @@ class BluetoothHidTransportImpl(
                 val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
                 hidReportParser.encodeResponse(responseMsg)
             } catch (e: Exception) {
-                Logger.e(e) { String.format("GetAssertion handler exception: %s", e.message) }
+                Logger.e(e) { "GetAssertion handler exception: ${e.message}" }
                 responseBuilder.errorResponse(cid, 0x30.toByte())
             }
         }
@@ -649,12 +643,12 @@ class BluetoothHidTransportImpl(
                 val packets = responseBuilder.getInfoResponse(cid, info)
                 // Debug: log the first packet hex so we can diagnose Windows rejection
                 if (packets.isNotEmpty()) {
-                    val hex = packets.first().joinToString("") { "%02x".format(it) }
-                    Logger.d { String.format("GetInfo response packet[0] hex: %s", hex) }
+                    val hex = packets.first().joinToString("") { packetByte -> "%02x".format(packetByte) }
+                    Logger.d { "GetInfo response packet[0] hex: $hex" }
                 }
                 packets
             } catch (e: Exception) {
-                Logger.e(e) { String.format("GetInfo failed: %s", e.message) }
+                Logger.e(e) { "GetInfo failed: ${e.message}" }
                 responseBuilder.errorResponse(cid, 0x30.toByte())
             }
         }

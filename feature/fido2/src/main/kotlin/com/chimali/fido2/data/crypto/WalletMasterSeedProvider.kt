@@ -85,7 +85,7 @@ class WalletMasterSeedProvider(
 
                 bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
 
-                Logger.d { String.format("Master seed initialized from BIP39 mnemonic (word count: %d)", mnemonic.size) }
+                Logger.d { "Master seed initialized from BIP39 mnemonic (word count: ${mnemonic.size})" }
                 Pair(cachedSeed, cachedDeviceKeyPair)
             }
         }
@@ -164,7 +164,7 @@ class WalletMasterSeedProvider(
                 // Re-derive immediately so the new seed is live for any in-flight FIDO2 operations.
                 ensureInitialized()
 
-                Logger.i { String.format("Master seed imported (%s)", if (alreadyExisted) "replaced existing" else "first import") }
+                Logger.i { "Master seed imported (${if (alreadyExisted) "replaced existing" else "first import"})" }
                 return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
             } finally {
                 mnemonic.fill('\u0000')
@@ -282,7 +282,7 @@ class WalletMasterSeedProvider(
 
             // BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", derivedKey)
             val childSeed = hmacSha512("bip-entropy-from-k".toByteArray(Charsets.UTF_8), currentKey)
-            Logger.d { String.format("PQ child seed derived; seedLen=%d", childSeed.size) }
+            Logger.d { "PQ child seed derived; seedLen=${childSeed.size}" }
             return childSeed
         }
 

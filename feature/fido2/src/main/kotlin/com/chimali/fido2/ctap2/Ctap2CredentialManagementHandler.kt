@@ -53,7 +53,7 @@ class Ctap2CredentialManagementHandler(
                     (params["1"] as? Number)?.toInt()
                         ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
-                Logger.d { String.format("Credential Management subCommand: %d", subCommand) }
+                Logger.d { "Credential Management subCommand: $subCommand" }
 
                 when (subCommand) {
                     1 -> handleGetCredsMetadata()

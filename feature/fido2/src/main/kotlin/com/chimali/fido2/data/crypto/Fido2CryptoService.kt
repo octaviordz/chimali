@@ -125,7 +125,7 @@ class Fido2CryptoService(
                         val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
                         derivedSeed.fill(0)
 
-                        Logger.d { String.format("ML-DSA key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
+                        Logger.d { "ML-DSA key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
                         return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                     }
 
@@ -151,7 +151,7 @@ class Fido2CryptoService(
 
                         derivedSeed.fill(0)
 
-                        Logger.d { String.format("Ed25519 key pair generated: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
+                        Logger.d { "Ed25519 key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
                         return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                     }
 
@@ -166,7 +166,7 @@ class Fido2CryptoService(
                     val devicePubKeyBytes = deviceKeyPair.publicKey
                     val path = derivationPath(credentialId)
 
-                    Logger.d { String.format("Deriving HDK key pair for credentialId=%s path=%s", credentialId, path) }
+                    Logger.d { "Deriving HDK key pair for credentialId=$credentialId path=$path" }
 
                     val hdkResult =
                         hdkManager.deriveHdk(
@@ -177,7 +177,7 @@ class Fido2CryptoService(
 
                     val publicKeyBytes = hdkResult.publicKey // 65 bytes uncompressed
 
-                    Logger.d { String.format("HDK key pair derived: credentialId=%s pubKeyLen=%d", credentialId, publicKeyBytes.size) }
+                    Logger.d { "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
                     Fido2KeyPair(
                         alias = credentialAlias(credentialId),
                         publicKeyBytes = publicKeyBytes,
@@ -218,7 +218,7 @@ class Fido2CryptoService(
                     decodeUncompressedPoint(keyPair.publicKeyBytes)
                 }
             } catch (e: Exception) {
-                Logger.w(e) { String.format("getPublicKey failed for %s", credentialId) }
+                Logger.w(e) { "getPublicKey failed for $credentialId" }
                 null
             }
         }
@@ -288,7 +288,7 @@ class Fido2CryptoService(
                         }
 
                 val t1 = System.currentTimeMillis()
-                Logger.d { String.format("Master seed pre-warm: seed loaded in %dms — warming full sign() path", t1 - t0) }
+                Logger.d { "Master seed pre-warm: seed loaded in ${t1 - t0}ms — warming full sign() path" }
 
                 // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
                 //
@@ -328,15 +328,10 @@ class Fido2CryptoService(
                 devicePrivKeyBytes.fill(0)
 
                 Logger.d {
-                    String.format(
-                        "Master seed pre-warm DONE: seed=%dms sign-path=%dms total=%dms",
-                        t1 - t0,
-                        System.currentTimeMillis() - t1,
-                        System.currentTimeMillis() - t0,
-                    )
+                    "Master seed pre-warm DONE: seed=${t1 - t0}ms sign-path=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms"
                 }
             }.onFailure { e ->
-                Logger.w(e) { String.format("Master seed pre-warm FAILED (non-fatal): %s", e.message) }
+                Logger.w(e) { "Master seed pre-warm FAILED (non-fatal): ${e.message}" }
             }
         }
 
@@ -379,12 +374,7 @@ class Fido2CryptoService(
                         derivedSeed.fill(0)
                         LatencyProfiler.end("Crypto.sign")
                         Logger.d {
-                            String.format(
-                                "Signed %d bytes with ML-DSA for credentialId=%s sigLen=%d",
-                                data.size,
-                                credentialId,
-                                signature.size,
-                            )
+                            "Signed ${data.size} bytes with ML-DSA for credentialId=$credentialId sigLen=${signature.size}"
                         }
                         return@withContext Result.success(signature)
                     }
@@ -413,12 +403,7 @@ class Fido2CryptoService(
 
                         LatencyProfiler.end("Crypto.sign")
                         Logger.d {
-                            String.format(
-                                "Signed %d bytes with Ed25519 for credentialId=%s sigLen=%d",
-                                data.size,
-                                credentialId,
-                                signature.size,
-                            )
+                            "Signed ${data.size} bytes with Ed25519 for credentialId=$credentialId sigLen=${signature.size}"
                         }
                         return@withContext Result.success(signature)
                     }
@@ -460,11 +445,11 @@ class Fido2CryptoService(
                     devicePrivKeyBytes.fill(0)
 
                     LatencyProfiler.end("Crypto.sign")
-                    Logger.d { String.format("Signed %d bytes for credentialId=%s sigLen=%d", data.size, credentialId, signature.size) }
+                    Logger.d { "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}" }
                     signature
                 }.recoverCatching { e ->
                     LatencyProfiler.end("Crypto.sign") // ensure timer ends on failure path too
-                    Logger.e(e) { String.format("Signing failed for %s", credentialId) }
+                    Logger.e(e) { "Signing failed for $credentialId" }
                     throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
                 }
             }

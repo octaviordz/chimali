@@ -74,12 +74,12 @@ class Ctap2GetAssertionHandler(
             return try {
                 val params = cborCodec.decodeFromFido2Format(requestBytes)
                 val options = decodeOptions(params)
-                Logger.d { String.format("GetAssertion: rpId=%s allowCredentials=%s", options.rpId, options.allowCredentials?.size ?: "discoverable") }
+                Logger.d { "GetAssertion: rpId=${options.rpId} allowCredentials=${options.allowCredentials?.size ?: "discoverable"}" }
 
                 val result = getAssertionUseCase(options)
                 result.fold(
                     onSuccess = { assertion ->
-                        Logger.d { String.format("Assertion success: credId=%s", assertion.credentialId) }
+                        Logger.d { "Assertion success: credId=${assertion.credentialId}" }
                         val responseBytes = encodeResponse(assertion, options)
                         byteArrayOf(CTAP2_OK) + responseBytes
                     },
@@ -87,9 +87,9 @@ class Ctap2GetAssertionHandler(
                         // CredentialNotFound is an expected probe response before registration.
                         // All other errors are unexpected and warrant an error-level log.
                         if (error is Fido2Exception.CredentialNotFound) {
-                            Logger.d { String.format("Assertion failed (expected): %s", error.message) }
+                            Logger.d { "Assertion failed (expected): ${error.message}" }
                         } else {
-                            Logger.e(error) { String.format("Assertion failed: %s", error.message) }
+                            Logger.e(error) { "Assertion failed: ${error.message}" }
                         }
                         val errorCode: Byte =
                             when (error) {
@@ -102,7 +102,7 @@ class Ctap2GetAssertionHandler(
                     },
                 )
             } catch (e: Exception) {
-                Logger.e(e) { String.format("GetAssertion handler exception: %s", e.message) }
+                Logger.e(e) { "GetAssertion handler exception: ${e.message}" }
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
         }

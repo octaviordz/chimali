@@ -123,7 +123,7 @@ class DevToolsViewModel(
             errorCode: Int,
             message: String,
         ) {
-            Logger.w { String.format("Biometric error received: code=%d, message=%s", errorCode, message) }
+            Logger.w { "Biometric error received: code=$errorCode, message=$message" }
             _state.update {
                 it.copy(
                     mnemonicWords = null,
@@ -203,7 +203,7 @@ class DevToolsViewModel(
                     Logger.e(e) { "Invalid mnemonic provided for recovery" }
                     _state.update { it.copy(isLoading = false, error = e.message) }
                 } catch (e: Exception) {
-                    Logger.e(e) { String.format("Failed to import mnemonic: %s", e.message ?: "Unknown error") }
+                    Logger.e(e) { "Failed to import mnemonic: ${e.message ?: "Unknown error"}" }
                     _state.update {
                         it.copy(
                             isLoading = false,

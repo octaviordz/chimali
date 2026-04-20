@@ -137,10 +137,7 @@ class Ctap2ResponseBuilder(
                         ),
                 )
             Logger.d {
-                String.format(
-                    "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=%dbytes",
-                    info.aaguid.size,
-                )
+                "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=${info.aaguid.size}bytes"
             }
             return successCborPackets(cid, responseMap)
         }

@@ -6,7 +6,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-20
 
 ### Changed
-- **Kermit Logging Migration**: Completed the refactor of 50+ legacy `Timber` calls to `co.touchlab.kermit.Logger` lambda syntax across the `:feature:fido2` module, ensuring KMP compatibility and structured logging safety.
+- **Kermit Logging Migration**: Completed the refactor of 50+ legacy `Timber` calls to `co.touchlab.kermit.Logger` lambda syntax across the `:feature:fido2` module. Standardized all structured diagnostic logging to use native Kotlin string templates instead of `String.format()`, ensuring KMP compatibility and eliminating unnecessary object allocations.
 
 ### Fixed
 - **FIDO2 Performance Optimization (NFR-PERF-030)**:

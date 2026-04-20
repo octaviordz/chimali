@@ -179,7 +179,7 @@ class HidReportParser {
 
             // Abort any prior pending message on this channel
             if (pending.containsKey(cidKey)) {
-                Logger.w { String.format("New init packet received while %s was pending — aborting old", cidKey) }
+                Logger.w { "New init packet received while $cidKey was pending — aborting old" }
                 pending.remove(cidKey)
             }
 
