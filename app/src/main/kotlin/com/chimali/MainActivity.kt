@@ -30,7 +30,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         
         // T191a: Request mandatory permissions for Bluetooth HID functionality at startup.
-        // On Android 12+ (API 31+), these permissions are grouped under 'Nearby Devices'.
+        // - Android 13+ (TIRAMISU, API 33): Requires 'Nearby Devices' + 'Notifications' for the foreground service.
+        // - Android 12 (S, API 31): Requires 'Nearby Devices' group only.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             android.util.Log.d("Chimali:MainActivity", "Launching Nearby Devices + Notifications permission request...")
             requestPermissionLauncher.launch(

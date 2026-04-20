@@ -107,6 +107,10 @@ fun Fido2HomeScreen(
         if (isRunning) {
             viewModel.toggleTransport()
         } else {
+            // Permission logic varies by Android version:
+            // - Android 13+ (TIRAMISU, API 33): Requires Nearby Devices (BT) + POST_NOTIFICATIONS for foreground services.
+            // - Android 12 (S, API 31): Requires Nearby Devices (BT) only.
+            // - Legacy: Permissions are handled during installation or simplified.
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
