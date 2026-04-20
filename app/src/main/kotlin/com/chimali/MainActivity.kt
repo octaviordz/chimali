@@ -17,13 +17,32 @@ import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
 class MainActivity : FragmentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> }
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
+            android.util.Log.i("Chimali:MainActivity", "All startup permissions granted (Nearby Devices flow).")
+        } else {
+            android.util.Log.w("Chimali:MainActivity", "Some permissions denied at startup: $permissions")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Request permissions for Bluetooth and HID
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // T191a: Request mandatory permissions for Bluetooth HID functionality at startup.
+        // On Android 12+ (API 31+), these permissions are grouped under 'Nearby Devices'.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            android.util.Log.d("Chimali:MainActivity", "Launching Nearby Devices + Notifications permission request...")
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            android.util.Log.d("Chimali:MainActivity", "Launching Nearby Devices permission request...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_ADVERTISE,
@@ -31,7 +50,17 @@ class MainActivity : FragmentActivity() {
                     Manifest.permission.BLUETOOTH_SCAN
                 )
             )
+        } else {
+            // Legacy permissions for Bluetooth and Location on older devices
+            android.util.Log.d("Chimali:MainActivity", "Requesting legacy Bluetooth/Location permissions...")
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            )
         }
+
 
         setContent {
             MaterialTheme {

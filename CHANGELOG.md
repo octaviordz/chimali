@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-19
+
+### Fixed
+- **FIDO2 Registration & Android 14 Compliance**: Resolved "Register" ceremony failures by explicitly declaring `FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE` for the `Fido2TransportService` and ensuring `POST_NOTIFICATIONS` is granted on Android 13+.
+- **Foreground Service Permissions**: Fixed a `SecurityException` on Android 14+ by adding mandatory `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_CONNECTED_DEVICE` declarations to the manifests.
+- **Startup Permission Gate**: Expanded the `MainActivity` startup gate to include the notification permission request for Android 13+, ensuring stable background-to-foreground transitions for the Bluetooth HID transport.
+
+### Added
+- **Detailed changes**: [2026-04-19-fido2-android-14-foreground-service-and-notification-fixes.md](docs/changelogs/2026-04-19-fido2-android-14-foreground-service-and-notification-fixes.md)
+
 ## [Unreleased] - 2026-04-18
 
 ### Fixed

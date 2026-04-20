@@ -4,6 +4,27 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
+    <!-- FIDO2 and Bluetooth Permissions (Explicitly in App Manifest for Startup Request) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Required for Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
+        android:usesPermissionFlags="neverForLocation" />
+    
+    <!-- Biometric and KeyStore Permissions -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    
+    <!-- Network permissions for FIDO2 communication -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+
     <application
         android:name=".ChimaliApplication"
         android:allowBackup="true"

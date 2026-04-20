@@ -21,7 +21,7 @@
 - [X] T002 Configure Kotlin Multiplatform and Compose Multiplatform (CMP) plugins in build.gradle.kts
 - [X] T002a Add shared dependencies (SQLDelight, Ktor-crypto, Kermit) to `commonMain` and platform dependencies to `androidMain`
 - [X] T003 Add required permissions to AndroidManifest.xml
-- [X] T004 Create Hilt module in `androidMain` linking Android specific instances to `commonMain` interfaces
+- [X] T004 [DEPRECATED] ~~Create Hilt module in `androidMain` linking Android specific instances to `commonMain` interfaces~~ (Superseded by Phase 8 Koin migration)
 - [X] T005 Configure SQLDelight database setup for credential storage
 - [X] T006 Set up ProGuard rules for FIDO2 and crypto libraries
 - [X] T006a Configure static analysis gates: initialize **Detekt** and **Ktlint** configurations for the feature module. *(refs: NFR-ARCH-040)*
@@ -508,12 +508,21 @@ Focus on User Story 1 (FIDO2 Registration) to deliver minimum viable product:
 - [X] T186 Update `libs.versions.toml` with KMP (Kotlin 2.1+), Koin (4.2.1 + Compiler 1.0.0-RC1), and Signum (3.20.0 indispensable)
 - [X] T187 Refactor root `build.gradle.kts` to apply Koin Compiler plugin and KMP target configurations
 - [X] T188 Migrate `core:common` and `core:security` to KMP; rewrite `HdkManager` and `P256Group` using Signum
-- [X] T189 Replace Hilt with Koin globally: migrate all modules from `@Inject` / `@HiltViewModel` to Koin annotations/DSL
+- [X] T189 Replace Hilt with Koin globally: migrate all modules from `@Inject` / `@HiltViewModel` to **Koin annotations ONLY** per Constitution §III.
 - [X] T190 Migrate `feature:fido2` to KMP/CMP: move UI and domain logic to `commonMain`
 - [X] T191 Implement `expect` declarations for `UserVerificationService` (Biometric) and `BluetoothHidDevice` in `commonMain`; implement `actual` bindings for Android only.
+- [X] T191a Reliable Bluetooth connectivity is ensured by a mandatory "Nearby Devices" permission gate implemented in `MainActivity` at application launch.
 - [X] T192 Setup `iosMain` directory structure across all modules without functional code.
 - [X] T193 [P] Update all unit tests in `commonTest` to verify core logic remains consistent after KMP migration
 - [X] T194 Verify full project compilation for Android and iOS targets with zero static analysis violations
+
+## Phase 9: Bug Fixes & Stability
+
+**Goal**: Resolve FIDO2 registration failures and ensure stable foreground service operation on Android 14+.
+
+- [X] T195 Add `POST_NOTIFICATIONS` permission to `app` and `feature:fido2` manifests for Android 13+ support.
+- [X] T196 Explicitly include `FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE` in `Fido2TransportService.startForeground` to comply with Android 14 requirements.
+- [X] T197 Include `POST_NOTIFICATIONS` in the `MainActivity` startup permission gate on Android 13+.
 
 ---
 

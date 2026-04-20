@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.chimali.fido2.data.transport.Fido2Transport
@@ -91,7 +92,11 @@ class Fido2TransportService : Service() {
     // ── Transport lifecycle ────────────────────────────────────────────────────
 
     private fun startTransport() {
-        startForeground(NOTIFICATION_ID, buildAdvertisingNotification())
+        startForeground(
+            NOTIFICATION_ID,
+            buildAdvertisingNotification(),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+        )
 
         // Listen for incoming requests to push a Heads-Up notification if in background
         uiEventBus.events

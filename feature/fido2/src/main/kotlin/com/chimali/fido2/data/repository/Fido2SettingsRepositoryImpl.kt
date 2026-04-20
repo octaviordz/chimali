@@ -3,6 +3,7 @@ package com.chimali.fido2.data.repository
 import android.content.Context
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
+import org.koin.core.annotation.Single
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 
 
@@ -14,6 +15,7 @@ private const val PREFS_FILE_NAME = "fido2_settings"
  * This ensures that critical authenticator limits are stored securely and persist
  * across application restarts.
  */
+@Single
 class Fido2SettingsRepositoryImpl(
         private val context: Context,
     ) : Fido2SettingsRepository {

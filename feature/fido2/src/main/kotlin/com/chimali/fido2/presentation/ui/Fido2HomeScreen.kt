@@ -166,15 +166,18 @@ fun Fido2HomeScreen(
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                             val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
                             val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            if (!connectGranted || !advertiseGranted) {
+                            val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (!connectGranted || !advertiseGranted || !scanGranted) {
                                 bluetoothPermissionLauncher.launch(
                                     arrayOf(
                                         android.Manifest.permission.BLUETOOTH_CONNECT,
-                                        android.Manifest.permission.BLUETOOTH_ADVERTISE
+                                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                                        android.Manifest.permission.BLUETOOTH_SCAN
                                     )
                                 )
                                 return@TransportToggleButton
                             }
+
                         }
                         try {
                             val discoverableIntent =
