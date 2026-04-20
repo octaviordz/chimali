@@ -662,6 +662,18 @@ class BluetoothHidDeviceWrapper(
                 Timber.d("registerApp attempt %d/%d", attempt, maxRetries)
                 logDiagnosticSnapshot("PRE_REGISTER_$attempt")
 
+                // ── Step 0: Ensure Bluetooth is ON ──
+                // If the user just clicked "Allow" on the system prompt, the state might
+                // be STATE_TURNING_ON. We wait up to 5 seconds for it to reach STATE_ON.
+                var bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
+                var waitAttempt = 0
+                while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON && waitAttempt < 10) {
+                    Timber.d("Bluetooth is turning on, waiting 500ms (attempt %d)...", waitAttempt + 1)
+                    delay(500)
+                    bluetoothState = try { bluetoothAdapter?.state } catch (e: SecurityException) { BluetoothAdapter.ERROR }
+                    waitAttempt++
+                }
+
                 val result =
                     withTimeoutOrNull(cfg.registerTimeoutMs) {
                         suspendCancellableCoroutine<Result<Unit>> { cont ->
@@ -675,25 +687,11 @@ class BluetoothHidDeviceWrapper(
                                 return@suspendCancellableCoroutine
                             }
 
-                            val isEnabled =
-                                try {
-                                    val enabled = bluetoothAdapter?.isEnabled == true
-                                    Timber.d("Bluetooth adapter enabled: %b", enabled)
-                                    enabled
-                                } catch (e: SecurityException) {
-                                    Timber.e(e, "SecurityException checking Bluetooth enabled state")
-                                    cont.resume(
-                                        Result.failure(
-                                            Fido2Exception.BluetoothPermissionDenied("BLUETOOTH_CONNECT permission denied", e),
-                                        ),
-                                    )
-                                    return@suspendCancellableCoroutine
-                                }
-                            if (!isEnabled) {
-                                Timber.w("Bluetooth is disabled, cannot register HID app")
+                            if (bluetoothState != BluetoothAdapter.STATE_ON) {
+                                Timber.w("Bluetooth is not ON (current state: %d), cannot register HID app", bluetoothState)
                                 cont.resume(
                                     Result.failure(
-                                        Fido2Exception.BluetoothException("Bluetooth is disabled"),
+                                        Fido2Exception.BluetoothException("Bluetooth must be enabled to start the authenticator"),
                                     ),
                                 )
                                 return@suspendCancellableCoroutine
@@ -927,6 +925,14 @@ class BluetoothHidDeviceWrapper(
 
         /** Returns true if a Bluetooth host is currently connected. */
         fun isConnected(): Boolean = _connectionState.value is HidConnectionState.Connected
+
+        /**
+         * Transitions the HID state to [HidConnectionState.Error].
+         * Used to propagate external transport or registration failures to the UI.
+         */
+        fun reportError(message: String) {
+            _connectionState.value = HidConnectionState.Error(message)
+        }
 
         // ── Internal helpers ──────────────────────────────────────────────────────
 

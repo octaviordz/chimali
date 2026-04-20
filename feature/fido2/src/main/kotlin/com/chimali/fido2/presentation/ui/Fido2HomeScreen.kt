@@ -81,6 +81,7 @@ fun Fido2HomeScreen(
             }
         }
 
+
     val bluetoothPermissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -101,18 +102,88 @@ fun Fido2HomeScreen(
             }
         }
 
+    val handleToggle = {
+        val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
+        if (isRunning) {
+            viewModel.toggleTransport()
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val notificationsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                
+                if (!connectGranted || !advertiseGranted || !scanGranted || !notificationsGranted) {
+                    bluetoothPermissionLauncher.launch(
+                        arrayOf(
+                            android.Manifest.permission.BLUETOOTH_CONNECT,
+                            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                            android.Manifest.permission.BLUETOOTH_SCAN,
+                            android.Manifest.permission.POST_NOTIFICATIONS
+                        )
+                    )
+                } else {
+                    startBluetoothDiscoverability()
+                }
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                if (!connectGranted || !advertiseGranted || !scanGranted) {
+                    bluetoothPermissionLauncher.launch(
+                        arrayOf(
+                            android.Manifest.permission.BLUETOOTH_CONNECT,
+                            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                            android.Manifest.permission.BLUETOOTH_SCAN
+                        )
+                    )
+                } else {
+                    startBluetoothDiscoverability()
+                }
+            } else {
+                startBluetoothDiscoverability()
+            }
+        }
+    }
+
+    fun startBluetoothDiscoverability() {
+        try {
+            val discoverableIntent =
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                }
+            bluetoothDiscoverableLauncher.launch(discoverableIntent)
+        } catch (e: SecurityException) {
+            showBluetoothError = true
+        }
+    }
+
     if (showBluetoothError) {
         AlertDialog(
             onDismissRequest = { showBluetoothError = false },
             title = { Text("Bluetooth Required") },
             text = {
                 Text(
-                    "Chimali Authenticator requires Bluetooth and visibility to act as a security key. Please allow discoverability to continue.",
+                    "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions to act as a security key. Please allow discoverability and permissions to continue.",
                 )
             },
+            dismissButton = {
+                TextButton(onClick = {
+                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                    showBluetoothError = false
+                }) {
+                    Text("Settings")
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { showBluetoothError = false }) {
-                    Text("OK")
+                TextButton(onClick = {
+                    showBluetoothError = false
+                    handleToggle()
+                }) {
+                    Text("Retry")
                 }
             },
         )
@@ -158,38 +229,7 @@ fun Fido2HomeScreen(
             // Primary Action
             TransportToggleButton(
                 connectionState = connectionState,
-                onToggle = {
-                    val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
-                    if (isRunning) {
-                        viewModel.toggleTransport()
-                    } else {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                            val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            if (!connectGranted || !advertiseGranted || !scanGranted) {
-                                bluetoothPermissionLauncher.launch(
-                                    arrayOf(
-                                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                                        android.Manifest.permission.BLUETOOTH_SCAN
-                                    )
-                                )
-                                return@TransportToggleButton
-                            }
-
-                        }
-                        try {
-                            val discoverableIntent =
-                                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
-                                }
-                            bluetoothDiscoverableLauncher.launch(discoverableIntent)
-                        } catch (e: SecurityException) {
-                            showBluetoothError = true
-                        }
-                    }
-                },
+                onToggle = handleToggle,
             )
 
             ChimaliOutlinedButton(

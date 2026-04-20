@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.data.transport
+package com.chimali.fido2.data.transport
 
 import org.koin.core.annotation.Single
 
@@ -186,10 +186,13 @@ class BluetoothHidTransportImpl(
                 Result.success(Unit)
             } catch (e: Fido2Exception) {
                 Timber.e("connect() failed with Fido2Exception: %s", e.message)
+                hidWrapper.reportError(e.message ?: "HID connection failed")
                 Result.failure(e)
             } catch (e: Exception) {
                 Timber.e(e, "connect() unexpected failure: %s", e.message)
-                Result.failure(Fido2Exception.TransportException("Failed to start HID transport: ${e.message}"))
+                val msg = "Failed to start HID transport: ${e.message}"
+                hidWrapper.reportError(msg)
+                Result.failure(Fido2Exception.TransportException(msg))
             }
         }
 
