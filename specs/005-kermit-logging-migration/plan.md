@@ -1,33 +1,33 @@
 # Implementation Plan: Kermit Logging Migration
 
-**Branch**: `005-kermit-logging-migration` | **Date**: 2026-04-19 | **Spec**: [spec.md](spec.md)
+**Branch**: `005-kermit-logging-migration` | **Date**: 2026-04-20 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/005-kermit-logging-migration/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Migrate the project's logging framework from the Android-specific `Timber` to the Kotlin Multiplatform library `Kermit`. This will be achieved by adding `Kermit` to `libs.versions.toml`, exposing it via `core:common`, implementing a custom `LocalCrashReportingLogWriter` to replace the existing `Timber.Tree`, and replacing all existing `Timber` calls across `app`, `core:security`, and `feature:fido2` with `Logger` calls.
+Migrate the project's logging infrastructure from Timber to Kermit to support Kotlin Multiplatform (KMP). Crucially, the `LocalCrashReportingLogWriter` must be refactored to be fully KMP compatible, replacing Android/JVM specific I/O and Date mechanisms with `okio` and `kotlinx-datetime`, allowing it to be used in `commonMain`.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 2.1+
-**Primary Dependencies**: Kermit 2.x
-**Storage**: Local App Files (rotating 5MB log file `fido2_crash_log.txt`)
-**Testing**: kotlin.test (for commonMain) / JUnit5 (legacy/androidMain)
-**Target Platform**: Android (primary for now), iOS (future)
-**Project Type**: Mobile Application (KMP)
-**Performance Goals**: <50ms startup impact for logging init
-**Constraints**: Privacy scrubbing must run before any disk I/O; No cloud sync.
-**Scale/Scope**: ~30-50 files requiring import replacements.
+**Language/Version**: Kotlin 2.1+  
+**Primary Dependencies**: Kermit 2.x, Okio, Kotlinx-Datetime  
+**Storage**: Local file system (Okio `FileSystem.SYSTEM`)  
+**Testing**: Kotlin multiplatform testing (`kotlin.test`)  
+**Target Platform**: Android, iOS, Desktop (KMP)
+**Project Type**: Mobile Application / KMP Library  
+**Performance Goals**: <50ms cold startup impact, non-blocking I/O or fast synchronous writes  
+**Constraints**: Thread-safe file writing, 5MB log rotation limit, Privacy scrubbing mandatory  
+**Scale/Scope**: All modules in the `Chimali` project  
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Constitution §I (Security First)**: PASS - Privacy Log Scrubber integration is explicitly maintained in the `LogWriter` design to mask sensitive data before local persistence.
-- **Constitution §III (Uncompromising Architecture & Quality)**: PASS - Migrating to Kermit is required for KMP readiness.
-- **Constitution §IV (Performance & Reliability Excellence)**: PASS - Local sink rotation prevents storage exhaustion.
+- **I. Security First**: PrivacyLogScrubber ensures sensitive data is not persisted to disk. Local-only crash logs adhere to Zero-Trust.
+- **III. Uncompromising Architecture**: Refactoring to KMP aligns perfectly with the target architecture.
+- **IV. Performance**: File writing must not block the main thread excessively; thread safety must be efficient.
+
+**Result**: PASS
 
 ## Project Structure
 
@@ -45,21 +45,24 @@ specs/005-kermit-logging-migration/
 ### Source Code (repository root)
 
 ```text
-# Project layout for this migration:
-build.gradle.kts (root)
-gradle/libs.versions.toml
-
-core/common/
-└── build.gradle.kts
-
-feature/fido2/
-└── src/
-    └── main/kotlin/com/chimali/fido2/
-        ├── Fido2Initializer.kt
-        └── util/logging/
-            ├── LocalCrashReportingLogWriter.kt [NEW]
-            ├── LocalCrashReportingTree.kt [DELETE]
-            └── PrivacyLogScrubber.kt [MODIFY]
+feature/fido2/src/
+├── commonMain/
+│   └── kotlin/com/chimali/fido2/util/logging/
+│       ├── LocalCrashReportingLogWriter.kt
+│       ├── PrivacyLogScrubber.kt
+│       └── LogDirectoryProvider.kt (expect/interface)
+├── androidMain/
+│   └── kotlin/com/chimali/fido2/util/logging/
+│       └── AndroidLogDirectoryProvider.kt
+└── iosMain/
+    └── kotlin/com/chimali/fido2/util/logging/
+        └── IosLogDirectoryProvider.kt
 ```
 
-**Structure Decision**: The implementation will follow the existing module structure, focusing on updates to `build.gradle.kts` files and replacing the Timber implementation in `feature:fido2`'s logging utilities.
+**Structure Decision**: The logging utilities will be moved to the `commonMain` source set within the FIDO2 feature (or a shared core logging module if appropriate), utilizing `expect`/`actual` or interface injection for platform-specific directory paths.
+
+## Complexity Tracking
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| Platform-specific I/O logic in common code | We need file writing capabilities across all platforms | Using Android `Context` directly violates KMP and limits the code to Android only. Using `okio` and `expect`/`actual` is the standard KMP approach. |

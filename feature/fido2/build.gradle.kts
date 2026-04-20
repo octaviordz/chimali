@@ -113,6 +113,11 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             // Signum — commonMain-safe cryptographic primitives
             implementation(libs.signum.indispensable)
+            
+            // Logging and IO
+            implementation(libs.kermit)
+            implementation(libs.okio)
+            implementation(libs.kotlinx.datetime)
         }
 
         /**

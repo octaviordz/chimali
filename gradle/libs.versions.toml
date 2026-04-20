@@ -35,6 +35,8 @@ androidx-test-ext-junit = "1.1.5"
 espresso = "3.5.1"
 timber = "5.0.1"
 kermit = "2.0.4"
+okio = "3.9.0"
+kotlinx-datetime = "0.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-ktx" }
@@ -108,6 +110,8 @@ compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
+okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

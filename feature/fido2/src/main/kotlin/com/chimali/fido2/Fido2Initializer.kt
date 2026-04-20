@@ -27,7 +27,7 @@ object Fido2Initializer {
 
         // This writer writes EVERYTHING >= INFO to the local file for post-crash analysis,
         // and ALWAYS masks sensitive parameters via PrivacyLogScrubber.
-        writers.add(LocalCrashReportingLogWriter(context))
+        writers.add(LocalCrashReportingLogWriter(com.chimali.fido2.util.logging.AndroidLogDirectoryProvider(context)))
 
         Logger.setLogWriters(writers)
 

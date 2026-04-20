@@ -1,6 +1,5 @@
 package com.chimali.fido2.util.logging
 
-import android.content.Context
 import co.touchlab.kermit.Severity
 import io.mockk.every
 import io.mockk.mockk
@@ -12,6 +11,7 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import okio.Path.Companion.toOkioPath
 
 /**
  * Tests for [LocalCrashReportingLogWriter].
@@ -33,15 +33,16 @@ class LocalCrashReportingLogWriterTest {
     @TempDir
     lateinit var tempDir: File
 
-    private lateinit var mockContext: Context
+    private lateinit var mockProvider: LogDirectoryProvider
     private lateinit var logDir: File
     private lateinit var logFile: File
     private lateinit var bakFile: File
 
     @BeforeEach
     fun setUp() {
-        mockContext = mockk()
-        every { mockContext.filesDir } returns tempDir
+        mockProvider = object : LogDirectoryProvider {
+            override fun getLogDirectory() = tempDir.resolve("logs").toOkioPath()
+        }
 
         logDir = File(tempDir, "logs")
         logFile = File(logDir, "fido2_crash_log.txt")
@@ -57,7 +58,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `log directory and file are created on first write`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
             assertFalse(logFile.exists(), "Log file should not exist before any write")
 
             writer.log(Severity.Info, "Hello", "StartupTag", null)
@@ -69,7 +70,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `each write appends to the file — size grows monotonically`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
 
             writer.log(Severity.Info, "First entry", "Tag", null)
             val sizeAfterFirst = logFile.length()
@@ -92,7 +93,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `log entry content is written in expected format`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
 
             writer.log(Severity.Info, "Expected content", "MyTag", null)
 
@@ -104,7 +105,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `severity below Info is filtered out and nothing is written`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
 
             writer.log(Severity.Debug, "Debug message — should be suppressed", "Tag", null)
             writer.log(Severity.Verbose, "Verbose message — should be suppressed", "Tag", null)
@@ -114,7 +115,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `Info Warn Error and Assert severities are all written`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
 
             writer.log(Severity.Info, "Info message", "Tag", null)
             writer.log(Severity.Warn, "Warn message", "Tag", null)
@@ -130,7 +131,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `throwable stack trace is appended after the message line`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
             val cause = RuntimeException("test-cause")
 
             writer.log(Severity.Error, "Error with throwable", "CrashTag", cause)
@@ -145,7 +146,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `privacy scrubber is applied — mnemonic is redacted in written content`() {
-            val writer = LocalCrashReportingLogWriter(mockContext)
+            val writer = LocalCrashReportingLogWriter(mockProvider)
             val mnemonic = "abandon ".repeat(23).trim() + " art"
 
             writer.log(Severity.Info, "Seed: $mnemonic", "SecTag", null)
@@ -171,7 +172,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `rotation renames active log to bak when size limit is exceeded`() {
-            val writer = LocalCrashReportingLogWriter(mockContext, maxFileSize = smallCap)
+            val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             // Pad the file past the cap with repeated entries
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
@@ -197,7 +198,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `fresh log file is small after rotation`() {
-            val writer = LocalCrashReportingLogWriter(mockContext, maxFileSize = smallCap)
+            val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
             repeat(20) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
@@ -219,7 +220,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `previous bak is deleted before promoting active log`() {
-            val writer = LocalCrashReportingLogWriter(mockContext, maxFileSize = smallCap)
+            val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             // First rotation cycle
             val padEntry = "First rotation fill entry — long enough to count."
@@ -245,7 +246,7 @@ class LocalCrashReportingLogWriterTest {
 
         @Test
         fun `no rotation occurs when log is below the size cap`() {
-            val writer = LocalCrashReportingLogWriter(mockContext, maxFileSize = smallCap)
+            val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             // Write a single small entry — well below the cap
             writer.log(Severity.Info, "Tiny entry", "Tag", null)

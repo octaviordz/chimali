@@ -1,6 +1,6 @@
 ﻿# Chimali Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-19
+Auto-generated from all feature plans. Last updated: 2026-04-20
 
 ## Active Technologies
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (001-store-credentials)
@@ -15,6 +15,9 @@ Auto-generated from all feature plans. Last updated: 2026-04-19
 - Local App Data directory for crash logs (custom rotating file sink via Timber tree, NEVER shipped to cloud). (004-fido2-hid)
 - Kotlin + BouncyCastle 1.80 (004-fido2-hid)
 - EncryptedSharedPreferences (for Master Seed) (004-fido2-hid)
+- Kotlin 2.1+ + Kermit 2.x, Okio, Kotlinx-Datetime (005-kermit-logging-migration)
+- Local file system (Okio `FileSystem.SYSTEM`) (005-kermit-logging-migration)
+- Kotlin 2.1+ + `co.touchlab:kermit:2.x`, `com.squareup.okio:okio`, `org.jetbrains.kotlinx:kotlinx-datetime` (006-kmp-logging-writer)
 
 - Kotlin 1.9.20+ + Jetpack Compose, Hilt, SQLDelight, SQLCipher, Android Keystore (001-store-credentials)
 
@@ -34,9 +37,9 @@ tests/
 Kotlin 1.9.20+: Follow standard conventions
 
 ## Recent Changes
+- 006-kmp-logging-writer: Added Kotlin 2.1+ + `co.touchlab:kermit:2.x`, `com.squareup.okio:okio`, `org.jetbrains.kotlinx:kotlinx-datetime`
+- 005-kermit-logging-migration: Added Kotlin 2.1+ + Kermit 2.x, Okio, Kotlinx-Datetime
 - 005-kermit-logging-migration: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
-- 004-fido2-hid: Added Kotlin + BouncyCastle 1.80
-- 004-fido2-hid: Added Kotlin 1.9+ (Android Native) + AndroidX, Jetpack Compose, Timber (for structured local logging)
 
 
 <!-- MANUAL ADDITIONS START -->

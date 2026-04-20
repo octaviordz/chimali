@@ -13,6 +13,22 @@ Refactored the entire `:feature:fido2` module to comply with the project's multi
     - Data Transports (`BluetoothHidTransportImpl`)
     - UI Components (`Fido2HomeScreen`)
 
+## KMP Logging Infrastructure (Refactor)
+Refactored the core crash reporting persistence layer to be fully platform-agnostic, enabling it to be moved from `androidMain` to `commonMain`.
+
+### Multiplatform File I/O (Okio)
+- **Dependency Migration**: Replaced all `java.io.File` and `android.content.Context` dependencies with `okio.FileSystem` and `okio.Path`.
+- **Log Rotation**: Ported the 5MB log rotation logic to use `FileSystem.SYSTEM` with metadata-based size checks, ensuring consistent behavior across all KMP targets.
+- **Atomic Appends**: Implemented an `expect`/`actual` `PlatformLock` using `ReentrantLock` (Android/JVM) and `NSRecursiveLock` (iOS) to ensure thread-safe file writing without blocking coroutines or relying on JVM-only `@Synchronized`.
+
+### Multiplatform Time (kotlinx-datetime)
+- **API Update**: Migrated from `System.currentTimeMillis()` and `SimpleDateFormat` to `kotlinx-datetime`.
+- **Kotlin 2.x Compatibility**: Resolved symbol resolution conflicts in `kotlinx-datetime 0.7.1` by utilizing the new `kotlin.time.Clock` standard library API.
+
+### Abstraction & DI
+- **Provider Pattern**: Introduced `LogDirectoryProvider` interface in `commonMain` to abstract platform-specific path resolution.
+- **Implementation**: Added `AndroidLogDirectoryProvider` (using `context.filesDir`) and `IosLogDirectoryProvider` (using `NSApplicationSupportDirectory`).
+
 ## Performance Optimizations
 Addressed "OVER BUDGET" alerts and main-thread blocking during FIDO2 registration ceremonies.
 

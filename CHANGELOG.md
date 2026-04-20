@@ -7,6 +7,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ### Changed
 - **Kermit Logging Migration**: Completed the refactor of 50+ legacy `Timber` calls to `co.touchlab.kermit.Logger` lambda syntax across the `:feature:fido2` module. Standardized all structured diagnostic logging to use native Kotlin string templates instead of `String.format()`, ensuring KMP compatibility and eliminating unnecessary object allocations.
+- **KMP Logging Infrastructure**: Refactored `LocalCrashReportingLogWriter` and `PrivacyLogScrubber` to be fully Kotlin Multiplatform (KMP) compliant. Migrated file I/O to Okio and timestamping to `kotlinx-datetime` (via `kotlin.time`), enabling reliable cross-platform crash logging and log rotation in `commonMain` for Android and iOS targets.
 
 ### Fixed
 - **FIDO2 Performance Optimization (NFR-PERF-030)**:
