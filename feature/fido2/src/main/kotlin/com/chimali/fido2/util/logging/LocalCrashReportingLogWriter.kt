@@ -1,12 +1,10 @@
 package com.chimali.fido2.util.logging
 
 import android.content.Context
-import android.util.Log
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 import java.io.File
 import java.io.FileOutputStream
-import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -58,7 +56,8 @@ class LocalCrashReportingLogWriter(
             buildString {
                 append("$time [$threadName] $priorityStr/$tag: $scrubbedMessage\n")
                 throwable?.let {
-                    val scrubbedTrace = PrivacyLogScrubber.scrub(Log.getStackTraceString(it))
+                    // stackTraceToString() is Kotlin stdlib — no Android dependency, safe in JVM unit tests.
+                    val scrubbedTrace = PrivacyLogScrubber.scrub(it.stackTraceToString())
                     append("$scrubbedTrace\n")
                 }
             }
@@ -79,7 +78,8 @@ class LocalCrashReportingLogWriter(
             }
         } catch (e: Exception) {
             // Fallback for debugging writer issues
-            Log.e("CrashReportingWriter", "Failed to write local log", e)
+            System.err.println("CrashReportingWriter: Failed to write local log: ${e.message}")
+            e.printStackTrace()
         }
     }
 

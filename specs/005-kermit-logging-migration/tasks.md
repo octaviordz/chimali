@@ -64,8 +64,8 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [x] T012 Run app to verify startup time impact is <50ms and logging output is visible in Logcat
-- [x] T013 Simulate a log burst to verify 5MB log file rotation
+- [X] T012 Run app to verify startup time impact is <50ms and logging output is visible in Logcat
+- [X] T013 Simulate a log burst to verify 5MB log file rotation
 
 ---
 

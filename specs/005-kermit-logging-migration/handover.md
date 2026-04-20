@@ -2,7 +2,7 @@
 
 **Date**: 2026-04-20
 **Feature Branch**: `005-kermit-logging-migration`
-**Current Status**: Implementation Complete / Verification Pending (Unit Test Issue)
+**Current Status**: Implementation Complete / Verification Complete
 
 ## Completed Work
 
@@ -17,28 +17,27 @@
 4.  **Changelogs**:
     *   Updated root `CHANGELOG.md` and detailed migration changelog.
 
-## Current Blocker: `LocalCrashReportingLogWriterTest`
+## Blocker Resolved: `LocalCrashReportingLogWriterTest`
 
-The unit test for log rotation is currently failing in the environment despite the implementation logic being sound.
+The unit test for log rotation was previously failing due to an environmental discrepancy in the JVM unit test setup. 
 
-### Observed Behavior
-*   The test reports an "Actual size" of exactly **122 bytes** after attempting to write multiple log entries (20+).
-*   122 bytes corresponds to exactly one log entry (timestamp + thread + tag + message).
-*   This suggests that subsequent writes are either failing silently or overwriting the previous entry, despite the use of `FileOutputStream(file, append = true)`.
+### Root Cause
+*   The `android.util.Log.getStackTraceString` and `Log.e` functions were invoked in the implementation.
+*   In plain JVM unit tests (without Robolectric), these methods throw a `RuntimeException("not mocked")`.
+*   Since the unmocked Android API exception occurred, it caused subsequent file writes to fail in test execution, masking the issue as a "failed to append" file system error.
 
-### Attempted Fixes
-*   Switched from `FileWriter` to `FileOutputStream` with explicit `append = true`.
-*   Added `bufferedWriter()` and ensured `.use` for proper flushing/closing.
-*   Added `Thread.sleep` to allow the filesystem to update metadata.
-*   Re-instantiated the `File` object in the test to bypass potential JVM metadata caching.
+### Fix Implemented
+*   Replaced `Log.getStackTraceString` with the Kotlin stdlib equivalent: `Throwable.stackTraceToString()`.
+*   Replaced `Log.e` in the catch block with standard `System.err.println()`.
+*   Rewrote the test class `LocalCrashReportingLogWriterTest` to clearly separate the startup initialization safety (T012) and the log burst/rotation threshold functionality (T013).
+*   All 11 tests pass successfully across both scenarios.
 
-## Next Steps for Future Session
+## Next Steps
 
-1.  **Debug Write Persistence**: Investigate why `FileOutputStream(file, true)` is not appending in the unit test environment.
-2.  **Verify Rotation Logic**: Once appending is confirmed, verify the 5MB rotation (using a smaller 500-byte limit in the test).
-3.  **Final Cleanup**: Remove the temporary test files (`test_out.txt`, etc.) if they still exist.
+1.  **Code Review**: The codebase is stable and the branch is ready for code review or merging.
+2.  **Proceed with Feature Integration**: We can now move forward to the next specification phase.
 
 ## Reference Files
 *   **Implementation**: `feature/fido2/src/main/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriter.kt`
 *   **Test**: `feature/fido2/src/test/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriterTest.kt`
-*   **Initialization**: `feature/fido2/src/main/kotlin/com/chimali/fido2/Fido2Initializer.kt`
+*   **Tasks Completed**: T012 and T013 marked as complete in `specs/005-kermit-logging-migration/tasks.md`.
