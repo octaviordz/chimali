@@ -1,6 +1,6 @@
 plugins {
-    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
 }
 
@@ -62,7 +62,9 @@ kotlin {
     }
 }
 
+// KSP: Target-specific processor wiring for Koin Annotations (T189)
 dependencies {
-    // Koin Annotations code generator — runs via KSP (T189)
-    ksp(libs.koin.ksp.compiler)
+    add("kspAndroid", libs.koin.ksp.compiler)
+    add("kspIosArm64", libs.koin.ksp.compiler)
+    add("kspIosSimulatorArm64", libs.koin.ksp.compiler)
 }
