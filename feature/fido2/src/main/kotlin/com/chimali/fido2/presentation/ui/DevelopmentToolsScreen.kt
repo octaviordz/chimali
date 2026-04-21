@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -104,6 +105,8 @@ fun DevelopmentToolsScreen(
     )
 }
 
+private val SCANNER_PREVIEW_HEIGHT = 280.dp
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun DevelopmentToolsContent(
@@ -115,15 +118,36 @@ internal fun DevelopmentToolsContent(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var showQrCode by remember { mutableStateOf(false) }
-    var showScanner by remember { mutableStateOf(false) }
-    var showRecoverForm by remember { mutableStateOf(false) }
+    var showScanner by rememberSaveable { mutableStateOf(false) }
+    var showRecoverForm by rememberSaveable { mutableStateOf(false) }
     // 0 = ES256, 1 = ML-DSA-65
     var selectedAlgIndex by remember { mutableIntStateOf(0) }
 
     val cameraLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
-        ) { granted -> if (granted) showScanner = true }
+        ) { granted ->
+            if (granted) {
+                showScanner = true
+            } else {
+                // T008 - Inform user about denial and offer settings redirect
+                scope.launch {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = "Camera permission is required to scan QR codes.",
+                            actionLabel = "Settings",
+                            duration = SnackbarDuration.Long,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        val intent =
+                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.fromParts("package", context.packageName, null)
+                            }
+                        context.startActivity(intent)
+                    }
+                }
+            }
+        }
 
     Scaffold(
         topBar = {
@@ -375,15 +399,47 @@ internal fun DevelopmentToolsContent(
                 }
 
                 if (showRecoverForm) {
+                    // T007/T008 - Handle permission rationale and denial
+                    var showRationale by remember { mutableStateOf(false) }
+
+                    if (showRationale) {
+                        AlertDialog(
+                            onDismissRequest = { showRationale = false },
+                            title = { Text("Camera Permission") },
+                            text = { Text("The camera is required to scan the recovery mnemonic QR code.") },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showRationale = false
+                                    cameraLauncher.launch(Manifest.permission.CAMERA)
+                                }) {
+                                    Text("Allow")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showRationale = false }) {
+                                    Text("Cancel")
+                                }
+                            },
+                        )
+                    }
+
                     // QR scan button
                     if (!showScanner) {
                         ChimaliTonalButton(
                             onClick = {
                                 val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                                if (status == PackageManager.PERMISSION_GRANTED) {
-                                    showScanner = true
-                                } else {
-                                    cameraLauncher.launch(Manifest.permission.CAMERA)
+                                when {
+                                    status == PackageManager.PERMISSION_GRANTED -> {
+                                        showScanner = true
+                                    }
+                                    (context as? FragmentActivity)?.let {
+                                        androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                                    } == true -> {
+                                        showRationale = true
+                                    }
+                                    else -> {
+                                        cameraLauncher.launch(Manifest.permission.CAMERA)
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -393,7 +449,7 @@ internal fun DevelopmentToolsContent(
                             Text("Scan QR Code")
                         }
                     } else {
-                        Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {
                             MnemonicQrScanner(
                                 onScanned = { words ->
                                     showScanner = false
@@ -404,7 +460,22 @@ internal fun DevelopmentToolsContent(
                                 },
                                 onError = { errMsg ->
                                     showScanner = false
-                                    scope.launch { snackbarHostState.showSnackbar(errMsg) }
+                                    scope.launch {
+                                        val result =
+                                            snackbarHostState.showSnackbar(
+                                                message = errMsg,
+                                                actionLabel = "Settings",
+                                                duration = SnackbarDuration.Long,
+                                            )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            // T008 - Redirect to settings on permanent denial
+                                            val intent =
+                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
+                                                }
+                                            context.startActivity(intent)
+                                        }
+                                    }
                                 },
                             )
                         }

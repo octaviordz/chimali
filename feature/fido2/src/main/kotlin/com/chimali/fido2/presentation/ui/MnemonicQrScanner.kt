@@ -55,9 +55,13 @@ fun MnemonicQrScanner(
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasScanned by remember { mutableStateOf(false) }
     val executor = remember { Executors.newSingleThreadExecutor() }
+    val scanner = remember { BarcodeScanning.getClient() }
 
     DisposableEffect(Unit) {
-        onDispose { executor.shutdown() }
+        onDispose {
+            executor.shutdown()
+            scanner.close()
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -80,14 +84,14 @@ fun MnemonicQrScanner(
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         if (!hasScanned) {
-                            processImageProxy(imageProxy) { rawValue ->
+                            processImageProxy(imageProxy, scanner) { rawValue ->
                                 val words = rawValue.trim().split("\\s+".toRegex())
                                 if (words.size == 24) {
                                     hasScanned = true
                                     onScanned(words)
                                 } else {
-                                    Logger.w { "QR scan had ${words.size} words, need 24" }
-                                    onError("QR code must encode exactly 24 words (found ${words.size}).")
+                                    // T005 - Non-critical validation error: log and continue scanning
+                                    Logger.w { "QR scan had ${words.size} words, need 24. Continuing scanner..." }
                                 }
                             }
                         }
@@ -109,6 +113,15 @@ fun MnemonicQrScanner(
                 previewView
             },
             modifier = Modifier.fillMaxSize(),
+            onRelease = {
+                // T004 - Ensure camera provider unbinds on release
+                try {
+                    val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+                    cameraProvider.unbindAll()
+                } catch (e: Exception) {
+                    Logger.e(e) { "Failed to unbind camera on release" }
+                }
+            },
         )
 
         Text(
@@ -126,11 +139,11 @@ fun MnemonicQrScanner(
 @OptIn(ExperimentalGetImage::class)
 private fun processImageProxy(
     imageProxy: ImageProxy,
+    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
     onResult: (String) -> Unit,
 ) {
     val mediaImage = imageProxy.image ?: return imageProxy.close()
     val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-    val scanner = BarcodeScanning.getClient()
     scanner.process(image)
         .addOnSuccessListener { barcodes ->
             barcodes.firstOrNull()?.rawValue?.let { onResult(it) }

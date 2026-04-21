@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-20
 - Kotlin 2.1+ + Kermit 2.x, Okio, Kotlinx-Datetime (005-kermit-logging-migration)
 - Local file system (Okio `FileSystem.SYSTEM`) (005-kermit-logging-migration)
 - Kotlin 2.1+ + `co.touchlab:kermit:2.x`, `com.squareup.okio:okio`, `org.jetbrains.kotlinx:kotlinx-datetime` (006-kmp-logging-writer)
+- Kotlin 1.9+, Android SDK 28+ + Jetpack Compose, CameraX, ML Kit (Barcode Scanning), Koin (DI) (009-fix-devtools-qr-scan)
+- EncryptedSharedPreferences (AES-256-GCM) for master seed persistence (009-fix-devtools-qr-scan)
 
 - Kotlin 1.9.20+ + Jetpack Compose, Hilt, SQLDelight, SQLCipher, Android Keystore (001-store-credentials)
 
@@ -37,6 +39,7 @@ tests/
 Kotlin 1.9.20+: Follow standard conventions
 
 ## Recent Changes
+- 009-fix-devtools-qr-scan: Added Kotlin 1.9+, Android SDK 28+ + Jetpack Compose, CameraX, ML Kit (Barcode Scanning), Koin (DI)
 - 006-kmp-logging-writer: Added Kotlin 2.1+ + `co.touchlab:kermit:2.x`, `com.squareup.okio:okio`, `org.jetbrains.kotlinx:kotlinx-datetime`
 - 005-kermit-logging-migration: Added Kotlin 2.1+ + Kermit 2.x, Okio, Kotlinx-Datetime
 
