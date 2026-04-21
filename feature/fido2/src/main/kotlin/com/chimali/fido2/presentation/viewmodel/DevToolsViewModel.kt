@@ -101,9 +101,9 @@ class DevToolsViewModel(
                 is DevToolsIntent.DismissError -> _state.update { it.copy(error = null) }
                 is DevToolsIntent.RecoverFromSeed -> recoverFromSeed(intent.words)
                 is DevToolsIntent.CopyToClipboard -> {
-                    _state.value.mnemonicWords?.joinToString(" ")?.let {
-                        clipboardManagerService.copySensitiveData("Chimali Master Seed", it)
+                    _state.value.mnemonicWords?.joinToString(" ")?.let { text ->
                         viewModelScope.launch {
+                            clipboardManagerService.copySensitiveData("Chimali Master Seed", text)
                             _effects.send(DevToolsEffect.ShowSnackbar("Mnemonic copied safely. It will clear in 60s."))
                         }
                     }

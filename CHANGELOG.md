@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-21
+
+### Changed
+- **KMP Migration of `core:domain`**: Migrated the business logic layer to Kotlin Multiplatform (KMP). Standardized on `@Serializable` domain entities and implemented platform-agnostic repository interfaces and use cases, verified with cross-platform tests.
+- **Clipboard Service Stabilization**: Refactored `ClipboardManagerService` to be asynchronous (`suspend`), enabling thread-safe coroutine-based synchronization via `Mutex`. Resolved compilation errors and updated all callers in `DevToolsViewModel` and `CredentialUseCases`.
+
+### Fixed
+- **Clipboard Concurrency & Syntax**: Resolved a compilation failure in `AndroidClipboardManagerService` by correctly using `Mutex.withLock` within a coroutine context. Fixed property hiding and syntax errors in `ClipboardError.kt`.
+
+### Added
+- **Detailed changes**: [2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md](docs/changelogs/2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md)
+
 ## [Unreleased] - 2026-04-20
 
 ### Changed

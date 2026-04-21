@@ -10,6 +10,8 @@ import platform.Foundation.NSString
 import platform.UIKit.UIPasteboard
 
 import org.koin.core.annotation.Single
+import com.chimali.core.events.ClipboardEvent
+import com.chimali.core.events.Fido2EventBus
 
 /**
  * iOS implementation of [ClipboardManagerService] using UIPasteboard.
@@ -23,28 +25,51 @@ class IosClipboardManagerService(
     private val pasteboard = UIPasteboard.generalPasteboard
     private val scope = CoroutineScope(Dispatchers.Main)
     private var clearJob: Job? = null
-
-    override fun copySensitiveData(label: String, text: String, clearDelayMs: Long) {
-        logger.i { "iOS Clipboard: Copying sensitive data with label '$label'" }
-        
-        // Set the text to the general pasteboard
-        pasteboard.string = text
-        
-        // Reset the timer for automatic clearing
-        clearJob?.cancel()
-        clearJob = scope.launch {
-            delay(clearDelayMs)
-            clearClipboard()
+    
+    override suspend fun copySensitiveData(label: String, text: String, clearDelayMs: Long): Result<Unit> {
+        return try {
+            logger.i { 
+                "iOS Clipboard: Copying sensitive data" +
+                "| label: $label" +
+                "| length: ${text.length}" +
+                "| clearDelay: ${clearDelayMs}ms"
+            }
+            
+            // Set the text to the general pasteboard
+            pasteboard.string = text
+            
+            // Reset the timer for automatic clearing
+            clearJob?.cancel()
+            clearJob = scope.launch {
+                delay(clearDelayMs)
+                clearClipboard()
+            }
+            
+            // Note: Content change event publishing can be added when event system is integrated
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            logger.e(e) { "iOS Clipboard: Copy failed - ${e.message}" }
+            Result.failure(ClipboardError.PlatformError("iOS", e::class.java?.simpleName, e.message ?: "Unknown error", e))
         }
     }
 
-    override fun clearClipboard() {
-        logger.i { "iOS Clipboard: Clearing clipboard" }
-        
-        clearJob?.cancel()
-        clearJob = null
-        
-        // Clear the pasteboard by setting it to null
-        pasteboard.string = null
+    override suspend fun clearClipboard(): Result<Unit> {
+        return try {
+            logger.i { "iOS Clipboard: Clearing clipboard" }
+            
+            clearJob?.cancel()
+            clearJob = null
+            
+            // Clear the pasteboard by setting it to null
+            pasteboard.string = null
+            
+            // Note: Auto-clear event publishing can be added when event system is integrated
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            logger.e(e) { "iOS Clipboard: Clear failed - ${e.message}" }
+            Result.failure(ClipboardError.PlatformError("iOS", e::class.java?.simpleName, e.message ?: "Unknown error", e))
+        }
     }
 }

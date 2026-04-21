@@ -15,7 +15,7 @@
 
 **Purpose**: Project initialization and KMP build configuration
 
-- [ ] T001 Configure core:domain/build.gradle.kts for KMP and KSP with target-specific processors
+- [X] T001 Configure core:domain/build.gradle.kts for KMP and KSP with target-specific processors
 
 ---
 
@@ -23,7 +23,7 @@
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T002 Create KMP source directory structure (commonMain, androidMain, iosMain) in core/domain/src/
+- [X] T002 Create KMP source directory structure (commonMain, androidMain, iosMain) in core/domain/src/
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -37,8 +37,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [P] [US1] Create base UseCase interface in core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/UseCase.kt
-- [ ] T004 [P] [US1] Create base DomainModel placeholder in core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/DomainModel.kt
+- [X] T003 [P] [US1] Create base UseCase interface in core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/UseCase.kt
+- [X] T004 [P] [US1] Create base DomainModel placeholder in core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/DomainModel.kt
 
 **Checkpoint**: User Story 1 should be fully functional and testable independently
 
@@ -52,8 +52,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T005 [P] [US2] Clean up unused Android-only dependencies from core/domain/build.gradle.kts
-- [ ] T006 [US2] Move any residual Android-specific code to androidMain (if found during migration)
+- [X] T005 [P] [US2] Clean up unused Android-only dependencies from core/domain/build.gradle.kts
+- [X] T006 [US2] Move any residual Android-specific code to androidMain (if found during migration)
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently
 
@@ -63,54 +63,44 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T007 [P] Verify Android compilation with ./gradlew :core:domain:assembleDebug
-- [ ] T008 [P] Verify iOS compilation with ./gradlew :core:domain:iosArm64MainKlibrary
-- [ ] T009 [P] Update module documentation and Run quickstart.md validation
+- [X] T007 [P] Verify Android compilation with ./gradlew :core:domain:assembleDebug
+- [X] T008 [P] Verify iOS compilation with ./gradlew :core:domain:iosArm64MainKlibrary
+- [X] T009 [P] Update module documentation and Run quickstart.md validation
 
 ---
 
-## Dependencies & Execution Order
+# Part 2: Domain Layer Implementation
 
-### Phase Dependencies
+**Input**: `domain-kmp-migration-plan.md`
 
-- **Setup (Phase 1)**: No dependencies - can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
-- **User Stories (Phase 3+)**: All depend on Foundational phase completion
-- **Polish (Final Phase)**: Depends on all desired user stories being complete
+## Phase 6: Foundation Enhancement (High Priority)
 
-### User Story Dependencies
+- [X] T101 [P] Create `BaseUseCase` abstract classes (`BaseUseCase`, `BaseUseCaseNoParams`, `BaseUseCaseIn`) in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/BaseUseCase.kt`
+- [X] T102 [P] Create Value Objects (`CredentialId`, `PasskeyId`, `EncryptedString`, `CredentialCategory`, `CredentialTag`) in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/ValueObjects.kt`
+- [X] T103 Create `Credential` domain model in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/Credential.kt` (depends on T102)
+- [X] T104 Create `Passkey` domain model in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/Passkey.kt` (depends on T102)
 
-- **User Story 1 (P1)**: Can start after Foundational (Phase 2)
-- **User Story 2 (P2)**: Can start after Foundational (Phase 2)
+## Phase 7: Repository Layer (High Priority)
 
-### Parallel Opportunities
+- [X] T201 [P] Create `CredentialRepository` interface in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/repository/CredentialRepository.kt` (depends on T103)
+- [X] T202 [P] Create `PasskeyRepository` interface in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/repository/PasskeyRepository.kt` (depends on T104)
 
-- T003 and T004 can run in parallel
-- T005, T007, and T008 can run in parallel
+## Phase 8: Business Logic Use Cases & Validation (High Priority)
 
----
+- [X] T301 [P] Create `DomainException` hierarchy in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/exception/DomainException.kt`
+- [X] T302 [P] Create `Validator` interface and `CredentialValidator` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/validation/Validator.kt`
+- [X] T303 Create Credential UseCases (`GetCredentialsUseCase`, `SearchCredentialsUseCase`, `SaveCredentialUseCase`, `CopyCredentialToClipboardUseCase`) with `@Factory` annotations in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/credential/` (depends on T201, T302)
+- [X] T304 Create Passkey UseCases (`GetPasskeysUseCase`, `CreatePasskeyUseCase`) with `@Factory` annotations in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/passkey/` (depends on T202)
 
-## Parallel Example: User Story 1
+## Phase 9: Cross-Cutting Concerns
 
-```bash
-# Launch all models/interfaces for User Story 1 together:
-Task: "Create base UseCase interface in core/domain/src/commonMain/kotlin/com/chimali/core/domain/usecase/UseCase.kt"
-Task: "Create base DomainModel placeholder in core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/DomainModel.kt"
-```
+- [X] T401 [P] Implement `TimeProvider` using `kotlinx-datetime` and `@Single` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/time/TimeProvider.kt`
+- [X] T402 [P] Create `DomainModule` with `@Module` and `@ComponentScan` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/di/DomainModule.kt`
 
----
+## Phase 10: Testing Infrastructure (Medium Priority)
 
-## Implementation Strategy
+- [X] T501 [P] Create `FakeCredentialRepository` and `TestDataFactory` in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/`
 
-### MVP First (User Story 1 Only)
+## Phase 11: Polish
 
-1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational
-3. Complete Phase 3: User Story 1
-4. **STOP and VALIDATE**: Verify commonMain accessibility
-
-## Notes
-
-- [P] tasks = different files, no dependencies
-- [Story] label maps task to specific user story for traceability
-- No need to create code files in iosMain; structure is enough.
+- [X] T601 Compile and run unit tests for `core:domain` using `kotlin-test` to verify dependency wiring and syntax (`./gradlew :core:domain:allTests`).

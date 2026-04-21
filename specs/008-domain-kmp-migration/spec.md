@@ -8,7 +8,7 @@
 ## Clarifications
 
 ### Session 2026-04-21
-- Q: Does the migration include moving any existing UseCases from feature modules, or is it strictly a structural setup? → A: Strictly structural setup (configure KMP build and source sets only).
+- Q: Does the migration include moving any existing UseCases from feature modules? → A: Yes, current Android code should be refactored and migrated to the common module if feasible for reuse across platforms.
 - Q: Should we include common domain-level libraries like kotlinx-serialization or kotlinx-datetime in the initial configuration? → A: Core only (Coroutines + Koin Annotations).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -49,12 +49,14 @@ As an architect, I want the domain module to be free of platform-specific depend
 - **FR-003**: The module MUST provide a `commonMain` source set for shared domain models, use case interfaces, and repository definitions.
 - **FR-004**: The `core:domain` module MUST integrate with Koin Annotations using target-specific KSP processors to ensure multiplatform DI compatibility.
 - **FR-005**: All existing Android-specific dependencies in `core:domain` MUST be moved to `androidMain` or replaced with multiplatform equivalents.
-- **FR-006**: The migration is strictly structural; moving existing business logic from feature modules is OUT OF SCOPE.
+- **FR-006**: Existing Android business logic MUST be refactored and migrated to `commonMain` where feasible, ensuring it is KMP compatible and reusable across other platforms.
 
 ### Key Entities *(include if feature involves data)*
 
 - **UseCase**: Represents a unit of business logic.
 - **DomainModel**: Platform-agnostic data representation.
+- **Credential**: Core domain entity representing a user's stored credential.
+- **Passkey**: Core domain entity representing a FIDO2 passkey.
 
 ## Success Criteria *(mandatory)*
 
