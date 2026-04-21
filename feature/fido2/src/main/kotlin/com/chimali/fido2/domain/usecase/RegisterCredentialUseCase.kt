@@ -19,7 +19,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
-import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
@@ -30,14 +30,14 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
  * Handles the complete credential registration flow with user verification.
  */
 @Factory
-class RegisterCredentialUseCase
-   (
-        private val credentialRepository: CredentialRepository,
-        private val userVerificationService: UserVerificationService,
-        private val cborCodec: CborCodec,
-        private val cryptoService: Fido2CryptoService,
-        private val settingsRepository: Fido2SettingsRepository,
-    ) {
+class RegisterCredentialUseCase(
+    private val passkeyCredentialRepository: PasskeyCredentialRepository,
+    private val userVerificationService: UserVerificationService,
+    private val cborCodec: CborCodec,
+    private val cryptoService: Fido2CryptoService,
+    private val settingsRepository: Fido2SettingsRepository,
+) {
+
         companion object {
             private const val MAX_CHALLENGE_SIZE = 64
             private const val MAX_TIMEOUT_MS = 300_000 // 5 minutes
@@ -100,7 +100,7 @@ class RegisterCredentialUseCase
 
                     // Validate credential creation with repository
                     val validationResult =
-                        credentialRepository.validateCredentialCreation(
+                        passkeyCredentialRepository.validateCredentialCreation(
                             rpId = options.rp.id,
                             userId = String(options.user.id),
                         )
@@ -113,7 +113,7 @@ class RegisterCredentialUseCase
                     // FR-HID-022: Enforce global storage limit.
                     // Query total credential count and fail with CTAP2_ERR_KEY_STORE_FULL (0x28)
                     // if the device has reached capacity (default 50, configurable).
-                    val stats = credentialRepository.getCredentialStatistics()
+                    val stats = passkeyCredentialRepository.getCredentialStatistics()
                     val limit = settingsRepository.getMaxCredentialCount()
                     if (stats.totalCredentials >= limit) {
                         Result.failure(Fido2Exception.TooManyCredentials(limit))
@@ -128,7 +128,7 @@ class RegisterCredentialUseCase
                             val credential = credentialGenerationResult.getOrThrow()
 
                             // Store the credential
-                            val storageResult = credentialRepository.saveCredential(credential)
+                            val storageResult = passkeyCredentialRepository.saveCredential(credential)
                             if (storageResult.isFailure) {
                                 Result.failure(
                                     storageResult.exceptionOrNull() ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"),
@@ -271,11 +271,11 @@ class RegisterCredentialUseCase
          * Updates relying party information in the repository.
          */
         private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity): Result<Unit> {
-            val existingRp = credentialRepository.getRelyingParty(rp.id)
+            val existingRp = passkeyCredentialRepository.getRelyingParty(rp.id)
             val rpToSave =
                 existingRp?.withCredentialCount(existingRp.credentialCount + 1)
                     ?: RelyingParty.create(rp.id, rp.name, rp.icon)
-            return credentialRepository.saveRelyingParty(rpToSave)
+            return passkeyCredentialRepository.saveRelyingParty(rpToSave)
         }
 
         /**

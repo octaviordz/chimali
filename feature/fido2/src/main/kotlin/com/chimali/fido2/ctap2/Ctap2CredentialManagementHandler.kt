@@ -6,6 +6,7 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import co.touchlab.kermit.Logger
 import java.security.MessageDigest
@@ -73,7 +74,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 1: getCredsMetadata ───────────────────────────────────────
 
         private suspend fun handleGetCredsMetadata(): ByteArray {
-            val credentials = getAllCredentialsUseCase().toList()
+            val credentials = getAllCredentialsUseCase().first()
             val numCredentials = credentials.size
 
             val response =
@@ -88,7 +89,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 2: enumerateRPsBegin ──────────────────────────────────────
 
         private suspend fun handleEnumerateRPsBegin(): ByteArray {
-            val allCredentials = getAllCredentialsUseCase().toList()
+            val allCredentials = getAllCredentialsUseCase().first()
             if (allCredentials.isEmpty()) {
                 return byteArrayOf(CTAP2_ERR_NO_CREDENTIALS)
             }
@@ -96,7 +97,7 @@ class Ctap2CredentialManagementHandler(
             // Group credentials by rpId and build enumeration entries
             rpEnumerationSession =
                 allCredentials
-                    .groupBy { it.rpId }
+                    .groupBy { cred -> cred.rpId }
                     .map { (rpId, creds) ->
                         val rpName = credentialRepository.getRelyingParty(rpId)?.name ?: rpId
                         RpEntry(
@@ -262,11 +263,11 @@ class Ctap2CredentialManagementHandler(
                 if (entry.rpIdHash.contentEquals(hash)) return entry.rpId
             }
             // Otherwise, scan all credentials for a matching rpId
-            val allCredentials = getAllCredentialsUseCase().toList()
+            val allCredentials = getAllCredentialsUseCase().first()
             return allCredentials
-                .map { it.rpId }
+                .map { cred -> cred.rpId }
                 .distinct()
-                .firstOrNull { sha256(it.toByteArray()).contentEquals(hash) }
+                .firstOrNull { rpId -> sha256(rpId.toByteArray()).contentEquals(hash) }
         }
 
         // ── Internal data classes ────────────────────────────────────────────────

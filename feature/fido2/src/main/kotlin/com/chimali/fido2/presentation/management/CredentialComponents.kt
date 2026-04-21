@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,37 +29,52 @@ fun CredentialItem(
     ListItem(
         headlineContent = {
             Text(
-                text = credential.label ?: "User: ${credential.userName}",
-                fontWeight = if (credential.label != null) FontWeight.Bold else FontWeight.Normal,
+                text = credential.rpId,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium
             )
         },
         supportingContent = {
             Column {
-                if (credential.label != null) {
-                    Text(
-                        text = "User: ${credential.userName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text("RP: ${credential.rpId}")
+                Text(
+                    text = credential.userName,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Last used: ${credential.lastUsedAt.toString().substring(0, 10)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         leadingContent = {
-            Icon(
-                imageVector = if (credential.label != null) Icons.Default.Label else Icons.Default.AccountCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = credential.rpId.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
         },
         trailingContent = {
             IconButton(onClick = { onDeleteClick(credential) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         },
         modifier = Modifier.clickable { onClick(credential) },
     )
 }
+
 
 /** T123 — Confirmation Dialog */
 @Composable

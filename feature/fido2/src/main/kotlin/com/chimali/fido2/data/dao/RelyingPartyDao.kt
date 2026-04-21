@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.data.dao
+package com.chimali.fido2.data.dao
 
 import org.koin.core.annotation.Single
 
@@ -19,9 +19,9 @@ class RelyingPartyDao(
         private val database: Fido2Database,
     ) {
         /**
-         * Inserts a new relying party into the database.
+         * Inserts or updates a relying party in the database (Upsert).
          */
-        suspend fun insertRelyingParty(rp: RelyingParty) {
+        suspend fun insertOrUpdateRelyingParty(rp: RelyingParty) {
             database.relyingPartyQueries.insert(
                 id = rp.id,
                 createdAt = rp.createdAt.toEpochMilli(),

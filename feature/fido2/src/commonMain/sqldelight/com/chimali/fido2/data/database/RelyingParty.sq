@@ -1,6 +1,12 @@
 insert:
 INSERT INTO RelyingParty (id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  lastUsedAt = excluded.lastUsedAt,
+  credentialCount = excluded.credentialCount,
+  iconUrl = excluded.iconUrl,
+  isBlocked = excluded.isBlocked,
+  name = excluded.name;
 
 update:
 UPDATE RelyingParty

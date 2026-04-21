@@ -283,15 +283,3 @@ interface CredentialRepository {
         label: String?,
     ): Result<Unit>
 }
-
-/**
- * Data class representing credential statistics.
- */
-data class CredentialStatistics(
-    val totalCredentials: Int,
-    val credentialsByRp: Map<String, Int>,
-    val expiredCredentials: Int,
-    val recentlyUsedCredentials: Int,
-    val credentialsRequiringUserVerification: Int,
-    val averageAgeDays: Double,
-)

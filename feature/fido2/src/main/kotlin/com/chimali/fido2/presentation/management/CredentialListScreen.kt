@@ -4,14 +4,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.presentation.ui.BiometricPromptComponent
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -24,37 +26,96 @@ fun CredentialListScreen(
     viewModel: CredentialManagementViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var searchQuery by remember { mutableStateOf("") }
+    var showBiometricPrompt by remember { mutableStateOf<PasskeyCredential?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is CredentialManagementEffect.ShowToast -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+                is CredentialManagementEffect.ShowUndoSnackbar -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = effect.message,
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onIntent(CredentialManagementIntent.UndoDelete)
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Passkeys",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete All")
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Passkeys",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateUp) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
                     }
-                },
-            )
+                )
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(it))
+                    },
+                    onSearch = { },
+                    active = false,
+                    onActiveChange = { },
+                    placeholder = { Text("Search passkeys") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = {
+                                searchQuery = ""
+                                viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(""))
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) { }
+            }
         },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (state.isLoading && state.credentials.isEmpty()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (state.credentials.isEmpty()) {
-                Text(
-                    text = "No passkeys found.",
+                Column(
                     modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (searchQuery.isEmpty()) "No passkeys yet." else "No results for \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
                     items(state.credentials, key = { it.id }) { credential ->
                         CredentialItem(
                             credential = credential,
@@ -67,24 +128,35 @@ fun CredentialListScreen(
         }
     }
 
-    // Delete Confirmation Dialog for single credential
+    // Delete Confirmation Dialog
     state.credentialToDelete?.let { credential ->
         DeleteConfirmationDialog(
             title = "Delete Passkey?",
-            message = "Are you sure you want to delete the passkey for ${credential.userName}? This cannot be undone.",
-            onConfirm = { viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credential.id)) },
+            message = "This will permanently remove the passkey for ${credential.userName} from this device.",
+            onConfirm = {
+                viewModel.onIntent(CredentialManagementIntent.DismissDialog)
+                showBiometricPrompt = credential
+            },
             onDismiss = { viewModel.onIntent(CredentialManagementIntent.DismissDialog) },
         )
     }
 
-    // Delete All Confirmation
-    if (state.showDeleteAllWarning) {
-        DeleteConfirmationDialog(
-            title = "Delete All Passkeys?",
-            message = "This will permanently delete all passkeys stored on this device. You may lose access to your accounts.",
-            onConfirm = { viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll) },
-            onDismiss = { viewModel.onIntent(CredentialManagementIntent.DismissDialog) },
-            isDestructive = true,
+    // Biometric Auth for Deletion
+    showBiometricPrompt?.let { credential ->
+        BiometricPromptComponent(
+            title = "Confirm Deletion",
+            subtitle = "Verify your identity to delete the passkey for ${credential.rpId}",
+            onSuccess = {
+                showBiometricPrompt = null
+                viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credential.id))
+            },
+            onError = { _, _ ->
+                showBiometricPrompt = null
+                scope.launch { snackbarHostState.showSnackbar("Authentication failed") }
+            },
+            onFallback = {
+                showBiometricPrompt = null
+            }
         )
     }
 
@@ -97,9 +169,8 @@ fun CredentialListScreen(
                 viewModel.onIntent(CredentialManagementIntent.DismissDialog)
                 viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(credential))
             },
-            onUpdateLabel = { label ->
-                viewModel.onIntent(CredentialManagementIntent.UpdateLabel(credential.id, label))
-            },
+            onUpdateLabel = { /* Not in scope for FR */ }
         )
     }
 }
+

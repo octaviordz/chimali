@@ -8,12 +8,15 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Changed
 - **KMP Migration of `core:domain`**: Migrated the business logic layer to Kotlin Multiplatform (KMP). Standardized on `@Serializable` domain entities and implemented platform-agnostic repository interfaces and use cases, verified with cross-platform tests.
 - **Clipboard Service Stabilization**: Refactored `ClipboardManagerService` to be asynchronous (`suspend`), enabling thread-safe coroutine-based synchronization via `Mutex`. Resolved compilation errors and updated all callers in `DevToolsViewModel` and `CredentialUseCases`.
+- **FIDO2 Database Stability**: Implemented atomic `UPSERT` for `RelyingParty` using `sqlite-3-38-dialect` to fix primary key collisions during re-registration. Aligned JVM targets to `JVM_17` to resolve build inconsistencies.
 
 ### Fixed
 - **Clipboard Concurrency & Syntax**: Resolved a compilation failure in `AndroidClipboardManagerService` by correctly using `Mutex.withLock` within a coroutine context. Fixed property hiding and syntax errors in `ClipboardError.kt`.
+- **Passkey Algorithm Validation**: Added support for `COSE_RS256` (-257) in the `PasskeyCredential` model, resolving crashes when loading credentials registered with RSA keys.
+- **Management UI Navigation**: Fixed unresponsive "Close" button in Passkey Details by ensuring correct state dismissal in `CredentialManagementViewModel`.
 
 ### Added
-- **Detailed changes**: [2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md](docs/changelogs/2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md)
+- **Detailed changes**: [2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md](docs/changelogs/2026-04-21-core-domain-kmp-migration-and-clipboard-service-fixes.md) & [2026-04-21-fido2-database-stability-and-rs256-support.md](docs/changelogs/2026-04-21-fido2-database-stability-and-rs256-support.md)
 
 ## [Unreleased] - 2026-04-20
 

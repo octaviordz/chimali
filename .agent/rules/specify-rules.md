@@ -39,9 +39,9 @@ tests/
 Kotlin 1.9.20+: Follow standard conventions
 
 ## Recent Changes
+- 010-manage-passkeys: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 - 009-fix-devtools-qr-scan: Added Kotlin 1.9+, Android SDK 28+ + Jetpack Compose, CameraX, ML Kit (Barcode Scanning), Koin (DI)
 - 006-kmp-logging-writer: Added Kotlin 2.1+ + `co.touchlab:kermit:2.x`, `com.squareup.okio:okio`, `org.jetbrains.kotlinx:kotlinx-datetime`
-- 005-kermit-logging-migration: Added Kotlin 2.1+ + Kermit 2.x, Okio, Kotlinx-Datetime
 
 
 <!-- MANUAL ADDITIONS START -->

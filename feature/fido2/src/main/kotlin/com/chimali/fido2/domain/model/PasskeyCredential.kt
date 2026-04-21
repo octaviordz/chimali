@@ -71,7 +71,12 @@ data class PasskeyCredential(
         }
 
         // Validate COSE Algorithm
-        require(coseAlgorithm == COSE_ES256 || coseAlgorithm == COSE_ED25519 || coseAlgorithm == COSE_ML_DSA_65) {
+        require(
+            coseAlgorithm == COSE_ES256 ||
+            coseAlgorithm == COSE_ED25519 ||
+            coseAlgorithm == COSE_ML_DSA_65 ||
+            coseAlgorithm == COSE_RS256
+        ) {
             "Unsupported COSE algorithm ID: $coseAlgorithm"
         }
     }
@@ -132,6 +137,7 @@ data class PasskeyCredential(
         // COSE algorithm IDs
         const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
         const val COSE_ED25519 = -19 // EdDSA
+        const val COSE_RS256 = -257 // RSASSA-PKCS1-v1_5 with SHA-256 (WebAuthn §5.8.5)
 
         /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID. */
         const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)

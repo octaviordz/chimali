@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.data.dao
+package com.chimali.fido2.data.dao
 
 import org.koin.core.annotation.Single
 
@@ -60,6 +60,17 @@ class PasskeyCredentialDao(
         }
 
         /**
+         * Retrieves all credentials for a specific RP and user (sync).
+         */
+        fun getCredentialsByRpIdAndUserId(
+            rpId: String,
+            userId: String,
+        ): List<PasskeyCredentialEntity> {
+            return database.passkeyCredentialQueries.selectByRpIdAndUserId(rpId, userId)
+                .executeAsList()
+        }
+
+        /**
          * Retrieves all credentials for a specific user.
          */
         fun getCredentialsByUserId(userId: String): Flow<List<PasskeyCredentialEntity>> {
@@ -75,6 +86,14 @@ class PasskeyCredentialDao(
             return database.passkeyCredentialQueries.selectAll()
                 .asFlow()
                 .map { query -> query.executeAsList() }
+        }
+
+        /**
+         * Retrieves all credentials from the database (sync).
+         */
+        fun getAllCredentialsSync(): List<PasskeyCredentialEntity> {
+            return database.passkeyCredentialQueries.selectAll()
+                .executeAsList()
         }
 
         /**
@@ -306,34 +325,4 @@ class PasskeyCredentialDao(
             return database.passkeyCredentialQueries.changes()
                 .executeAsOne().toInt()
         }
-
-        /**
-         * Retrieves credential statistics.
-         */
-        suspend fun getCredentialStatistics(): CredentialStatistics {
-            val total = countAllCredentials()
-            val byRp =
-                database.passkeyCredentialQueries.getStatisticsByRpId()
-                    .executeAsList()
-                    .associate { it.rpId to it.count }
-            val byUser =
-                database.passkeyCredentialQueries.getStatisticsByUserId()
-                    .executeAsList()
-                    .associate { it.userId to it.count }
-
-            return CredentialStatistics(
-                totalCredentials = total.toInt(),
-                credentialsByRp = byRp,
-                credentialsByUser = byUser,
-            )
-        }
-
-        /**
-         * Data class for credential statistics.
-         */
-        data class CredentialStatistics(
-            val totalCredentials: Int,
-            val credentialsByRp: Map<String, Long>,
-            val credentialsByUser: Map<String, Long>,
-        )
     }

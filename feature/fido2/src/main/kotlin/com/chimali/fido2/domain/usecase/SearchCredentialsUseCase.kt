@@ -1,21 +1,18 @@
 package com.chimali.fido2.domain.usecase
 
 import org.koin.core.annotation.Factory
-import org.koin.core.annotation.Single
-
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
 import kotlinx.coroutines.flow.Flow
 
 /**
- * T108 — Retrieves all FIDO2 credentials stored on the device across all relying parties.
+ * Searches FIDO2 credentials by user name or display name.
  */
 @Factory
-class GetAllCredentialsUseCase(
+class SearchCredentialsUseCase(
     private val passkeyCredentialRepository: PasskeyCredentialRepository,
 ) {
-    suspend operator fun invoke(): Flow<List<PasskeyCredential>> {
-        return passkeyCredentialRepository.getAllCredentials()
+    suspend operator fun invoke(query: String): Flow<List<PasskeyCredential>> {
+        return passkeyCredentialRepository.searchCredentials(query)
     }
 }
-

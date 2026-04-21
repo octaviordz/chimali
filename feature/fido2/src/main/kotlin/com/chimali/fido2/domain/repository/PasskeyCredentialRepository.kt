@@ -1,6 +1,7 @@
 package com.chimali.fido2.domain.repository
 
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.RelyingParty
 import kotlinx.coroutines.flow.Flow
 
 interface PasskeyCredentialRepository {
@@ -12,10 +13,39 @@ interface PasskeyCredentialRepository {
 
     suspend fun getAllCredentials(): Flow<List<PasskeyCredential>>
 
+    suspend fun searchCredentials(query: String): Flow<List<PasskeyCredential>>
+
     suspend fun deleteCredential(credentialId: String): Result<Unit>
 
     suspend fun updateSignCount(
         credentialId: String,
         signCount: Long,
     ): Result<Unit>
+
+    suspend fun updateLastUsedAt(credentialId: String): Result<Unit>
+
+    suspend fun validateCredentialCreation(
+        rpId: String,
+        userId: String,
+    ): Result<Unit>
+
+    suspend fun getCredentialStatistics(): CredentialStatistics
+
+    suspend fun getRelyingParty(rpId: String): RelyingParty?
+
+    suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit>
 }
+
+/**
+ * Data class representing credential statistics.
+ */
+data class CredentialStatistics(
+    val totalCredentials: Int,
+    val credentialsByRp: Map<String, Int>,
+    val expiredCredentials: Int,
+    val recentlyUsedCredentials: Int,
+    val credentialsRequiringUserVerification: Int,
+    val averageAgeDays: Double,
+)
+
+

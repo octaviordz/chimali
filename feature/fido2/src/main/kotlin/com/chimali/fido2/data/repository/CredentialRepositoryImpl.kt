@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.data.repository
+package com.chimali.fido2.data.repository
 
 import org.koin.core.annotation.Single
 
@@ -350,12 +350,7 @@ class CredentialRepositoryImpl(
 
         override suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit> {
             return try {
-                val exists = relyingPartyDao.relyingPartyExists(rp.id)
-                if (exists) {
-                    relyingPartyDao.updateRelyingParty(rp)
-                } else {
-                    relyingPartyDao.insertRelyingParty(rp)
-                }
+                relyingPartyDao.insertOrUpdateRelyingParty(rp)
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: "Unknown error", e))

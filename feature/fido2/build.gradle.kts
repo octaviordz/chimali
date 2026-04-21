@@ -47,20 +47,21 @@ android {
         buildConfig = true
     }
 
-    sqldelight {
-        databases {
-            create("Fido2Database") {
-                packageName.set("com.chimali.fido2.data.database")
-                version = 3
-            }
-        }
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/LICENSE-notice.md"
+        }
+    }
+}
+
+sqldelight {
+    databases {
+        create("Fido2Database") {
+            packageName.set("com.chimali.fido2.data.database")
+            dialect("app.cash.sqldelight:sqlite-3-38-dialect:${libs.versions.sqldelight.get()}")
+            version = 3
         }
     }
 }
