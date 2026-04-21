@@ -6,7 +6,6 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import co.touchlab.kermit.Logger
 import java.security.MessageDigest
@@ -74,7 +73,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 1: getCredsMetadata ───────────────────────────────────────
 
         private suspend fun handleGetCredsMetadata(): ByteArray {
-            val credentials = getAllCredentialsUseCase().first()
+            val credentials = getAllCredentialsUseCase().toList()
             val numCredentials = credentials.size
 
             val response =
@@ -89,7 +88,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 2: enumerateRPsBegin ──────────────────────────────────────
 
         private suspend fun handleEnumerateRPsBegin(): ByteArray {
-            val allCredentials = getAllCredentialsUseCase().first()
+            val allCredentials = getAllCredentialsUseCase().toList()
             if (allCredentials.isEmpty()) {
                 return byteArrayOf(CTAP2_ERR_NO_CREDENTIALS)
             }
@@ -263,7 +262,7 @@ class Ctap2CredentialManagementHandler(
                 if (entry.rpIdHash.contentEquals(hash)) return entry.rpId
             }
             // Otherwise, scan all credentials for a matching rpId
-            val allCredentials = getAllCredentialsUseCase().first()
+            val allCredentials = getAllCredentialsUseCase().toList()
             return allCredentials
                 .map { cred -> cred.rpId }
                 .distinct()

@@ -112,7 +112,7 @@ class CredentialRepositoryImplTest {
             coEvery { passkeyCredentialDao.deleteCredential(any()) } just Runs
 
             coEvery { relyingPartyDao.getRelyingPartyById(any()) } returns null
-            coEvery { relyingPartyDao.insertRelyingParty(any()) } just Runs
+            coEvery { relyingPartyDao.insertOrUpdateRelyingParty(any()) } just Runs
             coEvery { relyingPartyDao.updateRelyingParty(any()) } just Runs
             coEvery { relyingPartyDao.getAllRelyingParties() } returns flowOf()
 

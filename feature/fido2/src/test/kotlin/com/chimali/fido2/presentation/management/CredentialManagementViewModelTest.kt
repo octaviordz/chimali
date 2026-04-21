@@ -4,6 +4,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -21,17 +22,19 @@ import kotlin.test.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class CredentialManagementViewModelTest {
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
+    private lateinit var searchCredentialsUseCase: SearchCredentialsUseCase
     private lateinit var deleteCredentialUseCase: DeleteCredentialUseCase
     private lateinit var deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase
     private lateinit var updateCredentialLabelUseCase: UpdateCredentialLabelUseCase
     private lateinit var viewModel: CredentialManagementViewModel
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         getAllCredentialsUseCase = mockk()
+        searchCredentialsUseCase = mockk()
         deleteCredentialUseCase = mockk()
         deleteAllCredentialsUseCase = mockk()
         updateCredentialLabelUseCase = mockk()
@@ -42,6 +45,7 @@ class CredentialManagementViewModelTest {
         viewModel =
             CredentialManagementViewModel(
                 getAllCredentialsUseCase,
+                searchCredentialsUseCase,
                 deleteCredentialUseCase,
                 deleteAllCredentialsUseCase,
                 updateCredentialLabelUseCase,
@@ -101,11 +105,10 @@ class CredentialManagementViewModelTest {
 
     @Test
     fun `intent ConfirmDelete failure updates state with error`() =
-        runTest {
-            coEvery { deleteCredentialUseCase("test_id") } returns Result.failure(Exception("Error"))
+        runTest(UnconfinedTestDispatcher()) {
+            coEvery { deleteCredentialUseCase.invoke(any()) } returns Result.failure(Exception("Error"))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete("test_id"))
-            advanceUntilIdle()
 
             assertEquals("Failed to delete credential", viewModel.state.value.error)
             assertFalse(viewModel.state.value.isLoading)

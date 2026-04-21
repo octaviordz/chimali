@@ -19,7 +19,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
-import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
+import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
@@ -31,7 +31,7 @@ import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVe
  */
 @Factory
 class RegisterCredentialUseCase(
-    private val passkeyCredentialRepository: PasskeyCredentialRepository,
+    private val passkeyCredentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
     private val cborCodec: CborCodec,
     private val cryptoService: Fido2CryptoService,

@@ -45,11 +45,11 @@ class RegisterCredentialUseCaseTest {
             fido2SettingsRepository = mockk()
             registerCredentialUseCase =
                 RegisterCredentialUseCase(
-                    credentialRepository,
-                    userVerificationService,
-                    cborCodec,
-                    cryptoService,
-                    fido2SettingsRepository,
+                    passkeyCredentialRepository = credentialRepository,
+                    userVerificationService = userVerificationService,
+                    cborCodec = cborCodec,
+                    cryptoService = cryptoService,
+                    settingsRepository = fido2SettingsRepository,
                 )
 
             // Setup test data

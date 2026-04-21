@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
+import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
@@ -20,6 +22,8 @@ class CredentialManagementViewModel(
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
     private val searchCredentialsUseCase: SearchCredentialsUseCase,
     private val deleteCredentialUseCase: DeleteCredentialUseCase,
+    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase? = null,
+    private val updateCredentialLabelUseCase: UpdateCredentialLabelUseCase? = null,
 ) : ViewModel() {
     private val logger = Logger.withTag("CredentialManagement")
     private val _state = MutableStateFlow(CredentialManagementState())
@@ -44,6 +48,8 @@ class CredentialManagementViewModel(
             is CredentialManagementIntent.SelectCredential -> selectCredential(intent.credential)
             is CredentialManagementIntent.ConfirmDelete -> deleteCredential(intent.credentialId)
             is CredentialManagementIntent.ShowDeleteDialog -> showDeleteDialog(intent.credential)
+            is CredentialManagementIntent.ShowDeleteAllDialog -> showDeleteAllDialog()
+            is CredentialManagementIntent.ConfirmDeleteAll -> deleteAllCredentials()
             is CredentialManagementIntent.DismissDialog -> dismissDialogs()
             is CredentialManagementIntent.UndoDelete -> undoDelete()
         }
@@ -56,10 +62,15 @@ class CredentialManagementViewModel(
                 .flatMapLatest { query ->
                     logger.d { "Performing search for: $query" }
                     _state.update { it.copy(isLoading = true, error = null) }
-                    if (query.isBlank()) {
+                    val sourceFlow = if (query.isBlank()) {
                         getAllCredentialsUseCase()
                     } else {
                         searchCredentialsUseCase(query)
+                    }
+                    // Collect individual PasskeyCredential items into a single list emission
+                    kotlinx.coroutines.flow.flow {
+                        val list = sourceFlow.toList()
+                        emit(list)
                     }
                 }
                 .catch { e ->
@@ -68,16 +79,27 @@ class CredentialManagementViewModel(
                 }
                 .collect { credentials ->
                     logger.d { "Loaded ${credentials.size} credentials" }
-                    _state.update { 
+                    _state.update {
                         it.copy(
                             credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
-                            isLoading = false 
-                        ) 
+                            isLoading = false
+                        )
                     }
                 }
         }
     }
 
+    /**
+     * Directly sets credentials in the state (used for testing and direct data injection).
+     */
+    fun setCredentials(credentials: List<PasskeyCredential>) {
+        _state.update {
+            it.copy(
+                credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
+                isLoading = false
+            )
+        }
+    }
 
     private fun selectCredential(credential: PasskeyCredential) {
         _state.update { it.copy(selectedCredential = credential) }
@@ -87,11 +109,17 @@ class CredentialManagementViewModel(
         _state.update { it.copy(credentialToDelete = credential) }
     }
 
+    private fun showDeleteAllDialog() {
+        _state.update { it.copy(showDeleteAllWarning = true) }
+    }
+
     private fun dismissDialogs() {
-        _state.update { it.copy(
-            credentialToDelete = null,
-            selectedCredential = null
-        ) }
+        _state.update {
+            it.copy(
+                credentialToDelete = null,
+                showDeleteAllWarning = false,
+            )
+        }
     }
 
     private fun deleteCredential(credentialId: String) {
@@ -102,11 +130,28 @@ class CredentialManagementViewModel(
             val result = deleteCredentialUseCase(credentialId)
             if (result.isSuccess) {
                 logger.i { "Successfully deleted credential: $credentialId" }
-                _state.update { it.copy(lastDeleted = credential) }
-                _effect.emit(CredentialManagementEffect.ShowUndoSnackbar("Passkey deleted"))
+                _state.update { it.copy(isLoading = false, lastDeleted = credential) }
+                _effect.emit(CredentialManagementEffect.ShowToast("Credential deleted"))
             } else {
                 logger.e { "Failed to delete credential: $credentialId" }
-                _state.update { it.copy(isLoading = false, error = "Failed to delete passkey") }
+                _state.update { it.copy(isLoading = false, error = "Failed to delete credential") }
+            }
+        }
+    }
+
+    private fun deleteAllCredentials() {
+        val useCase = deleteAllCredentialsUseCase ?: return
+        viewModelScope.launch {
+            logger.i { "Initiating deletion of all credentials" }
+            _state.update { it.copy(isLoading = true, showDeleteAllWarning = false) }
+            val result = useCase()
+            if (result.isSuccess) {
+                logger.i { "Successfully deleted all credentials" }
+                _state.update { it.copy(isLoading = false) }
+                _effect.emit(CredentialManagementEffect.ShowToast("All credentials deleted"))
+            } else {
+                logger.e { "Failed to delete all credentials" }
+                _state.update { it.copy(isLoading = false, error = "Failed to delete all credentials") }
             }
         }
     }
@@ -129,6 +174,7 @@ data class CredentialManagementState(
     val lastDeleted: PasskeyCredential? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    val showDeleteAllWarning: Boolean = false,
 )
 
 sealed interface CredentialManagementIntent {
@@ -136,8 +182,10 @@ sealed interface CredentialManagementIntent {
     data class UpdateSearchQuery(val query: String) : CredentialManagementIntent
     data class SelectCredential(val credential: PasskeyCredential) : CredentialManagementIntent
     data class ShowDeleteDialog(val credential: PasskeyCredential) : CredentialManagementIntent
+    object ShowDeleteAllDialog : CredentialManagementIntent
     object DismissDialog : CredentialManagementIntent
     data class ConfirmDelete(val credentialId: String) : CredentialManagementIntent
+    object ConfirmDeleteAll : CredentialManagementIntent
     object UndoDelete : CredentialManagementIntent
 }
 

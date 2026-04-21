@@ -4,7 +4,7 @@ import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Single
 
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
+import com.chimali.fido2.domain.repository.CredentialRepository
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.Flow
  */
 @Factory
 class GetAllCredentialsUseCase(
-    private val passkeyCredentialRepository: PasskeyCredentialRepository,
+    private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(): Flow<List<PasskeyCredential>> {
+    suspend operator fun invoke(): Flow<PasskeyCredential> {
         return passkeyCredentialRepository.getAllCredentials()
     }
 }

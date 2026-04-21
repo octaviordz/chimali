@@ -6,7 +6,7 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
+import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
 import io.mockk.coEvery
@@ -16,9 +16,11 @@ import io.mockk.mockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -42,7 +44,7 @@ class ManagementIntegrationTest {
     private lateinit var viewModel: CredentialManagementViewModel
     private val credentials = MutableStateFlow<List<PasskeyCredential>>(emptyList())
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @BeforeTest
     fun setup() {
@@ -56,34 +58,38 @@ class ManagementIntegrationTest {
 
         repository = mockk()
 
+        // getAllCredentials() returns Flow<PasskeyCredential> — emit individual items
         coEvery { repository.getAllCredentials() } answers {
-            kotlinx.coroutines.flow.flow {
-                credentials.value.forEach { emit(it) }
-            }
+            flowOf(*credentials.value.toTypedArray())
         }
 
+        // searchCredentials returns empty by default
+        coEvery { repository.searchCredentials(any()) } returns emptyFlow()
+
+        // deleteCredential removes from in-memory list and returns success
         coEvery { repository.deleteCredential(any()) } answers {
             val id = firstArg<String>()
             credentials.update { list -> list.filterNot { it.id == id } }
             Result.success(Unit)
         }
 
+        // deleteAllCredentials wipes in-memory list
         coEvery { repository.deleteAllCredentials(any()) } answers {
             credentials.value = emptyList()
             Result.success(Unit)
         }
 
         val getAllUseCase = GetAllCredentialsUseCase(repository)
+        val searchUseCase = SearchCredentialsUseCase(repository)
         val deleteUseCase = DeleteCredentialUseCase(repository)
         val deleteAllUseCase = DeleteAllCredentialsUseCase(repository)
-        val updateLabelUseCase = UpdateCredentialLabelUseCase(repository)
 
         viewModel =
             CredentialManagementViewModel(
                 getAllUseCase,
+                searchUseCase,
                 deleteUseCase,
                 deleteAllUseCase,
-                updateLabelUseCase,
             )
     }
 
@@ -116,15 +122,12 @@ class ManagementIntegrationTest {
     // ── Credential Loading ───────────────────────────────────────────────────
 
     @Test
-    fun `refresh populates state with credentials`() =
+    fun `setCredentials populates state with credentials`() =
         runTest {
             val cred1 = createDummyCredential("cred1", "https://example.com")
             val cred2 = createDummyCredential("cred2", "https://google.com")
-            credentials.value = listOf(cred1, cred2)
 
-            // Use setCredentials since loadCredentials has flow type mismatch
-            viewModel.setCredentials(credentials.value)
-            advanceUntilIdle()
+            viewModel.setCredentials(listOf(cred1, cred2))
 
             val state = viewModel.state.value
             assertEquals(2, state.credentials.size)
@@ -134,9 +137,7 @@ class ManagementIntegrationTest {
     @Test
     fun `empty credentials list results in empty state`() =
         runTest {
-            credentials.value = emptyList()
-            viewModel.setCredentials(credentials.value)
-            advanceUntilIdle()
+            viewModel.setCredentials(emptyList())
 
             val state = viewModel.state.value
             assertTrue(state.credentials.isEmpty())
@@ -149,7 +150,6 @@ class ManagementIntegrationTest {
         runTest {
             val cred = createDummyCredential("cred1")
             viewModel.setCredentials(listOf(cred))
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred))
             val state = viewModel.state.value
@@ -169,7 +169,6 @@ class ManagementIntegrationTest {
             viewModel.onIntent(CredentialManagementIntent.DismissDialog)
             val state = viewModel.state.value
 
-            // dismissDialogs only clears dialog-related state, NOT selectedCredential
             assertNull(state.credentialToDelete)
             assertFalse(state.showDeleteAllWarning)
         }
@@ -181,7 +180,6 @@ class ManagementIntegrationTest {
         runTest {
             val cred = createDummyCredential("cred1")
             viewModel.setCredentials(listOf(cred))
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
             val state = viewModel.state.value
@@ -196,33 +194,27 @@ class ManagementIntegrationTest {
             val cred2 = createDummyCredential("cred2", "https://google.com")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
             advanceUntilIdle()
 
-            // Repository-level: cred1 should be removed
             assertEquals(1, credentials.value.size)
             assertEquals("cred2", credentials.value.first().id)
         }
 
     @Test
     fun `delete failure sets error state`() =
-        runTest {
-            // Override mock to simulate failure
+        runTest(UnconfinedTestDispatcher()) {
             coEvery { repository.deleteCredential(any()) } returns
                 Result.failure(Exception("Database error"))
 
             val cred = createDummyCredential("cred1")
             viewModel.setCredentials(listOf(cred))
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred.id))
-            advanceUntilIdle()
 
-            val state = viewModel.state.value
-            assertNotNull(state.error)
+            assertNotNull(viewModel.state.value.error)
         }
 
     // ── Delete All Credentials ───────────────────────────────────────────────
@@ -231,9 +223,7 @@ class ManagementIntegrationTest {
     fun `show delete all dialog sets warning flag`() =
         runTest {
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-            val state = viewModel.state.value
-
-            assertTrue(state.showDeleteAllWarning)
+            assertTrue(viewModel.state.value.showDeleteAllWarning)
         }
 
     @Test
@@ -243,7 +233,6 @@ class ManagementIntegrationTest {
             val cred2 = createDummyCredential("cred2")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
@@ -254,18 +243,15 @@ class ManagementIntegrationTest {
 
     @Test
     fun `delete all failure sets error state`() =
-        runTest {
+        runTest(UnconfinedTestDispatcher()) {
             coEvery { repository.deleteAllCredentials(any()) } returns
                 Result.failure(Exception("Wipe failed"))
 
             viewModel.setCredentials(listOf(createDummyCredential("cred1")))
-            advanceUntilIdle()
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
-            advanceUntilIdle()
 
-            val state = viewModel.state.value
-            assertNotNull(state.error)
+            assertNotNull(viewModel.state.value.error)
         }
 
     // ── Full Flow ────────────────────────────────────────────────────────────
@@ -273,7 +259,6 @@ class ManagementIntegrationTest {
     @Test
     fun `full management flow - add select delete wipe`() =
         runTest {
-            // 1 — Seed credentials
             val cred1 = createDummyCredential("cred1", "https://example.com")
             val cred2 = createDummyCredential("cred2", "https://google.com")
             credentials.value = listOf(cred1, cred2)
@@ -282,30 +267,27 @@ class ManagementIntegrationTest {
 
             assertEquals(2, viewModel.state.value.credentials.size)
 
-            // 2 — Select
+            // Select
             viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred1))
             assertEquals(cred1, viewModel.state.value.selectedCredential)
 
-            // 3 — Dismiss (clears dialog state only, not selection)
+            // Dismiss (clears dialogs only)
             viewModel.onIntent(CredentialManagementIntent.DismissDialog)
             assertNull(viewModel.state.value.credentialToDelete)
             assertFalse(viewModel.state.value.showDeleteAllWarning)
 
-            // 4 — Delete single
+            // Delete single
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
             advanceUntilIdle()
-
             assertEquals(1, credentials.value.size)
             assertEquals("cred2", credentials.value.first().id)
 
-            // 5 — Wipe all
+            // Wipe all
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
             assertTrue(viewModel.state.value.showDeleteAllWarning)
-
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
             advanceUntilIdle()
-
             assertTrue(credentials.value.isEmpty())
         }
 }

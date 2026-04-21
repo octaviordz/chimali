@@ -3,10 +3,9 @@ package com.chimali.fido2.presentation.management
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
+import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
@@ -21,16 +20,14 @@ class CredentialListScreenTest {
     val composeTestRule = createComposeRule()
 
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase = mockk()
+    private val searchCredentialsUseCase: SearchCredentialsUseCase = mockk()
     private val deleteCredentialUseCase: DeleteCredentialUseCase = mockk()
-    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase = mockk()
-    private val updateCredentialLabelUseCase: UpdateCredentialLabelUseCase = mockk()
 
     private fun setupViewModel(): CredentialManagementViewModel {
         return CredentialManagementViewModel(
             getAllCredentialsUseCase,
+            searchCredentialsUseCase,
             deleteCredentialUseCase,
-            deleteAllCredentialsUseCase,
-            updateCredentialLabelUseCase,
         )
     }
 

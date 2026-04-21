@@ -2,7 +2,7 @@ package com.chimali.fido2.domain.usecase
 
 import org.koin.core.annotation.Factory
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
+import com.chimali.fido2.domain.repository.CredentialRepository
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.Flow
  */
 @Factory
 class SearchCredentialsUseCase(
-    private val passkeyCredentialRepository: PasskeyCredentialRepository,
+    private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(query: String): Flow<List<PasskeyCredential>> {
+    suspend operator fun invoke(query: String): Flow<PasskeyCredential> {
         return passkeyCredentialRepository.searchCredentials(query)
     }
 }

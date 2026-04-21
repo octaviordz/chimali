@@ -161,7 +161,7 @@ class Fido2StressTest {
 
         registerUseCase =
             RegisterCredentialUseCase(
-                credentialRepository = repository,
+                passkeyCredentialRepository = repository,
                 userVerificationService = userVerificationService,
                 cborCodec = CborCodec(),
                 cryptoService = cryptoService,
