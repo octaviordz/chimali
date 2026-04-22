@@ -4,7 +4,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
 import org.junit.Rule

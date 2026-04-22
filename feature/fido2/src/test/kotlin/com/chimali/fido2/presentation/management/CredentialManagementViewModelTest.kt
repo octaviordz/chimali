@@ -138,4 +138,45 @@ class CredentialManagementViewModelTest {
 
             job.cancel()
         }
+
+    @Test
+    fun `intent PendingDelete adds id to pendingDeleteIds and emits removal event`() =
+        runTest {
+            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            val removalEvents = mutableListOf<PasskeyCredential>()
+            val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.removalEvents.toList(removalEvents)
+            }
+
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+
+            assertTrue(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+            assertEquals(credential, removalEvents.first())
+            job.cancel()
+        }
+
+    @Test
+    fun `intent UndoDelete removes id from pendingDeleteIds`() =
+        runTest {
+            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+            assertTrue(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+
+            viewModel.onIntent(CredentialManagementIntent.UndoDelete("test_id"))
+
+            assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+        }
+
+    @Test
+    fun `intent CommitDelete calls use case and clears pending id`() =
+        runTest {
+            coEvery { deleteCredentialUseCase("test_id") } returns Result.success(Unit)
+            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+
+            viewModel.onIntent(CredentialManagementIntent.CommitDelete("test_id"))
+            advanceUntilIdle()
+
+            assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+        }
 }

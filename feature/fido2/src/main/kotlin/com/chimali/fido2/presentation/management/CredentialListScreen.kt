@@ -1,5 +1,13 @@
 package com.chimali.fido2.presentation.management
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.graphics.res.animatedVectorResource
+import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
+import androidx.compose.animation.graphics.vector.AnimatedImageVector
+import androidx.compose.foundation.background
+import com.chimali.core.ui.R as CoreR
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -41,12 +51,27 @@ fun CredentialListScreen(
                     val result = snackbarHostState.showSnackbar(
                         message = effect.message,
                         actionLabel = "Undo",
-                        duration = SnackbarDuration.Short
+                        duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.onIntent(CredentialManagementIntent.UndoDelete)
+                        // This would need a way to know which ID, but removalEvents is the primary way now
                     }
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.removalEvents.collect { credential ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Deleted passkey for ${credential.userName}",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.onIntent(CredentialManagementIntent.UndoDelete(credential.id))
+            } else {
+                viewModel.onIntent(CredentialManagementIntent.CommitDelete(credential.id))
             }
         }
     }
@@ -117,10 +142,81 @@ fun CredentialListScreen(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     items(state.credentials, key = { it.id }) { credential ->
-                        CredentialItem(
-                            credential = credential,
-                            onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
-                            onDeleteClick = { viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(it)) },
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { value ->
+                                if (value != SwipeToDismissBoxValue.Settled) {
+                                    viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                                    false // Handle visibility via ViewModel state
+                                } else false
+                            },
+                            positionalThreshold = { totalDistance -> totalDistance * 0.5f }
+                        )
+
+                        SwipeToDismissBox(
+                            state = dismissState,                             backgroundContent = {
+                                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                    val progress = dismissState.progress
+                                    val targetValue = dismissState.targetValue
+                                    val color by animateColorAsState(
+                                        targetValue = when (targetValue) {
+                                            SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                                            else -> MaterialTheme.colorScheme.errorContainer
+                                        }, label = "bg_color"
+                                    )
+                                    val iconScale by animateFloatAsState(
+                                        targetValue = if (targetValue != SwipeToDismissBoxValue.Settled) 1.2f else 1.0f,
+                                        animationSpec = tween(durationMillis = 300),
+                                        label = "icon_scale"
+                                    )
+
+                                    val avdImage = AnimatedImageVector.animatedVectorResource(CoreR.drawable.avd_delete)
+                                    val avdPainter = rememberAnimatedVectorPainter(
+                                        animatedImageVector = avdImage,
+                                        atEnd = targetValue != SwipeToDismissBoxValue.Settled
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(color)
+                                            .padding(horizontal = 20.dp)
+                                    ) {
+                                        // Left icon
+                                        Icon(
+                                            painter = avdPainter,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier
+                                                .align(Alignment.CenterStart)
+                                                .graphicsLayer(
+                                                    scaleX = iconScale,
+                                                    scaleY = iconScale
+                                                )
+                                        )
+                                        // Right icon
+                                        Icon(
+                                            painter = avdPainter,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .graphicsLayer(
+                                                    scaleX = iconScale,
+                                                    scaleY = iconScale
+                                                )
+                                        )
+                                    }
+                                }
+                            },
+
+                            enableDismissFromStartToEnd = true,
+                            enableDismissFromEndToStart = true,
+                            content = {
+                                CredentialItem(
+                                    credential = credential,
+                                    onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
+                                )
+                            }
                         )
                     }
                 }
@@ -167,9 +263,8 @@ fun CredentialListScreen(
             onDismiss = { viewModel.onIntent(CredentialManagementIntent.DismissDialog) },
             onDelete = {
                 viewModel.onIntent(CredentialManagementIntent.DismissDialog)
-                viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(credential))
-            },
-            onUpdateLabel = { /* Not in scope for FR */ }
+                viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+            }
         )
     }
 }

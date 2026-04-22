@@ -8,7 +8,6 @@ import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
-import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
@@ -23,7 +22,6 @@ class CredentialManagementViewModel(
     private val searchCredentialsUseCase: SearchCredentialsUseCase,
     private val deleteCredentialUseCase: DeleteCredentialUseCase,
     private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase? = null,
-    private val updateCredentialLabelUseCase: UpdateCredentialLabelUseCase? = null,
 ) : ViewModel() {
     private val logger = Logger.withTag("CredentialManagement")
     private val _state = MutableStateFlow(CredentialManagementState())
@@ -32,7 +30,11 @@ class CredentialManagementViewModel(
     private val _effect = MutableSharedFlow<CredentialManagementEffect>()
     val effect: SharedFlow<CredentialManagementEffect> = _effect.asSharedFlow()
 
+    private val _removalEvents = MutableSharedFlow<PasskeyCredential>()
+    val removalEvents: SharedFlow<PasskeyCredential> = _removalEvents.asSharedFlow()
+
     private val _searchQuery = MutableStateFlow("")
+    private var _fullCredentialList: List<PasskeyCredential> = emptyList()
 
     init {
         observeCredentials()
@@ -51,7 +53,9 @@ class CredentialManagementViewModel(
             is CredentialManagementIntent.ShowDeleteAllDialog -> showDeleteAllDialog()
             is CredentialManagementIntent.ConfirmDeleteAll -> deleteAllCredentials()
             is CredentialManagementIntent.DismissDialog -> dismissDialogs()
-            is CredentialManagementIntent.UndoDelete -> undoDelete()
+            is CredentialManagementIntent.UndoDelete -> undoRemove(intent.credentialId)
+            is CredentialManagementIntent.PendingDelete -> pendingRemove(intent.credential)
+            is CredentialManagementIntent.CommitDelete -> commitRemove(intent.credentialId)
         }
     }
 
@@ -79,13 +83,20 @@ class CredentialManagementViewModel(
                 }
                 .collect { credentials ->
                     logger.d { "Loaded ${credentials.size} credentials" }
-                    _state.update {
-                        it.copy(
-                            credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
-                            isLoading = false
-                        )
-                    }
+                    _fullCredentialList = credentials
+                    updateStateWithFilteredCredentials()
                 }
+        }
+    }
+
+    private fun updateStateWithFilteredCredentials() {
+        _state.update { state ->
+            state.copy(
+                credentials = _fullCredentialList
+                    .filter { it.id !in state.pendingDeleteIds }
+                    .sortedByDescending { it.lastUsedAt },
+                isLoading = false
+            )
         }
     }
 
@@ -157,12 +168,36 @@ class CredentialManagementViewModel(
         }
     }
 
-    private fun undoDelete() {
-        val lastDeleted = _state.value.lastDeleted ?: return
-        logger.i { "Attempting to undo deletion of credential: ${lastDeleted.id}" }
+    private fun pendingRemove(credential: PasskeyCredential) {
+        logger.i { "Pending removal for credential: ${credential.id}" }
+        _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds + credential.id) }
+        updateStateWithFilteredCredentials()
         viewModelScope.launch {
-            _state.update { it.copy(lastDeleted = null) }
-            _effect.emit(CredentialManagementEffect.ShowToast("Undo not fully implemented in DB layer yet"))
+            _removalEvents.emit(credential)
+        }
+    }
+
+    private fun undoRemove(credentialId: String) {
+        logger.i { "Undoing removal for credential: $credentialId" }
+        _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
+        updateStateWithFilteredCredentials()
+    }
+
+    private fun commitRemove(credentialId: String) {
+        viewModelScope.launch {
+            logger.i { "Committing removal for credential: $credentialId" }
+            val result = deleteCredentialUseCase(credentialId)
+            _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
+            if (result.isSuccess) {
+                logger.i { "Successfully committed removal for credential: $credentialId" }
+                // Item is already gone from _fullCredentialList because the flow from repository
+                // should emit the new state. If repository is not reactive, we'd need to manually
+                // remove from _fullCredentialList.
+            } else {
+                logger.e { "Failed to commit removal for credential: $credentialId" }
+                _effect.emit(CredentialManagementEffect.ShowToast("Failed to delete credential"))
+                updateStateWithFilteredCredentials() // Restore view
+            }
         }
     }
 
@@ -176,6 +211,7 @@ data class CredentialManagementState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val showDeleteAllWarning: Boolean = false,
+    val pendingDeleteIds: Set<String> = emptySet(),
 )
 
 sealed interface CredentialManagementIntent {
@@ -187,7 +223,9 @@ sealed interface CredentialManagementIntent {
     object DismissDialog : CredentialManagementIntent
     data class ConfirmDelete(val credentialId: String) : CredentialManagementIntent
     object ConfirmDeleteAll : CredentialManagementIntent
-    object UndoDelete : CredentialManagementIntent
+    data class PendingDelete(val credential: PasskeyCredential) : CredentialManagementIntent
+    data class UndoDelete(val credentialId: String) : CredentialManagementIntent
+    data class CommitDelete(val credentialId: String) : CredentialManagementIntent
 }
 
 sealed interface CredentialManagementEffect {

@@ -1,6 +1,9 @@
 package com.chimali.fido2.presentation.integration
 
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.ui.RegistrationPromptContent
 import com.chimali.fido2.presentation.viewmodel.RegistrationState

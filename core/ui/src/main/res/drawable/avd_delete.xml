@@ -1,0 +1,9 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_delete_bin">
+    <target
+        android:name="lid_group"
+        android:animation="@animator/lid_rotation" />
+    <target
+        android:name="body"
+        android:animation="@animator/body_tint" />
+</animated-vector>

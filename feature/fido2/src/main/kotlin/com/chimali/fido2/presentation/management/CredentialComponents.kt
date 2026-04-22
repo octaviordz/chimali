@@ -7,8 +7,9 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.res.painterResource
+import com.chimali.core.ui.R
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,21 +25,22 @@ import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 fun CredentialItem(
     credential: PasskeyCredential,
     onClick: (PasskeyCredential) -> Unit,
-    onDeleteClick: (PasskeyCredential) -> Unit,
 ) {
     ListItem(
         headlineContent = {
             Text(
                 text = credential.rpId,
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.titleMedium
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
             )
         },
         supportingContent = {
             Column {
                 Text(
                     text = credential.userName,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                 )
                 Text(
                     text = "Last used: ${credential.lastUsedAt.toString().substring(0, 10)}",
@@ -54,21 +56,13 @@ fun CredentialItem(
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = credential.rpId.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    Icon(
+                        painter = painterResource(id = R.drawable.passkey_24),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-            }
-        },
-        trailingContent = {
-            IconButton(onClick = { onDeleteClick(credential) }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error
-                )
             }
         },
         modifier = Modifier.clickable { onClick(credential) },
@@ -117,7 +111,6 @@ fun CredentialDetailsScreen(
     credential: PasskeyCredential,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onUpdateLabel: (String?) -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -125,25 +118,8 @@ fun CredentialDetailsScreen(
         icon = { Icon(Icons.Default.Info, contentDescription = null) },
         title = { Text("Passkey Details") },
         text = {
-            var labelText by remember { mutableStateOf(credential.label ?: "") }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = labelText,
-                    onValueChange = { labelText = it },
-                    label = { Text("Custom Label / Note") },
-                    placeholder = { Text("e.g. Work Account") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) },
-                    trailingIcon = {
-                        if (labelText != (credential.label ?: "")) {
-                            IconButton(onClick = { onUpdateLabel(labelText.ifBlank { null }) }) {
-                                Icon(Icons.Default.Check, contentDescription = "Save label", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    },
-                )
+                // Removed custom label field per FR
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 4.dp),
@@ -152,18 +128,27 @@ fun CredentialDetailsScreen(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "ID: ${credential.id}",
+                        text = "Identifier: ${credential.id}",
+                        style = MaterialTheme.typography.bodyMedium,
                         fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                     )
-                    Text("User: ${credential.userName}")
-                    Text("Display Name: ${credential.userDisplayName}")
+                    Text(
+                        text = "User Name: ${credential.userName}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Display Name: ${credential.userDisplayName}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Text(
                         text = "Relying Party: ${credential.rpId}",
+                        style = MaterialTheme.typography.bodyMedium,
                         fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                     )
-                    Text("Created: ${credential.createdAt}")
-                    Text("Last Used: ${credential.lastUsedAt ?: "Never"}")
-                    Text("Sign Count: ${credential.signCount}")
+                    Text(
+                        text = "Last Used: ${credential.lastUsedAt}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         },
