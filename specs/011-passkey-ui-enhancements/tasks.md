@@ -44,6 +44,7 @@
 - [ ] T010 [US1] Wrap `CredentialItem` with `SwipeToDismissBox` in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`
 - [ ] T011 [US1] Implement `SnackbarHost` and handle `removalEvents` in `CredentialListScreen.kt` using `SnackbarDuration.Long`
 - [ ] T012 [US1] Connect swipe-to-dismiss actions to `PendingDelete` and snackbar results to `UndoDelete`/`CommitDelete`
+- [ ] T012a [US1] Implement error handling in `commitRemove` to restore item if deletion fails and show error message
 
 **Checkpoint**: User Story 1 is fully functional and testable independently.
 
@@ -56,7 +57,7 @@
 **Independent Test**: Open passkey details and verify the label input field is no longer present.
 
 ### Implementation for User Story 2
-- [ ] T013 [US2] Remove `OutlinedTextField` for "Custom Label / Note" from `CredentialDetailsScreen` in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`
+- [ ] T013 [US2] Remove `OutlinedTextField` for "Custom Label / Note" from `CredentialDetailsScreen`, ensuring RP ID, Username, Created Date, and Last Used Date remain visible in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`
 - [ ] T014 [US2] Remove `updateCredentialLabelUseCase` and associated logic from `CredentialManagementViewModel.kt`
 - [ ] T015 [P] [US2] Remove `UpdateCredentialLabel` intent and related state from `CredentialManagementViewModel.kt`
 
