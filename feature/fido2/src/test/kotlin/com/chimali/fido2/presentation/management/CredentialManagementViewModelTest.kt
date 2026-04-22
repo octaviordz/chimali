@@ -71,11 +71,13 @@ class CredentialManagementViewModelTest {
     fun `intent DismissDialog clears dialog states`() =
         runTest {
             val credential = mockk<PasskeyCredential>()
+            viewModel.onIntent(CredentialManagementIntent.SelectCredential(credential))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(credential))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
 
             viewModel.onIntent(CredentialManagementIntent.DismissDialog)
 
+            assertNull(viewModel.state.value.selectedCredential)
             assertNull(viewModel.state.value.credentialToDelete)
             assertFalse(viewModel.state.value.showDeleteAllWarning)
         }

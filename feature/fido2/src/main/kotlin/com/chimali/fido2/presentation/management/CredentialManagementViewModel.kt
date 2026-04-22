@@ -116,6 +116,7 @@ class CredentialManagementViewModel(
     private fun dismissDialogs() {
         _state.update {
             it.copy(
+                selectedCredential = null,
                 credentialToDelete = null,
                 showDeleteAllWarning = false,
             )
