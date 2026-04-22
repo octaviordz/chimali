@@ -73,7 +73,7 @@ All project documentation must be kept up to date and aligned with the codebase 
 
 ## Development Workflow & Testing
 
-- **Development Methodology**: Test-Driven Development (TDD) SHOULD be prioritized as the standard engineering methodology. Exemptions are permitted only when a test-first approach is demonstrably unfeasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **JUnit 5** and **MockK**.
+- **Development Methodology**: Test-Driven Development (TDD) **MUST** be enforced as the standard engineering methodology. All commits must pass the Local CI pipeline (`tools/local-ci.ps1`). Exemptions are permitted only when a test-first approach is demonstrably unfeasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **kotlin.test** (for KMP common logic), **JUnit 5**, and **MockK**.
 - **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components must be verified using **Compose UI Testing**.
 
 ## Governance
@@ -82,4 +82,9 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-**Version**: 0.9.6 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-16
+### VIII. Local CI/CD & Enforcement
+1. **Local CI Pipeline**: All developers MUST run the Local CI pipeline (`tools/local-ci.ps1`) before committing. This pipeline includes static analysis (`Ktlint`, `Detekt`) and all unit tests.
+2. **Git Hook Enforcement**: A `pre-commit` git hook is mandatory to prevent accidental commits of broken or untested code. The hook is installed via `tools/setup-hooks.ps1`.
+3. **Verification**: Any change that bypasses the Local CI gate (e.g., via `--no-verify`) MUST be documented with a valid justification in the commit message.
+
+**Version**: 0.9.8 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-21

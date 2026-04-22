@@ -1,0 +1,23 @@
+#!/bin/sh
+# Git pre-commit hook
+# This script runs the Local CI pipeline before allowing a commit.
+
+echo "🔍 Running pre-commit checks..."
+
+# Run the local-ci.ps1 script using PowerShell Core
+# We skip 'clean' for pre-commit to keep it reasonably fast.
+pwsh ./tools/local-ci.ps1 -SkipClean
+
+# Capture the exit code
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+    echo ""
+    echo "❌ Pre-commit checks failed."
+    echo "Please fix the issues above before committing."
+    echo "Use 'git commit --no-verify' if you MUST bypass this (discouraged)."
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed."
+exit 0
