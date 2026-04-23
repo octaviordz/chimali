@@ -10,24 +10,28 @@ import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEnt
 import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
 
-fun PasskeyCredentialEntity.toDomainModel(publicKey: java.security.PublicKey): PasskeyCredential {
-    return PasskeyCredential(
-        id = this.id,
-        rpId = this.rpId,
-        userId = this.userId,
-        userName = this.userName,
-        userDisplayName = this.userDisplayName,
-        publicKey = publicKey,
-        privateKeyAlias = this.privateKeyAlias,
-        signCount = this.signCount,
-        createdAt = Instant.ofEpochMilli(this.createdAt),
-        lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) } ?: Instant.ofEpochMilli(this.createdAt),
-        aaguid = Base64.getDecoder().decode(this.aaguid),
-        credentialId = Base64.getDecoder().decode(this.credentialId),
-        coseAlgorithm = this.coseAlgorithm.toInt(),
-        credProtectPolicy = this.credProtectPolicy.toInt(),
-        label = this.label,
-    )
+import com.chimali.fido2.data.crypto.PublicKeyDecoder
+
+fun PasskeyCredentialEntity.toDomainModel(decoder: PublicKeyDecoder): Result<PasskeyCredential> {
+    return decoder.decodePublicKey(this.publicKey, this.coseAlgorithm.toInt()).map { decodedKey ->
+        PasskeyCredential(
+            id = this.id,
+            rpId = this.rpId,
+            userId = this.userId,
+            userName = this.userName,
+            userDisplayName = this.userDisplayName,
+            publicKey = decodedKey,
+            privateKeyAlias = this.privateKeyAlias,
+            signCount = this.signCount,
+            createdAt = Instant.ofEpochMilli(this.createdAt),
+            lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) } ?: Instant.ofEpochMilli(this.createdAt),
+            aaguid = Base64.getDecoder().decode(this.aaguid),
+            credentialId = Base64.getDecoder().decode(this.credentialId),
+            coseAlgorithm = this.coseAlgorithm.toInt(),
+            credProtectPolicy = this.credProtectPolicy.toInt(),
+            label = this.label,
+        )
+    }
 }
 
 fun RelyingPartyEntity.toDomainModel(): RelyingParty {

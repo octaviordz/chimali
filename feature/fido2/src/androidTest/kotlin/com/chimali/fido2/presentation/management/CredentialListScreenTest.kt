@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.waitForIdle
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -12,8 +11,6 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
 import java.security.PublicKey
@@ -37,7 +34,7 @@ class CredentialListScreenTest {
 
     @Test
     fun screen_displaysEmptyState_whenNoCredentials() {
-        coEvery { getAllCredentialsUseCase() } returns emptyFlow()
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(emptyList())
 
         val viewModel = setupViewModel()
 
@@ -67,7 +64,7 @@ class CredentialListScreenTest {
                 credentialId = byteArrayOf(1, 2, 3),
             )
 
-        coEvery { getAllCredentialsUseCase() } returns flowOf(mockCredential)
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(listOf(mockCredential))
 
         val viewModel = setupViewModel()
 
@@ -101,7 +98,7 @@ class CredentialListScreenTest {
                 credentialId = byteArrayOf(1, 2, 3),
             )
 
-        coEvery { getAllCredentialsUseCase() } returns flowOf(mockCredential)
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(listOf(mockCredential))
 
         val viewModel = setupViewModel()
 

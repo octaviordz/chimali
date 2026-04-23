@@ -21,6 +21,8 @@ class CredentialRepositoryImplTest {
     private lateinit var relyingPartyDao: RelyingPartyDao
     private lateinit var userConsentRecordDao: UserConsentRecordDao
     private lateinit var cryptoService: Fido2CryptoService
+    private lateinit var publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder
+    private lateinit var corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker
     private lateinit var repository: CredentialRepositoryImpl
 
     private lateinit var testCredential: PasskeyCredential
@@ -36,12 +38,16 @@ class CredentialRepositoryImplTest {
             relyingPartyDao = mockk()
             userConsentRecordDao = mockk()
             cryptoService = mockk()
+            publicKeyDecoder = mockk()
+            corruptedKeyRepairWorker = mockk()
             repository =
                 CredentialRepositoryImpl(
                     passkeyCredentialDao,
                     relyingPartyDao,
                     userConsentRecordDao,
                     cryptoService,
+                    publicKeyDecoder,
+                    corruptedKeyRepairWorker,
                 )
 
             val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(256) }
@@ -98,6 +104,8 @@ class CredentialRepositoryImplTest {
                     deviceId = "test_device_id",
                 )
 
+            // Common stubs
+            coEvery { publicKeyDecoder.decodePublicKey(any(), any()) } returns Result.success(testPublicKey)
             // Default Mocks
             coEvery { cryptoService.keyExists(any()) } returns true
             coEvery { cryptoService.getPublicKey(any(), any()) } returns testPublicKey
@@ -152,7 +160,11 @@ class CredentialRepositoryImplTest {
         fun `should retrieve credentials by rp id`() =
             runTest {
                 coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns flowOf(listOf(testEntity))
-                val result = repository.getCredentialsByRpId(testCredential.rpId).toList()
+                
+                val flow = repository.getCredentialsByRpId(testCredential.rpId)
+                val result = mutableListOf<PasskeyCredential>()
+                flow.collect { result.add(it) }
+                
                 assertEquals(1, result.size)
                 assertEquals(testCredential.id, result.first().id)
             }
@@ -161,7 +173,11 @@ class CredentialRepositoryImplTest {
         fun `should retrieve all credentials`() =
             runTest {
                 coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(testEntity))
-                val result = repository.getAllCredentials().toList()
+                
+                val flow = repository.getAllCredentials()
+                val result = mutableListOf<PasskeyCredential>()
+                flow.collect { result.add(it) }
+                
                 assertEquals(1, result.size)
                 assertEquals(testCredential.id, result.first().id)
             }

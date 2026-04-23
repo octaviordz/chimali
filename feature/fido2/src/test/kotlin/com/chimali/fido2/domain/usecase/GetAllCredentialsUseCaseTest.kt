@@ -23,34 +23,34 @@ class GetAllCredentialsUseCaseTest {
     }
 
     @Test
-    fun `invoke should return empty flow when no credentials exist`() =
+    fun `invoke should return empty list when no credentials exist`() =
         runTest {
             // Arrange
-            coEvery { credentialRepository.getAllCredentials() } returns flowOf()
+            coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Result.success(emptyList())
 
             // Act
-            val result = getAllCredentialsUseCase().toList()
+            val result = getAllCredentialsUseCase(10L, 0L).getOrNull() ?: emptyList()
 
             // Assert
             assertEquals(0, result.size)
-            coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
+            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(10L, 0L) }
         }
 
     @Test
-    fun `invoke should return all credentials from repository`() =
+    fun `invoke should return credentials from repository page`() =
         runTest {
             // Arrange
             val mockCredential1 = mockk<PasskeyCredential>()
             val mockCredential2 = mockk<PasskeyCredential>()
-            coEvery { credentialRepository.getAllCredentials() } returns flowOf(mockCredential1, mockCredential2)
+            coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Result.success(listOf(mockCredential1, mockCredential2))
 
             // Act
-            val result = getAllCredentialsUseCase().toList()
+            val result = getAllCredentialsUseCase(10L, 0L).getOrNull() ?: emptyList()
 
             // Assert
             assertEquals(2, result.size)
             assertEquals(mockCredential1, result[0])
             assertEquals(mockCredential2, result[1])
-            coVerify(exactly = 1) { credentialRepository.getAllCredentials() }
+            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(10L, 0L) }
         }
 }

@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.Flow
 class GetAllCredentialsUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(): Flow<PasskeyCredential> {
-        return passkeyCredentialRepository.getAllCredentials()
+    suspend operator fun invoke(limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+        return passkeyCredentialRepository.getPagedCredentials(limit, offset)
     }
 }
 

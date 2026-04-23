@@ -270,6 +270,16 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         )
 
     override suspend fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
+    
+    override suspend fun getPagedCredentials(limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+        val list = credentials.values.toList().drop(offset.toInt()).take(limit.toInt())
+        return Result.success(list)
+    }
+
+    override suspend fun getPagedCredentialsByRpId(rpId: String, limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+        val list = credentials.values.filter { it.rpId == rpId }.drop(offset.toInt()).take(limit.toInt())
+        return Result.success(list)
+    }
 
     override suspend fun updateSignCount(
         credentialId: String,

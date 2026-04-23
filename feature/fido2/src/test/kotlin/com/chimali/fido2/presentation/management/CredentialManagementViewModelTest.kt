@@ -37,10 +37,9 @@ class CredentialManagementViewModelTest {
         searchCredentialsUseCase = mockk()
         deleteCredentialUseCase = mockk()
         deleteAllCredentialsUseCase = mockk()
-        updateCredentialLabelUseCase = mockk()
 
         // Default mock for loadCredentials on init
-        coEvery { getAllCredentialsUseCase() } returns flowOf()
+        coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList())
 
         viewModel =
             CredentialManagementViewModel(
@@ -48,7 +47,6 @@ class CredentialManagementViewModelTest {
                 searchCredentialsUseCase,
                 deleteCredentialUseCase,
                 deleteAllCredentialsUseCase,
-                updateCredentialLabelUseCase,
             )
     }
 
@@ -178,5 +176,30 @@ class CredentialManagementViewModelTest {
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+        }
+    @Test
+    fun `intent LoadNextPage increments offset and appends credentials`() =
+        runTest {
+            val page1 = List(20) { i -> PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1") }
+            val page2 = listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
+            
+            // Re-initialize with paginated mocks
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList()) // fallback
+            coEvery { getAllCredentialsUseCase(20L, 0L) } returns Result.success(page1)
+            coEvery { getAllCredentialsUseCase(20L, 20L) } returns Result.success(page2)
+
+            val newViewModel = CredentialManagementViewModel(
+                getAllCredentialsUseCase, searchCredentialsUseCase, deleteCredentialUseCase, deleteAllCredentialsUseCase
+            )
+            advanceUntilIdle()
+            
+            assertEquals(20, newViewModel.state.value.credentials.size)
+            
+            newViewModel.onIntent(CredentialManagementIntent.LoadNextPage)
+            advanceUntilIdle()
+            
+            assertEquals(21, newViewModel.state.value.credentials.size)
+            assertTrue(newViewModel.state.value.credentials.any { it.id == "2" })
+            assertFalse(newViewModel.state.value.isPaginating)
         }
 }

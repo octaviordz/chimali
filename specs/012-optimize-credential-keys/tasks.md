@@ -21,7 +21,7 @@ description: "Task list for Optimize Credential Keys feature implementation"
 
 **Purpose**: Project initialization and dependency validation
 
-- [ ] T001 [P] Validate `kmpworkmanager` dependency is present in `feature/fido2/build.gradle.kts`
+- [x] T001 [P] Validate `kmpworkmanager` dependency is present in `feature/fido2/build.gradle.kts`
 
 ---
 
@@ -31,8 +31,8 @@ description: "Task list for Optimize Credential Keys feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Update `Fido2Database.sq` to include `getPagedCredentials` and `getPagedCredentialsByRpId` queries in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq`
-- [ ] T003 Update `CredentialRepository` interface with `getPagedCredentials` and `getPagedCredentialsByRpId` methods in `feature/fido2/src/main/kotlin/com/chimali/fido2/domain/repository/CredentialRepository.kt`
+- [x] T002 Update `Fido2Database.sq` to include `getPagedCredentials` and `getPagedCredentialsByRpId` queries in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq`
+- [x] T003 Update `CredentialRepository` interface with `getPagedCredentials` and `getPagedCredentialsByRpId` methods in `feature/fido2/src/main/kotlin/com/chimali/fido2/domain/repository/CredentialRepository.kt`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -48,15 +48,15 @@ description: "Task list for Optimize Credential Keys feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T004 [P] [US1] Unit test for decoding keys in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/PublicKeyDecoderTest.kt`
-- [ ] T005 [P] [US1] Unit test for worker enqueuing in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/worker/CorruptedKeyRepairWorkerTest.kt`
+- [x] T004 [P] [US1] Unit test for decoding keys in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/PublicKeyDecoderTest.kt`
+- [x] T005 [P] [US1] Unit test for worker enqueuing in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/worker/CorruptedKeyRepairWorkerTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Create `PublicKeyDecoder.kt` utility in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/crypto/PublicKeyDecoder.kt`
-- [ ] T007 [P] [US1] Create `CorruptedKeyRepairWorker.kt` interface and implementation in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/worker/CorruptedKeyRepairWorker.kt`
-- [ ] T008 [US1] Update `EntityMappers.kt` to use `PublicKeyDecoder` in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/mapper/EntityMappers.kt`
-- [ ] T009 [US1] Update `CredentialRepositoryImpl.kt` to catch decoder exceptions, enqueue worker, and return valid keys in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt`
+- [x] T006 [P] [US1] Create `PublicKeyDecoder.kt` utility in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/crypto/PublicKeyDecoder.kt`
+- [x] T007 [P] [US1] Create `CorruptedKeyRepairWorker.kt` interface and implementation in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/worker/CorruptedKeyRepairWorker.kt`
+- [x] T008 [US1] Update `EntityMappers.kt` to use `PublicKeyDecoder` in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/mapper/EntityMappers.kt`
+- [x] T009 [US1] Update `CredentialRepositoryImpl.kt` to catch decoder exceptions, enqueue worker, and return valid keys in `feature/fido2/src/main/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -70,12 +70,12 @@ description: "Task list for Optimize Credential Keys feature implementation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T010 [P] [US2] Unit test for pagination logic in `feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt`
+- [x] T010 [P] [US2] Unit test for pagination logic in `feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] Update `CredentialManagementViewModel.kt` to manage pagination offset, state, and `loadNextPage` method in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModel.kt`
-- [ ] T012 [US2] Update `CredentialListScreen.kt` to trigger `loadNextPage` on scroll using `LaunchedEffect` in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`
+- [x] T011 [US2] Update `CredentialManagementViewModel.kt` to manage pagination offset, state, and `loadNextPage` method in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModel.kt`
+- [x] T012 [US2] Update `CredentialListScreen.kt` to trigger `loadNextPage` on scroll using `LaunchedEffect` in `feature/fido2/src/main/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -85,9 +85,9 @@ description: "Task list for Optimize Credential Keys feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories and system stability.
 
-- [ ] T013 [P] Clean up obsolete list retrieval logic from `GetAllCredentialsUseCase.kt` in `feature/fido2/src/main/kotlin/com/chimali/fido2/domain/usecase/GetAllCredentialsUseCase.kt`
-- [ ] T014 [P] Write Macrobenchmark test for UI scroll performance in `feature/fido2/src/macrobenchmark/kotlin/com/chimali/fido2/performance/CredentialListScrollBenchmark.kt`
-- [ ] T015 Run Local CI pipeline via `tools/local-ci.ps1`
+- [x] T013 [P] Clean up obsolete list retrieval logic from `GetAllCredentialsUseCase.kt` in `feature/fido2/src/main/kotlin/com/chimali/fido2/domain/usecase/GetAllCredentialsUseCase.kt`
+- [x] T014 [P] Write Macrobenchmark test for UI scroll performance in `feature/fido2/src/macrobenchmark/kotlin/com/chimali/fido2/performance/CredentialListScrollBenchmark.kt`
+- [x] T015 Run Local CI pipeline via `tools/local-ci.ps1`
 
 ---
 

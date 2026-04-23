@@ -60,6 +60,20 @@ class PasskeyCredentialDao(
         }
 
         /**
+         * Retrieves a paginated list of credentials for a specific relying party.
+         */
+        fun getPagedCredentialsByRpId(rpId: String, limit: Long, offset: Long): List<PasskeyCredentialEntity> {
+            return database.passkeyCredentialQueries.getPagedCredentialsByRpId(rpId, limit, offset).executeAsList()
+        }
+
+        /**
+         * Retrieves a paginated list of all credentials.
+         */
+        fun getPagedCredentials(limit: Long, offset: Long): List<PasskeyCredentialEntity> {
+            return database.passkeyCredentialQueries.getPagedCredentials(limit, offset).executeAsList()
+        }
+
+        /**
          * Retrieves all credentials for a specific RP and user (sync).
          */
         fun getCredentialsByRpIdAndUserId(
@@ -120,6 +134,19 @@ class PasskeyCredentialDao(
         ) {
             database.passkeyCredentialQueries.updateLabel(
                 label = label,
+                id = credentialId,
+            )
+        }
+
+        /**
+         * Updates the public key for a credential.
+         */
+        suspend fun updatePublicKey(
+            credentialId: String,
+            publicKey: String,
+        ) {
+            database.passkeyCredentialQueries.updatePublicKey(
+                publicKey = publicKey,
                 id = credentialId,
             )
         }

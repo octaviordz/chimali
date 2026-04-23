@@ -32,45 +32,32 @@ class PasskeyCredentialRepositoryImpl(
 
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
         val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-        val publicKey = cryptoService.getPublicKey(
-            CredentialId.fromString(entity.id),
-            entity.coseAlgorithm.toInt()
-        ) ?: return null
-        return entity.toDomainModel(publicKey)
+        return entity.toDomainModel(com.chimali.fido2.data.crypto.PublicKeyDecoder()).getOrNull()
     }
 
     override suspend fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredential>> {
+        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
         return passkeyCredentialDao.getCredentialsByRpId(rpId).map { entities ->
             entities.mapNotNull { entity ->
-                val publicKey = cryptoService.getPublicKey(
-                    CredentialId.fromString(entity.id),
-                    entity.coseAlgorithm.toInt()
-                )
-                publicKey?.let { entity.toDomainModel(it) }
+                entity.toDomainModel(decoder).getOrNull()
             }
         }
     }
 
     override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
+        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
         return passkeyCredentialDao.getAllCredentials().map { entities ->
             entities.mapNotNull { entity ->
-                val publicKey = cryptoService.getPublicKey(
-                    CredentialId.fromString(entity.id),
-                    entity.coseAlgorithm.toInt()
-                )
-                publicKey?.let { entity.toDomainModel(it) }
+                entity.toDomainModel(decoder).getOrNull()
             }
         }
     }
 
     override suspend fun searchCredentials(query: String): Flow<List<PasskeyCredential>> {
+        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
         return passkeyCredentialDao.searchCredentials(query, null).map { entities ->
             entities.mapNotNull { entity ->
-                val publicKey = cryptoService.getPublicKey(
-                    CredentialId.fromString(entity.id),
-                    entity.coseAlgorithm.toInt()
-                )
-                publicKey?.let { entity.toDomainModel(it) }
+                entity.toDomainModel(decoder).getOrNull()
             }
         }
     }

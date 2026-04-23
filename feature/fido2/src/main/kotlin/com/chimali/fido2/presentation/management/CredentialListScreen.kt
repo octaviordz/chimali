@@ -11,6 +11,7 @@ import com.chimali.core.ui.R as CoreR
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -137,7 +138,23 @@ fun CredentialListScreen(
                     )
                 }
             } else {
+                val listState = rememberLazyListState()
+                
+                val shouldLoadMore by remember {
+                    derivedStateOf {
+                        val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                        lastVisibleItem != null && lastVisibleItem.index >= state.credentials.size - 5
+                    }
+                }
+
+                LaunchedEffect(shouldLoadMore) {
+                    if (shouldLoadMore) {
+                        viewModel.onIntent(CredentialManagementIntent.LoadNextPage)
+                    }
+                }
+
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {

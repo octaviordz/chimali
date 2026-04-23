@@ -3,6 +3,21 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-22
+
+### Added
+- **Corrupted Key Repair Implementation**: Completed the `CorruptedKeyRepairWorkerImpl` to perform background HDK re-derivation of public keys, ensuring that corrupted or missing database entries are automatically healed during pagination triggers.
+- **Detailed changes**: [2026-04-22-fido2-pagination-stabilization.md](docs/changelogs/2026-04-22-fido2-pagination-stabilization.md) & [2026-04-22-corrupted-key-repair-implementation.md](docs/changelogs/2026-04-22-corrupted-key-repair-implementation.md)
+
+### Changed
+- **FIDO2 Pagination Stabilization**: Refactored the FIDO2 testing architecture to explicitly align MockK stubs and UI assertions with the newly paginated `CredentialRepository` interface, ensuring robust type resolution.
+- **Flaky Test Resolution**: Hardened `CredentialManagementViewModelTest` by sorting simulated pagination data correctly by `lastUsedAt`, eliminating race conditions and nanosecond timing collisions during list evaluation.
+- **Database Schema & DAO**: Extended `PasskeyCredential.sq` and `PasskeyCredentialDao` with a targeted `updatePublicKey` operation to support the background repair workflow.
+
+### Fixed
+- **Runtime Dependency Resolution**: Identified and eliminated a circular Koin dependency loop (StackOverflowError) between `CredentialRepositoryImpl` and `CorruptedKeyRepairWorkerImpl`, restoring stable dependency injection on Android execution paths by injecting `PasskeyCredentialDao` and `Fido2CryptoService` directly into the worker.
+- **Type Mismatch Compilations**: Removed redundant MockK overrides that were returning invalid type parameters during unit testing, bringing the FIDO2 feature suite back to 100% build stability.
+
 ## [Unreleased] - 2026-04-21
 
 ### Changed
@@ -510,4 +525,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-20*
+*Last Updated: 2026-04-22*

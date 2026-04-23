@@ -6,7 +6,7 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.first
 import co.touchlab.kermit.Logger
 import java.security.MessageDigest
 
@@ -73,7 +73,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 1: getCredsMetadata ───────────────────────────────────────
 
         private suspend fun handleGetCredsMetadata(): ByteArray {
-            val credentials = getAllCredentialsUseCase().toList()
+            val credentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
             val numCredentials = credentials.size
 
             val response =
@@ -88,7 +88,7 @@ class Ctap2CredentialManagementHandler(
         // ── SubCommand 2: enumerateRPsBegin ──────────────────────────────────────
 
         private suspend fun handleEnumerateRPsBegin(): ByteArray {
-            val allCredentials = getAllCredentialsUseCase().toList()
+            val allCredentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
             if (allCredentials.isEmpty()) {
                 return byteArrayOf(CTAP2_ERR_NO_CREDENTIALS)
             }
@@ -142,7 +142,7 @@ class Ctap2CredentialManagementHandler(
                     (subCommandParams["rpId"] as? String)
                 } ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
-            val credentials = credentialRepository.getCredentialsByRpId(rpId).toList()
+            val credentials = credentialRepository.getCredentialsForRp(rpId).getOrNull() ?: emptyList()
             if (credentials.isEmpty()) {
                 return byteArrayOf(CTAP2_ERR_NO_CREDENTIALS)
             }
@@ -262,7 +262,7 @@ class Ctap2CredentialManagementHandler(
                 if (entry.rpIdHash.contentEquals(hash)) return entry.rpId
             }
             // Otherwise, scan all credentials for a matching rpId
-            val allCredentials = getAllCredentialsUseCase().toList()
+            val allCredentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
             return allCredentials
                 .map { cred -> cred.rpId }
                 .distinct()

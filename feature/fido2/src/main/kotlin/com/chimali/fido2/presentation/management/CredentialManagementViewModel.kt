@@ -36,13 +36,25 @@ class CredentialManagementViewModel(
     private val _searchQuery = MutableStateFlow("")
     private var _fullCredentialList: List<PasskeyCredential> = emptyList()
 
+    private var currentOffset: Long = 0L
+    private val PAGE_SIZE: Long = 20L
+
     init {
         observeCredentials()
     }
 
     fun onIntent(intent: CredentialManagementIntent) {
         when (intent) {
-            is CredentialManagementIntent.RefreshCredentials -> observeCredentials()
+            is CredentialManagementIntent.RefreshCredentials -> {
+                currentOffset = 0L
+                _fullCredentialList = emptyList()
+                loadCredentials()
+            }
+            is CredentialManagementIntent.LoadNextPage -> {
+                if (_state.value.hasMore && !_state.value.isPaginating && _searchQuery.value.isBlank()) {
+                    loadCredentials()
+                }
+            }
             is CredentialManagementIntent.UpdateSearchQuery -> {
                 logger.d { "Updating search query: ${intent.query}" }
                 _searchQuery.value = intent.query
@@ -63,29 +75,49 @@ class CredentialManagementViewModel(
         viewModelScope.launch {
             _searchQuery
                 .debounce(300L)
-                .flatMapLatest { query ->
-                    logger.d { "Performing search for: $query" }
-                    _state.update { it.copy(isLoading = true, error = null) }
-                    val sourceFlow = if (query.isBlank()) {
-                        getAllCredentialsUseCase()
+                .collectLatest { query ->
+                    if (query.isBlank()) {
+                        currentOffset = 0L
+                        _fullCredentialList = emptyList()
+                        loadCredentials()
                     } else {
-                        searchCredentialsUseCase(query)
+                        // For search, we just load all matches without pagination
+                        _state.update { it.copy(isLoading = true, error = null) }
+                        try {
+                            val results = searchCredentialsUseCase(query).toList()
+                            _fullCredentialList = results
+                            updateStateWithFilteredCredentials()
+                            _state.update { it.copy(isLoading = false, hasMore = false) }
+                        } catch (e: Exception) {
+                            _state.update { it.copy(isLoading = false, error = e.message ?: "Search failed") }
+                        }
                     }
-                    // Collect individual PasskeyCredential items into a single list emission
-                    kotlinx.coroutines.flow.flow {
-                        val list = sourceFlow.toList()
-                        emit(list)
-                    }
                 }
-                .catch { e ->
-                    logger.e(e) { "Failed to load credentials" }
-                    _state.update { it.copy(isLoading = false, error = e.message ?: "Search failed") }
+        }
+    }
+
+    private fun loadCredentials() {
+        viewModelScope.launch {
+            _state.update { it.copy(isPaginating = currentOffset > 0, isLoading = currentOffset == 0L, error = null) }
+            val result = getAllCredentialsUseCase(PAGE_SIZE, currentOffset)
+            result.onSuccess { newItems ->
+                _fullCredentialList = _fullCredentialList + newItems
+                currentOffset += newItems.size
+                val hasMore = newItems.size >= PAGE_SIZE
+                
+                _state.update {
+                    it.copy(
+                        credentials = _fullCredentialList
+                            .filter { c -> c.id !in it.pendingDeleteIds }
+                            .sortedByDescending { c -> c.lastUsedAt },
+                        isPaginating = false,
+                        isLoading = false,
+                        hasMore = hasMore
+                    )
                 }
-                .collect { credentials ->
-                    logger.d { "Loaded ${credentials.size} credentials" }
-                    _fullCredentialList = credentials
-                    updateStateWithFilteredCredentials()
-                }
+            }.onFailure { e ->
+                _state.update { it.copy(isPaginating = false, isLoading = false, error = e.message ?: "Failed to load") }
+            }
         }
     }
 
@@ -209,6 +241,8 @@ data class CredentialManagementState(
     val credentialToDelete: PasskeyCredential? = null,
     val lastDeleted: PasskeyCredential? = null,
     val isLoading: Boolean = false,
+    val isPaginating: Boolean = false,
+    val hasMore: Boolean = true,
     val error: String? = null,
     val showDeleteAllWarning: Boolean = false,
     val pendingDeleteIds: Set<String> = emptySet(),
@@ -216,6 +250,7 @@ data class CredentialManagementState(
 
 sealed interface CredentialManagementIntent {
     object RefreshCredentials : CredentialManagementIntent
+    object LoadNextPage : CredentialManagementIntent
     data class UpdateSearchQuery(val query: String) : CredentialManagementIntent
     data class SelectCredential(val credential: PasskeyCredential) : CredentialManagementIntent
     data class ShowDeleteDialog(val credential: PasskeyCredential) : CredentialManagementIntent

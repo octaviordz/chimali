@@ -51,6 +51,29 @@ interface CredentialRepository {
     suspend fun getAllCredentials(): Flow<PasskeyCredential>
 
     /**
+     * Retrieves a paginated list of credentials stored in the system.
+     *
+     * @param limit Maximum number of credentials to return
+     * @param offset Number of credentials to skip
+     * @return Result containing list of credentials for the requested page
+     */
+    suspend fun getPagedCredentials(limit: Long, offset: Long): Result<List<PasskeyCredential>>
+
+    /**
+     * Retrieves a paginated list of credentials for a specific relying party.
+     *
+     * @param rpId The ID of the relying party
+     * @param limit Maximum number of credentials to return
+     * @param offset Number of credentials to skip
+     * @return Result containing list of credentials for the requested page
+     */
+    suspend fun getPagedCredentialsByRpId(
+        rpId: String,
+        limit: Long,
+        offset: Long,
+    ): Result<List<PasskeyCredential>>
+
+    /**
      * Updates the sign count for a credential.
      *
      * @param credentialId The ID of the credential to update

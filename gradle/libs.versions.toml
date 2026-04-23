@@ -37,6 +37,8 @@ timber = "5.0.1"
 kermit = "2.0.4"
 okio = "3.9.0"
 kotlinx-datetime = "0.6.0"
+kmpworkmanager = "2.3.9"
+guava = "31.1-android"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-ktx" }
@@ -109,11 +111,16 @@ qrose = { group = "io.github.alexzhirkevich", name = "qrose", version.ref = "qro
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
 androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose" }
+compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "compose" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
 okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kmpworkmanager = { group = "dev.brewkits", name = "kmpworkmanager", version.ref = "kmpworkmanager" }
+kmpworker-ksp = { group = "dev.brewkits", name = "kmpworker-ksp", version.ref = "kmpworkmanager" }
+kmpworker-annotations = { group = "dev.brewkits", name = "kmpworker-annotations", version.ref = "kmpworkmanager" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

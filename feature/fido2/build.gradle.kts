@@ -119,6 +119,9 @@ kotlin {
             implementation(libs.kermit)
             implementation(libs.okio)
             implementation(libs.kotlinx.datetime)
+            
+            // Background Jobs
+            implementation(libs.kmpworkmanager)
         }
 
         /**
@@ -156,6 +159,7 @@ kotlin {
             implementation(libs.compose.icons.extended)
             implementation(libs.compose.animation.graphics)
             implementation(libs.androidx.navigation.compose)
+            implementation(libs.guava)
         }
 
         // iosMain: Placeholder — no functional code (T192). actual implementations added in T191+.
@@ -186,6 +190,7 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.espresso.core)
+                implementation(libs.compose.ui.test)
                 implementation(libs.compose.ui.test.junit4)
                 implementation(libs.mockk.android)
             }

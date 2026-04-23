@@ -58,9 +58,12 @@ class ManagementIntegrationTest {
 
         repository = mockk()
 
-        // getAllCredentials() returns Flow<PasskeyCredential> — emit individual items
-        coEvery { repository.getAllCredentials() } answers {
-            flowOf(*credentials.value.toTypedArray())
+        // getPagedCredentials returns Result.success(List<PasskeyCredential>)
+        coEvery { repository.getPagedCredentials(any(), any()) } answers {
+            val limit = firstArg<Long>()
+            val offset = secondArg<Long>()
+            val list = credentials.value.drop(offset.toInt()).take(limit.toInt())
+            Result.success(list)
         }
 
         // searchCredentials returns empty by default
@@ -100,7 +103,7 @@ class ManagementIntegrationTest {
 
     private fun createDummyCredential(
         id: String,
-        rpId: String = "https://example.com",
+        rpId: String = "example.com",
     ): PasskeyCredential {
         val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
         return PasskeyCredential(

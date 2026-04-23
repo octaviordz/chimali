@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -32,6 +34,8 @@ class CredentialRepositoryImpl(
         private val relyingPartyDao: RelyingPartyDao,
         private val userConsentRecordDao: UserConsentRecordDao,
         private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService,
+        private val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder,
+        private val corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker,
     ) : CredentialRepository {
         companion object {
             private const val MAX_USER_CREDENTIALS_PER_RP = 10
@@ -69,8 +73,7 @@ class CredentialRepositoryImpl(
         override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
             return try {
                 val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-                val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt()) ?: return null
-                entity.toDomainModel(publicKey)
+                entity.toDomainModel(publicKeyDecoder).getOrNull()
             } catch (e: Exception) {
                 null
             }
@@ -82,7 +85,7 @@ class CredentialRepositoryImpl(
                 try {
                     passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
                         val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
                 } catch (_: Exception) {
                 }
@@ -94,7 +97,7 @@ class CredentialRepositoryImpl(
                 try {
                     passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
                         val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
                 } catch (_: Exception) {
                 }
@@ -105,11 +108,64 @@ class CredentialRepositoryImpl(
             return flow {
                 try {
                     passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                        if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                        entity.toDomainModel(publicKeyDecoder).onSuccess {
+                            emit(it)
+                        }
                     }
                 } catch (_: Exception) {
                 }
+            }
+        }
+
+        override suspend fun getPagedCredentials(limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+            return try {
+                val entities = passkeyCredentialDao.getPagedCredentials(limit, offset)
+                val validCredentials = mutableListOf<PasskeyCredential>()
+                val corruptedIds = mutableListOf<String>()
+
+                for (entity in entities) {
+                    entity.toDomainModel(publicKeyDecoder)
+                        .onSuccess { validCredentials.add(it) }
+                        .onFailure { corruptedIds.add(entity.id) }
+                }
+
+                if (corruptedIds.isNotEmpty()) {
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        corruptedKeyRepairWorker.doWork(corruptedIds)
+                    }
+                }
+
+                Result.success(validCredentials)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+        override suspend fun getPagedCredentialsByRpId(
+            rpId: String,
+            limit: Long,
+            offset: Long,
+        ): Result<List<PasskeyCredential>> {
+            return try {
+                val entities = passkeyCredentialDao.getPagedCredentialsByRpId(rpId, limit, offset)
+                val validCredentials = mutableListOf<PasskeyCredential>()
+                val corruptedIds = mutableListOf<String>()
+
+                for (entity in entities) {
+                    entity.toDomainModel(publicKeyDecoder)
+                        .onSuccess { validCredentials.add(it) }
+                        .onFailure { corruptedIds.add(entity.id) }
+                }
+
+                if (corruptedIds.isNotEmpty()) {
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        corruptedKeyRepairWorker.doWork(corruptedIds)
+                    }
+                }
+
+                Result.success(validCredentials)
+            } catch (e: Exception) {
+                Result.failure(e)
             }
         }
 
@@ -185,8 +241,7 @@ class CredentialRepositoryImpl(
                 // failing the entire query.
                 val credentials =
                     entities.mapNotNull { entity ->
-                        val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                        publicKey?.let { entity.toDomainModel(it) }
+                        entity.toDomainModel(publicKeyDecoder).getOrNull()
                     }
                 Result.success(credentials)
             } catch (e: Exception) {
@@ -250,8 +305,7 @@ class CredentialRepositoryImpl(
                     passkeyCredentialDao.getAllCredentials().first()
                         .filter { it.userName.lowercase().contains(lq) || it.userDisplayName.lowercase().contains(lq) }
                         .forEach { entity ->
-                            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                            if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                            entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                         }
                 } catch (_: Exception) {
                 }
@@ -265,8 +319,7 @@ class CredentialRepositoryImpl(
                     passkeyCredentialDao.getAllCredentials().first()
                         .filter { entity -> entity.lastUsedAt == null || Instant.ofEpochMilli(entity.lastUsedAt).isBefore(cutoff) }
                         .forEach { entity ->
-                            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                            if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                            entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                         }
                 } catch (_: Exception) {
                 }
@@ -279,8 +332,7 @@ class CredentialRepositoryImpl(
                     passkeyCredentialDao.getAllCredentials().first()
                         .filter { false } // Not implemented in current schema
                         .forEach { entity ->
-                            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                            if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                            entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                         }
                 } catch (_: Exception) {
                 }
@@ -294,8 +346,7 @@ class CredentialRepositoryImpl(
                     passkeyCredentialDao.getAllCredentials().first()
                         .filter { Instant.ofEpochMilli(it.createdAt).isBefore(cutoff) }
                         .forEach { entity ->
-                            val publicKey = cryptoService.getPublicKey(CredentialId.fromString(entity.id), entity.coseAlgorithm.toInt())
-                            if (publicKey != null) emit(entity.toDomainModel(publicKey))
+                            entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                         }
                 } catch (_: Exception) {
                 }
