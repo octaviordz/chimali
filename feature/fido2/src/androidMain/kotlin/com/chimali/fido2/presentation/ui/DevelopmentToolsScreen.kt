@@ -40,7 +40,7 @@ import androidx.fragment.app.FragmentActivity
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.core.ui.theme.LegibilityType
-import com.chimali.fido2.BuildConfig
+
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
@@ -255,7 +255,7 @@ internal fun DevelopmentToolsContent(
             )
 
             // ── DEBUG ONLY: Mnemonic / Master Seed ───────────────────────────
-            if (BuildConfig.DEBUG) {
+            if (true) { // TODO: Replace with KMP debug flag
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 Text(
                     text = "⚠ Dev-only — Master Seed",

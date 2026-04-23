@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.sqldelight)
 }
 
@@ -16,6 +15,7 @@ android {
 }
 
 kotlin {
+    sourceSets.maybeCreate("main")
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
@@ -31,8 +31,8 @@ sqldelight {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(libs.sqldelight.android)
-    implementation(libs.sqldelight.coroutines)
+    api(libs.sqldelight.android)
+    api(libs.sqldelight.coroutines)
     implementation(libs.sqlcipher)
 
     // Koin (replaces Hilt)

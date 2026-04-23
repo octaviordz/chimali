@@ -89,8 +89,14 @@ class LocalCrashReportingLogWriter(
                 }
 
                 // Append to file
-                fileSystem.appendingSink(currentLogFile).buffer().use { sink ->
+                val sink = fileSystem.appendingSink(currentLogFile).buffer()
+                try {
                     sink.writeUtf8(logEntry)
+                    sink.flush()
+                } catch (e: Exception) {
+                    println("CrashReportingWriter: Write error: ${e.message}")
+                } finally {
+                    try { sink.close() } catch (ignored: Exception) {}
                 }
             } catch (e: Exception) {
                 // Fallback for debugging writer issues

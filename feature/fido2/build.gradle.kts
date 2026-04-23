@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.jetbrains.compose)
     alias(libs.plugins.ksp)
@@ -10,51 +10,6 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-
-android {
-    namespace = "com.chimali.fido2"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 28
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    testOptions {
-        unitTests.all {
-            it.useJUnitPlatform()
-        }
-    }
-
-    buildFeatures {
-        compose = true
-        buildConfig = true
-    }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "META-INF/LICENSE.md"
-            excludes += "META-INF/LICENSE-notice.md"
-        }
-    }
-}
 
 sqldelight {
     databases {
@@ -69,24 +24,28 @@ sqldelight {
 // Debug-only devtools: QR scanning + CameraX preview (Android variant only)
 // These use debugImplementation which is unambiguous even in KMP library modules.
 dependencies {
-    add("debugImplementation", libs.compose.ui.tooling)
-    add("debugImplementation", libs.compose.ui.test.manifest)
-    add("debugImplementation", libs.qrose)
-    add("debugImplementation", libs.camera.core)
-    add("debugImplementation", libs.camera.camera2)
-    add("debugImplementation", libs.camera.lifecycle)
-    add("debugImplementation", libs.camera.view)
-    add("debugImplementation", libs.mlkit.barcode.scanning)
+    add("androidMainImplementation", libs.compose.ui.tooling)
+    add("androidMainImplementation", libs.compose.ui.test.manifest)
+    add("androidMainImplementation", libs.qrose)
+    add("androidMainImplementation", libs.camera.core)
+    add("androidMainImplementation", libs.camera.camera2)
+    add("androidMainImplementation", libs.camera.lifecycle)
+    add("androidMainImplementation", libs.camera.view)
+    add("androidMainImplementation", libs.mlkit.barcode.scanning)
 }
 
 kotlin {
-    // Android target — all existing code lives in androidMain (src/main).
-    // T190: Domain models, interfaces, and use cases will be moved to commonMain
-    //        incrementally as KMP compatibility is verified.
-    androidTarget {
+    android {
+        namespace = "com.chimali.fido2"
+        compileSdk = 35
+        minSdk = 28
+
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
+
+        withHostTest {}
+        withDeviceTest {}
     }
 
     // iOS targets — placeholder, no actual implementations yet (T191/T192)
@@ -108,6 +67,7 @@ kotlin {
          * as KMP compatibility is confirmed for each component.
          */
         commonMain.dependencies {
+            implementation(compose.runtime)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
             implementation(libs.kotlinx.coroutines.core)
@@ -172,7 +132,8 @@ kotlin {
         }
 
         // androidUnitTest: JVM-hosted Android unit tests (JUnit5 + MockK + SQLDelight)
-        val androidUnitTest by getting {
+        val androidHostTest by getting {
+            kotlin.srcDir("src/test/kotlin")
             dependencies {
                 implementation(libs.junit.jupiter)
                 implementation(libs.junit.jupiter.api)
@@ -185,8 +146,9 @@ kotlin {
             }
         }
 
-        // androidInstrumentedTest: on-device instrumented tests
-        val androidInstrumentedTest by getting {
+        // androidDeviceTest: on-device instrumented tests
+        val androidDeviceTest by getting {
+            kotlin.srcDir("src/androidTest/kotlin")
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.espresso.core)
@@ -208,4 +170,8 @@ dependencies {
     // Compose BOM: applied here (not inside KMP sourceSets) because
     // platform() inside KMP sourceSets{} is deprecated in Kotlin 2.3 (KT-58759)
     add("androidMainImplementation", platform(libs.compose.bom))
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

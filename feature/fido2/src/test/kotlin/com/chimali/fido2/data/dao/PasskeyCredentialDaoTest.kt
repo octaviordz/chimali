@@ -26,8 +26,8 @@ class PasskeyCredentialDaoTest {
 
     @BeforeTest
     fun setUp() {
-        database = mockk()
-        queries = mockk()
+        database = mockk(relaxed = true)
+        queries = mockk(relaxed = true)
         dao = PasskeyCredentialDao(database)
         every { database.passkeyCredentialQueries } returns queries
 
@@ -73,9 +73,7 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should insert credential successfully`() =
             runTest {
-                every {
-                    queries.insert(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-                } just Runs
+
 
                 dao.insertCredential(testCredential)
 
@@ -104,7 +102,6 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should update credential successfully`() =
             runTest {
-                every { queries.update(any(), any(), any(), any(), any(), any(), any()) } just Runs
 
                 dao.updateCredential(testCredential)
 
@@ -124,7 +121,6 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should update sign count successfully`() =
             runTest {
-                every { queries.updateSignCount(any(), any()) } just Runs
 
                 dao.updateSignCount(testCredential.id, 5L)
 

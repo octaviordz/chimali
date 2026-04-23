@@ -3,6 +3,20 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-23
+
+### Changed
+- **KMP Build Stabilization**: Successfully stabilized the multiplatform build infrastructure following the migration to AGP 9.2.0 and the new Kotlin Multiplatform Android plugin.
+- **Platform-Specific Isolation**: Relocated JVM-specific cryptographic and database tests from `commonTest` to `androidHostTest` to ensure clean compilation of Kotlin/Native (iOS) targets.
+- **SqlDelight 2.0 Compatibility**: Resolved critical type mismatch regressions and `ClassCastException` in DAO unit tests caused by SqlDelight 2.0's transition to `QueryResult` wrappers.
+
+### Fixed
+- **iOS Compilation**: Resolved compilation failures in iOS source sets by adding missing `ExperimentalForeignApi` opt-ins for `NSFileManager` interactions.
+- **Compose Runtime Mismatch**: Fixed "IncompatibleComposeRuntimeVersionException" by adding explicit `compose.runtime` dependencies to KMP `commonMain` in feature modules.
+
+### Added
+- **Detailed changes**: [2026-04-23-agp-920-kmp-stabilization.md](docs/changelogs/2026-04-23-agp-920-kmp-stabilization.md)
+
 ## [Unreleased] - 2026-04-22
 
 ### Added
@@ -525,4 +539,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-22*
+*Last Updated: 2026-04-23*

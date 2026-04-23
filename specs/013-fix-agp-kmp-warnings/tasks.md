@@ -16,8 +16,8 @@
 
 **Purpose**: Project initialization and analysis
 
-- [ ] T001 Analyze all modules, libraries, and dependencies for migration impact (FR-001)
-- [ ] T002 [P] Verify `libs.versions.toml` plugin definitions for AGP 9.2.0 compatibility
+- [x] T001 Analyze all modules, libraries, and dependencies for migration impact (FR-001)
+- [x] T002 [P] Verify `libs.versions.toml` plugin definitions for AGP 9.2.0 compatibility
 
 ---
 
@@ -27,8 +27,8 @@
 
 **⚠️ CRITICAL**: Legacy flag removal MUST be complete before user story work begins
 
-- [ ] T003 Remove `android.builtInKotlin` from `gradle.properties` (FR-004)
-- [ ] T004 [P] Remove `android.newDsl` from `gradle.properties` (FR-004)
+- [x] T003 Remove `android.builtInKotlin` from `gradle.properties` (FR-004)
+- [x] T004 [P] Remove `android.newDsl` from `gradle.properties` (FR-004)
 
 **Checkpoint**: Foundation ready - project is configured for AGP 9.2.0 built-in Kotlin and modern DSL
 
@@ -42,10 +42,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Migrate `:feature:fido2` to `com.android.kotlin.multiplatform.library` in `feature/fido2/build.gradle.kts`
-- [ ] T006 [P] [US1] Migrate `:core:security` to `com.android.kotlin.multiplatform.library` in `core/security/build.gradle.kts`
-- [ ] T007 [P] [US1] Migrate `:core:domain` to `com.android.kotlin.multiplatform.library` in `core/domain/build.gradle.kts`
-- [ ] T008 [P] [US1] Migrate `:core:common` to `com.android.kotlin.multiplatform.library` in `core/common/build.gradle.kts`
+- [x] T005 [P] [US1] Migrate `:feature:fido2` to `com.android.kotlin.multiplatform.library` in `feature/fido2/build.gradle.kts`
+- [x] T006 [P] [US1] Migrate `:core:security` to `com.android.kotlin.multiplatform.library` in `core/security/build.gradle.kts`
+- [x] T007 [P] [US1] Migrate `:core:domain` to `com.android.kotlin.multiplatform.library` in `core/domain/build.gradle.kts`
+- [x] T008 [P] [US1] Migrate `:core:common` to `com.android.kotlin.multiplatform.library` in `core/common/build.gradle.kts`
 
 **Checkpoint**: At this point, all KMP modules should be using the modern plugin and build without deprecation warnings.
 
@@ -59,7 +59,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Remove `org.jetbrains.kotlin.android` plugin application from `feature/vault/build.gradle.kts`
+- [x] T009 [US2] Remove `org.jetbrains.kotlin.android` plugin application from `feature/vault/build.gradle.kts`
 - [ ] T010 [US2] Verify build targets (Android, Desktop, JVM) for all migrated modules (FR-006)
 
 **Checkpoint**: Build system is fully modernized and redundant plugins are removed.

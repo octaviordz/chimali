@@ -50,7 +50,7 @@ class IosClipboardManagerService(
             Result.success(Unit)
         } catch (e: Exception) {
             logger.e(e) { "iOS Clipboard: Copy failed - ${e.message}" }
-            Result.failure(ClipboardError.PlatformError("iOS", e::class.java?.simpleName, e.message ?: "Unknown error", e))
+            Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }
     }
 
@@ -69,7 +69,7 @@ class IosClipboardManagerService(
             Result.success(Unit)
         } catch (e: Exception) {
             logger.e(e) { "iOS Clipboard: Clear failed - ${e.message}" }
-            Result.failure(ClipboardError.PlatformError("iOS", e::class.java?.simpleName, e.message ?: "Unknown error", e))
+            Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }
     }
 }
