@@ -163,8 +163,8 @@ kotlin {
         }
 
         // iosMain: Placeholder — no functional code (T192). actual implementations added in T191+.
-        val iosArm64Main by getting { dependsOn(commonMain.get()) }
-        val iosSimulatorArm64Main by getting { dependsOn(commonMain.get()) }
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
 
         // commonTest: runs on all targets — uses kotlin-test (not JUnit5 which is JVM-only)
         commonTest.dependencies {
