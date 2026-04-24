@@ -38,8 +38,8 @@ As a developer, I want the codebase to be refactored using standardized patterns
 
 ### Edge Cases
 
-- **What happens when a string literal or raw string is naturally longer than 120 characters?** The rule configuration currently has `excludeRawStrings: true`, which should handle many cases, but long regular strings in tests (e.g., expected JSON outputs) might still trigger violations.
 - **How does the system handle multi-platform test source sets?** The excludes cover `commonTest`, `jvmTest`, `jsTest`, `iosTest`, etc. All must be cleared and validated.
+- **Are any exclusions allowed?** Yes, exclusions are permitted for special cases such as generated code (e.g., SQLDelight generated classes, build artifacts).
 
 ## Requirements *(mandatory)*
 
@@ -51,6 +51,8 @@ As a developer, I want the codebase to be refactored using standardized patterns
 - **FR-004**: System MUST maintain `excludeRawStrings: true` to avoid breaking valid long raw strings.
 - **FR-005**: System MUST NOT introduce logic or semantic changes during refactoring.
 - **FR-006**: System MUST apply the Detekt plugin to all subprojects to ensure comprehensive enforcement across the entire multi-module project.
+- **FR-007**: System MUST NOT remove any code comments during refactoring.
+- **FR-008**: System MUST use string concatenation (`+`) for long strings that do not require multiple lines in their final output, taking advantage of compile-time optimization. Multiline raw strings should only be used if the string logically requires multiple lines.
 
 ### Key Entities *(include if feature involves data)*
 

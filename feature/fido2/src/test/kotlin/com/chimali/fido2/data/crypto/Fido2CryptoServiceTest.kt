@@ -130,9 +130,17 @@ class Fido2CryptoServiceTest {
                 var callCount = 0
                 every { hdkManager.deriveHdk(any(), any(), any()) } answers {
                     if (callCount++ == 0) {
-                        HdkResult(P256Group.serializeElement(pk1), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
+                        HdkResult(
+                            publicKey = P256Group.serializeElement(pk1),
+                            salt = ByteArray(32),
+                            blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
+                        )
                     } else {
-                        HdkResult(P256Group.serializeElement(pk2), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
+                        HdkResult(
+                            publicKey = P256Group.serializeElement(pk2),
+                            salt = ByteArray(32),
+                            blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
+                        )
                     }
                 }
 
@@ -189,7 +197,12 @@ class Fido2CryptoServiceTest {
                 val (_, pk) = P256Group.generateKeyPair()
                 every {
                     hdkManager.deriveHdk(any(), any(), any())
-                } returns HdkResult(P256Group.serializeElement(pk), ByteArray(32), P256Group.serializeScalar(P256Group.randomScalar()))
+                } returns
+                    HdkResult(
+                        publicKey = P256Group.serializeElement(pk),
+                        salt = ByteArray(32),
+                        blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
+                    )
 
                 val publicKey =
                     service.getPublicKey(
@@ -367,7 +380,9 @@ class Fido2CryptoServiceTest {
 
                 // Pinned expected value — captured from local run after UInt fix.
                 // The raw 65-byte uncompressed P-256 point: 0x04 || X (32 bytes) || Y (32 bytes).
-                val expectedHex = "04962A65A7E025CCFE68130E0BC74AC061736FE5AE48CF63B7937B5F2B84875491DEB440FC850B2D88AFEA9A492866DA0AA0B80D3B423012DD71767F9F50A219FE"
+                val expectedHex =
+                    "04962A65A7E025CCFE68130E0BC74AC061736FE5AE48CF63B7937B5F2B848754" +
+                        "91DEB440FC850B2D88AFEA9A492866DA0AA0B80D3B423012DD71767F9F50A219FE"
                 val actualHex = keyPair.publicKeyBytes.joinToString("") { "%02X".format(it) }
 
                 assertEquals(

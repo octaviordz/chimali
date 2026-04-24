@@ -24,7 +24,11 @@ class HdkEcdhP256Test {
         val blindedSk = MultiplicativeBlinding.blindPrivateKey(sk, bf)
         val expectedPk = P256Group.scalarBaseMult(blindedSk)
 
-        assertEquals(expectedPk.normalize(), blindedPk.normalize(), "Blinded public key must match ScalarBaseMult(BlindPrivateKey(sk, bf))")
+        assertEquals(
+            expected = expectedPk.normalize(),
+            actual = blindedPk.normalize(),
+            message = "Blinded public key must match ScalarBaseMult(BlindPrivateKey(sk, bf))"
+        )
     }
 
     @Test
@@ -48,7 +52,11 @@ class HdkEcdhP256Test {
         val result0 = hdk.hdk(0u, pk, seed)
         val result1 = hdk.hdk(1u, pk, seed)
 
-        assertNotEquals(result0.first.normalize(), result1.first.normalize(), "Different indices must produce different public keys")
+        assertNotEquals(
+            illegal = result0.first.normalize(),
+            actual = result1.first.normalize(),
+            message = "Different indices must produce different public keys"
+        )
         assertFalse(result0.second.contentEquals(result1.second))
     }
 
@@ -86,7 +94,11 @@ class HdkEcdhP256Test {
         // Reader computes CreateSharedSecret(skReader, blindedPk)
         val readerSecret = P256Group.createSharedSecret(skReader, blindedPk)
 
-        assertContentEquals(deviceSecret, readerSecret, "Proof of possession: device and reader shared secrets must match")
+        assertContentEquals(
+            expected = deviceSecret,
+            actual = readerSecret,
+            message = "Proof of possession: device and reader shared secrets must match"
+        )
     }
 
     @Test
@@ -112,7 +124,11 @@ class HdkEcdhP256Test {
         assertContentEquals(issuedSalt, decappedSalt, "Decapped salt must match issued salt")
 
         val (derivedPk, _, _) = hdk.hdk(index, rootPk, decappedSalt)
-        assertEquals(expectedPk.normalize(), derivedPk.normalize(), "Remote derivation: derived pk must match expected pk")
+        assertEquals(
+            expected = expectedPk.normalize(),
+            actual = derivedPk.normalize(),
+            message = "Remote derivation: derived pk must match expected pk"
+        )
     }
 
     @Test
@@ -194,7 +210,12 @@ class HdkEcdhP256Test {
         val expected = referenceDeriveSalt(salt, ctx)
         val actual   = hdk.deriveSalt(salt, ctx)
 
-        assertContentEquals(expected, actual, "DeriveSalt must conform to §2.4: H(salt || ctx). Regression guard: ID prefix must NOT be prepended (T166).")
+        assertContentEquals(
+            expected = expected,
+            actual = actual,
+            message = "DeriveSalt must conform to §2.4: H(salt || ctx). " +
+                "Regression guard: ID prefix must NOT be prepended (T166)."
+        )
     }
 
     @Test
@@ -221,18 +242,29 @@ class HdkEcdhP256Test {
         val salt = ByteArray(32)
         val out0 = hdk.deriveSalt(salt, hdk.createContext(0u))
         val out1 = hdk.deriveSalt(salt, hdk.createContext(1u))
-        assertFalse(out0.contentEquals(out1), "DeriveSalt with different indices must produce different outputs (domain separation via ctx).")
+        assertFalse(
+            actual = out0.contentEquals(out1),
+            message = "DeriveSalt with different indices must produce different outputs (domain separation via ctx)."
+        )
     }
 
     @Test
     fun testT175CreateContextPreservesBoundaryIndicesCorrectly() {
         val ctxMin = hdk.createContext(0u)
         // I2OSP(0, 4) should be 00 00 00 00
-        assertContentEquals(byteArrayOf(0, 0, 0, 0), ctxMin.copyOfRange(ctxMin.size - 4, ctxMin.size), "createContext at index 0 must accurately encode as 00 00 00 00")
+        assertContentEquals(
+            expected = byteArrayOf(0, 0, 0, 0),
+            actual = ctxMin.copyOfRange(ctxMin.size - 4, ctxMin.size),
+            message = "createContext at index 0 must accurately encode as 00 00 00 00"
+        )
 
         val ctxMax = hdk.createContext(UInt.MAX_VALUE)
         // I2OSP(UInt.MAX_VALUE, 4) should be FF FF FF FF
-        assertContentEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()), ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size), "createContext at index UInt.MAX_VALUE must accurately encode as FF FF FF FF")
+        assertContentEquals(
+            expected = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
+            actual = ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size),
+            message = "createContext at index UInt.MAX_VALUE must accurately encode as FF FF FF FF"
+        )
     }
 
     private fun String.decodeHex(): ByteArray {

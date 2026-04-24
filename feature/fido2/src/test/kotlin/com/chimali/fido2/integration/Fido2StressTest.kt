@@ -134,7 +134,13 @@ class Fido2StressTest {
                     P256Group.serializeScalar(blindedScalar)
                 }
             }
-        cryptoService = Fido2CryptoService(hdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
+        cryptoService =
+            Fido2CryptoService(
+                hdkManager,
+                masterSeedProvider,
+                PostQuantumCrypto(),
+                UnconfinedTestDispatcher(),
+            )
 
         repository = InMemoryCredentialRepository()
 
@@ -150,7 +156,9 @@ class Fido2StressTest {
                         minPinLength = MOCK_MIN_PIN,
                         biometricStrength = BiometricStrength.STRONG,
                     )
-                coEvery { isUserVerificationRequired(any(), any(), any()) } returns ServiceVerificationRequirement.PREFERRED
+                coEvery {
+                    isUserVerificationRequired(any(), any(), any())
+                } returns ServiceVerificationRequirement.PREFERRED
                 coEvery { recordUserConsent(any()) } returns Result.success(Unit)
             }
 

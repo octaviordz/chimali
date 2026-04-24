@@ -49,7 +49,11 @@ fun VaultListScreen(
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             // Label Filter Bar
             ScrollableTabRow(
-                selectedTabIndex = if (selectedLabelId == null) 0 else labels.indexOfFirst { it.id == selectedLabelId } + 1,
+                selectedTabIndex = if (selectedLabelId == null) {
+                    0
+                } else {
+                    labels.indexOfFirst { it.id == selectedLabelId } + 1
+                },
                 edgePadding = 16.dp,
                 divider = {},
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -97,7 +101,11 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
     ) {
         Column {
             Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
-            Text(text = item.type.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = item.type.name,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

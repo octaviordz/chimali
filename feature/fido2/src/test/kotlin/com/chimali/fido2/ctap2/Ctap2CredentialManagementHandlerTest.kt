@@ -194,7 +194,9 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
             val cred2 = createTestCredential("cred2", "https://example.com", "user2")
-            coEvery { credentialRepository.getCredentialsForRp("https://example.com") } returns Result.success(listOf(cred1, cred2))
+            coEvery {
+                credentialRepository.getCredentialsForRp("https://example.com")
+            } returns Result.success(listOf(cred1, cred2))
 
             val subCommandParams = mapOf("rpId" to "https://example.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
@@ -214,7 +216,9 @@ class Ctap2CredentialManagementHandlerTest {
     @Test
     fun `enumerateCredentialsBegin returns NO_CREDENTIALS when RP has none`() =
         runTest {
-            coEvery { credentialRepository.getCredentialsForRp("https://empty.com") } returns Result.success(emptyList())
+            coEvery {
+                credentialRepository.getCredentialsForRp("https://empty.com")
+            } returns Result.success(emptyList())
 
             val subCommandParams = mapOf("rpId" to "https://empty.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
@@ -236,7 +240,9 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
             val cred2 = createTestCredential("cred2", "https://example.com", "user2")
-            coEvery { credentialRepository.getCredentialsForRp("https://example.com") } returns Result.success(listOf(cred1, cred2))
+            coEvery {
+                credentialRepository.getCredentialsForRp("https://example.com")
+            } returns Result.success(listOf(cred1, cred2))
 
             val encodedBytes = byteArrayOf(0xDD.toByte())
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
@@ -262,7 +268,9 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             // Begin with only 1 credential
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            coEvery { credentialRepository.getCredentialsForRp("https://example.com") } returns Result.success(listOf(cred1))
+            coEvery {
+                credentialRepository.getCredentialsForRp("https://example.com")
+            } returns Result.success(listOf(cred1))
 
             val encodedBytes = byteArrayOf(0xDD.toByte())
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes

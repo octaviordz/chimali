@@ -8,7 +8,10 @@ class PrivacyLogScrubberTest {
     @Test
     fun `scrub completely masks 24 word mnemonics`() {
         // T148a & T151 — Verify log scrubber hides 24 word mnemonic
-        val sensitiveMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+        val sensitiveMnemonic =
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon " +
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon " +
+                "abandon abandon art"
         val message = "Failed to load master seed: $sensitiveMnemonic"
 
         val scrubbed = PrivacyLogScrubber.scrub(message)

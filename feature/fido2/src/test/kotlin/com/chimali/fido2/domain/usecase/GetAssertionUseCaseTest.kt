@@ -140,7 +140,9 @@ class GetAssertionUseCaseTest {
         runTest {
             val s1 = createSummary("cred1")
             val s2 = createSummary("cred2")
-            coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1, s2))
+            coEvery {
+                credentialRepository.getCredentialSummariesForRp(testRpId)
+            } returns Result.success(listOf(s1, s2))
             coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
             coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
             coEvery { credentialRepository.updateSignCount("cred1", 6L) } returns Result.success(Unit)

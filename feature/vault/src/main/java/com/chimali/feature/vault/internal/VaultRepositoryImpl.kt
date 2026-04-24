@@ -38,7 +38,8 @@ class VaultRepositoryImpl(
     }
 
     override suspend fun saveItem(item: VaultItem): Unit = withContext(Dispatchers.IO) {
-        // TODO: Integrate actual Android Keystore encryption for payload, Uniffi bridge for CRDT merge state logic mapping
+        // TODO: Integrate actual Android Keystore encryption for payload,
+        // Uniffi bridge for CRDT merge state logic mapping
         
         database.vaultQueries.insertVaultEntry(
             id = item.id.toString(),

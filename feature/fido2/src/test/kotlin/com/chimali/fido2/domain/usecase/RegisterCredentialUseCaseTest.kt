@@ -202,7 +202,8 @@ class RegisterCredentialUseCaseTest {
                         excludeCredentials = null,
                         authenticatorSelection =
                             AuthenticatorSelectionCriteria.create(
-                                userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED,
+                                userVerification =
+                                    com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED,
                             ),
                         attestation = AttestationConveyancePreference.NONE,
                         selectedAlgId = Fido2CryptoService.COSE_ES256,
@@ -465,7 +466,8 @@ class RegisterCredentialUseCaseTest {
                     testOptions.copy(
                         authenticatorSelection =
                             AuthenticatorSelectionCriteria.create(
-                                userVerification = com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED,
+                                userVerification =
+                                    com.chimali.fido2.domain.model.UserVerificationRequirement.DISCOURAGED,
                             ),
                     )
 

@@ -101,6 +101,10 @@ class MultiplicativeBlindingTest {
         // Derive key through the public path
         val blindedPk = MultiplicativeBlinding.blindPublicKey(pk, bk, ctx)
 
-        assertEquals(pkFromBlindedSk.normalize(), blindedPk.normalize(), "ScalarBaseMult(BlindPrivateKey(sk, bf)) must equal BlindPublicKey(pk, bk, ctx)")
+        assertEquals(
+            expected = pkFromBlindedSk.normalize(),
+            actual = blindedPk.normalize(),
+            message = "ScalarBaseMult(BlindPrivateKey(sk, bf)) must equal BlindPublicKey(pk, bk, ctx)"
+        )
     }
 }

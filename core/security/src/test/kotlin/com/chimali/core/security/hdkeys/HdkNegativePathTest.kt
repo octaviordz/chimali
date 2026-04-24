@@ -2,9 +2,7 @@
 package com.chimali.core.security.hdkeys
 
 import com.chimali.core.security.api.HdkManager
-import com.chimali.core.security.hdkeys.HdkEcdhP256
 import kotlin.test.*
-import kotlin.test.Ignore // DisplayName not in kotlin.test
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 

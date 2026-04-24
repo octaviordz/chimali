@@ -17,8 +17,8 @@
 
 **Purpose**: Standardize Detekt application across the entire multi-module project.
 
-- [ ] T001 Configure root `build.gradle.kts` to apply the Detekt plugin to all subprojects
-- [ ] T002 Update `config/detekt/detekt.yml` to remove the `excludes` list from the `MaxLineLength` rule
+- [x] T001 Configure root `build.gradle.kts` to apply the Detekt plugin to all subprojects
+- [x] T002 Update `config/detekt/detekt.yml` to remove the `excludes` list from the `MaxLineLength` rule
 
 ---
 
@@ -39,10 +39,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Refactor violations in `feature/fido2/src/test/kotlin/com/chimali/fido2/util/logging/PrivacyLogScrubberTest.kt`
-- [ ] T006 [P] [US1] Refactor violations in `core/security/src/test/kotlin/` (and other core test directories)
-- [ ] T007 [P] [US1] Refactor violations in `feature/vault/src/test/kotlin/`
-- [ ] T008 [US1] Verify no logic changes were introduced by running `./gradlew test` across all modules
+- [x] T005 [P] [US1] Refactor violations in `feature/fido2/src/test/kotlin/com/chimali/fido2/util/logging/PrivacyLogScrubberTest.kt`
+- [x] T006 [P] [US1] Refactor violations in `core/security/src/test/kotlin/` (and other core test directories)
+- [x] T007 [P] [US1] Refactor violations in `feature/vault/src/test/kotlin/`
+- [x] T008 [US1] Verify no logic changes were introduced by running `./gradlew test` across all modules
 
 **Checkpoint**: User Story 1 is complete when all test code is compliant and tests pass.
 
@@ -56,10 +56,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [P] [US2] Refactor long parameter lists in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt` using wrapping patterns
-- [ ] T010 [P] [US2] Refactor long expressions in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultRepositoryImpl.kt` using intermediate variables
-- [ ] T011 [P] [US2] Refactor any remaining production violations identified in T004
-- [ ] T012 [US2] Verify no logic changes were introduced by running `./gradlew compileDebugSources` and all unit tests
+- [x] T009 [P] [US2] Refactor long parameter lists in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt` using wrapping patterns
+- [x] T010 [P] [US2] Refactor long expressions in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultRepositoryImpl.kt` using intermediate variables
+- [x] T011 [P] [US2] Refactor any remaining production violations identified in T004
+- [x] T012 [US2] Verify no logic changes were introduced by running `./gradlew compileDebugSources` and all unit tests
 
 **Checkpoint**: User Story 2 is complete when all production code is compliant and stable.
 
@@ -69,9 +69,9 @@
 
 **Purpose**: Final verification and documentation.
 
-- [ ] T013 Update `docs/changelogs/` with the quality enforcement achievements
-- [ ] T014 [P] Verify `excludeRawStrings: true` is working correctly by checking files with long raw strings
-- [ ] T015 Run Local CI pipeline via `tools/local-ci.ps1`
+- [x] T013 Update `docs/changelogs/` with the quality enforcement achievements
+- [x] T014 [P] Verify `excludeRawStrings: true` is working correctly by checking files with long raw strings
+- [x] T015 Run Local CI pipeline via `tools/local-ci.ps1`
 
 ---
 

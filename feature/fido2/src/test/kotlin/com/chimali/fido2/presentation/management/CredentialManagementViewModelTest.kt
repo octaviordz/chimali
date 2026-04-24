@@ -186,7 +186,9 @@ class CredentialManagementViewModelTest {
             val page2 = listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
 
             // Re-initialize with paginated mocks
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList()) // fallback
+            coEvery {
+                getAllCredentialsUseCase(any<Long>(), any<Long>())
+            } returns Result.success(emptyList()) // fallback
             coEvery { getAllCredentialsUseCase(20L, 0L) } returns Result.success(page1)
             coEvery { getAllCredentialsUseCase(20L, 20L) } returns Result.success(page2)
 

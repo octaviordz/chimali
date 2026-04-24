@@ -97,7 +97,12 @@ class BluetoothHidAuthenticatorImpl(
      *
      * @see com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR
      */
-    @RequiresPermission(allOf = [android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE])
+    @RequiresPermission(
+        allOf = [
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.BLUETOOTH_ADVERTISE
+        ]
+    )
     override fun startAdvertising() {
         if (_state.value != AuthenticatorState.IDLE) return
         
@@ -121,7 +126,10 @@ class BluetoothHidAuthenticatorImpl(
                      * Bluetooth stack. At this point the adapter is visible to BT hosts
                      * as a HID peripheral and Windows/macOS can initiate a pairing.
                      */
-                    override fun onAppStatusChanged(pluggedDevice: android.bluetooth.BluetoothDevice?, registered: Boolean) {
+                    override fun onAppStatusChanged(
+                        pluggedDevice: android.bluetooth.BluetoothDevice?,
+                        registered: Boolean
+                    ) {
                         if (registered) {
                             _state.value = AuthenticatorState.ADVERTISING
                             Log.d("BluetoothHID", "App registered and advertising")

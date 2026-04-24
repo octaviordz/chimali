@@ -8,7 +8,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Added
 - **R8 Optimization & Hardening**: Implemented a production-ready R8 configuration. Enabled Full Mode, resource shrinking, and established a `shrunkDebug` build type for local verification. Purged redundant ProGuard rules for Bouncy Castle, SQLCipher, and AndroidX, resulting in significant APK size reduction.
 - **KMP Debug Flag**: Implemented a centralized, platform-agnostic `isDebug` flag using `expect/actual` pattern. Enabled secure build variant detection in `:core:common` and adopted it in `:feature:fido2` to gate sensitive development tools, ensuring they are stripped from production binaries via R8.
-- **Detailed changes**: [2026-04-24-r8-optimization-and-hardening.md](docs/changelogs/2026-04-24-r8-optimization-and-hardening.md) & [2026-04-24-kmp-debug-flag-implementation.md](docs/changelogs/2026-04-24-kmp-debug-flag-implementation.md)
+- **Detailed changes**: [2026-04-24-r8-optimization-and-hardening.md](docs/changelogs/2026-04-24-r8-optimization-and-hardening.md), [2026-04-24-kmp-debug-flag-implementation.md](docs/changelogs/2026-04-24-kmp-debug-flag-implementation.md), & [2026-04-24-detekt-maxlinelength-enforcement.md](docs/changelogs/2026-04-24-detekt-maxlinelength-enforcement.md)
+- **Detekt Quality Enforcement**: Successfully implemented a project-wide 120-character line length limit. Refactored production and test code across `fido2`, `vault`, `bluetooth`, and `ui` modules to comply with the new quality gates while preserving documentation integrity. Standardized on string concatenation for long logical single lines.
 
 ## [Unreleased] - 2026-04-23
 
@@ -549,4 +550,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-23*
+*Last Updated: 2026-04-24*

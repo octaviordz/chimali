@@ -107,7 +107,13 @@ class MultiAlgorithmIntegrationTest {
                     P256Group.serializeScalar(blindedScalar)
                 }
             }
-        cryptoService = Fido2CryptoService(hdkManager, masterSeedProvider, postQuantumCrypto, UnconfinedTestDispatcher())
+        cryptoService =
+            Fido2CryptoService(
+                hdkManager,
+                masterSeedProvider,
+                postQuantumCrypto,
+                UnconfinedTestDispatcher(),
+            )
 
         repository = MultiAlgInMemoryCredentialRepository()
 
@@ -123,7 +129,9 @@ class MultiAlgorithmIntegrationTest {
                         minPinLength = 4,
                         biometricStrength = BiometricStrength.STRONG,
                     )
-                coEvery { isUserVerificationRequired(any(), any(), any()) } returns ServiceVerificationRequirement.PREFERRED
+                coEvery {
+                    isUserVerificationRequired(any(), any(), any())
+                } returns ServiceVerificationRequirement.PREFERRED
                 coEvery { recordUserConsent(any()) } returns Result.success(Unit)
             }
 
@@ -205,7 +213,12 @@ class MultiAlgorithmIntegrationTest {
                 name = userId,
                 displayName = userId,
             )
-        val params = if (algId == Fido2CryptoService.COSE_ML_DSA_65) PublicKeyCredentialParameters.createMlDsa65() else PublicKeyCredentialParameters.createES256P256()
+        val params =
+            if (algId == Fido2CryptoService.COSE_ML_DSA_65) {
+                PublicKeyCredentialParameters.createMlDsa65()
+            } else {
+                PublicKeyCredentialParameters.createES256P256()
+            }
         return MakeCredentialOptions.create(
             rp = rp,
             user = user,

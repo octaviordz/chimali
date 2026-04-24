@@ -3,9 +3,7 @@ package com.chimali.feature.vault.internal.crypto
 import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.util.UUID
 
 class PasswordCryptoTest {
 
