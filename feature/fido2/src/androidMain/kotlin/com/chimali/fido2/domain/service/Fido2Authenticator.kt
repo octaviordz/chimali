@@ -213,8 +213,10 @@ data class VerificationPreferences(
                 preferredVerificationMethod = VerificationMethod.BIOMETRIC,
                 allowBiometricFallback = true,
                 allowPinFallback = true,
-                biometricTimeoutMs = 30000L, // 30 seconds
-                pinTimeoutMs = 60000L, // 60 seconds
+                // 30 seconds
+                biometricTimeoutMs = 30000L,
+                // 60 seconds
+                pinTimeoutMs = 60000L,
                 maxVerificationAttempts = 3,
             )
         }

@@ -22,13 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.filterIsInstance
 
 /**
@@ -81,7 +81,6 @@ fun Fido2HomeScreen(
             }
         }
 
-
     val bluetoothPermissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -128,15 +127,15 @@ fun Fido2HomeScreen(
                 val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 val notificationsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                
+
                 if (!connectGranted || !advertiseGranted || !scanGranted || !notificationsGranted) {
                     bluetoothPermissionLauncher.launch(
                         arrayOf(
                             android.Manifest.permission.BLUETOOTH_CONNECT,
                             android.Manifest.permission.BLUETOOTH_ADVERTISE,
                             android.Manifest.permission.BLUETOOTH_SCAN,
-                            android.Manifest.permission.POST_NOTIFICATIONS
-                        )
+                            android.Manifest.permission.POST_NOTIFICATIONS,
+                        ),
                     )
                 } else {
                     startBluetoothDiscoverability()
@@ -150,8 +149,8 @@ fun Fido2HomeScreen(
                         arrayOf(
                             android.Manifest.permission.BLUETOOTH_CONNECT,
                             android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                            android.Manifest.permission.BLUETOOTH_SCAN
-                        )
+                            android.Manifest.permission.BLUETOOTH_SCAN,
+                        ),
                     )
                 } else {
                     startBluetoothDiscoverability()
@@ -173,9 +172,10 @@ fun Fido2HomeScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                    }
+                    val intent =
+                        Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                        }
                     context.startActivity(intent)
                     showBluetoothError = false
                 }) {
@@ -261,11 +261,26 @@ fun StatusIndicator(
 ) {
     val (statusText, color, icon) =
         when (state) {
-            is HidConnectionState.Idle -> Triple("Ready to Start", MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
-            is HidConnectionState.Advertising -> Triple("Advertising...", Color(0xFF6200EE), Icons.Default.BluetoothSearching)
+            is HidConnectionState.Idle ->
+                Triple(
+                    "Ready to Start",
+                    MaterialTheme.colorScheme.outline,
+                    Icons.Default.Bluetooth,
+                )
+            is HidConnectionState.Advertising ->
+                Triple(
+                    "Advertising...",
+                    Color(0xFF6200EE),
+                    Icons.Default.BluetoothSearching,
+                )
             is HidConnectionState.Connecting -> Triple("Connecting...", Color(0xFFFF9800), Icons.Default.BluetoothAudio)
             is HidConnectionState.Connected -> Triple("Connected to PC", Color(0xFF4CAF50), Icons.Default.Devices)
-            is HidConnectionState.Error -> Triple("Error Occurred", MaterialTheme.colorScheme.error, Icons.Default.Error)
+            is HidConnectionState.Error ->
+                Triple(
+                    "Error Occurred",
+                    MaterialTheme.colorScheme.error,
+                    Icons.Default.Error,
+                )
         }
 
     Card(

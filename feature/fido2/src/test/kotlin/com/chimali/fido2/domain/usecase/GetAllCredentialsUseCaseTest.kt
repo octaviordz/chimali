@@ -5,12 +5,10 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.coroutines.test.runTest
 
 class GetAllCredentialsUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -42,7 +40,9 @@ class GetAllCredentialsUseCaseTest {
             // Arrange
             val mockCredential1 = mockk<PasskeyCredential>()
             val mockCredential2 = mockk<PasskeyCredential>()
-            coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Result.success(listOf(mockCredential1, mockCredential2))
+            coEvery {
+                credentialRepository.getPagedCredentials(any(), any())
+            } returns Result.success(listOf(mockCredential1, mockCredential2))
 
             // Act
             val result = getAllCredentialsUseCase(10L, 0L).getOrNull() ?: emptyList()

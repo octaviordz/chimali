@@ -27,11 +27,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.ui.components.*
 import com.chimali.fido2.presentation.viewmodel.*
+import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 /** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
@@ -93,7 +93,9 @@ fun AuthenticationPromptScreen(
                                         }
                                     }
 
-                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                    override fun onAuthenticationSucceeded(
+                                        result: BiometricPrompt.AuthenticationResult,
+                                    ) {
                                         super.onAuthenticationSucceeded(result)
                                         viewModel.handleIntent(AuthenticationIntent.UserVerificationSuccess)
                                     }
@@ -145,7 +147,11 @@ internal fun AuthenticationPromptContent(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(96.dp)) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(96.dp),
+                        ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Filled.Lock,
@@ -168,7 +174,11 @@ internal fun AuthenticationPromptContent(
                         Spacer(Modifier.height(8.dp))
                         Card(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(currentState.rpId, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    currentState.rpId,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 if (currentState.credentialCount > 1) {
                                     Text(
                                         "${currentState.credentialCount} passkeys available",
@@ -208,7 +218,10 @@ internal fun AuthenticationPromptContent(
                         modifier = Modifier.fillMaxSize().semantics { contentDescription = "Awaiting verification" },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
                             Icon(
                                 Icons.Filled.Lock,
                                 contentDescription = "Verifying",
@@ -296,7 +309,12 @@ fun AuthenticationProgressIndicator(message: String = "Signing in…") {
         modifier = Modifier.padding(32.dp).semantics { contentDescription = "Authentication in progress" },
     ) {
         CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)
-        Text(message, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
     }
 }

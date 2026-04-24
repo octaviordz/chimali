@@ -27,7 +27,9 @@ data class PublicKeyCredentialUserEntity(
 
         // Validate formats
         require(name.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH characters" }
-        require(displayName.length <= MAX_DISPLAY_NAME_LENGTH) { "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH characters" }
+        require(displayName.length <= MAX_DISPLAY_NAME_LENGTH) {
+            "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH characters"
+        }
 
         // Validate icon if present
         icon?.let { iconUrl ->

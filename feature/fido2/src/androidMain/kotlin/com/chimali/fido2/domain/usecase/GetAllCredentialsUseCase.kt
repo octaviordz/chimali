@@ -1,11 +1,8 @@
 package com.chimali.fido2.domain.usecase
 
-import org.koin.core.annotation.Factory
-import org.koin.core.annotation.Single
-
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
-import kotlinx.coroutines.flow.Flow
+import org.koin.core.annotation.Factory
 
 /**
  * T108 — Retrieves all FIDO2 credentials stored on the device across all relying parties.
@@ -14,8 +11,10 @@ import kotlinx.coroutines.flow.Flow
 class GetAllCredentialsUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+    suspend operator fun invoke(
+        limit: Long,
+        offset: Long,
+    ): Result<List<PasskeyCredential>> {
         return passkeyCredentialRepository.getPagedCredentials(limit, offset)
     }
 }
-

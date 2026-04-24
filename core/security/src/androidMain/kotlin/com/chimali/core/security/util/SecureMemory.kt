@@ -21,7 +21,10 @@ object SecureMemory {
     /**
      * Executes the block with the sensitive data and wipes it immediately after.
      */
-    inline fun <T> useSensitive(data: ByteArray, block: (ByteArray) -> T): T {
+    inline fun <T> useSensitive(
+        data: ByteArray,
+        block: (ByteArray) -> T,
+    ): T {
         try {
             return block(data)
         } finally {

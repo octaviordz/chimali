@@ -8,16 +8,15 @@ import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
 import org.junit.jupiter.api.AfterEach
 import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CredentialManagementViewModelTest {
@@ -142,9 +141,10 @@ class CredentialManagementViewModelTest {
         runTest {
             val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
             val removalEvents = mutableListOf<PasskeyCredential>()
-            val job = launch(UnconfinedTestDispatcher(testScheduler)) {
-                viewModel.removalEvents.toList(removalEvents)
-            }
+            val job =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.removalEvents.toList(removalEvents)
+                }
 
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
@@ -177,27 +177,33 @@ class CredentialManagementViewModelTest {
 
             assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
         }
+
     @Test
     fun `intent LoadNextPage increments offset and appends credentials`() =
         runTest {
-            val page1 = List(20) { i -> PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1") }
+            val page1 =
+                List(20) { i -> PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1") }
             val page2 = listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
-            
+
             // Re-initialize with paginated mocks
             coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList()) // fallback
             coEvery { getAllCredentialsUseCase(20L, 0L) } returns Result.success(page1)
             coEvery { getAllCredentialsUseCase(20L, 20L) } returns Result.success(page2)
 
-            val newViewModel = CredentialManagementViewModel(
-                getAllCredentialsUseCase, searchCredentialsUseCase, deleteCredentialUseCase, deleteAllCredentialsUseCase
-            )
+            val newViewModel =
+                CredentialManagementViewModel(
+                    getAllCredentialsUseCase,
+                    searchCredentialsUseCase,
+                    deleteCredentialUseCase,
+                    deleteAllCredentialsUseCase,
+                )
             advanceUntilIdle()
-            
+
             assertEquals(20, newViewModel.state.value.credentials.size)
-            
+
             newViewModel.onIntent(CredentialManagementIntent.LoadNextPage)
             advanceUntilIdle()
-            
+
             assertEquals(21, newViewModel.state.value.credentials.size)
             assertTrue(newViewModel.state.value.credentials.any { it.id == "2" })
             assertFalse(newViewModel.state.value.isPaginating)

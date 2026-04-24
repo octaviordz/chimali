@@ -23,9 +23,8 @@ import javax.crypto.spec.PBEKeySpec
  */
 @Single
 class Bip39MasterSeedGenerator(
-    private val context: Context
+    private val context: Context,
 ) : MasterSeedGenerator {
-
     private val wordList: List<String> by lazy {
         context.assets.open("bip39_english.txt").bufferedReader().readLines()
             .filter { it.isNotBlank() }
@@ -42,16 +41,20 @@ class Bip39MasterSeedGenerator(
         return entropyToMnemonic(entropy)
     }
 
-    override fun deriveSeed(mnemonic: List<String>, passphrase: String): ByteArray {
+    override fun deriveSeed(
+        mnemonic: List<String>,
+        passphrase: String,
+    ): ByteArray {
         val mnemonicString = mnemonic.joinToString(" ")
         val salt = "mnemonic$passphrase"
 
-        val spec = PBEKeySpec(
-            mnemonicString.toCharArray(),
-            salt.toByteArray(Charsets.UTF_8),
-            2048,
-            512
-        )
+        val spec =
+            PBEKeySpec(
+                mnemonicString.toCharArray(),
+                salt.toByteArray(Charsets.UTF_8),
+                2048,
+                512,
+            )
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
             .generateSecret(spec)
             .encoded
@@ -67,7 +70,7 @@ class Bip39MasterSeedGenerator(
 
         // Step 1: Compute SHA-256 checksum
         val hash = MessageDigest.getInstance("SHA-256").digest(entropy)
-        val checksumBits = entropy.size * 8 / 32  // 4 bits for 128-bit, 8 bits for 256-bit
+        val checksumBits = entropy.size * 8 / 32 // 4 bits for 128-bit, 8 bits for 256-bit
 
         // Step 2: Build a bit array: entropy bits + checksum bits
         val totalBits = entropy.size * 8 + checksumBits

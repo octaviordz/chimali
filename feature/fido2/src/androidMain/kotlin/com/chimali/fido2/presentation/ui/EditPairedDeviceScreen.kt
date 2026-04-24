@@ -10,10 +10,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * New Screen for editing a trusted host's alias and managing its record.

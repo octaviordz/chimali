@@ -148,7 +148,9 @@ data class AuthenticatorData(
         require(counter >= 0) { "Counter cannot be negative" }
         require(aaguid.size == AAGUID_SIZE) { "AAGUID must be exactly $AAGUID_SIZE bytes" }
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
-        require(credentialId.size <= MAX_CREDENTIAL_ID_SIZE) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_SIZE bytes" }
+        require(
+            credentialId.size <= MAX_CREDENTIAL_ID_SIZE,
+        ) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_SIZE bytes" }
         require(publicKey.isNotEmpty()) { "Public key cannot be empty" }
         require(publicKey.size <= MAX_PUBLIC_KEY_BYTES) { "Public key cannot exceed $MAX_PUBLIC_KEY_BYTES bytes" }
     }

@@ -22,7 +22,6 @@ import kotlin.test.assertTrue
  * 6. Path independence: different paths → different results
  */
 class HdkMigrationTest {
-
     private val hdk = HdkEcdhP256()
 
     // ── Seed enforcement ──────────────────────────────────────────────────────
@@ -105,7 +104,10 @@ class HdkMigrationTest {
 
         assertTrue(result1.publicKey.contentEquals(result2.publicKey), "Public key must be deterministic")
         assertTrue(result1.salt.contentEquals(result2.salt), "Salt must be deterministic")
-        assertTrue(result1.blindingFactor.contentEquals(result2.blindingFactor), "Blinding factor must be deterministic")
+        assertTrue(
+            result1.blindingFactor.contentEquals(result2.blindingFactor),
+            "Blinding factor must be deterministic",
+        )
     }
 
     @Test
@@ -118,7 +120,7 @@ class HdkMigrationTest {
 
         assertTrue(
             !result0.publicKey.contentEquals(result1.publicKey),
-            "Different paths must produce different public keys"
+            "Different paths must produce different public keys",
         )
     }
 

@@ -9,10 +9,10 @@ import kotlinx.coroutines.flow.asSharedFlow
  * Implements a Mediator pattern to decouple transport/hardware layers from domain logic.
  */
 class Fido2EventBus {
-
-    private val _events = MutableSharedFlow<Fido2Event>(
-        extraBufferCapacity = 10
-    )
+    private val _events =
+        MutableSharedFlow<Fido2Event>(
+            extraBufferCapacity = 10,
+        )
     val events: SharedFlow<Fido2Event> = _events.asSharedFlow()
 
     fun publish(event: Fido2Event) {
@@ -33,6 +33,6 @@ sealed class Fido2Event {
     data class InteractionSuccessful(
         val hostDeviceAddress: String,
         val hostDeviceName: String?,
-        val hostDeviceClass: Int?
+        val hostDeviceClass: Int?,
     ) : Fido2Event()
 }

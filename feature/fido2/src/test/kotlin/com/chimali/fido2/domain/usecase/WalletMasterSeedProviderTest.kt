@@ -6,11 +6,11 @@ import com.chimali.core.security.api.MasterSeedGenerator
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.test.runTest
 
 /**
  * Unit tests for [WalletMasterSeedProvider].

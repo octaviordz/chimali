@@ -41,12 +41,13 @@ import org.koin.core.annotation.Single
  */
 @Single
 class AesSivEncryptionManager : SivEncryptionManager {
-
     companion object {
         /** AES block size in bytes. Always 16 for AES. */
         private const val AES_BLOCK_SIZE = 16
+
         /** SIV tag length in bytes. */
         private const val SIV_TAG_LENGTH = AES_BLOCK_SIZE
+
         /** Required key length: 512 bits = two 256-bit sub-keys. */
         private const val KEY_LENGTH = 64
     }
@@ -59,7 +60,10 @@ class AesSivEncryptionManager : SivEncryptionManager {
      * @return Ciphertext = SIV_tag (16 bytes) || encrypted_data (len(plaintext) bytes).
      * @throws IllegalArgumentException if [key] is not 64 bytes.
      */
-    override fun encrypt(plaintext: ByteArray, key: ByteArray): ByteArray {
+    override fun encrypt(
+        plaintext: ByteArray,
+        key: ByteArray,
+    ): ByteArray {
         require(key.size == KEY_LENGTH) {
             "AES-SIV key must be $KEY_LENGTH bytes (512 bits), got ${key.size}"
         }
@@ -93,7 +97,10 @@ class AesSivEncryptionManager : SivEncryptionManager {
      * @throws IllegalArgumentException if [key] is not 64 bytes or ciphertext is too short.
      * @throws SecurityException if authentication tag verification fails (tampered data).
      */
-    override fun decrypt(ciphertext: ByteArray, key: ByteArray): ByteArray {
+    override fun decrypt(
+        ciphertext: ByteArray,
+        key: ByteArray,
+    ): ByteArray {
         require(key.size == KEY_LENGTH) {
             "AES-SIV key must be $KEY_LENGTH bytes (512 bits), got ${key.size}"
         }
@@ -134,7 +141,10 @@ class AesSivEncryptionManager : SivEncryptionManager {
     /**
      * Computes S2V(K, msg) per RFC 5297 §2.4 (single-message, no associated data).
      */
-    private fun s2v(k1: ByteArray, msg: ByteArray): ByteArray {
+    private fun s2v(
+        k1: ByteArray,
+        msg: ByteArray,
+    ): ByteArray {
         val zero = ByteArray(AES_BLOCK_SIZE)
 
         // D = AES-CMAC(K, zero)
@@ -164,7 +174,10 @@ class AesSivEncryptionManager : SivEncryptionManager {
     }
 
     /** AES-CMAC(key, data) — 16-byte tag. */
-    private fun cmac(key: ByteArray, data: ByteArray): ByteArray {
+    private fun cmac(
+        key: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
         val mac = CMac(AESEngine())
         mac.init(KeyParameter(key))
         mac.update(data, 0, data.size)
@@ -186,7 +199,11 @@ class AesSivEncryptionManager : SivEncryptionManager {
     }
 
     /** AES-CTR encryption/decryption (symmetric). */
-    private fun aesCtr(key: ByteArray, iv: ByteArray, data: ByteArray): ByteArray {
+    private fun aesCtr(
+        key: ByteArray,
+        iv: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
         val engine = SICBlockCipher(AESEngine())
         engine.init(true, ParametersWithIV(KeyParameter(key), iv))
         val output = ByteArray(data.size)
@@ -209,7 +226,10 @@ class AesSivEncryptionManager : SivEncryptionManager {
     }
 
     /** Constant-time byte array comparison to prevent timing side-channels. */
-    private fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
+    private fun constantTimeEquals(
+        a: ByteArray,
+        b: ByteArray,
+    ): Boolean {
         if (a.size != b.size) return false
         var diff = 0
         for (i in a.indices) diff = diff or (a[i].toInt() xor b[i].toInt())

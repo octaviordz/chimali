@@ -13,3 +13,7 @@ plugins {
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.ktlint) apply false
 }
+
+subprojects {
+    apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
+}

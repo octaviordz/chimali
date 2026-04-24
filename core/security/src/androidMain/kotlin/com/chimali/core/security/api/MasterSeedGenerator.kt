@@ -13,5 +13,8 @@ interface MasterSeedGenerator {
     /**
      * Derives a seed from a mnemonic and an optional passphrase.
      */
-    fun deriveSeed(mnemonic: List<String>, passphrase: String = ""): ByteArray
+    fun deriveSeed(
+        mnemonic: List<String>,
+        passphrase: String = "",
+    ): ByteArray
 }

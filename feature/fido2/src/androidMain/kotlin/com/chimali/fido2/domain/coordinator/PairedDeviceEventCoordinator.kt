@@ -1,10 +1,9 @@
 ﻿package com.chimali.fido2.domain.coordinator
 
-import org.koin.core.annotation.Single
-
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.domain.usecase.SavePairedDeviceUseCase
+import org.koin.core.annotation.Single
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,24 +17,24 @@ import kotlinx.coroutines.flow.onEach
  */
 @Single
 class PairedDeviceEventCoordinator(
-        private val fido2EventBus: Fido2EventBus,
-        private val savePairedDeviceUseCase: SavePairedDeviceUseCase,
-    ) {
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val fido2EventBus: Fido2EventBus,
+    private val savePairedDeviceUseCase: SavePairedDeviceUseCase,
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        init {
-            // Start listening to events immediately upon injection/creation
-            fido2EventBus.events.onEach { event ->
-                when (event) {
-                    is Fido2Event.InteractionSuccessful -> {
-                        // Save the device as a tracked "Paired" host
-                        savePairedDeviceUseCase(
-                            macAddress = event.hostDeviceAddress,
-                            name = event.hostDeviceName,
-                            deviceClass = event.hostDeviceClass,
-                        )
-                    }
+    init {
+        // Start listening to events immediately upon injection/creation
+        fido2EventBus.events.onEach { event ->
+            when (event) {
+                is Fido2Event.InteractionSuccessful -> {
+                    // Save the device as a tracked "Paired" host
+                    savePairedDeviceUseCase(
+                        macAddress = event.hostDeviceAddress,
+                        name = event.hostDeviceName,
+                        deviceClass = event.hostDeviceClass,
+                    )
                 }
-            }.launchIn(scope)
-        }
+            }
+        }.launchIn(scope)
     }
+}

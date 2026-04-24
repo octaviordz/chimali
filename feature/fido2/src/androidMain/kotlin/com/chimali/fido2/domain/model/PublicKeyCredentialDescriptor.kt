@@ -28,7 +28,9 @@ data class PublicKeyCredentialDescriptor(
         // Validate transports if present
         transports?.let { transportList ->
             require(transportList.isNotEmpty()) { "Transports list cannot be empty if provided" }
-            require(transportList.size <= MAX_TRANSPORTS_SIZE) { "Transports list cannot exceed $MAX_TRANSPORTS_SIZE items" }
+            require(
+                transportList.size <= MAX_TRANSPORTS_SIZE,
+            ) { "Transports list cannot exceed $MAX_TRANSPORTS_SIZE items" }
             transportList.forEach { transport ->
                 require(transport != AuthenticatorTransport.UNKNOWN) {
                     "Transport cannot be UNKNOWN"

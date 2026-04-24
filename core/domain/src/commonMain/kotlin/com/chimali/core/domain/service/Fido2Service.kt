@@ -4,7 +4,7 @@ import com.chimali.core.domain.model.Passkey
 
 data class CreatePasskeyRequest(
     val relyingParty: String,
-    val username: String
+    val username: String,
 )
 
 interface Fido2Service {

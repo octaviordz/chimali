@@ -1,10 +1,10 @@
 package com.chimali.fido2.presentation.management
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.junit4.createComposeRule
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase

@@ -2,13 +2,12 @@ package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
-import kotlin.time.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import okio.FileSystem
 import okio.Path
 import okio.buffer
-import okio.use
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Local-only crash reporting mechanism (no cloud sync).
@@ -17,12 +16,13 @@ import okio.use
  */
 class LocalCrashReportingLogWriter(
     private val directoryProvider: LogDirectoryProvider,
-    private val maxFileSize: Long = 5L * 1024 * 1024, // 5MB limit default
+    // 5MB limit default
+    private val maxFileSize: Long = 5L * 1024 * 1024,
 ) : LogWriter() {
     private val fileSystem = FileSystem.SYSTEM
     private val logDir: Path
         get() = directoryProvider.getLogDirectory()
-    
+
     private val currentLogFile: Path
         get() = logDir.resolve("fido2_crash_log.txt")
 
@@ -43,7 +43,7 @@ class LocalCrashReportingLogWriter(
         severity: Severity,
         message: String,
         tag: String,
-        throwable: Throwable?
+        throwable: Throwable?,
     ) {
         val scrubbedMessage = PrivacyLogScrubber.scrub(message)
 
@@ -96,7 +96,10 @@ class LocalCrashReportingLogWriter(
                 } catch (e: Exception) {
                     println("CrashReportingWriter: Write error: ${e.message}")
                 } finally {
-                    try { sink.close() } catch (ignored: Exception) {}
+                    try {
+                        sink.close()
+                    } catch (ignored: Exception) {
+                    }
                 }
             } catch (e: Exception) {
                 // Fallback for debugging writer issues
@@ -115,7 +118,7 @@ class LocalCrashReportingLogWriter(
                 fileSystem.atomicMove(currentLogFile, backupFile)
             }
         } catch (e: Exception) {
-             println("CrashReportingWriter: Failed to rotate logs: ${e.message}")
+            println("CrashReportingWriter: Failed to rotate logs: ${e.message}")
         }
     }
 }

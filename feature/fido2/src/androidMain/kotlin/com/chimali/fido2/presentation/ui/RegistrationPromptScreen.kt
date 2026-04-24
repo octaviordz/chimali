@@ -26,11 +26,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.ui.components.*
 import com.chimali.fido2.presentation.viewmodel.*
+import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 /** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
@@ -97,7 +97,9 @@ fun RegistrationPromptScreen(
                                         }
                                     }
 
-                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                    override fun onAuthenticationSucceeded(
+                                        result: BiometricPrompt.AuthenticationResult,
+                                    ) {
                                         super.onAuthenticationSucceeded(result)
                                         viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess)
                                     }
@@ -328,10 +330,22 @@ private fun AwaitingConsentContent(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Signing in as", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = state.userDisplayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(
+                    "Signing in as",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = state.userDisplayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
                 if (state.userName != state.userDisplayName) {
-                    Text(state.userName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        state.userName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

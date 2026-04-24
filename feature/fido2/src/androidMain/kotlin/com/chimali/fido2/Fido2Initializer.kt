@@ -1,9 +1,9 @@
 package com.chimali.fido2
 
 import android.content.Context
-import co.touchlab.kermit.Logger
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.LogcatWriter
+import co.touchlab.kermit.Logger
 import com.chimali.fido2.util.logging.LocalCrashReportingLogWriter
 import com.chimali.fido2.util.performance.WarmUpHelper
 import kotlinx.coroutines.DelicateCoroutinesApi

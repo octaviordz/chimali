@@ -15,10 +15,25 @@ Verify that all files comply with the style guide without making changes.
 ```
 
 ### 3. Run Local CI
-Run the full quality pipeline (Clean, Lint, Tests).
-```bash
-./tools/local-ci.ps1
+Run the full quality pipeline (Lint, Compilation, Tests).
+```powershell
+# Fast Run (Standard)
+.\tools\local-ci.ps1
+
+# Full Run (includes Clean)
+.\tools\local-ci.ps1 -Clean
+
+# Skip specific steps
+.\tools\local-ci.ps1 -SkipTests -SkipLint
 ```
+
+## IDE Integration
+
+To ensure your editor matches the CI formatting:
+1. **IntelliJ / Android Studio**: Go to `Settings > Editor > Code Style`.
+2. Ensure **"Enable EditorConfig support"** is checked.
+3. The IDE will automatically use the rules in the root `.editorconfig`.
+
 
 ## Troubleshooting
 

@@ -26,6 +26,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("KOIN_DEFAULT_MODULE", "true")
+}
+
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))

@@ -3,18 +3,13 @@ package com.chimali.fido2.data.dao
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.PasskeyCredential
 import com.chimali.fido2.data.database.PasskeyCredentialQueries
-import io.mockk.Runs
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
-import kotlin.test.*
-import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import kotlin.test.Test
 import java.security.KeyPairGenerator
+import kotlin.test.*
+import kotlinx.coroutines.test.runTest
 
 class PasskeyCredentialDaoTest {
     private lateinit var database: Fido2Database
@@ -73,8 +68,6 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should insert credential successfully`() =
             runTest {
-
-
                 dao.insertCredential(testCredential)
 
                 coVerify(exactly = 1) {
@@ -102,7 +95,6 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should update credential successfully`() =
             runTest {
-
                 dao.updateCredential(testCredential)
 
                 coVerify(exactly = 1) {
@@ -121,7 +113,6 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should update sign count successfully`() =
             runTest {
-
                 dao.updateSignCount(testCredential.id, 5L)
 
                 coVerify(exactly = 1) {

@@ -22,9 +22,10 @@ class FakeCredentialRepository : CredentialRepository {
     }
 
     override suspend fun searchCredentials(query: String): Result<List<Credential>> {
-        val filtered = credentials.values.filter {
-            it.title.contains(query, ignoreCase = true) || it.username.contains(query, ignoreCase = true)
-        }
+        val filtered =
+            credentials.values.filter {
+                it.title.contains(query, ignoreCase = true) || it.username.contains(query, ignoreCase = true)
+            }
         return Result.success(filtered)
     }
 

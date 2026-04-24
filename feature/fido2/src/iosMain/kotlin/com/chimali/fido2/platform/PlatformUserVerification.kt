@@ -10,7 +10,6 @@ package com.chimali.fido2.platform
  * @see <a href="https://developer.apple.com/documentation/localauthentication">LocalAuthentication</a>
  */
 actual class PlatformUserVerification {
-
     /** iOS: placeholder — always returns false until LAContext is integrated. */
     actual fun isAvailable(): Boolean = false
 

@@ -19,5 +19,5 @@ data class Credential(
     val createdAt: Instant,
     val lastModified: Instant,
     val lastUsed: Instant?,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
 ) : DomainModel

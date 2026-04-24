@@ -10,14 +10,13 @@ import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.*
-import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
+import java.security.KeyPairGenerator
 import kotlin.test.*
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
-import org.junit.jupiter.api.Nested
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
-import java.security.KeyPairGenerator
+import kotlinx.coroutines.test.runTest
 
 class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -114,7 +113,9 @@ class RegisterCredentialUseCaseTest {
             coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
             coEvery { credentialRepository.getRelyingParty(any()) } returns null
             coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.success(Unit)
-            coEvery { credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>()) } returns Result.success(Unit)
+            coEvery {
+                credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>())
+            } returns Result.success(Unit)
             // T115a: Stub getCredentialStatistics so the quota check in RegisterCredentialUseCase can proceed.
             // Default: 0 credentials stored → registration allowed.
             coEvery { credentialRepository.getCredentialStatistics() } returns
@@ -245,7 +246,8 @@ class RegisterCredentialUseCaseTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialRpEntity.create(
-                        id = "ftp://invalid-rp.com", // ftp is invalid scheme
+                        // ftp is invalid scheme
+                        id = "ftp://invalid-rp.com",
                         name = "Test RP",
                     )
                 }
@@ -257,7 +259,8 @@ class RegisterCredentialUseCaseTest {
                 assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialUserEntity.create(
                         id = "user123".toByteArray(),
-                        name = "", // Blank name is invalid
+                        // Blank name is invalid
+                        name = "",
                         displayName = "Test User",
                     )
                 }
@@ -270,7 +273,8 @@ class RegisterCredentialUseCaseTest {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,
-                        challenge = ByteArray(0), // Empty challenge is invalid
+                        // Empty challenge is invalid
+                        challenge = ByteArray(0),
                         selectedAlgId = Fido2CryptoService.COSE_ES256,
                     )
                 }
@@ -283,7 +287,8 @@ class RegisterCredentialUseCaseTest {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,
-                        challenge = ByteArray(65), // Max is 64
+                        // Max is 64
+                        challenge = ByteArray(65),
                         selectedAlgId = Fido2CryptoService.COSE_ES256,
                     )
                 }
@@ -297,7 +302,8 @@ class RegisterCredentialUseCaseTest {
                         rp = testRp,
                         user = testUser,
                         challenge = "test_challenge".toByteArray(),
-                        timeout = -1L, // Negative timeout is invalid
+                        // Negative timeout is invalid
+                        timeout = -1L,
                         selectedAlgId = com.chimali.fido2.data.crypto.Fido2CryptoService.COSE_ES256,
                     )
                 }

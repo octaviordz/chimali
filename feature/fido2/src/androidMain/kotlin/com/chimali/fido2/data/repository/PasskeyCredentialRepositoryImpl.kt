@@ -1,18 +1,17 @@
 package com.chimali.fido2.data.repository
 
-import org.koin.core.annotation.Single
+import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
+import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.mapper.toDomainModel
 import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.repository.CredentialStatistics
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
-import com.chimali.fido2.data.crypto.Fido2CryptoService
+import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-
-import com.chimali.fido2.data.dao.RelyingPartyDao
-import com.chimali.fido2.domain.repository.CredentialStatistics
-import com.chimali.fido2.domain.model.RelyingParty
 
 @Single
 class PasskeyCredentialRepositoryImpl(
@@ -20,7 +19,6 @@ class PasskeyCredentialRepositoryImpl(
     private val relyingPartyDao: RelyingPartyDao,
     private val cryptoService: Fido2CryptoService,
 ) : PasskeyCredentialRepository {
-
     override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
         return try {
             passkeyCredentialDao.insertCredential(credential)
@@ -112,10 +110,12 @@ class PasskeyCredentialRepositoryImpl(
         return CredentialStatistics(
             totalCredentials = all.size,
             credentialsByRp = all.groupBy { it.rpId }.mapValues { it.value.size },
-            expiredCredentials = 0, // Placeholder
+            // Placeholder
+            expiredCredentials = 0,
             recentlyUsedCredentials = all.count { it.lastUsedAt?.let { lastUsed -> lastUsed > 0 } ?: false },
             credentialsRequiringUserVerification = all.count { it.credProtectPolicy > 1 },
-            averageAgeDays = 0.0, // Placeholder
+            // Placeholder
+            averageAgeDays = 0.0,
         )
     }
 
@@ -132,4 +132,3 @@ class PasskeyCredentialRepositoryImpl(
         }
     }
 }
-

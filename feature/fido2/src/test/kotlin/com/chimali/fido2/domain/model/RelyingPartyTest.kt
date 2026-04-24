@@ -1,13 +1,12 @@
 package com.chimali.fido2.domain.model
 
-import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
+import java.time.Instant
 import kotlin.test.*
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
-import org.junit.jupiter.api.Nested
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
-import java.time.Instant
+import kotlinx.coroutines.test.runTest
 
 class RelyingPartyTest {
     private lateinit var testTimestamp: Instant

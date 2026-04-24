@@ -6,15 +6,14 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.*
 import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.*
+import org.junit.jupiter.api.Nested
+import java.time.Instant
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import kotlin.test.*
-import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
-import org.junit.jupiter.api.Nested
-import kotlin.test.Test
-import java.time.Instant
 
 class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -655,7 +654,8 @@ class GetUserConsentUseCaseTest {
                             rpId = testRpId,
                             operationType = operationType,
                             credentialId = "test_credential_id",
-                            requireVerification = false, // Skip verification for this test
+                            // Skip verification for this test
+                            requireVerification = false,
                         )
 
                     assertTrue(result.isSuccess)

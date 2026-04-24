@@ -1,9 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
-import org.koin.core.annotation.Factory
-import org.koin.core.annotation.Single
-
 import com.chimali.fido2.domain.repository.CredentialRepository
+import org.koin.core.annotation.Factory
 
 /**
  * T109 — Deletes a specific FIDO2 credential by its identifier.
@@ -16,4 +14,3 @@ class DeleteCredentialUseCase(
         return passkeyCredentialRepository.deleteCredential(credentialId)
     }
 }
-

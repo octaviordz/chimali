@@ -57,7 +57,10 @@ interface CredentialRepository {
      * @param offset Number of credentials to skip
      * @return Result containing list of credentials for the requested page
      */
-    suspend fun getPagedCredentials(limit: Long, offset: Long): Result<List<PasskeyCredential>>
+    suspend fun getPagedCredentials(
+        limit: Long,
+        offset: Long,
+    ): Result<List<PasskeyCredential>>
 
     /**
      * Retrieves a paginated list of credentials for a specific relying party.

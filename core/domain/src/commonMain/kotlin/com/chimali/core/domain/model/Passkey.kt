@@ -13,7 +13,7 @@ data class Passkey(
     val publicKey: ByteArray,
     val signatureCounter: Long,
     val createdAt: Instant,
-    val lastUsed: Instant?
+    val lastUsed: Instant?,
 ) : DomainModel {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

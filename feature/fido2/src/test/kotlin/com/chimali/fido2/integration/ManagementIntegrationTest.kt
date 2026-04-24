@@ -13,24 +13,22 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import org.junit.jupiter.api.AfterEach
+import java.security.KeyPairGenerator
+import java.time.Instant
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import kotlin.test.*
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import java.security.KeyPairGenerator
-import java.time.Instant
 
 /**
  * T126 — Integration tests for FIDO2 Credential Management flow.

@@ -22,7 +22,6 @@ import java.security.SecureRandom
  */
 @Single
 class HdkEcdhP256 : HdkManager {
-
     companion object {
         /**
          * Application-level instantiation label used in [createContext] per §2.3 of
@@ -72,7 +71,10 @@ class HdkEcdhP256 : HdkManager {
      * The [ID] domain separator is already embedded in [ctx] and MUST NOT be
      * prepended again to the hash input.
      */
-    internal fun deriveSalt(salt: ByteArray, ctx: ByteArray): ByteArray {
+    internal fun deriveSalt(
+        salt: ByteArray,
+        ctx: ByteArray,
+    ): ByteArray {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(salt)
         digest.update(ctx)
@@ -94,7 +96,7 @@ class HdkEcdhP256 : HdkManager {
         index: UInt,
         pk: ECPoint,
         salt: ByteArray,
-        bf: BigInteger? = null
+        bf: BigInteger? = null,
     ): Triple<ECPoint, ByteArray, BigInteger> {
         val ctx = createContext(index)
         val newSalt = deriveSalt(salt, ctx)
@@ -120,7 +122,7 @@ class HdkEcdhP256 : HdkManager {
         path: List<UInt>,
         pk: ECPoint,
         salt: ByteArray,
-        bf: BigInteger? = null
+        bf: BigInteger? = null,
     ): Triple<ECPoint, ByteArray, BigInteger> {
         var currentPk = pk
         var currentSalt = salt
@@ -148,14 +150,14 @@ class HdkEcdhP256 : HdkManager {
         val (sk, pk) = P256Group.generateKeyPair()
         return HdkKeyPair(
             privateKey = P256Group.serializeScalar(sk),
-            publicKey = P256Group.serializeElement(pk)
+            publicKey = P256Group.serializeElement(pk),
         )
     }
 
     override fun deriveHdk(
         devicePublicKey: ByteArray,
         seed: ByteArray,
-        path: List<UInt>
+        path: List<UInt>,
     ): HdkResult {
         // §2.2: Seed MUST be exactly Ns = 32 bytes.
         require(seed.size == NS) {
@@ -167,13 +169,13 @@ class HdkEcdhP256 : HdkManager {
         return HdkResult(
             publicKey = P256Group.serializeElement(derivedPk),
             salt = derivedSalt,
-            blindingFactor = P256Group.serializeScalar(derivedBf)
+            blindingFactor = P256Group.serializeScalar(derivedBf),
         )
     }
 
     override fun blindPrivateKey(
         devicePrivateKey: ByteArray,
-        blindingFactor: ByteArray
+        blindingFactor: ByteArray,
     ): ByteArray {
         // §3.2.2: Private key must be a valid non-zero P-256 scalar (exactly 32 bytes).
         require(devicePrivateKey.size == 32) {
@@ -188,7 +190,7 @@ class HdkEcdhP256 : HdkManager {
     override fun createBlindedSharedSecret(
         devicePrivateKey: ByteArray,
         blindingFactor: ByteArray,
-        readerPublicKey: ByteArray
+        readerPublicKey: ByteArray,
     ): ByteArray {
         val sk = P256Group.deserializeScalar(devicePrivateKey)
         val bf = P256Group.deserializeScalar(blindingFactor)
@@ -206,7 +208,7 @@ class HdkEcdhP256 : HdkManager {
         keyHandle: ByteArray,
         index: UInt,
         parentPublicKey: ByteArray,
-        expectedPublicKey: ByteArray
+        expectedPublicKey: ByteArray,
     ): HdkResult {
         // Recover the KEM private key from the parent salt
         val (skR, _) = DhKem.deriveKeyPair(parentSalt)
@@ -227,7 +229,7 @@ class HdkEcdhP256 : HdkManager {
         return HdkResult(
             publicKey = P256Group.serializeElement(derivedPk),
             salt = derivedSalt,
-            blindingFactor = P256Group.serializeScalar(derivedBf)
+            blindingFactor = P256Group.serializeScalar(derivedBf),
         )
     }
 }

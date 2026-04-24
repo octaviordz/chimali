@@ -6,15 +6,13 @@ import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.domain.model.*
 import io.mockk.*
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
+import java.security.KeyPairGenerator
 import kotlin.test.*
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
-import org.junit.jupiter.api.Nested
 import kotlin.test.Test
-import java.security.KeyPairGenerator
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 
 class CredentialRepositoryImplTest {
     private lateinit var passkeyCredentialDao: PasskeyCredentialDao
@@ -160,11 +158,11 @@ class CredentialRepositoryImplTest {
         fun `should retrieve credentials by rp id`() =
             runTest {
                 coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns flowOf(listOf(testEntity))
-                
+
                 val flow = repository.getCredentialsByRpId(testCredential.rpId)
                 val result = mutableListOf<PasskeyCredential>()
                 flow.collect { result.add(it) }
-                
+
                 assertEquals(1, result.size)
                 assertEquals(testCredential.id, result.first().id)
             }
@@ -173,11 +171,11 @@ class CredentialRepositoryImplTest {
         fun `should retrieve all credentials`() =
             runTest {
                 coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(testEntity))
-                
+
                 val flow = repository.getAllCredentials()
                 val result = mutableListOf<PasskeyCredential>()
                 flow.collect { result.add(it) }
-                
+
                 assertEquals(1, result.size)
                 assertEquals(testCredential.id, result.first().id)
             }

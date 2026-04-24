@@ -13,7 +13,8 @@ object Fido2ErrorHandler {
         val title: String,
         val message: String,
         val isRetryable: Boolean,
-        val ctap2ErrorCode: Int? = null, // CTAP2 error code for transport layer
+        // CTAP2 error code for transport layer
+        val ctap2ErrorCode: Int? = null,
     )
 
     /**
@@ -27,7 +28,8 @@ object Fido2ErrorHandler {
                     title = "Verification failed",
                     message = error.message ?: "Could not verify your identity. Please try again.",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x29, // CTAP2_ERR_OPERATION_DENIED
+                    // CTAP2_ERR_OPERATION_DENIED
+                    ctap2ErrorCode = 0x29,
                 )
 
             is Fido2Exception.NoVerificationMethodAvailable ->
@@ -35,7 +37,8 @@ object Fido2ErrorHandler {
                     title = "No verification method",
                     message = "No biometric or PIN is set up on this device. Please configure one in Settings.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x26, // CTAP2_ERR_PIN_NOT_SET
+                    // CTAP2_ERR_PIN_NOT_SET
+                    ctap2ErrorCode = 0x26,
                 )
 
             is Fido2Exception.ConsentDenied ->
@@ -43,7 +46,8 @@ object Fido2ErrorHandler {
                     title = "Registration cancelled",
                     message = "You declined to create a passkey. Tap the site's 'Create passkey' button to try again.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x27, // CTAP2_ERR_PIN_POLICY_VIOLATION
+                    // CTAP2_ERR_PIN_POLICY_VIOLATION
+                    ctap2ErrorCode = 0x27,
                 )
 
             // ── Credential conflicts ───────────────────────────────────────────────
@@ -52,7 +56,8 @@ object Fido2ErrorHandler {
                     title = "Passkey not allowed",
                     message = error.message ?: "This site doesn't allow creating a new passkey at this time.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x22, // CTAP2_ERR_CREDENTIAL_EXCLUDED
+                    // CTAP2_ERR_CREDENTIAL_EXCLUDED
+                    ctap2ErrorCode = 0x22,
                 )
 
             is Fido2Exception.DuplicateCredentialException ->
@@ -60,7 +65,8 @@ object Fido2ErrorHandler {
                     title = "Passkey already exists",
                     message = "A passkey for this account already exists on this device.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x22, // CTAP2_ERR_CREDENTIAL_EXCLUDED
+                    // CTAP2_ERR_CREDENTIAL_EXCLUDED
+                    ctap2ErrorCode = 0x22,
                 )
 
             is Fido2Exception.TooManyCredentials ->
@@ -68,7 +74,8 @@ object Fido2ErrorHandler {
                     title = "Too many passkeys",
                     message = "This device's passkey storage is full. Remove unused passkeys and try again.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x49, // CTAP2_ERR_KEY_STORE_FULL
+                    // CTAP2_ERR_KEY_STORE_FULL
+                    ctap2ErrorCode = 0x49,
                 )
 
             // ── Cryptographic ──────────────────────────────────────────────────────
@@ -80,7 +87,8 @@ object Fido2ErrorHandler {
                     title = "Security error",
                     message = "Could not generate a secure key for your passkey. Please try again.",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x17, // CTAP2_ERR_PROCESSING
+                    // CTAP2_ERR_PROCESSING
+                    ctap2ErrorCode = 0x17,
                 )
 
             is Fido2Exception.UnsupportedAlgorithmException,
@@ -90,7 +98,8 @@ object Fido2ErrorHandler {
                     title = "Unsupported algorithm",
                     message = "This site requested a cryptographic algorithm not supported by this device.",
                     isRetryable = false,
-                    ctap2ErrorCode = 0x26, // CTAP2_ERR_UNSUPPORTED_ALGORITHM
+                    // CTAP2_ERR_UNSUPPORTED_ALGORITHM
+                    ctap2ErrorCode = 0x26,
                 )
 
             // ── Storage ────────────────────────────────────────────────────────────
@@ -102,7 +111,8 @@ object Fido2ErrorHandler {
                     title = "Storage error",
                     message = "Could not save your passkey. ${error.message ?: "Please check available storage and try again."}",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x27, // CTAP2_ERR_PIN_POLICY_VIOLATION
+                    // CTAP2_ERR_PIN_POLICY_VIOLATION
+                    ctap2ErrorCode = 0x27,
                 )
 
             // ── Timeout / transport ────────────────────────────────────────────────
@@ -114,7 +124,8 @@ object Fido2ErrorHandler {
                     title = "Connection lost",
                     message = "The Bluetooth connection was interrupted. Move closer and try again.",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x07, // CTAP2_ERR_TIMEOUT
+                    // CTAP2_ERR_TIMEOUT
+                    ctap2ErrorCode = 0x07,
                 )
 
             // ── Registration wrapper ───────────────────────────────────────────────
@@ -123,7 +134,8 @@ object Fido2ErrorHandler {
                     title = "Registration failed",
                     message = error.message ?: "Passkey registration failed. Please try again.",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x17, // CTAP2_ERR_PROCESSING
+                    // CTAP2_ERR_PROCESSING
+                    ctap2ErrorCode = 0x17,
                 )
 
             // ── Generic fallback ───────────────────────────────────────────────────
@@ -132,7 +144,8 @@ object Fido2ErrorHandler {
                     title = "Unexpected error",
                     message = error.message ?: "An unexpected error occurred. Please try again.",
                     isRetryable = true,
-                    ctap2ErrorCode = 0x7F, // CTAP1_ERR_OTHER
+                    // CTAP1_ERR_OTHER
+                    ctap2ErrorCode = 0x7F,
                 )
         }
 

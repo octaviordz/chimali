@@ -2,8 +2,7 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.core.security.api.HdkKeyPair
 
-
-/**
+/*
  * T145a — Provides access to the master seed and the device root key pair for FIDO2
  * key derivation via [Fido2CryptoService].
  *

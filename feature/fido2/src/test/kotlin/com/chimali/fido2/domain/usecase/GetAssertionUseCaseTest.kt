@@ -18,12 +18,12 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import java.time.Instant
+import kotlinx.coroutines.test.runTest
 
 /**
  * T082 — Unit tests for [GetAssertionUseCase].
@@ -107,7 +107,9 @@ class GetAssertionUseCaseTest {
 
             assertTrue(result.isFailure)
             val exception = result.exceptionOrNull()
-            assertTrue(exception is Fido2Exception.CredentialNotFound || exception is Fido2Exception.AuthenticationFailed)
+            assertTrue(
+                exception is Fido2Exception.CredentialNotFound || exception is Fido2Exception.AuthenticationFailed,
+            )
         }
 
     // ── User verification required but fails ─────────────────────────────────

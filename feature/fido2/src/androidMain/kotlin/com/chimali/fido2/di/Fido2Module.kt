@@ -26,7 +26,6 @@ import org.koin.core.annotation.Single
 @Module
 @ComponentScan("com.chimali.fido2")
 class Fido2Module {
-
     /**
      * Provides the Android [BluetoothManager] system service.
      * BluetoothHidTransportImpl and other HID components resolve this from the Koin graph.
@@ -39,8 +38,7 @@ class Fido2Module {
      * Provides [BiometricManager] for user verification flows.
      */
     @Single
-    fun biometricManager(context: Context): BiometricManager =
-        BiometricManager.from(context)
+    fun biometricManager(context: Context): BiometricManager = BiometricManager.from(context)
 
     /**
      * Provides the SQLDelight [Fido2Database] instance backed by SQLCipher.

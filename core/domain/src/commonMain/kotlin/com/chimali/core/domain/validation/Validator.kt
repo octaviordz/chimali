@@ -12,12 +12,14 @@ interface Validator<T> {
 class CredentialValidator : Validator<Credential> {
     override fun validate(item: Credential): Result<Credential> {
         return when {
-            item.title.isBlank() -> Result.failure(
-                DomainException.ValidationError("title", "Title cannot be empty")
-            )
-            item.username.isBlank() -> Result.failure(
-                DomainException.ValidationError("username", "Username cannot be empty")
-            )
+            item.title.isBlank() ->
+                Result.failure(
+                    DomainException.ValidationError("title", "Title cannot be empty"),
+                )
+            item.username.isBlank() ->
+                Result.failure(
+                    DomainException.ValidationError("username", "Username cannot be empty"),
+                )
             else -> Result.success(item)
         }
     }

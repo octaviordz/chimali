@@ -11,7 +11,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,6 +18,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * T067 — Navigation graph for the FIDO2 module with a Bottom Navigation Bar
@@ -106,7 +106,8 @@ fun Fido2RegistrationNavGraph(
                 startDestination = startDestination,
             ) {
                 composable(Fido2Destinations.HOME_ROUTE) { entry ->
-                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = koinViewModel(viewModelStoreOwner = entry)
+                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel =
+                        koinViewModel(viewModelStoreOwner = entry)
 
                     com.chimali.fido2.presentation.ui.Fido2HomeScreen(
                         onManageCredentials = {
@@ -159,7 +160,8 @@ fun Fido2RegistrationNavGraph(
                         remember(backStackEntry) {
                             navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)
                         }
-                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel = koinViewModel(viewModelStoreOwner = parentBackStackEntry)
+                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel =
+                        koinViewModel(viewModelStoreOwner = parentBackStackEntry)
 
                     com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(
                         macAddress = macAddress,

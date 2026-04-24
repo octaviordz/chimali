@@ -11,7 +11,6 @@ import kotlin.math.ceil
  * as required by the key blinding scheme in draft-dijkhuis-cfrg-hdkeys-06 §3.3.
  */
 object HashToScalar {
-
     /** Security parameter L = ceil((ceil(log2(p)) + k) / 8) where k=128 for P-256. */
     private const val L = 48
 
@@ -28,7 +27,11 @@ object HashToScalar {
      * @param lenInBytes Desired output length.
      * @return Expanded uniform bytes.
      */
-    fun expandMessageXmd(msg: ByteArray, dst: ByteArray, lenInBytes: Int): ByteArray {
+    fun expandMessageXmd(
+        msg: ByteArray,
+        dst: ByteArray,
+        lenInBytes: Int,
+    ): ByteArray {
         require(dst.size <= 255) { "DST must be at most 255 bytes" }
         require(lenInBytes <= 65535) { "lenInBytes must be at most 65535" }
 
@@ -69,7 +72,10 @@ object HashToScalar {
      * @param dst Domain separation tag as ASCII bytes.
      * @return A scalar (BigInteger) in the P-256 scalar field.
      */
-    fun hashToScalar(msg: ByteArray, dst: ByteArray): BigInteger {
+    fun hashToScalar(
+        msg: ByteArray,
+        dst: ByteArray,
+    ): BigInteger {
         val uniformBytes = expandMessageXmd(msg, dst, L)
         return BigInteger(1, uniformBytes).mod(P256Group.ORDER)
     }
@@ -84,7 +90,10 @@ object HashToScalar {
         return digest.digest()
     }
 
-    private fun xor(a: ByteArray, b: ByteArray): ByteArray {
+    private fun xor(
+        a: ByteArray,
+        b: ByteArray,
+    ): ByteArray {
         require(a.size == b.size) { "XOR operands must be the same length" }
         return ByteArray(a.size) { i -> (a[i].toInt() xor b[i].toInt()).toByte() }
     }
@@ -92,7 +101,10 @@ object HashToScalar {
     /**
      * I2OSP: Integer to Octet String Primitive. Encodes [value] as [length] bytes big-endian.
      */
-    internal fun i2osp(value: Int, length: Int): ByteArray {
+    internal fun i2osp(
+        value: Int,
+        length: Int,
+    ): ByteArray {
         val result = ByteArray(length)
         var v = value
         for (i in length - 1 downTo 0) {
@@ -106,7 +118,10 @@ object HashToScalar {
      * I2OSP: Integer to Octet String Primitive for unsigned 32-bit values.
      * Extracts full 32-bit domain without signed arithmetic corruption.
      */
-    internal fun i2osp(value: UInt, length: Int): ByteArray {
+    internal fun i2osp(
+        value: UInt,
+        length: Int,
+    ): ByteArray {
         val result = ByteArray(length)
         var v = value
         for (i in length - 1 downTo 0) {

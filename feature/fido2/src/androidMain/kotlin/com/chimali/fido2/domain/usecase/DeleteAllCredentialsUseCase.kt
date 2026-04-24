@@ -1,8 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
-import org.koin.core.annotation.Factory
-
 import com.chimali.fido2.domain.repository.CredentialRepository
+import org.koin.core.annotation.Factory
 
 /**
  * T110 — Deletes all FIDO2 credentials, or only those for a specific relying party.

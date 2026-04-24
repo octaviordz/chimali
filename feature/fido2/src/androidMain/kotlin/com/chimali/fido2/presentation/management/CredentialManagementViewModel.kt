@@ -8,9 +8,9 @@ import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
+import org.koin.android.annotation.KoinViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import org.koin.android.annotation.KoinViewModel
 
 /**
  * T120 — ViewModel for managing FIDO2 Credentials.
@@ -104,19 +104,26 @@ class CredentialManagementViewModel(
                 _fullCredentialList = _fullCredentialList + newItems
                 currentOffset += newItems.size
                 val hasMore = newItems.size >= PAGE_SIZE
-                
+
                 _state.update {
                     it.copy(
-                        credentials = _fullCredentialList
-                            .filter { c -> c.id !in it.pendingDeleteIds }
-                            .sortedByDescending { c -> c.lastUsedAt },
+                        credentials =
+                            _fullCredentialList
+                                .filter { c -> c.id !in it.pendingDeleteIds }
+                                .sortedByDescending { c -> c.lastUsedAt },
                         isPaginating = false,
                         isLoading = false,
-                        hasMore = hasMore
+                        hasMore = hasMore,
                     )
                 }
             }.onFailure { e ->
-                _state.update { it.copy(isPaginating = false, isLoading = false, error = e.message ?: "Failed to load") }
+                _state.update {
+                    it.copy(
+                        isPaginating = false,
+                        isLoading = false,
+                        error = e.message ?: "Failed to load",
+                    )
+                }
             }
         }
     }
@@ -124,10 +131,11 @@ class CredentialManagementViewModel(
     private fun updateStateWithFilteredCredentials() {
         _state.update { state ->
             state.copy(
-                credentials = _fullCredentialList
-                    .filter { it.id !in state.pendingDeleteIds }
-                    .sortedByDescending { it.lastUsedAt },
-                isLoading = false
+                credentials =
+                    _fullCredentialList
+                        .filter { it.id !in state.pendingDeleteIds }
+                        .sortedByDescending { it.lastUsedAt },
+                isLoading = false,
             )
         }
     }
@@ -139,7 +147,7 @@ class CredentialManagementViewModel(
         _state.update {
             it.copy(
                 credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
-                isLoading = false
+                isLoading = false,
             )
         }
     }
@@ -232,7 +240,6 @@ class CredentialManagementViewModel(
             }
         }
     }
-
 }
 
 data class CredentialManagementState(
@@ -250,20 +257,32 @@ data class CredentialManagementState(
 
 sealed interface CredentialManagementIntent {
     object RefreshCredentials : CredentialManagementIntent
+
     object LoadNextPage : CredentialManagementIntent
+
     data class UpdateSearchQuery(val query: String) : CredentialManagementIntent
+
     data class SelectCredential(val credential: PasskeyCredential) : CredentialManagementIntent
+
     data class ShowDeleteDialog(val credential: PasskeyCredential) : CredentialManagementIntent
+
     object ShowDeleteAllDialog : CredentialManagementIntent
+
     object DismissDialog : CredentialManagementIntent
+
     data class ConfirmDelete(val credentialId: String) : CredentialManagementIntent
+
     object ConfirmDeleteAll : CredentialManagementIntent
+
     data class PendingDelete(val credential: PasskeyCredential) : CredentialManagementIntent
+
     data class UndoDelete(val credentialId: String) : CredentialManagementIntent
+
     data class CommitDelete(val credentialId: String) : CredentialManagementIntent
 }
 
 sealed interface CredentialManagementEffect {
     data class ShowToast(val message: String) : CredentialManagementEffect
+
     data class ShowUndoSnackbar(val message: String) : CredentialManagementEffect
 }

@@ -2,8 +2,8 @@ package com.chimali.fido2.util.performance
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import co.touchlab.kermit.Logger
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Security
@@ -98,7 +98,9 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Logger.d { "AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms" }
+            Logger.d {
+                "AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms"
+            }
         } catch (e: Exception) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
             Logger.w(e) { "AndroidKeyStore warm-up FAILED (non-fatal): ${e.message}" }

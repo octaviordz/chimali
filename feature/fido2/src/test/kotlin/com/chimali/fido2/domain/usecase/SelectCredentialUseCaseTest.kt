@@ -6,11 +6,11 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
 import io.mockk.every
 import io.mockk.mockkStatic
-import kotlinx.coroutines.test.runTest
+import java.time.Instant
 import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import java.time.Instant
+import kotlinx.coroutines.test.runTest
 
 /**
  * T082 — Unit tests for [SelectCredentialUseCase].

@@ -2,9 +2,9 @@ package com.chimali.fido2.security
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.chimali.fido2.data.database.Fido2Database
+import java.nio.file.Files
 import kotlin.test.*
 import kotlin.test.Test
-import java.nio.file.Files
 
 /**
  * T148d — Storage Integrity Tests (FR-HID-015, Constitution §I).

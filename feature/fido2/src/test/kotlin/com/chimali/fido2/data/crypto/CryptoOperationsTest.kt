@@ -1,10 +1,10 @@
 package com.chimali.fido2.data.crypto
 
 import com.chimali.fido2.domain.model.CredentialId
+import java.security.MessageDigest
 import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import java.security.MessageDigest
 
 /**
  * T061 — Unit tests for Core Crypto operations.
@@ -64,8 +64,18 @@ class CryptoOperationsTest {
 
     @Test
     fun `computeHash differs for different challenges`() {
-        val h1 = clientDataHashService.computeHash("webauthn.create", ByteArray(16) { 0xAA.toByte() }, "https://example.com")
-        val h2 = clientDataHashService.computeHash("webauthn.create", ByteArray(16) { 0xBB.toByte() }, "https://example.com")
+        val h1 =
+            clientDataHashService.computeHash(
+                "webauthn.create",
+                ByteArray(16) { 0xAA.toByte() },
+                "https://example.com",
+            )
+        val h2 =
+            clientDataHashService.computeHash(
+                "webauthn.create",
+                ByteArray(16) { 0xBB.toByte() },
+                "https://example.com",
+            )
         assertFalse(h1.contentEquals(h2))
     }
 

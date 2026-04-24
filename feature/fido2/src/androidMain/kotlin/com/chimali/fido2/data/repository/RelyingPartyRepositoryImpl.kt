@@ -1,10 +1,9 @@
 package com.chimali.fido2.data.repository
 
-import org.koin.core.annotation.Single
-
 import com.chimali.fido2.data.mapper.*
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
+import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -37,4 +36,4 @@ class RelyingPartyRepositoryImpl : RelyingPartyRepository {
         // TODO: Implement database update logic
         return Result.success(Unit)
     }
-    }
+}

@@ -10,7 +10,7 @@ object TestDataFactory {
     fun createCredential(
         id: String = "test-id",
         title: String = "Test Credential",
-        category: CredentialCategory = CredentialCategory.PERSONAL
+        category: CredentialCategory = CredentialCategory.PERSONAL,
     ) = Credential(
         id = CredentialId(id),
         title = title,
@@ -23,6 +23,6 @@ object TestDataFactory {
         createdAt = Clock.System.now(),
         lastModified = Clock.System.now(),
         lastUsed = null,
-        isFavorite = false
+        isFavorite = false,
     )
 }

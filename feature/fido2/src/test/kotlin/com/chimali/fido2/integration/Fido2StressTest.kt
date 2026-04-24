@@ -25,6 +25,7 @@ import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
+import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
@@ -34,20 +35,19 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertTrue
+import java.math.BigInteger
+import java.security.Security
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertTrue
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import java.math.BigInteger
-import java.security.Security
-import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
-import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 
 /**
  * T159a — Automated stress test that executes 100 consecutive FIDO2 registration
@@ -73,7 +73,9 @@ class Fido2StressTest {
 
     private val realSeed = ByteArray(SEED_SIZE) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let { HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second)) }
+        P256Group.generateKeyPair().let {
+            HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
+        }
     }
 
     companion object {
@@ -238,7 +240,9 @@ class Fido2StressTest {
             val rate = successes.toDouble() / allSummaries.size.coerceAtLeast(1)
             assertTrue(
                 rate >= SUCCESS_THRESHOLD,
-                "Authentication success rate was ${"%.1f".format(rate * PERCENT_MULTIPLIER)}% for ${allSummaries.size} credentials",
+                "Authentication success rate was ${"%.1f".format(
+                    rate * PERCENT_MULTIPLIER,
+                )}% for ${allSummaries.size} credentials",
             )
         }
 
@@ -346,13 +350,20 @@ private class InMemoryCredentialRepository : CredentialRepository {
         flowOf(*credentials.values.filter { it.userId == userId }.toTypedArray())
 
     override suspend fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
-    
-    override suspend fun getPagedCredentials(limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+
+    override suspend fun getPagedCredentials(
+        limit: Long,
+        offset: Long,
+    ): Result<List<PasskeyCredential>> {
         val list = credentials.values.toList().drop(offset.toInt()).take(limit.toInt())
         return Result.success(list)
     }
 
-    override suspend fun getPagedCredentialsByRpId(rpId: String, limit: Long, offset: Long): Result<List<PasskeyCredential>> {
+    override suspend fun getPagedCredentialsByRpId(
+        rpId: String,
+        limit: Long,
+        offset: Long,
+    ): Result<List<PasskeyCredential>> {
         val list = credentials.values.filter { it.rpId == rpId }.drop(offset.toInt()).take(limit.toInt())
         return Result.success(list)
     }
@@ -453,7 +464,10 @@ private class InMemoryCredentialRepository : CredentialRepository {
                 },
         )
 
-    override suspend fun getSignCount(credentialId: String): Result<Long> = Result.success(signCounts[credentialId] ?: 0L)
+    override suspend fun getSignCount(credentialId: String): Result<Long> =
+        Result.success(
+            signCounts[credentialId] ?: 0L,
+        )
 
     override suspend fun getCredentialsByIds(
         credentialIds: Set<String>,

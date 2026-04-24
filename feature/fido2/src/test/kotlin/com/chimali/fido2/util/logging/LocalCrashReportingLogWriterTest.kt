@@ -1,8 +1,7 @@
 package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.Severity
-import io.mockk.every
-import io.mockk.mockk
+import okio.Path.Companion.toOkioPath
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -11,7 +10,6 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import okio.Path.Companion.toOkioPath
 
 /**
  * Tests for [LocalCrashReportingLogWriter].
@@ -29,7 +27,6 @@ import okio.Path.Companion.toOkioPath
  *    active log is renamed to `.bak`, a fresh log is started, and the backup is intact.
  */
 class LocalCrashReportingLogWriterTest {
-
     @TempDir
     lateinit var tempDir: File
 
@@ -40,9 +37,10 @@ class LocalCrashReportingLogWriterTest {
 
     @BeforeEach
     fun setUp() {
-        mockProvider = object : LogDirectoryProvider {
-            override fun getLogDirectory() = tempDir.resolve("logs").toOkioPath()
-        }
+        mockProvider =
+            object : LogDirectoryProvider {
+                override fun getLogDirectory() = tempDir.resolve("logs").toOkioPath()
+            }
 
         logDir = File(tempDir, "logs")
         logFile = File(logDir, "fido2_crash_log.txt")
@@ -55,7 +53,6 @@ class LocalCrashReportingLogWriterTest {
 
     @Nested
     inner class T012WriteContract {
-
         @Test
         fun `log directory and file are created on first write`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -80,14 +77,14 @@ class LocalCrashReportingLogWriterTest {
             val sizeAfterSecond = logFile.length()
             assertTrue(
                 sizeAfterSecond > sizeAfterFirst,
-                "File size should grow after second write (first=$sizeAfterFirst, second=$sizeAfterSecond)"
+                "File size should grow after second write (first=$sizeAfterFirst, second=$sizeAfterSecond)",
             )
 
             writer.log(Severity.Info, "Third entry", "Tag", null)
             val sizeAfterThird = logFile.length()
             assertTrue(
                 sizeAfterThird > sizeAfterSecond,
-                "File size should grow after third write (second=$sizeAfterSecond, third=$sizeAfterThird)"
+                "File size should grow after third write (second=$sizeAfterSecond, third=$sizeAfterThird)",
             )
         }
 
@@ -140,7 +137,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(content.contains("Error with throwable"), "Message should appear")
             assertTrue(
                 content.contains("RuntimeException") || content.contains("test-cause"),
-                "Stack trace should be appended"
+                "Stack trace should be appended",
             )
         }
 
@@ -163,7 +160,6 @@ class LocalCrashReportingLogWriterTest {
 
     @Nested
     inner class T013LogBurstAndRotation {
-
         /**
          * Uses a 500-byte cap in lieu of 5 MB so the test stays fast.
          * The rotation code path is identical regardless of the threshold.
@@ -182,7 +178,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(
                 sizeBeforeRotation > smallCap,
                 "File should have grown past the $smallCap-byte cap " +
-                    "(actual: $sizeBeforeRotation bytes)"
+                    "(actual: $sizeBeforeRotation bytes)",
             )
 
             // This write crosses the threshold and triggers rotation
@@ -192,7 +188,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(
                 bakFile.length() >= sizeBeforeRotation,
                 "Backup must preserve the full pre-rotation content " +
-                    "(bak=${bakFile.length()}, pre-rotation=$sizeBeforeRotation)"
+                    "(bak=${bakFile.length()}, pre-rotation=$sizeBeforeRotation)",
             )
         }
 
@@ -210,11 +206,11 @@ class LocalCrashReportingLogWriterTest {
             val freshSize = logFile.length()
             assertTrue(
                 logFile.exists(),
-                "A new active log file must be recreated immediately after rotation"
+                "A new active log file must be recreated immediately after rotation",
             )
             assertTrue(
                 freshSize < 300,
-                "Fresh log file should be small (only the trigger entry). Actual: $freshSize bytes"
+                "Fresh log file should be small (only the trigger entry). Actual: $freshSize bytes",
             )
         }
 
@@ -237,7 +233,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(bakFile.exists(), "Bak should still exist after second rotation")
             assertTrue(
                 bakFile.length() != bakSizeAfterFirst || bakFile.length() > 0,
-                "Bak file should have been replaced by second rotation cycle"
+                "Bak file should have been replaced by second rotation cycle",
             )
             // Confirm only one bak file exists (no stacking)
             val bakFiles = logDir.listFiles { f -> f.name.endsWith(".bak") }
@@ -254,7 +250,7 @@ class LocalCrashReportingLogWriterTest {
             assertFalse(bakFile.exists(), "No backup file should exist when cap is not reached")
             assertTrue(
                 logFile.length() < smallCap,
-                "Active log should remain below the cap"
+                "Active log should remain below the cap",
             )
         }
     }

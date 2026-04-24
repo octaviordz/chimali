@@ -1,14 +1,13 @@
 package com.chimali.fido2.domain.model
 
-import kotlinx.coroutines.test.runTest
-import kotlin.test.*
-import kotlin.test.BeforeTest
-import kotlin.test.Ignore // DisplayName not in kotlin.test
 import org.junit.jupiter.api.Nested
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
 import java.time.Instant
 import java.util.*
+import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.test.runTest
 
 class UserConsentRecordTest {
     private lateinit var testTimestamp: Instant

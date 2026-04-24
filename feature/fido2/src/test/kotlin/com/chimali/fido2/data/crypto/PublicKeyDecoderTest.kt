@@ -29,7 +29,7 @@ class PublicKeyDecoderTest {
         val base64Key = Base64.getEncoder().encodeToString(publicKeyBytes)
 
         val result = decoder.decodePublicKey(base64Key, -49)
-        
+
         assertTrue(result.isSuccess)
         assertEquals("ML-DSA-65", result.getOrNull()?.algorithm)
         assertTrue(result.getOrNull()?.encoded.contentEquals(publicKeyBytes))
@@ -43,12 +43,12 @@ class PublicKeyDecoderTest {
         val base64Key = Base64.getEncoder().encodeToString(publicKeyBytes)
 
         val result = decoder.decodePublicKey(base64Key, -7)
-        
+
         assertTrue(result.isSuccess)
         assertEquals("EC", result.getOrNull()?.algorithm)
         assertTrue(result.getOrNull()?.encoded.contentEquals(publicKeyBytes))
     }
-    
+
     @Test
     fun `decode EdDSA public key successfully`() {
         // Setup BouncyCastle to generate Ed25519 key
@@ -58,7 +58,7 @@ class PublicKeyDecoderTest {
         val base64Key = Base64.getEncoder().encodeToString(publicKeyBytes)
 
         val result = decoder.decodePublicKey(base64Key, -8)
-        
+
         assertTrue(result.isSuccess)
         // Ed25519 or EdDSA depending on the exact algorithm name returned by the factory
         assertTrue(result.getOrNull()?.algorithm?.startsWith("Ed") == true)
@@ -76,7 +76,7 @@ class PublicKeyDecoderTest {
         val result = decoder.decodePublicKey(Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3)), -999)
         assertTrue(result.isFailure)
     }
-    
+
     @Test
     fun `decode fails for corrupted key bytes`() {
         // Valid base64 but invalid DER encoding

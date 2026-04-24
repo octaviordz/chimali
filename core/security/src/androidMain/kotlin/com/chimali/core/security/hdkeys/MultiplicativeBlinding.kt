@@ -12,7 +12,6 @@ import java.math.BigInteger
  * DST = "ECDH Key Blind" for the HDK-ECDH-P256 instantiation.
  */
 object MultiplicativeBlinding {
-
     /** Domain separation tag for HDK-ECDH-P256 blinding. */
     val DST = "ECDH Key Blind".toByteArray(Charsets.US_ASCII)
 
@@ -38,7 +37,10 @@ object MultiplicativeBlinding {
      * @param ctx Context bytes.
      * @return Blinding factor as a scalar.
      */
-    fun deriveBlindingFactor(bk: ByteArray, ctx: ByteArray): BigInteger {
+    fun deriveBlindingFactor(
+        bk: ByteArray,
+        ctx: ByteArray,
+    ): BigInteger {
         val input = bk + byteArrayOf(0x00) + ctx
         return HashToScalar.hashToScalar(input, DST)
     }
@@ -53,7 +55,11 @@ object MultiplicativeBlinding {
      * @param ctx Context bytes.
      * @return Blinded public key.
      */
-    fun blindPublicKey(pk: ECPoint, bk: ByteArray, ctx: ByteArray): ECPoint {
+    fun blindPublicKey(
+        pk: ECPoint,
+        bk: ByteArray,
+        ctx: ByteArray,
+    ): ECPoint {
         val bf = deriveBlindingFactor(bk, ctx)
         return P256Group.scalarMult(pk, bf)
     }
@@ -67,7 +73,10 @@ object MultiplicativeBlinding {
      * @param bf Blinding factor scalar.
      * @return Blinded private key scalar.
      */
-    fun blindPrivateKey(sk: BigInteger, bf: BigInteger): BigInteger {
+    fun blindPrivateKey(
+        sk: BigInteger,
+        bf: BigInteger,
+    ): BigInteger {
         return sk.multiply(bf).mod(P256Group.ORDER)
     }
 
@@ -80,7 +89,10 @@ object MultiplicativeBlinding {
      * @param bf2 Second blinding factor.
      * @return Combined blinding factor.
      */
-    fun combine(bf1: BigInteger, bf2: BigInteger): BigInteger {
+    fun combine(
+        bf1: BigInteger,
+        bf2: BigInteger,
+    ): BigInteger {
         return bf1.multiply(bf2).mod(P256Group.ORDER)
     }
 
@@ -97,7 +109,11 @@ object MultiplicativeBlinding {
      * @param pkReader Reader's public key.
      * @return Shared secret bytes.
      */
-    fun blindDh(sk: BigInteger, bf: BigInteger, pkReader: ECPoint): ByteArray {
+    fun blindDh(
+        sk: BigInteger,
+        bf: BigInteger,
+        pkReader: ECPoint,
+    ): ByteArray {
         val blindedReaderPk = P256Group.scalarMult(pkReader, bf)
         return P256Group.createSharedSecret(sk, blindedReaderPk)
     }

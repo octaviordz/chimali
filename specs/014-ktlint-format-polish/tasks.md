@@ -17,9 +17,9 @@
 
 **Purpose**: Centralizing ktlint configuration and defining style rules.
 
-- [ ] T001 Centralize ktlint configuration in root [build.gradle.kts](file:///d:/octav/source/repos/Chimali/build.gradle.kts)
-- [ ] T002 [P] Create root [.editorconfig](file:///d:/octav/source/repos/Chimali/.editorconfig) with Official Kotlin Style Guide rules
-- [ ] T003 [P] Remove local ktlint configuration from [feature/fido2/build.gradle.kts](file:///d:/octav/source/repos/Chimali/feature/fido2/build.gradle.kts)
+- [x] T001 Centralize ktlint configuration in root [build.gradle.kts](file:///d:/octav/source/repos/Chimali/build.gradle.kts)
+- [x] T002 [P] Create root [.editorconfig](file:///d:/octav/source/repos/Chimali/.editorconfig) with Official Kotlin Style Guide rules
+- [x] T003 [P] Remove local ktlint configuration from [feature/fido2/build.gradle.kts](file:///d:/octav/source/repos/Chimali/feature/fido2/build.gradle.kts)
 
 ---
 
@@ -27,8 +27,8 @@
 
 **Purpose**: Ensuring the environment is ready for project-wide formatting.
 
-- [ ] T004 Apply ktlint plugin to all subprojects in root [build.gradle.kts](file:///d:/octav/source/repos/Chimali/build.gradle.kts)
-- [ ] T005 Verify all core modules (`core:common`, `core:security`, `core:ui`) are picked up by `ktlintCheck`
+- [x] T004 Apply ktlint plugin to all subprojects in root [build.gradle.kts](file:///d:/octav/source/repos/Chimali/build.gradle.kts)
+- [x] T005 Verify all core modules (`core:common`, `core:security`, `core:ui`) are picked up by `ktlintCheck`
 
 ---
 
@@ -40,8 +40,8 @@
 
 ### Implementation for User Story 0
 
-- [ ] T006 [US0] Run `./gradlew :feature:fido2:ktlintFormat` to fix import ordering in [feature/fido2/src/test/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDaoTest.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/test/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDaoTest.kt)
-- [ ] T007 [US0] Verify pre-commit hook succeeds for `feature:fido2` by running [tools/local-ci.ps1](file:///d:/octav/source/repos/Chimali/tools/local-ci.ps1) with `-SkipClean`
+- [x] T006 [US0] Run `./gradlew :feature:fido2:ktlintFormat` to fix import ordering in [feature/fido2/src/test/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDaoTest.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/test/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDaoTest.kt)
+- [x] T007 [US0] Verify pre-commit hook succeeds for `feature:fido2` by running [tools/local-ci.ps1](file:///d:/octav/source/repos/Chimali/tools/local-ci.ps1) with `-SkipClean`
 
 **Checkpoint**: Pre-commit blockers are resolved; the KMP stabilization work can now be committed.
 
@@ -55,9 +55,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Apply project-wide formatting via `./gradlew ktlintFormat`
-- [ ] T009 [US1] Perform manual audit of 5 files (e.g., [CredentialListScreenTest.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/management/CredentialListScreenTest.kt)) to ensure KDocs and comments are preserved
-- [ ] T010 [US1] Run full test suite `./gradlew test` to ensure no semantic logic changes were introduced
+- [x] T008 [US1] Apply project-wide formatting via `./gradlew ktlintFormat`
+- [x] T009 [US1] Perform manual audit of 5 files (e.g., [CredentialListScreenTest.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/management/CredentialListScreenTest.kt)) to ensure KDocs and comments are preserved
+- [x] T010 [US1] Run full test suite `./gradlew test` to ensure no semantic logic changes were introduced
 
 ---
 
@@ -69,8 +69,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] Introduce a temporary style violation in [LocalCrashReportingLogWriter.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriter.kt) and verify `./gradlew ktlintCheck` fails
-- [ ] T012 [US2] Fix the violation and verify `./gradlew ktlintCheck` passes again
+- [x] T011 [US2] Introduce a temporary style violation in [LocalCrashReportingLogWriter.kt](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriter.kt) and verify `./gradlew ktlintCheck` fails
+- [x] T012 [US2] Fix the violation and verify `./gradlew ktlintCheck` passes again
 
 ---
 
@@ -78,8 +78,8 @@
 
 **Purpose**: Final documentation and quality verification.
 
-- [ ] T013 Update [quickstart.md](file:///d:/octav/source/repos/Chimali/specs/014-ktlint-format-polish/quickstart.md) with standardized formatting and check commands
-- [ ] T014 Run full Local CI pipeline via [tools/local-ci.ps1](file:///d:/octav/source/repos/Chimali/tools/local-ci.ps1) and verify execution time is < 60s (SC-005)
+- [x] T013 Update [quickstart.md](file:///d:/octav/source/repos/Chimali/specs/014-ktlint-format-polish/quickstart.md) with standardized formatting and check commands
+- [x] T014 Run full Local CI pipeline via [tools/local-ci.ps1](file:///d:/octav/source/repos/Chimali/tools/local-ci.ps1) and verify execution time is < 60s (SC-005)
 
 ---
 

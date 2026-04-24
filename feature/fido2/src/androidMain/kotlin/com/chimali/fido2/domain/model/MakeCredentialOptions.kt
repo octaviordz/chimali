@@ -40,7 +40,9 @@ data class MakeCredentialOptions(
 
         // Validate credential lists
         allowCredentials?.let { allowList ->
-            require(allowList.size <= MAX_CREDENTIAL_LIST_SIZE) { "Allow credentials list cannot exceed $MAX_CREDENTIAL_LIST_SIZE items" }
+            require(allowList.size <= MAX_CREDENTIAL_LIST_SIZE) {
+                "Allow credentials list cannot exceed $MAX_CREDENTIAL_LIST_SIZE items"
+            }
             allowList.forEach { descriptor ->
                 descriptor.validate()
             }
@@ -68,7 +70,9 @@ data class MakeCredentialOptions(
             require(ext.size <= MAX_EXTENSIONS_SIZE) { "Extensions map cannot exceed $MAX_EXTENSIONS_SIZE entries" }
             ext.keys.forEach { key ->
                 require(key.isNotBlank()) { "Extension key cannot be blank" }
-                require(key.length <= MAX_EXTENSION_KEY_LENGTH) { "Extension key cannot exceed $MAX_EXTENSION_KEY_LENGTH characters" }
+                require(
+                    key.length <= MAX_EXTENSION_KEY_LENGTH,
+                ) { "Extension key cannot exceed $MAX_EXTENSION_KEY_LENGTH characters" }
             }
         }
     }

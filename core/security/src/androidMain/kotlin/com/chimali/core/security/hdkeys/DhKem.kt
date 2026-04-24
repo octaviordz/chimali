@@ -12,12 +12,12 @@ import javax.crypto.spec.SecretKeySpec
  * Suite ID: "KEM" || I2OSP(0x0010, 2) — DHKEM(P-256, HKDF-SHA256).
  */
 object DhKem {
-
     /** HPKE version label. */
     private val HPKE_LABEL = "HPKE-v1".toByteArray(Charsets.US_ASCII)
 
     /** Suite ID for DHKEM(P-256, HKDF-SHA256): "KEM" || I2OSP(0x0010, 2). */
-    private val SUITE_ID = "KEM".toByteArray(Charsets.US_ASCII) +
+    private val SUITE_ID =
+        "KEM".toByteArray(Charsets.US_ASCII) +
             HashToScalar.i2osp(0x0010, 2)
 
     /** Length of shared secret output (32 bytes). */
@@ -34,7 +34,10 @@ object DhKem {
     /**
      * HKDF-Extract: Extract a pseudorandom key from salt and input keying material.
      */
-    fun extract(salt: ByteArray, ikm: ByteArray): ByteArray {
+    fun extract(
+        salt: ByteArray,
+        ikm: ByteArray,
+    ): ByteArray {
         // RFC 5869 §2.2: if salt is not provided, it is set to a string of HashLen zeros
         val effectiveSalt = if (salt.isEmpty()) ByteArray(32) else salt
         return hmacSha256(effectiveSalt, ikm)
@@ -43,7 +46,11 @@ object DhKem {
     /**
      * HKDF-Expand: Expand a pseudorandom key to the desired length.
      */
-    fun expand(prk: ByteArray, info: ByteArray, len: Int): ByteArray {
+    fun expand(
+        prk: ByteArray,
+        info: ByteArray,
+        len: Int,
+    ): ByteArray {
         val result = ByteArray(len)
         var offset = 0
         var tPrev = ByteArray(0)
@@ -65,7 +72,11 @@ object DhKem {
     /**
      * LabeledExtract as defined in RFC 9180.
      */
-    fun labeledExtract(salt: ByteArray, label: String, ikm: ByteArray): ByteArray {
+    fun labeledExtract(
+        salt: ByteArray,
+        label: String,
+        ikm: ByteArray,
+    ): ByteArray {
         val labeledIkm = HPKE_LABEL + SUITE_ID + label.toByteArray(Charsets.US_ASCII) + ikm
         return extract(salt, labeledIkm)
     }
@@ -73,8 +84,14 @@ object DhKem {
     /**
      * LabeledExpand as defined in RFC 9180.
      */
-    fun labeledExpand(prk: ByteArray, label: String, info: ByteArray, length: Int): ByteArray {
-        val labeledInfo = HashToScalar.i2osp(length, 2) +
+    fun labeledExpand(
+        prk: ByteArray,
+        label: String,
+        info: ByteArray,
+        length: Int,
+    ): ByteArray {
+        val labeledInfo =
+            HashToScalar.i2osp(length, 2) +
                 HPKE_LABEL + SUITE_ID +
                 label.toByteArray(Charsets.US_ASCII) + info
         return expand(prk, labeledInfo, length)
@@ -83,7 +100,10 @@ object DhKem {
     /**
      * ExtractAndExpand: Combine DH shared secret with KEM context.
      */
-    private fun extractAndExpand(dh: ByteArray, kemContext: ByteArray): ByteArray {
+    private fun extractAndExpand(
+        dh: ByteArray,
+        kemContext: ByteArray,
+    ): ByteArray {
         val eaePrk = labeledExtract("".toByteArray(), "eae_prk", dh)
         return labeledExpand(eaePrk, "shared_secret", kemContext, N_SECRET)
     }
@@ -102,10 +122,13 @@ object DhKem {
         val dkpPrk = labeledExtract("".toByteArray(), "dkp_prk", ikm)
 
         for (counter in 0..254) {
-            val candidateBytes = labeledExpand(
-                dkpPrk, "candidate",
-                HashToScalar.i2osp(counter, 1), N_SK
-            )
+            val candidateBytes =
+                labeledExpand(
+                    dkpPrk,
+                    "candidate",
+                    HashToScalar.i2osp(counter, 1),
+                    N_SK,
+                )
             // Apply bitmask to first byte
             candidateBytes[0] = (candidateBytes[0].toInt() and BITMASK).toByte()
             val sk = BigInteger(1, candidateBytes)
@@ -141,7 +164,10 @@ object DhKem {
      * @param skR Recipient's private key.
      * @return Shared secret.
      */
-    fun decap(enc: ByteArray, skR: BigInteger): ByteArray {
+    fun decap(
+        enc: ByteArray,
+        skR: BigInteger,
+    ): ByteArray {
         val pkE = P256Group.deserializeElement(enc)
         val dh = P256Group.createSharedSecret(skR, pkE)
         val pkRm = P256Group.serializeElement(P256Group.scalarBaseMult(skR))
@@ -151,7 +177,10 @@ object DhKem {
 
     // --- Internal ---
 
-    private fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
+    private fun hmacSha256(
+        key: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))
         return mac.doFinal(data)

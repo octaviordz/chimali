@@ -8,10 +8,10 @@ import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.AuthenticatorTransport
 import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
+import java.time.Instant
 import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import java.time.Instant
 
 /**
  * Unit tests for CTAP2 protocol layer (T056).

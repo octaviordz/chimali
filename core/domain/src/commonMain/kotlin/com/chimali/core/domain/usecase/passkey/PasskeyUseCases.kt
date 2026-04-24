@@ -11,7 +11,7 @@ import org.koin.core.annotation.Factory
 
 @Factory
 class GetPasskeysUseCase(
-    private val repository: PasskeyRepository
+    private val repository: PasskeyRepository,
 ) : BaseUseCaseNoParams<List<Passkey>>() {
     override suspend fun invoke(): Result<List<Passkey>> {
         return repository.getAllPasskeys()
@@ -21,7 +21,7 @@ class GetPasskeysUseCase(
 @Factory
 class CreatePasskeyUseCase(
     private val repository: PasskeyRepository,
-    private val fido2Service: Fido2Service
+    private val fido2Service: Fido2Service,
 ) : BaseUseCase<CreatePasskeyRequest, PasskeyId>() {
     override suspend fun invoke(parameters: CreatePasskeyRequest): Result<PasskeyId> {
         return fido2Service.makeCredential(parameters)

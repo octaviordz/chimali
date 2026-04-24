@@ -11,7 +11,6 @@ import android.content.pm.PackageManager
  * PackageManager feature flags (no permissions required for capability checks).
  */
 actual class PlatformBluetoothHid(private val context: Context) {
-
     private val bluetoothManager: BluetoothManager? by lazy {
         context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     }
@@ -29,5 +28,7 @@ actual class PlatformBluetoothHid(private val context: Context) {
      * Callers should check this before attempting to register the HID app.
      */
     actual fun isAdapterEnabled(): Boolean =
-        runCatching { bluetoothManager?.adapter?.isEnabled == true }.getOrDefault(false)
+        runCatching {
+            bluetoothManager?.adapter?.isEnabled == true
+        }.getOrDefault(false)
 }

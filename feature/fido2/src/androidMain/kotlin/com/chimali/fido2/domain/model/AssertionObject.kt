@@ -93,10 +93,12 @@ data class AssertionObject(
     }
 
     /** Returns true if the UP (user present) flag is set in authData byte 32. */
-    fun isUserPresent(): Boolean = authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UP_MASK) != 0
+    fun isUserPresent(): Boolean =
+        authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UP_MASK) != 0
 
     /** Returns true if the UV (user verified) flag is set in authData byte 32. */
-    fun isUserVerified(): Boolean = authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UV_MASK) != 0
+    fun isUserVerified(): Boolean =
+        authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UV_MASK) != 0
 
     // ByteArray equality
     override fun equals(other: Any?): Boolean {

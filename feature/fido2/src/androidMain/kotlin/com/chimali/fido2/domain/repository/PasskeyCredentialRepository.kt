@@ -47,5 +47,3 @@ data class CredentialStatistics(
     val credentialsRequiringUserVerification: Int,
     val averageAgeDays: Double,
 )
-
-

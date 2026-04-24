@@ -122,11 +122,16 @@ class Ctap2Fido21FlagsTest {
         // Build a MakeCredential CBOR map with extensions["credProtect"] = 3
         val requestMap =
             mapOf(
-                "1" to ByteArray(32), // clientDataHash
-                "2" to mapOf("id" to "example.com", "name" to "Example"), // rp
-                "3" to mapOf("id" to ByteArray(8), "name" to "user"), // user
-                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")), // pubKeyCredParams
-                "10" to mapOf("credProtect" to 3L), // extensions
+                // clientDataHash
+                "1" to ByteArray(32),
+                // rp
+                "2" to mapOf("id" to "example.com", "name" to "Example"),
+                // user
+                "3" to mapOf("id" to ByteArray(8), "name" to "user"),
+                // pubKeyCredParams
+                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")),
+                // extensions
+                "10" to mapOf("credProtect" to 3L),
             )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 

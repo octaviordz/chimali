@@ -10,7 +10,6 @@ package com.chimali.fido2.platform
  * @see <a href="https://developer.apple.com/documentation/corebluetooth">CoreBluetooth</a>
  */
 actual class PlatformBluetoothHid {
-
     /**
      * iOS: placeholder — Bluetooth HID peripheral mode requires CoreBluetooth
      * entitlements and is not yet configured for this iOS target.

@@ -11,10 +11,12 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import co.touchlab.kermit.Logger
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import org.koin.android.ext.android.inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,8 +24,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
-import co.touchlab.kermit.Logger
 
 private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
@@ -95,7 +95,7 @@ class Fido2TransportService : Service() {
         startForeground(
             NOTIFICATION_ID,
             buildAdvertisingNotification(),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
         )
 
         // Listen for incoming requests to push a Heads-Up notification if in background
@@ -134,7 +134,8 @@ class Fido2TransportService : Service() {
             NotificationChannel(
                 CHANNEL_ID,
                 "Chimali Authenticator",
-                NotificationManager.IMPORTANCE_LOW, // Silent — no sound/vibration
+                // Silent — no sound/vibration
+                NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "Keeps the virtual security key active"
             }

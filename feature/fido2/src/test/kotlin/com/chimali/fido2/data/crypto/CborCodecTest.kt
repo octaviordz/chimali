@@ -2,15 +2,15 @@ package com.chimali.fido2.data.crypto
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import kotlin.test.assertContentEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import kotlin.test.Test
 import java.security.KeyFactory
 import java.security.Security
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
 
 /**
  * Reproduces and validates the WebAuthn "Invalid key type" / "byte string too long" /

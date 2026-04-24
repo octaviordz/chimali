@@ -48,10 +48,14 @@ data class PasskeyCredential(
         }
         require(userId.length <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
         require(userName.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH bytes" }
-        require(userDisplayName.length <= MAX_DISPLAY_NAME_LENGTH) { "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes" }
+        require(userDisplayName.length <= MAX_DISPLAY_NAME_LENGTH) {
+            "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes"
+        }
         require(aaguid.size == AAGUID_LENGTH) { "AAGUID must be exactly $AAGUID_LENGTH bytes" }
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
-        require(credentialId.size <= MAX_CREDENTIAL_ID_LENGTH) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_LENGTH bytes" }
+        require(
+            credentialId.size <= MAX_CREDENTIAL_ID_LENGTH,
+        ) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_LENGTH bytes" }
 
         // Validate sign count
         require(signCount >= 0) { "Sign count cannot be negative" }
@@ -73,9 +77,9 @@ data class PasskeyCredential(
         // Validate COSE Algorithm
         require(
             coseAlgorithm == COSE_ES256 ||
-            coseAlgorithm == COSE_ED25519 ||
-            coseAlgorithm == COSE_ML_DSA_65 ||
-            coseAlgorithm == COSE_RS256
+                coseAlgorithm == COSE_ED25519 ||
+                coseAlgorithm == COSE_ML_DSA_65 ||
+                coseAlgorithm == COSE_RS256,
         ) {
             "Unsupported COSE algorithm ID: $coseAlgorithm"
         }

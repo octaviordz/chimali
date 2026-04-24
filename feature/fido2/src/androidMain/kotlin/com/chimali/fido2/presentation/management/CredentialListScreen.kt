@@ -7,7 +7,6 @@ import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.background
-import com.chimali.core.ui.R as CoreR
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,14 +17,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chimali.core.ui.R as CoreR
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.ui.BiometricPromptComponent
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.launch
 
 /**
  * T121 — List Screen to show all FIDO2 Passkeys.
@@ -49,11 +48,12 @@ fun CredentialListScreen(
                     snackbarHostState.showSnackbar(effect.message)
                 }
                 is CredentialManagementEffect.ShowUndoSnackbar -> {
-                    val result = snackbarHostState.showSnackbar(
-                        message = effect.message,
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Long
-                    )
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = "Undo",
+                            duration = SnackbarDuration.Long,
+                        )
                     if (result == SnackbarResult.ActionPerformed) {
                         // This would need a way to know which ID, but removalEvents is the primary way now
                     }
@@ -64,11 +64,12 @@ fun CredentialListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.removalEvents.collect { credential ->
-            val result = snackbarHostState.showSnackbar(
-                message = "Deleted passkey for ${credential.userName}",
-                actionLabel = "Undo",
-                duration = SnackbarDuration.Long
-            )
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = "Deleted passkey for ${credential.userName}",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Long,
+                )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onIntent(CredentialManagementIntent.UndoDelete(credential.id))
             } else {
@@ -93,7 +94,7 @@ fun CredentialListScreen(
                         IconButton(onClick = onNavigateUp) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
-                    }
+                    },
                 )
                 SearchBar(
                     query = searchQuery,
@@ -116,9 +117,10 @@ fun CredentialListScreen(
                             }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) { }
             }
         },
@@ -129,7 +131,7 @@ fun CredentialListScreen(
             } else if (state.credentials.isEmpty()) {
                 Column(
                     modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = if (searchQuery.isEmpty()) "No passkeys yet." else "No results for \"$searchQuery\"",
@@ -139,7 +141,7 @@ fun CredentialListScreen(
                 }
             } else {
                 val listState = rememberLazyListState()
-                
+
                 val shouldLoadMore by remember {
                     derivedStateOf {
                         val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
@@ -156,76 +158,85 @@ fun CredentialListScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(state.credentials, key = { it.id }) { credential ->
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = { value ->
-                                if (value != SwipeToDismissBoxValue.Settled) {
-                                    viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
-                                    false // Handle visibility via ViewModel state
-                                } else false
-                            },
-                            positionalThreshold = { totalDistance -> totalDistance * 0.5f }
-                        )
+                        val dismissState =
+                            rememberSwipeToDismissBoxState(
+                                confirmValueChange = { value ->
+                                    if (value != SwipeToDismissBoxValue.Settled) {
+                                        viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                                        false // Handle visibility via ViewModel state
+                                    } else {
+                                        false
+                                    }
+                                },
+                                positionalThreshold = { totalDistance -> totalDistance * 0.5f },
+                            )
 
                         SwipeToDismissBox(
-                            state = dismissState,                             backgroundContent = {
+                            state = dismissState,
+                            backgroundContent = {
                                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                                     val progress = dismissState.progress
                                     val targetValue = dismissState.targetValue
                                     val color by animateColorAsState(
-                                        targetValue = when (targetValue) {
-                                            SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
-                                            else -> MaterialTheme.colorScheme.errorContainer
-                                        }, label = "bg_color"
+                                        targetValue =
+                                            when (targetValue) {
+                                                SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                                                else -> MaterialTheme.colorScheme.errorContainer
+                                            },
+                                        label = "bg_color",
                                     )
                                     val iconScale by animateFloatAsState(
                                         targetValue = if (targetValue != SwipeToDismissBoxValue.Settled) 1.2f else 1.0f,
                                         animationSpec = tween(durationMillis = 300),
-                                        label = "icon_scale"
+                                        label = "icon_scale",
                                     )
 
                                     val avdImage = AnimatedImageVector.animatedVectorResource(CoreR.drawable.avd_delete)
-                                    val avdPainter = rememberAnimatedVectorPainter(
-                                        animatedImageVector = avdImage,
-                                        atEnd = targetValue != SwipeToDismissBoxValue.Settled
-                                    )
+                                    val avdPainter =
+                                        rememberAnimatedVectorPainter(
+                                            animatedImageVector = avdImage,
+                                            atEnd = targetValue != SwipeToDismissBoxValue.Settled,
+                                        )
 
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(color)
-                                            .padding(horizontal = 20.dp)
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .background(color)
+                                                .padding(horizontal = 20.dp),
                                     ) {
                                         // Left icon
                                         Icon(
                                             painter = avdPainter,
                                             contentDescription = "Delete",
                                             tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier
-                                                .align(Alignment.CenterStart)
-                                                .graphicsLayer(
-                                                    scaleX = iconScale,
-                                                    scaleY = iconScale
-                                                )
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.CenterStart)
+                                                    .graphicsLayer(
+                                                        scaleX = iconScale,
+                                                        scaleY = iconScale,
+                                                    ),
                                         )
                                         // Right icon
                                         Icon(
                                             painter = avdPainter,
                                             contentDescription = "Delete",
                                             tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier
-                                                .align(Alignment.CenterEnd)
-                                                .graphicsLayer(
-                                                    scaleX = iconScale,
-                                                    scaleY = iconScale
-                                                )
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.CenterEnd)
+                                                    .graphicsLayer(
+                                                        scaleX = iconScale,
+                                                        scaleY = iconScale,
+                                                    ),
                                         )
                                     }
                                 }
                             },
-
                             enableDismissFromStartToEnd = true,
                             enableDismissFromEndToStart = true,
                             content = {
@@ -233,7 +244,7 @@ fun CredentialListScreen(
                                     credential = credential,
                                     onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -269,7 +280,7 @@ fun CredentialListScreen(
             },
             onFallback = {
                 showBiometricPrompt = null
-            }
+            },
         )
     }
 
@@ -281,8 +292,7 @@ fun CredentialListScreen(
             onDelete = {
                 viewModel.onIntent(CredentialManagementIntent.DismissDialog)
                 viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
-            }
+            },
         )
     }
 }
-

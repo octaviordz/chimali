@@ -7,9 +7,7 @@ plugins {
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.detekt)
-    alias(libs.plugins.ktlint)
 }
-
 
 sqldelight {
     databases {
@@ -74,12 +72,12 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             // Signum — commonMain-safe cryptographic primitives
             implementation(libs.signum.indispensable)
-            
+
             // Logging and IO
             implementation(libs.kermit)
             implementation(libs.okio)
             implementation(libs.kotlinx.datetime)
-            
+
             // Background Jobs
             implementation(libs.kmpworkmanager)
         }
@@ -160,6 +158,9 @@ kotlin {
     }
 }
 
+ksp {
+    arg("KOIN_DEFAULT_MODULE", "true")
+}
 
 // KSP: Target-specific Koin Annotations processor (T189)
 // KMP modules must use kspAndroid/kspIos* instead of the deprecated ksp()

@@ -11,13 +11,12 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import java.time.Instant
+import kotlinx.coroutines.test.runTest
 
 class Ctap2CredentialManagementHandlerTest {
     private lateinit var cborCodec: CborCodec
@@ -81,7 +80,9 @@ class Ctap2CredentialManagementHandlerTest {
     fun `handleGetCredsMetadata returns correct credential count`() =
         runTest {
             val mockCredential = mockk<PasskeyCredential>()
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(listOf(mockCredential, mockCredential))
+            coEvery {
+                getAllCredentialsUseCase(any<Long>(), any<Long>())
+            } returns Result.success(listOf(mockCredential, mockCredential))
 
             val requestBytes = byteArrayOf(0x03)
             every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 1)

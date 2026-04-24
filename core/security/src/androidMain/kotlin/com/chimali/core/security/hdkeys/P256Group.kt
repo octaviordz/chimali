@@ -15,7 +15,6 @@ import java.security.SecureRandom
  * Uses Bouncy Castle for the underlying EC arithmetic.
  */
 object P256Group {
-
     private val curveParams: X9ECParameters = CustomNamedCurves.getByName("secp256r1")
     private val curve = curveParams.curve
     private val random = SecureRandom()
@@ -46,7 +45,10 @@ object P256Group {
     /**
      * Scalar multiplication: compute k * P.
      */
-    fun scalarMult(point: ECPoint, k: BigInteger): ECPoint {
+    fun scalarMult(
+        point: ECPoint,
+        k: BigInteger,
+    ): ECPoint {
         return point.multiply(k).normalize()
     }
 
@@ -60,7 +62,10 @@ object P256Group {
     /**
      * EC point addition: compute A + B.
      */
-    fun add(a: ECPoint, b: ECPoint): ECPoint {
+    fun add(
+        a: ECPoint,
+        b: ECPoint,
+    ): ECPoint {
         return a.add(b).normalize()
     }
 
@@ -114,7 +119,10 @@ object P256Group {
      *
      * Corresponds to CreateSharedSecret in the spec for EC-DH.
      */
-    fun createSharedSecret(sk: BigInteger, pk: ECPoint): ByteArray {
+    fun createSharedSecret(
+        sk: BigInteger,
+        pk: ECPoint,
+    ): ByteArray {
         val sharedPoint = scalarMult(pk, sk).normalize()
         val x = sharedPoint.affineXCoord.toBigInteger()
         return serializeScalar(x)

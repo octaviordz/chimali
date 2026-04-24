@@ -1,7 +1,7 @@
 package com.chimali.core.domain.valueobject
 
-import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
+import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
@@ -17,7 +17,13 @@ value class EncryptedString(val value: String)
 
 @Serializable
 enum class CredentialCategory {
-    SOCIAL, WORK, FINANCIAL, PERSONAL, DEVELOPMENT, SHOPPING, OTHER
+    SOCIAL,
+    WORK,
+    FINANCIAL,
+    PERSONAL,
+    DEVELOPMENT,
+    SHOPPING,
+    OTHER,
 }
 
 @Serializable

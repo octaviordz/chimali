@@ -37,10 +37,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.core.ui.theme.LegibilityType
-
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
@@ -59,6 +57,7 @@ import io.github.alexzhirkevich.qrose.options.QrShapes
 import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -140,7 +139,9 @@ internal fun DevelopmentToolsContent(
                         )
                     if (result == SnackbarResult.ActionPerformed) {
                         val intent =
-                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            ).apply {
                                 data = android.net.Uri.fromParts("package", context.packageName, null)
                             }
                         context.startActivity(intent)
@@ -470,7 +471,9 @@ internal fun DevelopmentToolsContent(
                                         if (result == SnackbarResult.ActionPerformed) {
                                             // T008 - Redirect to settings on permanent denial
                                             val intent =
-                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                android.content.Intent(
+                                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                ).apply {
                                                     data = android.net.Uri.fromParts("package", context.packageName, null)
                                                 }
                                             context.startActivity(intent)

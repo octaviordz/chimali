@@ -25,7 +25,10 @@ interface SivEncryptionManager {
      * @param key       64-byte SIV key.
      * @return Ciphertext = SIV_tag (16 bytes) || encrypted_data.
      */
-    fun encrypt(plaintext: ByteArray, key: ByteArray): ByteArray
+    fun encrypt(
+        plaintext: ByteArray,
+        key: ByteArray,
+    ): ByteArray
 
     /**
      * Decrypts [ciphertext] and verifies its authenticity.
@@ -35,5 +38,8 @@ interface SivEncryptionManager {
      * @return Decrypted plaintext.
      * @throws SecurityException if authentication fails.
      */
-    fun decrypt(ciphertext: ByteArray, key: ByteArray): ByteArray
+    fun decrypt(
+        ciphertext: ByteArray,
+        key: ByteArray,
+    ): ByteArray
 }

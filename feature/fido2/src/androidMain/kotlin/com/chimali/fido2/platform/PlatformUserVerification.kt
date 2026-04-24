@@ -11,7 +11,6 @@ import androidx.biometric.BiometricManager.Authenticators
  * into commonMain. Injected via Koin (Context resolved from androidContext()).
  */
 actual class PlatformUserVerification(private val context: Context) {
-
     private val biometricManager: BiometricManager by lazy {
         BiometricManager.from(context)
     }
@@ -22,7 +21,7 @@ actual class PlatformUserVerification(private val context: Context) {
      */
     actual fun isAvailable(): Boolean =
         biometricManager.canAuthenticate(
-            Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL
+            Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL,
         ) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**

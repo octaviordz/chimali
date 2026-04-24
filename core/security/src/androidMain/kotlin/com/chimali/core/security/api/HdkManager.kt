@@ -8,13 +8,13 @@ package com.chimali.core.security.api
  */
 data class HdkKeyPair(
     val privateKey: ByteArray,
-    val publicKey: ByteArray
+    val publicKey: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is HdkKeyPair) return false
         return privateKey.contentEquals(other.privateKey) &&
-               publicKey.contentEquals(other.publicKey)
+            publicKey.contentEquals(other.publicKey)
     }
 
     override fun hashCode(): Int {
@@ -34,14 +34,14 @@ data class HdkKeyPair(
 data class HdkResult(
     val publicKey: ByteArray,
     val salt: ByteArray,
-    val blindingFactor: ByteArray
+    val blindingFactor: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is HdkResult) return false
         return publicKey.contentEquals(other.publicKey) &&
-                salt.contentEquals(other.salt) &&
-                blindingFactor.contentEquals(other.blindingFactor)
+            salt.contentEquals(other.salt) &&
+            blindingFactor.contentEquals(other.blindingFactor)
     }
 
     override fun hashCode(): Int {
@@ -60,7 +60,6 @@ data class HdkResult(
  * elliptic curve key derivation with key blinding.
  */
 interface HdkManager {
-
     /**
      * Generate a new random seed of Ns bytes for HDK derivation.
      *
@@ -91,7 +90,7 @@ interface HdkManager {
     fun deriveHdk(
         devicePublicKey: ByteArray,
         seed: ByteArray,
-        path: List<UInt>
+        path: List<UInt>,
     ): HdkResult
 
     /**
@@ -106,7 +105,7 @@ interface HdkManager {
      */
     fun blindPrivateKey(
         devicePrivateKey: ByteArray,
-        blindingFactor: ByteArray
+        blindingFactor: ByteArray,
     ): ByteArray
 
     /**
@@ -124,7 +123,7 @@ interface HdkManager {
     fun createBlindedSharedSecret(
         devicePrivateKey: ByteArray,
         blindingFactor: ByteArray,
-        readerPublicKey: ByteArray
+        readerPublicKey: ByteArray,
     ): ByteArray
 
     /**
@@ -157,6 +156,6 @@ interface HdkManager {
         keyHandle: ByteArray,
         index: UInt,
         parentPublicKey: ByteArray,
-        expectedPublicKey: ByteArray
+        expectedPublicKey: ByteArray,
     ): HdkResult
 }

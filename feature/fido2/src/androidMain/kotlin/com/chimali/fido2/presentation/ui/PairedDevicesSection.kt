@@ -21,12 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
-import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
