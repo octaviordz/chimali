@@ -15,6 +15,15 @@ class DatabaseSchemaTest {
         }.getOrThrow()
     }
 
+    private companion object {
+        private const val PASSKEY_CREDENTIAL_COLUMNS = 12
+        private const val RELYING_PARTY_COLUMNS = 5
+        private const val USER_CONSENT_COLUMNS = 7
+        private const val BLUETOOTH_SESSION_COLUMNS = 6
+        private const val EXPECTED_INDEX_COUNT = 5
+        private const val EXPECTED_VIEW_COUNT = 2
+    }
+
     @Test
     fun `test PasskeyCredential table structure`() {
         // Verify PasskeyCredential table has required columns
@@ -26,7 +35,7 @@ class DatabaseSchemaTest {
             )
 
         // In a real test, we'd parse the schema and verify column existence
-        assertEquals(12, expectedColumns.size)
+        assertEquals(PASSKEY_CREDENTIAL_COLUMNS, expectedColumns.size)
     }
 
     @Test
@@ -34,7 +43,7 @@ class DatabaseSchemaTest {
         // Verify RelyingParty table has required columns
         val expectedColumns = listOf("id", "name", "iconUrl", "credentialCount", "createdAt")
 
-        assertEquals(5, expectedColumns.size)
+        assertEquals(RELYING_PARTY_COLUMNS, expectedColumns.size)
     }
 
     @Test
@@ -51,7 +60,7 @@ class DatabaseSchemaTest {
                 "pinUsed",
             )
 
-        assertEquals(7, expectedColumns.size)
+        assertEquals(USER_CONSENT_COLUMNS, expectedColumns.size)
     }
 
     @Test
@@ -67,7 +76,7 @@ class DatabaseSchemaTest {
                 "sessionData",
             )
 
-        assertEquals(6, expectedColumns.size)
+        assertEquals(BLUETOOTH_SESSION_COLUMNS, expectedColumns.size)
     }
 
     @Test
@@ -82,7 +91,7 @@ class DatabaseSchemaTest {
                 "idx_bluetooth_session_active",
             )
 
-        assertEquals(5, expectedIndexes.size)
+        assertEquals(EXPECTED_INDEX_COUNT, expectedIndexes.size)
     }
 
     @Test
@@ -90,6 +99,6 @@ class DatabaseSchemaTest {
         // Verify required views are defined
         val expectedViews = listOf("CredentialSummary", "RelyingPartyStats")
 
-        assertEquals(2, expectedViews.size)
+        assertEquals(EXPECTED_VIEW_COUNT, expectedViews.size)
     }
 }

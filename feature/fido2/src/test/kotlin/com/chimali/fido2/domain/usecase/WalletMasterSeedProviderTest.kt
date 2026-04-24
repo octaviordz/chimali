@@ -31,8 +31,16 @@ class WalletMasterSeedProviderTest {
             "abandon", "abandon", "abandon", "abandon",
             "abandon", "abandon", "abandon", "about",
         )
-    private val fakeSeed = ByteArray(64) { it.toByte() }
+    private val fakeSeed = ByteArray(SEED_SIZE_64) { it.toByte() }
     private val fakeKeyPair = mockk<HdkKeyPair>(relaxed = true)
+
+    private companion object {
+        private const val SEED_SIZE_64 = 64
+        private const val MNEMONIC_WORDS_24 = 24
+        private const val MNEMONIC_WORDS_12 = 12
+        private const val OFFSET_10 = 10
+        private const val OFFSET_99 = 99
+    }
 
     private lateinit var mockGenerator: MasterSeedGenerator
     private lateinit var mockHdkManager: HdkManager
@@ -43,7 +51,7 @@ class WalletMasterSeedProviderTest {
         mockGenerator = mockk()
         mockHdkManager = mockk()
 
-        every { mockGenerator.generateMnemonic(24) } returns fakeMnemonic
+        every { mockGenerator.generateMnemonic(MNEMONIC_WORDS_24) } returns fakeMnemonic
         every { mockGenerator.deriveSeed(fakeMnemonic, "") } returns fakeSeed
         every { mockHdkManager.generateDeviceKeyPair() } returns fakeKeyPair
 
@@ -73,7 +81,7 @@ class WalletMasterSeedProviderTest {
             provider.getMasterSeed()
             provider.getMasterSeed()
 
-            verify(exactly = 1) { mockGenerator.generateMnemonic(24) }
+            verify(exactly = 1) { mockGenerator.generateMnemonic(MNEMONIC_WORDS_24) }
             verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
         }
 
@@ -130,8 +138,8 @@ class WalletMasterSeedProviderTest {
             // No mnemonic persisted yet.
             provider.persistedMnemonic = null
 
-            val twentyFourWords = List(24) { "word${it + 1}" }
-            every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(64)
+            val twentyFourWords = List(MNEMONIC_WORDS_24) { "word${it + 1}" }
+            every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(SEED_SIZE_64)
 
             val chars = twentyFourWords.joinToString(" ").toCharArray()
             val result = provider.importMnemonic(chars)
@@ -146,8 +154,8 @@ class WalletMasterSeedProviderTest {
             // Pre-populate storage with an existing mnemonic.
             provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
 
-            val newWords = List(24) { "new${it + 1}" }
-            every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(64)
+            val newWords = List(MNEMONIC_WORDS_24) { "new${it + 1}" }
+            every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(SEED_SIZE_64)
 
             val chars = newWords.joinToString(" ").toCharArray()
             val result = provider.importMnemonic(chars)
@@ -162,8 +170,8 @@ class WalletMasterSeedProviderTest {
             // Warm the cache with the original mnemonic / seed.
             val originalSeed = provider.getMasterSeed()
 
-            val newWords = List(24) { "cache${it + 1}" }
-            val newSeed = ByteArray(64) { (it + 10).toByte() }
+            val newWords = List(MNEMONIC_WORDS_24) { "cache${it + 1}" }
+            val newSeed = ByteArray(SEED_SIZE_64) { (it + OFFSET_10).toByte() }
             every { mockGenerator.deriveSeed(newWords, "") } returns newSeed
 
             val chars = newWords.joinToString(" ").toCharArray()
@@ -184,6 +192,7 @@ class WalletMasterSeedProviderTest {
                     "here", "but", "need", "more",
                     "this", "will", "fail", "validation", "check",
                 )
+            assertEquals(MNEMONIC_WORDS_12, shortWords.size)
             val chars = shortWords.joinToString(" ").toCharArray()
 
             assertFailsWith<IllegalArgumentException> {
@@ -194,8 +203,8 @@ class WalletMasterSeedProviderTest {
     @Test
     fun `importMnemonic zeroes the CharArray after use`() =
         runTest {
-            val words = List(24) { "zero${it + 1}" }
-            every { mockGenerator.deriveSeed(words, "") } returns ByteArray(64)
+            val words = List(MNEMONIC_WORDS_24) { "zero${it + 1}" }
+            every { mockGenerator.deriveSeed(words, "") } returns ByteArray(SEED_SIZE_64)
 
             val chars = words.joinToString(" ").toCharArray()
             provider.importMnemonic(chars)
@@ -226,13 +235,13 @@ class WalletMasterSeedProviderTest {
         override suspend fun getMnemonic(): List<String>? = persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
 
         /** T017a: Returns a deterministic test PQ child seed. */
-        override suspend fun getPqChildSeed(): ByteArray? = ByteArray(64) { (it + 99).toByte() }
+        override suspend fun getPqChildSeed(): ByteArray? = ByteArray(SEED_SIZE_64) { (it + OFFSET_99).toByte() }
 
         override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
             try {
                 val mnemonicString = String(mnemonic)
                 val words = mnemonicString.split(" ")
-                require(words.size == 24) {
+                require(words.size == MNEMONIC_WORDS_24) {
                     "Invalid mnemonic: expected 24 words, got ${words.size}."
                 }
                 val alreadyExisted = !persistedMnemonic.isNullOrBlank()
@@ -258,7 +267,7 @@ class WalletMasterSeedProviderTest {
                 if (!persistedMnemonic.isNullOrBlank()) {
                     persistedMnemonic!!.split(" ")
                 } else {
-                    val newMnemonic = gen.generateMnemonic(24)
+                    val newMnemonic = gen.generateMnemonic(MNEMONIC_WORDS_24)
                     persistedMnemonic = newMnemonic.joinToString(" ")
                     newMnemonic
                 }

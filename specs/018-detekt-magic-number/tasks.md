@@ -16,8 +16,8 @@
 
 **Purpose**: Configure Detekt with tuned settings before removing exclusions.
 
-- [ ] T001 Run `./gradlew detekt` to establish a clean baseline with current exclusions
-- [ ] T002 Update `config/detekt/detekt.yml` with tuned settings: `ignoreAnnotation: true`, `ignoreEnums: true`, `ignoreRanges: true`, and expand `ignoreNumbers` to include common SDK versions (17, 21, 24, 30, 31, 33, 34, 35)
+- [x] T001 Run `./gradlew detekt` to establish a clean baseline with current exclusions
+- [x] T002 Update `config/detekt/detekt.yml` with tuned settings: `ignoreAnnotation: true`, `ignoreEnums: true`, `ignoreRanges: true`.
 
 ---
 
@@ -25,8 +25,8 @@
 
 **Purpose**: Activate the rule for all source sets.
 
-- [ ] T003 Remove the specified `excludes` list from `MagicNumber` rule in `config/detekt/detekt.yml`, while adding exclusions for `**/build/generated/**` and `**/*Generated.kt`
-- [ ] T004 Run `./gradlew detekt --continue` and capture violations to `artifacts/magic_number_violations.txt` for systematic resolution
+- [x] T003 Remove the specified `excludes` list from `MagicNumber` rule in `config/detekt/detekt.yml`, while adding exclusions for `**/build/generated/**`, `**/*Generated.kt`, and `**/*.kts`
+- [x] T004 Run `./gradlew detekt --continue` and capture violations to `artifacts/magic_number_violations.txt` for systematic resolution
 
 ---
 
@@ -38,13 +38,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Refactor magic numbers in `app` module Kotlin files in `app/src/`
-- [ ] T006 [P] [US1] Refactor magic numbers in `core:database` module Kotlin files in `core/database/src/`
-- [ ] T007 [P] [US1] Refactor magic numbers in `core:security` module Kotlin files in `core/security/src/`
-- [ ] T008 [P] [US1] Refactor magic numbers in `core:ui` module Kotlin files in `core/ui/src/`
-- [ ] T009 [P] [US1] Refactor magic numbers in `feature:vault` module Kotlin files in `feature/vault/src/`
-- [ ] T010 [P] [US1] Refactor magic numbers in all `build.gradle.kts` and `settings.gradle.kts` files across the project
-- [ ] T011 [P] [US1] Refactor magic numbers in all `test` and `androidTest` source sets across all modules (e.g., `**/src/test/**`)
+- [x] T005 [P] [US1] Refactor magic numbers in `app` module Kotlin files in `app/src/`
+- [x] T006 [P] [US1] Refactor magic numbers in `core:database` module Kotlin files in `core/database/src/`
+- [x] T007 [P] [US1] Refactor magic numbers in `core:security` module Kotlin files in `core/security/src/`
+- [x] T008 [P] [US1] Refactor magic numbers in `core:ui` module Kotlin files in `core/ui/src/`
+- [x] T009 [P] [US1] Refactor magic numbers in `feature:vault` module Kotlin files in `feature/vault/src/`
+- [x] T010 [P] [US1] Refactor magic numbers in `feature:fido2` module Kotlin files in `feature/fido2/src/`
+- [x] T011 [P] [US1] Refactor magic numbers in all `test` and `androidTest` source sets across all modules (e.g., `**/src/test/**`)
 
 **Checkpoint**: Individual modules and test suites should now be compliant.
 
@@ -58,15 +58,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Run project-wide `./gradlew detekt` to verify 100% compliance
-- [ ] T013 [US2] Fix any remaining edge-case violations discovered in the final project-wide scan
+- [x] T012 [US2] Run project-wide `./gradlew detekt` to verify 100% compliance
+- [x] T013 [US2] Fix any remaining edge-case violations discovered in the final project-wide scan
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T014 [P] Update `specs/018-detekt-magic-number/quickstart.md` with any newly established patterns discovered during refactoring
-- [ ] T015 Run Local CI pipeline via `tools/local-ci.ps1` to ensure no regressions in tests or formatting
+- [x] T014 [P] Update `specs/018-detekt-magic-number/quickstart.md` with any newly established patterns discovered during refactoring
+- [x] T015 Run Local CI pipeline via `tools/local-ci.ps1` to ensure no regressions in tests or formatting
 
 ---
 

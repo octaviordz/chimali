@@ -42,6 +42,12 @@ class AuthenticationIntegrationTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private companion object {
+        private const val MAX_PIN_LEN_8 = 8
+        private const val MIN_PIN_LEN_4 = 4
+        private const val HASH_SIZE_32 = 32
+    }
+
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -61,8 +67,8 @@ class AuthenticationIntegrationTest {
                 pinAvailable = true,
                 deviceLockAvailable = false,
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                maxPinLength = 8,
-                minPinLength = 4,
+                maxPinLength = MAX_PIN_LEN_8,
+                minPinLength = MIN_PIN_LEN_4,
                 biometricStrength = BiometricStrength.STRONG,
             )
 
@@ -77,7 +83,7 @@ class AuthenticationIntegrationTest {
     private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions {
         return GetAssertionOptions.create(
             rpId = rpId,
-            clientDataHash = ByteArray(32),
+            clientDataHash = ByteArray(HASH_SIZE_32),
             userVerification = UserVerificationRequirement.PREFERRED,
         )
     }

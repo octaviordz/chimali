@@ -17,6 +17,26 @@ class RelyingPartyTest {
             testTimestamp = Instant.now()
         }
 
+    private companion object {
+        private const val CRED_COUNT_5 = 5
+        private const val CRED_COUNT_10 = 10
+        private const val NAME_MAX_PLUS_ONE = 65
+        private const val SECONDS_60 = 60L
+        private const val SECONDS_30 = 30L
+        private const val RECENT_DAYS_THRESHOLD = 30L
+        private const val HOURS_PER_DAY = 24
+        private const val MINUTES_PER_HOUR = 60
+        private const val SECONDS_PER_MINUTE = 60
+        private const val DAYS_32 = 32
+        private const val DAYS_31 = 31
+        private const val DAYS_30 = 30
+        private const val DAYS_29 = 29
+        private const val DAY_1 = 1
+        private const val MAX_NAME_SIZE = 64
+        private const val MAX_ICON_URL_SIZE = 256
+        private const val ICON_URL_BASE_SIZE = 236
+    }
+
     @Nested
     inner class ValidationTests {
         @Test
@@ -49,7 +69,7 @@ class RelyingPartyTest {
                         id = "https://example.com",
                         name = "Example Website",
                         iconUrl = "https://example.com/icon.png",
-                        credentialCount = 5,
+                        credentialCount = CRED_COUNT_5,
                         createdAt = testTimestamp,
                         lastUsedAt = testTimestamp,
                     )
@@ -58,7 +78,7 @@ class RelyingPartyTest {
                 assertEquals("https://example.com", rp.id)
                 assertEquals("Example Website", rp.name)
                 assertEquals("https://example.com/icon.png", rp.iconUrl)
-                assertEquals(5, rp.credentialCount)
+                assertEquals(CRED_COUNT_5, rp.credentialCount)
                 assertEquals(testTimestamp, rp.createdAt)
                 assertEquals(testTimestamp, rp.lastUsedAt)
             }
@@ -111,7 +131,7 @@ class RelyingPartyTest {
         @Test
         fun `should throw exception when name exceeds maximum length`() =
             runTest {
-                val longName = "a".repeat(65)
+                val longName = "a".repeat(NAME_MAX_PLUS_ONE)
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
@@ -172,7 +192,7 @@ class RelyingPartyTest {
         @Test
         fun `should throw exception when last used time is before creation time`() =
             runTest {
-                val pastTimestamp = testTimestamp.minusSeconds(60)
+                val pastTimestamp = testTimestamp.minusSeconds(SECONDS_60)
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
                         id = "https://example.com",
@@ -198,7 +218,7 @@ class RelyingPartyTest {
                         id = "https://example.com",
                         name = "Example Website",
                         iconUrl = "https://example.com/icon.png",
-                        credentialCount = 5,
+                        credentialCount = CRED_COUNT_5,
                         createdAt = testTimestamp,
                         lastUsedAt = testTimestamp,
                     )
@@ -266,9 +286,9 @@ class RelyingPartyTest {
         @Test
         fun `should create rp with updated credential count`() =
             runTest {
-                val updatedRp = rp.withCredentialCount(10)
+                val updatedRp = rp.withCredentialCount(CRED_COUNT_10)
 
-                assertEquals(10, updatedRp.credentialCount)
+                assertEquals(CRED_COUNT_10, updatedRp.credentialCount)
                 assertEquals(rp.id, updatedRp.id)
                 assertEquals(rp.name, updatedRp.name)
                 assertNotEquals(rp.lastUsedAt, updatedRp.lastUsedAt) // Should be updated
@@ -277,7 +297,7 @@ class RelyingPartyTest {
         @Test
         fun `should create rp with updated last used time`() =
             runTest {
-                val newLastUsedAt = rp.createdAt.plusSeconds(30)
+                val newLastUsedAt = rp.createdAt.plusSeconds(SECONDS_30)
                 val updatedRp = rp.withLastUsedAt(newLastUsedAt)
 
                 assertEquals(newLastUsedAt, updatedRp.lastUsedAt)
@@ -288,23 +308,35 @@ class RelyingPartyTest {
         @Test
         fun `should correctly check if rp was recently used`() =
             runTest {
-                assertTrue(rp.isRecentlyUsed(30)) // Should be recent
+                assertTrue(rp.isRecentlyUsed(RECENT_DAYS_THRESHOLD)) // Should be recent
 
-                val oldCreatedAt = Instant.now().minusSeconds(32 * 24 * 60 * 60)
+                val oldCreatedAt =
+                    Instant.now().minusSeconds(
+                        DAYS_32.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+                    )
                 val oldRp =
                     rp.copy(
                         createdAt = oldCreatedAt,
-                        lastUsedAt = oldCreatedAt.plusSeconds(1 * 24 * 60 * 60),
+                        lastUsedAt =
+                            oldCreatedAt.plusSeconds(
+                                DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+                            ),
                     ) // 31 days ago
-                assertFalse(oldRp.isRecentlyUsed(30))
+                assertFalse(oldRp.isRecentlyUsed(RECENT_DAYS_THRESHOLD))
 
-                val recentCreatedAt = Instant.now().minusSeconds(30 * 24 * 60 * 60)
+                val recentCreatedAt =
+                    Instant.now().minusSeconds(
+                        DAYS_30.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+                    )
                 val recentRp =
                     rp.copy(
                         createdAt = recentCreatedAt,
-                        lastUsedAt = recentCreatedAt.plusSeconds(1 * 24 * 60 * 60),
+                        lastUsedAt =
+                            recentCreatedAt.plusSeconds(
+                                DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+                            ),
                     ) // 29 days ago
-                assertTrue(recentRp.isRecentlyUsed(30))
+                assertTrue(recentRp.isRecentlyUsed(RECENT_DAYS_THRESHOLD))
             }
     }
 
@@ -368,8 +400,8 @@ class RelyingPartyTest {
         @Test
         fun `should have correct constant values`() =
             runTest {
-                assertEquals(64, RelyingParty.MAX_NAME_LENGTH)
-                assertEquals(256, RelyingParty.MAX_ICON_URL_LENGTH)
+                assertEquals(MAX_NAME_SIZE, RelyingParty.MAX_NAME_LENGTH)
+                assertEquals(MAX_ICON_URL_SIZE, RelyingParty.MAX_ICON_URL_LENGTH)
             }
     }
 
@@ -378,8 +410,8 @@ class RelyingPartyTest {
         @Test
         fun `should handle maximum allowed field sizes`() =
             runTest {
-                val maxName = "a".repeat(64)
-                val maxIconUrl = "https://example.com/" + "a".repeat(236) // Total 256 chars
+                val maxName = "a".repeat(MAX_NAME_SIZE)
+                val maxIconUrl = "https://example.com/" + "a".repeat(ICON_URL_BASE_SIZE) // Total 256 chars
 
                 val rp =
                     RelyingParty(

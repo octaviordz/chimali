@@ -13,16 +13,16 @@ import com.chimali.fido2.domain.service.AuthenticatorInfo
 import org.koin.core.annotation.Single
 
 // CTAP2 status codes
-private const val CTAP2_OK: Byte = 0x00
-private const val CTAP2_ERR_INVALID_CBOR: Byte = 0x12.toByte()
-private const val CTAP2_ERR_MISSING_PARAMETER: Byte = 0x14.toByte()
-private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E.toByte()
-private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
-private const val CTAP2_ERR_UNSUPPORTED_ALGO: Byte = 0x26.toByte()
-private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x27.toByte()
-private const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
-private const val CTAP2_ERR_PIN_BLOCKED: Byte = 0x32.toByte()
-private const val CTAP2_ERR_PIN_INVALID: Byte = 0x31.toByte()
+internal const val CTAP2_OK: Byte = 0x00
+internal const val CTAP2_ERR_INVALID_CBOR: Byte = 0x12.toByte()
+internal const val CTAP2_ERR_MISSING_PARAMETER: Byte = 0x14.toByte()
+internal const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E.toByte()
+internal const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
+internal const val CTAP2_ERR_UNSUPPORTED_ALGO: Byte = 0x26.toByte()
+internal const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x27.toByte()
+internal const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
+internal const val CTAP2_ERR_PIN_BLOCKED: Byte = 0x32.toByte()
+internal const val CTAP2_ERR_PIN_INVALID: Byte = 0x31.toByte()
 
 private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F // 0x10
 

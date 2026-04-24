@@ -48,30 +48,54 @@ class Ctap2CredentialManagementHandlerTest {
             )
     }
 
+    private companion object {
+        private const val SUB_GET_METADATA = 1
+        private const val SUB_ENUM_RP_BEGIN = 2
+        private const val SUB_ENUM_RP_NEXT = 3
+        private const val SUB_ENUM_CRED_BEGIN = 4
+        private const val SUB_ENUM_CRED_NEXT = 5
+
+        private const val CTAP1_ERR_MISSING_PARAMETER = 0x0E.toByte()
+        private const val CTAP2_ERR_UNSUPPORTED_OPTION = 0x11.toByte()
+        private const val CTAP2_ERR_NO_CREDENTIALS = 0x22.toByte()
+        private const val CTAP2_ERR_NOT_ALLOWED = 0x30.toByte()
+        private const val CTAP2_OK = 0x00.toByte()
+
+        private const val DUMMY_BYTE_01 = 0x01.toByte()
+        private const val DUMMY_BYTE_02 = 0x02.toByte()
+        private const val DUMMY_BYTE_03 = 0x03.toByte()
+        private const val DUMMY_BYTE_AA = 0xAA.toByte()
+        private const val DUMMY_BYTE_BB = 0xBB.toByte()
+        private const val DUMMY_BYTE_CC = 0xCC.toByte()
+        private const val DUMMY_BYTE_DD = 0xDD.toByte()
+        private const val UNKNOWN_SUBCOMMAND_99 = 99
+        private const val INDEX_2 = 2
+    }
+
     // ── SubCommand parsing ───────────────────────────────────────────────────
 
     @Test
     fun `handle returns CTAP1_ERR_MISSING_PARAMETER if subCommand is missing`() =
         runTest {
-            val requestBytes = byteArrayOf(0x01)
+            val requestBytes = byteArrayOf(DUMMY_BYTE_01)
             every { cborCodec.decodeFromFido2Format(any()) } returns emptyMap()
 
             val response = handler.handle(requestBytes)
 
             assertEquals(1, response.size)
-            assertEquals(0x0E.toByte(), response[0])
+            assertEquals(CTAP1_ERR_MISSING_PARAMETER, response[0])
         }
 
     @Test
     fun `handle returns CTAP2_ERR_UNSUPPORTED_OPTION for unknown subCommand`() =
         runTest {
-            val requestBytes = byteArrayOf(0x02)
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 99)
+            val requestBytes = byteArrayOf(DUMMY_BYTE_02)
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to UNKNOWN_SUBCOMMAND_99)
 
             val response = handler.handle(requestBytes)
 
             assertEquals(1, response.size)
-            assertEquals(0x11.toByte(), response[0])
+            assertEquals(CTAP2_ERR_UNSUPPORTED_OPTION, response[0])
         }
 
     // ── SubCommand 1: getCredsMetadata ───────────────────────────────────────
@@ -84,19 +108,19 @@ class Ctap2CredentialManagementHandlerTest {
                 getAllCredentialsUseCase(any<Long>(), any<Long>())
             } returns Result.success(listOf(mockCredential, mockCredential))
 
-            val requestBytes = byteArrayOf(0x03)
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 1)
+            val requestBytes = byteArrayOf(DUMMY_BYTE_03)
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_GET_METADATA)
 
-            val expectedResponseBytes = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+            val expectedResponseBytes = byteArrayOf(DUMMY_BYTE_AA, DUMMY_BYTE_BB)
             every { cborCodec.encodeToFido2Format(any()) } returns expectedResponseBytes
 
             val responseBytes = handler.handle(requestBytes)
 
-            assertEquals(0x00.toByte(), responseBytes[0]) // CTAP2_OK status byte
+            assertEquals(CTAP2_OK, responseBytes[0]) // CTAP2_OK status byte
 
             // Ensure the encoded bytes are concatenated correctly
             assertEquals(expectedResponseBytes[0], responseBytes[1])
-            assertEquals(expectedResponseBytes[1], responseBytes[2])
+            assertEquals(expectedResponseBytes[1], responseBytes[INDEX_2])
         }
 
     // ── SubCommand 2: enumerateRPsBegin ──────────────────────────────────────
@@ -112,13 +136,13 @@ class Ctap2CredentialManagementHandlerTest {
             coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
                 RelyingParty("https://other.com", "Other", null, 1, Instant.now())
 
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 2)
-            val encodedBytes = byteArrayOf(0xCC.toByte())
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
-            val response = handler.handle(byteArrayOf(0x01))
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
-            assertEquals(0x00.toByte(), response[0]) // CTAP2_OK
+            assertEquals(CTAP2_OK, response[0]) // CTAP2_OK
             assertTrue(response.size > 1) // Has encoded payload
         }
 
@@ -127,12 +151,12 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList())
 
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 2)
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
 
-            val response = handler.handle(byteArrayOf(0x01))
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             assertEquals(1, response.size)
-            assertEquals(0x22.toByte(), response[0]) // CTAP2_ERR_NO_CREDENTIALS
+            assertEquals(CTAP2_ERR_NO_CREDENTIALS, response[0]) // CTAP2_ERR_NO_CREDENTIALS
         }
 
     // ── SubCommand 3: enumerateRPsGetNextRP ──────────────────────────────────
@@ -149,18 +173,18 @@ class Ctap2CredentialManagementHandlerTest {
             coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
                 RelyingParty("https://other.com", "Other", null, 1, Instant.now())
 
-            val encodedBytes = byteArrayOf(0xCC.toByte())
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
             // Begin (subCommand 2) - consumes the first RP
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 2)
-            handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
+            handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             // GetNext (subCommand 3) - should return the second RP
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 3)
-            val response = handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_NEXT)
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
-            assertEquals(0x00.toByte(), response[0]) // CTAP2_OK
+            assertEquals(CTAP2_OK, response[0]) // CTAP2_OK
         }
 
     @Test
@@ -172,19 +196,19 @@ class Ctap2CredentialManagementHandlerTest {
             coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
                 RelyingParty("https://example.com", "Example", null, 1, Instant.now())
 
-            val encodedBytes = byteArrayOf(0xCC.toByte())
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
             // Begin (subCommand 2) - consumes the only RP
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 2)
-            handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
+            handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             // GetNext (subCommand 3) - session is empty
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 3)
-            val response = handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_NEXT)
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             assertEquals(1, response.size)
-            assertEquals(0x30.toByte(), response[0]) // CTAP2_ERR_NOT_ALLOWED
+            assertEquals(CTAP2_ERR_NOT_ALLOWED, response[0]) // CTAP2_ERR_NOT_ALLOWED
         }
 
     // ── SubCommand 4: enumerateCredentialsBegin ──────────────────────────────
@@ -201,15 +225,15 @@ class Ctap2CredentialManagementHandlerTest {
             val subCommandParams = mapOf("rpId" to "https://example.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
                 mapOf(
-                    "1" to 4,
+                    "1" to SUB_ENUM_CRED_BEGIN,
                     "2" to subCommandParams,
                 )
-            val encodedBytes = byteArrayOf(0xDD.toByte())
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
-            val response = handler.handle(byteArrayOf(0x01))
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
-            assertEquals(0x00.toByte(), response[0]) // CTAP2_OK
+            assertEquals(CTAP2_OK, response[0]) // CTAP2_OK
             assertTrue(response.size > 1)
         }
 
@@ -223,14 +247,14 @@ class Ctap2CredentialManagementHandlerTest {
             val subCommandParams = mapOf("rpId" to "https://empty.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
                 mapOf(
-                    "1" to 4,
+                    "1" to SUB_ENUM_CRED_BEGIN,
                     "2" to subCommandParams,
                 )
 
-            val response = handler.handle(byteArrayOf(0x01))
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             assertEquals(1, response.size)
-            assertEquals(0x22.toByte(), response[0]) // CTAP2_ERR_NO_CREDENTIALS
+            assertEquals(CTAP2_ERR_NO_CREDENTIALS, response[0]) // CTAP2_ERR_NO_CREDENTIALS
         }
 
     // ── SubCommand 5: enumerateCredentialsGetNextCredential ──────────────────
@@ -244,23 +268,23 @@ class Ctap2CredentialManagementHandlerTest {
                 credentialRepository.getCredentialsForRp("https://example.com")
             } returns Result.success(listOf(cred1, cred2))
 
-            val encodedBytes = byteArrayOf(0xDD.toByte())
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
             // Begin (subCommand 4) - consumes first credential
             val subCommandParams = mapOf("rpId" to "https://example.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
                 mapOf(
-                    "1" to 4,
+                    "1" to SUB_ENUM_CRED_BEGIN,
                     "2" to subCommandParams,
                 )
-            handler.handle(byteArrayOf(0x01))
+            handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             // GetNext (subCommand 5)
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 5)
-            val response = handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_CRED_NEXT)
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
-            assertEquals(0x00.toByte(), response[0]) // CTAP2_OK
+            assertEquals(CTAP2_OK, response[0]) // CTAP2_OK
         }
 
     @Test
@@ -272,24 +296,24 @@ class Ctap2CredentialManagementHandlerTest {
                 credentialRepository.getCredentialsForRp("https://example.com")
             } returns Result.success(listOf(cred1))
 
-            val encodedBytes = byteArrayOf(0xDD.toByte())
+            val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
 
             // Begin (subCommand 4) - consumes the only credential
             val subCommandParams = mapOf("rpId" to "https://example.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
                 mapOf(
-                    "1" to 4,
+                    "1" to SUB_ENUM_CRED_BEGIN,
                     "2" to subCommandParams,
                 )
-            handler.handle(byteArrayOf(0x01))
+            handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             // GetNext (subCommand 5) - session is empty
-            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to 5)
-            val response = handler.handle(byteArrayOf(0x01))
+            every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_CRED_NEXT)
+            val response = handler.handle(byteArrayOf(DUMMY_BYTE_01))
 
             assertEquals(1, response.size)
-            assertEquals(0x30.toByte(), response[0]) // CTAP2_ERR_NOT_ALLOWED
+            assertEquals(CTAP2_ERR_NOT_ALLOWED, response[0]) // CTAP2_ERR_NOT_ALLOWED
         }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

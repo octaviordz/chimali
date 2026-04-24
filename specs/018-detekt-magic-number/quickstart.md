@@ -30,7 +30,18 @@ fun retry() {
 }
 ```
 
-### 2. Use Named Arguments
+### 2. Encapsulate in Companion Object
+For constants used across multiple methods in a class (especially CTAP2 status codes), encapsulate them in a `private companion object`:
+
+```kotlin
+class MyHandler {
+    private companion object {
+        private const val CTAP2_OK = 0x00.toByte()
+    }
+}
+```
+
+### 3. Use Named Arguments
 
 If the number is self-explanatory in context and the function has a clear parameter name:
 ```kotlin

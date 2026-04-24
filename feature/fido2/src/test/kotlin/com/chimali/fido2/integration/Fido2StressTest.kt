@@ -88,6 +88,12 @@ class Fido2StressTest {
         // PIN/Biometric defaults for mock
         private const val MOCK_MAX_PIN = 8
         private const val MOCK_MIN_PIN = 4
+
+        private const val EXPECTED_REG_SUCCESS_47 = 47
+        private const val EXPECTED_AUTH_SUCCESS_44 = 44
+        private const val DUMMY_BYTE_CD = 0xCD.toByte()
+        private const val DIVISOR_2 = 2
+        private const val PATH_ARG_INDEX_2 = 2
     }
 
     @BeforeTest
@@ -112,7 +118,7 @@ class Fido2StressTest {
             mockk {
                 every { deriveHdk(any(), any(), any()) } answers {
                     val seed = arg<ByteArray>(1)
-                    val path = arg<List<UInt>>(2)
+                    val path = arg<List<UInt>>(PATH_ARG_INDEX_2)
                     // Derive a deterministic child scalar from seed+path via SHA-256
                     val digest = java.security.MessageDigest.getInstance("SHA-256")
                     path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
@@ -263,7 +269,7 @@ class Fido2StressTest {
             var authSuccesses = 0
             val registeredIds = mutableListOf<ByteArray>()
 
-            repeat(50) { i ->
+            repeat(STRESS_ITERATIONS / DIVISOR_2) { i ->
                 // Register
                 val regOptions = buildMakeCredentialOptions("user-interleave-$i", rpIdHost)
                 val regResult = registerUseCase(regOptions)
@@ -284,7 +290,7 @@ class Fido2StressTest {
                     val authOptions =
                         GetAssertionOptions.create(
                             rpId = rpId,
-                            clientDataHash = ByteArray(SEED_SIZE) { 0xCD.toByte() },
+                            clientDataHash = ByteArray(SEED_SIZE) { DUMMY_BYTE_CD },
                             userVerification = UserVerificationRequirement.PREFERRED,
                             allowCredentials = allowList,
                         )
@@ -293,8 +299,10 @@ class Fido2StressTest {
                 }
             }
 
-            assertTrue(regSuccesses >= 47, "Expected ≥47 registrations, got $regSuccesses")
-            assertTrue(authSuccesses >= 44, "Expected ≥44 authentications, got $authSuccesses")
+            val expectedReg = EXPECTED_REG_SUCCESS_47
+            val expectedAuth = EXPECTED_AUTH_SUCCESS_44
+            assertTrue(regSuccesses >= expectedReg, "Expected ≥$expectedReg registrations, got $regSuccesses")
+            assertTrue(authSuccesses >= expectedAuth, "Expected ≥$expectedAuth authentications, got $authSuccesses")
         }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -44,6 +44,12 @@ class ManagementIntegrationTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
+    private companion object {
+        private const val EC_KEY_SIZE_256 = 256
+        private const val AAGUID_SIZE_16 = 16
+        private const val EXPECTED_CREDENTIALS_2 = 2
+    }
+
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -103,7 +109,7 @@ class ManagementIntegrationTest {
         id: String,
         rpId: String = "example.com",
     ): PasskeyCredential {
-        val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
+        val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(EC_KEY_SIZE_256) }.generateKeyPair()
         return PasskeyCredential(
             id = id,
             rpId = rpId,
@@ -115,7 +121,7 @@ class ManagementIntegrationTest {
             signCount = 0L,
             createdAt = Instant.now(),
             lastUsedAt = Instant.now(),
-            aaguid = ByteArray(16),
+            aaguid = ByteArray(AAGUID_SIZE_16),
             credentialId = id.toByteArray(),
         )
     }
@@ -131,7 +137,7 @@ class ManagementIntegrationTest {
             viewModel.setCredentials(listOf(cred1, cred2))
 
             val state = viewModel.state.value
-            assertEquals(2, state.credentials.size)
+            assertEquals(EXPECTED_CREDENTIALS_2, state.credentials.size)
             assertFalse(state.isLoading)
         }
 
@@ -266,7 +272,7 @@ class ManagementIntegrationTest {
             viewModel.setCredentials(credentials.value)
             advanceUntilIdle()
 
-            assertEquals(2, viewModel.state.value.credentials.size)
+            assertEquals(EXPECTED_CREDENTIALS_2, viewModel.state.value.credentials.size)
 
             // Select
             viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred1))

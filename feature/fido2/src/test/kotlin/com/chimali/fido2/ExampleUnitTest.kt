@@ -11,6 +11,13 @@ import kotlin.test.Test
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+        val two = TWO
+        val four = FOUR
+        assertEquals(four, two + two)
+    }
+
+    private companion object {
+        private const val TWO = 2
+        private const val FOUR = 4
     }
 }

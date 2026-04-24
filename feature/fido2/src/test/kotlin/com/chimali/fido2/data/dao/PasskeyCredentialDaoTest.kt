@@ -19,6 +19,12 @@ class PasskeyCredentialDaoTest {
     private lateinit var testEntity: PasskeyCredential
     private lateinit var publicKey: java.security.PublicKey
 
+    private companion object {
+        private const val KEY_SIZE_256 = 256
+        private const val AAGUID_SIZE_16 = 16
+        private const val SIGN_COUNT_5 = 5L
+    }
+
     @BeforeTest
     fun setUp() {
         database = mockk(relaxed = true)
@@ -26,7 +32,7 @@ class PasskeyCredentialDaoTest {
         dao = PasskeyCredentialDao(database)
         every { database.passkeyCredentialQueries } returns queries
 
-        val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(256) }
+        val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(KEY_SIZE_256) }
         publicKey = keyPairGenerator.generateKeyPair().public
 
         testCredential =
@@ -38,7 +44,7 @@ class PasskeyCredentialDaoTest {
                 userDisplayName = "Test User",
                 publicKey = publicKey,
                 privateKeyAlias = "test_alias",
-                aaguid = ByteArray(16),
+                aaguid = ByteArray(AAGUID_SIZE_16),
                 credentialId = "cred_id".toByteArray(),
             )
 
@@ -113,10 +119,10 @@ class PasskeyCredentialDaoTest {
         @Test
         fun `should update sign count successfully`() =
             runTest {
-                dao.updateSignCount(testCredential.id, 5L)
+                dao.updateSignCount(testCredential.id, SIGN_COUNT_5)
 
                 coVerify(exactly = 1) {
-                    queries.updateSignCount(signCount = 5L, id = testCredential.id)
+                    queries.updateSignCount(signCount = SIGN_COUNT_5, id = testCredential.id)
                 }
             }
     }

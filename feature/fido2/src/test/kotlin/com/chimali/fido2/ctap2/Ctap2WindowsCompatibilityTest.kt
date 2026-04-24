@@ -22,12 +22,28 @@ import kotlinx.coroutines.test.runTest
 class Ctap2WindowsCompatibilityTest {
     private val cborCodec = CborCodec()
 
+    private companion object {
+        private const val ALG_ES256_NEG_7 = -7L
+        private const val FLAG_UP = 0x01
+        private const val FLAG_UV = 0x04
+        private const val FLAG_AT = 0x40
+        private const val COMBINED_FLAGS_0x45 = 0x45.toByte()
+        private const val AUTH_DATA_SIZE_37 = 37
+        private const val SIGNATURE_SIZE_72 = 72
+        private const val MAX_MSG_SIZE_1200 = 1200L
+        private const val MAX_CRED_COUNT_255 = 255L
+        private const val CRED_ID_SIZE_16 = 16
+        private const val HASH_SIZE_32 = 32
+        private const val CTAP2_OK = 0x00.toByte()
+        private const val CBOR_TYPE_MAJOR_1_NEG_7 = 0x26.toByte()
+    }
+
     // ── 1. CBOR Encoding Strictness ──────────────────────────────────────────
 
     @Test
     fun `test CborCodec correctly encodes COSE negative integers for ES256`() {
         // Windows rejects the metadata if the ES256 algorithm ID (-7) is incorrectly encoded
-        val map = mapOf("alg" to -7L)
+        val map = mapOf("alg" to ALG_ES256_NEG_7)
         val encoded = cborCodec.encodeToFido2Format(map)
 
         // CBOR representation of {"alg": -7}:
@@ -36,7 +52,7 @@ class Ctap2WindowsCompatibilityTest {
         // Value(-7): 26 (Major type 1, value 6 -> -1 - 6 = -7)
         var foundNegativeSeven = false
         for (b in encoded) {
-            if (b == 0x26.toByte()) {
+            if (b == CBOR_TYPE_MAJOR_1_NEG_7) {
                 foundNegativeSeven = true
                 break
             }
@@ -50,15 +66,13 @@ class Ctap2WindowsCompatibilityTest {
     fun `test AuthenticatorData sets AT flag when public key is present`() {
         // This validates the logic injected into Ctap2MakeCredentialHandler.buildAuthenticatorData
         // If the AT flag (0x40) is missing, Windows browsers crash reading attestation.
-        val baseFlags = 0x05 // UP (0x01) and UV (0x04)
-        val FLAG_AT = 0x40
-        val FLAG_UP = 0x01
+        val baseFlags = FLAG_UP or FLAG_UV
 
         // Emulate the bitwise forced OR in the handler
         val finalFlags = (baseFlags or FLAG_AT or FLAG_UP).toByte()
 
-        assertEquals(0x45.toByte(), finalFlags, "Flags should correctly combine UP, UV, and AT")
-        assertTrue((finalFlags.toInt() and 0x40) != 0, "AT flag (bit 6) must be logically set")
+        assertEquals(COMBINED_FLAGS_0x45, finalFlags, "Flags should correctly combine UP, UV, and AT")
+        assertTrue((finalFlags.toInt() and FLAG_AT) != 0, "AT flag (bit 6) must be logically set")
     }
 
     // ── 3. GetAssertion Raw Byte Array vs Base64 Serialization ───────────────
@@ -72,9 +86,9 @@ class Ctap2WindowsCompatibilityTest {
             val handler = Ctap2GetAssertionHandler(mockUseCase, cborCodec, mockHmacProcessor)
 
             // Create dummy bytes
-            val dummyAuthData = ByteArray(37) { 0xAA.toByte() }
-            val dummySignature = ByteArray(72) { 0xBB.toByte() }
-            val dummyCredId = ByteArray(16) { 0xCC.toByte() }
+            val dummyAuthData = ByteArray(AUTH_DATA_SIZE_37) { 0xAA.toByte() }
+            val dummySignature = ByteArray(SIGNATURE_SIZE_72) { 0xBB.toByte() }
+            val dummyCredId = ByteArray(CRED_ID_SIZE_16) { 0xCC.toByte() }
 
             val assertion =
                 AssertionObject(
@@ -90,7 +104,7 @@ class Ctap2WindowsCompatibilityTest {
             val requestMap =
                 mapOf(
                     "1" to "webauthn.io",
-                    "2" to ByteArray(32) { 0x01 },
+                    "2" to ByteArray(HASH_SIZE_32) { 0x01 },
                 )
             val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
@@ -98,7 +112,7 @@ class Ctap2WindowsCompatibilityTest {
             val responseBytes = handler.handle(requestCbor)
 
             // Status code 0x00 is first byte, followed by actual CBOR map
-            assertEquals(0x00.toByte(), responseBytes[0], "Response should start with CTAP2_OK (0x00)")
+            assertEquals(CTAP2_OK, responseBytes[0], "Response should start with CTAP2_OK (0x00)")
 
             val cborPayload = responseBytes.copyOfRange(1, responseBytes.size)
             // We expect the payload to contain the raw byte sequences, not the ASCII strings "qqqq..." (Base64 of 0xAA)

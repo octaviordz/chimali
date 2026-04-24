@@ -36,11 +36,24 @@ class Fido2CryptoServiceTest {
     private lateinit var service: Fido2CryptoService
 
     // Use a real root key pair and seed so we can verify math
-    private val realSeed = ByteArray(32) { it.toByte() }
+    private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
         P256Group.generateKeyPair().let {
             HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
         }
+    }
+
+    private companion object {
+        private const val SEED_SIZE_32 = 32
+        private const val PUBLIC_KEY_SIZE_65 = 65
+        private const val DER_ECDSA_PREFIX = 0x30.toByte()
+        private const val UNCOMPRESSED_KEY_PREFIX = 0x04.toByte()
+        private const val PATH_SIZE_2 = 2
+        private const val KAT_SEED_MULTIPLIER_7 = 7
+        private const val KAT_SEED_OFFSET_3 = 3
+        private const val BYTE_MASK_FF = 255
+        private const val SEED_OFFSET_100 = 100
+        private const val MULTIPLIER_2 = 2
     }
 
     @BeforeTest
@@ -78,7 +91,7 @@ class Fido2CryptoServiceTest {
                     HdkResult(
                         // reuse for simplicity
                         publicKey = realDeviceKeyPair.publicKey,
-                        salt = ByteArray(32),
+                        salt = ByteArray(SEED_SIZE_32),
                         blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
                     )
 
@@ -96,10 +109,10 @@ class Fido2CryptoServiceTest {
                 assertTrue(result.isSuccess)
                 val keyPair = result.getOrThrow()
                 assertEquals(Fido2CryptoService.credentialAlias(CredentialId.fromString(credentialId)), keyPair.alias)
-                assertEquals(65, keyPair.publicKeyBytes.size)
-                assertEquals(0x04.toByte(), keyPair.publicKeyBytes[0])
+                assertEquals(PUBLIC_KEY_SIZE_65, keyPair.publicKeyBytes.size)
+                assertEquals(UNCOMPRESSED_KEY_PREFIX, keyPair.publicKeyBytes[0])
                 // Path must be a 2-element list [FIDO2_APP_INDEX, credIndex]
-                assertEquals(2, capturedPath.captured.size)
+                assertEquals(PATH_SIZE_2, capturedPath.captured.size)
             }
 
         @Test
@@ -110,7 +123,7 @@ class Fido2CryptoServiceTest {
                 val fakeResult =
                     HdkResult(
                         P256Group.serializeElement(pk),
-                        ByteArray(32),
+                        ByteArray(SEED_SIZE_32),
                         P256Group.serializeScalar(P256Group.randomScalar()),
                     )
 
@@ -132,13 +145,13 @@ class Fido2CryptoServiceTest {
                     if (callCount++ == 0) {
                         HdkResult(
                             publicKey = P256Group.serializeElement(pk1),
-                            salt = ByteArray(32),
+                            salt = ByteArray(SEED_SIZE_32),
                             blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
                         )
                     } else {
                         HdkResult(
                             publicKey = P256Group.serializeElement(pk2),
-                            salt = ByteArray(32),
+                            salt = ByteArray(SEED_SIZE_32),
                             blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
                         )
                     }
@@ -185,7 +198,7 @@ class Fido2CryptoServiceTest {
                 val signature = result.getOrThrow()
                 assertTrue(signature.isNotEmpty())
                 // DER ECDSA signatures start with 0x30
-                assertEquals(0x30.toByte(), signature[0])
+                assertEquals(DER_ECDSA_PREFIX, signature[0])
             }
     }
 
@@ -200,7 +213,7 @@ class Fido2CryptoServiceTest {
                 } returns
                     HdkResult(
                         publicKey = P256Group.serializeElement(pk),
-                        salt = ByteArray(32),
+                        salt = ByteArray(SEED_SIZE_32),
                         blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
                     )
 
@@ -230,7 +243,7 @@ class Fido2CryptoServiceTest {
         fun `T148b same seed and credentialId always derives the same public key`() =
             runTest {
                 // Given: a fixed seed (simulating recovery from the same 24-word mnemonic)
-                val fixedSeed = ByteArray(32) { (it * 7 + 3).toByte() }
+                val fixedSeed = ByteArray(SEED_SIZE_32) { (it * KAT_SEED_MULTIPLIER_7 + KAT_SEED_OFFSET_3).toByte() }
                 val credentialId = "kat-credential-stable"
 
                 coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
@@ -259,8 +272,8 @@ class Fido2CryptoServiceTest {
         fun `T148b different seeds derive different public keys for the same credentialId`() =
             runTest {
                 // Given: two different seeds (different wallet recoveries)
-                val seed1 = ByteArray(32) { it.toByte() }
-                val seed2 = ByteArray(32) { (255 - it).toByte() }
+                val seed1 = ByteArray(SEED_SIZE_32) { it.toByte() }
+                val seed2 = ByteArray(SEED_SIZE_32) { (BYTE_MASK_FF - it).toByte() }
                 val credentialId = "kat-credential-different-seeds"
 
                 val realService1 =
@@ -302,8 +315,8 @@ class Fido2CryptoServiceTest {
         fun `T148b after seed import re-derived keys differ from old seed keys`() =
             runTest {
                 // Given: derive a key with the original seed
-                val oldSeed = ByteArray(32) { (it + 1).toByte() }
-                val newSeed = ByteArray(32) { (it + 100).toByte() }
+                val oldSeed = ByteArray(SEED_SIZE_32) { (it + 1).toByte() }
+                val newSeed = ByteArray(SEED_SIZE_32) { (it + SEED_OFFSET_100).toByte() }
                 val credentialId = "kat-cred-post-import"
 
                 val realService =
@@ -355,7 +368,7 @@ class Fido2CryptoServiceTest {
         @Test
         fun `t173 end-to-end HDK KAT for the two-level FIDO2 path`() =
             runTest {
-                val fixedSeed = ByteArray(32) { (it * 2).toByte() }
+                val fixedSeed = ByteArray(SEED_SIZE_32) { (it * MULTIPLIER_2).toByte() }
                 val credentialId = "kat-t173-two-level-path-stable-reference"
 
                 val fixedDeviceSk = java.math.BigInteger.ONE
@@ -386,12 +399,12 @@ class Fido2CryptoServiceTest {
                 val actualHex = keyPair.publicKeyBytes.joinToString("") { "%02X".format(it) }
 
                 assertEquals(
-                    65,
+                    PUBLIC_KEY_SIZE_65,
                     keyPair.publicKeyBytes.size,
                     "Public key must be 65-byte uncompressed P-256 point",
                 )
                 assertEquals(
-                    0x04.toByte(),
+                    UNCOMPRESSED_KEY_PREFIX,
                     keyPair.publicKeyBytes[0],
                     "Must start with 0x04 uncompressed prefix",
                 )

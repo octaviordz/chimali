@@ -8,6 +8,9 @@ import java.math.BigInteger
  * Tests for P256Group — P-256 elliptic curve operations.
  */
 class P256GroupTest {
+    private companion object {
+        private const val MASK_FF = 0xFF
+    }
 
     @Test
     fun `ScalarBaseMult with 1 equals generator G`() {
@@ -41,8 +44,8 @@ class P256GroupTest {
     fun `SerializeElement and deserializeElement round-trip`() {
         val (_, pk) = P256Group.generateKeyPair()
         val serialized = P256Group.serializeElement(pk)
-        assertEquals(65, serialized.size) // uncompressed: 04 || x(32) || y(32)
-        assertEquals(0x04, serialized[0].toInt() and 0xFF)
+        assertEquals(P256Group.ELEMENT_UNCOMPRESSED_LENGTH, serialized.size) // uncompressed: 04 || x(32) || y(32)
+        assertEquals(P256Group.UNCOMPRESSED_FORMAT_INDICATOR, serialized[0].toInt() and MASK_FF)
         val deserialized = P256Group.deserializeElement(serialized)
         assertEquals(pk.normalize(), deserialized.normalize())
     }
@@ -51,7 +54,7 @@ class P256GroupTest {
     fun `SerializeScalar and deserializeScalar round-trip`() {
         val scalar = P256Group.randomScalar()
         val serialized = P256Group.serializeScalar(scalar)
-        assertEquals(32, serialized.size)
+        assertEquals(P256Group.SCALAR_LENGTH, serialized.size)
         val deserialized = P256Group.deserializeScalar(serialized)
         assertEquals(scalar, deserialized)
     }
@@ -63,6 +66,6 @@ class P256GroupTest {
         val secretAB = P256Group.createSharedSecret(skA, pkB)
         val secretBA = P256Group.createSharedSecret(skB, pkA)
         assertContentEquals(secretAB, secretBA)
-        assertEquals(32, secretAB.size)
+        assertEquals(P256Group.DH_OUTPUT_LENGTH, secretAB.size)
     }
 }

@@ -22,6 +22,19 @@ import kotlin.test.assertContentEquals
 class PqcSigningTest {
     private val pqc = PostQuantumCrypto()
 
+    private companion object {
+        private const val SEED_SIZE_64 = 64
+        private const val MIN_PUB_KEY_SIZE_1952 = 1952
+        private const val COSE_ML_DSA_65_VAL = -49
+        private const val DUMMY_BYTE_01 = 0x01.toByte()
+        private const val DUMMY_BYTE_02 = 0x02.toByte()
+        private const val DUMMY_BYTE_AB = 0xAB.toByte()
+        private const val DUMMY_BYTE_CD = 0xCD.toByte()
+        private const val DUMMY_BYTE_EF = 0xEF.toByte()
+        private const val DUMMY_BYTE_12 = 0x12.toByte()
+        private const val DUMMY_BYTE_55 = 0x55.toByte()
+    }
+
     // ── Provider availability ─────────────────────────────────────────────────
 
     @Test
@@ -36,7 +49,7 @@ class PqcSigningTest {
 
     @Test
     fun sameSeedProducesSamePublicKey() {
-        val seed = ByteArray(64) { it.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { it.toByte() }
 
         val kp1 = pqc.generateMlDsaKeyPair(seed)
         val kp2 = pqc.generateMlDsaKeyPair(seed)
@@ -52,8 +65,8 @@ class PqcSigningTest {
 
     @Test
     fun differentSeedsProduceDifferentKeys() {
-        val seed1 = ByteArray(64) { 0x01 }
-        val seed2 = ByteArray(64) { 0x02 }
+        val seed1 = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_01 }
+        val seed2 = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_02 }
 
         val kp1 = pqc.generateMlDsaKeyPair(seed1)
         val kp2 = pqc.generateMlDsaKeyPair(seed2)
@@ -70,7 +83,7 @@ class PqcSigningTest {
 
     @Test
     fun signAndVerifyRoundTripSucceeds() {
-        val seed = ByteArray(64) { 0xAB.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_AB }
         val message = "authData||clientDataHash mock content".toByteArray()
 
         val kp = pqc.generateMlDsaKeyPair(seed)
@@ -85,7 +98,7 @@ class PqcSigningTest {
 
     @Test
     fun verifyTamperedMessageReturnsFalse() {
-        val seed = ByteArray(64) { 0xCD.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_CD }
         val originalMessage = "original-auth-data".toByteArray()
         val tamperedMessage = "tampered-auth-data".toByteArray()
 
@@ -99,8 +112,8 @@ class PqcSigningTest {
 
     @Test
     fun verifyWrongKeyReturnsFalse() {
-        val seed1 = ByteArray(64) { 0xEF.toByte() }
-        val seed2 = ByteArray(64) { 0x12 }
+        val seed1 = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_EF }
+        val seed2 = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_12 }
         val message = "some-challenge-bytes".toByteArray()
 
         val kp1 = pqc.generateMlDsaKeyPair(seed1)
@@ -120,12 +133,12 @@ class PqcSigningTest {
     @Test
     fun publicKeyBytesHasExpectedMinimumLength() {
         // ML-DSA-65 public keys are 1952 bytes in SubjectPublicKeyInfo DER format
-        val seed = ByteArray(64) { 0x55 }
+        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_55 }
         val kp = pqc.generateMlDsaKeyPair(seed)
         assertNotNull(kp)
         val keyBytes = pqc.publicKeyBytes(kp!!)
         assertTrue(
-            keyBytes.size >= 1952,
+            keyBytes.size >= MIN_PUB_KEY_SIZE_1952,
             "ML-DSA-65 public key DER must be at least 1952 bytes, was ${keyBytes.size}",
         )
     }
@@ -135,6 +148,6 @@ class PqcSigningTest {
     @Test
     fun coseAlgorithmConstantHasExpectedValue() {
         // Regression: must remain -49 to match IANA COSE assignment for ML-DSA-65
-        assertEquals(-49, COSE_ML_DSA_65)
+        assertEquals(COSE_ML_DSA_65_VAL, COSE_ML_DSA_65)
     }
 }

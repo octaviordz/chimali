@@ -28,6 +28,20 @@ class UserConsentRecordTest {
             testDeviceId = "device_12345"
         }
 
+    private companion object {
+        private const val FUTURE_SECONDS_120 = 120L
+        private const val INVALID_CRED_ID_SIZE_1024 = 1024
+        private const val RECENT_THRESHOLD_5 = 5L
+        private const val OLD_MINUTES_6 = 6L
+        private const val RECENT_MINUTES_4 = 4L
+        private const val SECONDS_PER_MINUTE = 60
+        private const val RECENT_BUFFER_1 = 1L
+        private const val MAX_IP_LEN_45 = 45
+        private const val MAX_UA_LEN_512 = 512
+        private const val MAX_DEVICE_ID_LEN_64 = 64
+        private const val MAX_CRED_ID_LEN_1023 = 1023
+    }
+
     @Nested
     inner class ValidationTests {
         @Test
@@ -150,7 +164,7 @@ class UserConsentRecordTest {
         @Test
         fun `should throw exception when timestamp is in the future`() =
             runTest {
-                val futureTimestamp = Instant.now().plusSeconds(120)
+                val futureTimestamp = Instant.now().plusSeconds(FUTURE_SECONDS_120)
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
@@ -189,7 +203,7 @@ class UserConsentRecordTest {
         @Test
         fun `should throw exception when credential id exceeds maximum length`() =
             runTest {
-                val longCredentialId = "a".repeat(1024)
+                val longCredentialId = "a".repeat(INVALID_CRED_ID_SIZE_1024)
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
                         id = "test_id",
@@ -311,13 +325,19 @@ class UserConsentRecordTest {
         @Test
         fun `should correctly check if consent is recent`() =
             runTest {
-                assertTrue(consent.isRecent(5)) // Should be recent within 5 minutes
+                assertTrue(consent.isRecent(RECENT_THRESHOLD_5)) // Should be recent within 5 minutes
 
-                val oldConsent = consent.copy(timestamp = Instant.now().minusSeconds(6 * 60)) // 6 minutes ago
-                assertFalse(oldConsent.isRecent(5))
+                val oldConsent =
+                    consent.copy(
+                        timestamp = Instant.now().minusSeconds(OLD_MINUTES_6.toLong() * SECONDS_PER_MINUTE),
+                    ) // 6 minutes ago
+                assertFalse(oldConsent.isRecent(RECENT_THRESHOLD_5))
 
-                val recentConsent = consent.copy(timestamp = Instant.now().minusSeconds(4 * 60)) // 4 minutes ago
-                assertTrue(recentConsent.isRecent(5))
+                val recentConsent =
+                    consent.copy(
+                        timestamp = Instant.now().minusSeconds(RECENT_MINUTES_4.toLong() * SECONDS_PER_MINUTE),
+                    ) // 4 minutes ago
+                assertTrue(recentConsent.isRecent(RECENT_THRESHOLD_5))
             }
 
         @Test
@@ -411,7 +431,7 @@ class UserConsentRecordTest {
                 assertEquals(testUserAgent, consent.userAgent)
                 assertEquals(testDeviceId, consent.deviceId)
                 assertNotNull(consent.id) // Should be auto-generated
-                assertTrue(consent.timestamp.isBefore(Instant.now().plusSeconds(1))) // Should be recent
+                assertTrue(consent.timestamp.isBefore(Instant.now().plusSeconds(RECENT_BUFFER_1))) // Should be recent
             }
 
         @Test
@@ -439,10 +459,10 @@ class UserConsentRecordTest {
         @Test
         fun `should have correct constant values`() =
             runTest {
-                assertEquals(45, UserConsentRecord.MAX_IP_ADDRESS_LENGTH)
-                assertEquals(512, UserConsentRecord.MAX_USER_AGENT_LENGTH)
-                assertEquals(64, UserConsentRecord.MAX_DEVICE_ID_LENGTH)
-                assertEquals(1023, UserConsentRecord.MAX_CREDENTIAL_ID_LENGTH)
+                assertEquals(MAX_IP_LEN_45, UserConsentRecord.MAX_IP_ADDRESS_LENGTH)
+                assertEquals(MAX_UA_LEN_512, UserConsentRecord.MAX_USER_AGENT_LENGTH)
+                assertEquals(MAX_DEVICE_ID_LEN_64, UserConsentRecord.MAX_DEVICE_ID_LENGTH)
+                assertEquals(MAX_CRED_ID_LEN_1023, UserConsentRecord.MAX_CREDENTIAL_ID_LENGTH)
             }
     }
 
@@ -551,10 +571,10 @@ class UserConsentRecordTest {
         @Test
         fun `should handle maximum allowed field sizes`() =
             runTest {
-                val maxCredentialId = "a".repeat(1023)
+                val maxCredentialId = "a".repeat(MAX_CRED_ID_LEN_1023)
                 val maxIpAddress = "2001:0db8:85a3:0000:0000:8a2e:0370:7334" // Valid IPv6
-                val maxUserAgent = "a".repeat(512)
-                val maxDeviceId = "a".repeat(64)
+                val maxUserAgent = "a".repeat(MAX_UA_LEN_512)
+                val maxDeviceId = "a".repeat(MAX_DEVICE_ID_LEN_64)
 
                 val consent =
                     UserConsentRecord(

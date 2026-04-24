@@ -33,6 +33,23 @@ class RegisterCredentialUseCaseTest {
     private lateinit var testUser: PublicKeyCredentialUserEntity
     private lateinit var testParams: PublicKeyCredentialParameters
 
+    private companion object {
+        private const val KEY_SIZE_256 = 256
+        private const val TIMEOUT_60000 = 60000L
+        private const val PUB_KEY_SIZE_65 = 65
+        private const val PUB_KEY_ENCODED_SIZE_77 = 77
+        private const val MAX_PIN_LEN_8 = 8
+        private const val MIN_PIN_LEN_4 = 4
+        private const val SIGNATURE_SIZE_72 = 72
+        private const val DUMMY_BYTE_01 = 0x01.toByte()
+        private const val DUMMY_BYTE_30 = 0x30.toByte()
+        private const val LIMIT_1000 = 1000
+        private const val LIMIT_2000 = 2000
+        private const val COUNT_3 = 3
+        private const val COUNT_49 = 49
+        private const val LIMIT_50 = 50
+    }
+
     @BeforeTest
     fun setUp() =
         runTest {
@@ -53,7 +70,7 @@ class RegisterCredentialUseCaseTest {
 
             // Setup test data
             val keyPairGenerator = KeyPairGenerator.getInstance("EC")
-            keyPairGenerator.initialize(256)
+            keyPairGenerator.initialize(KEY_SIZE_256)
             testPublicKey = keyPairGenerator.generateKeyPair().public
 
             testRp =
@@ -77,7 +94,7 @@ class RegisterCredentialUseCaseTest {
                     user = testUser,
                     challenge = "test_challenge".toByteArray(),
                     pubKeyCredParams = testParams,
-                    timeout = 60000L,
+                    timeout = TIMEOUT_60000,
                     allowCredentials = null,
                     excludeCredentials = null,
                     authenticatorSelection =
@@ -89,10 +106,14 @@ class RegisterCredentialUseCaseTest {
                 )
 
             // Setup default mock responses
-            val testFido2KeyPair = com.chimali.fido2.data.crypto.Fido2KeyPair("test_alias", ByteArray(65) { 0x01 })
+            val testFido2KeyPair =
+                com.chimali.fido2.data.crypto.Fido2KeyPair(
+                    "test_alias",
+                    ByteArray(PUB_KEY_SIZE_65) { DUMMY_BYTE_01 },
+                )
             coEvery { cryptoService.generateCredentialKeyPair(any()) } returns Result.success(testFido2KeyPair)
             coEvery { cryptoService.getPublicKey(any(), any()) } returns testPublicKey
-            coEvery { cborCodec.encodeCosePublicKeyFromJavaKey(any()) } returns ByteArray(77)
+            coEvery { cborCodec.encodeCosePublicKeyFromJavaKey(any()) } returns ByteArray(PUB_KEY_ENCODED_SIZE_77)
             coEvery {
                 userVerificationService.isUserVerificationRequired(any(), any(), any())
             } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
@@ -102,13 +123,13 @@ class RegisterCredentialUseCaseTest {
                     pinAvailable = true,
                     deviceLockAvailable = true,
                     supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                    maxPinLength = 8,
-                    minPinLength = 4,
+                    maxPinLength = MAX_PIN_LEN_8,
+                    minPinLength = MIN_PIN_LEN_4,
                     biometricStrength = BiometricStrength.STRONG,
                 )
 
             coEvery { userVerificationService.recordUserConsent(any()) } returns Result.success(mockk())
-            coEvery { fido2SettingsRepository.getMaxCredentialCount() } returns 1000
+            coEvery { fido2SettingsRepository.getMaxCredentialCount() } returns LIMIT_1000
             coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.success(Unit)
             coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
             coEvery { credentialRepository.getRelyingParty(any()) } returns null
@@ -128,7 +149,9 @@ class RegisterCredentialUseCaseTest {
                     averageAgeDays = 0.0,
                 )
             // T145b: stub sign() so the packed attestation path succeeds in tests
-            coEvery { cryptoService.sign(any(), any()) } returns Result.success(ByteArray(72) { 0x30 })
+            coEvery {
+                cryptoService.sign(any(), any())
+            } returns Result.success(ByteArray(SIGNATURE_SIZE_72) { DUMMY_BYTE_30 })
         }
 
     @Nested
@@ -167,8 +190,8 @@ class RegisterCredentialUseCaseTest {
                         pinAvailable = true,
                         deviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
-                        maxPinLength = 8,
-                        minPinLength = 4,
+                        maxPinLength = MAX_PIN_LEN_8,
+                        minPinLength = MIN_PIN_LEN_4,
                         biometricStrength = BiometricStrength.WEAK,
                     )
 
@@ -197,7 +220,7 @@ class RegisterCredentialUseCaseTest {
                         user = testUser,
                         challenge = "test_challenge".toByteArray(),
                         pubKeyCredParams = testParams,
-                        timeout = 60000L,
+                        timeout = TIMEOUT_60000,
                         allowCredentials = null,
                         excludeCredentials = null,
                         authenticatorSelection =
@@ -227,7 +250,7 @@ class RegisterCredentialUseCaseTest {
                     RelyingParty.create(
                         id = "https://example.com",
                         name = "Example Website",
-                    ).copy(credentialCount = 3)
+                    ).copy(credentialCount = COUNT_3)
 
                 coEvery { credentialRepository.getRelyingParty(any()) } returns existingRp
 
@@ -289,7 +312,7 @@ class RegisterCredentialUseCaseTest {
                         rp = testRp,
                         user = testUser,
                         // Max is 64
-                        challenge = ByteArray(65),
+                        challenge = ByteArray(PUB_KEY_SIZE_65),
                         selectedAlgId = Fido2CryptoService.COSE_ES256,
                     )
                 }
@@ -582,7 +605,7 @@ class RegisterCredentialUseCaseTest {
         @Test
         fun `T115b registration succeeds below limit`() =
             runTest {
-                stubCountAndLimit(count = 49, limit = 50)
+                stubCountAndLimit(count = COUNT_49, limit = LIMIT_50)
                 val result = registerCredentialUseCase(testOptions)
                 assertTrue(
                     result.isSuccess,
@@ -593,18 +616,18 @@ class RegisterCredentialUseCaseTest {
         @Test
         fun `T115b registration fails at limit`() =
             runTest {
-                stubCountAndLimit(count = 1000, limit = 1000)
+                stubCountAndLimit(count = LIMIT_1000, limit = LIMIT_1000)
                 val result = registerCredentialUseCase(testOptions)
                 assertTrue(result.isFailure, "Expected failure at 1000/1000")
                 assertTrue(result.exceptionOrNull() is Fido2Exception.TooManyCredentials)
                 val exception = result.exceptionOrNull() as Fido2Exception.TooManyCredentials
-                assertEquals(1000, exception.limit, "Exception should report the correct limit reached")
+                assertEquals(LIMIT_1000, exception.limit, "Exception should report the correct limit reached")
             }
 
         @Test
         fun `T115b registration respects increased limit`() =
             runTest {
-                stubCountAndLimit(count = 1000, limit = 2000)
+                stubCountAndLimit(count = LIMIT_1000, limit = LIMIT_2000)
                 val result = registerCredentialUseCase(testOptions)
                 assertTrue(
                     result.isSuccess,

@@ -14,6 +14,22 @@ class CryptoUtilsTest {
         cborCodec = CborCodec()
     }
 
+    private companion object {
+        private const val TEST_COUNTER_42 = 42L
+        private const val TEST_COUNTER_12345 = 12345
+        private const val HASH_SIZE_32 = 32
+        private const val AAGUID_SIZE_16 = 16
+        private const val CRED_ID_SIZE_16 = 16
+        private const val PUB_KEY_SIZE_32 = 32
+        private const val CHALLENGE_SIZE_32 = 32
+        private const val FLAG_USER_PRESENT = 0x01.toByte()
+        private const val DUMMY_BYTE_1 = 0x01.toByte()
+        private const val DUMMY_BYTE_2 = 0x02.toByte()
+        private const val DUMMY_BYTE_3 = 0x03.toByte()
+        private const val DUMMY_BYTE_4 = 0x04.toByte()
+        private const val DUMMY_BYTE_5 = 0x05.toByte()
+    }
+
     @Test
     fun `test memory zeroing byte array`() {
         val sensitiveData = "sensitive data".toByteArray()
@@ -108,7 +124,7 @@ class CryptoUtilsTest {
             mapOf(
                 "rpId" to "example.com",
                 "userId" to "user123",
-                "counter" to 42L,
+                "counter" to TEST_COUNTER_42,
             )
 
         val encoded = cborCodec.encodeToFido2Format(testData)
@@ -123,12 +139,12 @@ class CryptoUtilsTest {
 
     @Test
     fun `test CBOR attestation object encoding`() {
-        val rpIdHash = ByteArray(32) { 0x01 }
-        val flags: Byte = 0x01
-        val counter = 12345
-        val aaguid = ByteArray(16) { 0x02 }
-        val credentialId = ByteArray(16) { 0x03 }
-        val publicKeyBytes = ByteArray(32) { 0x04 }
+        val rpIdHash = ByteArray(HASH_SIZE_32) { DUMMY_BYTE_1 }
+        val flags: Byte = FLAG_USER_PRESENT
+        val counter = TEST_COUNTER_12345
+        val aaguid = ByteArray(AAGUID_SIZE_16) { DUMMY_BYTE_2 }
+        val credentialId = ByteArray(CRED_ID_SIZE_16) { DUMMY_BYTE_3 }
+        val publicKeyBytes = ByteArray(PUB_KEY_SIZE_32) { DUMMY_BYTE_4 }
 
         val encoded =
             cborCodec.encodeAttestationObject(
@@ -146,9 +162,9 @@ class CryptoUtilsTest {
 
     @Test
     fun `test CBOR authenticator data encoding`() {
-        val rpIdHash = ByteArray(32) { 0x01 }
-        val flags: Byte = 0x01
-        val counter = 12345
+        val rpIdHash = ByteArray(HASH_SIZE_32) { DUMMY_BYTE_1 }
+        val flags: Byte = FLAG_USER_PRESENT
+        val counter = TEST_COUNTER_12345
 
         val encoded = cborCodec.encodeAuthenticatorData(rpIdHash, flags, counter)
 
@@ -159,7 +175,7 @@ class CryptoUtilsTest {
     @Test
     fun `test CBOR client data JSON encoding`() {
         val type = "webauthn.create"
-        val challenge = ByteArray(32) { 0x05 }
+        val challenge = ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_5 }
         val origin = "https://example.com"
 
         val encoded = cborCodec.encodeClientDataJson(type, challenge, origin)

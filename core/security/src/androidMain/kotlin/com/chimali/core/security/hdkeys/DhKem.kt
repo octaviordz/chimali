@@ -18,7 +18,7 @@ object DhKem {
     /** Suite ID for DHKEM(P-256, HKDF-SHA256): "KEM" || I2OSP(0x0010, 2). */
     private val SUITE_ID =
         "KEM".toByteArray(Charsets.US_ASCII) +
-            HashToScalar.i2osp(0x0010, 2)
+            HashToScalar.i2osp(0x0010, HashToScalar.I2OSP_LEN_2)
 
     /** Length of shared secret output (32 bytes). */
     private const val N_SECRET = 32
@@ -28,6 +28,10 @@ object DhKem {
 
     /** Bitmask for candidate key bytes (0xFF for P-256). */
     private const val BITMASK = 0xFF
+
+    /** Maximum attempts for key derivation. */
+    private const val MAX_DERIVE_ATTEMPTS = 255
+    private const val MAX_DERIVE_COUNTER = 254
 
     // --- HKDF (RFC 5869) ---
 
@@ -39,7 +43,7 @@ object DhKem {
         ikm: ByteArray,
     ): ByteArray {
         // RFC 5869 §2.2: if salt is not provided, it is set to a string of HashLen zeros
-        val effectiveSalt = if (salt.isEmpty()) ByteArray(32) else salt
+        val effectiveSalt = if (salt.isEmpty()) ByteArray(N_SECRET) else salt
         return hmacSha256(effectiveSalt, ikm)
     }
 
@@ -57,8 +61,8 @@ object DhKem {
         var counter = 1
 
         while (offset < len) {
-            tPrev = hmacSha256(prk, tPrev + info + HashToScalar.i2osp(counter, 1))
-            val copyLen = minOf(32, len - offset)
+            tPrev = hmacSha256(prk, tPrev + info + HashToScalar.i2osp(counter, HashToScalar.I2OSP_LEN_1))
+            val copyLen = minOf(N_SECRET, len - offset)
             tPrev.copyInto(result, offset, 0, copyLen)
             offset += copyLen
             counter++
@@ -91,7 +95,7 @@ object DhKem {
         length: Int,
     ): ByteArray {
         val labeledInfo =
-            HashToScalar.i2osp(length, 2) +
+            HashToScalar.i2osp(length, HashToScalar.I2OSP_LEN_2) +
                 HPKE_LABEL + SUITE_ID +
                 label.toByteArray(Charsets.US_ASCII) + info
         return expand(prk, labeledInfo, length)
@@ -121,12 +125,12 @@ object DhKem {
     fun deriveKeyPair(ikm: ByteArray): Pair<BigInteger, ECPoint> {
         val dkpPrk = labeledExtract("".toByteArray(), "dkp_prk", ikm)
 
-        for (counter in 0..254) {
+        DKP_PRK_LOOP@ for (counter in 0..MAX_DERIVE_COUNTER) {
             val candidateBytes =
                 labeledExpand(
                     dkpPrk,
                     "candidate",
-                    HashToScalar.i2osp(counter, 1),
+                    HashToScalar.i2osp(counter, HashToScalar.I2OSP_LEN_1),
                     N_SK,
                 )
             // Apply bitmask to first byte
@@ -138,7 +142,7 @@ object DhKem {
             }
         }
 
-        throw IllegalStateException("DeriveKeyPair failed after 255 attempts")
+        throw IllegalStateException("DeriveKeyPair failed after $MAX_DERIVE_ATTEMPTS attempts")
     }
 
     /**

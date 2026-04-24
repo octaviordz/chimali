@@ -24,6 +24,19 @@ class CryptoOperationsTest {
         clientDataHashService = ClientDataHashService()
     }
 
+    private companion object {
+        private const val HASH_SIZE_32 = 32
+        private const val CHALLENGE_SIZE_16 = 16
+        private const val CHALLENGE_SIZE_32 = 32
+        private const val PUB_KEY_SIZE_65 = 65
+        private const val COSE_ES256_VAL = -7
+        private const val DUMMY_BYTE_AB = 0xAB.toByte()
+        private const val DUMMY_BYTE_AA = 0xAA.toByte()
+        private const val DUMMY_BYTE_BB = 0xBB.toByte()
+        private const val DUMMY_BYTE_11 = 0x11.toByte()
+        private const val DUMMY_BYTE_22 = 0x22.toByte()
+    }
+
     // ── ClientDataHashService tests ───────────────────────────────────────────
 
     @Test
@@ -31,16 +44,16 @@ class CryptoOperationsTest {
         val hash =
             clientDataHashService.computeHash(
                 type = "webauthn.create",
-                challenge = ByteArray(16) { 0xAB.toByte() },
+                challenge = ByteArray(CHALLENGE_SIZE_16) { DUMMY_BYTE_AB },
                 origin = "https://example.com",
                 crossOrigin = false,
             )
-        assertEquals(32, hash.size)
+        assertEquals(HASH_SIZE_32, hash.size)
     }
 
     @Test
     fun `computeHash is deterministic for same inputs`() {
-        val challenge = ByteArray(32) { it.toByte() }
+        val challenge = ByteArray(CHALLENGE_SIZE_32) { it.toByte() }
         val h1 = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
         val h2 = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
         assertContentEquals(h1, h2)
@@ -48,7 +61,7 @@ class CryptoOperationsTest {
 
     @Test
     fun `computeHash differs for different types`() {
-        val challenge = ByteArray(16) { 0x11.toByte() }
+        val challenge = ByteArray(CHALLENGE_SIZE_16) { DUMMY_BYTE_11 }
         val create = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
         val get = clientDataHashService.computeHash("webauthn.get", challenge, "https://example.com")
         assertFalse(create.contentEquals(get))
@@ -56,7 +69,7 @@ class CryptoOperationsTest {
 
     @Test
     fun `computeHash differs for different origins`() {
-        val challenge = ByteArray(16) { 0x22.toByte() }
+        val challenge = ByteArray(CHALLENGE_SIZE_16) { DUMMY_BYTE_22 }
         val h1 = clientDataHashService.computeHash("webauthn.create", challenge, "https://example.com")
         val h2 = clientDataHashService.computeHash("webauthn.create", challenge, "https://other.com")
         assertFalse(h1.contentEquals(h2))
@@ -67,13 +80,13 @@ class CryptoOperationsTest {
         val h1 =
             clientDataHashService.computeHash(
                 "webauthn.create",
-                ByteArray(16) { 0xAA.toByte() },
+                ByteArray(CHALLENGE_SIZE_16) { DUMMY_BYTE_AA },
                 "https://example.com",
             )
         val h2 =
             clientDataHashService.computeHash(
                 "webauthn.create",
-                ByteArray(16) { 0xBB.toByte() },
+                ByteArray(CHALLENGE_SIZE_16) { DUMMY_BYTE_BB },
                 "https://example.com",
             )
         assertFalse(h1.contentEquals(h2))
@@ -89,7 +102,7 @@ class CryptoOperationsTest {
 
     @Test
     fun `buildClientDataJson produces valid JSON with base64url challenge`() {
-        val challenge = byteArrayOf(0x00, 0x01, 0x02)
+        val challenge = byteArrayOf(0x00, 0x01, 0x02.toByte())
         val json =
             clientDataHashService.buildClientDataJson(
                 type = "webauthn.create",
@@ -121,7 +134,7 @@ class CryptoOperationsTest {
         val h1 = ClientDataHashService.sha256(data)
         val h2 = ClientDataHashService.sha256(data)
         assertContentEquals(h1, h2)
-        assertEquals(32, h1.size)
+        assertEquals(HASH_SIZE_32, h1.size)
     }
 
     @Test
@@ -142,14 +155,14 @@ class CryptoOperationsTest {
 
     @Test
     fun `COSE_ES256 constant is minus 7`() {
-        assertEquals(-7, Fido2CryptoService.COSE_ES256)
+        assertEquals(COSE_ES256_VAL, Fido2CryptoService.COSE_ES256)
     }
 
     // ── Fido2KeyPair ──────────────────────────────────────────────────────────
 
     @Test
     fun `Fido2KeyPair equality based on alias and bytes`() {
-        val bytes = ByteArray(65) { it.toByte() }
+        val bytes = ByteArray(PUB_KEY_SIZE_65) { it.toByte() }
         val kp1 = Fido2KeyPair("alias_a", bytes)
         val kp2 = Fido2KeyPair("alias_a", bytes.copyOf())
         val kp3 = Fido2KeyPair("alias_b", bytes)
@@ -159,9 +172,9 @@ class CryptoOperationsTest {
 
     @Test
     fun `Fido2KeyPair toString contains alias and length`() {
-        val kp = Fido2KeyPair("my_alias", ByteArray(65))
+        val kp = Fido2KeyPair("my_alias", ByteArray(PUB_KEY_SIZE_65))
         val str = kp.toString()
         assertTrue(str.contains("my_alias"))
-        assertTrue(str.contains("65"))
+        assertTrue(str.contains(PUB_KEY_SIZE_65.toString()))
     }
 }

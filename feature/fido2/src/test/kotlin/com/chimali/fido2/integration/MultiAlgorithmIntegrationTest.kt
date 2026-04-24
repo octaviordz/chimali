@@ -57,8 +57,20 @@ class MultiAlgorithmIntegrationTest {
     private lateinit var userVerificationService: UserVerificationService
     private val postQuantumCrypto = PostQuantumCrypto()
 
-    private val realSeed = ByteArray(32) { it.toByte() }
-    private val realPqSeed = ByteArray(64) { (it + 1).toByte() }
+    companion object {
+        private const val SEED_SIZE_32 = 32
+        private const val SEED_SIZE_64 = 64
+        private const val MAX_PIN_LENGTH = 8
+        private const val MIN_PIN_LENGTH = 4
+        private const val MAX_CREDENTIALS = 1000
+        private const val MIN_ML_DSA_PUB_KEY_SIZE_1900 = 1900
+        private const val MIN_ML_DSA_SIG_SIZE_3000 = 3000
+        private const val DUMMY_BYTE_CD = 0xCD.toByte()
+        private const val PATH_ARG_INDEX_2 = 2
+    }
+
+    private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
+    private val realPqSeed = ByteArray(SEED_SIZE_64) { (it + 1).toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
         P256Group.generateKeyPair().let {
             HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
@@ -86,7 +98,7 @@ class MultiAlgorithmIntegrationTest {
             mockk {
                 every { deriveHdk(any(), any(), any()) } answers {
                     val seed = arg<ByteArray>(1)
-                    val path = arg<List<UInt>>(2)
+                    val path = arg<List<UInt>>(PATH_ARG_INDEX_2)
                     val digest = java.security.MessageDigest.getInstance("SHA-256")
                     path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
                     val childScalar =
@@ -96,7 +108,7 @@ class MultiAlgorithmIntegrationTest {
                     val childPubKey = P256Group.G.multiply(childScalar).normalize()
                     HdkResult(
                         publicKey = P256Group.serializeElement(childPubKey),
-                        salt = ByteArray(32),
+                        salt = ByteArray(SEED_SIZE_32),
                         blindingFactor = P256Group.serializeScalar(childScalar),
                     )
                 }
@@ -125,8 +137,8 @@ class MultiAlgorithmIntegrationTest {
                         pinAvailable = true,
                         deviceLockAvailable = false,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                        maxPinLength = 8,
-                        minPinLength = 4,
+                        maxPinLength = MAX_PIN_LENGTH,
+                        minPinLength = MIN_PIN_LENGTH,
                         biometricStrength = BiometricStrength.STRONG,
                     )
                 coEvery {
@@ -139,7 +151,7 @@ class MultiAlgorithmIntegrationTest {
 
         val settingsRepository: Fido2SettingsRepository =
             mockk {
-                coEvery { getMaxCredentialCount() } returns 1000
+                coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
             }
 
         registerUseCase =
@@ -190,7 +202,7 @@ class MultiAlgorithmIntegrationTest {
             assertEquals(Fido2CryptoService.COSE_ML_DSA_65, credential.coseAlgorithm)
 
             // ML-DSA-65 public key should be quite large (>1900 bytes)
-            assertTrue(credential.publicKey.encoded.size > 1900)
+            assertTrue(credential.publicKey.encoded.size > MIN_ML_DSA_PUB_KEY_SIZE_1900)
 
             val authOptions = buildGetAssertionOptions("https://mldsa.com", credential.credentialId)
             val authResult = assertionUseCase(authOptions)
@@ -198,7 +210,7 @@ class MultiAlgorithmIntegrationTest {
 
             // ML-DSA signature should be very large too (>3000 bytes)
             val assertionObject = authResult.getOrThrow()
-            assertTrue(assertionObject.signature.size > 3000)
+            assertTrue(assertionObject.signature.size > MIN_ML_DSA_SIG_SIZE_3000)
         }
 
     private fun buildMakeCredentialOptions(
@@ -222,7 +234,7 @@ class MultiAlgorithmIntegrationTest {
         return MakeCredentialOptions.create(
             rp = rp,
             user = user,
-            challenge = ByteArray(32) { (it + 1).toByte() },
+            challenge = ByteArray(SEED_SIZE_32) { (it + 1).toByte() },
             pubKeyCredParams = params,
             selectedAlgId = algId,
         )
@@ -235,7 +247,7 @@ class MultiAlgorithmIntegrationTest {
         val allowList = listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credId))
         return GetAssertionOptions.create(
             rpId = rpId,
-            clientDataHash = ByteArray(32) { 0xCD.toByte() },
+            clientDataHash = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_CD },
             userVerification = UserVerificationRequirement.PREFERRED,
             allowCredentials = allowList,
         )

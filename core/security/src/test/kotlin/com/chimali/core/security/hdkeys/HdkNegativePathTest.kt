@@ -22,6 +22,10 @@ import kotlin.test.assertFailsWith
  *  - Salt of incorrect length for remote derivation
  */
 class HdkNegativePathTest {
+    private companion object {
+        private const val SHORT_SEED_SIZE = 16
+        private const val SHORT_PUBKEY_SIZE = 33
+    }
 
     private val hdk: HdkManager = HdkEcdhP256()
 
@@ -47,7 +51,7 @@ class HdkNegativePathTest {
         assertFailsWith<IllegalArgumentException> {
             hdk.deriveHdk(
                 devicePublicKey = devicePubKey,
-                seed = ByteArray(16), // too short — Ns = 32
+                seed = ByteArray(SHORT_SEED_SIZE), // too short — Ns = 32
                 path = listOf(0u)
             )
         }
@@ -58,7 +62,8 @@ class HdkNegativePathTest {
     @Test
     fun `T182-05 deriveHdk malformed pubkey throws`() {
         val seed = hdk.generateSeed()
-        val badPubKey = ByteArray(65) { 0x00 } // all zeros; 0x04 prefix required
+        val badPubKey =
+            ByteArray(P256Group.ELEMENT_UNCOMPRESSED_LENGTH) { 0.toByte() } // all zeros; 0x04 prefix required
         assertFailsWith<Exception> {
             hdk.deriveHdk(
                 devicePublicKey = badPubKey,
@@ -71,7 +76,8 @@ class HdkNegativePathTest {
     @Test
     fun `T182-06 deriveHdk truncated pubkey throws`() {
         val seed = hdk.generateSeed()
-        val truncatedPubKey = ByteArray(33) { 0x04.toByte() } // too short
+        val truncatedPubKey =
+            ByteArray(SHORT_PUBKEY_SIZE) { P256Group.UNCOMPRESSED_FORMAT_INDICATOR.toByte() } // too short
         assertFailsWith<Exception> {
             hdk.deriveHdk(
                 devicePublicKey = truncatedPubKey,
@@ -113,7 +119,7 @@ class HdkNegativePathTest {
         assertFailsWith<Exception> {
             hdk.blindPrivateKey(
                 devicePrivateKey = ByteArray(0), // invalid
-                blindingFactor = ByteArray(32) { 0x01 }
+                blindingFactor = ByteArray(P256Group.SCALAR_LENGTH) { 1.toByte() }
             )
         }
     }
@@ -125,7 +131,7 @@ class HdkNegativePathTest {
         val deviceKeyPair = hdk.generateDeviceKeyPair()
         val privKeyBytes = deviceKeyPair.privateKey
         // This may throw or produce a zero scalar — either is an acceptable rejection signal
-        val zeroFactor = ByteArray(32) // all zeros
+        val zeroFactor = ByteArray(P256Group.SCALAR_LENGTH) // all zeros
         try {
             val blinded = hdk.blindPrivateKey(privKeyBytes, zeroFactor)
             // If it doesn't throw, the result must be zero (which callers must reject)

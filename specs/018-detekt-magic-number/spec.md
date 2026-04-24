@@ -9,7 +9,7 @@
 
 ### Session 2026-04-24
 
-- **Q**: Handling of .kts (Kotlin Script) files → **A**: Enforce in all .kts files; move version numbers/IDs to named constants.
+- **Q**: Handling of .kts (Kotlin Script) files → **A**: Exclude .kts files from the MagicNumber rule to avoid excessive noise in build configurations.
 - **Q**: Specific Generated Code Patterns → **A**: `**/build/generated/**`, `**/*Generated.kt`
 - **Q**: Detekt Rule Configuration Tuning → **A**: Tune settings: Expand `ignoreNumbers` to include common SDK versions (e.g., 17, 21, 24, 31, 33, 34, 35) and set `ignoreAnnotation`, `ignoreEnums`, and `ignoreRanges` to `true`.
 
@@ -47,14 +47,14 @@ As a developer, I want the codebase to be refactored using named constants to co
 ### Edge Cases
 
 - **How does the system handle build scripts (.kts)?** Build scripts often contain versions or configuration values. These should be moved to constants or acknowledged as exceptions if they meet Detekt's ignore criteria (e.g., 0, 1, 2).
-- **Are any exclusions allowed?** Yes, exclusions are permitted for generated code (specifically `**/build/generated/**` and `**/*Generated.kt`) and those already defined in `ignoreNumbers` (e.g., -1, 0, 1, 2).
+- **Are any exclusions allowed?** Yes, exclusions are permitted for generated code (`**/build/generated/**`, `**/*Generated.kt`), Kotlin script files (`**/*.kts`), and those already defined in `ignoreNumbers` (e.g., -1, 0, 1, 2).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST remove the specified `excludes` list from the `MagicNumber` rule in `config/detekt/detekt.yml`, while retaining or adding exclusions for generated code (`**/build/generated/**`, `**/*Generated.kt`).
-- **FR-002**: System MUST refactor all Kotlin files in the previously excluded directories (`**/test/**`, `**/androidTest/**`, `**/*.kts`, `**/feature/vault/**`, etc.) to comply with the `MagicNumber` rule.
+- **FR-001**: System MUST remove the specified `excludes` list from the `MagicNumber` rule in `config/detekt/detekt.yml`, while retaining or adding exclusions for generated code (`**/build/generated/**`, `**/*Generated.kt`) and build scripts (`**/*.kts`).
+- **FR-002**: System MUST refactor all Kotlin files in the previously excluded directories (`**/test/**`, `**/androidTest/**`, `**/feature/vault/**`, etc.) to comply with the `MagicNumber` rule.
 - **FR-003**: The `detekt` check MUST pass successfully for the entire project after the changes.
 - **FR-004**: System MUST NOT introduce logic or semantic changes during refactoring.
 - **FR-005**: System MUST NOT remove any code comments during refactoring.

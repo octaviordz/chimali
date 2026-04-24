@@ -28,6 +28,10 @@ import kotlin.test.Test
  * public key bytes) in clear-text on a rooted device.
  */
 class SecurityStorageIntegrityTest {
+    private companion object {
+        private const val SQLITE_HEADER_SIZE = 16
+    }
+
     /**
      * T148d-1: Plain SQLite baseline — verifies the file written by JdbcSqliteDriver starts
      * with the well-known SQLite magic bytes.
@@ -48,7 +52,7 @@ class SecurityStorageIntegrityTest {
             assertTrue(tempFile.length() > 0, "Database file should not be empty")
 
             // Plain SQLite files start with "SQLite format 3\u0000" (16 bytes)
-            val header = tempFile.readBytes().take(16)
+            val header = tempFile.readBytes().take(SQLITE_HEADER_SIZE)
             val expectedHeader = "SQLite format 3\u0000".toByteArray(Charsets.UTF_8)
             assertContentEquals(
                 expectedHeader,

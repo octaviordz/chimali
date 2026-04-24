@@ -21,13 +21,31 @@ class PasskeyCredentialTest {
     fun setUp() =
         runTest {
             val keyPairGenerator = KeyPairGenerator.getInstance("EC")
-            keyPairGenerator.initialize(256)
+            keyPairGenerator.initialize(EC_KEY_SIZE_256)
             testPublicKey = keyPairGenerator.generateKeyPair().public
             testPrivateKeyAlias = "test_private_key_alias"
-            testAaguid = ByteArray(16) { it.toByte() }
+            testAaguid = ByteArray(AAGUID_SIZE_16) { it.toByte() }
             testCredentialId = "test_credential_id".toByteArray()
             testTimestamp = Instant.now()
         }
+
+    private companion object {
+        private const val EC_KEY_SIZE_256 = 256
+        private const val AAGUID_SIZE_16 = 16
+        private const val INVALID_AAGUID_SIZE_15 = 15
+        private const val USER_ID_MAX_PLUS_ONE = 65
+        private const val SECONDS_60 = 60L
+        private const val SECONDS_30 = 30L
+        private const val DAYS_800 = 800L
+        private const val DAYS_730 = 730L
+        private const val DAYS_1000 = 1000L
+        private const val HOURS_PER_DAY = 24
+        private const val MINUTES_PER_HOUR = 60
+        private const val SECONDS_PER_MINUTE = 60
+        private const val SIGN_COUNT_5 = 5L
+        private const val MAX_SIZE_64 = 64
+        private const val MAX_CRED_ID_SIZE_1023 = 1023
+    }
 
     @Nested
     inner class ValidationTests {
@@ -110,7 +128,7 @@ class PasskeyCredentialTest {
         @Test
         fun `should throw exception when user id exceeds maximum length`() =
             runTest {
-                val longUserId = "a".repeat(65)
+                val longUserId = "a".repeat(USER_ID_MAX_PLUS_ONE)
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
@@ -132,7 +150,7 @@ class PasskeyCredentialTest {
         @Test
         fun `should throw exception when aaguid size is incorrect`() =
             runTest {
-                val wrongSizeAaguid = ByteArray(15) { it.toByte() }
+                val wrongSizeAaguid = ByteArray(INVALID_AAGUID_SIZE_15) { it.toByte() }
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
@@ -196,7 +214,7 @@ class PasskeyCredentialTest {
         @Test
         fun `should throw exception when last used time is before creation time`() =
             runTest {
-                val pastTimestamp = testTimestamp.minusSeconds(60)
+                val pastTimestamp = testTimestamp.minusSeconds(SECONDS_60)
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
                         id = "test_id",
@@ -243,12 +261,19 @@ class PasskeyCredentialTest {
         @Test
         fun `should correctly check if credential is expired`() =
             runTest {
-                val oldTimestamp = Instant.now().minusSeconds(800 * 24 * 60 * 60) // 800 days ago
-                val oldCredential = credential.copy(createdAt = oldTimestamp, lastUsedAt = oldTimestamp.plusSeconds(30))
+                val oldTimestamp =
+                    Instant.now().minusSeconds(
+                        DAYS_800.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+                    ) // 800 days ago
+                val oldCredential =
+                    credential.copy(
+                        createdAt = oldTimestamp,
+                        lastUsedAt = oldTimestamp.plusSeconds(SECONDS_30),
+                    )
 
-                assertTrue(oldCredential.isExpired(730)) // Should be expired with 730 days limit
-                assertFalse(oldCredential.isExpired(1000)) // Should not be expired with 1000 days limit
-                assertFalse(credential.isExpired(730)) // Current credential should not be expired
+                assertTrue(oldCredential.isExpired(DAYS_730)) // Should be expired with 730 days limit
+                assertFalse(oldCredential.isExpired(DAYS_1000)) // Should not be expired with 1000 days limit
+                assertFalse(credential.isExpired(DAYS_730)) // Current credential should not be expired
             }
 
         @Test
@@ -285,9 +310,9 @@ class PasskeyCredentialTest {
         @Test
         fun `should create credential with updated sign count`() =
             runTest {
-                val updatedCredential = credential.withSignCount(5L)
+                val updatedCredential = credential.withSignCount(SIGN_COUNT_5)
 
-                assertEquals(5L, updatedCredential.signCount)
+                assertEquals(SIGN_COUNT_5, updatedCredential.signCount)
                 assertEquals(credential.id, updatedCredential.id)
                 assertEquals(credential.rpId, updatedCredential.rpId)
                 assertNotEquals(credential.lastUsedAt, updatedCredential.lastUsedAt) // Should be updated
@@ -296,7 +321,7 @@ class PasskeyCredentialTest {
         @Test
         fun `should create credential with updated last used time`() =
             runTest {
-                val newLastUsedAt = credential.createdAt.plusSeconds(30)
+                val newLastUsedAt = credential.createdAt.plusSeconds(SECONDS_30)
                 val updatedCredential = credential.withLastUsedAt(newLastUsedAt)
 
                 assertEquals(newLastUsedAt, updatedCredential.lastUsedAt)
@@ -332,11 +357,11 @@ class PasskeyCredentialTest {
         @Test
         fun `should have correct constant values`() =
             runTest {
-                assertEquals(64, PasskeyCredential.MAX_USER_ID_LENGTH)
-                assertEquals(64, PasskeyCredential.MAX_NAME_LENGTH)
-                assertEquals(64, PasskeyCredential.MAX_DISPLAY_NAME_LENGTH)
-                assertEquals(1023, PasskeyCredential.MAX_CREDENTIAL_ID_LENGTH)
-                assertEquals(16, PasskeyCredential.AAGUID_LENGTH)
+                assertEquals(MAX_SIZE_64, PasskeyCredential.MAX_USER_ID_LENGTH)
+                assertEquals(MAX_SIZE_64, PasskeyCredential.MAX_NAME_LENGTH)
+                assertEquals(MAX_SIZE_64, PasskeyCredential.MAX_DISPLAY_NAME_LENGTH)
+                assertEquals(MAX_CRED_ID_SIZE_1023, PasskeyCredential.MAX_CREDENTIAL_ID_LENGTH)
+                assertEquals(AAGUID_SIZE_16, PasskeyCredential.AAGUID_LENGTH)
             }
     }
 
@@ -345,10 +370,10 @@ class PasskeyCredentialTest {
         @Test
         fun `should handle maximum allowed field sizes`() =
             runTest {
-                val maxUserId = "a".repeat(64)
-                val maxUserName = "a".repeat(64)
-                val maxDisplayName = "a".repeat(64)
-                val maxCredentialId = ByteArray(1023) { it.toByte() }
+                val maxUserId = "a".repeat(MAX_SIZE_64)
+                val maxUserName = "a".repeat(MAX_SIZE_64)
+                val maxDisplayName = "a".repeat(MAX_SIZE_64)
+                val maxCredentialId = ByteArray(MAX_CRED_ID_SIZE_1023) { it.toByte() }
 
                 val credential =
                     PasskeyCredential(

@@ -29,6 +29,11 @@ class CredentialRepositoryImplTest {
     private lateinit var testPublicKey: java.security.PublicKey
     private lateinit var testEntity: com.chimali.fido2.data.database.PasskeyCredential
 
+    private companion object {
+        private const val KEY_SIZE_256 = 256
+        private const val AAGUID_SIZE_16 = 16
+    }
+
     @BeforeTest
     fun setUp() =
         runTest {
@@ -48,7 +53,7 @@ class CredentialRepositoryImplTest {
                     corruptedKeyRepairWorker,
                 )
 
-            val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(256) }
+            val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(KEY_SIZE_256) }
             testPublicKey = keyPairGenerator.generateKeyPair().public
 
             testCredential =
@@ -60,7 +65,7 @@ class CredentialRepositoryImplTest {
                     userDisplayName = "Test User",
                     publicKey = testPublicKey,
                     privateKeyAlias = "test_private_key_alias",
-                    aaguid = ByteArray(16),
+                    aaguid = ByteArray(AAGUID_SIZE_16),
                     credentialId = "cred_id".toByteArray(),
                 )
 

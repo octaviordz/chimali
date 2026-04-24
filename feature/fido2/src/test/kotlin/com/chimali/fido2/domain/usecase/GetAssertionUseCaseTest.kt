@@ -40,8 +40,21 @@ class GetAssertionUseCaseTest {
     private lateinit var useCase: GetAssertionUseCase
 
     private val testRpId = "https://example.com"
-    private val testClientDataHash = ByteArray(32) { it.toByte() }
-    private val fakeSignature = ByteArray(72) { 0x30.toByte() } // plausible DER signature size
+    private val testClientDataHash = ByteArray(HASH_SIZE_32) { it.toByte() }
+    private val fakeSignature = ByteArray(SIGNATURE_SIZE_72) { DUMMY_BYTE_30 } // plausible DER signature size
+
+    private companion object {
+        private const val HASH_SIZE_32 = 32
+        private const val SIGNATURE_SIZE_72 = 72
+        private const val DUMMY_BYTE_30 = 0x30.toByte()
+        private const val MAX_PIN_LEN_8 = 8
+        private const val MIN_PIN_LEN_4 = 4
+        private const val SIGN_COUNT_5 = 5L
+        private const val SIGN_COUNT_6 = 6L
+        private const val SIGN_COUNT_10 = 10L
+        private const val SIGN_COUNT_11 = 11L
+        private const val MIN_AUTH_DATA_SIZE_37 = 37
+    }
 
     @BeforeTest
     fun setup() {
@@ -66,8 +79,8 @@ class GetAssertionUseCaseTest {
                 pinAvailable = true,
                 deviceLockAvailable = false,
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                maxPinLength = 8,
-                minPinLength = 4,
+                maxPinLength = MAX_PIN_LEN_8,
+                minPinLength = MIN_PIN_LEN_4,
                 biometricStrength = BiometricStrength.STRONG,
             )
 
@@ -144,8 +157,8 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRp(testRpId)
             } returns Result.success(listOf(s1, s2))
             coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
-            coEvery { credentialRepository.updateSignCount("cred1", 6L) } returns Result.success(Unit)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(SIGN_COUNT_5)
+            coEvery { credentialRepository.updateSignCount("cred1", SIGN_COUNT_6) } returns Result.success(Unit)
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
@@ -155,7 +168,7 @@ class GetAssertionUseCaseTest {
                 val assertion = result.getOrThrow()
                 assertNotNull(assertion.authData)
                 assertNotNull(assertion.signature)
-                assertTrue(assertion.authData.size >= 37)
+                assertTrue(assertion.authData.size >= MIN_AUTH_DATA_SIZE_37)
             }
         }
 
@@ -182,13 +195,13 @@ class GetAssertionUseCaseTest {
             val s1 = createSummary("cred1")
             coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
             coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(10L)
-            coEvery { credentialRepository.updateSignCount("cred1", 11L) } returns Result.success(Unit)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(SIGN_COUNT_10)
+            coEvery { credentialRepository.updateSignCount("cred1", SIGN_COUNT_11) } returns Result.success(Unit)
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
             if (result.isSuccess) {
-                coVerify { credentialRepository.updateSignCount("cred1", 11L) }
+                coVerify { credentialRepository.updateSignCount("cred1", SIGN_COUNT_11) }
             }
         }
 
@@ -200,7 +213,7 @@ class GetAssertionUseCaseTest {
             val s1 = createSummary("cred1")
             coEvery { credentialRepository.getCredentialSummariesForRp(testRpId) } returns Result.success(listOf(s1))
             coEvery { selectCredentialUseCase(any(), any()) } returns Result.success(s1)
-            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(5L)
+            coEvery { credentialRepository.getSignCount("cred1") } returns Result.success(SIGN_COUNT_5)
             coEvery { cryptoService.sign(any(), any()) } returns
                 Result.failure(
                     Fido2Exception.SigningFailed("Master seed unavailable"),

@@ -9,8 +9,16 @@ import java.security.MessageDigest
  * Tests for HdkEcdhP256 — the main HDK-ECDH-P256 instantiation.
  */
 class HdkEcdhP256Test {
-
     private val hdk = HdkEcdhP256()
+
+    private companion object {
+        private const val HEX_BYTE_SIZE = 2
+    }
+
+    private fun String.decodeHex(): ByteArray {
+        check(length % HEX_BYTE_SIZE == 0) { "Must have an even length" }
+        return chunked(HEX_BYTE_SIZE).map { it.toInt(DhKem.HEX_RADIX).toByte() }.toByteArray()
+    }
 
     @Test
     fun testLocalDerivationRootHdkConsistentWithBlindPrivateKey() {
@@ -139,7 +147,7 @@ class HdkEcdhP256Test {
 
         val result = hdk.deriveHdk(pkBytes, seed, listOf(0u))
         assertNotNull(result.publicKey)
-        assertEquals(32, result.salt.size)
+        assertEquals(HdkEcdhP256.NS, result.salt.size)
         assertTrue(BigInteger(1, result.blindingFactor) > BigInteger.ZERO)
     }
 
@@ -152,7 +160,7 @@ class HdkEcdhP256Test {
         val bfBytes = P256Group.serializeScalar(bf)
 
         val blindedSkBytes = hdk.blindPrivateKey(skBytes, bfBytes)
-        assertEquals(32, blindedSkBytes.size)
+        assertEquals(HdkEcdhP256.NS, blindedSkBytes.size)
 
         // Verify consistency: pk' == ScalarBaseMult(sk')
         val blindedSk = P256Group.deserializeScalar(blindedSkBytes)
@@ -165,13 +173,13 @@ class HdkEcdhP256Test {
     fun testCreateContextIncludesIdAndIndex() {
         val ctx = hdk.createContext(42u)
         // Should be ID (16 bytes for "HDK-ECDH-P256-v1") + index (4 bytes)
-        assertEquals(HdkEcdhP256.ID.size + 4, ctx.size)
+        assertEquals(HdkEcdhP256.ID.size + HashToScalar.I2OSP_LEN_4, ctx.size)
     }
 
     @Test
     fun testGenerateSeedProduces32Bytes() {
         val seed = hdk.generateSeed()
-        assertEquals(32, seed.size)
+        assertEquals(HdkEcdhP256.NS, seed.size)
     }
 
     // --------------------------------------------------------------------------
@@ -204,7 +212,7 @@ class HdkEcdhP256Test {
 
     @Test
     fun testT172DeriveSaltKatIndex0MatchesSpecCorrectFormulaHOfSaltAndCtx() {
-        val salt = ByteArray(32)         // 32 zero bytes (fixed reference input)
+        val salt = ByteArray(HdkEcdhP256.NS)         // 32 zero bytes (fixed reference input)
         val ctx  = hdk.createContext(0u)  // ID(16 bytes) || I2OSP(0, 4)
 
         val expected = referenceDeriveSalt(salt, ctx)
@@ -220,7 +228,7 @@ class HdkEcdhP256Test {
 
     @Test
     fun testT172DeriveSaltKatIndex1MatchesSpecCorrectFormulaHOfSaltAndCtx() {
-        val salt = ByteArray(32)
+        val salt = ByteArray(HdkEcdhP256.NS)
         val ctx  = hdk.createContext(1u)  // ID(16 bytes) || I2OSP(1, 4)
 
         val expected = referenceDeriveSalt(salt, ctx)
@@ -231,15 +239,19 @@ class HdkEcdhP256Test {
 
     @Test
     fun testT172DeriveSaltProduces32ByteOutputForFixedInputs() {
-        val salt   = ByteArray(32)
+        val salt   = ByteArray(HdkEcdhP256.NS)
         val ctx    = hdk.createContext(0u)
         val result = hdk.deriveSalt(salt, ctx)
-        assertEquals(32, result.size, "DeriveSalt output must be exactly Ns=32 bytes (SHA-256 output length).")
+        assertEquals(
+            expected = HdkEcdhP256.NS,
+            actual = result.size,
+            message = "DeriveSalt output must be exactly Ns=32 bytes (SHA-256 output length)."
+        )
     }
 
     @Test
     fun testT172DeriveSaltDifferentIndicesProduceDifferentSalts() {
-        val salt = ByteArray(32)
+        val salt = ByteArray(HdkEcdhP256.NS)
         val out0 = hdk.deriveSalt(salt, hdk.createContext(0u))
         val out1 = hdk.deriveSalt(salt, hdk.createContext(1u))
         assertFalse(
@@ -254,7 +266,7 @@ class HdkEcdhP256Test {
         // I2OSP(0, 4) should be 00 00 00 00
         assertContentEquals(
             expected = byteArrayOf(0, 0, 0, 0),
-            actual = ctxMin.copyOfRange(ctxMin.size - 4, ctxMin.size),
+            actual = ctxMin.copyOfRange(ctxMin.size - HashToScalar.I2OSP_LEN_4, ctxMin.size),
             message = "createContext at index 0 must accurately encode as 00 00 00 00"
         )
 
@@ -262,16 +274,11 @@ class HdkEcdhP256Test {
         // I2OSP(UInt.MAX_VALUE, 4) should be FF FF FF FF
         assertContentEquals(
             expected = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
-            actual = ctxMax.copyOfRange(ctxMax.size - 4, ctxMax.size),
+            actual = ctxMax.copyOfRange(ctxMax.size - HashToScalar.I2OSP_LEN_4, ctxMax.size),
             message = "createContext at index UInt.MAX_VALUE must accurately encode as FF FF FF FF"
         )
     }
 
-    private fun String.decodeHex(): ByteArray {
-        check(length % 2 == 0) { "Must have an even length" }
-        return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-    }
-    
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     @Test
@@ -282,7 +289,7 @@ class HdkEcdhP256Test {
         assertEquals(expectedCtx42, ctx42.toHex(), "CreateContext KAT failed")
 
         // KAT: DeriveSalt(salt=all 0x11, ctx=42)
-        val salt = ByteArray(32) { 0x11.toByte() }
+        val salt = ByteArray(HdkEcdhP256.NS) { 0x11.toByte() }
         val derivedSalt = hdk.deriveSalt(salt, ctx42)
         val expectedSalt = "3676caece94c34e436828421fc996ebd2a927fcaf03f6417b8f78c5f0290fbf9"
         assertEquals(expectedSalt, derivedSalt.toHex(), "DeriveSalt KAT failed")

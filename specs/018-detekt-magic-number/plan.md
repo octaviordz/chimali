@@ -5,7 +5,7 @@
 
 ## Summary
 
-This feature enhances code quality by enforcing the `MagicNumber` Detekt rule across the entire project, including tests, build scripts (.kts), and previously excluded feature modules (e.g., `vault`). The approach involves tuning the Detekt configuration to reduce noise for common patterns (SDK versions, annotations, enums, ranges) while strictly enforcing named constants for business logic.
+This feature enhances code quality by enforcing the `MagicNumber` Detekt rule across the entire project, including tests and previously excluded feature modules (e.g., `vault`). To avoid build configuration noise, Kotlin script files (.kts) and generated code will remain excluded. The approach involves tuning the Detekt configuration to reduce noise for common patterns (annotations, enums, ranges) while strictly enforcing named constants for business logic.
 
 ## Technical Context
 
@@ -17,7 +17,7 @@ This feature enhances code quality by enforcing the `MagicNumber` Detekt rule ac
 **Project Type**: Multi-module Android/KMP Application
 **Performance Goals**: Minimal impact on build time; 100% compliance with quality gates.
 **Constraints**: Must strictly follow Constitution Principle III regarding magic numbers.
-**Scale/Scope**: Entire project codebase, including all submodules and build scripts.
+**Scale/Scope**: Entire project codebase, excluding build scripts (.kts) and generated code.
 
 ## Constitution Check
 
@@ -54,7 +54,7 @@ buildSrc/ or root/
 
 **/test/**               # Refactored test code
 **/androidTest/**        # Refactored android test code
-**/*.kts                 # Refactored build scripts
+**/*.kts                 # Excluded from MagicNumber rule
 **/feature/vault/**      # Refactored vault module code
 ```
 

@@ -30,6 +30,13 @@ class LocalCrashReportingLogWriterTest {
     @TempDir
     lateinit var tempDir: File
 
+    private companion object {
+        private const val MNEMONIC_WORDS_COUNT_MINUS_ONE = 23
+        private const val SMALL_LOG_CAP_BYTES = 500L
+        private const val LOG_BURST_REPEAT_COUNT = 20
+        private const val FRESH_LOG_MAX_SIZE_BYTES = 300
+    }
+
     private lateinit var mockProvider: LogDirectoryProvider
     private lateinit var logDir: File
     private lateinit var logFile: File
@@ -144,7 +151,7 @@ class LocalCrashReportingLogWriterTest {
         @Test
         fun `privacy scrubber is applied — mnemonic is redacted in written content`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
-            val mnemonic = "abandon ".repeat(23).trim() + " art"
+            val mnemonic = "abandon ".repeat(MNEMONIC_WORDS_COUNT_MINUS_ONE).trim() + " art"
 
             writer.log(Severity.Info, "Seed: $mnemonic", "SecTag", null)
 
@@ -164,7 +171,7 @@ class LocalCrashReportingLogWriterTest {
          * Uses a 500-byte cap in lieu of 5 MB so the test stays fast.
          * The rotation code path is identical regardless of the threshold.
          */
-        private val smallCap = 500L
+        private val smallCap = SMALL_LOG_CAP_BYTES
 
         @Test
         fun `rotation renames active log to bak when size limit is exceeded`() {
@@ -172,7 +179,7 @@ class LocalCrashReportingLogWriterTest {
 
             // Pad the file past the cap with repeated entries
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
-            repeat(20) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
+            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
 
             val sizeBeforeRotation = logFile.length()
             assertTrue(
@@ -197,7 +204,7 @@ class LocalCrashReportingLogWriterTest {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
-            repeat(20) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
+            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
 
             // Trigger rotation
             writer.log(Severity.Info, "Trigger rotation", "BurstTag", null)
@@ -209,7 +216,7 @@ class LocalCrashReportingLogWriterTest {
                 "A new active log file must be recreated immediately after rotation",
             )
             assertTrue(
-                freshSize < 300,
+                freshSize < FRESH_LOG_MAX_SIZE_BYTES,
                 "Fresh log file should be small (only the trigger entry). Actual: $freshSize bytes",
             )
         }
@@ -220,14 +227,14 @@ class LocalCrashReportingLogWriterTest {
 
             // First rotation cycle
             val padEntry = "First rotation fill entry — long enough to count."
-            repeat(20) { writer.log(Severity.Info, padEntry, "Cycle1", null) }
+            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "Cycle1", null) }
             writer.log(Severity.Info, "Trigger first rotation", "Cycle1", null)
 
             assertTrue(bakFile.exists(), "Bak should exist after first rotation")
             val bakSizeAfterFirst = bakFile.length()
 
             // Second rotation cycle — old bak must be replaced, not left alongside
-            repeat(20) { writer.log(Severity.Info, padEntry, "Cycle2", null) }
+            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "Cycle2", null) }
             writer.log(Severity.Info, "Trigger second rotation", "Cycle2", null)
 
             assertTrue(bakFile.exists(), "Bak should still exist after second rotation")

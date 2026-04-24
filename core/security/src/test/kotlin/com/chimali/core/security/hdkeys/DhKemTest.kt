@@ -8,6 +8,13 @@ import java.math.BigInteger
  * Tests for DhKem — DHKEM(P-256, HKDF-SHA256) per RFC 9180.
  */
 class DhKemTest {
+    private companion object {
+        private const val HEX_RADIX = 16
+        private const val HEX_BYTE_SIZE = 2
+        private const val OKM_LENGTH = 42
+        private const val SHARED_SECRET_SIZE = 32
+    }
+
 
     @Test
     fun `HKDF extract and expand - RFC 5869 Test Case 1`() {
@@ -19,7 +26,7 @@ class DhKemTest {
         val expectedPrk = hexToBytes("077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5")
         assertContentEquals(expectedPrk, prk, "PRK mismatch")
 
-        val okm = DhKem.expand(prk, info, 42)
+        val okm = DhKem.expand(prk, info, OKM_LENGTH)
         val expectedOkm = hexToBytes(
             "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf" +
             "34007208d5b887185865"
@@ -33,7 +40,7 @@ class DhKemTest {
         val (sk, pk) = DhKem.deriveKeyPair(ikm)
 
         val expectedSk = BigInteger(
-            "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb", 16
+            "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb", HEX_RADIX
         )
         assertEquals(expectedSk, sk, "DeriveKeyPair sk mismatch")
 
@@ -56,7 +63,7 @@ class DhKemTest {
 
         assertContentEquals(sharedSecret, recoveredSecret
         , "Encap/Decap round-trip: shared secrets must match")
-        assertEquals(32, sharedSecret.size)
+        assertEquals(SHARED_SECRET_SIZE, sharedSecret.size)
     }
 
     @Test
@@ -69,6 +76,6 @@ class DhKemTest {
     }
 
     private fun hexToBytes(hex: String): ByteArray {
-        return hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        return hex.chunked(HEX_BYTE_SIZE).map { it.toInt(HEX_RADIX).toByte() }.toByteArray()
     }
 }

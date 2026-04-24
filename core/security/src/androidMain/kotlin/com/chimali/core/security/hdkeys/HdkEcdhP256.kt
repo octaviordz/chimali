@@ -58,7 +58,7 @@ class HdkEcdhP256 : HdkManager {
      * This implementation natively uses Kotlin's unsigned 32-bit `UInt`.
      */
     internal fun createContext(index: UInt): ByteArray {
-        return ID + HashToScalar.i2osp(index, 4)
+        return ID + HashToScalar.i2osp(index, HashToScalar.I2OSP_LEN_4)
     }
 
     /**
@@ -178,8 +178,8 @@ class HdkEcdhP256 : HdkManager {
         blindingFactor: ByteArray,
     ): ByteArray {
         // §3.2.2: Private key must be a valid non-zero P-256 scalar (exactly 32 bytes).
-        require(devicePrivateKey.size == 32) {
-            "Private key must be exactly 32 bytes; got ${devicePrivateKey.size}"
+        require(devicePrivateKey.size == NS) {
+            "Private key must be exactly $NS bytes; got ${devicePrivateKey.size}"
         }
         val sk = P256Group.deserializeScalar(devicePrivateKey)
         val bf = P256Group.deserializeScalar(blindingFactor)

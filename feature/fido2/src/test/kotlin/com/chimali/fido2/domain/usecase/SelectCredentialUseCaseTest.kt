@@ -27,10 +27,15 @@ class SelectCredentialUseCaseTest {
         useCase = SelectCredentialUseCase()
     }
 
+    private companion object {
+        private const val HASH_SIZE_32 = 32
+        private const val HOUR_IN_SECONDS_3600 = 3600L
+    }
+
     private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions {
         return GetAssertionOptions.create(
             rpId = rpId,
-            clientDataHash = ByteArray(32),
+            clientDataHash = ByteArray(HASH_SIZE_32),
         )
     }
 
@@ -76,7 +81,7 @@ class SelectCredentialUseCaseTest {
     @Test
     fun `selects most recently used credential from multiple`() =
         runTest {
-            val older = createSummary("cred1", lastUsedAt = Instant.now().minusSeconds(3600))
+            val older = createSummary("cred1", lastUsedAt = Instant.now().minusSeconds(HOUR_IN_SECONDS_3600))
             val newer = createSummary("cred2", lastUsedAt = Instant.now())
 
             val result = useCase(listOf(older, newer), createOptions())

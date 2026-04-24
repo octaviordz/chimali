@@ -31,6 +31,10 @@ object P256Group {
     /** Length of the x-coordinate output from ECDH (32 bytes). */
     const val DH_OUTPUT_LENGTH = 32
 
+    /** Length of an uncompressed serialized point: 0x04 || x(32) || y(32). */
+    const val ELEMENT_UNCOMPRESSED_LENGTH = 65
+    internal const val UNCOMPRESSED_FORMAT_INDICATOR = 0x04
+
     /**
      * Generate a random scalar in [1, Order-1].
      */

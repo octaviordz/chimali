@@ -11,6 +11,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.CreditCardPayload
 
+private const val CARD_NUMBER_CHUNK_SIZE = 4
+private val SCREEN_PADDING = 16.dp
+private val ROW_SPACING = 16.dp
+private val HORIZONTAL_SPACING = 32.dp
+private val BUTTON_VERTICAL_PADDING = 16.dp
+private val BUTTON_HORIZONTAL_PADDING = 24.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreditCardDetailScreen(
@@ -38,12 +45,15 @@ fun CreditCardDetailScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(SCREEN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(ROW_SPACING)
         ) {
             DetailRow(label = "Name on Card", value = String(payload.cardholderName))
-            DetailRow(label = "Card Number", value = String(payload.cardNumber).chunked(4).joinToString(" "))
-            Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+            DetailRow(
+                label = "Card Number",
+                value = String(payload.cardNumber).chunked(CARD_NUMBER_CHUNK_SIZE).joinToString(" ")
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_SPACING)) {
                 DetailRow(label = "Expires", value = payload.expirationDate)
                 DetailRow(label = "CVV", value = "***") // Placeholder for concealed CVV reveal
             }
@@ -64,7 +74,10 @@ fun CreditCardDetailScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                contentPadding = PaddingValues(
+                    vertical = BUTTON_VERTICAL_PADDING,
+                    horizontal = BUTTON_HORIZONTAL_PADDING
+                )
             ) {
                 Text("Back to Vault")
             }

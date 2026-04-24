@@ -32,11 +32,31 @@ class CborCodecTest {
     private val codec = CborCodec()
     private val pqCrypto = PostQuantumCrypto()
 
+    private companion object {
+        private const val COSE_KTY_AKP = 7L
+        private const val COSE_ALG_ML_DSA_65 = -49L
+        private const val ML_DSA_RAW_KEY_SIZE = 1952
+        private const val SEED_SIZE_64 = 64
+        private const val SEED_SIZE_32 = 32
+        private const val BUFFER_SIZE_128 = 128
+        private const val DUMMY_DATA_SIZE = 32
+        private const val DUMMY_BYTE_11 = 0x11.toByte()
+        private const val DUMMY_BYTE_42 = 0x42.toByte()
+        private const val DUMMY_BYTE_55 = 0x55.toByte()
+        private const val DUMMY_BYTE_03 = 0x03.toByte()
+        private const val DUMMY_BYTE_04 = 0x04.toByte()
+        private const val DUMMY_BYTE_05 = 0x05.toByte()
+        private const val DUMMY_BYTE_06 = 0x06.toByte()
+        private const val DUMMY_CID_1 = 0x01.toByte()
+        private const val DUMMY_CID_2 = 0x02.toByte()
+        private const val ENTROPY_999 = 999L
+    }
+
     // ── kty / alg encoding ────────────────────────────────────────────────────
 
     @Test
     fun `encodeCoseMlDsaPublicKey produces kty=7 AKP and alg=-49`() {
-        val dummyPubKey = ByteArray(32) { 0x11 }
+        val dummyPubKey = ByteArray(DUMMY_DATA_SIZE) { DUMMY_BYTE_11 }
         val cbor = codec.encodeCoseMlDsaPublicKey(dummyPubKey)
         val map = codec.decodeFromFido2Format(cbor)
 
@@ -44,8 +64,8 @@ class CborCodecTest {
         val alg = (map["3"] as? Number)?.toLong()
         val pub = map["-1"] as? ByteArray
 
-        assertEquals(7L, kty, "kty must be 7 (AKP) per IANA COSE Key Types")
-        assertEquals(-49L, alg, "alg must be -49 (ML-DSA-65) per IANA COSE Algorithms")
+        assertEquals(COSE_KTY_AKP, kty, "kty must be 7 (AKP) per IANA COSE Key Types")
+        assertEquals(COSE_ALG_ML_DSA_65, alg, "alg must be -49 (ML-DSA-65) per IANA COSE Algorithms")
         assertContentEquals(dummyPubKey, pub, "pub (-1) must round-trip correctly")
     }
 
@@ -53,7 +73,7 @@ class CborCodecTest {
 
     @Test
     fun `encodeCosePublicKeyFromJavaKey strips DER header and returns raw 1952 bytes`() {
-        val seed = ByteArray(64) { 0x42 }
+        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_42 }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair, "ML-DSA key pair must be generated")
 
@@ -61,15 +81,15 @@ class CborCodecTest {
         val coseBytes = codec.encodeCosePublicKeyFromJavaKey(keyPair.public)
         val map = codec.decodeFromFido2Format(coseBytes)
 
-        val kty = (map["1"] as? Number)?.toLong()
-        val alg = (map["3"] as? Number)?.toLong()
         val pub = map["-1"] as? ByteArray
+        val kty = map["1"] as? Long
+        val alg = map["3"] as? Long
 
-        assertEquals(7L, kty, "kty must be 7 (AKP)")
-        assertEquals(-49L, alg, "alg must be -49 (ML-DSA-65)")
+        assertEquals(COSE_KTY_AKP, kty, "kty must be 7 (AKP)")
+        assertEquals(COSE_ALG_ML_DSA_65, alg, "alg must be -49 (ML-DSA-65)")
         assertNotNull(pub, "pub (-1) must be present")
         assertEquals(
-            1952,
+            ML_DSA_RAW_KEY_SIZE,
             pub!!.size,
             "pub (-1) must be the raw 1952-byte ML-DSA-65 key per FIPS 204, " +
                 "NOT the ${derEncodedKey.size}-byte DER SubjectPublicKeyInfo (causes 'byte string too long')",
@@ -78,7 +98,7 @@ class CborCodecTest {
 
     @Test
     fun `encodeCosePublicKeyFromJavaKey pub matches raw bytes from SubjectPublicKeyInfo`() {
-        val seed = ByteArray(64) { 0x55 }
+        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_55 }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)!!
 
         val spki = SubjectPublicKeyInfo.getInstance(keyPair.public.encoded)
@@ -107,13 +127,13 @@ class CborCodecTest {
      */
     @Test
     fun `DeterministicSecureRandom produces identical bytes from same seed on any runtime`() {
-        val seed = ByteArray(32) { 0xDE.toByte() }
+        val seed = ByteArray(SEED_SIZE_32) { 0xDE.toByte() }
 
         val rng1 = DeterministicSecureRandom(seed)
         val rng2 = DeterministicSecureRandom(seed)
 
-        val out1 = ByteArray(128).also { rng1.nextBytes(it) }
-        val out2 = ByteArray(128).also { rng2.nextBytes(it) }
+        val out1 = ByteArray(BUFFER_SIZE_128).also { rng1.nextBytes(it) }
+        val out2 = ByteArray(BUFFER_SIZE_128).also { rng2.nextBytes(it) }
 
         assertContentEquals(
             out1,
@@ -125,15 +145,15 @@ class CborCodecTest {
 
     @Test
     fun `DeterministicSecureRandom rejects setSeed`() {
-        val seed = ByteArray(32) { 0xAA.toByte() }
+        val seed = ByteArray(SEED_SIZE_32) { 0xAA.toByte() }
         val rng = DeterministicSecureRandom(seed)
-        val before = ByteArray(32).also { DeterministicSecureRandom(seed).nextBytes(it) }
+        val before = ByteArray(SEED_SIZE_32).also { DeterministicSecureRandom(seed).nextBytes(it) }
 
         // Calling setSeed with different data must NOT change output
-        rng.setSeed(ByteArray(32) { 0xFF.toByte() })
-        rng.setSeed(999L)
+        rng.setSeed(ByteArray(SEED_SIZE_32) { 0xFF.toByte() })
+        rng.setSeed(ENTROPY_999)
 
-        val after = ByteArray(32).also { rng.nextBytes(it) }
+        val after = ByteArray(SEED_SIZE_32).also { rng.nextBytes(it) }
         assertContentEquals(
             before,
             after,
@@ -149,7 +169,7 @@ class CborCodecTest {
      */
     @Test
     fun `generateMlDsaKeyPair is deterministic - same seed produces same key pair`() {
-        val seed = ByteArray(64) { 0xAB.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { 0xAB.toByte() }
 
         val keyPair1 = pqCrypto.generateMlDsaKeyPair(seed)!!
         val keyPair2 = pqCrypto.generateMlDsaKeyPair(seed)!!
@@ -167,7 +187,7 @@ class CborCodecTest {
 
     @Test
     fun `ML-DSA sign with re-derived key verifies against original public key`() {
-        val seed = ByteArray(64) { 0xAB.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { 0xAB.toByte() }
 
         // Registration: derive key pair, store public key
         val keyPair1 = pqCrypto.generateMlDsaKeyPair(seed)!!
@@ -175,7 +195,15 @@ class CborCodecTest {
         // Signing: re-derive from same seed (as Fido2CryptoService.sign does)
         val keyPair2 = pqCrypto.generateMlDsaKeyPair(seed)!!
 
-        val dataToSign = byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
+        val dataToSign =
+            byteArrayOf(
+                DUMMY_CID_1,
+                DUMMY_CID_2,
+                DUMMY_BYTE_03,
+                DUMMY_BYTE_04,
+                DUMMY_BYTE_05,
+                DUMMY_BYTE_06,
+            )
         val sig = pqCrypto.sign(keyPair2.private, dataToSign)
         assertNotNull(sig, "ML-DSA signing must succeed")
 
@@ -201,7 +229,7 @@ class CborCodecTest {
      */
     @Test
     fun `server side round-trip - reconstruct ML-DSA key from COSE pub and verify signature`() {
-        val seed = ByteArray(64) { 0xCD.toByte() }
+        val seed = ByteArray(SEED_SIZE_64) { 0xCD.toByte() }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)!!
 
         // 1. COSE-encode the public key (what we embed in authData)
@@ -211,7 +239,7 @@ class CborCodecTest {
         // 2. Extract raw pub from COSE (as a server would parse kty=7 / alg=-49 / pub=-1)
         val rawPub = coseMap["-1"] as? ByteArray
         assertNotNull(rawPub)
-        assertEquals(1952, rawPub!!.size, "COSE pub must be exactly 1952 bytes for ML-DSA-65")
+        assertEquals(ML_DSA_RAW_KEY_SIZE, rawPub!!.size, "COSE pub must be exactly 1952 bytes for ML-DSA-65")
 
         // 3. Reconstruct SubjectPublicKeyInfo using BouncyCastle ASN.1 builders.
         //    The server re-wraps the raw bytes with the ML-DSA-65 OID
@@ -246,7 +274,7 @@ class CborCodecTest {
         // Re-use BouncyCastle's own SPKI builder: parse the original SPKI to get the
         // AlgorithmIdentifier, then rebuild with the new key bytes.
         // The simplest approach: generate a fresh key pair and swap the public key bytes.
-        val tempSeed = ByteArray(64) { 0x01 }
+        val tempSeed = ByteArray(SEED_SIZE_64) { 0x01 }
         val tempKeyPair = pqCrypto.generateMlDsaKeyPair(tempSeed)!!
         val tempSpki = SubjectPublicKeyInfo.getInstance(tempKeyPair.public.encoded)
 

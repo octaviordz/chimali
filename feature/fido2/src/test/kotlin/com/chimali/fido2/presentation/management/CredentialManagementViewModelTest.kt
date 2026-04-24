@@ -29,6 +29,10 @@ class CredentialManagementViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
+    private companion object {
+        private const val PAGE_SIZE = 20L
+    }
+
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -139,7 +143,8 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent PendingDelete adds id to pendingDeleteIds and emits removal event`() =
         runTest {
-            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            val credential =
+                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
             val removalEvents = mutableListOf<PasskeyCredential>()
             val job =
                 launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -156,7 +161,8 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent UndoDelete removes id from pendingDeleteIds`() =
         runTest {
-            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            val credential =
+                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
             assertTrue(viewModel.state.value.pendingDeleteIds.contains("test_id"))
 
@@ -169,7 +175,8 @@ class CredentialManagementViewModelTest {
     fun `intent CommitDelete calls use case and clears pending id`() =
         runTest {
             coEvery { deleteCredentialUseCase("test_id") } returns Result.success(Unit)
-            val credential = PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+            val credential =
+                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
             viewModel.onIntent(CredentialManagementIntent.CommitDelete("test_id"))
@@ -181,16 +188,20 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent LoadNextPage increments offset and appends credentials`() =
         runTest {
+            val pageSizeInt = PAGE_SIZE.toInt()
             val page1 =
-                List(20) { i -> PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1") }
-            val page2 = listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
+                List(pageSizeInt) { i ->
+                    PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1")
+                }
+            val page2 =
+                listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
 
             // Re-initialize with paginated mocks
             coEvery {
                 getAllCredentialsUseCase(any<Long>(), any<Long>())
             } returns Result.success(emptyList()) // fallback
-            coEvery { getAllCredentialsUseCase(20L, 0L) } returns Result.success(page1)
-            coEvery { getAllCredentialsUseCase(20L, 20L) } returns Result.success(page2)
+            coEvery { getAllCredentialsUseCase(PAGE_SIZE, 0L) } returns Result.success(page1)
+            coEvery { getAllCredentialsUseCase(PAGE_SIZE, PAGE_SIZE) } returns Result.success(page2)
 
             val newViewModel =
                 CredentialManagementViewModel(
@@ -201,12 +212,13 @@ class CredentialManagementViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertEquals(20, newViewModel.state.value.credentials.size)
+            assertEquals(pageSizeInt, newViewModel.state.value.credentials.size)
 
             newViewModel.onIntent(CredentialManagementIntent.LoadNextPage)
             advanceUntilIdle()
 
-            assertEquals(21, newViewModel.state.value.credentials.size)
+            val expectedTotal = pageSizeInt + 1
+            assertEquals(expectedTotal, newViewModel.state.value.credentials.size)
             assertTrue(newViewModel.state.value.credentials.any { it.id == "2" })
             assertFalse(newViewModel.state.value.isPaginating)
         }

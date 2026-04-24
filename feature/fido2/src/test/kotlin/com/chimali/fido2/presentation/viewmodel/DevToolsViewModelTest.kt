@@ -26,14 +26,20 @@ class DevToolsViewModelTest {
     private val dispatcher = UnconfinedTestDispatcher()
     private val mockProvider: MasterSeedProvider = mockk()
     private val mockClipboard: ClipboardManagerService = mockk(relaxed = true)
-    private val fakeMnemonic = (1..24).map { "word$it" }
+
+    private companion object {
+        private const val SEED_SIZE_64 = 64
+        private const val MNEMONIC_WORD_COUNT = 24
+    }
+
+    private val fakeMnemonic = (1..MNEMONIC_WORD_COUNT).map { "word$it" }
 
     private lateinit var viewModel: DevToolsViewModel
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        coEvery { mockProvider.getMasterSeed() } returns ByteArray(64)
+        coEvery { mockProvider.getMasterSeed() } returns ByteArray(SEED_SIZE_64)
         coEvery { mockProvider.getDeviceKeyPair() } returns mockk<HdkKeyPair>(relaxed = true)
         coEvery { mockProvider.getMnemonic() } returns fakeMnemonic
         coEvery { mockProvider.importMnemonic(any()) } returns ImportMnemonicResult.Created

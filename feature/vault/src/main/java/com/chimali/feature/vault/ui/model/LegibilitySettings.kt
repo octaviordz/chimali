@@ -1,6 +1,7 @@
 package com.chimali.feature.vault.ui.model
 
 import androidx.compose.ui.graphics.Color
+import com.chimali.feature.vault.ui.theme.LegibilityColors
 
 /**
  * Represents user preferences for viewing secrets with legibility enhancements.
@@ -9,13 +10,13 @@ data class LegibilitySettings(
     val fontType: LegibilityFont = LegibilityFont.Atkinson,
     val useSemanticHighlighting: Boolean = true,
     val highlightNumbers: Boolean = true,
-    val numberColor: Color = Color(0xFFE67E22), // Orange
+    val numberColor: Color = LegibilityColors.NumberOrange,
     val highlightSymbols: Boolean = false,
-    val symbolColor: Color = Color(0xFF3498DB), // Blue
+    val symbolColor: Color = LegibilityColors.SymbolBlue,
     val highlightUppercase: Boolean = false,
-    val uppercaseColor: Color = Color(0xFF9B59B6), // Purple
+    val uppercaseColor: Color = LegibilityColors.UppercasePurple,
     val highlightLowercase: Boolean = false,
-    val lowercaseColor: Color = Color(0xFF27AE60), // Green
+    val lowercaseColor: Color = LegibilityColors.LowercaseGreen,
     val colorblindMode: Boolean = false
 )
 

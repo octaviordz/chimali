@@ -29,10 +29,29 @@ class Ctap2Fido21FlagsTest {
     private val hidReportParser = mockk<HidReportParser>(relaxed = true)
     private val responseBuilder = Ctap2ResponseBuilder(cborCodec, hidReportParser)
 
+    private companion object {
+        private const val AAGUID_SUFFIX_01 = 0x01.toByte()
+        private const val HASH_SIZE_32 = 32
+        private const val USER_ID_SIZE_8 = 8
+        private const val ALG_ES256 = -7L
+        private const val POLICY_UV_REQUIRED = 3L
+        private const val MAX_MSG_SIZE_1200 = 1200L
+        private const val MAX_CRED_COUNT_255 = 255L
+
+        private const val CHAR_C = 0x43.toByte()
+        private const val CHAR_H = 0x48.toByte()
+        private const val CHAR_I = 0x49.toByte()
+        private const val CHAR_M = 0x4D.toByte()
+        private const val CHAR_A = 0x41.toByte()
+        private const val CHAR_L = 0x4C.toByte()
+        private const val DUMMY_CID_1 = 0x01.toByte()
+        private const val ZERO_BYTE = 0x00.toByte()
+    }
+
     private val dummyAaguid =
         byteArrayOf(
-            0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            CHAR_C, CHAR_H, CHAR_I, CHAR_M, CHAR_A, CHAR_L, CHAR_I, ZERO_BYTE,
+            ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, AAGUID_SUFFIX_01,
         )
 
     private fun fakeInfo(supportsRk: Boolean = true): AuthenticatorInfo {
@@ -49,7 +68,7 @@ class Ctap2Fido21FlagsTest {
      */
     @Test
     fun `t056b getInfoResponse includes FIDO_2_1 in versions`() {
-        val cid = byteArrayOf(0x00, 0x00, 0x00, 0x01)
+        val cid = byteArrayOf(ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, DUMMY_CID_1)
         every { hidReportParser.encodeResponse(any()) } returns emptyList()
 
         // Reconstruct the CBOR map by encoding via CborCodec and decoding it back
@@ -123,15 +142,15 @@ class Ctap2Fido21FlagsTest {
         val requestMap =
             mapOf(
                 // clientDataHash
-                "1" to ByteArray(32),
+                "1" to ByteArray(HASH_SIZE_32),
                 // rp
                 "2" to mapOf("id" to "example.com", "name" to "Example"),
                 // user
-                "3" to mapOf("id" to ByteArray(8), "name" to "user"),
+                "3" to mapOf("id" to ByteArray(USER_ID_SIZE_8), "name" to "user"),
                 // pubKeyCredParams
-                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")),
+                "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
                 // extensions
-                "10" to mapOf("credProtect" to 3L),
+                "10" to mapOf("credProtect" to POLICY_UV_REQUIRED),
             )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
@@ -145,7 +164,7 @@ class Ctap2Fido21FlagsTest {
             }
 
         assertEquals(
-            3,
+            POLICY_UV_REQUIRED.toInt(),
             credProtectPolicy,
             "credProtect policy must be decoded as 3 (userVerificationRequired)",
         )
@@ -158,10 +177,10 @@ class Ctap2Fido21FlagsTest {
     fun `t056a MakeCredential without credProtect extension yields null policy`() {
         val requestMap =
             mapOf(
-                "1" to ByteArray(32),
+                "1" to ByteArray(HASH_SIZE_32),
                 "2" to mapOf("id" to "example.com", "name" to "Example"),
-                "3" to mapOf("id" to ByteArray(8), "name" to "user"),
-                "4" to listOf(mapOf("alg" to -7L, "type" to "public-key")),
+                "3" to mapOf("id" to ByteArray(USER_ID_SIZE_8), "name" to "user"),
+                "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
                 // No "10" extensions key
             )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
@@ -197,8 +216,8 @@ class Ctap2Fido21FlagsTest {
                     "credProtect" to true,
                     "plat" to false,
                 ),
-            "5" to 1200L,
-            "8" to 255L,
+            "5" to MAX_MSG_SIZE_1200,
+            "8" to MAX_CRED_COUNT_255,
             "9" to listOf("usb"),
             "10" to
                 listOf(

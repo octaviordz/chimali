@@ -60,8 +60,8 @@ class GetUserConsentUseCaseTest {
                     pinAvailable = true,
                     deviceLockAvailable = true,
                     supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                    maxPinLength = 8,
-                    minPinLength = 4,
+                    maxPinLength = MAX_PIN_LEN_8,
+                    minPinLength = MIN_PIN_LEN_4,
                     biometricStrength = BiometricStrength.STRONG,
                 )
 
@@ -80,8 +80,8 @@ class GetUserConsentUseCaseTest {
                         pinAvailable = false,
                         deviceLockAvailable = true,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                        maxPinLength = 8,
-                        minPinLength = 4,
+                        maxPinLength = MAX_PIN_LEN_8,
+                        minPinLength = MIN_PIN_LEN_4,
                         biometricStrength = BiometricStrength.STRONG,
                     )
                 val result =
@@ -117,8 +117,8 @@ class GetUserConsentUseCaseTest {
                         pinAvailable = true,
                         deviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
-                        maxPinLength = 8,
-                        minPinLength = 4,
+                        maxPinLength = MAX_PIN_LEN_8,
+                        minPinLength = MIN_PIN_LEN_4,
                         biometricStrength = BiometricStrength.WEAK,
                     )
 
@@ -220,13 +220,13 @@ class GetUserConsentUseCaseTest {
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())
 
-                val result = getUserConsentUseCase.getRecentConsentRecords(testRpId, 50)
+                val result = getUserConsentUseCase.getRecentConsentRecords(testRpId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
 
-                assertEquals(2, retrievedRecords.size)
+                assertEquals(EXPECTED_SIZE_2, retrievedRecords.size)
                 assertTrue(retrievedRecords.contains(testConsentRecord))
 
-                coVerify { credentialRepository.getRecentUserConsent(testRpId, 50) }
+                coVerify { credentialRepository.getRecentUserConsent(testRpId, FETCH_LIMIT_50) }
             }
 
         @Test
@@ -253,7 +253,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase.getConsentRecordsByOperationType(
                         ConsentOperationType.REGISTRATION,
                         testRpId,
-                        50,
+                        FETCH_LIMIT_50,
                     )
                 val retrievedRecords = result.toList()
 
@@ -284,7 +284,7 @@ class GetUserConsentUseCaseTest {
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetConsent, otherConsent)
 
-                val result = getUserConsentUseCase.getConsentRecordsByCredential(targetCredentialId, 50)
+                val result = getUserConsentUseCase.getConsentRecordsByCredential(targetCredentialId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
 
                 assertEquals(1, retrievedRecords.size)
@@ -312,7 +312,7 @@ class GetUserConsentUseCaseTest {
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetConsent, otherConsent)
 
-                val result = getUserConsentUseCase.getConsentRecordsByRpId(targetRpId, 50)
+                val result = getUserConsentUseCase.getConsentRecordsByRpId(targetRpId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
 
                 assertEquals(1, retrievedRecords.size)
@@ -322,8 +322,8 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should retrieve consent records by time range`() =
             runTest {
-                val startTime = Instant.now().minusSeconds(3600) // 1 hour ago
-                val endTime = Instant.now().plusSeconds(3600) // 1 hour from now
+                val startTime = Instant.now().minusSeconds(SECONDS_PER_HOUR) // 1 hour ago
+                val endTime = Instant.now().plusSeconds(SECONDS_PER_HOUR) // 1 hour from now
 
                 val inRangeConsent =
                     UserConsentRecord.create(
@@ -338,7 +338,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         biometricUsed = false,
                         pinUsed = true,
-                    ).copy(timestamp = Instant.now().minusSeconds(7200)) // 2 hours ago
+                    ).copy(timestamp = Instant.now().minusSeconds(SECONDS_TWO_HOURS)) // 2 hours ago
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(inRangeConsent, outOfRangeConsent)
 
@@ -382,13 +382,16 @@ class GetUserConsentUseCaseTest {
 
                 val result = getUserConsentUseCase.getConsentStatistics()
 
-                assertEquals(3, result.totalConsents)
-                assertEquals(2, result.registrationConsents)
-                assertEquals(1, result.authenticationConsents)
-                assertEquals(1, result.biometricConsents) // Only pure BIOMETRIC (not BIOMETRIC_AND_PIN)
-                assertEquals(1, result.pinConsents) // Only pure PIN (not BIOMETRIC_AND_PIN)
-                assertEquals(1, result.combinedConsents)
-                assertEquals(2, result.consentsByRp.size) // Two different RPs
+                assertEquals(EXPECTED_TOTAL_3, result.totalConsents)
+                assertEquals(EXPECTED_REG_2, result.registrationConsents)
+                assertEquals(EXPECTED_AUTH_1, result.authenticationConsents)
+                assertEquals(
+                    EXPECTED_BIOMETRIC_1,
+                    result.biometricConsents,
+                ) // Only pure BIOMETRIC (not BIOMETRIC_AND_PIN)
+                assertEquals(EXPECTED_PIN_1, result.pinConsents) // Only pure PIN (not BIOMETRIC_AND_PIN)
+                assertEquals(EXPECTED_COMBINED_1, result.combinedConsents)
+                assertEquals(EXPECTED_RP_COUNT_2, result.consentsByRp.size) // Two different RPs
                 assertTrue(result.consentsByRp.containsKey(testRpId))
                 assertTrue(result.consentsByRp.containsKey("https://other.com"))
             }
@@ -453,7 +456,7 @@ class GetUserConsentUseCaseTest {
                 val result = getUserConsentUseCase.getConsentStatistics()
 
                 assertEquals(ConsentMethod.BIOMETRIC, result.getMostUsedMethod())
-                assertEquals(2, result.getTotalVerificationMethods())
+                assertEquals(EXPECTED_SIZE_2, result.getTotalVerificationMethods())
             }
     }
 
@@ -476,7 +479,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase.isRecentConsentGranted(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        minutes = 5,
+                        minutes = RECENT_MIN_5,
                     )
 
                 assertTrue(result)
@@ -491,7 +494,9 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         biometricUsed = true,
                         pinUsed = false,
-                    ).copy(timestamp = Instant.now().minusSeconds(10 * 60)) // 10 minutes ago
+                    ).copy(
+                        timestamp = Instant.now().minusSeconds(OLD_MIN_10.toLong() * SECONDS_PER_MINUTE),
+                    ) // 10 minutes ago
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(oldConsent)
 
@@ -499,7 +504,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase.isRecentConsentGranted(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        minutes = 5,
+                        minutes = RECENT_MIN_5,
                     )
 
                 assertFalse(result)
@@ -514,7 +519,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase.isRecentConsentGranted(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        minutes = 5,
+                        minutes = RECENT_MIN_5,
                     )
 
                 assertFalse(result)
@@ -571,7 +576,7 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should fail when credential id exceeds maximum length`() =
             runTest {
-                val longCredentialId = "a".repeat(1024)
+                val longCredentialId = "a".repeat(INVALID_CRED_ID_SIZE_1024)
 
                 val result =
                     getUserConsentUseCase(
@@ -696,7 +701,7 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should handle maximum allowed credential id length`() =
             runTest {
-                val maxCredentialId = "a".repeat(1023)
+                val maxCredentialId = "a".repeat(MAX_CRED_ID_LEN_1023)
 
                 val result =
                     getUserConsentUseCase(
@@ -748,5 +753,27 @@ class GetUserConsentUseCaseTest {
                 assertEquals(ConsentMethod.NONE, result.getMostUsedMethod())
                 assertEquals(0, result.getTotalVerificationMethods())
             }
+    }
+
+    private companion object {
+        private const val MAX_PIN_LEN_8 = 8
+        private const val MIN_PIN_LEN_4 = 4
+        private const val FETCH_LIMIT_50 = 50
+        private const val SECONDS_PER_HOUR = 3600L
+        private const val SECONDS_TWO_HOURS = 7200L
+        private const val RECENT_MIN_5 = 5L
+        private const val OLD_MIN_10 = 10L
+        private const val SECONDS_PER_MINUTE = 60
+        private const val INVALID_CRED_ID_SIZE_1024 = 1024
+        private const val MAX_CRED_ID_LEN_1023 = 1023
+
+        private const val EXPECTED_TOTAL_3 = 3
+        private const val EXPECTED_REG_2 = 2
+        private const val EXPECTED_AUTH_1 = 1
+        private const val EXPECTED_BIOMETRIC_1 = 1
+        private const val EXPECTED_PIN_1 = 1
+        private const val EXPECTED_COMBINED_1 = 1
+        private const val EXPECTED_RP_COUNT_2 = 2
+        private const val EXPECTED_SIZE_2 = 2
     }
 }

@@ -14,6 +14,12 @@ class GetAllCredentialsUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
 
+    private companion object {
+        private const val PAGE_SIZE_10 = 10L
+        private const val OFFSET_ZERO = 0L
+        private const val EXPECTED_SIZE_2 = 2
+    }
+
     @BeforeTest
     fun setup() {
         credentialRepository = mockk()
@@ -27,11 +33,11 @@ class GetAllCredentialsUseCaseTest {
             coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Result.success(emptyList())
 
             // Act
-            val result = getAllCredentialsUseCase(10L, 0L).getOrNull() ?: emptyList()
+            val result = getAllCredentialsUseCase(PAGE_SIZE_10, OFFSET_ZERO).getOrNull() ?: emptyList()
 
             // Assert
             assertEquals(0, result.size)
-            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(10L, 0L) }
+            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(PAGE_SIZE_10, OFFSET_ZERO) }
         }
 
     @Test
@@ -45,12 +51,12 @@ class GetAllCredentialsUseCaseTest {
             } returns Result.success(listOf(mockCredential1, mockCredential2))
 
             // Act
-            val result = getAllCredentialsUseCase(10L, 0L).getOrNull() ?: emptyList()
+            val result = getAllCredentialsUseCase(PAGE_SIZE_10, OFFSET_ZERO).getOrNull() ?: emptyList()
 
             // Assert
-            assertEquals(2, result.size)
+            assertEquals(EXPECTED_SIZE_2, result.size)
             assertEquals(mockCredential1, result[0])
             assertEquals(mockCredential2, result[1])
-            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(10L, 0L) }
+            coVerify(exactly = 1) { credentialRepository.getPagedCredentials(PAGE_SIZE_10, OFFSET_ZERO) }
         }
 }

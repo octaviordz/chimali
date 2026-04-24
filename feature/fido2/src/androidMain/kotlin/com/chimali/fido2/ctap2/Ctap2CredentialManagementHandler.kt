@@ -9,14 +9,6 @@ import org.koin.core.annotation.Single
 import java.security.MessageDigest
 import kotlinx.coroutines.flow.first
 
-// CTAP2 status codes
-private const val CTAP2_OK: Byte = 0x00
-private const val CTAP1_ERR_MISSING_PARAMETER: Byte = 0x0E
-private const val CTAP2_ERR_UNSUPPORTED_OPTION: Byte = 0x11
-private const val CTAP2_ERR_PROCESSING: Byte = 0x17
-private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x22
-private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x30
-
 /**
  * T117, T118 — CTAP2 authenticatorCredentialManagement (0x0A) handler.
  *
@@ -35,6 +27,15 @@ class Ctap2CredentialManagementHandler(
     private val deleteCredentialUseCase: DeleteCredentialUseCase,
     private val credentialRepository: CredentialRepository,
 ) {
+    companion object {
+        // CTAP2 status codes
+        private const val CTAP2_OK: Byte = 0x00
+        private const val CTAP1_ERR_MISSING_PARAMETER: Byte = 0x0E
+        private const val CTAP2_ERR_UNSUPPORTED_OPTION: Byte = 0x11
+        private const val CTAP2_ERR_PROCESSING: Byte = 0x17
+        private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x22
+        private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x30
+    }
     // ── Stateful enumeration sessions ────────────────────────────────────────
 
     /** RP enumeration: list of (rpId, rpName, credentialCount, rpIdHash). */

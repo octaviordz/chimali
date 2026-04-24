@@ -17,6 +17,17 @@ object HashToScalar {
     /** SHA-256 output length in bytes. */
     private const val HASH_LENGTH = 32
 
+    /** Maximum value for a single byte (255). */
+    private const val MAX_BYTE_VALUE = 255
+    private const val MAX_UINT16_VALUE = 65535
+    private const val SHA256_BLOCK_SIZE = 64
+    private const val BITS_PER_BYTE = 8
+
+    /** I2OSP length constants. */
+    internal const val I2OSP_LEN_1 = 1
+    internal const val I2OSP_LEN_2 = 2
+    internal const val I2OSP_LEN_4 = 4
+
     /**
      * expand_message_xmd as defined in RFC 9380 §5.3.1.
      *
@@ -32,28 +43,28 @@ object HashToScalar {
         dst: ByteArray,
         lenInBytes: Int,
     ): ByteArray {
-        require(dst.size <= 255) { "DST must be at most 255 bytes" }
-        require(lenInBytes <= 65535) { "lenInBytes must be at most 65535" }
+        require(dst.size <= MAX_BYTE_VALUE) { "DST must be at most 255 bytes" }
+        require(lenInBytes <= MAX_UINT16_VALUE) { "lenInBytes must be at most 65535" }
 
         val ell = ceil(lenInBytes.toDouble() / HASH_LENGTH).toInt()
-        require(ell <= 255) { "ell must be at most 255" }
+        require(ell <= MAX_BYTE_VALUE) { "ell must be at most 255" }
 
-        val dstPrime = dst + i2osp(dst.size, 1)
-        val zPad = ByteArray(64) // SHA-256 block size = 64 bytes
-        val libStr = i2osp(lenInBytes, 2)
+        val dstPrime = dst + i2osp(dst.size, I2OSP_LEN_1)
+        val zPad = ByteArray(SHA256_BLOCK_SIZE) // SHA-256 block size = 64 bytes
+        val libStr = i2osp(lenInBytes, I2OSP_LEN_2)
 
         // b_0 = H(Z_pad || msg || l_i_b_str || I2OSP(0, 1) || DST_prime)
-        val b0 = sha256(zPad, msg, libStr, i2osp(0, 1), dstPrime)
+        val b0 = sha256(zPad, msg, libStr, i2osp(0, I2OSP_LEN_1), dstPrime)
 
         val result = ByteArray(lenInBytes)
-        var bPrev = sha256(b0, i2osp(1, 1), dstPrime)
+        var bPrev = sha256(b0, i2osp(1, I2OSP_LEN_1), dstPrime)
 
         // Copy first block
         val copyLen1 = minOf(HASH_LENGTH, lenInBytes)
         bPrev.copyInto(result, 0, 0, copyLen1)
 
         for (i in 2..ell) {
-            val bi = sha256(xor(b0, bPrev), i2osp(i, 1), dstPrime)
+            val bi = sha256(xor(b0, bPrev), i2osp(i, I2OSP_LEN_1), dstPrime)
             val offset = (i - 1) * HASH_LENGTH
             val copyLen = minOf(HASH_LENGTH, lenInBytes - offset)
             bi.copyInto(result, offset, 0, copyLen)
@@ -109,7 +120,7 @@ object HashToScalar {
         var v = value
         for (i in length - 1 downTo 0) {
             result[i] = (v and 0xFF).toByte()
-            v = v shr 8
+            v = v shr BITS_PER_BYTE
         }
         return result
     }
@@ -126,7 +137,7 @@ object HashToScalar {
         var v = value
         for (i in length - 1 downTo 0) {
             result[i] = (v and 0xFFu).toByte()
-            v = v shr 8
+            v = v shr BITS_PER_BYTE
         }
         return result
     }

@@ -7,9 +7,12 @@ import kotlin.test.assertFailsWith
 import java.util.*
 
 class AesEncryptionManagerTest {
+    private companion object {
+        private const val AES_256_KEY_SIZE = 32
+    }
 
     private val encryptionManager = AesEncryptionManager()
-    private val testKey = ByteArray(32).apply { Random().nextBytes(this) }
+    private val testKey = ByteArray(AES_256_KEY_SIZE).apply { Random().nextBytes(this) }
     private val testPlaintext = "Hello, Chimali!".toByteArray()
 
     @Test
@@ -30,7 +33,7 @@ class AesEncryptionManagerTest {
     @Test
     fun `decrypt with wrong key should throw exception`() {
         val ciphertext = encryptionManager.encrypt(testPlaintext, testKey)
-        val wrongKey = ByteArray(32).apply { Random().nextBytes(this) }
+        val wrongKey = ByteArray(AES_256_KEY_SIZE).apply { Random().nextBytes(this) }
         
         assertFailsWith<Exception> {
             encryptionManager.decrypt(ciphertext, wrongKey)
