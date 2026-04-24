@@ -1,28 +1,23 @@
 # setup-hooks.ps1
-# Installs the project's git hooks into the .git/hooks directory.
+# Configures the repository to use the tracked .gitconfig for Git hooks (Git 2.54+).
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = (git rev-parse --show-toplevel).Trim()
-$hooksSource = Join-Path $repoRoot "tools/hooks"
-$hooksDest = Join-Path $repoRoot ".git/hooks"
+Write-Host "Configuring Git hooks (Git 2.54+)..." -ForegroundColor Cyan
 
-Write-Host "Installing Git hooks..." -ForegroundColor Cyan
-
-if (-not (Test-Path $hooksDest)) {
-    Write-Host "Error: .git directory not found. Are you in a git repository?" -ForegroundColor Red
-    exit 1
+# Check Git version
+$gitVersion = git --version
+if ($gitVersion -match "git version (\d+\.\d+)") {
+    $version = [double]$matches[1]
+    if ($version -lt 2.54) {
+        Write-Host "Warning: Git 2.54 or higher is recommended for config-based hooks." -ForegroundColor Yellow
+        Write-Host "Current version: $gitVersion" -ForegroundColor Yellow
+    }
 }
 
-# Copy pre-commit hook
-$preCommitSrc = Join-Path $hooksSource "pre-commit"
-$preCommitDest = Join-Path $hooksDest "pre-commit"
+# Set up the include path to point to the tracked .gitconfig
+# Using ../.gitconfig because it's relative to the .git directory
+git config --local include.path ../.gitconfig
 
-if (Test-Path $preCommitSrc) {
-    Copy-Item -Path $preCommitSrc -Destination $preCommitDest -Force
-    Write-Host "Done: Installed pre-commit hook." -ForegroundColor Green
-} else {
-    Write-Host "Warning: pre-commit hook template not found in $hooksSource" -ForegroundColor Yellow
-}
-
+Write-Host "Done: Repository configured to include .gitconfig for shared hooks." -ForegroundColor Green
 Write-Host "`nGit hooks setup complete!" -ForegroundColor Cyan

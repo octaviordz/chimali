@@ -1,0 +1,7 @@
+[hook "local-ci"]
+	event = pre-push
+	command = powershell -ExecutionPolicy Bypass -File ./tools/local-ci.ps1
+
+[hook "local-ci-lint"]
+	event = pre-commit
+	command = powershell -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 -SkipTests
