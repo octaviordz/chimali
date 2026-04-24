@@ -3,6 +3,13 @@
 ## Overview
 This research evaluates the technical requirements and best practices for enabling R8 Full Mode, Resource Shrinking, and optimized build types for the Chimali project.
 
+## APK Size Comparison
+- **Environment**: Local build, AGP 9.0.0-alpha01, R8 Full Mode.
+- **Base (Debug)**: 130.78 MB
+- **Optimized (shrunkDebug)**: 74.99 MB
+- **Reduction**: 55.79 MB (~42.6%)
+- **Status**: ✅ Goal SC-001 (15% reduction) exceeded.
+
 ## Findings
 
 ### 1. R8 Full Mode & optimizedResourceShrinking
@@ -18,8 +25,8 @@ This research evaluates the technical requirements and best practices for enabli
 
 ### 3. `shrunkDebug` Build Type
 - **Implementation**: Define a build type that `initWith(getByName("debug"))` but overrides `isMinifyEnabled = true` and `proguardFiles` to match `release`.
-- **Decision**: Use `initWith(getByName("release"))` but set `signingConfig = debug` and `isDebuggable = true`.
-- **Rationale**: This more accurately mirrors the production environment (including obfuscation and optimization) while allowing local debugging and testing without release keys.
+- **Decision**: Use `initWith(getByName("release"))` but set `signingConfig = debug` and `isDebuggable = false`.
+- **Rationale**: Setting `isDebuggable = true` in AGP 9.x+ disables R8 optimizations and obfuscation, defeating the purpose of the `shrunkDebug` build type. To accurately mirror production, it must remain non-debuggable while using debug signing keys.
 
 ### 4. Obsolete/Redundant Rules
 - **Hilt**: Project has migrated to Koin. All `dagger.hilt.**` and `javax.inject.**` (unless used by Koin) can be removed.

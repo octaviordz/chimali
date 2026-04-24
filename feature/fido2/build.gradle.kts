@@ -46,6 +46,13 @@ kotlin {
         withDeviceTest {}
     }
 
+    androidLibrary {
+        optimization {
+            consumerKeepRules.publish = true
+            consumerKeepRules.files.add(project.file("proguard-rules.pro"))
+        }
+    }
+
     // iOS targets — placeholder, no actual implementations yet (T191/T192)
     iosArm64()
     iosSimulatorArm64()

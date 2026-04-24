@@ -1,79 +1,40 @@
 # FIDO2 Virtual Authenticator ProGuard Rules
+# Hardened and optimized configuration compliant with AGP 9.2.0 Full Mode
 
-# Keep FIDO2 related classes
--keep class com.chimali.fido2.** { *; }
--keep class org.bouncycastle.** { *; }
--keep class net.sqlcipher.** { *; }
+# -------------------------------------------------------------------------------------------------
+# Domain & Data Models (Serialization)
+# -------------------------------------------------------------------------------------------------
 
-# Keep CBOR serialization classes
--keep class kotlinx.serialization.** { *; }
--keep class kotlinx.serialization.cbor.** { *; }
--dontwarn kotlinx.serialization.**
+# Keep @Serializable classes and their companion objects to prevent runtime crashes
+# during JSON/CBOR decoding when using named companions.
+-keepclassmembers class com.chimali.fido2.** {
+    public static ** Companion;
+}
 
-# Keep SQLDelight generated classes
--keep class com.chimali.fido2.data.database.** { *; }
+# Keep the generated $serializer for @Serializable classes
+-keep class com.chimali.fido2.**.**$serializer { *; }
 
-# Keep Hilt generated classes
--keep class dagger.hilt.** { *; }
--keep class javax.inject.** { *; }
--keep class * extends dagger.hilt.android.HiltAndroidApp
+# -------------------------------------------------------------------------------------------------
+# Reflection & JNI Entry Points
+# -------------------------------------------------------------------------------------------------
 
-# Keep Android KeyStore related classes
--keep class android.security.keystore.** { *; }
--keep class javax.crypto.** { *; }
-
-# Keep Bluetooth HID classes
--keep class android.bluetooth.** { *; }
--keep class android.hardware.usb.** { *; }
-
-# Keep biometric classes
--keep class androidx.biometric.** { *; }
-
-# Keep Compose related classes
--keep class androidx.compose.** { *; }
--keep class kotlin.Metadata { *; }
-
-# Keep coroutine related classes
--keep class kotlinx.coroutines.** { *; }
--dontwarn kotlinx.coroutines.**
-
-# Keep native methods
+# Keep native methods (Standard optimization rule)
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
-# Keep enums
--keepclassmembers enum * {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
-}
+# -------------------------------------------------------------------------------------------------
+# Security & Crypto (Hardening)
+# -------------------------------------------------------------------------------------------------
 
-# Keep Parcelable implementations
--keep class * implements android.os.Parcelable {
-    public static final ** CREATOR;
-}
+# Note: Bouncy Castle and SQLCipher rules are now handled by library consumer rules.
+# We only add project-specific security keeps here if necessary.
 
-# Keep Serializable implementations
--keepnames class * implements java.io.Serializable
--keepclassmembers class * implements java.io.Serializable {
-    static final long serialVersionUID;
-    private static final java.io.ObjectStreamField[] serialPersistentFields;
-    private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
-    java.lang.Object writeReplace();
-    java.lang.Object readResolve();
-}
+# -------------------------------------------------------------------------------------------------
+# Logging & Debugging
+# -------------------------------------------------------------------------------------------------
 
-# SQLCipher specific rules
--keep class net.sqlcipher.database.** { *; }
--dontwarn net.sqlcipher.**
-
-# Bouncy Castle PQC specific rules
--keep class org.bouncycastle.pqc.** { *; }
--keep class org.bouncycastle.crypto.** { *; }
--dontwarn org.bouncycastle.**
-
-# Remove logging in release builds
+# Remove logging in release builds to prevent leaking sensitive information
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
@@ -83,6 +44,9 @@
     public static int e(...);
 }
 
-# Keep model classes used in serialization
--keep class com.chimali.fido2.domain.model.** { *; }
--keep class com.chimali.fido2.data.model.** { *; }
+# -------------------------------------------------------------------------------------------------
+# Obfuscation Hardening
+# -------------------------------------------------------------------------------------------------
+
+# Ensure we don't accidentally keep broad package wildcards.
+# Redundant library rules (AndroidX, Hilt, Kotlinx) have been removed.

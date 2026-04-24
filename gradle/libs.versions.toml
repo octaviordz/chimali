@@ -121,6 +121,7 @@ kmpworkmanager = { group = "dev.brewkits", name = "kmpworkmanager", version.ref 
 kmpworker-ksp = { group = "dev.brewkits", name = "kmpworker-ksp", version.ref = "kmpworkmanager" }
 kmpworker-annotations = { group = "dev.brewkits", name = "kmpworker-annotations", version.ref = "kmpworkmanager" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+androidx-tracing = { group = "androidx.tracing", name = "tracing", version = "1.2.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

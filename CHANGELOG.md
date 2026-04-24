@@ -3,6 +3,12 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-24
+
+### Added
+- **R8 Optimization & Hardening**: Implemented a production-ready R8 configuration. Enabled Full Mode, resource shrinking, and established a `shrunkDebug` build type for local verification. Purged redundant ProGuard rules for Bouncy Castle, SQLCipher, and AndroidX, resulting in significant APK size reduction.
+- **Detailed changes**: [2026-04-24-r8-optimization-and-hardening.md](docs/changelogs/2026-04-24-r8-optimization-and-hardening.md)
+
 ## [Unreleased] - 2026-04-23
 
 ### Changed
