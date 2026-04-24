@@ -1,3 +1,5 @@
+val isMac = System.getProperty("os.name").lowercase().contains("mac")
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
@@ -30,6 +32,7 @@ kotlin {
         }
         val commonTest by getting {
             dependencies {
+                implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
@@ -48,6 +51,15 @@ kotlin {
                 implementation(libs.koin.android)
             }
         }
+        val iosMain by creating {
+            dependsOn(commonMain)
+        }
+        val iosArm64Main by getting {
+            dependsOn(iosMain)
+        }
+        val iosSimulatorArm64Main by getting {
+            dependsOn(iosMain)
+        }
     }
 }
 
@@ -64,4 +76,13 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Disable native compilation on non-Mac hosts to support Windows development (T010)
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile>().configureEach {
+    enabled = isMac
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink>().configureEach {
+    enabled = isMac
 }

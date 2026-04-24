@@ -16,12 +16,9 @@ import kotlinx.coroutines.launch
  */
 object Fido2Initializer {
     @OptIn(DelicateCoroutinesApi::class)
-    fun init(
-        context: Context,
-        isDebug: Boolean,
-    ) {
+    fun init(context: Context) {
         val writers = mutableListOf<LogWriter>()
-        if (isDebug) {
+        if (com.chimali.core.common.isDebug) {
             writers.add(LogcatWriter())
         }
 

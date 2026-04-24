@@ -40,6 +40,6 @@ class ChimaliApplication : Application() {
 
         // Initialize Timber logging and local crash reporting parameters.
         // We use BuildConfig's debug status from the app module.
-        Fido2Initializer.init(this, BuildConfig.DEBUG)
+        Fido2Initializer.init(this)
     }
 }

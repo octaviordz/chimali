@@ -256,7 +256,7 @@ internal fun DevelopmentToolsContent(
             )
 
             // ── DEBUG ONLY: Mnemonic / Master Seed ───────────────────────────
-            if (true) { // TODO: Replace with KMP debug flag
+            if (com.chimali.core.common.isDebug) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 Text(
                     text = "⚠ Dev-only — Master Seed",

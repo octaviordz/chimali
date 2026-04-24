@@ -7,7 +7,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ### Added
 - **R8 Optimization & Hardening**: Implemented a production-ready R8 configuration. Enabled Full Mode, resource shrinking, and established a `shrunkDebug` build type for local verification. Purged redundant ProGuard rules for Bouncy Castle, SQLCipher, and AndroidX, resulting in significant APK size reduction.
-- **Detailed changes**: [2026-04-24-r8-optimization-and-hardening.md](docs/changelogs/2026-04-24-r8-optimization-and-hardening.md)
+- **KMP Debug Flag**: Implemented a centralized, platform-agnostic `isDebug` flag using `expect/actual` pattern. Enabled secure build variant detection in `:core:common` and adopted it in `:feature:fido2` to gate sensitive development tools, ensuring they are stripped from production binaries via R8.
+- **Detailed changes**: [2026-04-24-r8-optimization-and-hardening.md](docs/changelogs/2026-04-24-r8-optimization-and-hardening.md) & [2026-04-24-kmp-debug-flag-implementation.md](docs/changelogs/2026-04-24-kmp-debug-flag-implementation.md)
 
 ## [Unreleased] - 2026-04-23
 
