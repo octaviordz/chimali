@@ -1,6 +1,6 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-[plan.md](file:///D:/octav/source/repos/Chimali/specs/017-detekt-quality-enforcement/plan.md)
+[plan.md](file:///d:/octav/source/repos/Chimali/specs/018-detekt-magic-number/plan.md)
 <!-- SPECKIT END -->
 
