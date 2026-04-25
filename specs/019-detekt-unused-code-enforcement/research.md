@@ -14,7 +14,21 @@
 - Research into the project structure confirms that generated code is primarily located under `**/build/generated/**`.
 - Standard Kotlin/Android patterns often use `**/build/**` and `**/generated/**` as top-level containers for build artifacts and tool-generated sources (e.g., KSP, Hilt).
 
-### 3. Suppression Strategy
+### 3. Baseline Violations (Hidden by Excludes)
+- **Module**: `:core:security`
+  - `UnusedPrivateMember`: `String.decodeHex()` in `HdkEcdhP256Test.kt:18`
+- **Module**: `:feature:fido2`
+  - `UnusedPrivateMember`: `fakeInfo()` in `Ctap2Fido21FlagsTest.kt:57`
+  - `UnusedPrivateProperty`: `responseBuilder` in `Ctap2Fido21FlagsTest.kt:30`
+  - `UnusedPrivateProperty`: `cid` in `Ctap2Fido21FlagsTest.kt:71`
+  - `UnusedPrivateProperty`: `MAX_MSG_SIZE_1200` in `Ctap2WindowsCompatibilityTest.kt:33`
+  - `UnusedPrivateProperty`: `MAX_CRED_COUNT_255` in `Ctap2WindowsCompatibilityTest.kt:34`
+  - `UnusedPrivateProperty`: `DAYS_31` in `RelyingPartyTest.kt:31`
+  - `UnusedPrivateProperty`: `DAYS_29` in `RelyingPartyTest.kt:33`
+  - `UnusedPrivateProperty`: `otherRpConsent` in `GetUserConsentUseCaseTest.kt:409`
+  - `UnusedPrivateProperty`: `updateCredentialLabelUseCase` in `CredentialManagementViewModelTest.kt:27`
+
+### 4. Suppression Strategy
 - Detekt supports `@Suppress("UnusedPrivateMember")` and `@Suppress("UnusedPrivateProperty")` annotations.
 - These can be applied at the file, class, or individual declaration level.
 
