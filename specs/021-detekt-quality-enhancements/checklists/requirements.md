@@ -31,4 +31,5 @@
 
 ## Notes
 
-- The specification is ready for planning.
+- Spec successfully amended with additional high-value quality rules (Logging hardening, Bug prevention, Performance, Maintainability).
+- Complexity threshold tightening omitted per user request.

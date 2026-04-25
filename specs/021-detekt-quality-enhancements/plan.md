@@ -3,57 +3,46 @@
 **Branch**: `021-detekt-quality-enhancements` | **Date**: 2026-04-25 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/021-detekt-quality-enhancements/spec.md`
 
-## Summary
+## Phase 1 (Original Scope)
 
-The goal of this feature is to strengthen the project's static analysis by enforcing higher standards for logging, idiomatic Kotlin usage, and string constant management. We will enable and configure three key Detekt rules (`ForbiddenMethodCall`, `UnnecessaryLet`/`UseLet`, and `StringLiteralDuplication`) to automate code quality gates that currently rely on manual review.
+### Summary
+The goal of this phase is to strengthen the project's static analysis by enforcing higher standards for logging, idiomatic Kotlin usage, and string constant management. We will enable and configure three key Detekt rules (`ForbiddenMethodCall`, `UnnecessaryLet`/`UseLet`, and `StringLiteralDuplication`) to automate code quality gates that currently rely on manual review.
 
-## Technical Context
-
+### Technical Context
 **Language/Version**: Kotlin 2.1.10  
 **Primary Dependencies**: Detekt 1.23.8  
-**Storage**: N/A  
-**Testing**: JUnit 5, MockK (for any potential rule-testing if needed)  
-**Target Platform**: Android (Min SDK 28) / Kotlin Multiplatform  
 **Project Type**: Mobile Application Infrastructure  
-**Performance Goals**: Negligible impact on Detekt execution time (< 5% increase)  
-**Constraints**: Rules must not flag legitimate test-code debugging or highly volatile UI strings.  
-**Scale/Scope**: Project-wide (all modules).
 
-## Constitution Check
+### Constitution Check
+1. **Principle III (Architecture & Quality)**: **PASS**.
+2. **Principle VIII (Local CI/CD)**: **PASS**.
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+---
 
-1. **Principle III (Architecture & Quality)**: **PASS**. The feature directly implements the requirement for mandatory static analysis and prohibition of "magic" constants (extending it to strings).
-2. **Principle VIII (Local CI/CD)**: **PASS**. These changes will automatically become part of the `tools/local-ci.ps1` gate, ensuring no code can be committed with these violations.
+## Phase 6-10 Addendum: Hardened Quality Gates (2026-04-25)
 
-## Project Structure
+### Summary
+Strengthen the project's static analysis by enforcing higher standards for logging, collection correctness, and performance optimization. We will enable and configure specific Detekt rules (`ForbiddenMethodCall`, `Deprecation`, `DontDowncastCollectionTypes`, `CouldBeSequence`, `WildcardImport`, and `StringShouldBeRawString`) to automate quality gates that currently require manual review.
 
-### Documentation (this feature)
+### Additional Constitution Check
+1. **Principle IV (Performance & Reliability)**: **PASS**. Enforces `CouldBeSequence` to ensure high-volume data processing (10k+ items) adheres to performance budgets.
 
-```text
-specs/021-detekt-quality-enhancements/
-├── plan.md              # This file
-├── research.md          # Research and rule thresholds
-├── data-model.md        # N/A (no data model changes)
-├── quickstart.md        # Update for new linting rules
-└── checklists/
-    └── requirements.md  # Spec validation checklist
-```
+### Proposed Changes (Addendum)
 
-### Source Code (repository root)
+#### [MODIFY] [detekt.yml](file:///D:/octav/source/repos/Chimali/config/detekt/detekt.yml)
+- Update `ForbiddenMethodCall` to include fully-qualified names and `android.util.Log` methods.
+- Enable `Deprecation` rule (excluding test source sets).
+- Enable `DontDowncastCollectionTypes`.
+- Enable `CouldBeSequence` with `threshold: 3`.
+- Remove internal wildcard exception for `com.chimali.fido2.presentation.ui.components.*`.
+- Enable `StringShouldBeRawString`.
 
-```text
-config/
-└── detekt/
-    └── detekt.yml       # Primary configuration file to be modified
-```
+## Verification Plan
 
-**Structure Decision**: We are modifying the global configuration file `config/detekt/detekt.yml`. This file is already shared across all modules in the project.
+### Automated Tests
+- Run `./gradlew detekt` to verify violations are caught.
+- Run `tools/local-ci.ps1` to ensure project-wide compliance.
 
-## Complexity Tracking
-
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| None | N/A | N/A |
+### Manual Verification
+- Deliberately introduce a `Log.d` call in a `main` source set and verify build failure.
+- Verify that `Logger.d { ... }` (Kermit) remains permitted.
