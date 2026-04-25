@@ -1,7 +1,7 @@
 build:
   maxIssues: 0
   excludeCorrectable: false
-  excludes: "**/build/**,**/resources/**,**/reports/**,**/build/generated/**"
+  excludes: "**/build/**,**/resources/**,**/reports/**"
   weights:
     # complexity: 2
     # LongParameterList: 1
@@ -12,7 +12,7 @@ config:
   validation: true
   warningsAsErrors: false
   checkExhaustiveness: false
-  excludes: '.*/build/.*,.*/resources/.*,.*/build/reports/.*,.*/build/generated/.*'
+  excludes: '.*/build/.*,.*/resources/.*,.*/build/reports/.*'
 
 processors:
   active: true
@@ -612,7 +612,7 @@ style:
     maxJumpCount: 1
   MagicNumber:
     active: true
-    excludes: ['**/build/generated/**', '**/*Generated.kt', '**/*.kts']
+    excludes: ['**/build/**', '**/*Generated.kt', '**/*.kts']
     ignoreNumbers:
       - '-1'
       - '0'
@@ -640,7 +640,7 @@ style:
     excludeImportStatements: true
     excludeCommentStatements: false
     excludeRawStrings: true
-    excludes: ['**/build/generated/**']
+    excludes: ['**/build/**']
   MayBeConst:
     active: true
   ModifierOrder:
@@ -745,12 +745,12 @@ style:
     active: true
     allowedNames: ''
     # Tests are enforced. Exclude generated code to prevent build blocks.
-    excludes: ['**/build/**', '**/generated/**']
+    excludes: ['**/build/**']
   UnusedPrivateProperty:
     active: true
     allowedNames: '_|ignored|expected|serialVersionUID'
     # Tests are enforced. Exclude generated code to prevent build blocks.
-    excludes: ['**/build/**', '**/generated/**']
+    excludes: ['**/build/**']
   UseAnyOrNoneInsteadOfFind:
     active: true
   UseArrayLiteralsInAnnotations:
