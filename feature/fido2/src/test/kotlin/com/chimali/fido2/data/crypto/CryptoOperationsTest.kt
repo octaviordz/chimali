@@ -98,7 +98,9 @@ class CryptoOperationsTest {
 
     @Test
     fun `computeHashFromJson matches SHA-256 of same string`() {
-        val json = """{"type":"webauthn.create","challenge":"AAEC","origin":"https://example.com","crossOrigin":false}"""
+        val json =
+            """{"type":"webauthn.create","challenge":"AAEC",""" +
+                """"origin":"https://example.com","crossOrigin":false}"""
         val expected = MessageDigest.getInstance("SHA-256").digest(json.toByteArray(Charsets.UTF_8))
         val actual = clientDataHashService.computeHashFromJson(json)
         assertContentEquals(expected, actual)

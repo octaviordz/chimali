@@ -1,9 +1,9 @@
 package com.chimali.fido2.data.crypto
 
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * T017a — Smoke-test that the PostQuantumCrypto class initializes and

@@ -47,7 +47,7 @@ if (-not $SkipLint) {
 if (-not $SkipTests) {
     # Comprehensive compilation check (Production + Unit Tests + Instrumented Tests)
     # This catches errors across all module types (KMP and standard Android)
-    Run-Task "Compile All" "./gradlew compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTestSources compileDebugAndroidTestSources compileAndroidDeviceTestSources --continue"
+    Run-Task "Compile All" "./gradlew compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
     
     Run-Task "Unit Tests" "./gradlew test"
 }

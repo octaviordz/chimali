@@ -1,6 +1,5 @@
 package com.chimali.fido2.domain.model
 
-import org.junit.jupiter.api.Nested
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -11,6 +10,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class UserConsentRecordTest {
     private lateinit var testTimestamp: Instant

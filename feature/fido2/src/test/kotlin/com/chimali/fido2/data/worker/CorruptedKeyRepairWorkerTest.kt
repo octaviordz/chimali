@@ -3,9 +3,9 @@ package com.chimali.fido2.data.worker
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlinx.coroutines.test.runTest
 
 class CorruptedKeyRepairWorkerTest {
     private val worker = mockk<CorruptedKeyRepairWorker>(relaxed = true)

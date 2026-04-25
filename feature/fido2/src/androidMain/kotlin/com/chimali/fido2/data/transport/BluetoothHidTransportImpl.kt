@@ -24,7 +24,6 @@ import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
-import org.koin.core.annotation.Single
 import java.security.SecureRandom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.Single
 
 /**
  * Central FIDO2 HID transport layer (T053 + T054).
@@ -451,6 +451,7 @@ class BluetoothHidTransportImpl(
                 try {
                     state.device.name
                 } catch (e: SecurityException) {
+                    Logger.w(e) { "BluetoothHidTransport: Failed to get device name" }
                     null
                 }
 
@@ -460,6 +461,7 @@ class BluetoothHidTransportImpl(
                 try {
                     state.device.bluetoothClass?.deviceClass
                 } catch (e: SecurityException) {
+                    Logger.w(e) { "BluetoothHidTransport: Failed to get bluetooth class" }
                     null
                 }
 
@@ -587,6 +589,7 @@ class BluetoothHidTransportImpl(
                 apdu.copyOfRange(7, 7 + lc)
             }
         } catch (e: Exception) {
+            Logger.e(e) { "BluetoothHidTransport: APDU data extraction failed" }
             null
         }
     }

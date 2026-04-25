@@ -10,7 +10,6 @@ class DatabaseSchemaTest {
         // This is a basic compilation test - actual database tests would require SQLDelight runtime
         runCatching {
             // Verify schema files exist and are parseable
-            val schemaPath = "src/main/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq"
             // In a real test, we'd use SQLDelight's schema validation
         }.getOrThrow()
     }

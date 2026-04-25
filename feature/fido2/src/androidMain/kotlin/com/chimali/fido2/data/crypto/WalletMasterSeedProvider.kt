@@ -7,12 +7,12 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.hdkeys.P256Group
-import org.koin.core.annotation.Single
 import java.math.BigInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.koin.core.annotation.Single
 
 private const val PREFS_FILE_NAME = "chimali_wallet_seed"
 private const val KEY_MNEMONIC = "bip39_mnemonic"

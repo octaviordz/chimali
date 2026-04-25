@@ -3,7 +3,6 @@ package com.chimali.core.clipboard
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -11,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.koin.core.annotation.Single
 
 @Single(binds = [ClipboardManagerService::class])
 class AndroidClipboardManagerService(

@@ -1,18 +1,14 @@
-﻿package com.chimali.fido2.data.repository
+package com.chimali.fido2.data.repository
 
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
-import com.chimali.fido2.domain.repository.RelyingPartyRepository
-import com.chimali.fido2.domain.repository.UserConsentRepository
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
+import org.koin.core.annotation.Single
 
 @Single
 class Fido2RepositoryImpl(
     private val credentialRepository: PasskeyCredentialRepository,
-    private val relyingPartyRepository: RelyingPartyRepository,
-    private val consentRepository: UserConsentRepository,
 ) : Fido2Repository {
     override suspend fun registerCredential(
         rpId: String,

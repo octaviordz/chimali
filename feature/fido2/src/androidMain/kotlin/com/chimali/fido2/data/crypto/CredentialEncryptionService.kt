@@ -2,7 +2,6 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.fido2.data.service.CredentialStorageService
 import com.chimali.fido2.domain.exception.Fido2Exception
-import org.koin.core.annotation.Single
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -12,6 +11,7 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.core.annotation.Single
 
 /**
  * Service for encrypting and decrypting sensitive credential data.
@@ -28,6 +28,10 @@ class CredentialEncryptionService(
         private const val GCM_TAG_LENGTH = 16 // 128 bits
         private const val KEY_SIZE_AES = 256
         private const val MASTER_KEY_ALIAS = "fido2_master_encryption_key"
+
+        private const val BITS_PER_BYTE = 8
+        private const val HKDF_BLOCK_SIZE = 32
+        private const val HKDF_ROUND_UP_OFFSET = 31
     }
 
     private val secureRandom = SecureRandom()
@@ -54,7 +58,7 @@ class CredentialEncryptionService(
 
                 // Initialize cipher for encryption
                 val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
-                val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * 8, iv)
+                val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * BITS_PER_BYTE, iv)
                 cipher.init(Cipher.ENCRYPT_MODE, masterKey, gcmSpec)
 
                 // Add associated data if provided
@@ -96,7 +100,7 @@ class CredentialEncryptionService(
 
                 // Initialize cipher for decryption
                 val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
-                val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * 8, encryptedData.iv)
+                val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * BITS_PER_BYTE, encryptedData.iv)
                 cipher.init(Cipher.DECRYPT_MODE, masterKey, gcmSpec)
 
                 // Add associated data if provided
@@ -269,7 +273,7 @@ class CredentialEncryptionService(
 
             // Initialize cipher for encryption
             val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
-            val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * 8, iv)
+            val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * BITS_PER_BYTE, iv)
             cipher.init(Cipher.ENCRYPT_MODE, derivedKey, gcmSpec)
 
             // Encrypt the data
@@ -300,7 +304,7 @@ class CredentialEncryptionService(
 
             // Initialize cipher for decryption
             val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
-            val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * 8, encryptedData.iv)
+            val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH * BITS_PER_BYTE, encryptedData.iv)
             cipher.init(Cipher.DECRYPT_MODE, derivedKey, gcmSpec)
 
             // Decrypt the data
@@ -317,8 +321,7 @@ class CredentialEncryptionService(
      */
     suspend fun rotateMasterKey(): Result<Unit> {
         return try {
-            // Generate new master key
-            val newMasterKey = generateMasterKey("fido2_master_encryption_key_v2")
+            generateMasterKey()
 
             // In a real implementation, you would:
             // 1. Re-encrypt all existing data with the new key
@@ -336,7 +339,7 @@ class CredentialEncryptionService(
      * Gets or creates the master encryption key.
      */
     private suspend fun getOrCreateMasterKey(): SecretKey {
-        return getMasterKey() ?: generateMasterKey(MASTER_KEY_ALIAS).getOrThrow()
+        return getMasterKey() ?: generateMasterKey().getOrThrow()
     }
 
     /**
@@ -347,8 +350,9 @@ class CredentialEncryptionService(
             credentialStorageService.keyExists(MASTER_KEY_ALIAS)
             // In a real implementation, you would retrieve the actual key from KeyStore
             // For now, we'll generate a temporary key for demonstration
-            generateMasterKey(MASTER_KEY_ALIAS).getOrNull()
+            generateMasterKey().getOrNull()
         } catch (e: Exception) {
+            co.touchlab.kermit.Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
             null
         }
     }
@@ -356,7 +360,7 @@ class CredentialEncryptionService(
     /**
      * Generates a new master encryption key.
      */
-    private suspend fun generateMasterKey(alias: String): Result<SecretKey> {
+    private suspend fun generateMasterKey(): Result<SecretKey> {
         return try {
             val keyGenerator = KeyGenerator.getInstance(ALGORITHM_AES)
             keyGenerator.init(KEY_SIZE_AES)
@@ -390,7 +394,7 @@ class CredentialEncryptionService(
         // Expand
         val result = mutableListOf<Byte>()
         var t = ByteArray(0)
-        val iterations = (outputLength + 31) / 32 // 32 bytes per hash
+        val iterations = (outputLength + HKDF_ROUND_UP_OFFSET) / HKDF_BLOCK_SIZE // 32 bytes per hash
 
         for (i in 1..iterations) {
             hmacSha256.init(javax.crypto.spec.SecretKeySpec(prk, "HmacSHA256"))
@@ -418,7 +422,8 @@ class CredentialEncryptionService(
      */
     private fun serializeMetadata(metadata: CredentialMetadata): String {
         // Simplified JSON serialization
-        return """{"rpId":"${metadata.rpId}","userId":"${metadata.userId}","userName":"${metadata.userName}","userDisplayName":"${metadata.userDisplayName}"}"""
+        return """{"rpId":"${metadata.rpId}","userId":"${metadata.userId}",""" +
+            """"userName":"${metadata.userName}","userDisplayName":"${metadata.userDisplayName}"}"""
     }
 
     /**

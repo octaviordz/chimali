@@ -1,9 +1,9 @@
 package com.chimali.fido2.data.crypto
 
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
-import org.koin.core.annotation.Single
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+import org.koin.core.annotation.Single
 
 /**
  * Minimal RFC 7049 (CBOR) codec for the CTAP2 HID protocol.
@@ -81,6 +81,15 @@ class CborCodec {
         private const val UINT8_MAX = 0xFFL
         private const val UINT16_MAX = 0xFFFFL
         private const val UINT32_MAX = 0xFFFFFFFFL
+
+        private const val OFFSET_X = 1
+        private const val OFFSET_Y = 33
+
+        private const val COSE_KEY_KTY = 0x01
+        private const val COSE_KEY_ALG = 0x03
+        private const val COSE_KTY_EC2 = 0x02
+        private const val COSE_KTY_OKP = 0x01
+        private const val COSE_CRV_P256 = 0x01
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
@@ -125,23 +134,24 @@ class CborCodec {
      */
     fun encodeCosePublicKeyFromUncompressed(uncompressedPoint: ByteArray): ByteArray {
         require(uncompressedPoint.size == SIZE_65 && uncompressedPoint[0] == UNCOMPRESSED_EC_PREFIX) {
-            "Expected 65-byte uncompressed point starting with 0x04, got ${uncompressedPoint.size} bytes"
+            "Expected $SIZE_65-byte uncompressed point starting with $UNCOMPRESSED_EC_PREFIX, " +
+                "got ${uncompressedPoint.size} bytes"
         }
-        val x = uncompressedPoint.copyOfRange(1, 33)
-        val y = uncompressedPoint.copyOfRange(33, 65)
+        val x = uncompressedPoint.copyOfRange(OFFSET_X, OFFSET_Y)
+        val y = uncompressedPoint.copyOfRange(OFFSET_Y, SIZE_65)
         val out = ByteArrayOutputStream()
         // CBOR map with 5 entries
         out.write(COSE_MAP_SIZE_5) // map(5)
 
         // kty: 1 = 2 (EC2)
-        out.write(0x01) // uint(1) - kty
-        out.write(0x02) // uint(2) - EC2
+        out.write(COSE_KEY_KTY) // uint(1) - kty
+        out.write(COSE_KTY_EC2) // uint(2) - EC2
         // alg: 3 = -7 (ES256)  → CBOR negative = 0x20 | ((-7) - 1 negated) = 0x26
-        out.write(0x03) // uint(3) - alg
+        out.write(COSE_KEY_ALG) // uint(3) - alg
         out.write(NEG_INT_7) // negative int -7 (0x20 | 6)
         // crv: -1 = 1 (P-256)  → key -1 = 0x20 | 0 = 0x20
         out.write(NEG_INT_1) // negative int -1 (key crv)
-        out.write(0x01) // uint(1) - P-256
+        out.write(COSE_CRV_P256) // uint(1) - P-256
 
         // x: -2 as key, then 32-byte bstr
         out.write(NEG_INT_2) // negative int -2 (key x)
@@ -174,11 +184,11 @@ class CborCodec {
         out.write(COSE_MAP_SIZE_3) // map(3)
 
         // kty: 1 = 7 (AKP)
-        out.write(0x01) // uint(1) - kty
+        out.write(COSE_KEY_KTY) // uint(1) - kty
         out.write(COSE_KTY_AKP) // uint(7) - AKP
 
         // alg: 3 = -49
-        out.write(0x03) // uint(3) - alg
+        out.write(COSE_KEY_ALG) // uint(3) - alg
         // -49 = 0x38 0x30 (negative 48)
         out.write(NEG_INT_49_LEAD) // negative int
         out.write(NEG_INT_49_TAIL)
@@ -208,11 +218,11 @@ class CborCodec {
         out.write(COSE_MAP_SIZE_4) // map(4)
 
         // kty: 1 = 1 (OKP)
-        out.write(0x01) // uint(1) - kty
-        out.write(0x01) // uint(1) - OKP
+        out.write(COSE_KEY_KTY) // uint(1) - kty
+        out.write(COSE_KTY_OKP) // uint(1) - OKP
 
         // alg: 3 = -19
-        out.write(0x03) // uint(3) - alg
+        out.write(COSE_KEY_ALG) // uint(3) - alg
         out.write(NEG_INT_19) // negative int -19 (0x20 | 18)
 
         // crv: -1 = 6 (Ed25519)

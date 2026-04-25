@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.model
 
+import co.touchlab.kermit.Logger
 import java.net.URI
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -81,6 +82,7 @@ data class RelyingParty(
             val host = uri.host ?: return id
             if (uri.port != -1) "$host:${uri.port}" else host
         } catch (e: Exception) {
+            Logger.w(e) { "RelyingParty: Failed to parse domain from RP ID: $id" }
             id
         }
     }
@@ -151,6 +153,7 @@ data class RelyingParty(
                         val uri = URI.create(id)
                         uri.host ?: id
                     } catch (e: Exception) {
+                        Logger.w(e) { "RelyingParty: Failed to extract host from id: $id during creation" }
                         id
                     }
                 }
@@ -181,6 +184,7 @@ data class RelyingParty(
                         (rpId.contains('.') && !rpId.contains(' '))
                 }
             } catch (e: Exception) {
+                Logger.e(e) { "RelyingParty: Validation failed for RP ID: $rpId" }
                 false
             }
         }

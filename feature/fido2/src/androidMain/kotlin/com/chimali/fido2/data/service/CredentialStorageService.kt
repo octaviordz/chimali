@@ -1,12 +1,13 @@
 package com.chimali.fido2.data.service
 
+import co.touchlab.kermit.Logger
 import com.chimali.fido2.domain.exception.Fido2Exception
-import org.koin.core.annotation.Single
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
+import org.koin.core.annotation.Single
 
 /**
  * Provides symmetric AES-CBC encryption and decryption for local credential metadata.
@@ -32,10 +33,7 @@ class CredentialStorageService {
 
     // ── Symmetric (AES) operations — used by CredentialEncryptionService ─────
 
-    /**
-     * Generates a symmetric AES key for encrypting sensitive data.
-     */
-    suspend fun generateEncryptionKey(alias: String): Result<SecretKey> {
+    suspend fun generateEncryptionKey(): Result<SecretKey> {
         return try {
             val keyGenerator = KeyGenerator.getInstance(KEY_ALGORITHM_AES)
             keyGenerator.init(KEY_SIZE_AES)
@@ -53,6 +51,7 @@ class CredentialStorageService {
         return try {
             keyStore.containsAlias(alias)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialStorageService: Error checking if key exists: $alias" }
             false
         }
     }

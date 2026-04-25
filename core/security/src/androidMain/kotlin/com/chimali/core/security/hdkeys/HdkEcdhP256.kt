@@ -3,11 +3,11 @@ package com.chimali.core.security.hdkeys
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
-import org.bouncycastle.math.ec.ECPoint
-import org.koin.core.annotation.Single
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.security.SecureRandom
+import org.bouncycastle.math.ec.ECPoint
+import org.koin.core.annotation.Single
 
 /**
  * HDK-ECDH-P256 instantiation as defined in draft-dijkhuis-cfrg-hdkeys-06.

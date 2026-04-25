@@ -1,6 +1,5 @@
 package com.chimali.fido2.domain.model
 
-import org.junit.jupiter.api.Nested
 import java.security.KeyPairGenerator
 import java.time.Instant
 import kotlin.test.BeforeTest
@@ -13,6 +12,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class PasskeyCredentialTest {
     private lateinit var testPublicKey: java.security.PublicKey

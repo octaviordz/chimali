@@ -1,8 +1,8 @@
 package com.chimali.core.domain.time
 
-import org.koin.core.annotation.Single
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import org.koin.core.annotation.Single
 
 @Single
 class TimeProvider {

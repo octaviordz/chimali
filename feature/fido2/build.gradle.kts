@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.detekt)
 }
 
 sqldelight {

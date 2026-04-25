@@ -7,7 +7,6 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
-import org.junit.jupiter.api.AfterEach
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,6 +22,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CredentialManagementViewModelTest {

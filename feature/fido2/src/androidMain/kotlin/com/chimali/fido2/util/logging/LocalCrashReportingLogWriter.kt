@@ -2,12 +2,12 @@ package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
-import okio.FileSystem
-import okio.Path
-import okio.buffer
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import okio.FileSystem
+import okio.Path
+import okio.buffer
 
 /**
  * Local-only crash reporting mechanism (no cloud sync).

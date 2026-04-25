@@ -84,7 +84,7 @@ class AuthenticatorDataBuilder {
         extensions: ByteArray? = null,
     ): ByteArray {
         Logger.d { "Building attestation authData for rpId=$rpId credLen=${credentialId.size}" }
-        require(aaguid.size == 16) { "AAGUID must be 16 bytes" }
+        require(aaguid.size == AAGUID_SIZE) { "AAGUID must be $AAGUID_SIZE bytes" }
 
         val rpIdHash = rpIdHash(rpId)
         val flags = assembleFlags(up = userPresent, uv = userVerified, at = true, ed = extensions != null)
@@ -106,19 +106,19 @@ class AuthenticatorDataBuilder {
         ed: Boolean,
     ): Byte {
         var flags = 0
-        if (up) flags = flags or 0x01
-        if (uv) flags = flags or 0x04
-        if (at) flags = flags or 0x40
-        if (ed) flags = flags or 0x80
+        if (up) flags = flags or FLAG_UP
+        if (uv) flags = flags or FLAG_UV
+        if (at) flags = flags or FLAG_AT
+        if (ed) flags = flags or FLAG_ED
         return flags.toByte()
     }
 
     private fun encodeCounter(signCount: Long): ByteArray =
         byteArrayOf(
-            ((signCount shr 24) and 0xFF).toByte(),
-            ((signCount shr 16) and 0xFF).toByte(),
-            ((signCount shr 8) and 0xFF).toByte(),
-            (signCount and 0xFF).toByte(),
+            ((signCount shr SHIFT_24) and MASK_BYTE_LONG).toByte(),
+            ((signCount shr SHIFT_16) and MASK_BYTE_LONG).toByte(),
+            ((signCount shr SHIFT_8) and MASK_BYTE_LONG).toByte(),
+            (signCount and MASK_BYTE_LONG).toByte(),
         )
 
     /**
@@ -132,13 +132,26 @@ class AuthenticatorDataBuilder {
     ): ByteArray {
         val credIdLen =
             byteArrayOf(
-                ((credentialId.size shr 8) and 0xFF).toByte(),
-                (credentialId.size and 0xFF).toByte(),
+                ((credentialId.size shr SHIFT_8) and MASK_BYTE).toByte(),
+                (credentialId.size and MASK_BYTE).toByte(),
             )
         return aaguid + credIdLen + credentialId + cosePublicKey
     }
 
     companion object {
+        private const val FLAG_UP = 0x01
+        private const val FLAG_UV = 0x04
+        private const val FLAG_AT = 0x40
+        private const val FLAG_ED = 0x80
+
+        private const val MASK_BYTE = 0xFF
+        private const val MASK_BYTE_LONG = 0xFFL
+        private const val SHIFT_24 = 24
+        private const val SHIFT_16 = 16
+        private const val SHIFT_8 = 8
+
+        private const val AAGUID_SIZE = 16
+
         fun minimumAuthDataLength() = AUTH_DATA_MIN_LENGTH
     }
 }

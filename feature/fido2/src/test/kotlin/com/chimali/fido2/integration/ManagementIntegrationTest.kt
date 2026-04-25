@@ -10,7 +10,6 @@ import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
 import io.mockk.coEvery
 import io.mockk.mockk
-import org.junit.jupiter.api.AfterEach
 import java.security.KeyPairGenerator
 import java.time.Instant
 import kotlin.test.BeforeTest
@@ -30,6 +29,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
 
 /**
  * T126 — Integration tests for FIDO2 Credential Management flow.

@@ -15,12 +15,12 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * T082 — Unit tests for [GetAssertionUseCase].
@@ -75,7 +75,13 @@ class GetAssertionUseCaseTest {
                 biometricStrength = BiometricStrength.STRONG,
             )
 
-        useCase = GetAssertionUseCase(credentialRepository, userVerificationService, selectCredentialUseCase, cryptoService)
+        useCase =
+            GetAssertionUseCase(
+                credentialRepository,
+                userVerificationService,
+                selectCredentialUseCase,
+                cryptoService,
+            )
     }
 
     private fun createOptions(

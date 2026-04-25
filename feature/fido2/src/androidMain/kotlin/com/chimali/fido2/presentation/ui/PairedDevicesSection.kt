@@ -3,7 +3,12 @@ package com.chimali.fido2.presentation.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -14,8 +19,28 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Watch
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -23,10 +48,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
-import org.koin.compose.viewmodel.koinViewModel
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -224,6 +249,11 @@ private fun PairedDeviceItem(
     }
 }
 
+private const val MAJOR_CLASS_MASK = 0x1F00
+private const val MAJOR_CLASS_COMPUTER = 0x0100
+private const val MAJOR_CLASS_PHONE = 0x0200
+private const val MAJOR_CLASS_WEARABLE = 0x0700
+
 /**
  * Maps a raw Bluetooth Device Class integer into a specific Material Icon.
  */
@@ -231,11 +261,11 @@ private fun PairedDeviceItem(
 private fun getDeviceIcon(deviceClass: Int?): Pair<androidx.compose.ui.graphics.vector.ImageVector, String> {
     if (deviceClass == null) return Icons.Default.Bluetooth to "Generic Bluetooth device"
 
-    // The major class is stored in bits 8-12. Masking with 0x1F00 extracts these bits.
-    return when (deviceClass and 0x1F00) {
-        0x0100 -> Icons.Default.Computer to "Computer"
-        0x0200 -> Icons.Default.Smartphone to "Phone"
-        0x0700 -> Icons.Default.Watch to "Wearable"
+    // The major class is stored in bits 8-12. Masking extracts these bits.
+    return when (deviceClass and MAJOR_CLASS_MASK) {
+        MAJOR_CLASS_COMPUTER -> Icons.Default.Computer to "Computer"
+        MAJOR_CLASS_PHONE -> Icons.Default.Smartphone to "Phone"
+        MAJOR_CLASS_WEARABLE -> Icons.Default.Watch to "Wearable"
         else -> Icons.Default.Bluetooth to "Generic Bluetooth device"
     }
 }

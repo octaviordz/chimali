@@ -1,7 +1,7 @@
 package com.chimali.core.security.hdkeys
 
-import org.bouncycastle.math.ec.ECPoint
 import java.math.BigInteger
+import org.bouncycastle.math.ec.ECPoint
 
 /**
  * Multiplicative key blinding scheme for HDK-ECDH-P256.

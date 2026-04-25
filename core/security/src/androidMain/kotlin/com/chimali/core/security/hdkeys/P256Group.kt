@@ -1,10 +1,10 @@
 package com.chimali.core.security.hdkeys
 
+import java.math.BigInteger
+import java.security.SecureRandom
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.ec.CustomNamedCurves
 import org.bouncycastle.math.ec.ECPoint
-import java.math.BigInteger
-import java.security.SecureRandom
 
 /**
  * P-256 (secp256r1) prime-order group operations.

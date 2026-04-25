@@ -1,8 +1,8 @@
 package com.chimali.fido2.util.logging
 
+import kotlin.test.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import kotlin.test.Test
 
 class PrivacyLogScrubberTest {
     @Test
@@ -22,7 +22,9 @@ class PrivacyLogScrubberTest {
 
     @Test
     fun `scrub completely masks 12 word mnemonics`() {
-        val sensitiveMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+        val sensitiveMnemonic =
+            "abandon abandon abandon abandon abandon abandon " +
+                "abandon abandon abandon abandon abandon art"
         val message = "Seed recovery failed: $sensitiveMnemonic"
 
         val scrubbed = PrivacyLogScrubber.scrub(message)
@@ -49,6 +51,8 @@ class PrivacyLogScrubberTest {
 
         val scrubbed1 = PrivacyLogScrubber.scrub(message1)
         val scrubbed2 = PrivacyLogScrubber.scrub(message2)
+
+        assertEquals(message1, scrubbed1)
 
         // Given our regex `(?i)(password)\s*[:=]\s*([^\s,;&]+)`
         // Oh wait, the first one does not match '=' or ':', let's check

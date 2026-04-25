@@ -5,9 +5,9 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import org.koin.core.annotation.Single
 import java.security.MessageDigest
 import kotlinx.coroutines.flow.first
+import org.koin.core.annotation.Single
 
 /**
  * T117, T118 — CTAP2 authenticatorCredentialManagement (0x0A) handler.

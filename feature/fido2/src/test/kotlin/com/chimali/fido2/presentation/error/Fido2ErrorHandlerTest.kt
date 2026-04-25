@@ -1,10 +1,10 @@
 package com.chimali.fido2.presentation.error
 
 import com.chimali.fido2.domain.exception.Fido2Exception
+import kotlin.test.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import kotlin.test.Test
 
 class Fido2ErrorHandlerTest {
     private companion object {

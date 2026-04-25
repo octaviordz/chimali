@@ -10,11 +10,10 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.UserConsentRecord
 import io.mockk.Runs
-import io.mockk.any
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.just
 import io.mockk.mockk
-import org.junit.jupiter.api.Nested
 import java.security.KeyPairGenerator
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -24,6 +23,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class CredentialRepositoryImplTest {
     private lateinit var passkeyCredentialDao: PasskeyCredentialDao
@@ -173,7 +173,8 @@ class CredentialRepositoryImplTest {
         @Test
         fun `should retrieve credentials by rp id`() =
             runTest {
-                coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns flowOf(listOf(testEntity))
+                coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns
+                    flowOf(listOf(testEntity))
 
                 val flow = repository.getCredentialsByRpId(testCredential.rpId)
                 val result = mutableListOf<PasskeyCredential>()
@@ -220,7 +221,8 @@ class CredentialRepositoryImplTest {
         @Test
         fun `should delete all credentials by rpId`() =
             runTest {
-                coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns flowOf(listOf(testEntity))
+                coEvery { passkeyCredentialDao.getCredentialsByRpId(testCredential.rpId) } returns
+                    flowOf(listOf(testEntity))
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.deleteAllCredentials(testCredential.rpId)
 

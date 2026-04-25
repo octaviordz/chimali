@@ -9,9 +9,9 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.repository.CredentialStatistics
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.koin.core.annotation.Single
 
 @Single
 class PasskeyCredentialRepositoryImpl(

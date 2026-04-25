@@ -17,8 +17,8 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.LatencyProfiler
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.CompletableDeferred
+import org.koin.core.annotation.Single
 
 /**
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
@@ -114,6 +114,7 @@ class Ctap2MakeCredentialHandler(
 
     // ── Request decoding ──────────────────────────────────────────────────────
 
+    @Suppress("ThrowsCount")
     private fun decodeMakeCredentialRequest(cbor: ByteArray): MakeCredentialRequest {
         val map =
             cborCodec.decodeFromFido2Format(cbor)

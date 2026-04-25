@@ -1,6 +1,11 @@
 package com.chimali.fido2.domain.service
 
-import com.chimali.fido2.domain.model.*
+import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.AttestationObject
+import com.chimali.fido2.domain.model.AuthenticatorTransport
+import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
 
 /**

@@ -1,16 +1,20 @@
 package com.chimali.fido2.domain.usecase
 
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.model.*
-import com.chimali.fido2.domain.model.UserVerificationRequirement
-import com.chimali.fido2.domain.model.VerificationMethod
+import com.chimali.fido2.domain.model.ConsentMethod
+import com.chimali.fido2.domain.model.ConsentOperationType
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.repository.CredentialRepository
-import com.chimali.fido2.domain.service.*
-import org.koin.core.annotation.Factory
+import com.chimali.fido2.domain.service.UserVerificationRequirement
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.VerificationContext
+import com.chimali.fido2.domain.service.VerificationMethod
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.toList
+import org.koin.core.annotation.Factory
 
 /**
  * Use case for managing user consent in FIDO2 operations.

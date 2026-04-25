@@ -10,12 +10,14 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
     - Hardened project gates by enabling `ForbiddenImport` (banning `android.util.Log` in favor of Kermit), `ForbiddenMethodCall` (banning `println`), `DontDowncastCollectionTypes`, and `StringShouldBeRawString`.
     - Expanded all internal wildcard imports across the FIDO2 module and established a project-wide ban on new wildcards.
     - Standardized string threshold for raw strings to **5** to balance readability for JSON fragments.
+- **CI Pipeline Hardening**: Updated `local-ci.ps1` to correctly trigger and report KMP Android compilation errors by replacing ineffective lifecycle tasks with actual compilation tasks.
+- **FIDO2 Test Stability**: Resolved "Unresolved reference 'any'" errors in FIDO2 tests caused by MockK/Kotlin resolution ambiguities in the current project environment.
 - **Code Polish & Refactoring**:
     - Refactored `RegisterCredentialUseCase` from nested `if/else` to idiomatic guard clauses.
     - Migrated `Fido2Initializer` to structured concurrency (feature-scoped coroutines).
     - Renamed `Services.kt` to `CryptoService.kt` for domain clarity.
     - Purged unused dependencies, mocks, and scratch files from the `fido2` module.
-- **Detailed changes**: [2026-04-25-detekt-quality-hardening-and-code-polish.md](docs/changelogs/2026-04-25-detekt-quality-hardening-and-code-polish.md)
+- **Detailed changes**: [2026-04-25-detekt-quality-hardening-and-code-polish.md](docs/changelogs/2026-04-25-detekt-quality-hardening-and-code-polish.md) & [2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md](docs/changelogs/2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md)
 
 ## [Unreleased] - 2026-04-24
 

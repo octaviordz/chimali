@@ -3,12 +3,12 @@
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.domain.usecase.SavePairedDeviceUseCase
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.koin.core.annotation.Single
 
 /**
  * Singleton coordinator that listens to FIDO2 events across the application

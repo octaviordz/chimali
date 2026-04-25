@@ -5,10 +5,10 @@ import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
 import com.chimali.fido2.domain.model.ConsentOperationType
 import com.chimali.fido2.domain.model.UserConsentRecord
-import org.koin.core.annotation.Single
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.koin.core.annotation.Single
 
 /**
  * Data Access Object for UserConsentRecord entities using SQLDelight.

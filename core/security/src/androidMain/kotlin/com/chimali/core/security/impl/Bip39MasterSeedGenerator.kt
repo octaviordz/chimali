@@ -2,11 +2,11 @@ package com.chimali.core.security.impl
 
 import android.content.Context
 import com.chimali.core.security.api.MasterSeedGenerator
-import org.koin.core.annotation.Single
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
+import org.koin.core.annotation.Single
 
 /**
  * BIP39-compliant implementation of [MasterSeedGenerator].

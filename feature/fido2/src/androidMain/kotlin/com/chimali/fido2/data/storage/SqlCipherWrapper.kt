@@ -1,16 +1,15 @@
-﻿package com.chimali.fido2.data.storage
+package com.chimali.fido2.data.storage
 
-import android.content.Context
-import org.koin.core.annotation.Single
+import co.touchlab.kermit.Logger
 import java.security.SecureRandom
+import org.koin.core.annotation.Single
 
 @Single
-class SqlCipherWrapper(
-    private val context: Context,
-) {
+class SqlCipherWrapper {
     private val secureRandom = SecureRandom()
 
     // Simplified implementation for now
+    @Suppress("FunctionOnlyReturningConstant")
     fun createSupportFactory(password: String): Any {
         // Return placeholder for SQLCipher SupportFactory
         return "SQLCipherSupportFactory"
@@ -32,6 +31,7 @@ class SqlCipherWrapper(
             // In a real implementation, this would open and verify the database
             dbPath.isNotEmpty() && password.isNotEmpty()
         } catch (e: Exception) {
+            Logger.e(e) { "SqlCipherWrapper: Database integrity verification failed for $dbPath" }
             false
         }
     }

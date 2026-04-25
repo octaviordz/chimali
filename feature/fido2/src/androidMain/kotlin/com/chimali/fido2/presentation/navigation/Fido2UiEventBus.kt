@@ -2,11 +2,11 @@ package com.chimali.fido2.presentation.navigation
 
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import org.koin.core.annotation.Single
 
 /**
  * Bridges low-level CTAP2 events (from transport) to the Compose UI layer.

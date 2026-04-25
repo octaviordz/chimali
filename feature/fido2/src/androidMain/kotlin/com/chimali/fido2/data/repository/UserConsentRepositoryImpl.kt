@@ -2,9 +2,9 @@ package com.chimali.fido2.data.repository
 
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.repository.UserConsentRepository
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import org.koin.core.annotation.Single
 
 @Single
 class UserConsentRepositoryImpl : UserConsentRepository {

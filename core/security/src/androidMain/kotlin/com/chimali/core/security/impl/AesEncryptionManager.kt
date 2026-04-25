@@ -1,11 +1,11 @@
 package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.EncryptionManager
-import org.koin.core.annotation.Single
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
 
 @Single
 class AesEncryptionManager : EncryptionManager {

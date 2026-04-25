@@ -11,10 +11,10 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
-import org.junit.Rule
-import org.junit.Test
 import java.security.PublicKey
 import java.time.Instant
+import org.junit.Rule
+import org.junit.Test
 
 class CredentialListScreenTest {
     @get:Rule

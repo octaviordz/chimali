@@ -4,15 +4,56 @@ import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothAudio
+import androidx.compose.material.icons.filled.BluetoothSearching
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +70,22 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
-import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.filterIsInstance
+import org.koin.compose.viewmodel.koinViewModel
+
+private const val DISCOVERABLE_DURATION_SECONDS = 120
+private const val PULSE_ANIMATION_DURATION_MS = 1500
+private const val PULSE_START_ALPHA = 0.5f
+private const val PULSE_TARGET_SCALE = 2.5f
+
+@Suppress("MagicNumber")
+private val COLOR_ADVERTISING = Color(0xFF6200EE)
+
+@Suppress("MagicNumber")
+private val COLOR_CONNECTING = Color(0xFFFF9800)
+
+@Suppress("MagicNumber")
+private val COLOR_CONNECTED = Color(0xFF4CAF50)
 
 /**
  * T156a — Authenticator Dashboard (Home Screen).
@@ -91,7 +146,7 @@ fun Fido2HomeScreen(
                 try {
                     val discoverableIntent =
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
                         }
                     bluetoothDiscoverableLauncher.launch(discoverableIntent)
                 } catch (e: SecurityException) {
@@ -107,7 +162,7 @@ fun Fido2HomeScreen(
         try {
             val discoverableIntent =
                 Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
                 }
             bluetoothDiscoverableLauncher.launch(discoverableIntent)
         } catch (e: SecurityException) {
@@ -299,11 +354,11 @@ fun StatusIndicator(
             is HidConnectionState.Advertising ->
                 Triple(
                     "Advertising...",
-                    Color(0xFF6200EE),
+                    COLOR_ADVERTISING,
                     Icons.Default.BluetoothSearching,
                 )
-            is HidConnectionState.Connecting -> Triple("Connecting...", Color(0xFFFF9800), Icons.Default.BluetoothAudio)
-            is HidConnectionState.Connected -> Triple("Connected to PC", Color(0xFF4CAF50), Icons.Default.Devices)
+            is HidConnectionState.Connecting -> Triple("Connecting...", COLOR_CONNECTING, Icons.Default.BluetoothAudio)
+            is HidConnectionState.Connected -> Triple("Connected to PC", COLOR_CONNECTED, Icons.Default.Devices)
             is HidConnectionState.Error ->
                 Triple(
                     "Error Occurred",
@@ -422,20 +477,20 @@ fun PulseAnimation(color: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 2.5f,
+        targetValue = PULSE_TARGET_SCALE,
         animationSpec =
             infiniteRepeatable(
-                animation = tween(1500, easing = LinearOutSlowInEasing),
+                animation = tween(PULSE_ANIMATION_DURATION_MS, easing = LinearOutSlowInEasing),
                 repeatMode = RepeatMode.Restart,
             ),
         label = "scale",
     )
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
+        initialValue = PULSE_START_ALPHA,
         targetValue = 0f,
         animationSpec =
             infiniteRepeatable(
-                animation = tween(1500, easing = LinearOutSlowInEasing),
+                animation = tween(PULSE_ANIMATION_DURATION_MS, easing = LinearOutSlowInEasing),
                 repeatMode = RepeatMode.Restart,
             ),
         label = "alpha",

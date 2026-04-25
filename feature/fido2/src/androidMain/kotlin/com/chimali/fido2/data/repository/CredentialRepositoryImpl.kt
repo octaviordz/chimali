@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.repository
 
+import co.touchlab.kermit.Logger
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
@@ -12,7 +13,6 @@ import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
-import org.koin.core.annotation.Single
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.GlobalScope
@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.Single
 
 /**
  * Implementation of CredentialRepository using SQLDelight for data persistence
@@ -74,6 +75,7 @@ class CredentialRepositoryImpl(
             val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
             entity.toDomainModel(publicKeyDecoder).getOrNull()
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get credential by ID: $credentialId" }
             null
         }
     }
@@ -85,7 +87,8 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get credentials by RP ID: $rpId" }
             }
         }
     }
@@ -96,7 +99,8 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get credentials by User ID: $userId" }
             }
         }
     }
@@ -109,7 +113,8 @@ class CredentialRepositoryImpl(
                         emit(it)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get all credentials" }
             }
         }
     }
@@ -187,6 +192,7 @@ class CredentialRepositoryImpl(
             val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
             entities.any { it.userId == userId }
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Error checking if credential exists for RP $rpId and User $userId" }
             false
         }
     }
@@ -219,6 +225,7 @@ class CredentialRepositoryImpl(
             val count = passkeyCredentialDao.getSignCount(credentialId)
             Result.success(count)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get sign count for $credentialId" }
             Result.success(0L)
         }
     }
@@ -245,6 +252,7 @@ class CredentialRepositoryImpl(
                 }
             Result.success(credentials)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get credentials for RP: $rpId" }
             Result.success(emptyList())
         }
     }
@@ -271,6 +279,7 @@ class CredentialRepositoryImpl(
                 }
             Result.success(summaries)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get credential summaries for RP: $rpId" }
             Result.success(emptyList())
         }
     }
@@ -284,6 +293,7 @@ class CredentialRepositoryImpl(
             val filtered = if (rpId != null) credentials.filter { it.rpId == rpId } else credentials
             Result.success(filtered)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get credentials by IDs" }
             Result.success(emptyList())
         }
     }
@@ -292,6 +302,7 @@ class CredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.getCredentialsByRpId(rpId).first().size
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get credential count for RP: $rpId" }
             0
         }
     }
@@ -307,7 +318,8 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Search failed for query: $query" }
             }
         }
     }
@@ -324,7 +336,8 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get recently unused credentials" }
             }
         }
     }
@@ -337,7 +350,8 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get credentials requiring UV" }
             }
         }
     }
@@ -351,7 +365,8 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.e(e) { "CredentialRepository: Failed to get expired credentials" }
             }
         }
     }
@@ -398,6 +413,7 @@ class CredentialRepositoryImpl(
         return try {
             relyingPartyDao.getRelyingPartyById(rpId)?.toDomainModel()
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get RP: $rpId" }
             null
         }
     }
@@ -445,8 +461,12 @@ class CredentialRepositoryImpl(
     ): Flow<UserConsentRecord> {
         return try {
             userConsentRecordDao.getRecentConsent(rpId, limit)
-                .map { list -> list.map { it.toDomainModel() }.firstOrNull() ?: throw Exception("Empty") }
+                .map { list ->
+                    list.map { it.toDomainModel() }.firstOrNull()
+                        ?: throw NoSuchElementException("Empty consent record list")
+                }
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to get recent user consent" }
             flowOf()
         }
     }
@@ -488,6 +508,7 @@ class CredentialRepositoryImpl(
                 averageAgeDays = avgAge,
             )
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to calculate credential statistics" }
             CredentialStatistics(0, emptyMap(), 0, 0, 0, 0.0)
         }
     }
@@ -506,6 +527,7 @@ class CredentialRepositoryImpl(
             target.collect { credential -> deleteCredential(credential.id) }
             Result.success(Unit)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to delete all credentials for RP: $rpId" }
             Result.failure(e)
         }
     }
@@ -516,6 +538,7 @@ class CredentialRepositoryImpl(
             // TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
             Result.success(Unit)
         } catch (e: Exception) {
+            Logger.e(e) { "CredentialRepository: Failed to reset authenticator" }
             Result.failure(e)
         }
     }

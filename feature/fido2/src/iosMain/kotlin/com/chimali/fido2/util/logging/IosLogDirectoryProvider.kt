@@ -1,11 +1,11 @@
 package com.chimali.fido2.util.logging
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import okio.Path
 import okio.Path.Companion.toPath
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
-import kotlinx.cinterop.ExperimentalForeignApi
 
 class IosLogDirectoryProvider : LogDirectoryProvider {
     @OptIn(ExperimentalForeignApi::class)

@@ -18,9 +18,9 @@ import com.chimali.fido2.domain.service.PairingResult
 import com.chimali.fido2.domain.service.RequestValidationResult
 import com.chimali.fido2.domain.service.SecurityLevel
 import com.chimali.fido2.domain.service.VerificationPreferences
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import org.koin.core.annotation.Single
 
 @Single
 class Fido2AuthenticatorImpl : Fido2Authenticator {

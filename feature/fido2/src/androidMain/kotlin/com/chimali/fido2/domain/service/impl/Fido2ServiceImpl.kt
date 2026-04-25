@@ -6,8 +6,8 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
+import org.koin.core.annotation.Single
 
 /**
  * T070 — Wires [Fido2Service] to [RegisterCredentialUseCase] so the presentation layer

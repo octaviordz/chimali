@@ -1,13 +1,13 @@
 package com.chimali.core.clipboard
 
 import co.touchlab.kermit.Logger
-import org.koin.core.annotation.Single
-import platform.UIKit.UIPasteboard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.Single
+import platform.UIKit.UIPasteboard
 
 /**
  * iOS implementation of [ClipboardManagerService] using UIPasteboard.

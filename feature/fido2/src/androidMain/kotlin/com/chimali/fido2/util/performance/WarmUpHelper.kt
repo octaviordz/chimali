@@ -3,12 +3,12 @@ package com.chimali.fido2.util.performance
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import co.touchlab.kermit.Logger
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Security
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 /**
  * One-shot warm-up utilities run at module initialization to eliminate JIT and

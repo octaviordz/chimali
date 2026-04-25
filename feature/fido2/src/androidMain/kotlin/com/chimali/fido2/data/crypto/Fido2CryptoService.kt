@@ -9,9 +9,6 @@ import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Single
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
@@ -21,6 +18,9 @@ import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.koin.core.annotation.Named
+import org.koin.core.annotation.Single
 
 /**
  * Data class representing a FIDO2 key pair derived via HDK.

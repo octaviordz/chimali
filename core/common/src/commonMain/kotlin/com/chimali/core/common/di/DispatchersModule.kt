@@ -1,9 +1,9 @@
 package com.chimali.core.common.di
 
+import kotlinx.coroutines.CoroutineDispatcher
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Single
-import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * Koin Annotations module for coroutine dispatchers.

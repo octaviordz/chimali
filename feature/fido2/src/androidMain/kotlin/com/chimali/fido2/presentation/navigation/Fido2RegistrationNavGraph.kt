@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -20,18 +24,7 @@ import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
 import org.koin.compose.viewmodel.koinViewModel
 
-/**
- * T067 — Navigation graph for the FIDO2 module with a Bottom Navigation Bar
- * for top-level destinations.
- */
-object Fido2Destinations {
-    const val HOME_ROUTE = "fido2/home"
-    const val REGISTRATION_ROUTE = "fido2/register"
-    const val REGISTRATION_SUCCESS_ROUTE = "fido2/register/success"
-    const val MANAGEMENT_ROUTE = "fido2/management"
-    const val EDIT_PAIRED_DEVICE_ROUTE = "fido2/edit-host"
-    const val DEVELOPMENT_ROUTE = "fido2/dev-tools"
-}
+// Routes defined in Fido2Destinations.kt
 
 private sealed class BottomNavItem(
     val route: String,

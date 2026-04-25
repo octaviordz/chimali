@@ -9,12 +9,12 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 class Ctap2CredentialManagementHandlerTest {
     private lateinit var cborCodec: CborCodec

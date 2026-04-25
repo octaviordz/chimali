@@ -9,11 +9,9 @@ import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
-import io.mockk.any
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.jupiter.api.Nested
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -25,6 +23,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -229,7 +228,9 @@ class GetUserConsentUseCaseTest {
                         ),
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(*consentRecords.toTypedArray())
 
                 val result = getUserConsentUseCase.getRecentConsentRecords(testRpId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
@@ -258,7 +259,9 @@ class GetUserConsentUseCaseTest {
                         pinUsed = true,
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(registrationConsent, authConsent)
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(registrationConsent, authConsent)
 
                 val result =
                     getUserConsentUseCase.getConsentRecordsByOperationType(
@@ -293,7 +296,9 @@ class GetUserConsentUseCaseTest {
                         pinUsed = true,
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetConsent, otherConsent)
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(targetConsent, otherConsent)
 
                 val result = getUserConsentUseCase.getConsentRecordsByCredential(targetCredentialId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
@@ -321,7 +326,9 @@ class GetUserConsentUseCaseTest {
                         pinUsed = true,
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetConsent, otherConsent)
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(targetConsent, otherConsent)
 
                 val result = getUserConsentUseCase.getConsentRecordsByRpId(targetRpId, FETCH_LIMIT_50)
                 val retrievedRecords = result.toList()
@@ -351,7 +358,9 @@ class GetUserConsentUseCaseTest {
                         pinUsed = true,
                     ).copy(timestamp = Instant.now().minusSeconds(SECONDS_TWO_HOURS)) // 2 hours ago
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(inRangeConsent, outOfRangeConsent)
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(inRangeConsent, outOfRangeConsent)
 
                 val result = getUserConsentUseCase.getConsentRecordsByTimeRange(startTime, endTime, testRpId)
                 val retrievedRecords = result.toList()
@@ -389,7 +398,9 @@ class GetUserConsentUseCaseTest {
                         ),
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(*consentRecords.toTypedArray())
 
                 val result = getUserConsentUseCase.getConsentStatistics()
 
@@ -455,7 +466,9 @@ class GetUserConsentUseCaseTest {
                         ),
                     )
 
-                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(*consentRecords.toTypedArray())
+                coEvery {
+                    credentialRepository.getRecentUserConsent(any(), any())
+                } returns flowOf(*consentRecords.toTypedArray())
 
                 val result = getUserConsentUseCase.getConsentStatistics()
 

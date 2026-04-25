@@ -1,11 +1,11 @@
 package com.chimali.fido2.data.crypto
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.koin.core.annotation.Single
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.koin.core.annotation.Single
 
 @Single
 class PublicKeyDecoder {

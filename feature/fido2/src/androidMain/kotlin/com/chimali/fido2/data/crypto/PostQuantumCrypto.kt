@@ -1,9 +1,6 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
-import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.koin.core.annotation.Single
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
@@ -12,6 +9,9 @@ import java.security.PublicKey
 import java.security.SecureRandom
 import java.security.Security
 import java.security.Signature
+import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.koin.core.annotation.Single
 
 // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
 // IANA final assignment: https://www.iana.org/assignments/cose/cose.xhtml
@@ -60,6 +60,7 @@ class PostQuantumCrypto {
         try {
             Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) != null
         } catch (e: Exception) {
+            Logger.e(e) { "PostQuantumCrypto: ML-DSA support check failed" }
             false
         }
 

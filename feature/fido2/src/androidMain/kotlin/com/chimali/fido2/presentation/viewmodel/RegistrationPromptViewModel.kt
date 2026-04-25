@@ -13,7 +13,6 @@ import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
-import org.koin.android.annotation.KoinViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -26,6 +25,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import org.koin.android.annotation.KoinViewModel
 
 // ── MVI: Intent (user actions) ────────────────────────────────────────────────
 

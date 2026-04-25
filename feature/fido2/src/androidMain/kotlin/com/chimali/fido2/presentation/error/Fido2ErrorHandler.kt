@@ -109,7 +109,9 @@ object Fido2ErrorHandler {
             ->
                 ErrorUi(
                     title = "Storage error",
-                    message = "Could not save your passkey. ${error.message ?: "Please check available storage and try again."}",
+                    message =
+                        "Could not save your passkey. " +
+                            "${error.message ?: "Please check available storage and try again."}",
                     isRetryable = true,
                     // CTAP2_ERR_PIN_POLICY_VIOLATION
                     ctap2ErrorCode = 0x27,

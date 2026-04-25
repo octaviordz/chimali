@@ -5,10 +5,10 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.koin.core.annotation.Single
 
 @Single
 class PairedDeviceRepositoryImpl(

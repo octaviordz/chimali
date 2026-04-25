@@ -2,8 +2,8 @@ package com.chimali.fido2.bluetooth
 
 import co.touchlab.kermit.Logger
 import com.chimali.fido2.domain.exception.Fido2Exception
-import org.koin.core.annotation.Single
 import java.nio.ByteBuffer
+import org.koin.core.annotation.Single
 
 // ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
 //
@@ -43,7 +43,9 @@ internal const val CTAPHID_KEEPALIVE = 0x3B
 
 // CTAPHID_INIT nonce / response sizes
 private const val INIT_NONCE_SIZE = 8
-private const val INIT_RESPONSE_SIZE = 17 // nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)
+
+// response: nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)
+private const val INIT_RESPONSE_SIZE = 17
 
 private const val CAPABILITY_CBOR = 0x04 // Authenticator supports CTAPHID_CBOR (CTAP2)
 private const val CAPABILITY_NMSG = 0x08 // Authenticator does NOT support CTAPHID_MSG (U2F)

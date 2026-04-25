@@ -1,15 +1,15 @@
 package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.Severity
+import java.io.File
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import okio.Path.Companion.toOkioPath
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.io.File
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * Tests for [LocalCrashReportingLogWriter].

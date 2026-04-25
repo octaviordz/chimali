@@ -1,9 +1,9 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
-import org.koin.core.annotation.Single
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
 
 /**
  * T087a — FIDO2.1 `hmac-secret` extension processor.

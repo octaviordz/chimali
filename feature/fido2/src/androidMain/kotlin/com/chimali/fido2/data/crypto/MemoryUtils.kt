@@ -1,7 +1,8 @@
 package com.chimali.fido2.data.crypto
 
-import org.koin.core.annotation.Single
+import co.touchlab.kermit.Logger
 import java.util.Arrays
+import org.koin.core.annotation.Single
 
 @Single
 class MemoryUtils {
@@ -9,7 +10,7 @@ class MemoryUtils {
         try {
             Arrays.fill(array, 0.toByte())
         } catch (e: Exception) {
-            // Log error but continue
+            Logger.e(e) { "MemoryUtils: Failed to zero byte array" }
         }
     }
 
@@ -17,7 +18,7 @@ class MemoryUtils {
         try {
             Arrays.fill(array, '\u0000')
         } catch (e: Exception) {
-            // Log error but continue
+            Logger.e(e) { "MemoryUtils: Failed to zero char array" }
         }
     }
 
@@ -25,7 +26,7 @@ class MemoryUtils {
         try {
             Arrays.fill(array, null)
         } catch (e: Exception) {
-            // Log error but continue
+            Logger.e(e) { "MemoryUtils: Failed to zero generic array" }
         }
     }
 
@@ -38,7 +39,10 @@ class MemoryUtils {
         return input.toByteArray()
     }
 
-    fun clearString(input: String) {
+    fun clearString(
+        @Suppress("UnusedParameter")
+        input: String,
+    ) {
         // Strings are immutable in Java/Kotlin, so we can't zero them directly
         // This method is for consistency and to encourage proper memory management
         // The caller should use secureStringToChars/Bytes and zero those instead

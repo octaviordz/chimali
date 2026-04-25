@@ -6,12 +6,12 @@ import com.chimali.fido2.data.database.PasskeyCredentialQueries
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.jupiter.api.Nested
 import java.security.KeyPairGenerator
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class PasskeyCredentialDaoTest {
     private lateinit var database: Fido2Database

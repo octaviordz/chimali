@@ -5,10 +5,10 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class GetAllCredentialsUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository

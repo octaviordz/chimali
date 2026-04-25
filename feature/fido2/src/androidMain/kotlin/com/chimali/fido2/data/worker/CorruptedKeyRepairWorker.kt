@@ -4,8 +4,8 @@ import co.touchlab.kermit.Logger
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.domain.model.CredentialId
-import org.koin.core.annotation.Single
 import java.util.Base64
+import org.koin.core.annotation.Single
 
 /**
  * A background task responsible for executing the HDK key derivation fallback

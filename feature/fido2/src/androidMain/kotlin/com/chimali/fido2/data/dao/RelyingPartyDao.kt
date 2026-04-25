@@ -4,10 +4,10 @@ import app.cash.sqldelight.coroutines.asFlow
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
 import com.chimali.fido2.domain.model.RelyingParty
-import org.koin.core.annotation.Single
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.koin.core.annotation.Single
 
 /**
  * Data Access Object for RelyingParty entities using SQLDelight.

@@ -1,9 +1,9 @@
 package com.chimali.core.security.hdkeys
 
-import org.bouncycastle.math.ec.ECPoint
 import java.math.BigInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import org.bouncycastle.math.ec.ECPoint
 
 /**
  * DHKEM(P-256, HKDF-SHA256) as defined in RFC 9180 §4.1.

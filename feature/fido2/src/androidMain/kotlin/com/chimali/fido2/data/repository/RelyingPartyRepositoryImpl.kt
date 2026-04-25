@@ -1,11 +1,10 @@
 package com.chimali.fido2.data.repository
 
-import com.chimali.fido2.data.mapper.*
 import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
-import org.koin.core.annotation.Single
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import org.koin.core.annotation.Single
 
 @Single
 class RelyingPartyRepositoryImpl : RelyingPartyRepository {

@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.model
 
+import co.touchlab.kermit.Logger
+
 /**
  * Domain model representing a PublicKeyCredentialRpEntity.
  * This contains information about the relying party requesting credential creation.
@@ -42,6 +44,7 @@ data class PublicKeyCredentialRpEntity(
         return try {
             java.net.URI.create(id).host ?: id
         } catch (e: Exception) {
+            Logger.w(e) { "PublicKeyCredentialRpEntity: Failed to parse domain from ID: $id" }
             id
         }
     }

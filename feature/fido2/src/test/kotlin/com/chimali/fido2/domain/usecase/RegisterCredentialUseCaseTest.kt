@@ -21,11 +21,9 @@ import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
-import io.mockk.any
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.jupiter.api.Nested
 import java.security.KeyPairGenerator
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -34,6 +32,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Nested
 
 class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
