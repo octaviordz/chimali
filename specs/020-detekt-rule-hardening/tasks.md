@@ -1,7 +1,7 @@
 # Tasks: Detekt Rule Hardening
 
 **Input**: Design documents from `specs/020-detekt-rule-hardening/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -10,6 +10,8 @@
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
+
+---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
@@ -24,10 +26,12 @@
 
 **Purpose**: Core configuration that MUST be complete before refactoring begins
 
+**⚠️ CRITICAL**: Foundation tasks block all user story implementation.
+
 - [ ] T003 Harden `config/detekt/detekt.yml` by activating WildcardImport, UnusedImports, NewLineAtEndOfFile, UnsafeCallOnNullableType, LateinitUsage, and EmptyDefaultConstructor
 - [ ] T004 [P] Remove all rule-specific exclusions for the target rules in `config/detekt/detekt.yml`
-- [ ] T005 [P] Configure global `excludes` in `config/detekt/detekt.yml` to cover all `**/build/**` and `**/build/generated/**` paths [US2]
-- [ ] T006 Evaluate `.kts` file violations and apply global exclusion in `config/detekt/detekt.yml` if technical debt is excessive [US1]
+- [ ] T005 [P] Configure global `excludes` in `config/detekt/detekt.yml` to cover all `**/build/**` and `**/build/generated/**` paths
+- [ ] T006 Evaluate `.kts` file violations and apply global exclusion in `config/detekt/detekt.yml` if technical debt is excessive
 
 **Checkpoint**: Foundation ready - rules are active and violations will be reported by the build system.
 
@@ -42,10 +46,10 @@
 ### Implementation for User Story 1
 
 - [ ] T007 [P] [US1] Refactor `core:security` tests to remove `lateinit` and wildcard imports in `core/security/src/test/kotlin/`
-- [ ] T008 [P] [US1] Refactor `feature:fido2` tests and production code to resolve 130+ violations (Lateinit, Wildcards, !! calls) in `feature/fido2/`
+- [ ] T008 [P] [US1] Refactor `feature:fido2` tests and production code to resolve violations (Lateinit, Wildcards, !! calls) in `feature/fido2/`
 - [ ] T009 [P] [US1] Refactor `feature:vault` to resolve legacy violations (EmptyDefaultConstructor, UnusedImports, NewLineAtEndOfFile, Wildcards) in `feature/vault/`
 - [ ] T010 [P] [US1] Resolve wildcard imports in `app/src/main/kotlin/` (mostly Compose-related)
-- [ ] T011 [P] [US1] Resolve remaining violations in `core:common`, `core:database`, and `core:bluetooth` modules
+- [ ] T011 [P] [US1] Resolve remaining violations in `core/common/`, `core/database/`, and `core/bluetooth/` modules to ensure zero baseline violations.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and the codebase should pass all detekt checks.
 
@@ -66,7 +70,7 @@
 
 ---
 
-## Phase 5: Polish & Cross-Cutting Concerns
+## Phase N: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
 
@@ -83,12 +87,17 @@
 - **Setup (Phase 1)**: No dependencies.
 - **Foundational (Phase 2)**: Depends on Setup. MUST complete before refactoring begins.
 - **User Story 1 (Phase 3)**: Depends on Phase 2.
-- **User Story 2 (Phase 4)**: Can run in parallel with User Story 1 or after.
+- **User Story 2 (Phase 4)**: Can run in parallel with User Story 1 or after Phase 2.
 - **Polish (Final Phase)**: Depends on all user stories being complete.
+
+### User Story Dependencies
+
+- **User Story 1 (P1)**: Independent after Phase 2.
+- **User Story 2 (P2)**: Independent after Phase 2.
 
 ### Parallel Opportunities
 
-- T007, T008, T009, T010 can run in parallel across different feature modules.
+- T007, T008, T009, T010, T011 can run in parallel across different modules.
 - Verification tasks (T012, T013) can run as soon as Phase 2 is done.
 
 ---

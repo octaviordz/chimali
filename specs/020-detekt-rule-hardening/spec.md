@@ -52,7 +52,7 @@ As a developer, I want detekt to ignore violations in generated code so that I d
 - **FR-006**: System MUST enable and enforce the `EmptyDefaultConstructor` rule globally.
 - **FR-007**: System MUST remove all existing `excludes` patterns from the configuration for these specific rules, except for generated code paths.
 - **FR-008**: System MUST configure a global `excludes` pattern for generated code (e.g., `**/build/**`) that applies to all rules.
-- **FR-009**: System SHOULD allow excluding `.kts` files from analysis if they contain a high volume of violations (>20) that are not practical to refactor immediately.
+- **FR-009**: System SHOULD allow excluding `.kts` files from analysis if they contain a high volume of violations (>20) that present a disproportionate refactoring effort.
 
 ## Success Criteria *(mandatory)*
 

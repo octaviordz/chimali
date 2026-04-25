@@ -1,7 +1,7 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Detekt Rule Hardening
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `020-detekt-rule-hardening` | **Date**: 2026-04-24 | **Spec**: [spec.md](file:///D:/octav/source/repos/Chimali/specs/020-detekt-rule-hardening/spec.md)
+**Input**: Feature specification from `specs/020-detekt-rule-hardening/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
@@ -44,7 +44,7 @@ We will enhance project-wide code quality by activating and hardening six key De
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specs/020-detekt-rule-hardening/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -76,7 +76,4 @@ feature/                 # Refactor vault and fido2 modules (highest impact)
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| N/A | N/A | N/A |
