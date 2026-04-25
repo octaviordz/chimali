@@ -37,7 +37,7 @@ class CredentialManagementViewModel(
     private var _fullCredentialList: List<PasskeyCredential> = emptyList()
 
     private var currentOffset: Long = 0L
-    private val PAGE_SIZE: Long = 20L
+    private val pageSize: Long = DEFAULT_PAGE_SIZE
 
     init {
         observeCredentials()
@@ -74,7 +74,7 @@ class CredentialManagementViewModel(
     private fun observeCredentials() {
         viewModelScope.launch {
             _searchQuery
-                .debounce(300L)
+                .debounce(SEARCH_DEBOUNCE_MS)
                 .collectLatest { query ->
                     if (query.isBlank()) {
                         currentOffset = 0L
@@ -99,11 +99,11 @@ class CredentialManagementViewModel(
     private fun loadCredentials() {
         viewModelScope.launch {
             _state.update { it.copy(isPaginating = currentOffset > 0, isLoading = currentOffset == 0L, error = null) }
-            val result = getAllCredentialsUseCase(PAGE_SIZE, currentOffset)
+            val result = getAllCredentialsUseCase(pageSize, currentOffset)
             result.onSuccess { newItems ->
                 _fullCredentialList = _fullCredentialList + newItems
                 currentOffset += newItems.size
-                val hasMore = newItems.size >= PAGE_SIZE
+                val hasMore = newItems.size >= pageSize
 
                 _state.update {
                     it.copy(
@@ -239,6 +239,11 @@ class CredentialManagementViewModel(
                 updateStateWithFilteredCredentials() // Restore view
             }
         }
+    }
+
+    companion object {
+        private const val DEFAULT_PAGE_SIZE = 20L
+        private const val SEARCH_DEBOUNCE_MS = 300L
     }
 }
 

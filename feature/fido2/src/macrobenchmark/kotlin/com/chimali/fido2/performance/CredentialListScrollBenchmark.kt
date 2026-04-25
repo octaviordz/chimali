@@ -38,15 +38,20 @@ class CredentialListScrollBenchmark {
                 }
             }
         ) {
-            val list = device.wait(Until.findObject(By.scrollable(true)), 5000)
+            val list = device.wait(Until.findObject(By.scrollable(true)), WAIT_TIMEOUT_MS)
             if (list != null) {
                 // Scroll down
-                list.setGestureMargin(device.displayWidth / 5)
+                list.setGestureMargin(device.displayWidth / GESTURE_MARGIN_DIVISOR)
                 list.scroll(Direction.DOWN, 2f)
-                
+
                 // Scroll up
                 list.scroll(Direction.UP, 2f)
             }
         }
+    }
+
+    companion object {
+        private const val WAIT_TIMEOUT_MS = 5000L
+        private const val GESTURE_MARGIN_DIVISOR = 5
     }
 }

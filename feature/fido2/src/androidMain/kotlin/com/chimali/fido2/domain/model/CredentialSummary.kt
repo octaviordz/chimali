@@ -52,7 +52,11 @@ data class CredentialSummary(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CredentialSummary) return false
-        return id == other.id && rpId == other.rpId && credentialId.contentEquals(other.credentialId) && coseAlgorithm == other.coseAlgorithm && credProtectPolicy == other.credProtectPolicy
+        return id == other.id &&
+            rpId == other.rpId &&
+            credentialId.contentEquals(other.credentialId) &&
+            coseAlgorithm == other.coseAlgorithm &&
+            credProtectPolicy == other.credProtectPolicy
     }
 
     override fun hashCode(): Int {

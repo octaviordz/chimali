@@ -83,11 +83,6 @@ class CredentialRepositoryImpl(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
-                    val publicKey =
-                        cryptoService.getPublicKey(
-                            CredentialId.fromString(entity.id),
-                            entity.coseAlgorithm.toInt(),
-                        )
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
             } catch (_: Exception) {
@@ -99,11 +94,6 @@ class CredentialRepositoryImpl(
         return flow {
             try {
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
-                    val publicKey =
-                        cryptoService.getPublicKey(
-                            CredentialId.fromString(entity.id),
-                            entity.coseAlgorithm.toInt(),
-                        )
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
             } catch (_: Exception) {

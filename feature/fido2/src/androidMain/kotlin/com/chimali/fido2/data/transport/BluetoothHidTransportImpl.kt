@@ -121,12 +121,9 @@ class BluetoothHidTransportImpl(
         private const val CID_SIZE = 4
         private const val STATUS_PROCESSING: Byte = 0x01
         private const val STATUS_UPNEEDED: Byte = 0x02
-        private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F // 0x10
 
         private const val BYTE_MASK = 0xFF
         private const val SHIFT_8 = 8
-        private const val SHIFT_16 = 16
-        private const val SHIFT_24 = 24
     }
 
     private val secureRandom = SecureRandom()
@@ -553,7 +550,9 @@ class BluetoothHidTransportImpl(
                 // stores a credential with an ephemeral key we don't hold, then immediately
                 // tries U2F_AUTHENTICATE (which fails with SW_WRONG_DATA), and concludes
                 // the device is broken — resulting in ERROR_NOT_READY (0x80070018).
-                Logger.i { "CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2" }
+                Logger.i {
+                    "CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2"
+                }
                 sendPackets(
                     u2fErrorResponse(cid, SW_CONDITIONS_NOT_SATISFIED_1.toInt(), SW_CONDITIONS_NOT_SATISFIED_2.toInt()),
                 )

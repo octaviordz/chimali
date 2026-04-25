@@ -31,7 +31,7 @@ value class CredentialId(
          * Generates a new cryptographically secure random [CredentialId].
          */
         fun generate(): CredentialId {
-            val bytes = ByteArray(32)
+            val bytes = ByteArray(RAW_ID_SIZE)
             SecureRandom().nextBytes(bytes)
             return CredentialId(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes))
         }
@@ -40,5 +40,7 @@ value class CredentialId(
          * Reconstructs a [CredentialId] from a previously-stored encoded string.
          */
         fun fromString(encoded: String): CredentialId = CredentialId(encoded)
+
+        private const val RAW_ID_SIZE = 32
     }
 }

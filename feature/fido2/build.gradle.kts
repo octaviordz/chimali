@@ -183,3 +183,14 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+val isMac = System.getProperty("os.name").lowercase().contains("mac")
+
+// Disable native compilation on non-Mac hosts to support Windows development (T010)
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile>().configureEach {
+    enabled = isMac
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink>().configureEach {
+    enabled = isMac
+}

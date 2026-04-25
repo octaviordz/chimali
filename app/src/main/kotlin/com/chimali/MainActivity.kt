@@ -14,14 +14,18 @@ import androidx.navigation.compose.rememberNavController
 import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
 
 class MainActivity : FragmentActivity() {
+    companion object {
+        private const val TAG = "Chimali:MainActivity"
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
-            android.util.Log.i("Chimali:MainActivity", "All startup permissions granted (Nearby Devices flow).")
+            android.util.Log.i(TAG, "All startup permissions granted (Nearby Devices flow).")
         } else {
-            android.util.Log.w("Chimali:MainActivity", "Some permissions denied at startup: $permissions")
+            android.util.Log.w(TAG, "Some permissions denied at startup: $permissions")
         }
     }
 
@@ -32,7 +36,7 @@ class MainActivity : FragmentActivity() {
         // - Android 13+ (TIRAMISU, API 33): Requires 'Nearby Devices' + 'Notifications' for the foreground service.
         // - Android 12 (S, API 31): Requires 'Nearby Devices' group only.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            android.util.Log.d("Chimali:MainActivity", "Launching Nearby Devices + Notifications permission request...")
+            android.util.Log.d(TAG, "Launching Nearby Devices + Notifications permission request...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_ADVERTISE,
@@ -42,7 +46,7 @@ class MainActivity : FragmentActivity() {
                 )
             )
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            android.util.Log.d("Chimali:MainActivity", "Launching Nearby Devices permission request...")
+            android.util.Log.d(TAG, "Launching Nearby Devices permission request...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_ADVERTISE,
@@ -52,7 +56,7 @@ class MainActivity : FragmentActivity() {
             )
         } else {
             // Legacy permissions for Bluetooth and Location on older devices
-            android.util.Log.d("Chimali:MainActivity", "Requesting legacy Bluetooth/Location permissions...")
+            android.util.Log.d(TAG, "Requesting legacy Bluetooth/Location permissions...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH,

@@ -15,8 +15,8 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create backup of `config/detekt/detekt.yml`
-- [ ] T002 Verify `tools/local-ci.ps1` is operational for baseline checks
+- [x] T001 Create backup of `config/detekt/detekt.yml`
+- [x] T002 Verify `tools/local-ci.ps1` is operational for baseline checks
 
 ---
 
@@ -24,7 +24,7 @@
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T003 Ensure `detekt` Gradle plugin is configured to fail on any weighted issue (`maxIssues: 0`) in `config/detekt/detekt.yml`
+- [x] T003 Ensure `detekt` Gradle plugin is configured to fail on any weighted issue (`maxIssues: 0`) in `config/detekt/detekt.yml`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -38,9 +38,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Enable `ForbiddenMethodCall` in `config/detekt/detekt.yml` for `kotlin.io.print` and `kotlin.io.println`
-- [ ] T005 [P] [US1] Configure `excludes` for `ForbiddenMethodCall` in `config/detekt/detekt.yml` to ignore test source sets (`**/test/**`, `**/androidTest/**`, etc.)
-- [ ] T006 [US1] Verify US1 by running `./gradlew detekt` on a file with `println`
+- [x] T004 [US1] Enable `ForbiddenMethodCall` in `config/detekt/detekt.yml` for `kotlin.io.print` and `kotlin.io.println`
+- [x] T005 [P] [US1] Configure `excludes` for `ForbiddenMethodCall` in `config/detekt/detekt.yml` to ignore test source sets (`**/test/**`, `**/androidTest/**`, etc.)
+- [x] T006 [US1] Verify US1 by running `./gradlew detekt` on a file with `println`
 
 **Checkpoint**: At this point, standard output is prohibited in production code.
 
@@ -54,9 +54,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T007 [US2] Enable `UnnecessaryLet` in `config/detekt/detekt.yml`
-- [ ] T008 [US2] Enable `UseLet` in `config/detekt/detekt.yml`
-- [ ] T009 [US2] Verify US2 by running `./gradlew detekt` on a file with redundant `let`
+- [x] T007 [US2] Enable `UnnecessaryLet` in `config/detekt/detekt.yml`
+- [x] T008 [US2] Enable `UseLet` in `config/detekt/detekt.yml`
+- [x] T009 [US2] Verify US2 by running `./gradlew detekt` on a file with redundant `let`
 
 **Checkpoint**: At this point, the codebase enforces idiomatic scope function usage.
 
@@ -70,9 +70,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] Enable `StringLiteralDuplication` in `config/detekt/detekt.yml`
-- [ ] T011 [US3] Configure `threshold: 3` and `excludeStringsWithLessThan5Characters: true` for `StringLiteralDuplication` in `config/detekt/detekt.yml`
-- [ ] T012 [US3] Verify US3 by running `./gradlew detekt` on a file with duplicated strings
+- [x] T010 [US3] Enable `StringLiteralDuplication` in `config/detekt/detekt.yml`
+- [x] T011 [US3] Configure `threshold: 3` and `excludeStringsWithLessThan5Characters: true` for `StringLiteralDuplication` in `config/detekt/detekt.yml`
+- [x] T012 [US3] Verify US3 by running `./gradlew detekt` on a file with duplicated strings
 
 **Checkpoint**: All user stories should now be independently functional.
 
@@ -82,9 +82,9 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T013 Run project-wide Detekt and fix any new violations discovered to reach zero-issue baseline
-- [ ] T014 Update `specs/021-detekt-quality-enhancements/walkthrough.md` with implementation results
-- [ ] T015 Run Local CI pipeline via `tools/local-ci.ps1`
+- [x] T013 Run project-wide Detekt and fix any new violations discovered to reach zero-issue baseline
+- [x] T014 Update `specs/021-detekt-quality-enhancements/walkthrough.md` with implementation results
+- [x] T015 Run Local CI pipeline via `tools/local-ci.ps1`
 
 ---
 

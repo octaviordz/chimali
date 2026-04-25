@@ -19,8 +19,7 @@ import org.koin.core.annotation.Factory
  * 2. If multiple candidates exist, select the Most Recently Used (MRU) one.
  */
 @Factory
-class SelectCredentialUseCase
-() {
+class SelectCredentialUseCase {
     suspend operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions,

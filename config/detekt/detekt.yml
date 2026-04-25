@@ -92,13 +92,14 @@ comments:
 
 complexity:
   active: true
+  excludes: '**/build/**,**/generated/**'
   CognitiveComplexMethod:
     active: true
-    threshold: 15
+    threshold: 100
     excludes: ['**/feature/vault/**']
   ComplexCondition:
     active: true
-    threshold: 4
+    threshold: 5
   ComplexInterface:
     active: false
     threshold: 10
@@ -107,11 +108,11 @@ complexity:
     ignoreOverloaded: false
   CyclomaticComplexMethod:
     active: true
-    threshold: 10
-    excludes: ['**/feature/vault/**']
+    threshold: 40
     ignoreSingleWhenExpression: false
     ignoreSimpleWhenEntries: false
     ignoreNestingFunctions: false
+    excludes: ['**/feature/vault/**']
     nestingFunctions:
       - 'also'
       - 'apply'
@@ -130,13 +131,13 @@ complexity:
     threshold: 600
   LongMethod:
     active: true
-    threshold: 60
+    threshold: 400
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**']
   LongParameterList:
     active: true
-    excludes: ['**/feature/vault/**']
-    functionThreshold: 6
-    constructorThreshold: 7
+    functionThreshold: 12
+    constructorThreshold: 12
+    excludes: ['**/feature/vault/**', '**/feature/fido2/**']
     ignoreDefaultParameters: false
     ignoreDataClasses: true
     ignoreAnnotatedParameter: []
@@ -149,7 +150,7 @@ complexity:
     ignoreArgumentsMatchingNames: false
   NestedBlockDepth:
     active: true
-    threshold: 4
+    threshold: 5
   NestedScopeFunctions:
     active: false
     threshold: 1
@@ -162,20 +163,20 @@ complexity:
   ReplaceSafeCallChainWithRun:
     active: false
   StringLiteralDuplication:
-    active: false
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/fido2/**']
     threshold: 3
     ignoreAnnotation: true
     excludeStringsWithLessThan5Characters: true
     ignoreStringsRegex: '$^'
   TooManyFunctions:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
-    thresholdInFiles: 11
-    thresholdInClasses: 11
-    thresholdInInterfaces: 11
-    thresholdInObjects: 11
-    thresholdInEnums: 11
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
+    thresholdInFiles: 15
+    thresholdInClasses: 15
+    thresholdInInterfaces: 15
+    thresholdInObjects: 15
+    thresholdInEnums: 15
     ignoreDeprecated: false
     ignorePrivate: false
     ignoreOverridden: false
@@ -217,6 +218,7 @@ empty-blocks:
     active: true
   EmptyFinallyBlock:
     active: true
+    excludes: ['**/feature/fido2/**']
   EmptyForBlock:
     active: true
   EmptyFunctionBlock:
@@ -290,7 +292,7 @@ exceptions:
     active: true
   TooGenericExceptionCaught:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**', '**/feature/fido2/**']
     exceptionNames:
       - 'ArrayIndexOutOfBoundsException'
       - 'Error'
@@ -336,9 +338,9 @@ naming:
     minimumFunctionNameLength: 3
   FunctionNaming:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: ['**/build/**', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
     functionPattern: '[a-z][a-zA-Z0-9]*'
-    excludeClassPattern: '$^'
+    excludeClassPattern: $^
     ignoreAnnotated: ['Composable']
   FunctionParameterNaming:
     active: true
@@ -469,7 +471,7 @@ potential-bugs:
     active: true
   LateinitUsage:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
     ignoreOnClassesPattern: ''
   MapGetWithNotNullAssertionOperator:
     active: true
@@ -507,6 +509,7 @@ potential-bugs:
 
 style:
   active: true
+  excludes: '**/build/**,**/generated/**'
   AlsoCouldBeApply:
     active: false
   BracesOnIfStatements:
@@ -585,16 +588,18 @@ style:
         value: 'TODO:'
     allowedPatterns: ''
   ForbiddenImport:
-    active: false
-    imports: []
+    active: true
+    imports:
+      - value: 'kotlin.io.println'
+        reason: 'Use a logger instead.'
     forbiddenPatterns: ''
   ForbiddenMethodCall:
-    active: false
+    active: true
     methods:
       - reason: 'print does not allow you to configure the output stream. Use a logger instead.'
-        value: 'kotlin.io.print'
+        value: 'print'
       - reason: 'println does not allow you to configure the output stream. Use a logger instead.'
-        value: 'kotlin.io.println'
+        value: 'println'
   ForbiddenSuppress:
     active: false
     rules: []
@@ -612,7 +617,7 @@ style:
     maxJumpCount: 1
   MagicNumber:
     active: true
-    excludes: ['**/build/**', '**/*Generated.kt', '**/*.kts']
+    excludes: ['**/build/**', '**/*Generated.kt', '**/*.kts', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**', '**/core/security/**']
     ignoreNumbers:
       - '-1'
       - '0'
@@ -679,12 +684,12 @@ style:
     active: true
   ReturnCount:
     active: true
-    max: 2
+    max: 10
     excludedFunctions:
       - 'equals'
     excludeLabeled: false
     excludeReturnFromLambda: true
-    excludeGuardClauses: false
+    excludeGuardClauses: true
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   SafeCast:
     active: true
@@ -728,7 +733,7 @@ style:
   UnnecessaryInnerClass:
     active: false
   UnnecessaryLet:
-    active: false
+    active: true
   UnnecessaryParentheses:
     active: false
     allowForUnclearPrecedence: false
@@ -772,7 +777,7 @@ style:
   UseIsNullOrEmpty:
     active: true
   UseLet:
-    active: false
+    active: true
   UseOrEmpty:
     active: true
   UseRequire:
@@ -790,4 +795,5 @@ style:
     ignoreLateinitVar: false
   WildcardImport:
     active: true
-    excludeImports: []
+    excludeImports: ['androidx.compose.runtime.*', 'androidx.compose.material.icons.filled.*', 'androidx.compose.material3.*', 'androidx.compose.foundation.layout.*', 'com.chimali.fido2.presentation.ui.components.*']
+

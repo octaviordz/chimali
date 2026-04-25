@@ -300,8 +300,16 @@ internal fun DevelopmentToolsContent(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(
+                                        4.dp,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                                verticalArrangement =
+                                    Arrangement.spacedBy(
+                                        0.dp,
+                                        Alignment.CenterVertically,
+                                    ),
                             ) {
                                 Icon(
                                     Icons.Default.CopyAll,
@@ -321,8 +329,16 @@ internal fun DevelopmentToolsContent(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(
+                                        4.dp,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                                verticalArrangement =
+                                    Arrangement.spacedBy(
+                                        0.dp,
+                                        Alignment.CenterVertically,
+                                    ),
                             ) {
                                 Icon(
                                     if (showQrCode) Icons.Default.VisibilityOff else Icons.Default.QrCode,
@@ -349,8 +365,16 @@ internal fun DevelopmentToolsContent(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         ) {
                             FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(
+                                        4.dp,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                                verticalArrangement =
+                                    Arrangement.spacedBy(
+                                        0.dp,
+                                        Alignment.CenterVertically,
+                                    ),
                             ) {
                                 Icon(
                                     Icons.Default.VisibilityOff,
@@ -434,7 +458,8 @@ internal fun DevelopmentToolsContent(
                                         showScanner = true
                                     }
                                     (context as? FragmentActivity)?.let {
-                                        androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                                        androidx.core.app.ActivityCompat
+                                            .shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
                                     } == true -> {
                                         showRationale = true
                                     }
@@ -474,7 +499,12 @@ internal fun DevelopmentToolsContent(
                                                 android.content.Intent(
                                                     android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                                                 ).apply {
-                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
+                                                    data =
+                                                        android.net.Uri.fromParts(
+                                                            "package",
+                                                            context.packageName,
+                                                            null,
+                                                        )
                                                 }
                                             context.startActivity(intent)
                                         }
@@ -550,7 +580,10 @@ private fun MnemonicWordGrid(words: List<String>) {
                     )
                     Text(
                         text = word,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = LegibilityType.AtkinsonFontFamily,
+                            ),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }

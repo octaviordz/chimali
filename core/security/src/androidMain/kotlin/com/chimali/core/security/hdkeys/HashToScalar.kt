@@ -83,7 +83,7 @@ object HashToScalar {
      * @param dst Domain separation tag as ASCII bytes.
      * @return A scalar (BigInteger) in the P-256 scalar field.
      */
-    fun hashToScalar(
+    fun compute(
         msg: ByteArray,
         dst: ByteArray,
     ): BigInteger {

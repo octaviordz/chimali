@@ -66,9 +66,9 @@ fun BiometricPromptComponent(
                 .build()
 
         val biometricPrompt =
-            if (activity != null) {
+            activity?.let {
                 BiometricPrompt(
-                    activity,
+                    it,
                     executor,
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
@@ -93,8 +93,6 @@ fun BiometricPromptComponent(
                         }
                     },
                 )
-            } else {
-                null
             }
 
         biometricPrompt?.authenticate(promptInfo)

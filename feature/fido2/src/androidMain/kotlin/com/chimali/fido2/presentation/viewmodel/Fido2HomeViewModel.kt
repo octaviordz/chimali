@@ -62,7 +62,7 @@ class Fido2HomeViewModel(
             }
         }.stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(SUBSCRIBED_STOP_TIMEOUT_MS),
             initialValue = null,
         )
 
@@ -86,4 +86,8 @@ class Fido2HomeViewModel(
     }
 
     fun getPendingRegistration(): Fido2UiEvent.RegistrationRequested? = uiEventBus.currentRegistrationRequest
+
+    companion object {
+        private const val SUBSCRIBED_STOP_TIMEOUT_MS = 5000L
+    }
 }

@@ -74,6 +74,10 @@ data class AssertionObject(
                 user = null,
             )
         }
+
+        private const val SIGN_COUNT_BYTE_OFFSET_1 = 1
+        private const val SIGN_COUNT_BYTE_OFFSET_2 = 2
+        private const val SIGN_COUNT_BYTE_OFFSET_3 = 3
     }
 
     init {
@@ -87,9 +91,24 @@ data class AssertionObject(
     fun extractSignCount(): Long {
         if (authData.size < MIN_AUTH_DATA_SIZE) return 0L
         return ((authData[SIGN_COUNT_OFFSET].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_0_SHIFT) or
-            ((authData[SIGN_COUNT_OFFSET + 1].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_1_SHIFT) or
-            ((authData[SIGN_COUNT_OFFSET + 2].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_2_SHIFT) or
-            (authData[SIGN_COUNT_OFFSET + 3].toLong() and BYTE_MASK.toLong())
+            (
+                (
+                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_1].toLong() and
+                        BYTE_MASK.toLong()
+                ) shl SIGN_COUNT_BYTE_1_SHIFT
+            ) or
+            (
+                (
+                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_2].toLong() and
+                        BYTE_MASK.toLong()
+                ) shl SIGN_COUNT_BYTE_2_SHIFT
+            ) or
+            (
+                (
+                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_3].toLong() and
+                        BYTE_MASK.toLong()
+                )
+            )
     }
 
     /** Returns true if the UP (user present) flag is set in authData byte 32. */

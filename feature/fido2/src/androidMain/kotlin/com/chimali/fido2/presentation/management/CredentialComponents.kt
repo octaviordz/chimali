@@ -40,7 +40,7 @@ fun CredentialItem(
                     fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                 )
                 Text(
-                    text = "Last used: ${credential.lastUsedAt.toString().substring(0, 10)}",
+                    text = "Last used: ${credential.lastUsedAt.toString().substring(0, ISO_DATE_LENGTH)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -65,6 +65,8 @@ fun CredentialItem(
         modifier = Modifier.clickable { onClick(credential) },
     )
 }
+
+private const val ISO_DATE_LENGTH = 10
 
 /** T123 — Confirmation Dialog */
 @Composable

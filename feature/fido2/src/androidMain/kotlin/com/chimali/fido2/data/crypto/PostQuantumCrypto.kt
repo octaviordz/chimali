@@ -49,7 +49,8 @@ class PostQuantumCrypto {
         Security.insertProviderAt(BouncyCastleProvider(), 1)
 
         Logger.d {
-            "PQC Provider registered: ${BouncyCastleProvider.PROVIDER_NAME} (version ${Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0})"
+            val version = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0
+            "PQC Provider registered: ${BouncyCastleProvider.PROVIDER_NAME} (version $version)"
         }
     }
 
@@ -179,10 +180,16 @@ internal class DeterministicSecureRandom(seed: ByteArray) : SecureRandom() {
         md.reset()
         md.update(seedSnapshot)
         md.update(counter.toByte())
-        md.update((counter ushr 8).toByte())
-        md.update((counter ushr 16).toByte())
-        md.update((counter ushr 24).toByte())
+        md.update((counter ushr SHIFT_8).toByte())
+        md.update((counter ushr SHIFT_16).toByte())
+        md.update((counter ushr SHIFT_24).toByte())
         return md.digest()
+    }
+
+    companion object {
+        private const val SHIFT_8 = 8
+        private const val SHIFT_16 = 16
+        private const val SHIFT_24 = 24
     }
 
     override fun nextBytes(bytes: ByteArray) {

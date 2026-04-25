@@ -142,7 +142,7 @@ object DhKem {
             }
         }
 
-        throw IllegalStateException("DeriveKeyPair failed after $MAX_DERIVE_ATTEMPTS attempts")
+        error("DeriveKeyPair failed after $MAX_DERIVE_ATTEMPTS attempts")
     }
 
     /**

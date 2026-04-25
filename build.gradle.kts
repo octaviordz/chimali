@@ -17,4 +17,12 @@ plugins {
 subprojects {
     apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
     apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
+
+    configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+        config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
+        baseline = file("${projectDir}/detekt-baseline.xml")
+        buildUponDefaultConfig = true
+        allRules = false
+        source.setFrom(files("src"))
+    }
 }

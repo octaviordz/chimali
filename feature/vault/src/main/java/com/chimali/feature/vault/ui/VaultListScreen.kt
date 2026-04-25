@@ -129,15 +129,19 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun VaultListScreenPreview() {
+    val date = "2023-01-01"
+    val payload = "payload".toByteArray()
+    val crdt = "crdt".toByteArray()
+
     val sampleItems = listOf(
         VaultItem(
             id = UUID.randomUUID(),
             type = VaultType.PASSWORD,
             title = "Sample Login",
-            payload = "payload".toByteArray(),
-            crdtState = "crdt".toByteArray(),
-            dateCreated = "2023-01-01",
-            dateModified = "2023-01-01",
+            payload = payload,
+            crdtState = crdt,
+            dateCreated = date,
+            dateModified = date,
             lastBackedUpAt = null,
             identityId = UUID.randomUUID()
         ),
@@ -145,10 +149,10 @@ fun VaultListScreenPreview() {
             id = UUID.randomUUID(),
             type = VaultType.NOTE,
             title = "Sample Note",
-            payload = "payload".toByteArray(),
-            crdtState = "crdt".toByteArray(),
-            dateCreated = "2023-01-01",
-            dateModified = "2023-01-01",
+            payload = payload,
+            crdtState = crdt,
+            dateCreated = date,
+            dateModified = date,
             lastBackedUpAt = null,
             identityId = UUID.randomUUID()
         )

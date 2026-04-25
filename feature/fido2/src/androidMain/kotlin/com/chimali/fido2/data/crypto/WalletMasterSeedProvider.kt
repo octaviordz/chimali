@@ -5,7 +5,6 @@ import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
 import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.hdkeys.P256Group
 import org.koin.core.annotation.Single
@@ -41,7 +40,6 @@ private const val KEY_MNEMONIC = "bip39_mnemonic"
 class WalletMasterSeedProvider(
     private val context: Context,
     private val masterSeedGenerator: MasterSeedGenerator,
-    private val hdkManager: HdkManager,
 ) : MasterSeedProvider {
     @Volatile
     private var cachedSeed: ByteArray? = null
@@ -75,7 +73,7 @@ class WalletMasterSeedProvider(
             // and keep the full 64-byte material only for the device key pair derivation,
             // which operates via HMAC-SHA512 anyway (deriveDeviceKeyPair).
             val bip39Seed = masterSeedGenerator.deriveSeed(mnemonic)
-            val hdkSeed = bip39Seed.copyOf(32) // first 32 bytes → HDK Ns bytes (§2.2)
+            val hdkSeed = bip39Seed.copyOf(HDK_SEED_SIZE_32) // first 32 bytes → HDK Ns bytes (§2.2)
 
             cachedSeed = hdkSeed
             // Derive the device key pair deterministically from the master seed so it
@@ -194,7 +192,7 @@ class WalletMasterSeedProvider(
     private fun deriveDeviceKeyPair(masterSeed: ByteArray): HdkKeyPair {
         val raw = hmacSha512("chimali_device_key_v1".toByteArray(Charsets.UTF_8), masterSeed)
         // Take the first 32 bytes as the private scalar (big-endian), reduced mod order.
-        val skScalar = BigInteger(1, raw.copyOfRange(0, 32)).mod(P256Group.ORDER)
+        val skScalar = BigInteger(1, raw.copyOfRange(0, P256_SCALAR_SIZE_32)).mod(P256Group.ORDER)
         val pkPoint = P256Group.scalarBaseMult(skScalar)
         raw.fill(0) // zeroise immediately
         Logger.d { "Device key pair derived deterministically from master seed" }
@@ -260,19 +258,18 @@ class WalletMasterSeedProvider(
     private fun derivePqChildSeed(masterSeed: ByteArray): ByteArray {
         // BIP-32 master root key from the master seed
         val masterRootKey = hmacSha512("Bitcoin seed".toByteArray(Charsets.UTF_8), masterSeed)
-        val k = masterRootKey.copyOfRange(0, 32) // IL = key
-        val c = masterRootKey.copyOfRange(32, 64) // IR = chain code
+        val k = masterRootKey.copyOfRange(0, BIP32_KEY_SIZE_32) // IL = key
+        val c = masterRootKey.copyOfRange(BIP32_KEY_SIZE_32, BIP32_HMAC_SIZE_64) // IR = chain code
 
         // Three rounds of hardened CKD: [83696968', 83286642', 2']
-        val hardenedOffset = 0x80000000L.toInt() // 2^31 as Int (wraps around)
         val path =
             intArrayOf(
                 // "BIP85" purpose namespace (hardened)
-                83696968 + hardenedOffset,
+                BIP85_PURPOSE_83696968 + HARDENED_OFFSET,
                 // HHD app_no = "Tectonic" T9 (hardened)
-                83286642 + hardenedOffset,
+                BIP85_APP_NO_83286642 + HARDENED_OFFSET,
                 // index=2 → PQ (Falcon/ML-DSA) branch (hardened)
-                2 + hardenedOffset,
+                BIP85_INDEX_PQ_ML_DSA + HARDENED_OFFSET,
             )
 
         var currentKey = k
@@ -309,15 +306,15 @@ class WalletMasterSeedProvider(
         chainCode: ByteArray,
         index: Int,
     ): Pair<ByteArray, ByteArray> {
-        val data = ByteArray(1 + 32 + 4)
+        val data = ByteArray(BIP32_CKD_DATA_SIZE)
         data[0] = 0x00
         parentKey.copyInto(data, 1)
-        data[33] = ((index ushr 24) and 0xFF).toByte()
-        data[34] = ((index ushr 16) and 0xFF).toByte()
-        data[35] = ((index ushr 8) and 0xFF).toByte()
-        data[36] = (index and 0xFF).toByte()
+        data[BIP32_INDEX_POS_0] = ((index ushr BIT_SHIFT_24) and BYTE_MASK_FF).toByte()
+        data[BIP32_INDEX_POS_1] = ((index ushr BIT_SHIFT_16) and BYTE_MASK_FF).toByte()
+        data[BIP32_INDEX_POS_2] = ((index ushr BIT_SHIFT_8) and BYTE_MASK_FF).toByte()
+        data[BIP32_INDEX_POS_3] = (index and BYTE_MASK_FF).toByte()
         val i = hmacSha512(chainCode, data)
-        return Pair(i.copyOfRange(0, 32), i.copyOfRange(32, 64))
+        return Pair(i.copyOfRange(0, BIP32_KEY_SIZE_32), i.copyOfRange(BIP32_KEY_SIZE_32, BIP32_HMAC_SIZE_64))
     }
 
     private fun hmacSha512(
@@ -327,5 +324,30 @@ class WalletMasterSeedProvider(
         val mac = Mac.getInstance("HmacSHA512")
         mac.init(SecretKeySpec(key, "HmacSHA512"))
         return mac.doFinal(data)
+    }
+
+    companion object {
+        private const val HDK_SEED_SIZE_32 = 32
+        private const val P256_SCALAR_SIZE_32 = 32
+        private const val BIP32_KEY_SIZE_32 = 32
+        private const val BIP32_HMAC_SIZE_64 = 64
+        private const val BIP32_CKD_DATA_SIZE = 1 + 32 + 4
+
+        private const val BIP85_PURPOSE_83696968 = 83696968
+        private const val BIP85_APP_NO_83286642 = 83286642
+        private const val BIP85_INDEX_PQ_ML_DSA = 2
+
+        // 2^31 as Int (wraps around)
+        private const val HARDENED_OFFSET = 0x80000000.toInt()
+
+        private const val BIP32_INDEX_POS_0 = 33
+        private const val BIP32_INDEX_POS_1 = 34
+        private const val BIP32_INDEX_POS_2 = 35
+        private const val BIP32_INDEX_POS_3 = 36
+
+        private const val BIT_SHIFT_24 = 24
+        private const val BIT_SHIFT_16 = 16
+        private const val BIT_SHIFT_8 = 8
+        private const val BYTE_MASK_FF = 0xFF
     }
 }

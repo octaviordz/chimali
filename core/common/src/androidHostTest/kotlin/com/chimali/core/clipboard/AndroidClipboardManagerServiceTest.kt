@@ -35,6 +35,12 @@ class AndroidClipboardManagerServiceTest {
 
     private lateinit var service: AndroidClipboardManagerService
 
+    companion object {
+        private const val TEST_LABEL = "Test Label"
+        private const val TEST_SENSITIVE_DATA = "Sensitive123"
+        private const val TEST_SHORT = "Test"
+    }
+
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -75,11 +81,11 @@ class AndroidClipboardManagerServiceTest {
             every { clipboardManager.setPrimaryClip(capture(clipDataSlot)) } just Runs
             every { clipboardManager.clearPrimaryClip() } just Runs
 
-            service.copySensitiveData("Test Label", "Sensitive123", 60_000L)
+            service.copySensitiveData(TEST_LABEL, TEST_SENSITIVE_DATA, 60_000L)
 
             // Verify it was copied
             verify(exactly = 1) { clipboardManager.setPrimaryClip(any()) }
-            verify(exactly = 1) { ClipData.newPlainText("Test Label", "Sensitive123") }
+            verify(exactly = 1) { ClipData.newPlainText(TEST_LABEL, TEST_SENSITIVE_DATA) }
 
             // Verify it IS NOT cleared yet
             verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
@@ -99,7 +105,7 @@ class AndroidClipboardManagerServiceTest {
             every { clipboardManager.setPrimaryClip(any()) } just Runs
             every { clipboardManager.clearPrimaryClip() } just Runs
 
-            service.copySensitiveData("Test Label", "Sensitive123", 60_000L)
+            service.copySensitiveData(TEST_LABEL, TEST_SENSITIVE_DATA, 60_000L)
 
             // Explicitly clear
             service.clearClipboard()
@@ -117,11 +123,11 @@ class AndroidClipboardManagerServiceTest {
             every { clipboardManager.clearPrimaryClip() } just Runs
 
             // First copy
-            service.copySensitiveData("Test", "Data1", 60_000L)
+            service.copySensitiveData(TEST_SHORT, "Data1", 60_000L)
             advanceTimeBy(30_000L) // Wait half the time
 
             // Second copy
-            service.copySensitiveData("Test", "Data2", 60_000L)
+            service.copySensitiveData(TEST_SHORT, "Data2", 60_000L)
 
             advanceTimeBy(30_000L) // Total 60s since first copy
             // Clear should NOT be called yet because timer reset

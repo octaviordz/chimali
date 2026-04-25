@@ -99,7 +99,9 @@ object WarmUpHelper {
             sig.sign() // result intentionally discarded
 
             Logger.d {
-                "AndroidKeyStore warm-up DONE: sign=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms"
+                val tSign = System.currentTimeMillis() - t1
+                val tTotal = System.currentTimeMillis() - t0
+                "AndroidKeyStore warm-up DONE: sign=${tSign}ms total=${tTotal}ms"
             }
         } catch (e: Exception) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.

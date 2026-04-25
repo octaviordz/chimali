@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-25
+
+### Fixed
+- **Detekt Quality Hardening**: Enforced project-wide quality gates for `MagicNumber`, `MaxLineLength`, and `UnusedCode`. Extracted 100+ numeric literals into named constants and refactored long logical lines for better readability across all modules.
+- **Code Polish & Refactoring**:
+    - Refactored `RegisterCredentialUseCase` from nested `if/else` to idiomatic guard clauses.
+    - Migrated `Fido2Initializer` to structured concurrency (feature-scoped coroutines).
+    - Renamed `Services.kt` to `CryptoService.kt` for domain clarity.
+    - Purged unused dependencies and scratch files from the `fido2` module.
+- **Detailed changes**: [2026-04-25-detekt-quality-hardening-and-code-polish.md](docs/changelogs/2026-04-25-detekt-quality-hardening-and-code-polish.md)
+
 ## [Unreleased] - 2026-04-24
 
 ### Added
@@ -550,4 +561,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-24*
+*Last Updated: 2026-04-25*

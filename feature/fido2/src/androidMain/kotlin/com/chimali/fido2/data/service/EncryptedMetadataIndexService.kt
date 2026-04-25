@@ -153,7 +153,7 @@ class EncryptedMetadataIndexService(
             val rpIdBytes = plaintext.drop(RP_ID_DOMAIN.size).toByteArray()
             String(rpIdBytes, Charsets.UTF_8)
         } catch (e: SecurityException) {
-            Logger.w { "decryptRpIdTag: authentication failed — tag may be tampered" }
+            Logger.w(e) { "decryptRpIdTag: authentication failed — tag may be tampered" }
             null
         } catch (e: Exception) {
             Logger.e(e) { "decryptRpIdTag failed" }

@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import co.touchlab.kermit.Logger
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
@@ -94,6 +95,7 @@ fun Fido2HomeScreen(
                         }
                     bluetoothDiscoverableLauncher.launch(discoverableIntent)
                 } catch (e: SecurityException) {
+                    Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability (permission request)" }
                     showBluetoothError = true
                 }
             } else {
@@ -109,6 +111,7 @@ fun Fido2HomeScreen(
                 }
             bluetoothDiscoverableLauncher.launch(discoverableIntent)
         } catch (e: SecurityException) {
+            Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability" }
             showBluetoothError = true
         }
     }
@@ -119,14 +122,28 @@ fun Fido2HomeScreen(
             viewModel.toggleTransport()
         } else {
             // Permission logic varies by Android version:
-            // - Android 13+ (TIRAMISU, API 33): Requires Nearby Devices (BT) + POST_NOTIFICATIONS for foreground services.
+            // - Android 13+ (TIRAMISU, API 33): Requires Nearby Devices (BT) + POST_NOTIFICATIONS
+            //   for foreground services.
             // - Android 12 (S, API 31): Requires Nearby Devices (BT) only.
             // - Legacy: Permissions are handled during installation or simplified.
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val notificationsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
+                val connectGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_CONNECT,
+                    ) == granted
+                val advertiseGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                    ) == granted
+                val scanGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_SCAN,
+                    ) == granted
+                val notificationsGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.POST_NOTIFICATIONS,
+                    ) == granted
 
                 if (!connectGranted || !advertiseGranted || !scanGranted || !notificationsGranted) {
                     bluetoothPermissionLauncher.launch(
@@ -141,9 +158,19 @@ fun Fido2HomeScreen(
                     startBluetoothDiscoverability()
                 }
             } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                val connectGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val advertiseGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_ADVERTISE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val scanGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
+                val connectGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_CONNECT,
+                    ) == granted
+                val advertiseGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                    ) == granted
+                val scanGranted =
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.BLUETOOTH_SCAN,
+                    ) == granted
                 if (!connectGranted || !advertiseGranted || !scanGranted) {
                     bluetoothPermissionLauncher.launch(
                         arrayOf(
@@ -167,7 +194,9 @@ fun Fido2HomeScreen(
             title = { Text("Bluetooth Required") },
             text = {
                 Text(
-                    "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions to act as a security key. Please allow discoverability and permissions to continue.",
+                    "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions " +
+                        "to act as a security key. " +
+                        "Please allow discoverability and permissions to continue.",
                 )
             },
             dismissButton = {
@@ -358,7 +387,12 @@ fun TransportToggleButton(
         modifier = Modifier.fillMaxWidth(),
         colors =
             ButtonDefaults.buttonColors(
-                containerColor = if (isRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
+                containerColor =
+                    if (isRunning) {
+                        MaterialTheme.colorScheme.errorContainer
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
                 contentColor = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary,
             ),
     ) {

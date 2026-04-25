@@ -77,7 +77,10 @@ fun RegistrationPromptScreen(
                             BiometricPrompt.PromptInfo.Builder()
                                 .setTitle(effect.promptTitle)
                                 .setSubtitle(effect.promptSubtitle)
-                                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                                .setAllowedAuthenticators(
+                                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                                )
                                 .build()
 
                         val biometricPrompt =
@@ -90,10 +93,19 @@ fun RegistrationPromptScreen(
                                     ) {
                                         super.onAuthenticationError(errorCode, errString)
                                         // Only treat cancel as an explicit failure vs error
-                                        if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
-                                            viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Verification cancelled by user"))
+                                        val isCancel =
+                                            errorCode == BiometricPrompt.ERROR_CANCELED ||
+                                                errorCode == BiometricPrompt.ERROR_USER_CANCELED
+                                        if (isCancel) {
+                                            viewModel.handleIntent(
+                                                RegistrationIntent.UserVerificationFailed(
+                                                    "Verification cancelled by user",
+                                                ),
+                                            )
                                         } else {
-                                            viewModel.handleIntent(RegistrationIntent.UserVerificationFailed(errString.toString()))
+                                            viewModel.handleIntent(
+                                                RegistrationIntent.UserVerificationFailed(errString.toString()),
+                                            )
                                         }
                                     }
 
@@ -107,7 +119,11 @@ fun RegistrationPromptScreen(
                             )
                         biometricPrompt.authenticate(promptInfo)
                     } ?: run {
-                        viewModel.handleIntent(RegistrationIntent.UserVerificationFailed("Activity context required for biometric prompt"))
+                        viewModel.handleIntent(
+                            RegistrationIntent.UserVerificationFailed(
+                                "Activity context required for biometric prompt",
+                            ),
+                        )
                     }
                 }
                 is RegistrationEffect.ShowSnackbar -> { /* handled via state */ }

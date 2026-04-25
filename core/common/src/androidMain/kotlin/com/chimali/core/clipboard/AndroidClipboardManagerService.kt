@@ -33,7 +33,8 @@ class AndroidClipboardManagerService(
     //     eventBus.publish(ClipboardEvent.ContentChanged(
     //         timestamp = System.currentTimeMillis(),
     //         hasContent = hasContent,
-    //         isSensitive = hasContent && clipboardManager?.primaryClip?.description?.extras?.getBoolean("is_sensitive") == true
+    //         isSensitive = hasContent &&
+    //             clipboardManager?.primaryClip?.description?.extras?.getBoolean("is_sensitive") == true
     //     ))
     // }
 
@@ -70,7 +71,10 @@ class AndroidClipboardManagerService(
             Result.success(Unit)
         } catch (e: SecurityException) {
             Result.failure(ClipboardError.CopyFailed("Security exception: ${e.message}", e))
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
             Result.failure(
                 ClipboardError.PlatformError("Android", e::class.simpleName, e.message ?: "Unknown error", e),
             )
@@ -102,7 +106,10 @@ class AndroidClipboardManagerService(
             }
         } catch (e: SecurityException) {
             Result.failure(ClipboardError.ClearFailed("Security exception: ${e.message}", e))
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
             Result.failure(
                 ClipboardError.PlatformError("Android", e.javaClass.simpleName, e.message ?: "Unknown error", e),
             )

@@ -24,7 +24,7 @@ object MultiplicativeBlinding {
      * @return Blind key as 32 bytes.
      */
     fun deriveBlindKey(ikm: ByteArray): ByteArray {
-        val scalar = HashToScalar.hashToScalar(ikm, DST)
+        val scalar = HashToScalar.compute(ikm, DST)
         return P256Group.serializeScalar(scalar)
     }
 
@@ -42,7 +42,7 @@ object MultiplicativeBlinding {
         ctx: ByteArray,
     ): BigInteger {
         val input = bk + byteArrayOf(0x00) + ctx
-        return HashToScalar.hashToScalar(input, DST)
+        return HashToScalar.compute(input, DST)
     }
 
     /**

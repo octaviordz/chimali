@@ -51,6 +51,10 @@ class BluetoothHidAuthenticatorImpl(
     private val context: Context
 ) : BluetoothHidAuthenticator, BluetoothProfile.ServiceListener {
 
+    companion object {
+        private const val TAG = "BluetoothHID"
+    }
+
     /** Underlying Bluetooth HID Device profile proxy, provided by the Android framework. */
     private var hidDevice: BluetoothHidDevice? = null
 
@@ -81,7 +85,7 @@ class BluetoothHidAuthenticatorImpl(
         try {
             adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)
         } catch (e: SecurityException) {
-            Log.e("BluetoothHID", "Bluetooth permission denied on init", e)
+            Log.e(TAG, "Bluetooth permission denied on init", e)
         }
     }
 
@@ -132,7 +136,7 @@ class BluetoothHidAuthenticatorImpl(
                     ) {
                         if (registered) {
                             _state.value = AuthenticatorState.ADVERTISING
-                            Log.d("BluetoothHID", "App registered and advertising")
+                            Log.d(TAG, "App registered and advertising")
                         }
                     }
                     
@@ -153,7 +157,7 @@ class BluetoothHidAuthenticatorImpl(
                 }
             )
         } catch (e: SecurityException) {
-            Log.e("BluetoothHID", "Bluetooth permission denied when starting advertisement", e)
+            Log.e(TAG, "Bluetooth permission denied when starting advertisement", e)
         }
     }
 
@@ -170,7 +174,7 @@ class BluetoothHidAuthenticatorImpl(
         try {
             // hidDevice?.unregisterApp() — intentionally deferred; see KDoc above.
         } catch (e: SecurityException) {
-            Log.e("BluetoothHID", "Bluetooth permission denied when stopping", e)
+            Log.e(TAG, "Bluetooth permission denied when stopping", e)
         }
         _state.value = AuthenticatorState.IDLE
     }
@@ -186,7 +190,7 @@ class BluetoothHidAuthenticatorImpl(
     override fun sendConfirmation() {
         if (_state.value != AuthenticatorState.CONNECTED) return
         // Send actual HID report for "button press" or FIDO HID response
-        Log.d("BluetoothHID", "Sending confirmation (skeleton)")
+        Log.d(TAG, "Sending confirmation (skeleton)")
     }
 
     /**

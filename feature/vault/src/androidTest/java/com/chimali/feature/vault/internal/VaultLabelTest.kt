@@ -1,7 +1,6 @@
 package com.chimali.feature.vault.internal
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.chimali.feature.vault.api.VaultService
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -12,12 +11,9 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class VaultLabelTest {
 
-    private lateinit var vaultService: VaultService
-
     @Before
     fun setup() {
         // Initialize an in-memory SQLDelight database for testing here
-        // vaultService = VaultRepositoryImpl(...)
     }
 
     @Test

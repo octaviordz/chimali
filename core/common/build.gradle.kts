@@ -51,15 +51,9 @@ kotlin {
                 implementation(libs.koin.android)
             }
         }
-        val iosMain by creating {
-            dependsOn(commonMain)
-        }
-        val iosArm64Main by getting {
-            dependsOn(iosMain)
-        }
-        val iosSimulatorArm64Main by getting {
-            dependsOn(iosMain)
-        }
+        val iosMain by creating
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
     }
 }
 

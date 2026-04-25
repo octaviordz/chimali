@@ -17,7 +17,10 @@ actual val isDebug: Boolean by lazy {
             // (useful for some test environments)
             System.getProperty("chimali.debug") == "true"
         }
-    } catch (e: Exception) {
+    } catch (
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        e: Exception,
+    ) {
         false
     }
 }

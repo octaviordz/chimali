@@ -48,7 +48,10 @@ class IosClipboardManagerService(
             // Note: Content change event publishing can be added when event system is integrated
 
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
             logger.e(e) { "iOS Clipboard: Copy failed - ${e.message}" }
             Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }
@@ -67,7 +70,10 @@ class IosClipboardManagerService(
             // Note: Auto-clear event publishing can be added when event system is integrated
 
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught")
+            e: Exception,
+        ) {
             logger.e(e) { "iOS Clipboard: Clear failed - ${e.message}" }
             Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }

@@ -73,7 +73,10 @@ fun AuthenticationPromptScreen(
                             BiometricPrompt.PromptInfo.Builder()
                                 .setTitle(effect.promptTitle)
                                 .setSubtitle(effect.promptSubtitle)
-                                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                                .setAllowedAuthenticators(
+                                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                                )
                                 .build()
 
                         val biometricPrompt =
@@ -86,10 +89,19 @@ fun AuthenticationPromptScreen(
                                     ) {
                                         super.onAuthenticationError(errorCode, errString)
                                         // Only treat cancel as an explicit failure vs error
-                                        if (errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
-                                            viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Verification cancelled by user"))
+                                        val isCancel =
+                                            errorCode == BiometricPrompt.ERROR_CANCELED ||
+                                                errorCode == BiometricPrompt.ERROR_USER_CANCELED
+                                        if (isCancel) {
+                                            viewModel.handleIntent(
+                                                AuthenticationIntent.UserVerificationFailed(
+                                                    "Verification cancelled by user",
+                                                ),
+                                            )
                                         } else {
-                                            viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed(errString.toString()))
+                                            viewModel.handleIntent(
+                                                AuthenticationIntent.UserVerificationFailed(errString.toString()),
+                                            )
                                         }
                                     }
 
@@ -103,7 +115,11 @@ fun AuthenticationPromptScreen(
                             )
                         biometricPrompt.authenticate(promptInfo)
                     } ?: run {
-                        viewModel.handleIntent(AuthenticationIntent.UserVerificationFailed("Activity context required for biometric prompt"))
+                        viewModel.handleIntent(
+                            AuthenticationIntent.UserVerificationFailed(
+                                "Activity context required for biometric prompt",
+                            ),
+                        )
                     }
                 }
                 is AuthenticationEffect.ShowSnackbar -> { /* handled via state */ }
@@ -191,14 +207,20 @@ internal fun AuthenticationPromptContent(
                         Spacer(Modifier.height(24.dp))
                         ChimaliButton(
                             onClick = onConfirm,
-                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Confirm authentication button" },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .semantics { contentDescription = "Confirm authentication button" },
                         ) {
                             Text("Sign in")
                         }
                         Spacer(Modifier.height(8.dp))
                         ChimaliOutlinedButton(
                             onClick = onCancel,
-                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Cancel authentication button" },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .semantics { contentDescription = "Cancel authentication button" },
                         ) {
                             Text("Cancel")
                         }
@@ -215,7 +237,10 @@ internal fun AuthenticationPromptContent(
 
                 is AuthenticationState.AwaitingUserVerification -> {
                     Box(
-                        modifier = Modifier.fillMaxSize().semantics { contentDescription = "Awaiting verification" },
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .semantics { contentDescription = "Awaiting verification" },
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
@@ -235,7 +260,10 @@ internal fun AuthenticationPromptContent(
 
                 is AuthenticationState.Processing ->
                     Box(
-                        modifier = Modifier.fillMaxSize().semantics { contentDescription = "Authentication in progress" },
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .semantics { contentDescription = "Authentication in progress" },
                         contentAlignment = Alignment.Center,
                     ) { AuthenticationProgressIndicator() }
 

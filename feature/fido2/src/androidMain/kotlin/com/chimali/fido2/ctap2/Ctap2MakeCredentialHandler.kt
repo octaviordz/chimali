@@ -211,12 +211,16 @@ class Ctap2MakeCredentialHandler(
                     else -> null
                 }
             } ?: run {
-                Logger.e { "Algorithm negotiation failed: None of the requested algorithms ${req.algorithms} are supported" }
+                Logger.e {
+                    "Algorithm negotiation failed: None of the requested algorithms " +
+                        "${req.algorithms} are supported"
+                }
                 return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
             }
 
         Logger.i {
-            "Algorithm negotiation: RP requested ${req.algorithms}, selected COSE alg $selectedAlgId (${pubKeyCredParams.algorithm})"
+            "Algorithm negotiation: RP requested ${req.algorithms}, " +
+                "selected COSE alg $selectedAlgId (${pubKeyCredParams.algorithm})"
         }
 
         // T056a: Log credProtect policy for auditability. Policy enforcement (blocking
@@ -248,7 +252,8 @@ class Ctap2MakeCredentialHandler(
         val makeCredentialResult = deferred.await()
         LatencyProfiler.endUserInteraction("MakeCredential")
         Logger.d {
-            "Deferred resolved — success=${makeCredentialResult.isSuccess} error=${makeCredentialResult.exceptionOrNull()?.message}"
+            "Deferred resolved — success=${makeCredentialResult.isSuccess} " +
+                "error=${makeCredentialResult.exceptionOrNull()?.message}"
         }
 
         if (makeCredentialResult.isFailure) {

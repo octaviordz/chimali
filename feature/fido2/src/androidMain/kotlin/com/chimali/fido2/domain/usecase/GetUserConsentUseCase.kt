@@ -58,7 +58,9 @@ class GetUserConsentUseCase(
 
             // If verification is required, perform user verification
             val verificationResult =
-                if (requireVerification && consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED) {
+                if (requireVerification &&
+                    consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
+                ) {
                     performUserVerificationForConsent(rpId, operationType, prompt)
                 } else {
                     // Silent/implicit consent — no explicit verification performed
@@ -73,7 +75,8 @@ class GetUserConsentUseCase(
 
             if (verificationResult.isFailure) {
                 return Result.failure(
-                    verificationResult.exceptionOrNull() ?: Fido2Exception.UserVerificationFailed("User verification failed"),
+                    verificationResult.exceptionOrNull()
+                        ?: Fido2Exception.UserVerificationFailed("User verification failed"),
                 )
             }
 
@@ -295,9 +298,12 @@ class GetUserConsentUseCase(
                 pinUsed = availability.pinAvailable,
                 verificationMethod =
                     when (bestMethod) {
-                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC -> VerificationMethod.BIOMETRIC
-                        com.chimali.fido2.domain.service.VerificationMethod.PIN -> VerificationMethod.PIN
-                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC_AND_PIN -> VerificationMethod.BIOMETRIC
+                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC ->
+                            VerificationMethod.BIOMETRIC
+                        com.chimali.fido2.domain.service.VerificationMethod.PIN ->
+                            VerificationMethod.PIN
+                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC_AND_PIN ->
+                            VerificationMethod.BIOMETRIC
                         else -> null
                     },
             ),
@@ -384,8 +390,9 @@ data class ConsentStatistics(
 
         val methodSummary = if (methods.isNotEmpty()) methods.joinToString(", ") else "None"
 
-        return "Total: $totalConsents consents (Registration: $registrationConsents, Authentication: $authenticationConsents, Recent: $recentConsents, Avg/day: ${"%.2f".format(
-            averageConsentsPerDay,
-        )}) - Methods: $methodSummary"
+        val avgPerDay = "%.2f".format(averageConsentsPerDay)
+        return "Total: $totalConsents consents (Registration: $registrationConsents, " +
+            "Authentication: $authenticationConsents, Recent: $recentConsents, " +
+            "Avg/day: $avgPerDay) - Methods: $methodSummary"
     }
 }

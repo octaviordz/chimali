@@ -17,7 +17,7 @@ import kotlinx.datetime.toLocalDateTime
 class LocalCrashReportingLogWriter(
     private val directoryProvider: LogDirectoryProvider,
     // 5MB limit default
-    private val maxFileSize: Long = 5L * 1024 * 1024,
+    private val maxFileSize: Long = DEFAULT_MAX_FILE_SIZE_BYTES,
 ) : LogWriter() {
     private val fileSystem = FileSystem.SYSTEM
     private val logDir: Path
@@ -120,5 +120,9 @@ class LocalCrashReportingLogWriter(
         } catch (e: Exception) {
             println("CrashReportingWriter: Failed to rotate logs: ${e.message}")
         }
+    }
+
+    companion object {
+        private const val DEFAULT_MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024
     }
 }

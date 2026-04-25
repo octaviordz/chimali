@@ -74,6 +74,13 @@ class CborCodec {
 
         private const val BYTE_SHIFT_8 = 8
         private const val MASK_8_BITS = 0xFF
+
+        private const val COSE_KTY_AKP = 0x07
+        private const val COSE_CRV_ED25519 = 0x06
+
+        private const val UINT8_MAX = 0xFFL
+        private const val UINT16_MAX = 0xFFFFL
+        private const val UINT32_MAX = 0xFFFFFFFFL
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
@@ -168,7 +175,7 @@ class CborCodec {
 
         // kty: 1 = 7 (AKP)
         out.write(0x01) // uint(1) - kty
-        out.write(0x07) // uint(7) - AKP
+        out.write(COSE_KTY_AKP) // uint(7) - AKP
 
         // alg: 3 = -49
         out.write(0x03) // uint(3) - alg
@@ -210,7 +217,7 @@ class CborCodec {
 
         // crv: -1 = 6 (Ed25519)
         out.write(NEG_INT_1) // negative int -1
-        out.write(0x06) // uint(6) - Ed25519 curve
+        out.write(COSE_CRV_ED25519) // uint(6) - Ed25519 curve
 
         // x: -2
         out.write(NEG_INT_2) // negative int -2
@@ -250,14 +257,12 @@ class CborCodec {
         }
 
         // Last 65 bytes of P-256 SubjectPublicKeyInfo = 0x04 || X || Y
-        return if (derEncoded.size >= SIZE_65 && derEncoded[derEncoded.size - SIZE_65] == UNCOMPRESSED_EC_PREFIX) {
-            val uncompressed = derEncoded.copyOfRange(derEncoded.size - SIZE_65, derEncoded.size)
-            encodeCosePublicKeyFromUncompressed(uncompressed)
-        } else {
-            throw IllegalArgumentException(
-                "Cannot extract uncompressed EC point from key encoding (algo=$algorithm, size=${derEncoded.size})",
-            )
+        require(derEncoded.size >= SIZE_65 && derEncoded[derEncoded.size - SIZE_65] == UNCOMPRESSED_EC_PREFIX) {
+            "Cannot extract uncompressed EC point from key encoding (algo=$algorithm, size=${derEncoded.size})"
         }
+
+        val uncompressed = derEncoded.copyOfRange(derEncoded.size - SIZE_65, derEncoded.size)
+        return encodeCosePublicKeyFromUncompressed(uncompressed)
     }
 
     // ── Recursive decoder ─────────────────────────────────────────────────────
@@ -352,7 +357,8 @@ class CborCodec {
             info == HEADER_UINT8 -> Pair((data[offset].toInt() and MASK_8_BITS).toLong(), offset + 1)
             info == HEADER_UINT16 -> {
                 val v =
-                    ((data[offset].toInt() and MASK_8_BITS) shl BYTE_SHIFT_8) or (data[offset + 1].toInt() and MASK_8_BITS)
+                    ((data[offset].toInt() and MASK_8_BITS) shl BYTE_SHIFT_8) or
+                        (data[offset + 1].toInt() and MASK_8_BITS)
                 Pair(v.toLong(), offset + 2)
             }
 
@@ -448,17 +454,17 @@ class CborCodec {
         val hi = major shl MAJOR_TYPE_SHIFT
         when {
             argument < HEADER_SMALL_LIMIT -> writeByte(out, (hi or argument.toInt()).toByte())
-            argument <= 0xFFL -> {
+            argument <= UINT8_MAX -> {
                 writeByte(out, (hi or HEADER_UINT8).toByte())
                 writeByte(out, argument.toByte())
             }
 
-            argument <= 0xFFFFL -> {
+            argument <= UINT16_MAX -> {
                 writeByte(out, (hi or HEADER_UINT16).toByte())
                 writeShort(out, argument.toInt())
             }
 
-            argument <= 0xFFFFFFFFL -> {
+            argument <= UINT32_MAX -> {
                 writeByte(out, (hi or HEADER_UINT32).toByte())
                 writeInt(out, argument.toInt())
             }

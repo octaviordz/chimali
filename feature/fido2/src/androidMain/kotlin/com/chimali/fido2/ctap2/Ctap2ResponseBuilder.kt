@@ -49,7 +49,6 @@ class Ctap2ResponseBuilder(
         private const val KEY_AAGUID = "3"
         private const val KEY_OPTIONS = "4"
         private const val KEY_MAX_MSG_SIZE = "5"
-        private const val KEY_MAX_CREDS = "7"
         private const val KEY_MAX_CRED_ID_LEN = "8"
         private const val KEY_TRANSPORTS = "9"
         private const val KEY_ALGORITHMS = "10"
@@ -149,7 +148,8 @@ class Ctap2ResponseBuilder(
                     ),
             )
         Logger.d {
-            "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=${info.aaguid.size}bytes"
+            "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] " +
+                "extensions=[credProtect,hmac-secret,minPinLength] aaguid=${info.aaguid.size}bytes"
         }
         return successCborPackets(cid, responseMap)
     }

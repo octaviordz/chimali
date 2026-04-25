@@ -15,7 +15,8 @@ import javax.crypto.spec.SecretKeySpec
  *
  * ## Protocol Flow (assertion phase):
  *
- * 1. Client sends in `extensions`: `{"hmac-secret": {"keyAgreement": <COSE_Key>, "saltEnc": <bytes>, "saltAuth": <bytes>}}`
+ * 1. Client sends in `extensions`:
+ *    `{"hmac-secret": {"keyAgreement": <COSE_Key>, "saltEnc": <bytes>, "saltAuth": <bytes>}}`
  * 2. Authenticator:
  *    a. Verifies `saltAuth` via HMAC-SHA-256(sharedSecret, saltEnc).
  *    b. Decrypts `saltEnc` → salt1 (32 bytes) [+ salt2 (32 bytes) if present].

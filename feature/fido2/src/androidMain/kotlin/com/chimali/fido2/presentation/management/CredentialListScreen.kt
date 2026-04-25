@@ -133,8 +133,9 @@ fun CredentialListScreen(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    val emptyMsg = if (searchQuery.isEmpty()) "No passkeys yet." else "No results for \"$searchQuery\""
                     Text(
-                        text = if (searchQuery.isEmpty()) "No passkeys yet." else "No results for \"$searchQuery\"",
+                        text = emptyMsg,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -145,7 +146,7 @@ fun CredentialListScreen(
                 val shouldLoadMore by remember {
                     derivedStateOf {
                         val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-                        lastVisibleItem != null && lastVisibleItem.index >= state.credentials.size - 5
+                        lastVisibleItem != null && lastVisibleItem.index >= state.credentials.size - LOAD_THRESHOLD
                     }
                 }
 
@@ -165,7 +166,9 @@ fun CredentialListScreen(
                             rememberSwipeToDismissBoxState(
                                 confirmValueChange = { value ->
                                     if (value != SwipeToDismissBoxValue.Settled) {
-                                        viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                                        viewModel.onIntent(
+                                            CredentialManagementIntent.PendingDelete(credential),
+                                        )
                                         false // Handle visibility via ViewModel state
                                     } else {
                                         false
@@ -183,18 +186,27 @@ fun CredentialListScreen(
                                     val color by animateColorAsState(
                                         targetValue =
                                             when (targetValue) {
-                                                SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                                                SwipeToDismissBoxValue.Settled ->
+                                                    MaterialTheme.colorScheme.surfaceVariant
                                                 else -> MaterialTheme.colorScheme.errorContainer
                                             },
                                         label = "bg_color",
                                     )
                                     val iconScale by animateFloatAsState(
-                                        targetValue = if (targetValue != SwipeToDismissBoxValue.Settled) 1.2f else 1.0f,
+                                        targetValue =
+                                            if (targetValue != SwipeToDismissBoxValue.Settled) {
+                                                1.2f
+                                            } else {
+                                                1.0f
+                                            },
                                         animationSpec = tween(durationMillis = 300),
                                         label = "icon_scale",
                                     )
 
-                                    val avdImage = AnimatedImageVector.animatedVectorResource(CoreR.drawable.avd_delete)
+                                    val avdImage =
+                                        AnimatedImageVector.animatedVectorResource(
+                                            CoreR.drawable.avd_delete,
+                                        )
                                     val avdPainter =
                                         rememberAnimatedVectorPainter(
                                             animatedImageVector = avdImage,
@@ -296,3 +308,5 @@ fun CredentialListScreen(
         )
     }
 }
+
+private const val LOAD_THRESHOLD = 5

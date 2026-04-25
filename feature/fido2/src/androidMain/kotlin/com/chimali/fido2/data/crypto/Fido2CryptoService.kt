@@ -86,7 +86,8 @@ class Fido2CryptoService(
      *
      * | Algorithm  | COSE ID | Derivation mechanism |
      * |------------|---------|----------------------|
-     * | ES256      | -7      | **HDK-ECDH-P256** via [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
+     * | ES256      | -7      | **HDK-ECDH-P256** via                                              |
+     * |            |         | [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
      * | Ed25519    | -19     | **SHA-512 hash** — isolated branch; see note below |
      * | ML-DSA-65  | -49     | **BIP-85 + SHA-512** — isolated PQ branch via [MasterSeedProvider.getPqChildSeed] |
      *
@@ -125,7 +126,9 @@ class Fido2CryptoService(
                     val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
                     derivedSeed.fill(0)
 
-                    Logger.d { "ML-DSA key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
+                    Logger.d {
+                        "ML-DSA key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
+                    }
                     return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                 }
 
@@ -151,7 +154,9 @@ class Fido2CryptoService(
 
                     derivedSeed.fill(0)
 
-                    Logger.d { "Ed25519 key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
+                    Logger.d {
+                        "Ed25519 key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
+                    }
                     return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                 }
 
@@ -177,7 +182,9 @@ class Fido2CryptoService(
 
                 val publicKeyBytes = hdkResult.publicKey // 65 bytes uncompressed
 
-                Logger.d { "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}" }
+                Logger.d {
+                    "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
+                }
                 Fido2KeyPair(
                     alias = credentialAlias(credentialId),
                     publicKeyBytes = publicKeyBytes,
@@ -212,7 +219,8 @@ class Fido2CryptoService(
             } else if (algId == COSE_ED25519) {
                 val bcProvider = BouncyCastleProvider()
                 val kf = KeyFactory.getInstance("Ed25519", bcProvider)
-                val x509Spec = java.security.spec.X509EncodedKeySpec(ED25519_X509_PREFIX + keyPair.publicKeyBytes)
+                val prefix = ED25519_X509_PREFIX
+                val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
                 kf.generatePublic(x509Spec)
             } else {
                 decodeUncompressedPoint(keyPair.publicKeyBytes)
@@ -330,7 +338,9 @@ class Fido2CryptoService(
             devicePrivKeyBytes.fill(0)
 
             Logger.d {
-                "Master seed pre-warm DONE: seed=${t1 - t0}ms sign-path=${System.currentTimeMillis() - t1}ms total=${System.currentTimeMillis() - t0}ms"
+                "Master seed pre-warm DONE: seed=${t1 - t0}ms " +
+                    "sign-path=${System.currentTimeMillis() - t1}ms " +
+                    "total=${System.currentTimeMillis() - t0}ms"
             }
         }.onFailure { e ->
             Logger.w(e) { "Master seed pre-warm FAILED (non-fatal): ${e.message}" }
@@ -376,7 +386,8 @@ class Fido2CryptoService(
                     derivedSeed.fill(0)
                     LatencyProfiler.end("Crypto.sign")
                     Logger.d {
-                        "Signed ${data.size} bytes with ML-DSA for credentialId=$credentialId sigLen=${signature.size}"
+                        "Signed ${data.size} bytes with ML-DSA for " +
+                            "credentialId=$credentialId sigLen=${signature.size}"
                     }
                     return@withContext Result.success(signature)
                 }
@@ -405,7 +416,8 @@ class Fido2CryptoService(
 
                     LatencyProfiler.end("Crypto.sign")
                     Logger.d {
-                        "Signed ${data.size} bytes with Ed25519 for credentialId=$credentialId sigLen=${signature.size}"
+                        "Signed ${data.size} bytes with Ed25519 for " +
+                            "credentialId=$credentialId sigLen=${signature.size}"
                     }
                     return@withContext Result.success(signature)
                 }
@@ -568,13 +580,16 @@ class Fido2CryptoService(
         private const val ED25519_SEED_SIZE = 32
         private const val P256_UNCOMPRESSED_SIZE = 65
         private const val UNCOMPRESSED_PREFIX = 0x04.toByte()
-        private const val WARM_UP_LATENCY_MS = 150
         private const val WARMUP_DUMMY_SIZE = 32
-
         private const val INDEX_SHIFT_3 = 24
         private const val INDEX_SHIFT_2 = 16
         private const val INDEX_SHIFT_1 = 8
         private const val BYTE_MASK = 0xFFu
+
+        private const val BYTE_INDEX_0 = 0
+        private const val BYTE_INDEX_1 = 1
+        private const val BYTE_INDEX_2 = 2
+        private const val BYTE_INDEX_3 = 3
 
         private val ED25519_X509_PREFIX =
             byteArrayOf(
@@ -593,10 +608,10 @@ class Fido2CryptoService(
                 java.security.MessageDigest.getInstance("SHA-256")
                     .digest(credentialId.toByteArray())
             val credIndex =
-                ((hashBytes[0].toUInt() and BYTE_MASK) shl INDEX_SHIFT_3) or
-                    ((hashBytes[1].toUInt() and BYTE_MASK) shl INDEX_SHIFT_2) or
-                    ((hashBytes[2].toUInt() and BYTE_MASK) shl INDEX_SHIFT_1) or
-                    (hashBytes[3].toUInt() and BYTE_MASK)
+                ((hashBytes[BYTE_INDEX_0].toUInt() and BYTE_MASK) shl INDEX_SHIFT_3) or
+                    ((hashBytes[BYTE_INDEX_1].toUInt() and BYTE_MASK) shl INDEX_SHIFT_2) or
+                    ((hashBytes[BYTE_INDEX_2].toUInt() and BYTE_MASK) shl INDEX_SHIFT_1) or
+                    (hashBytes[BYTE_INDEX_3].toUInt() and BYTE_MASK)
             return listOf(FIDO2_APP_INDEX, credIndex)
         }
 

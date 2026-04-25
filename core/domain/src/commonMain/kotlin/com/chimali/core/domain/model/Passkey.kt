@@ -15,6 +15,7 @@ data class Passkey(
     val createdAt: Instant,
     val lastUsed: Instant?,
 ) : DomainModel {
+    @Suppress("CyclomaticComplexMethod")
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false

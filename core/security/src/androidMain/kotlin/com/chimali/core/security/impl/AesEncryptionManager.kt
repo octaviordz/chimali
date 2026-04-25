@@ -10,9 +10,12 @@ import javax.crypto.spec.SecretKeySpec
 @Single
 class AesEncryptionManager : EncryptionManager {
     private val random = SecureRandom()
-    private val ALGORITHM = "AES/GCM/NoPadding"
-    private val TAG_LENGTH = 128
-    private val IV_LENGTH = 12
+
+    companion object {
+        private const val ALGORITHM = "AES/GCM/NoPadding"
+        private const val TAG_LENGTH = 128
+        private const val IV_LENGTH = 12
+    }
 
     override fun encrypt(
         plaintext: ByteArray,

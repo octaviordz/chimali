@@ -63,12 +63,11 @@ data class PasskeyCredential(
 
         // Validate timestamps
         val now = Instant.now()
-        val futureGrace = 60L
-        require(createdAt.isBefore(now.plusSeconds(futureGrace))) {
-            "Creation time cannot be more than 60 seconds in the future"
+        require(createdAt.isBefore(now.plusSeconds(FUTURE_GRACE_SECONDS))) {
+            "Creation time cannot be more than $FUTURE_GRACE_SECONDS seconds in the future"
         }
-        require(lastUsedAt.isBefore(now.plusSeconds(futureGrace))) {
-            "Last used time cannot be more than 60 seconds in the future"
+        require(lastUsedAt.isBefore(now.plusSeconds(FUTURE_GRACE_SECONDS))) {
+            "Last used time cannot be more than $FUTURE_GRACE_SECONDS seconds in the future"
         }
         require(!lastUsedAt.isBefore(createdAt)) {
             "Last used time cannot be before creation time"
@@ -90,8 +89,7 @@ data class PasskeyCredential(
      * Credentials typically expire after a certain period (e.g., 2 years).
      */
     fun isExpired(maxAgeDays: Long = DEFAULT_MAX_AGE_DAYS): Boolean {
-        val secondsInDay = 86_400L
-        val expiryTime = createdAt.plusSeconds(maxAgeDays * secondsInDay)
+        val expiryTime = createdAt.plusSeconds(maxAgeDays * SECONDS_IN_DAY)
         return Instant.now().isAfter(expiryTime)
     }
 
@@ -154,6 +152,8 @@ data class PasskeyCredential(
         const val AAGUID_LENGTH = 16
 
         private const val DEFAULT_MAX_AGE_DAYS = 730L
+        private const val FUTURE_GRACE_SECONDS = 60L
+        private const val SECONDS_IN_DAY = 86_400L
 
         /**
          * Generates a new cryptographically secure random credential ID.

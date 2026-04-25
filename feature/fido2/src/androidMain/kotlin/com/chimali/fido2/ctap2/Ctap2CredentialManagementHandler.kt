@@ -35,6 +35,8 @@ class Ctap2CredentialManagementHandler(
         private const val CTAP2_ERR_PROCESSING: Byte = 0x17
         private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x22
         private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x30
+
+        private const val DEFAULT_TIMEOUT_MS = 1000L
     }
     // ── Stateful enumeration sessions ────────────────────────────────────────
 
@@ -73,7 +75,7 @@ class Ctap2CredentialManagementHandler(
     // ── SubCommand 1: getCredsMetadata ───────────────────────────────────────
 
     private suspend fun handleGetCredsMetadata(): ByteArray {
-        val credentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
+        val credentials = getAllCredentialsUseCase(DEFAULT_TIMEOUT_MS, 0L).getOrNull() ?: emptyList()
         val numCredentials = credentials.size
 
         val response =
@@ -89,7 +91,7 @@ class Ctap2CredentialManagementHandler(
     // ── SubCommand 2: enumerateRPsBegin ──────────────────────────────────────
 
     private suspend fun handleEnumerateRPsBegin(): ByteArray {
-        val allCredentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
+        val allCredentials = getAllCredentialsUseCase(DEFAULT_TIMEOUT_MS, 0L).getOrNull() ?: emptyList()
         if (allCredentials.isEmpty()) {
             return byteArrayOf(CTAP2_ERR_NO_CREDENTIALS)
         }
@@ -263,7 +265,7 @@ class Ctap2CredentialManagementHandler(
             if (entry.rpIdHash.contentEquals(hash)) return entry.rpId
         }
         // Otherwise, scan all credentials for a matching rpId
-        val allCredentials = getAllCredentialsUseCase(1000L, 0L).getOrNull() ?: emptyList()
+        val allCredentials = getAllCredentialsUseCase(DEFAULT_TIMEOUT_MS, 0L).getOrNull() ?: emptyList()
         return allCredentials
             .map { cred -> cred.rpId }
             .distinct()

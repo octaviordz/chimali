@@ -163,7 +163,8 @@ class BluetoothHidDeviceWrapper(
                     "pendingBondDevice=${pendingBondDevice?.address}"
             }
             Logger.i {
-                "[DIAG:$tag] getConnectedDevices()=[${connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" }}] " +
+                "[DIAG:$tag] getConnectedDevices()=[" +
+                    "${connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" }}] " +
                     "(count=${connectedDevices.size})"
             }
             Logger.i {
@@ -284,7 +285,8 @@ class BluetoothHidDeviceWrapper(
                             // destroying the pairing entirely. Let the host drive the natural
                             // HID L2CAP connection flow after bonding completes.
                             Logger.i {
-                                "BOND_BONDED for ${device.address} while Advertising — waiting for host-initiated HID connection."
+                                "BOND_BONDED for ${device.address} while Advertising — " +
+                                    "waiting for host-initiated HID connection."
                             }
                         }
                     }
@@ -393,7 +395,8 @@ class BluetoothHidDeviceWrapper(
                             BluetoothDevice.BOND_NONE -> {
                                 // No link key at all — reject immediately.
                                 Logger.w {
-                                    "Rejecting connection from completely unbonded device ${device.address}. No link key present — device has never paired."
+                                    "Rejecting connection from completely unbonded device ${device.address}. " +
+                                        "No link key present — device has never paired."
                                 }
                                 try {
                                     hidDevice?.disconnect(device)
@@ -404,7 +407,10 @@ class BluetoothHidDeviceWrapper(
                             BluetoothDevice.BOND_BONDING -> {
                                 // Link-key exchange still in progress. Defer acceptance until
                                 // BOND_BONDED arrives via ACTION_BOND_STATE_CHANGED.
-                                Logger.d { "Device ${device.address} is still bonding — deferring connection acceptance until BOND_BONDED." }
+                                Logger.d {
+                                    "Device ${device.address} is still bonding — " +
+                                        "deferring connection acceptance until BOND_BONDED."
+                                }
                                 pendingBondDevice = device
                             }
                             else -> {
@@ -564,13 +570,18 @@ class BluetoothHidDeviceWrapper(
                                     ?: false
                             Logger.d { "getProfileProxy returned: $success" }
                             if (!success) {
-                                Logger.e { "getProfileProxy returned false - Bluetooth may be off or profile unsupported" }
+                                Logger.e {
+                                    "getProfileProxy returned false - " +
+                                        "Bluetooth may be off or profile unsupported"
+                                }
                                 cont.resumeWithException(
                                     Fido2Exception.BluetoothException("Failed to request HID proxy. Is Bluetooth on?"),
                                 )
                                 initContinuation = null
                             } else {
-                                Logger.d { "getProfileProxy returned true - waiting for onServiceConnected callback..." }
+                                Logger.d {
+                                    "getProfileProxy returned true - waiting for onServiceConnected callback..."
+                                }
                             }
                         } catch (e: SecurityException) {
                             Logger.e(
@@ -589,9 +600,14 @@ class BluetoothHidDeviceWrapper(
 
             when {
                 result == null -> {
-                    Logger.e { "initialize() timed out after ${cfg.initTimeoutMs}ms - onServiceConnected never received." }
+                    Logger.e {
+                        "initialize() timed out after ${cfg.initTimeoutMs}ms - " +
+                            "onServiceConnected never received."
+                    }
                     lastException =
-                        Fido2Exception.BluetoothException("HID proxy acquisition timed out (onServiceConnected never fired)")
+                        Fido2Exception.BluetoothException(
+                            "HID proxy acquisition timed out (onServiceConnected never fired)",
+                        )
                 }
 
                 result.isSuccess -> {
@@ -655,16 +671,23 @@ class BluetoothHidDeviceWrapper(
                 try {
                     bluetoothAdapter?.state
                 } catch (e: SecurityException) {
+                    Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied)" }
                     BluetoothAdapter.ERROR
                 }
             var waitAttempt = 0
-            while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON && waitAttempt < 10) {
-                Logger.d { "Bluetooth is turning on, waiting 500ms (attempt ${waitAttempt + 1})..." }
-                delay(500)
+            while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON &&
+                waitAttempt < BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS
+            ) {
+                Logger.d {
+                    "Bluetooth is turning on, waiting ${BLUETOOTH_TURNING_ON_WAIT_DELAY_MS}ms " +
+                        "(attempt ${waitAttempt + 1})..."
+                }
+                delay(BLUETOOTH_TURNING_ON_WAIT_DELAY_MS)
                 bluetoothState =
                     try {
                         bluetoothAdapter?.state
                     } catch (e: SecurityException) {
+                        Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied) during wait" }
                         BluetoothAdapter.ERROR
                     }
                 waitAttempt++
@@ -733,10 +756,14 @@ class BluetoothHidDeviceWrapper(
                                     hidCallback.onAppStatusChanged(pluggedDevice, registered)
 
                                     if (registered) {
-                                        Logger.i { "registerApp: onAppStatusChanged registered=true — registration confirmed" }
+                                        Logger.i {
+                                            "registerApp: onAppStatusChanged registered=true — registration confirmed"
+                                        }
                                         if (cont.isActive) cont.resume(Result.success(Unit))
                                     } else {
-                                        Logger.w { "registerApp: onAppStatusChanged registered=false — registration lost" }
+                                        Logger.w {
+                                            "registerApp: onAppStatusChanged registered=false — registration lost"
+                                        }
                                         if (cont.isActive) {
                                             cont.resume(
                                                 Result.failure(
@@ -949,6 +976,11 @@ class BluetoothHidDeviceWrapper(
         val report = ByteArray(FIDO_HID_REPORT_SIZE)
         data.copyInto(report, 0, 0, minOf(data.size, FIDO_HID_REPORT_SIZE))
         return report
+    }
+
+    companion object {
+        private const val BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS = 10
+        private const val BLUETOOTH_TURNING_ON_WAIT_DELAY_MS = 500L
     }
 }
 

@@ -73,7 +73,10 @@ class Ctap2GetAssertionHandler(
         return try {
             val params = cborCodec.decodeFromFido2Format(requestBytes)
             val options = decodeOptions(params)
-            Logger.d { "GetAssertion: rpId=${options.rpId} allowCredentials=${options.allowCredentials?.size ?: "discoverable"}" }
+            Logger.d {
+                "GetAssertion: rpId=${options.rpId} " +
+                    "allowCredentials=${options.allowCredentials?.size ?: "discoverable"}"
+            }
 
             val result = getAssertionUseCase(options)
             result.fold(
@@ -208,7 +211,8 @@ class Ctap2GetAssertionHandler(
                 if (extMap != null) {
                     // Set the ED bit (0x80) in the flags byte (authData[32])
                     val extAuthData = assertion.authData.clone()
-                    extAuthData[AUTH_DATA_FLAGS_INDEX] = (extAuthData[AUTH_DATA_FLAGS_INDEX].toInt() or FLAG_ED_BIT).toByte()
+                    val flags = extAuthData[AUTH_DATA_FLAGS_INDEX].toInt()
+                    extAuthData[AUTH_DATA_FLAGS_INDEX] = (flags or FLAG_ED_BIT).toByte()
                     // Append CBOR-encoded extensions to authData
                     val extCbor = cborCodec.encodeToFido2Format(extMap.mapKeys { it.key })
                     extAuthData + extCbor

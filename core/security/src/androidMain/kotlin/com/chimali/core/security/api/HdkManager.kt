@@ -63,7 +63,8 @@ interface HdkManager {
     /**
      * Generate a new random seed of Ns bytes for HDK derivation.
      *
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.6">draft-dijkhuis-cfrg-hdkeys-06 §2.6 (GenerateSeed)</a>
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.6">
+     * draft-dijkhuis-cfrg-hdkeys-06 §2.6 (GenerateSeed)</a>
      */
     fun generateSeed(): ByteArray
 
@@ -85,7 +86,8 @@ interface HdkManager {
      * @param seed The root seed (32 bytes).
      * @param path List of unsigned 32-bit indices for derivation (e.g., [0u], [0u, 1u, 2u]).
      * @return The derived HDK result containing blinded public key, salt, and blinding factor.
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.5">draft-dijkhuis-cfrg-hdkeys-06 §2.5 (HDK)</a>
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.5">
+     * draft-dijkhuis-cfrg-hdkeys-06 §2.5 (HDK)</a>
      */
     fun deriveHdk(
         devicePublicKey: ByteArray,
@@ -101,7 +103,8 @@ interface HdkManager {
      * @param devicePrivateKey The device private key (32 bytes, big-endian).
      * @param blindingFactor The combined blinding factor (32 bytes, big-endian).
      * @return The blinded private key (32 bytes).
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.2.2">draft-dijkhuis-cfrg-hdkeys-06 §3.2.2 (Multiplicative Blinding)</a>
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.2.2">
+     * draft-dijkhuis-cfrg-hdkeys-06 §3.2.2 (Multiplicative Blinding)</a>
      */
     fun blindPrivateKey(
         devicePrivateKey: ByteArray,
@@ -118,7 +121,8 @@ interface HdkManager {
      * @param blindingFactor The combined blinding factor (32 bytes).
      * @param readerPublicKey The reader's public key (uncompressed, 65 bytes).
      * @return Shared secret (32 bytes).
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.3.1">draft-dijkhuis-cfrg-hdkeys-06 §3.3.1 (Proof of Possession)</a>
+     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.3.1">
+     * draft-dijkhuis-cfrg-hdkeys-06 §3.3.1 (Proof of Possession)</a>
      */
     fun createBlindedSharedSecret(
         devicePrivateKey: ByteArray,

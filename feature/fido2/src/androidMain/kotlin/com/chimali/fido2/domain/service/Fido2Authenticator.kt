@@ -357,10 +357,6 @@ data class PinSettings(
 
         val hasLetter = pin.any { it.isLetter() }
         val hasDigit = pin.any { it.isDigit() }
-        val hasSpecial =
-            allowedSpecialChars?.let { chars ->
-                pin.any { it in chars }
-            } ?: false
 
         return hasLetter && hasDigit
     }
