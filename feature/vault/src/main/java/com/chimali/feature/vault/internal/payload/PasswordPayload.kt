@@ -1,6 +1,5 @@
 package com.chimali.feature.vault.internal.payload
 
-import com.chimali.feature.vault.api.VaultType
 
 data class PasswordPayload(
     val title: String,

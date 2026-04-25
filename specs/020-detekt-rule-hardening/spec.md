@@ -21,7 +21,7 @@ As a developer, I want my code to be automatically checked for specific quality 
 2. **Given** a Kotlin file with an unused import, **When** running detekt analysis, **Then** the build MUST fail with an `UnusedImports` violation.
 3. **Given** a Kotlin file missing a newline at the end, **When** running detekt analysis, **Then** the build MUST fail with a `NewLineAtEndOfFile` violation.
 4. **Given** a Kotlin file using `!!` on a nullable type, **When** running detekt analysis, **Then** the build MUST fail with an `UnsafeCallOnNullableType` violation.
-5. **Given** a Kotlin class using `lateinit var`, **When** running detekt analysis, **Then** the build MUST fail with a `LateinitUsage` violation.
+5. **Given** a production Kotlin class using `lateinit var`, **When** running detekt analysis, **Then** the build MUST fail with a `LateinitUsage` violation. (Note: Test source sets may be excluded per FR-005).
 6. **Given** a Kotlin class with an explicit empty default constructor, **When** running detekt analysis, **Then** the build MUST fail with an `EmptyDefaultConstructor` violation.
 
 ---
@@ -48,7 +48,7 @@ As a developer, I want detekt to ignore violations in generated code so that I d
 - **FR-002**: System MUST enable and enforce the `UnusedImports` rule globally.
 - **FR-003**: System MUST enable and enforce the `NewLineAtEndOfFile` rule globally.
 - **FR-004**: System MUST enable and enforce the `UnsafeCallOnNullableType` rule globally.
-- **FR-005**: System MUST enable and enforce the `LateinitUsage` rule globally.
+- **FR-005**: System MUST enable and enforce the `LateinitUsage` rule globally, with an exception for test source sets (e.g., `**/test/**`, `**/androidTest/**`) to support idiomatic test fixtures.
 - **FR-006**: System MUST enable and enforce the `EmptyDefaultConstructor` rule globally.
 - **FR-007**: System MUST remove all existing `excludes` patterns from the configuration for these specific rules, except for generated code paths.
 - **FR-008**: System MUST configure a global `excludes` pattern for generated code (e.g., `**/build/**`) that applies to all rules.
@@ -68,3 +68,4 @@ As a developer, I want detekt to ignore violations in generated code so that I d
 - **Generated Code Identification**: It is assumed that generated code can be reliably identified by path (e.g., containing `build/generated`).
 - **Build Scripts**: It is assumed that `.kts` files may be excluded from certain rules if they present a disproportionate refactoring effort compared to their impact on production code quality.
 - **Tooling**: It is assumed that Detekt is already correctly integrated into the Gradle build system.
+- **Test Lifecycle**: It is assumed that `lateinit` is the idiomatic and acceptable way to handle test fixture initialization in `kotlin.test` and MockK setups where constructor injection is not available.

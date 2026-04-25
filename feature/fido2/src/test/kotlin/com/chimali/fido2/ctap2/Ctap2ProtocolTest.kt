@@ -1,6 +1,11 @@
 package com.chimali.fido2.ctap2
 
-import com.chimali.fido2.bluetooth.*
+import com.chimali.fido2.bluetooth.CID_SIZE
+import com.chimali.fido2.bluetooth.HID_PACKET_SIZE
+import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.bluetooth.INIT_BCNTH_OFFSET
+import com.chimali.fido2.bluetooth.INIT_BCNTL_OFFSET
+import com.chimali.fido2.bluetooth.INIT_CMD_OFFSET
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
@@ -9,9 +14,12 @@ import com.chimali.fido2.domain.model.AuthenticatorTransport
 import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import java.time.Instant
-import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for CTAP2 protocol layer (T056).

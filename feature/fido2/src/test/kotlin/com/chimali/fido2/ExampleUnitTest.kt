@@ -1,7 +1,7 @@
 package com.chimali.fido2
 
-import kotlin.test.*
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * Example local unit test, which will execute on the development machine (host).

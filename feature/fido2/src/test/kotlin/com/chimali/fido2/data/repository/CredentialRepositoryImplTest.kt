@@ -4,13 +4,24 @@ import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
-import com.chimali.fido2.domain.model.*
-import io.mockk.*
+import com.chimali.fido2.domain.model.ConsentOperationType
+import com.chimali.fido2.domain.model.CredentialId
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.RelyingParty
+import com.chimali.fido2.domain.model.UserConsentRecord
+import io.mockk.Runs
+import io.mockk.any
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
 import org.junit.jupiter.api.Nested
 import java.security.KeyPairGenerator
-import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 

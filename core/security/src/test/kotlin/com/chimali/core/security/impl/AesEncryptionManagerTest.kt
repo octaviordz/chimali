@@ -4,7 +4,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
-import java.util.*
+import java.util.Random
 
 class AesEncryptionManagerTest {
     private companion object {

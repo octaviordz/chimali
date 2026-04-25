@@ -17,8 +17,8 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Verify project is on branch `020-detekt-rule-hardening`
-- [ ] T002 [P] Sync Gradle to ensure Detekt is ready for analysis
+- [x] T001 Verify project is on branch `020-detekt-rule-hardening`
+- [x] T002 [P] Sync Gradle to ensure Detekt is ready for analysis
 
 ---
 
@@ -28,10 +28,11 @@
 
 **⚠️ CRITICAL**: Foundation tasks block all user story implementation.
 
-- [ ] T003 Harden `config/detekt/detekt.yml` by activating WildcardImport, UnusedImports, NewLineAtEndOfFile, UnsafeCallOnNullableType, LateinitUsage, and EmptyDefaultConstructor
-- [ ] T004 [P] Remove all rule-specific exclusions for the target rules in `config/detekt/detekt.yml`
-- [ ] T005 [P] Configure global `excludes` in `config/detekt/detekt.yml` to cover all `**/build/**` and `**/build/generated/**` paths
-- [ ] T006 Evaluate `.kts` file violations and apply global exclusion in `config/detekt/detekt.yml` if technical debt is excessive
+- [x] T003 Harden `config/detekt/detekt.yml` by activating WildcardImport, UnusedImports, NewLineAtEndOfFile, UnsafeCallOnNullableType, LateinitUsage, and EmptyDefaultConstructor
+- [x] T004 [P] Remove all rule-specific exclusions for the target rules in `config/detekt/detekt.yml`
+- [x] T005 [P] Configure global `excludes` in `config/detekt/detekt.yml` to cover all `**/build/**` and `**/build/generated/**` paths
+- [x] T006 Evaluate `.kts` file violations and apply global exclusion in `config/detekt/detekt.yml` if technical debt is excessive
+- [x] T006.1 Restore test source set exclusions (`**/test/**`, `**/androidTest/**`, etc.) specifically for the `LateinitUsage` rule in `config/detekt/detekt.yml`
 
 **Checkpoint**: Foundation ready - rules are active and violations will be reported by the build system.
 
@@ -45,11 +46,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Refactor `core:security` tests to remove `lateinit` and wildcard imports in `core/security/src/test/kotlin/`
-- [ ] T008 [P] [US1] Refactor `feature:fido2` tests and production code to resolve violations (Lateinit, Wildcards, !! calls) in `feature/fido2/`
-- [ ] T009 [P] [US1] Refactor `feature:vault` to resolve legacy violations (EmptyDefaultConstructor, UnusedImports, NewLineAtEndOfFile, Wildcards) in `feature/vault/`
-- [ ] T010 [P] [US1] Resolve wildcard imports in `app/src/main/kotlin/` (mostly Compose-related)
-- [ ] T011 [P] [US1] Resolve remaining violations in `core/common/`, `core/database/`, and `core/bluetooth/` modules to ensure zero baseline violations.
+- [x] T007 [P] [US1] Refactor `core:security` tests to remove wildcard imports in `core/security/src/test/kotlin/`
+- [x] T007.1 [US1] Revert `Bip39MasterSeedGeneratorTest.kt` changes that replaced `lateinit` with nullable types, restoring idiomatic test setup now that exclusions are active.
+- [x] T008 [P] [US1] Refactor `feature:fido2` tests and production code to resolve violations (Wildcards, !! calls, and production Lateinit) in `feature/fido2/`
+- [x] T009 [P] [US1] Refactor `feature:vault` to resolve legacy violations (EmptyDefaultConstructor, UnusedImports, NewLineAtEndOfFile, Wildcards) in `feature/vault/`
+- [x] T010 [P] [US1] Resolve wildcard imports in `app/src/main/kotlin/` (mostly Compose-related)
+- [x] T011 [P] [US1] Resolve remaining violations in `core/common/`, `core/database/`, and `core/bluetooth/` modules to ensure zero baseline violations.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and the codebase should pass all detekt checks.
 
@@ -63,8 +65,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Validate that global exclusions in `config/detekt/detekt.yml` correctly ignore `**/build/generated/**`
-- [ ] T013 [US2] Manually verify a specific generated file (e.g., `BuildKonfig.kt` or Room DAO) is not being analyzed
+- [x] T012 [US2] Validate that global exclusions in `config/detekt/detekt.yml` correctly ignore `**/build/generated/**`
+- [x] T013 [US2] Manually verify a specific generated file (e.g., `BuildKonfig.kt` or Room DAO) is not being analyzed
 
 **Checkpoint**: Generated code is reliably excluded from static analysis.
 
@@ -74,9 +76,9 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T014 [P] Update `specs/020-detekt-rule-hardening/walkthrough.md` with implementation results
-- [ ] T015 Run Local CI pipeline via `tools/local-ci.ps1`
-- [ ] T016 [US1] Verify SC-003: Introduce violation and confirm build failure within 30 seconds
+- [x] T014 [P] Update `specs/020-detekt-rule-hardening/walkthrough.md` with implementation results
+- [x] T015 Run Local CI pipeline via `tools/local-ci.ps1`
+- [x] T016 [US1] Verify SC-003: Introduce violation and confirm build failure within 30 seconds
 
 ---
 

@@ -2,9 +2,13 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.fido2.domain.model.CredentialId
 import java.security.MessageDigest
-import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /**
  * T061 — Unit tests for Core Crypto operations.

@@ -1,7 +1,7 @@
 package com.chimali.fido2.data.database
 
-import kotlin.test.*
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class DatabaseSchemaTest {
     @Test

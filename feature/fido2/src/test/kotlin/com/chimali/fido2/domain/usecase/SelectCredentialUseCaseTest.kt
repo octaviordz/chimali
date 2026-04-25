@@ -7,9 +7,11 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import io.mockk.every
 import io.mockk.mockkStatic
 import java.time.Instant
-import kotlin.test.*
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 /**

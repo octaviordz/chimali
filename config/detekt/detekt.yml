@@ -1,7 +1,7 @@
 build:
   maxIssues: 0
   excludeCorrectable: false
-  excludes: "**/build/**,**/resources/**,**/reports/**"
+  excludes: "**/build/**,**/resources/**,**/reports/**,**/build/generated/**"
   weights:
     # complexity: 2
     # LongParameterList: 1
@@ -211,7 +211,6 @@ empty-blocks:
     active: true
   EmptyDefaultConstructor:
     active: true
-    excludes: ['**/feature/vault/**']
   EmptyDoWhileBlock:
     active: true
   EmptyElseBlock:
@@ -469,8 +468,8 @@ potential-bugs:
   IteratorNotThrowingNoSuchElementException:
     active: true
   LateinitUsage:
-    active: false
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
     ignoreOnClassesPattern: ''
   MapGetWithNotNullAssertionOperator:
     active: true
@@ -497,7 +496,6 @@ potential-bugs:
     active: true
   UnsafeCallOnNullableType:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   UnsafeCast:
     active: true
   UnusedUnaryOperator:
@@ -659,7 +657,6 @@ style:
     active: true
   NewLineAtEndOfFile:
     active: true
-    excludes: ['**/feature/vault/**']
   NoTabs:
     active: false
   NullableBooleanCheck:
@@ -739,7 +736,6 @@ style:
     active: false
   UnusedImports:
     active: true
-    excludes: ['**/feature/vault/**']
   UnusedParameter:
     active: true
     allowedNames: 'ignored|expected'
@@ -794,7 +790,4 @@ style:
     ignoreLateinitVar: false
   WildcardImport:
     active: true
-    excludeImports:
-      - 'java.util.*'
-      - 'kotlin.test.*'
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**']
+    excludeImports: []

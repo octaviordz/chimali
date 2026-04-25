@@ -7,7 +7,7 @@
 
 ## Summary
 
-We will enhance project-wide code quality by activating and hardening six key Detekt rules: `WildcardImport`, `UnusedImports`, `NewLineAtEndOfFile`, `UnsafeCallOnNullableType`, `LateinitUsage`, and `EmptyDefaultConstructor`. This involves removing all existing rule-specific exclusions (including those for legacy modules like `feature:vault` and test source sets) and refactoring approximately 150+ violations project-wide. Generated code and potentially high-debt `.kts` build scripts will be excluded via global configuration.
+We will enhance project-wide code quality by activating and hardening six key Detekt rules: `WildcardImport`, `UnusedImports`, `NewLineAtEndOfFile`, `UnsafeCallOnNullableType`, `LateinitUsage`, and `EmptyDefaultConstructor`. This involves removing all existing rule-specific exclusions (including those for legacy modules like `feature:vault`). For the `LateinitUsage` rule, an exception will be granted for test source sets to accommodate idiomatic test fixtures (e.g., in `kotlin.test` and MockK). Refactoring will address approximately 150+ violations project-wide. Generated code and potentially high-debt `.kts` build scripts will be excluded via global configuration.
 
 ## Technical Context
 
