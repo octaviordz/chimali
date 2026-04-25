@@ -29,8 +29,12 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.presentation.ui.components.*
-import com.chimali.fido2.presentation.viewmodel.*
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.AuthenticationEffect
+import com.chimali.fido2.presentation.viewmodel.AuthenticationIntent
+import com.chimali.fido2.presentation.viewmodel.AuthenticationPromptViewModel
+import com.chimali.fido2.presentation.viewmodel.AuthenticationState
 import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.collectLatest
 

@@ -1,6 +1,5 @@
 package com.chimali.fido2.integration
 
-import android.util.Log
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.UserVerificationRequirement
@@ -13,9 +12,7 @@ import com.chimali.fido2.presentation.viewmodel.AuthenticationIntent
 import com.chimali.fido2.presentation.viewmodel.AuthenticationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import org.junit.jupiter.api.AfterEach
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -53,12 +50,6 @@ class AuthenticationIntegrationTest {
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-
-        mockkStatic(Log::class)
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
 
         getAssertionUseCase = mockk()
         userVerificationService = mockk()

@@ -1,6 +1,5 @@
 package com.chimali.fido2.domain.usecase
 
-import android.util.Log
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialSummary
@@ -15,9 +14,7 @@ import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Instant
@@ -58,12 +55,6 @@ class GetAssertionUseCaseTest {
 
     @BeforeTest
     fun setup() {
-        mockkStatic(Log::class)
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
-
         credentialRepository = mockk()
         userVerificationService = mockk()
         selectCredentialUseCase = mockk()

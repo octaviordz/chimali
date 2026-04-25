@@ -15,6 +15,11 @@ This update focuses on hardening the project's static analysis gates and perform
     - Removed redundant `getPublicKey` calls in `CredentialRepositoryImpl` and `CorruptedKeyRepairWorkerImpl`.
     - Deleted unused scratch file `TestDirection.kt`.
 - **Naming Consistency**: Renamed `Services.kt` to `CryptoService.kt` in `:core:domain` to align with the single-responsibility principle and improve discovery.
+- **Extended Rule Hardening**:
+    - **Logging Standard**: Banned `android.util.Log` and `println` in production code. Migrated all FIDO2 production and test code to `co.touchlab.kermit.Logger`.
+    - **Import Discipline**: Expanded all internal wildcard imports (e.g., `import com.chimali.fido2.*`) to explicit imports. Updated `detekt.yml` to prohibit wildcards except for approved DSLs (Compose, Material Icons).
+    - **Collection Integrity**: Enabled `DontDowncastCollectionTypes` to prevent dangerous casts from read-only `List` to `MutableList`, ensuring immutable data contracts are respected.
+    - **Raw String Threshold**: Standardized the `StringShouldBeRawString` threshold to **5** escaped characters. This allows short escaped strings (useful for JSON keys) while enforcing raw strings for complex or heavily escaped text.
 
 ### Structural Refactoring
 - **RegisterCredentialUseCase**: Refactored the core registration logic from a deeply nested "pyramid of doom" `if/else` structure to a linear flow using guard clauses (early returns). This significantly improves readability and simplifies future maintenance of the registration flow.

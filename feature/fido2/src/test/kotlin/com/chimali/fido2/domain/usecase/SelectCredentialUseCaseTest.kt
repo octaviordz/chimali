@@ -1,11 +1,8 @@
 package com.chimali.fido2.domain.usecase
 
-import android.util.Log
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
-import io.mockk.every
-import io.mockk.mockkStatic
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -22,10 +19,6 @@ class SelectCredentialUseCaseTest {
 
     @BeforeTest
     fun setup() {
-        mockkStatic(Log::class)
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-
         useCase = SelectCredentialUseCase()
     }
 

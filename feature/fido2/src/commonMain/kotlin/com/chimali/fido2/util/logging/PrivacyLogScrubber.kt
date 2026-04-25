@@ -40,7 +40,7 @@ object PrivacyLogScrubber {
         // 3. Simple Keyword Based Value Redaction
         // Replaces patterns like "seed=abandon..." or "password: blah"
         SENSITIVE_KEYWORDS.forEach { keyword ->
-            val regex = Regex("(?i)($keyword)\\s*[:=]\\s*([^\\s,;&]+)")
+            val regex = Regex("""(?i)($keyword)\s*[:=]\s*([^\s,;&]+)""")
             scrubbed = scrubbed.replace(regex, "$1=$REDACTED")
         }
 

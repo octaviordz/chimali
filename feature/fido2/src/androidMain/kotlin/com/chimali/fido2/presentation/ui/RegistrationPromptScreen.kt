@@ -28,8 +28,12 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chimali.fido2.domain.service.VerificationMethod
-import com.chimali.fido2.presentation.ui.components.*
-import com.chimali.fido2.presentation.viewmodel.*
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.RegistrationEffect
+import com.chimali.fido2.presentation.viewmodel.RegistrationIntent
+import com.chimali.fido2.presentation.viewmodel.RegistrationPromptViewModel
+import com.chimali.fido2.presentation.viewmodel.RegistrationState
 import org.koin.compose.viewmodel.koinViewModel
 import kotlinx.coroutines.flow.collectLatest
 

@@ -52,6 +52,18 @@ Button(onClick = { /* ... */ }) { Text(BUTTON_LABEL_SUBMIT) }
 
 *Threshold: 3 or more occurrences of strings >= 5 characters.*
 
+## 4. Wildcard Import Discipline
+Wildcard imports (e.g., `import com.chimali.*`) are now **prohibited**. All imports must be explicit.
+
+## 5. Platform-Agnostic Logging
+Direct use of `android.util.Log` is now **forbidden**. Always use the platform-agnostic `Logger` (Kermit).
+
+## 6. Collection Type Safety
+Downcasting collection types (e.g., casting `List` to `MutableList`) is **prohibited** to ensure immutability contracts.
+
+## 7. Raw String Preference
+Use Kotlin raw strings (`"""`) for complex strings or those containing multiple quotes, unless the string is very short (under 5 escaped characters).
+
 ## Verification
 Run the local CI to verify your changes:
 ```powershell

@@ -1,6 +1,5 @@
 package com.chimali.fido2.ctap2
 
-import android.util.Log
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
@@ -10,7 +9,6 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Instant
@@ -27,13 +25,6 @@ class Ctap2CredentialManagementHandlerTest {
 
     @BeforeTest
     fun setup() {
-        mockkStatic(Log::class)
-        every { Log.e(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.i(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-
         cborCodec = mockk()
         getAllCredentialsUseCase = mockk()
         deleteCredentialUseCase = mockk()

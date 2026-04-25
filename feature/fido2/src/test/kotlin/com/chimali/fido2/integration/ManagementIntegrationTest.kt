@@ -1,6 +1,5 @@
 package com.chimali.fido2.integration
 
-import android.util.Log
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
@@ -10,9 +9,7 @@ import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import org.junit.jupiter.api.AfterEach
 import java.security.KeyPairGenerator
 import java.time.Instant
@@ -57,12 +54,6 @@ class ManagementIntegrationTest {
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-
-        mockkStatic(Log::class)
-        every { Log.d(any<String>(), any<String>()) } returns 0
-        every { Log.w(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>()) } returns 0
-        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } returns 0
 
         repository = mockk()
 

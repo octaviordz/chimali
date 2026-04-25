@@ -394,7 +394,7 @@ performance:
   ArrayPrimitive:
     active: true
   CouldBeSequence:
-    active: false
+    active: true
     threshold: 3
   ForEachOnRange:
     active: true
@@ -418,9 +418,10 @@ potential-bugs:
   CastToNullableType:
     active: false
   Deprecation:
-    active: false
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   DontDowncastCollectionTypes:
-    active: false
+    active: true
   DoubleMutabilityForCollection:
     active: true
     mutableTypes:
@@ -592,14 +593,28 @@ style:
     imports:
       - value: 'kotlin.io.println'
         reason: 'Use a logger instead.'
+      - value: 'android.util.Log'
+        reason: 'Use Kermit Logger instead for consistent platform-agnostic logging.'
     forbiddenPatterns: ''
   ForbiddenMethodCall:
     active: true
     methods:
       - reason: 'print does not allow you to configure the output stream. Use a logger instead.'
-        value: 'print'
+        value: 'kotlin.io.print'
       - reason: 'println does not allow you to configure the output stream. Use a logger instead.'
-        value: 'println'
+        value: 'kotlin.io.println'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.v'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.d'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.i'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.w'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.e'
+      - reason: 'Bypass project standardized Kermit logging. Use Logger.d/i/w/e instead.'
+        value: 'android.util.Log.wtf'
   ForbiddenSuppress:
     active: false
     rules: []
@@ -698,8 +713,8 @@ style:
   SpacingBetweenPackageAndImports:
     active: false
   StringShouldBeRawString:
-    active: false
-    maxEscapedCharacterCount: 2
+    active: true
+    maxEscapedCharacterCount: 4
     ignoredCharacters: []
   ThrowsCount:
     active: true
@@ -795,5 +810,5 @@ style:
     ignoreLateinitVar: false
   WildcardImport:
     active: true
-    excludeImports: ['androidx.compose.runtime.*', 'androidx.compose.material.icons.filled.*', 'androidx.compose.material3.*', 'androidx.compose.foundation.layout.*', 'com.chimali.fido2.presentation.ui.components.*']
+    excludeImports: ['androidx.compose.runtime.*', 'androidx.compose.material.icons.filled.*', 'androidx.compose.material3.*', 'androidx.compose.foundation.layout.*']
 
