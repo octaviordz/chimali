@@ -5,7 +5,6 @@ import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
-import com.chimali.fido2.domain.usecase.UpdateCredentialLabelUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.AfterEach
@@ -24,7 +23,6 @@ class CredentialManagementViewModelTest {
     private lateinit var searchCredentialsUseCase: SearchCredentialsUseCase
     private lateinit var deleteCredentialUseCase: DeleteCredentialUseCase
     private lateinit var deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase
-    private lateinit var updateCredentialLabelUseCase: UpdateCredentialLabelUseCase
     private lateinit var viewModel: CredentialManagementViewModel
 
     private val testDispatcher = UnconfinedTestDispatcher()

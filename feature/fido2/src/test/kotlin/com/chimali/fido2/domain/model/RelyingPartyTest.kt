@@ -28,9 +28,7 @@ class RelyingPartyTest {
         private const val MINUTES_PER_HOUR = 60
         private const val SECONDS_PER_MINUTE = 60
         private const val DAYS_32 = 32
-        private const val DAYS_31 = 31
         private const val DAYS_30 = 30
-        private const val DAYS_29 = 29
         private const val DAY_1 = 1
         private const val MAX_NAME_SIZE = 64
         private const val MAX_ICON_URL_SIZE = 256

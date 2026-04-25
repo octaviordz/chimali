@@ -11,14 +11,9 @@ import java.security.MessageDigest
 class HdkEcdhP256Test {
     private val hdk = HdkEcdhP256()
 
-    private companion object {
-        private const val HEX_BYTE_SIZE = 2
-    }
 
-    private fun String.decodeHex(): ByteArray {
-        check(length % HEX_BYTE_SIZE == 0) { "Must have an even length" }
-        return chunked(HEX_BYTE_SIZE).map { it.toInt(DhKem.HEX_RADIX).toByte() }.toByteArray()
-    }
+
+
 
     @Test
     fun testLocalDerivationRootHdkConsistentWithBlindPrivateKey() {

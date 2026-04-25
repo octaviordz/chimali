@@ -748,11 +748,13 @@ style:
   UnusedPrivateMember:
     active: true
     allowedNames: ''
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    # Tests are enforced. Exclude generated code to prevent build blocks.
+    excludes: ['**/build/**', '**/generated/**']
   UnusedPrivateProperty:
     active: true
     allowedNames: '_|ignored|expected|serialVersionUID'
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    # Tests are enforced. Exclude generated code to prevent build blocks.
+    excludes: ['**/build/**', '**/generated/**']
   UseAnyOrNoneInsteadOfFind:
     active: true
   UseArrayLiteralsInAnnotations:

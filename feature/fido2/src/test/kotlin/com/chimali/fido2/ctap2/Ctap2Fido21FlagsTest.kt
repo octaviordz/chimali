@@ -5,7 +5,6 @@ package com.chimali.fido2.ctap2
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.service.AuthenticatorInfo
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -27,7 +26,6 @@ import kotlin.test.Test
 class Ctap2Fido21FlagsTest {
     private val cborCodec = CborCodec()
     private val hidReportParser = mockk<HidReportParser>(relaxed = true)
-    private val responseBuilder = Ctap2ResponseBuilder(cborCodec, hidReportParser)
 
     private companion object {
         private const val AAGUID_SUFFIX_01 = 0x01.toByte()
@@ -44,7 +42,7 @@ class Ctap2Fido21FlagsTest {
         private const val CHAR_M = 0x4D.toByte()
         private const val CHAR_A = 0x41.toByte()
         private const val CHAR_L = 0x4C.toByte()
-        private const val DUMMY_CID_1 = 0x01.toByte()
+
         private const val ZERO_BYTE = 0x00.toByte()
     }
 
@@ -54,13 +52,6 @@ class Ctap2Fido21FlagsTest {
             ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, AAGUID_SUFFIX_01,
         )
 
-    private fun fakeInfo(supportsRk: Boolean = true): AuthenticatorInfo {
-        val info = mockk<AuthenticatorInfo>()
-        every { info.aaguid } returns dummyAaguid
-        every { info.supportsResidentKeys } returns supportsRk
-        return info
-    }
-
     // ── 1. GetInfo response FIDO2.1 flags ────────────────────────────────────
 
     /**
@@ -68,7 +59,6 @@ class Ctap2Fido21FlagsTest {
      */
     @Test
     fun `t056b getInfoResponse includes FIDO_2_1 in versions`() {
-        val cid = byteArrayOf(ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, DUMMY_CID_1)
         every { hidReportParser.encodeResponse(any()) } returns emptyList()
 
         // Reconstruct the CBOR map by encoding via CborCodec and decoding it back

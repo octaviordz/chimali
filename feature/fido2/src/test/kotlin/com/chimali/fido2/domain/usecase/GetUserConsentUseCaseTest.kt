@@ -406,13 +406,6 @@ class GetUserConsentUseCaseTest {
                         biometricUsed = true,
                         pinUsed = false,
                     )
-                val otherRpConsent =
-                    UserConsentRecord.create(
-                        operationType = ConsentOperationType.AUTHENTICATION,
-                        rpId = "https://other.com",
-                        biometricUsed = false,
-                        pinUsed = true,
-                    )
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetRpConsent)
 

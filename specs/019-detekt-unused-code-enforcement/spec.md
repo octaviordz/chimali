@@ -47,8 +47,8 @@ As a developer, I want Detekt to ignore unused private elements in generated cod
 
 ### Functional Requirements
 
-- **FR-001**: System MUST enable `UnusedPrivateMember` rule in the global Detekt configuration.
-- **FR-002**: System MUST enable `UnusedPrivateProperty` rule in the global Detekt configuration.
+- **FR-001**: System MUST ensure `UnusedPrivateMember` rule is active and apply it to test source sets by removing overrides.
+- **FR-002**: System MUST ensure `UnusedPrivateProperty` rule is active and apply it to test source sets by removing overrides.
 - **FR-003**: System MUST remove existing broad excludes (e.g., `**/test/**`, `**/androidTest/**`) for both `UnusedPrivateMember` and `UnusedPrivateProperty`.
 - **FR-004**: System MUST configure `excludes` for these rules to specifically include standard generated code paths: `**/build/**` and `**/generated/**`.
 - **FR-005**: Developers MUST remove unused private code unless a stated reason (via comments) or template requirement exists; in such cases, `@Suppress` MUST be used.

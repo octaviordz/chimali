@@ -30,8 +30,6 @@ class Ctap2WindowsCompatibilityTest {
         private const val COMBINED_FLAGS_0x45 = 0x45.toByte()
         private const val AUTH_DATA_SIZE_37 = 37
         private const val SIGNATURE_SIZE_72 = 72
-        private const val MAX_MSG_SIZE_1200 = 1200L
-        private const val MAX_CRED_COUNT_255 = 255L
         private const val CRED_ID_SIZE_16 = 16
         private const val HASH_SIZE_32 = 32
         private const val CTAP2_OK = 0x00.toByte()
