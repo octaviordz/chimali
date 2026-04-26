@@ -193,101 +193,9 @@ fun CredentialListScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(state.credentials, key = { it.id }) { credential ->
-                        val dismissState =
-                            rememberSwipeToDismissBoxState(
-                                confirmValueChange = { value ->
-                                    if (value != SwipeToDismissBoxValue.Settled) {
-                                        viewModel.onIntent(
-                                            CredentialManagementIntent.PendingDelete(credential),
-                                        )
-                                        false // Handle visibility via ViewModel state
-                                    } else {
-                                        false
-                                    }
-                                },
-                                positionalThreshold = { totalDistance -> totalDistance * 0.5f },
-                            )
-
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            backgroundContent = {
-                                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                                    val progress = dismissState.progress
-                                    val targetValue = dismissState.targetValue
-                                    val color by animateColorAsState(
-                                        targetValue =
-                                            when (targetValue) {
-                                                SwipeToDismissBoxValue.Settled ->
-                                                    MaterialTheme.colorScheme.surfaceVariant
-                                                else -> MaterialTheme.colorScheme.errorContainer
-                                            },
-                                        label = "bg_color",
-                                    )
-                                    val iconScale by animateFloatAsState(
-                                        targetValue =
-                                            if (targetValue != SwipeToDismissBoxValue.Settled) {
-                                                1.2f
-                                            } else {
-                                                1.0f
-                                            },
-                                        animationSpec = tween(durationMillis = 300),
-                                        label = "icon_scale",
-                                    )
-
-                                    val avdImage =
-                                        AnimatedImageVector.animatedVectorResource(
-                                            CoreR.drawable.avd_delete,
-                                        )
-                                    val avdPainter =
-                                        rememberAnimatedVectorPainter(
-                                            animatedImageVector = avdImage,
-                                            atEnd = targetValue != SwipeToDismissBoxValue.Settled,
-                                        )
-
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .background(color)
-                                                .padding(horizontal = 20.dp),
-                                    ) {
-                                        // Left icon
-                                        Icon(
-                                            painter = avdPainter,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier =
-                                                Modifier
-                                                    .align(Alignment.CenterStart)
-                                                    .graphicsLayer(
-                                                        scaleX = iconScale,
-                                                        scaleY = iconScale,
-                                                    ),
-                                        )
-                                        // Right icon
-                                        Icon(
-                                            painter = avdPainter,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier =
-                                                Modifier
-                                                    .align(Alignment.CenterEnd)
-                                                    .graphicsLayer(
-                                                        scaleX = iconScale,
-                                                        scaleY = iconScale,
-                                                    ),
-                                        )
-                                    }
-                                }
-                            },
-                            enableDismissFromStartToEnd = true,
-                            enableDismissFromEndToStart = true,
-                            content = {
-                                CredentialItem(
-                                    credential = credential,
-                                    onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
-                                )
-                            },
+                        CredentialSwipeToDismissBox(
+                            credential = credential,
+                            viewModel = viewModel,
                         )
                     }
                 }
@@ -338,6 +246,86 @@ fun CredentialListScreen(
             },
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CredentialSwipeToDismissBox(
+    credential: PasskeyCredential,
+    viewModel: CredentialManagementViewModel,
+) {
+    val dismissState =
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                if (value != SwipeToDismissBoxValue.Settled) {
+                    viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                    false // Handle visibility via ViewModel state
+                } else {
+                    false
+                }
+            },
+            positionalThreshold = { totalDistance -> totalDistance * 0.5f },
+        )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val targetValue = dismissState.targetValue
+                val color by animateColorAsState(
+                    targetValue =
+                        when (targetValue) {
+                            SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> MaterialTheme.colorScheme.errorContainer
+                        },
+                    label = "bg_color",
+                )
+                val iconScale by animateFloatAsState(
+                    targetValue = if (targetValue != SwipeToDismissBoxValue.Settled) 1.2f else 1.0f,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "icon_scale",
+                )
+
+                val avdImage = AnimatedImageVector.animatedVectorResource(CoreR.drawable.avd_delete)
+                val avdPainter =
+                    rememberAnimatedVectorPainter(
+                        animatedImageVector = avdImage,
+                        atEnd = targetValue != SwipeToDismissBoxValue.Settled,
+                    )
+
+                Box(
+                    modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
+                ) {
+                    Icon(
+                        painter = avdPainter,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier =
+                            Modifier.align(
+                                Alignment.CenterStart,
+                            ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
+                    )
+                    Icon(
+                        painter = avdPainter,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier =
+                            Modifier.align(
+                                Alignment.CenterEnd,
+                            ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
+                    )
+                }
+            }
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        content = {
+            CredentialItem(
+                credential = credential,
+                onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
+            )
+        },
+    )
 }
 
 private const val LOAD_THRESHOLD = 5

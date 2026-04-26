@@ -2,22 +2,22 @@
 
 ## Phase 1: Foundational / Setup Tasks
 
-- [ ] T001 Enforce `CognitiveComplexMethod` threshold of 40 in `config/detekt/detekt.yml`
+- [X] T001 Enforce `CognitiveComplexMethod` threshold of 40 in `config/detekt/detekt.yml`
 
 ## Phase 2: User Story 1 - Maintainable Codebase
 
 **Goal:** Ensure code complexity remains manageable so that the codebase is easier to read, maintain, and review without introducing logic changes.
 **Independent Test:** Can be fully tested by running Detekt to verify no methods exceed the newly defined threshold.
 
-- [ ] T002 [P] [US1] Refactor `buildLegibilityAnnotatedString` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`
-- [ ] T003 [P] [US1] Refactor `PasswordDetailScreen` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
-- [ ] T004 [P] [US1] Refactor `registerApp` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt`
-- [ ] T005 [P] [US1] Refactor `CredentialListScreen` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`
-- [ ] T006 [P] [US1] Refactor `DevelopmentToolsContent` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`
+- [X] T002 [P] [US1] Refactor `buildLegibilityAnnotatedString` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/components/LegibleSecretText.kt`
+- [X] T003 [P] [US1] Refactor `PasswordDetailScreen` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
+- [X] T004 [P] [US1] Refactor `registerApp` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt`
+- [X] T005 [P] [US1] Refactor `CredentialListScreen` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`
+- [X] T006 [P] [US1] Refactor `DevelopmentToolsContent` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [ ] T007 Run Local CI pipeline via `tools/local-ci.ps1`
+- [X] T007 Run Local CI pipeline via `tools/local-ci.ps1`
 
 ## Dependencies
 

@@ -668,31 +668,7 @@ class BluetoothHidDeviceWrapper(
             // ── Step 0: Ensure Bluetooth is ON ──
             // If the user just clicked "Allow" on the system prompt, the state might
             // be STATE_TURNING_ON. We wait up to 5 seconds for it to reach STATE_ON.
-            var bluetoothState =
-                try {
-                    bluetoothAdapter?.state
-                } catch (e: SecurityException) {
-                    Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied)" }
-                    BluetoothAdapter.ERROR
-                }
-            var waitAttempt = 0
-            while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON &&
-                waitAttempt < BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS
-            ) {
-                Logger.d {
-                    "Bluetooth is turning on, waiting ${BLUETOOTH_TURNING_ON_WAIT_DELAY_MS}ms " +
-                        "(attempt ${waitAttempt + 1})..."
-                }
-                delay(BLUETOOTH_TURNING_ON_WAIT_DELAY_MS)
-                bluetoothState =
-                    try {
-                        bluetoothAdapter?.state
-                    } catch (e: SecurityException) {
-                        Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied) during wait" }
-                        BluetoothAdapter.ERROR
-                    }
-                waitAttempt++
-            }
+            val bluetoothState = waitForBluetoothToTurnOn()
 
             val result =
                 withTimeoutOrNull(cfg.registerTimeoutMs) {
@@ -745,68 +721,8 @@ class BluetoothHidDeviceWrapper(
                                 sdpSubclass,
                                 FIDO_HID_REPORT_DESCRIPTOR,
                             )
-
-                        // Wrapper callback that resolves the continuation on app status change
-                        val registrationCallback =
-                            object : BluetoothHidDevice.Callback() {
-                                override fun onAppStatusChanged(
-                                    pluggedDevice: BluetoothDevice?,
-                                    registered: Boolean,
-                                ) {
-                                    // Delegate to our persistent callback for state management
-                                    hidCallback.onAppStatusChanged(pluggedDevice, registered)
-
-                                    if (registered) {
-                                        Logger.i {
-                                            "registerApp: onAppStatusChanged registered=true — registration confirmed"
-                                        }
-                                        if (cont.isActive) cont.resume(Result.success(Unit))
-                                    } else {
-                                        Logger.w {
-                                            "registerApp: onAppStatusChanged registered=false — registration lost"
-                                        }
-                                        if (cont.isActive) {
-                                            cont.resume(
-                                                Result.failure(
-                                                    Fido2Exception.BluetoothException(
-                                                        "HID app registration failed (registered=false)",
-                                                    ),
-                                                ),
-                                            )
-                                        }
-                                    }
-                                }
-
-                                override fun onConnectionStateChanged(
-                                    device: BluetoothDevice,
-                                    state: Int,
-                                ) = hidCallback.onConnectionStateChanged(device, state)
-
-                                override fun onSetReport(
-                                    device: BluetoothDevice,
-                                    type: Byte,
-                                    id: Byte,
-                                    data: ByteArray,
-                                ) = hidCallback.onSetReport(device, type, id, data)
-
-                                override fun onInterruptData(
-                                    device: BluetoothDevice,
-                                    reportId: Byte,
-                                    data: ByteArray,
-                                ) = hidCallback.onInterruptData(device, reportId, data)
-
-                                override fun onGetReport(
-                                    device: BluetoothDevice,
-                                    type: Byte,
-                                    id: Byte,
-                                    bufferSize: Int,
-                                ) = hidCallback.onGetReport(device, type, id, bufferSize)
-
-                                override fun onVirtualCableUnplug(device: BluetoothDevice) =
-                                    hidCallback.onVirtualCableUnplug(
-                                        device,
-                                    )
-                            }
+// Wrapper callback that resolves the continuation on app status change
+                        val registrationCallback = createRegistrationCallback(cont)
 
                         val registerResult =
                             try {
@@ -978,6 +894,85 @@ class BluetoothHidDeviceWrapper(
         data.copyInto(report, 0, 0, minOf(data.size, FIDO_HID_REPORT_SIZE))
         return report
     }
+
+    private suspend fun waitForBluetoothToTurnOn(): Int {
+        var bluetoothState =
+            try {
+                bluetoothAdapter?.state ?: BluetoothAdapter.ERROR
+            } catch (e: SecurityException) {
+                Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied)" }
+                BluetoothAdapter.ERROR
+            }
+        var waitAttempt = 0
+        while (bluetoothState == BluetoothAdapter.STATE_TURNING_ON &&
+            waitAttempt < BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS
+        ) {
+            Logger.d {
+                "Bluetooth is turning on, waiting ${BLUETOOTH_TURNING_ON_WAIT_DELAY_MS}ms " +
+                    "(attempt ${waitAttempt + 1})..."
+            }
+            delay(BLUETOOTH_TURNING_ON_WAIT_DELAY_MS)
+            bluetoothState =
+                try {
+                    bluetoothAdapter?.state ?: BluetoothAdapter.ERROR
+                } catch (e: SecurityException) {
+                    Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied) during wait" }
+                    BluetoothAdapter.ERROR
+                }
+            waitAttempt++
+        }
+        return bluetoothState
+    }
+
+    private fun createRegistrationCallback(cont: CancellableContinuation<Result<Unit>>) =
+        object : BluetoothHidDevice.Callback() {
+            override fun onAppStatusChanged(
+                pluggedDevice: BluetoothDevice?,
+                registered: Boolean,
+            ) {
+                hidCallback.onAppStatusChanged(pluggedDevice, registered)
+                if (registered) {
+                    Logger.i { "registerApp: onAppStatusChanged registered=true — registration confirmed" }
+                    if (cont.isActive) cont.resume(Result.success(Unit))
+                } else {
+                    Logger.w { "registerApp: onAppStatusChanged registered=false — registration lost" }
+                    if (cont.isActive) {
+                        cont.resume(
+                            Result.failure(
+                                Fido2Exception.BluetoothException("HID app registration failed (registered=false)"),
+                            ),
+                        )
+                    }
+                }
+            }
+
+            override fun onConnectionStateChanged(
+                device: BluetoothDevice,
+                state: Int,
+            ) = hidCallback.onConnectionStateChanged(device, state)
+
+            override fun onSetReport(
+                device: BluetoothDevice,
+                type: Byte,
+                id: Byte,
+                data: ByteArray,
+            ) = hidCallback.onSetReport(device, type, id, data)
+
+            override fun onInterruptData(
+                device: BluetoothDevice,
+                reportId: Byte,
+                data: ByteArray,
+            ) = hidCallback.onInterruptData(device, reportId, data)
+
+            override fun onGetReport(
+                device: BluetoothDevice,
+                type: Byte,
+                id: Byte,
+                bufferSize: Int,
+            ) = hidCallback.onGetReport(device, type, id, bufferSize)
+
+            override fun onVirtualCableUnplug(device: BluetoothDevice) = hidCallback.onVirtualCableUnplug(device)
+        }
 
     companion object {
         private const val BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS = 10

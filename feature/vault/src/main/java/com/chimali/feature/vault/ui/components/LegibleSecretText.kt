@@ -75,75 +75,53 @@ private fun buildLegibilityAnnotatedString(
     return buildAnnotatedString {
         secret.forEach { char ->
             val processedChar = handleUnicodeSymbol(char)
-            
-            val (text, style) = when {
-                char.isDigit() && settings.highlightNumbers -> {
-                    val color = if (settings.colorblindMode) {
-                        LegibilityColors.NumberOrangeHighContrast
-                    } else {
-                        settings.numberColor
-                    }
-                    Pair(
-                        processedChar,
-                        TextStyle(
-                            color = color,
-                            fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.SemiBold
-                        )
-                    )
-                }
-                
-                char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
-                    val color = if (settings.colorblindMode) {
-                        LegibilityColors.UppercasePurpleHighContrast
-                    } else {
-                        settings.uppercaseColor
-                    }
-                    Pair(
-                        processedChar,
-                        TextStyle(
-                            color = color,
-                            fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
-                        )
-                    )
-                }
-                
-                char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
-                    val color = if (settings.colorblindMode) {
-                        LegibilityColors.LowercaseGreenHighContrast
-                    } else {
-                        settings.lowercaseColor
-                    }
-                    Pair(
-                        processedChar,
-                        TextStyle(
-                            color = color,
-                            fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Normal
-                        )
-                    )
-                }
-                
-                !char.isLetterOrDigit() && settings.highlightSymbols -> {
-                    val color = if (settings.colorblindMode) {
-                        LegibilityColors.SymbolBlueHighContrast
-                    } else {
-                        settings.symbolColor
-                    }
-                    Pair(
-                        processedChar,
-                        TextStyle(
-                            color = color,
-                            fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
-                        )
-                    )
-                }
-                
-                else -> Pair(processedChar, TextStyle())
-            }
-            
+            val style = getLegibilityCharStyle(char, settings)
             withStyle(style.toSpanStyle()) {
-                append(text)
+                append(processedChar)
             }
         }
+    }
+}
+
+private fun getLegibilityCharStyle(char: Char, settings: LegibilitySettings): TextStyle {
+    return when {
+        char.isDigit() && settings.highlightNumbers -> {
+            val color = if (settings.colorblindMode) LegibilityColors.NumberOrangeHighContrast else settings.numberColor
+            TextStyle(
+                color = color,
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.SemiBold
+            )
+        }
+        char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
+            val color = if (settings.colorblindMode) {
+                LegibilityColors.UppercasePurpleHighContrast
+            } else {
+                settings.uppercaseColor
+            }
+            TextStyle(
+                color = color,
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
+            )
+        }
+        char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
+            val color = if (settings.colorblindMode) {
+                LegibilityColors.LowercaseGreenHighContrast
+            } else {
+                settings.lowercaseColor
+            }
+            TextStyle(
+                color = color,
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+        !char.isLetterOrDigit() && settings.highlightSymbols -> {
+            val color = if (settings.colorblindMode) LegibilityColors.SymbolBlueHighContrast else settings.symbolColor
+            TextStyle(
+                color = color,
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
+            )
+        }
+        else -> TextStyle()
     }
 }
 
@@ -205,60 +183,50 @@ private fun buildColorblindAnnotatedString(
     settings: LegibilitySettings
 ): AnnotatedString {
     return buildAnnotatedString {
-        secret.forEachIndexed { index, char ->
+        secret.forEach { char ->
             val processedChar = handleUnicodeSymbol(char)
-            
-            when {
-                char.isDigit() && settings.highlightNumbers -> {
-                    withStyle(
-                        TextStyle(
-                            color = LegibilityColors.NumberOrangeHighContrast,
-                            fontWeight = FontWeight.Bold,
-                            background = LegibilityColors.NumberBackground
-                        ).toSpanStyle()
-                    ) {
-                        append(processedChar)
-                    }
+            val style = getColorblindCharStyle(char, settings)
+            if (style != null) {
+                withStyle(style.toSpanStyle()) {
+                    append(processedChar)
                 }
-                
-                char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
-                    withStyle(
-                        TextStyle(
-                            color = LegibilityColors.UppercasePurpleHighContrast,
-                            fontWeight = FontWeight.Bold,
-                            background = LegibilityColors.UppercaseBackground
-                        ).toSpanStyle()
-                    ) {
-                        append(processedChar)
-                    }
-                }
-                
-                char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
-                    withStyle(
-                        TextStyle(
-                            color = LegibilityColors.LowercaseGreenHighContrast,
-                            fontWeight = FontWeight.Bold,
-                            background = LegibilityColors.LowercaseBackground
-                        ).toSpanStyle()
-                    ) {
-                        append(processedChar)
-                    }
-                }
-                
-                !char.isLetterOrDigit() && settings.highlightSymbols -> {
-                    withStyle(
-                        TextStyle(
-                            color = LegibilityColors.SymbolBlueHighContrast,
-                            fontWeight = FontWeight.Bold,
-                            background = LegibilityColors.SymbolBackground
-                        ).toSpanStyle()
-                    ) {
-                        append(processedChar)
-                    }
-                }
-                
-                else -> append(processedChar)
+            } else {
+                append(processedChar)
             }
         }
+    }
+}
+
+private fun getColorblindCharStyle(char: Char, settings: LegibilitySettings): TextStyle? {
+    return when {
+        char.isDigit() && settings.highlightNumbers -> {
+            TextStyle(
+                color = LegibilityColors.NumberOrangeHighContrast,
+                fontWeight = FontWeight.Bold,
+                background = LegibilityColors.NumberBackground
+            )
+        }
+        char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
+            TextStyle(
+                color = LegibilityColors.UppercasePurpleHighContrast,
+                fontWeight = FontWeight.Bold,
+                background = LegibilityColors.UppercaseBackground
+            )
+        }
+        char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
+            TextStyle(
+                color = LegibilityColors.LowercaseGreenHighContrast,
+                fontWeight = FontWeight.Bold,
+                background = LegibilityColors.LowercaseBackground
+            )
+        }
+        !char.isLetterOrDigit() && settings.highlightSymbols -> {
+            TextStyle(
+                color = LegibilityColors.SymbolBlueHighContrast,
+                fontWeight = FontWeight.Bold,
+                background = LegibilityColors.SymbolBackground
+            )
+        }
+        else -> null
     }
 }

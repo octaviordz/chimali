@@ -96,6 +96,7 @@ complexity:
   CognitiveComplexMethod:
     active: true
     threshold: 40
+    ignoreAnnotated: ['Composable']
   ComplexCondition:
     active: true
     threshold: 5

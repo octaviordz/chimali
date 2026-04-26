@@ -45,8 +45,6 @@ fun PasswordDetailScreen(
     onDelete: () -> Unit,
     onBack: () -> Unit
 ) {
-    var isPasswordRevealed by remember { mutableStateOf(false) }
-    
     // Default legibility settings - in a real app, these would come from user preferences
     val legibilitySettings = LegibilitySettings(
         fontType = LegibilityFont.Atkinson,
@@ -79,51 +77,7 @@ fun PasswordDetailScreen(
         ) {
             DetailRow(label = "Username", value = String(payload.username))
             
-            // Password row with reveal toggle and legible display
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Password", 
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    IconButton(
-                        onClick = { isPasswordRevealed = !isPasswordRevealed }
-                    ) {
-                        Icon(
-                            imageVector = if (isPasswordRevealed) {
-                                Icons.Default.VisibilityOff
-                            } else {
-                                Icons.Default.Visibility
-                            },
-                            contentDescription = if (isPasswordRevealed) {
-                                "Hide password"
-                            } else {
-                                "Show password"
-                            }
-                        )
-                    }
-                }
-                
-                if (isPasswordRevealed) {
-                    LegibleSecretText(
-                        secret = String(payload.password),
-                        isRevealed = true,
-                        settings = legibilitySettings,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    BasicText(
-                        text = "•".repeat(payload.password.size),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontFamily = FontFamily.Monospace
-                        )
-                    )
-                }
-            }
+            PasswordRow(password = payload.password, legibilitySettings = legibilitySettings)
             
             DetailRow(label = "Website", value = payload.uri)
             
@@ -133,52 +87,11 @@ fun PasswordDetailScreen(
 
             payload.customFields?.forEach { field ->
                 if (field.isConcealed) {
-                    // Handle concealed custom fields with legible display
-                    var isFieldRevealed by remember { mutableStateOf(false) }
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = field.name,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            IconButton(
-                                onClick = { isFieldRevealed = !isFieldRevealed }
-                            ) {
-                                Icon(
-                                    imageVector = if (isFieldRevealed) {
-                                        Icons.Default.VisibilityOff
-                                    } else {
-                                        Icons.Default.Visibility
-                                    },
-                                    contentDescription = if (isFieldRevealed) {
-                                        "Hide ${field.name}"
-                                    } else {
-                                        "Show ${field.name}"
-                                    }
-                                )
-                            }
-                        }
-                        
-                        if (isFieldRevealed) {
-                            LegibleSecretText(
-                                secret = String(field.value),
-                                isRevealed = true,
-                                settings = legibilitySettings,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            BasicText(
-                                text = "•".repeat(field.value.size),
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            )
-                        }
-                    }
+                    ConcealedCustomFieldRow(
+                        name = field.name,
+                        value = field.value,
+                        legibilitySettings = legibilitySettings
+                    )
                 } else {
                     DetailRow(
                         label = field.name,
@@ -205,6 +118,95 @@ fun DetailRow(label: String, value: String) {
     Column {
         Text(text = label, style = MaterialTheme.typography.labelMedium)
         Text(text = value, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun PasswordRow(
+    password: CharArray,
+    legibilitySettings: LegibilitySettings
+) {
+    var isPasswordRevealed by remember { mutableStateOf(false) }
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Password", 
+                style = MaterialTheme.typography.labelMedium
+            )
+            IconButton(
+                onClick = { isPasswordRevealed = !isPasswordRevealed }
+            ) {
+                Icon(
+                    imageVector = if (isPasswordRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (isPasswordRevealed) "Hide password" else "Show password"
+                )
+            }
+        }
+        
+        if (isPasswordRevealed) {
+            LegibleSecretText(
+                secret = String(password),
+                isRevealed = true,
+                settings = legibilitySettings,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            BasicText(
+                text = "•".repeat(password.size),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = FontFamily.Monospace
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConcealedCustomFieldRow(
+    name: String,
+    value: CharArray,
+    legibilitySettings: LegibilitySettings
+) {
+    var isFieldRevealed by remember { mutableStateOf(false) }
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelMedium
+            )
+            IconButton(
+                onClick = { isFieldRevealed = !isFieldRevealed }
+            ) {
+                Icon(
+                    imageVector = if (isFieldRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (isFieldRevealed) "Hide $name" else "Show $name"
+                )
+            }
+        }
+        
+        if (isFieldRevealed) {
+            LegibleSecretText(
+                secret = String(value),
+                isRevealed = true,
+                settings = legibilitySettings,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            BasicText(
+                text = "•".repeat(value.size),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = FontFamily.Monospace
+                )
+            )
+        }
     }
 }
 
