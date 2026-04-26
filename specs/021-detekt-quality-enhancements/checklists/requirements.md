@@ -32,4 +32,5 @@
 ## Notes
 
 - Spec successfully amended with additional high-value quality rules (Logging hardening, Bug prevention, Performance, Maintainability).
-- Complexity threshold tightening omitted per user request.
+- **Addendum added**: Enforcing zero module-level exclusions for feature modules (`feature:vault`, `feature:fido2`) while allowing them for tests and generated code.
+- Complexity threshold tightening is implicitly enforced where previously excluded.

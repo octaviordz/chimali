@@ -1,71 +1,24 @@
-# Quickstart: Detekt Quality Enhancements
+# Quickstart: Detekt Quality Hardening
 
-This feature introduces new quality gates to the project. Developers must adhere to the following rules to pass the local CI.
+## Overview
+This feature enforces strict quality gates on feature modules. Developers must ensure their code complies with the newly activated rules and the removal of module-wide exclusions.
 
-## 1. Logging Discipline
-Standard output calls (`println`, `print`) are now **prohibited** in production code.
+## Verification Workflow
+To verify compliance locally, run the standard CI pipeline:
 
-**Bad:**
-```kotlin
-println("User logged in: $userId")
-```
-
-**Good:**
-```kotlin
-Logger.d { "User logged in: $userId" }
-```
-
-*Note: println is still allowed in `test` and `androidTest` source sets.*
-
-## 2. Idiomatic Scope Functions
-Avoid unnecessary use of `.let` when it doesn't provide null-safety or a meaningful scope shift.
-
-**Bad:**
-```kotlin
-val name = "Chimali"
-name.let { println(it) } // Unnecessary let
-```
-
-**Good:**
-```kotlin
-val name = "Chimali"
-println(name)
-```
-
-## 3. String Literal Duplication
-Avoid using the same string literal multiple times in a single file. Extract them to constants.
-
-**Bad:**
-```kotlin
-// Used in multiple places in the same file
-Text("Submit")
-Button(onClick = { /* ... */ }) { Text("Submit") }
-```
-
-**Good:**
-```kotlin
-private const val BUTTON_LABEL_SUBMIT = "Submit"
-
-Text(BUTTON_LABEL_SUBMIT)
-Button(onClick = { /* ... */ }) { Text(BUTTON_LABEL_SUBMIT) }
-```
-
-*Threshold: 3 or more occurrences of strings >= 5 characters.*
-
-## 4. Wildcard Import Discipline
-Wildcard imports (e.g., `import com.chimali.*`) are now **prohibited**. All imports must be explicit.
-
-## 5. Platform-Agnostic Logging
-Direct use of `android.util.Log` is now **forbidden**. Always use the platform-agnostic `Logger` (Kermit).
-
-## 6. Collection Type Safety
-Downcasting collection types (e.g., casting `List` to `MutableList`) is **prohibited** to ensure immutability contracts.
-
-## 7. Raw String Preference
-Use Kotlin raw strings (`"""`) for complex strings or those containing multiple quotes, unless the string is very short (under 5 escaped characters).
-
-## Verification
-Run the local CI to verify your changes:
 ```powershell
-./tools/local-ci.ps1
+.\tools\local-ci.ps1
+```
+
+The pipeline will now fail if:
+1. You use `println` or `android.util.Log` in feature modules.
+2. You have high complexity in `feature:vault` or `feature:fido2` that was previously hidden by exclusions.
+3. You have duplicated strings (>= 5 occurrences) or non-idiomatic `let` usage.
+
+## Suppressing Legitimate Violations
+If a specific violation is legitimate (e.g., a complex cryptographic algorithm that cannot be further simplified), use targeted suppression rather than global exclusions:
+
+```kotlin
+@Suppress("CognitiveComplexMethod")
+fun myComplexFunction() { ... }
 ```

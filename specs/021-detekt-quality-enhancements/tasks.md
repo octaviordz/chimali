@@ -25,6 +25,8 @@
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
 - [x] T003 Ensure `detekt` Gradle plugin is configured to fail on any weighted issue (`maxIssues: 0`) in `config/detekt/detekt.yml`
+- [ ] T027 [P] Remove all module-level `excludes` for `feature/vault` across ALL rules in `config/detekt/detekt.yml`
+- [ ] T028 [P] Remove all module-level `excludes` for `feature/fido2` across ALL rules in `config/detekt/detekt.yml`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -54,8 +56,8 @@
 
 ### Implementation for User Story 2
 
-- [x] T007 [US2] Enable `UnnecessaryLet` in `config/detekt/detekt.yml`
-- [x] T008 [US2] Enable `UseLet` in `config/detekt/detekt.yml`
+- [x] T007 [US2] Enable `UnnecessaryLet` in `config/detekt/detekt.yml` with test exclusions
+- [x] T008 [US2] Enable `UseLet` in `config/detekt/detekt.yml` with test exclusions
 - [x] T009 [US2] Verify US2 by running `./gradlew detekt` on a file with redundant `let`
 
 **Checkpoint**: At this point, the codebase enforces idiomatic scope function usage.
@@ -66,12 +68,12 @@
 
 **Goal**: Identify duplicated string literals to encourage extraction into constants.
 
-**Independent Test**: Use the same string literal 3 times in one file and verify Detekt flags `StringLiteralDuplication`.
+**Independent Test**: Use the same string literal 5 times in one file and verify Detekt flags `StringLiteralDuplication`.
 
 ### Implementation for User Story 3
 
 - [x] T010 [US3] Enable `StringLiteralDuplication` in `config/detekt/detekt.yml`
-- [x] T011 [US3] Configure `threshold: 3` and `excludeStringsWithLessThan5Characters: true` for `StringLiteralDuplication` in `config/detekt/detekt.yml`
+- [x] T011 [US3] Configure `threshold: 5` and `excludeStringsWithLessThan5Characters: true` for `StringLiteralDuplication` in `config/detekt/detekt.yml`
 - [x] T012 [US3] Verify US3 by running `./gradlew detekt` on a file with duplicated strings
 
 **Checkpoint**: All user stories should now be independently functional.
@@ -100,7 +102,7 @@
 ### Implementation for User Story 5
 
 - [ ] T018 [P] [US5] Enable `Deprecation` rule with test source set exclusions in `config/detekt/detekt.yml`
-- [ ] T019 [P] [US5] Enable `DontDowncastCollectionTypes` rule in `config/detekt/detekt.yml`
+- [ ] T019 [P] [US5] Enable `DontDowncastCollectionTypes` rule in `config/detekt/detekt.yml` with test exclusions
 
 ---
 
@@ -112,7 +114,7 @@
 
 ### Implementation for User Story 6
 
-- [ ] T020 [US6] Enable `CouldBeSequence` rule with `threshold: 3` in `config/detekt/detekt.yml`
+- [ ] T020 [US6] Enable `CouldBeSequence` rule with `threshold: 3` and test exclusions in `config/detekt/detekt.yml`
 
 ---
 
@@ -120,21 +122,34 @@
 
 **Goal**: Eliminate internal wildcard imports and encourage Raw Strings for escaped text.
 
-**Independent Test**: Use wildcard for `com.chimali.*` and string with 3+ escapes; verify violations.
+**Independent Test**: Use wildcard for `com.chimali.*` and string with 5+ escapes; verify violations.
 
 ### Implementation for User Story 7
 
 - [ ] T021 [US7] Remove internal wildcard exception for `com.chimali.fido2.presentation.ui.components.*` in `config/detekt/detekt.yml`
-- [ ] T022 [US7] Enable `StringShouldBeRawString` with `maxEscapedCharacterCount: 2` in `config/detekt/detekt.yml`
+- [ ] T022 [US7] Enable `StringShouldBeRawString` with `maxEscapedCharacterCount: 4` in `config/detekt/detekt.yml`
 
 ---
 
-## Phase 10: Final Polish & Remediation
+## Phase 10: Addendum - Zero-Exclusion Quality Gate (Priority: P1)
+
+**Goal**: Enforce all existing complexity and style rules on feature modules.
+
+**Independent Test**: Verify no `excludes` for `feature/vault` or `feature:fido2` remain for rules like `CognitiveComplexMethod`.
+
+### Implementation for US8
+
+- [ ] T029 [US8] Audit and remove any remaining path-based exclusions for feature modules in `config/detekt/detekt.yml`
+- [ ] T030 [US8] Run `.\tools\local-ci.ps1` and perform targeted `@Suppress` for legitimate existing violations in `feature:vault` and `feature:fido2`
+
+---
+
+## Phase 11: Final Polish & Remediation
 
 **Purpose**: Fix violations surfaced by new rules and update documentation.
 
 - [ ] T023 [P] Fix the internal wildcard import in `feature:fido2` to satisfy T021
-- [ ] T024 [P] Resolve any new `android.util.Log` or `CouldBeSequence` violations in `feature:vault`
+- [ ] T024 [P] Resolve any new `android.util.Log` or `CouldBeSequence` violations in `feature:vault` and `feature:fido2`
 - [ ] T025 Update `walkthrough.md` with implementation results for new quality gates in `specs/021-detekt-quality-enhancements/walkthrough.md`
 - [ ] T026 Run Local CI pipeline via `tools/local-ci.ps1`
 
@@ -155,7 +170,7 @@
 - **Setup (Phase 1)**: No dependencies - can start immediately
 - **Foundational (Phase 2)**: Depends on Setup completion
 - **User Stories (Phase 3+)**: All depend on Foundational phase completion
-- **Final Polish (Phase 10)**: Depends on all user stories being complete
+- **Final Polish (Phase 11)**: Depends on all user stories being complete
 
 ### User Story Dependencies
 

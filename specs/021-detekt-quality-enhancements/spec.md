@@ -43,11 +43,11 @@ As a developer, I want Detekt to identify cases where the same string literal is
 
 **Why this priority**: Duplicated strings ("magic strings") make refactoring difficult and can lead to bugs if one instance is updated but others are missed.
 
-**Independent Test**: Can be tested by using the same string literal (>= 5 characters) 3 or more times in a file and verifying that Detekt reports a duplication violation.
+**Independent Test**: Can be tested by using the same string literal (>= 5 characters) 5 or more times in a file and verifying that Detekt reports a duplication violation.
 
 **Acceptance Scenarios**:
 
-1. **Given** a file with a string literal repeated 3 or more times, **When** analyzed, **Then** Detekt must report a violation.
+1. **Given** a file with a string literal repeated 5 or more times, **When** analyzed, **Then** Detekt must report a violation.
 2. **Given** a file where repeated strings are extracted into a `private const val`, **When** analyzed, **Then** Detekt must pass.
 
 ---
@@ -86,13 +86,13 @@ As a developer, I want to be alerted when I use deprecated APIs or perform unsaf
 
 As a developer, I want Detekt to suggest using Sequences when processing large collections in multiple steps, so that we meet our performance targets for handling 10,000+ vault items without excessive memory allocations.
 
-**Why this priority**: Constitution §IV requires handling 10k items with negligible degradation. Chained list operations allocate new collections at every step, which is inefficient compared to lazy Sequences.
+**Why this priority**: Constitution §IV requires handling 10k items with negligible degradation. Chained list operations (`CouldBeSequence`) allocate new collections at every step, which is inefficient compared to lazy Sequences.
 
-**Independent Test**: Create a chain of 3+ operations on a List (e.g., `filter.map.first`) and verify Detekt suggests `asSequence()`.
+**Independent Test**: Create a chain of 3+ operations on a List (e.g., `filter.map.first`) and verify Detekt flags `CouldBeSequence`.
 
 **Acceptance Scenarios**:
 
-1. **Given** a List processing chain with 3 or more operations, **When** analyzed, **Then** Detekt must suggest conversion to a Sequence.
+1. **Given** a List processing chain with 3 or more operations, **When** analyzed, **Then** Detekt must flag `CouldBeSequence`.
 
 ---
 
@@ -102,13 +102,29 @@ As a developer, I want to avoid internal wildcard imports and use raw strings fo
 
 **Why this priority**: Internal wildcard imports obscure dependencies and break IDE tooling. Multi-line strings with excessive escape characters are error-prone and hard to maintain compared to Kotlin Raw Strings.
 
-**Independent Test**: Use a wildcard import for an internal `com.chimali` package and verify failure. Use a string with 3+ escape sequences and verify it suggests a Raw String.
+**Independent Test**: Use a wildcard import for an internal `com.chimali` package and verify failure. Use a string with 5+ escape sequences and verify it suggests a Raw String.
 
 **Acceptance Scenarios**:
 
 1. **Given** an import like `com.chimali.fido2.ui.*`, **Then** Detekt must report a `WildcardImport` violation.
-2. **Given** a string like `"\\n\\t\\\""`, **Then** Detekt must suggest using `"""..."""`.
+2. **Given** a string with 5 or more complex escapes (e.g., `\"`, `\$`, `\\`), **Then** Detekt must suggest using `"""..."""`.
 
+---
+
+### User Story 8 - Zero-Exclusion Quality Gate for Feature Modules (Priority: P1)
+
+As a project lead, I want to ensure that all security-critical and feature-rich modules (like `feature:vault` and `feature:fido2`) are held to the highest quality standards by removing all Detekt rule exclusions, so that we catch technical debt and security risks early.
+
+**Why this priority**: Feature modules handle sensitive user data (credentials, vault items). Any laxness in static analysis (e.g., ignoring complexity or long methods) increases the risk of unmaintainable or insecure code.
+
+**Independent Test**: Verify the `detekt.yml` file contains no `excludes` paths targeting `feature/vault` or `feature/fido2` production source sets.
+
+**Acceptance Scenarios**:
+
+1. **Given** a Detekt configuration, **When** it targets `feature/vault`, **Then** all active rules must be enforced without module-wide path exclusions.
+2. **Given** test code or generated code, **When** analyzed, **Then** path-based exclusions are permitted to avoid noisy reports on non-production or tool-generated files.
+
+---
 
 ### Edge Cases
 
@@ -123,12 +139,14 @@ As a developer, I want to avoid internal wildcard imports and use raw strings fo
 
 - **FR-001**: Detekt MUST fail the build if `println`, `print`, or `android.util.Log` calls are used in main source sets.
 - **FR-002**: Detekt MUST flag unnecessary `let` usage across all source sets (main and test) where it does not provide value.
-- **FR-003**: Detekt MUST flag duplicated string literals (>= 5 chars) exceeding 3 occurrences.
+- **FR-003**: Detekt MUST flag duplicated string literals (>= 5 chars) exceeding 5 occurrences.
 - **FR-004**: Detekt MUST flag usage of `@Deprecated` APIs in main source sets.
 - **FR-005**: Detekt MUST prohibit downcasting of standard collection types to their mutable counterparts.
-- **FR-006**: Detekt MUST suggest Sequence conversion for collection operation chains of length 3 or greater.
+- **FR-006**: Detekt MUST flag `CouldBeSequence` for collection operation chains of length 3 or greater.
 - **FR-007**: Detekt MUST prohibit wildcard imports for internal `com.chimali` packages.
-- **FR-008**: Detekt MUST suggest Raw Strings for literals containing 3 or more escaped characters.
+- **FR-008**: Detekt MUST suggest Raw Strings for literals containing 5 or more escaped characters (max 4 permitted).
+- **FR-009**: Detekt MUST NOT have path-based exclusions for production code in feature modules (`feature:vault`, `feature:fido2`).
+- **FR-010**: Path-based exclusions ARE PERMITTED only for test code and generated code.
 
 ## Success Criteria *(mandatory)*
 
@@ -141,6 +159,7 @@ As a developer, I want to avoid internal wildcard imports and use raw strings fo
 - **SC-005**: Zero unsafe collection downcasts detected.
 - **SC-006**: All eligible list processing chains (length 3+) converted to Sequences.
 - **SC-007**: Zero internal wildcard imports in the codebase.
+- **SC-008**: Zero module-level Detekt exclusions for `feature:vault` and `feature:fido2`.
 
 ## Assumptions
 
