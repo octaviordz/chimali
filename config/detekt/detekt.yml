@@ -95,7 +95,7 @@ complexity:
   excludes: '**/build/**,**/generated/**'
   CognitiveComplexMethod:
     active: true
-    threshold: 100
+    threshold: 40
   ComplexCondition:
     active: true
     threshold: 5
@@ -806,4 +806,3 @@ style:
   WildcardImport:
     active: true
     excludeImports: ['androidx.compose.runtime.*', 'androidx.compose.material.icons.filled.*', 'androidx.compose.material3.*', 'androidx.compose.foundation.layout.*']
-
