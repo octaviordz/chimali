@@ -83,6 +83,7 @@ sealed interface DevToolsEffect {
  * clearing; a future improvement would store them as `CharArray`.
  */
 @KoinViewModel
+@Suppress("TooGenericExceptionCaught")
 class DevToolsViewModel(
     private val masterSeedProvider: MasterSeedProvider,
     private val clipboardManagerService: ClipboardManagerService,

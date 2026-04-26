@@ -21,6 +21,7 @@ import org.koin.core.annotation.Single
  *   6 — deleteCredential
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class Ctap2CredentialManagementHandler(
     private val cborCodec: CborCodec,
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,

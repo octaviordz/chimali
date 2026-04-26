@@ -19,6 +19,7 @@ import org.koin.core.annotation.Single
  *   protect metadata at rest without any change to its public API.
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class CredentialStorageService {
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"

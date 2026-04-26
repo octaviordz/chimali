@@ -26,6 +26,7 @@ import org.koin.android.annotation.KoinViewModel
  * Uses MVI pattern: Intent -> State -> Effect
  */
 @KoinViewModel
+@Suppress("TooGenericExceptionCaught")
 class CredentialManagementViewModel(
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
     private val searchCredentialsUseCase: SearchCredentialsUseCase,

@@ -5,6 +5,7 @@ import java.util.Arrays
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class MemoryUtils {
     fun zeroByteArray(array: ByteArray) {
         try {

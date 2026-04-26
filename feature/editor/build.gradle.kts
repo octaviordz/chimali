@@ -8,7 +8,12 @@ plugins {
 android {
     namespace = "com.chimali.feature.editor"
     compileSdk = 35
-    defaultConfig { minSdk = 28 }
+    defaultConfig {
+        minSdk = 28
+        ksp {
+            arg("KOIN_DEFAULT_MODULE", "true")
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

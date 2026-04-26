@@ -6,18 +6,22 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-25
 
 ### Fixed
-- **Detekt Quality Hardening (Extended)**: 
+- **Detekt Quality Hardening (Extended)**:
     - Hardened project gates by enabling `ForbiddenImport` (banning `android.util.Log` in favor of Kermit), `ForbiddenMethodCall` (banning `println`), `DontDowncastCollectionTypes`, and `StringShouldBeRawString`.
     - Expanded all internal wildcard imports across the FIDO2 module and established a project-wide ban on new wildcards.
     - Standardized string threshold for raw strings to **5** to balance readability for JSON fragments.
-- **CI Pipeline Hardening**: Updated `local-ci.ps1` to correctly trigger and report KMP Android compilation errors by replacing ineffective lifecycle tasks with actual compilation tasks.
+- **CI Pipeline Hardening**:
+    - Updated `local-ci.ps1` to correctly trigger and report KMP Android compilation errors.
+    - Enabled Gradle Configuration Cache (`--configuration-cache`) by default in `local-ci.ps1` to drastically reduce CI execution time. Added a `-NoConfigurationCache` opt-out flag.
 - **FIDO2 Test Stability**: Resolved "Unresolved reference 'any'" errors in FIDO2 tests caused by MockK/Kotlin resolution ambiguities in the current project environment.
 - **Code Polish & Refactoring**:
     - Refactored `RegisterCredentialUseCase` from nested `if/else` to idiomatic guard clauses.
     - Migrated `Fido2Initializer` to structured concurrency (feature-scoped coroutines).
     - Renamed `Services.kt` to `CryptoService.kt` for domain clarity.
     - Purged unused dependencies, mocks, and scratch files from the `fido2` module.
-- **Detailed changes**: [2026-04-25-detekt-quality-hardening-and-code-polish.md](docs/changelogs/2026-04-25-detekt-quality-hardening-and-code-polish.md) & [2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md](docs/changelogs/2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md)
+- **Build & KSP Stability**:
+    - Eliminated Koin KSP deprecation warnings (`'defaultModule' generation is deprecated`) by configuring `KOIN_DEFAULT_MODULE` properly within `android.defaultConfig` for standard Android modules (`vault`, `editor`) and top-level for KMP modules (`domain`).
+- **Detailed changes**: [2026-04-25-detekt-quality-hardening-and-code-polish.md](docs/changelogs/2026-04-25-detekt-quality-hardening-and-code-polish.md), [2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md](docs/changelogs/2026-04-25-ci-pipeline-hardening-and-fido2-test-fixes.md), & [2026-04-25-build-and-ksp-fixes.md](docs/changelogs/2026-04-25-build-and-ksp-fixes.md)
 
 ## [Unreleased] - 2026-04-24
 
@@ -187,7 +191,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **FIDO2 Protocol Extensibility**: Added `HmacSecretProcessor` to construct, encrypt, and fulfill CTAP `hmac-secret` extensions natively over the authenticator interfaces.
 
 ### Changed
-- **HID Transport Stability**: Introduced a thread-safe Kotlin `Channel<ByteArray>` based FIFO queuing system inside `BluetoothHidTransportImpl`. It explicitly enforces zero packet collisions between continuous internal probing and out-of-band CBOR telemetry mapping. 
+- **HID Transport Stability**: Introduced a thread-safe Kotlin `Channel<ByteArray>` based FIFO queuing system inside `BluetoothHidTransportImpl`. It explicitly enforces zero packet collisions between continuous internal probing and out-of-band CBOR telemetry mapping.
 
 ### Fixed
 - **Specification Parity**: Aligned documented failure paths (in `spec.md` and `plan.md`) directly with CTAP standard OS errors (0x27 Memory Full, 0x29 Consent Denied).
@@ -270,7 +274,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **GetAssertion Signature Failure After Restart (Critical)**: Fixed a bug where authentication always failed with `"Could not verify authentication signature"` after closing and reopening the app. Root cause: `generateDeviceKeyPair()` used `SecureRandom` on every cold start, producing a different device key each time. Since the signing formula is `sk_device × blindingFactor mod n`, any change in `sk_device` produces an unverifiable signature. Fixed by replacing the random call with a deterministic `HMAC-SHA512("chimali_device_key_v1", masterSeed)` derivation in `WalletMasterSeedProvider`.
 - **Authentication Query Accuracy**: Resolved a bug in the integration tests where full origin RP IDs (e.g., `https://...`) stored in the repository were incorrectly queried using Hostnames, resulting in empty credential results.
 - **Cross-module Compilation**: Fixed a pre-existing compile break in `RegisterCredentialUseCaseTest` caused by recent signature updates to the key generation API.
-- **Full details**: 
+- **Full details**:
   - [2026-03-25-fido2-getassertion-restart-fix.md](docs/changelogs/2026-03-25-fido2-getassertion-restart-fix.md)
   - [2026-03-25-fido2-stress-testing-and-credentialid-refactor.md](docs/changelogs/2026-03-25-fido2-stress-testing-and-credentialid-refactor.md)
   - [2026-03-25-fido2-mldsa-pqc-integration.md](docs/changelogs/2026-03-25-fido2-mldsa-pqc-integration.md)
@@ -412,7 +416,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-03-07
 
 ### Fixed
-- **FIDO2 Bluetooth Reliability**: Hardened `BluetoothHidDeviceWrapper` with an exponential backoff retry loop and `5000ms` timeouts to prevent coroutine hangs when buggy Android Bluetooth stacks silently drop `registerApp` callbacks. 
+- **FIDO2 Bluetooth Reliability**: Hardened `BluetoothHidDeviceWrapper` with an exponential backoff retry loop and `5000ms` timeouts to prevent coroutine hangs when buggy Android Bluetooth stacks silently drop `registerApp` callbacks.
 - **Phantom Connection Sockets**: Added explicit `disconnect()` teardown logic in `onAppStatusChanged` to clear falsely reported `pluggedDevice` sockets on registration, preventing silently dropped incoming connections from Windows PCs.
 - **Windows Dual Device Profile Split**: Changed SDP service registration to `BluetoothHidDevice.SUBCLASS1_NONE` (was `COMBO`) to correctly identify the app as a raw security key. This prevents strict Windows 11 drivers from splitting the FIDO profile into conflicting devices (Phone/Screen widgets) and endless connection loops.
 - Full details: [2026-03-07-fido2-bluetooth-reliability.md](docs/changelogs/2026-03-07-fido2-bluetooth-reliability.md)

@@ -192,19 +192,8 @@ fun LegibleSecretTextColorblind(
  * Ensures that even unusual Unicode symbols are displayed with proper legibility.
  */
 private fun handleUnicodeSymbol(char: Char): String {
-    return try {
-        // Check if the character is a standard printable ASCII character
-        if (char.code in 32..126) {
-            char.toString()
-        } else {
-            // For non-ASCII characters, ensure they're handled properly
-            // This could be extended with specific Unicode symbol mappings if needed
-            char.toString()
-        }
-    } catch (e: Exception) {
-        // Fallback for any rendering issues
-        "?"
-    }
+    // This can be extended with specific Unicode symbol mappings for legibility if needed.
+    return char.toString()
 }
 
 /**

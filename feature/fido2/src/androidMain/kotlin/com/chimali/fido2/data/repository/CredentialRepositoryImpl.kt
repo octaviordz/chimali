@@ -29,6 +29,7 @@ import org.koin.core.annotation.Single
  * and Android KeyStore for secure credential storage.
  */
 @Single
+@Suppress("TooGenericExceptionCaught", "ForbiddenComment")
 class CredentialRepositoryImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val relyingPartyDao: RelyingPartyDao,
@@ -41,6 +42,7 @@ class CredentialRepositoryImpl(
         private const val MAX_USER_CREDENTIALS_PER_RP = 10
         private const val RECENT_USAGE_CUTOFF_DAYS = 90L
         private const val EXPIRY_DAYS_THRESHOLD = 730L
+        private const val UNKNOWN_ERROR = "Unknown error"
     }
 
     // ── Credential CRUD ──────────────────────────────────────────────────────
@@ -66,7 +68,7 @@ class CredentialRepositoryImpl(
             passkeyCredentialDao.insertCredential(credential)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialStorageFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.CredentialStorageFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -180,7 +182,7 @@ class CredentialRepositoryImpl(
             passkeyCredentialDao.deleteCredential(credentialId)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -403,7 +405,7 @@ class CredentialRepositoryImpl(
             }
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.CredentialCreationNotAllowed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.CredentialCreationNotAllowed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -423,7 +425,7 @@ class CredentialRepositoryImpl(
             relyingPartyDao.insertOrUpdateRelyingParty(rp)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -440,7 +442,7 @@ class CredentialRepositoryImpl(
             relyingPartyDao.updateRelyingParty(updatedRp)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -451,7 +453,7 @@ class CredentialRepositoryImpl(
             userConsentRecordDao.insertConsent(consent)
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.ConsentStorageFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.ConsentStorageFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 

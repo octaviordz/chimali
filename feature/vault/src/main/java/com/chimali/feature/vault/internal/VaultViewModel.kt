@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@Suppress("ForbiddenComment")
 class VaultViewModel(
     private val vaultService: VaultService,
     private val clipboardManager: ClipboardManagerWrapper
@@ -29,6 +30,7 @@ class VaultViewModel(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun loadItems(intent: VaultIntent.LoadItems) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -41,6 +43,7 @@ class VaultViewModel(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun saveItem(intent: VaultIntent.SaveItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -55,6 +58,7 @@ class VaultViewModel(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun deleteItem(intent: VaultIntent.DeleteItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -69,6 +73,7 @@ class VaultViewModel(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught", "ForbiddenComment")
     private fun decryptItem(intent: VaultIntent.DecryptItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }

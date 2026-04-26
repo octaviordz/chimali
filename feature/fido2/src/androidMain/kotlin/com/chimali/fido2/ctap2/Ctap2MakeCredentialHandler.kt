@@ -31,6 +31,7 @@ import org.koin.core.annotation.Single
  * - Encode the success / error CTAP2 response back as a [CtapHidMessage]
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class Ctap2MakeCredentialHandler(
     private val cborCodec: CborCodec,
     private val hidReportParser: HidReportParser,

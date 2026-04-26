@@ -96,7 +96,6 @@ complexity:
   CognitiveComplexMethod:
     active: true
     threshold: 100
-    excludes: ['**/feature/vault/**']
   ComplexCondition:
     active: true
     threshold: 5
@@ -112,7 +111,6 @@ complexity:
     ignoreSingleWhenExpression: false
     ignoreSimpleWhenEntries: false
     ignoreNestingFunctions: false
-    excludes: ['**/feature/vault/**']
     nestingFunctions:
       - 'also'
       - 'apply'
@@ -132,12 +130,11 @@ complexity:
   LongMethod:
     active: true
     threshold: 400
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   LongParameterList:
     active: true
     functionThreshold: 12
     constructorThreshold: 12
-    excludes: ['**/feature/vault/**', '**/feature/fido2/**']
     ignoreDefaultParameters: false
     ignoreDataClasses: true
     ignoreAnnotatedParameter: []
@@ -164,7 +161,7 @@ complexity:
     active: false
   StringLiteralDuplication:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/fido2/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
     threshold: 5
     ignoreAnnotation: true
     excludeStringsWithLessThan5Characters: true
@@ -218,7 +215,6 @@ empty-blocks:
     active: true
   EmptyFinallyBlock:
     active: true
-    excludes: ['**/feature/fido2/**']
   EmptyForBlock:
     active: true
   EmptyFunctionBlock:
@@ -264,7 +260,6 @@ exceptions:
     ignoreLabeled: false
   SwallowedException:
     active: true
-    excludes: ['**/feature/vault/**']
     ignoredExceptionTypes:
       - 'InterruptedException'
       - 'MalformedURLException'
@@ -292,7 +287,7 @@ exceptions:
     active: true
   TooGenericExceptionCaught:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/feature/vault/**', '**/feature/fido2/**']
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
     exceptionNames:
       - 'ArrayIndexOutOfBoundsException'
       - 'Error'
@@ -355,7 +350,6 @@ naming:
     parameterPattern: '[a-z][A-Za-z0-9]*|_'
   MatchingDeclarationName:
     active: true
-    excludes: ['**/feature/vault/**']
     mustBeFirst: true
   MemberNameEqualsClassName:
     active: true
@@ -396,6 +390,7 @@ performance:
   CouldBeSequence:
     active: true
     threshold: 3
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   ForEachOnRange:
     active: true
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
@@ -422,6 +417,7 @@ potential-bugs:
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   DontDowncastCollectionTypes:
     active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
   DoubleMutabilityForCollection:
     active: true
     mutableTypes:
@@ -579,7 +575,6 @@ style:
         value: 'java.lang.annotation.Inherited'
   ForbiddenComment:
     active: true
-    excludes: ['**/feature/vault/**']
     comments:
       - reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'
         value: 'FIXME:'

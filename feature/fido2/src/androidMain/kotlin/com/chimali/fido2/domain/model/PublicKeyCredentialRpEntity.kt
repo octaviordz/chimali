@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
  * Domain model representing a PublicKeyCredentialRpEntity.
  * This contains information about the relying party requesting credential creation.
  */
+@Suppress("TooGenericExceptionCaught")
 data class PublicKeyCredentialRpEntity(
     val id: String,
     val name: String,

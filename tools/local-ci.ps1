@@ -5,13 +5,19 @@
 param(
     [switch]$Clean,
     [switch]$SkipTests,
-    [switch]$SkipLint
+    [switch]$SkipLint,
+    [switch]$NoConfigurationCache
 )
 
 $ErrorActionPreference = "Stop"
 $StartTime = Get-Date
 
 Write-Host "Starting Local CI Pipeline..." -ForegroundColor Cyan
+
+$Gradle = "./gradlew"
+if (-not $NoConfigurationCache) {
+    $Gradle += " --configuration-cache"
+}
 
 function Run-Task($Name, $Command, [bool]$IgnoreFailure = $false) {
     Write-Host "`nRunning $Name..." -ForegroundColor Yellow
@@ -34,22 +40,22 @@ function Run-Task($Name, $Command, [bool]$IgnoreFailure = $false) {
 if ($Clean) {
     # We ignore failures in Clean because file locks on Windows (from Android Studio) 
     # are common and shouldn't block the rest of the CI checks.
-    Run-Task "Clean" "./gradlew clean" $true
+    Run-Task "Clean" "$Gradle clean" $true
 }
 
 # 2. Static Analysis & Linting
 if (-not $SkipLint) {
-    Run-Task "Ktlint Check" "./gradlew ktlintCheck"
-    Run-Task "Detekt" "./gradlew detekt"
+    Run-Task "Ktlint Check" "$Gradle ktlintCheck"
+    Run-Task "Detekt" "$Gradle detekt"
 }
 
 # 3. Compilation & Unit Tests
 if (-not $SkipTests) {
     # Comprehensive compilation check (Production + Unit Tests + Instrumented Tests)
     # This catches errors across all module types (KMP and standard Android)
-    Run-Task "Compile All" "./gradlew compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
+    Run-Task "Compile All" "$Gradle compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
     
-    Run-Task "Unit Tests" "./gradlew test"
+    Run-Task "Unit Tests" "$Gradle test"
 }
 
 $TotalDuration = (Get-Date) - $StartTime

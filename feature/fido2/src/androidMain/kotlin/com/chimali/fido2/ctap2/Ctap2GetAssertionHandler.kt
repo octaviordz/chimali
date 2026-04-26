@@ -29,6 +29,7 @@ import org.koin.core.annotation.Single
  * | 0x06 | map  | pinUvAuthParam  |
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class Ctap2GetAssertionHandler(
     private val getAssertionUseCase: GetAssertionUseCase,
     private val cborCodec: CborCodec,

@@ -25,4 +25,11 @@ subprojects {
         allRules = false
         source.setFrom(files("src"))
     }
+
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        reports {
+            html.outputLocation.set(layout.buildDirectory.file("reports/detekt/${project.name}.html"))
+            xml.outputLocation.set(layout.buildDirectory.file("reports/detekt/${project.name}.xml"))
+        }
+    }
 }

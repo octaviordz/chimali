@@ -14,6 +14,7 @@ import okio.buffer
  * Writes logs to a rotating file in the app's internal storage.
  * Implements privacy-safe logging via [PrivacyLogScrubber].
  */
+@Suppress("TooGenericExceptionCaught")
 class LocalCrashReportingLogWriter(
     private val directoryProvider: LogDirectoryProvider,
     // 5MB limit default

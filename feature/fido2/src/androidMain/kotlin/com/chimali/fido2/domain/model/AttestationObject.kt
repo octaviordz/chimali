@@ -6,6 +6,7 @@ import java.time.Instant
  * Domain model representing a FIDO2 AttestationObject.
  * This contains the attestation data returned during credential creation.
  */
+@Suppress("TooGenericExceptionCaught")
 data class AttestationObject(
     val fmt: String,
     val authData: AuthenticatorData,
@@ -447,6 +448,7 @@ data class AttestationStatement(
  * Domain model representing ClientData.
  * This contains the client data from the attestation object.
  */
+@Suppress("TooGenericExceptionCaught")
 data class ClientData(
     val type: String,
     val challenge: ByteArray,

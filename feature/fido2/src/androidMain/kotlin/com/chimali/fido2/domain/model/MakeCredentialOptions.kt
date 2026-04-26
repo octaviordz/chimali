@@ -6,6 +6,7 @@ import java.util.Base64
  * Domain model representing options for making a FIDO2 credential.
  * This contains all the parameters needed for the navigator.credentials.create() operation.
  */
+@Suppress("TooGenericExceptionCaught")
 data class MakeCredentialOptions(
     val rp: PublicKeyCredentialRpEntity,
     val user: PublicKeyCredentialUserEntity,

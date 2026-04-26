@@ -43,9 +43,7 @@ kotlin {
 
         withHostTest {}
         withDeviceTest {}
-    }
 
-    androidLibrary {
         optimization {
             consumerKeepRules.publish = true
             consumerKeepRules.files.add(project.file("proguard-rules.pro"))

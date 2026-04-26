@@ -18,6 +18,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
  *   1. [warmUpBouncyCastle] — warms BC provider + JIT for in-process EC math
  *   2. [warmUpAndroidKeyStore] — warms the AndroidKeyStore HAL / TEE IPC channel
  */
+@Suppress("TooGenericExceptionCaught")
 object WarmUpHelper {
     // ── AndroidKeyStore warm-up ─────────────────────────────────────────────
 

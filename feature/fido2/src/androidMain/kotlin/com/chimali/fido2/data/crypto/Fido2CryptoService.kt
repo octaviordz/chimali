@@ -64,6 +64,7 @@ data class Fido2KeyPair(
  * - Public key bytes (uncompressed, 65 bytes) are stored alongside credential metadata.
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class Fido2CryptoService(
     private val hdkManager: HdkManager,
     private val masterSeedProvider: MasterSeedProvider,
@@ -365,7 +366,7 @@ class Fido2CryptoService(
         withContext(defaultDispatcher) {
             runCatching {
                 // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
-                LatencyProfiler.start("Crypto.sign")
+                LatencyProfiler.start(LATENCY_TAG_SIGN)
 
                 if (algId == COSE_ML_DSA_65) {
                     val pqChildSeed =
@@ -384,7 +385,7 @@ class Fido2CryptoService(
                             ?: throw Fido2Exception.SigningFailed("ML-DSA signing failed", null)
 
                     derivedSeed.fill(0)
-                    LatencyProfiler.end("Crypto.sign")
+                    LatencyProfiler.end(LATENCY_TAG_SIGN)
                     Logger.d {
                         "Signed ${data.size} bytes with ML-DSA for " +
                             "credentialId=$credentialId sigLen=${signature.size}"
@@ -414,7 +415,7 @@ class Fido2CryptoService(
 
                     derivedSeed.fill(0)
 
-                    LatencyProfiler.end("Crypto.sign")
+                    LatencyProfiler.end(LATENCY_TAG_SIGN)
                     Logger.d {
                         "Signed ${data.size} bytes with Ed25519 for " +
                             "credentialId=$credentialId sigLen=${signature.size}"
@@ -458,11 +459,11 @@ class Fido2CryptoService(
                 // Zero out device private key
                 devicePrivKeyBytes.fill(0)
 
-                LatencyProfiler.end("Crypto.sign")
+                LatencyProfiler.end(LATENCY_TAG_SIGN)
                 Logger.d { "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}" }
                 signature
             }.recoverCatching { e ->
-                LatencyProfiler.end("Crypto.sign") // ensure timer ends on failure path too
+                LatencyProfiler.end(LATENCY_TAG_SIGN) // ensure timer ends on failure path too
                 Logger.e(e) { "Signing failed for $credentialId" }
                 throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
             }
@@ -626,5 +627,7 @@ class Fido2CryptoService(
             val path = derivationPath(credentialId)
             return "device-key/${path.joinToString("/")}"
         }
+
+        private const val LATENCY_TAG_SIGN = "Crypto.sign"
     }
 }

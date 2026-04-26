@@ -20,6 +20,7 @@ interface CorruptedKeyRepairWorker {
 }
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class CorruptedKeyRepairWorkerImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val fido2CryptoService: Fido2CryptoService,

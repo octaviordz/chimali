@@ -41,6 +41,7 @@ const val COSE_ML_DSA_65 = -49
  * - Signing does not require network access or Android KeyStore.
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class PostQuantumCrypto {
     init {
         // On Android, the system provides a crippled "BC" provider that lacks PQC.

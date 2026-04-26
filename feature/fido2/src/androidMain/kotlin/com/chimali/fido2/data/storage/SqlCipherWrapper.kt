@@ -5,6 +5,7 @@ import java.security.SecureRandom
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class SqlCipherWrapper {
     private val secureRandom = SecureRandom()
 

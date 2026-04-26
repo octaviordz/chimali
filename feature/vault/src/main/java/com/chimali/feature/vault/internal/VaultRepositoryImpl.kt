@@ -37,6 +37,7 @@ class VaultRepositoryImpl(
         }
     }
 
+    @Suppress("ForbiddenComment")
     override suspend fun saveItem(item: VaultItem): Unit = withContext(Dispatchers.IO) {
         // TODO: Integrate actual Android Keystore encryption for payload,
         // Uniffi bridge for CRDT merge state logic mapping

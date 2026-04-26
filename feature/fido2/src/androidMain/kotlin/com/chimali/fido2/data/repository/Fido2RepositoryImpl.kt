@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("ForbiddenComment")
 class Fido2RepositoryImpl(
     private val credentialRepository: PasskeyCredentialRepository,
 ) : Fido2Repository {

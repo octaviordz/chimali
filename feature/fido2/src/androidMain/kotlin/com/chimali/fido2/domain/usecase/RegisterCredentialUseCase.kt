@@ -28,6 +28,7 @@ import org.koin.core.annotation.Factory
  * Handles the complete credential registration flow with user verification.
  */
 @Factory
+@Suppress("TooGenericExceptionCaught")
 class RegisterCredentialUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,

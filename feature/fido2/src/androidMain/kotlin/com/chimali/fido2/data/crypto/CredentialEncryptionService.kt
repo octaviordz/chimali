@@ -18,6 +18,7 @@ import org.koin.core.annotation.Single
  * Uses AES-GCM for authenticated encryption with additional data.
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class CredentialEncryptionService(
     private val credentialStorageService: CredentialStorageService,
 ) {
@@ -32,6 +33,7 @@ class CredentialEncryptionService(
         private const val BITS_PER_BYTE = 8
         private const val HKDF_BLOCK_SIZE = 32
         private const val HKDF_ROUND_UP_OFFSET = 31
+        private const val UNKNOWN_ERROR = "Unknown error"
     }
 
     private val secureRandom = SecureRandom()
@@ -75,7 +77,7 @@ class CredentialEncryptionService(
                     ),
                 )
             } catch (e: Exception) {
-                Result.failure(Fido2Exception.EncryptionFailed(e.message ?: "Unknown error", e))
+                Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
             }
         }
     }
@@ -111,7 +113,7 @@ class CredentialEncryptionService(
 
                 Result.success(decryptedData)
             } catch (e: Exception) {
-                Result.failure(Fido2Exception.DecryptionFailed(e.message ?: "Unknown error", e))
+                Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
             }
         }
     }
@@ -158,7 +160,7 @@ class CredentialEncryptionService(
                 String(decryptedData)
             }
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -191,7 +193,7 @@ class CredentialEncryptionService(
                 )
             }
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -225,7 +227,7 @@ class CredentialEncryptionService(
                 deserializeMetadata(metadataJson)
             }
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -252,7 +254,7 @@ class CredentialEncryptionService(
 
             Result.success(SecretKeySpec(derivedKey, ALGORITHM_AES))
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyDerivationFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.KeyDerivationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -287,7 +289,7 @@ class CredentialEncryptionService(
                 ),
             )
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -312,7 +314,7 @@ class CredentialEncryptionService(
 
             Result.success(decryptedData)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -331,7 +333,7 @@ class CredentialEncryptionService(
             // For now, we'll just create the new key
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyRotationFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.KeyRotationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -369,7 +371,7 @@ class CredentialEncryptionService(
             // In a real implementation, store this in Android KeyStore
             Result.success(key)
         } catch (e: Exception) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
+            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 

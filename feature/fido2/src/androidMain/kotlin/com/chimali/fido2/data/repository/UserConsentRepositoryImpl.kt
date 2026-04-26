@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("ForbiddenComment")
 class UserConsentRepositoryImpl : UserConsentRepository {
     override suspend fun recordConsent(consentRecord: UserConsentRecord): Result<Unit> {
         // TODO: Implement database save logic

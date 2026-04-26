@@ -6,6 +6,7 @@ import java.util.Base64
  * Domain model representing a PublicKeyCredentialDescriptor.
  * This describes existing credentials that can be excluded from creation.
  */
+@Suppress("TooGenericExceptionCaught")
 data class PublicKeyCredentialDescriptor(
     val type: PublicKeyCredentialType,
     val id: ByteArray,

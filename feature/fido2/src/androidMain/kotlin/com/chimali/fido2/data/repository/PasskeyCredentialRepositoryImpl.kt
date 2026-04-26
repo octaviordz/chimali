@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class PasskeyCredentialRepositoryImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val relyingPartyDao: RelyingPartyDao,

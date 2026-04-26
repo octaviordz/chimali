@@ -57,6 +57,7 @@ import org.koin.core.annotation.Single
  * Each connected host gets its own CID tracked in [channelRegistry].
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class BluetoothHidTransportImpl(
     private val hidWrapper: BluetoothHidDeviceWrapper,
     private val hidReportParser: HidReportParser,

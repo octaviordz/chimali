@@ -11,6 +11,9 @@ android {
     defaultConfig {
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ksp {
+            arg("KOIN_DEFAULT_MODULE", "true")
+        }
     }
 
     compileOptions {
@@ -24,10 +27,6 @@ kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
-}
-
-ksp {
-    arg("KOIN_DEFAULT_MODULE", "true")
 }
 
 dependencies {

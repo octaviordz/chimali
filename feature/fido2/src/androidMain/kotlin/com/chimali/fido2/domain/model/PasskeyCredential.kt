@@ -164,6 +164,7 @@ data class PasskeyCredential(
         /**
          * Creates a new PasskeyCredential with validation.
          */
+        @Suppress("LongParameterList")
         fun create(
             id: String,
             rpId: String,

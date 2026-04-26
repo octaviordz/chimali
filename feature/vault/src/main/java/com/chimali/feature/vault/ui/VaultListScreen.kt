@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultType
 import java.util.UUID
+import com.chimali.feature.vault.ui.model.LabelUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

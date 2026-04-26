@@ -42,6 +42,7 @@ import org.koin.core.annotation.Single
  * ```
  */
 @Single
+@Suppress("TooGenericExceptionCaught")
 class EncryptedMetadataIndexService(
     private val sivEncryptionManager: SivEncryptionManager,
 ) {

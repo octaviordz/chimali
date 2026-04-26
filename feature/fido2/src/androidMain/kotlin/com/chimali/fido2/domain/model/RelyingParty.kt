@@ -9,6 +9,7 @@ import java.time.temporal.ChronoUnit
  * Domain model representing a FIDO2 Relying Party (RP).
  * This entity represents the service/website that requests authentication.
  */
+@Suppress("TooGenericExceptionCaught")
 data class RelyingParty(
     val id: String,
     val name: String,

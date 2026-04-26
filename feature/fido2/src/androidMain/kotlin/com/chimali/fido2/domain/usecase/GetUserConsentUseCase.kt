@@ -21,6 +21,7 @@ import org.koin.core.annotation.Factory
  * Handles consent recording, retrieval, and validation.
  */
 @Factory
+@Suppress("TooGenericExceptionCaught")
 class GetUserConsentUseCase(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,

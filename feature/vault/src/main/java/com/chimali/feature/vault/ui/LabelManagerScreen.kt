@@ -29,10 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.chimali.feature.vault.ui.model.LabelUiModel
 import java.util.UUID
 
-// Placeholder for future Label entity
-data class LabelUiModel(val id: UUID, val name: String, val colorHex: String)
+// Composable for managing labels
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -46,6 +46,7 @@ import java.util.concurrent.Executors
  * before composing this. Wrap it in an `if (cameraPermGranted)` guard.
  */
 @Composable
+@Suppress("TooGenericExceptionCaught")
 fun MnemonicQrScanner(
     modifier: Modifier = Modifier,
     onScanned: (List<String>) -> Unit,

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("ForbiddenComment")
 class RelyingPartyRepositoryImpl : RelyingPartyRepository {
     override suspend fun saveRelyingParty(relyingParty: RelyingParty): Result<Unit> {
         // TODO: Implement database save logic
