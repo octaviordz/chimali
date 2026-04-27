@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import android.content.Context
 import android.content.ContextWrapper
@@ -74,6 +74,14 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * @param onCancel    Called when user dismisses without registering.
  * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
  */
+@Suppress(
+    // TODO: Add modifier parameter in follow-up refactor
+    "ModifierMissing",
+    // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
+    "LambdaParameterInRestartableEffect",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun RegistrationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
@@ -160,6 +168,7 @@ fun RegistrationPromptScreen(
     )
 }
 
+@Suppress("FunctionNaming")
 @Composable
 internal fun RegistrationPromptContent(
     state: RegistrationState,
@@ -287,6 +296,10 @@ internal fun RegistrationPromptContent(
     }
 }
 
+@Suppress(
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 private fun AwaitingConsentContent(
     state: RegistrationState.AwaitingUserConsent,

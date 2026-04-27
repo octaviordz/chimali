@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import android.Manifest
 import androidx.annotation.OptIn
@@ -46,7 +46,15 @@ import java.util.concurrent.Executors
  * before composing this. Wrap it in an `if (cameraPermGranted)` guard.
  */
 @Composable
-@Suppress("TooGenericExceptionCaught")
+@Suppress(
+    "TooGenericExceptionCaught",
+    // TODO: Rename onScanned -> onScan (present tense) in follow-up refactor
+    "ParameterNaming",
+    // TODO: Reorder modifier to follow trailing lambda convention
+    "ComposableParamOrder",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 fun MnemonicQrScanner(
     modifier: Modifier = Modifier,
     onScanned: (List<String>) -> Unit,

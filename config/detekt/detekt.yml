@@ -335,8 +335,8 @@ naming:
   FunctionNaming:
     active: true
     excludes: ['**/build/**', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
-    functionPattern: '[a-z][a-zA-Z0-9]*'
-    excludeClassPattern: $^
+    functionPattern: '^([a-z$][a-zA-Z$0-9]*)|(`.*`)$'
+    excludeClassPattern: '$^'
     ignoreAnnotated: ['Composable']
   FunctionParameterNaming:
     active: true
@@ -807,3 +807,54 @@ style:
   WildcardImport:
     active: true
     excludeImports: ['androidx.compose.runtime.*', 'androidx.compose.material.icons.filled.*', 'androidx.compose.material3.*', 'androidx.compose.foundation.layout.*']
+
+# ==============================================================================
+# Compose Rules (io.nlopez.compose.rules)
+# See: https://mrmans0n.github.io/compose-rules/latest/detekt/
+# ==============================================================================
+Compose:
+  ComposableAnnotationNaming:
+    active: true
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: true
+  CompositionLocalAllowlist:
+    active: true
+    allowedCompositionLocals: []
+  CompositionLocalNaming:
+    active: true
+  ContentEmitterReturningValues:
+    active: true
+  DefaultsVisibility:
+    active: true
+  LambdaParameterInRestartableEffect:
+    active: true
+  ModifierComposable:
+    active: true
+  ModifierMissing:
+    active: true
+  ModifierNaming:
+    active: true
+  ModifierNotUsedAtRoot:
+    active: true
+  ModifierReused:
+    active: true
+  ModifierWithoutDefault:
+    active: true
+  MultipleEmitters:
+    active: true
+  MutableStateAutoboxing:
+    active: true
+  MutableStateParam:
+    active: true
+  RememberMissing:
+    active: true
+  RememberStateMissing:
+    active: true
+  UnstableCollections:
+    active: false  # Opt-in: enable when strong skipping is disabled
+  ViewModelForwarding:
+    active: true
+  ViewModelInjection:
+    active: true

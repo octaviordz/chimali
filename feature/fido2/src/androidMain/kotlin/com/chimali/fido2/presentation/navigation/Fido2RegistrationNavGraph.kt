@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.navigation
+﻿package com.chimali.fido2.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -50,6 +50,16 @@ private val bottomNavItems =
         BottomNavItem.DevTools,
     )
 
+@Suppress(
+    // Past-tense lambda names match the existing public API contract
+    "ParameterNaming",
+    // Modifier placement is intentional for this nav graph signature
+    "ComposableParamOrder",
+    // Modifier is intentionally applied to the inner Box wrapping NavHost
+    "ModifierNotUsedAtRoot",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun Fido2RegistrationNavGraph(
     onRegistrationComplete: (credentialId: String) -> Unit,

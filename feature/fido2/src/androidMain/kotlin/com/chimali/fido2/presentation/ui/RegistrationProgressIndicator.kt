@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
  * @param size       Diameter of the indicator canvas.
  * @param strokeWidth Width of the arc strokes.
  */
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun RegistrationProgressIndicator(
     message: String = "Registering passkey…",

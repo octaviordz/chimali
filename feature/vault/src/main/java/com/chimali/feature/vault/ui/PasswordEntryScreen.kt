@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -28,6 +28,7 @@ import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun PasswordEntryScreen(
     onSave: (PasswordPayload) -> Unit,
@@ -38,7 +39,7 @@ fun PasswordEntryScreen(
     var password by remember { mutableStateOf("") }
     var uri by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    
+
     // Dynamic Custom Fields State
     val customFields = remember { mutableStateListOf<CustomField>() }
 
@@ -96,7 +97,7 @@ fun PasswordEntryScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            
+
             // Render Dynamic Custom Fields
             items(customFields.size) { index ->
                 val field = customFields[index]
@@ -105,7 +106,7 @@ fun PasswordEntryScreen(
                     // Render concealed value mask or text based on isConcealed
                 }
             }
-            
+
             item {
                 Button(onClick = {
                     // This is placeholder logic to add a new custom field for demo purposes
@@ -147,6 +148,12 @@ fun PasswordEntryScreen(
 }
 
 @Preview(showBackground = true)
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun PasswordEntryScreenPreview() {
     PasswordEntryScreen(

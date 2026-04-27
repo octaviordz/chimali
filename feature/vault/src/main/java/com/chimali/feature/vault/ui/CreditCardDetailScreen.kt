@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +33,7 @@ private val BUTTON_VERTICAL_PADDING = 16.dp
 private val BUTTON_HORIZONTAL_PADDING = 24.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun CreditCardDetailScreen(
     payload: CreditCardPayload,
@@ -71,7 +72,7 @@ fun CreditCardDetailScreen(
                 DetailRow(label = "Expires", value = payload.expirationDate)
                 DetailRow(label = "CVV", value = "***") // Placeholder for concealed CVV reveal
             }
-            
+
             if (payload.notes != null) {
                 DetailRow(label = "Notes", value = String(payload.notes))
             }
@@ -82,7 +83,7 @@ fun CreditCardDetailScreen(
                     value = if (field.isConcealed) "***" else String(field.value)
                 )
             }
-            
+
             Spacer(modifier = Modifier.weight(1f))
             Button(
                 onClick = onBack,
@@ -100,6 +101,12 @@ fun CreditCardDetailScreen(
 }
 
 @Preview(showBackground = true)
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun CreditCardDetailScreenPreview() {
     CreditCardDetailScreen(

@@ -18,6 +18,10 @@ subprojects {
     apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
     apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
 
+    dependencies {
+        add("detektPlugins", rootProject.libs.detekt.compose.rules)
+    }
+
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
         config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
         baseline = file("${projectDir}/detekt-baseline.xml")
@@ -30,6 +34,43 @@ subprojects {
         reports {
             html.outputLocation.set(layout.buildDirectory.file("reports/detekt/${project.name}.html"))
             xml.outputLocation.set(layout.buildDirectory.file("reports/detekt/${project.name}.xml"))
+        }
+    }
+
+    afterEvaluate {
+        if (plugins.hasPlugin("com.android.application")) {
+            configure<com.android.build.api.dsl.ApplicationExtension> {
+                lint {
+                    abortOnError = true
+                    checkReleaseBuilds = true
+                    textReport = false
+                    htmlReport = true
+                    xmlReport = true
+                    htmlOutput = file("build/reports/lint/${project.name}.html")
+                    xmlOutput = file("build/reports/lint/${project.name}.xml")
+                    disable += arrayOf("TypographyFractions", "TypographyQuotes", "TypographyDashes", "TypographyEllipsis", "TypographyOther")
+                    enable += arrayOf("RtlHardcoded", "RtlCompat", "RtlEnabled")
+                    checkGeneratedSources = false
+                    ignoreTestSources = true
+                }
+            }
+        }
+        if (plugins.hasPlugin("com.android.library")) {
+            configure<com.android.build.api.dsl.LibraryExtension> {
+                lint {
+                    abortOnError = true
+                    checkReleaseBuilds = true
+                    textReport = false
+                    htmlReport = true
+                    xmlReport = true
+                    htmlOutput = file("build/reports/lint/${project.name}.html")
+                    xmlOutput = file("build/reports/lint/${project.name}.xml")
+                    disable += arrayOf("TypographyFractions", "TypographyQuotes", "TypographyDashes", "TypographyEllipsis", "TypographyOther")
+                    enable += arrayOf("RtlHardcoded", "RtlCompat", "RtlEnabled")
+                    checkGeneratedSources = false
+                    ignoreTestSources = true
+                }
+            }
         }
     }
 }

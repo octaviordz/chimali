@@ -47,6 +47,7 @@ if ($Clean) {
 if (-not $SkipLint) {
     Run-Task "Ktlint Check" "$Gradle ktlintCheck"
     Run-Task "Detekt" "$Gradle detekt"
+    Run-Task "Lint (Release)" "$Gradle lintRelease"
 }
 
 # 3. Compilation & Unit Tests

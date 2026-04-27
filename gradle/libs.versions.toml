@@ -19,6 +19,7 @@ sqlcipher = "4.13.0"
 coroutines = "1.8.0"
 detekt = "1.23.8"
 ktlint = "12.1.0"
+compose-rules = "0.4.23"
 ksp = "2.3.6"
 junit = "4.13.2"
 junit-jupiter = "5.10.2"
@@ -122,6 +123,8 @@ kmpworker-ksp = { group = "dev.brewkits", name = "kmpworker-ksp", version.ref = 
 kmpworker-annotations = { group = "dev.brewkits", name = "kmpworker-annotations", version.ref = "kmpworkmanager" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 androidx-tracing = { group = "androidx.tracing", name = "tracing", version = "1.2.0" }
+# Compose-specific Detekt rules plugin — loaded via detektPlugins (no separate Gradle plugin needed)
+detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "compose-rules" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

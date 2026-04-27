@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -117,6 +117,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * accidental inclusion in release builds.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("FunctionNaming")
 @Composable
 fun DevelopmentToolsScreen(
     homeViewModel: Fido2HomeViewModel = koinViewModel(),
@@ -152,6 +153,7 @@ fun DevelopmentToolsScreen(
 private val SCANNER_PREVIEW_HEIGHT = 280.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Suppress("FunctionNaming")
 @Composable
 internal fun DevelopmentToolsContent(
     state: DevToolsUiState,
@@ -234,6 +236,7 @@ internal fun DevelopmentToolsContent(
 // ---------------------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
+@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
 @Composable
 private fun DebugMnemonicSection(
     state: DevToolsUiState,
@@ -344,6 +347,7 @@ private fun DebugMnemonicSection(
 }
 
 @OptIn(ExperimentalLayoutApi::class)
+@Suppress("FunctionNaming")
 @Composable
 private fun MnemonicActionRow(
     showQrCode: Boolean,
@@ -411,6 +415,7 @@ private fun MnemonicActionRow(
     }
 }
 
+@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
 @Composable
 private fun RecoverSeedForm(
     snackbarHostState: SnackbarHostState,
@@ -507,6 +512,7 @@ private fun RecoverSeedForm(
 // Sub-composables
 // ---------------------------------------------------------------------------
 
+@Suppress("FunctionNaming")
 @Composable
 private fun MnemonicWordGrid(words: List<String>) {
     LazyVerticalGrid(
@@ -555,6 +561,7 @@ private fun MnemonicWordGrid(words: List<String>) {
     }
 }
 
+@Suppress("FunctionNaming")
 @Composable
 private fun MnemonicQrCodeView(words: List<String>) {
     val mnemonic = remember(words) { words.joinToString(" ") }
@@ -582,6 +589,7 @@ private fun MnemonicQrCodeView(words: List<String>) {
     }
 }
 
+@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
 @Composable
 private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     val wordCount = 24
@@ -658,6 +666,7 @@ private object BiometricHelper {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
 @Composable
 private fun AlgorithmSelector(
     selectedAlgIndex: Int,
@@ -682,6 +691,7 @@ private fun AlgorithmSelector(
     }
 }
 
+@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
 @Composable
 private fun TestRegistrationTrigger(
     selectedAlgIndex: Int,

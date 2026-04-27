@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -28,6 +28,7 @@ import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.SecureNotePayload
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun SecureNoteEntryScreen(
     onSave: (SecureNotePayload) -> Unit,
@@ -35,7 +36,7 @@ fun SecureNoteEntryScreen(
 ) {
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
-    
+
     // Dynamic Custom Fields State
     val customFields = remember { mutableStateListOf<CustomField>() }
 
@@ -70,7 +71,7 @@ fun SecureNoteEntryScreen(
                     maxLines = 10
                 )
             }
-            
+
             // Render Dynamic Custom Fields
             items(customFields.size) { index ->
                 val field = customFields[index]
@@ -78,7 +79,7 @@ fun SecureNoteEntryScreen(
                     Text("${field.name}: *****")
                 }
             }
-            
+
             item {
                 Button(onClick = {
                     customFields.add(CustomField("Secret Code", charArrayOf(), true))
@@ -116,6 +117,12 @@ fun SecureNoteEntryScreen(
 }
 
 @Preview(showBackground = true)
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun SecureNoteEntryScreenPreview() {
     SecureNoteEntryScreen(

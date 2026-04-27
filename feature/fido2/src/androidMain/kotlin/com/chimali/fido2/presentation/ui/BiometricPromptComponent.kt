@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -46,6 +46,16 @@ import androidx.fragment.app.FragmentActivity
  * @param onError       Called on permanent failure (too many attempts, locked out, etc.).
  * @param onFallback    Called when the user taps the negative/fallback button.
  */
+@Suppress(
+    // TODO: Add modifier parameter in follow-up refactor
+    "ModifierMissing",
+    // TODO: Use rememberUpdatedState for lambda params in DisposableEffect
+    "LambdaParameterInRestartableEffect",
+    // TODO: Reorder params (lambdas should be last) in follow-up refactor
+    "ComposableParamOrder",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun BiometricPromptComponent(
     title: String,

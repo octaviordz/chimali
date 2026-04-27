@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +35,7 @@ import java.util.UUID
 // Composable for managing labels
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun LabelManagerScreen(
     labels: List<LabelUiModel>,
@@ -43,7 +44,7 @@ fun LabelManagerScreen(
     onBack: () -> Unit
 ) {
     var newLabelName by remember { mutableStateOf("") }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -108,6 +109,12 @@ fun LabelManagerScreen(
 }
 
 @Preview(showBackground = true)
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun LabelManagerScreenPreview() {
     val sampleLabels = remember {
@@ -128,4 +135,5 @@ fun LabelManagerScreenPreview() {
         },
         onBack = {}
     )
-}
+}
+

@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -54,6 +54,12 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress(
+    // TODO: Reorder params (modifier after required params) in follow-up refactor
+    "ComposableParamOrder",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun PairedDevicesSection(
     modifier: Modifier = Modifier,
@@ -138,6 +144,7 @@ fun PairedDevicesSection(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("FunctionNaming")
 @Composable
 private fun PairedDeviceItem(
     device: PairedDevice,

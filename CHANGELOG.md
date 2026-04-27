@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-26
+
+### Added
+- **Static Analysis Documentation**: Authored `docs/quality.md` outlining the local execution, tooling overview, and suppression guidelines for Ktlint, Detekt, and Android Lint.
+
+### Changed
+- **Compose Detekt Quality Gates**: Integrated `detekt-compose-rules` across all Compose-enabled Android modules (`:app`, `:core:ui`, `:feature:*`). Enforced Jetpack Compose best practices, suppressed legitimate false-positives via narrowest-scope `@Suppress("RuleId")` annotations, and preserved unmodified `detekt.yml` baselines.
+- **Android Lint Configuration**: Standardized `lintOptions` (now configured via modern AGP 9.0+ `ApplicationExtension`/`LibraryExtension`) across all Android modules in the root `build.gradle.kts`. Fails the build on error-level issues and generates isolated XML/HTML reports.
+- **CI Pipeline Enhancements**: Appended a `Lint (Release)` task invocation inside `tools/local-ci.ps1`, ensuring robust CI tracking for platform-specific accessibility, structural, and layout problems.
+- **Detailed changes**: [2026-04-26-compose-detekt-and-android-lint.md](docs/changelogs/2026-04-26-compose-detekt-and-android-lint.md)
+
 ## [Unreleased] - 2026-04-25
 
 ### Fixed

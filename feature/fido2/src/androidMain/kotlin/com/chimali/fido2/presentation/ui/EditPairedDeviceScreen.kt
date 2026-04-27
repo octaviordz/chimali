@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +41,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Replaces the previous AlertDialog for better UX as requested.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun EditPairedDeviceScreen(
     macAddress: String,

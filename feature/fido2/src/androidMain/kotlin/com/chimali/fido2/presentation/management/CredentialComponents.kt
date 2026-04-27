@@ -29,6 +29,7 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 
 /** T122 — List Item */
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun CredentialItem(
     credential: PasskeyCredential,
@@ -80,6 +81,7 @@ fun CredentialItem(
 private const val ISO_DATE_LENGTH = 10
 
 /** T123 — Confirmation Dialog */
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun DeleteConfirmationDialog(
     title: String,
@@ -115,6 +117,7 @@ fun DeleteConfirmationDialog(
 }
 
 /** T124 — Details View (BottomSheet or Dialog in real world, using Dialog for simplicity) */
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun CredentialDetailsScreen(
     credential: PasskeyCredential,

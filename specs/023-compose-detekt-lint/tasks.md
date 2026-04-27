@@ -41,19 +41,19 @@
 
 - [ ] T004 [US1] Run `./gradlew detekt --continue` to discover pre-existing Compose rule violations across all 6 Compose modules; record each violation (file, line, rule ID) as a checklist in a scratch note
 
-- [ ] T005 [P] [US1] For each pre-existing Compose violation found in `app/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>` at the narrowest applicable declaration scope (FR-007)
+- [x] T005 [P] [US1] For each pre-existing Compose violation found in `app/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>` at the narrowest applicable declaration scope (FR-007)
 
-- [ ] T006 [P] [US1] For each pre-existing Compose violation found in `core/ui/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
+- [x] T006 [P] [US1] For each pre-existing Compose violation found in `core/ui/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
 
-- [ ] T007 [P] [US1] For each pre-existing Compose violation found in `feature/authenticator/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
+- [x] T007 [P] [US1] For each pre-existing Compose violation found in `feature/authenticator/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
 
-- [ ] T008 [P] [US1] For each pre-existing Compose violation found in `feature/editor/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
+- [x] T008 [P] [US1] For each pre-existing Compose violation found in `feature/editor/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
 
-- [ ] T009 [P] [US1] For each pre-existing Compose violation found in `feature/fido2/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
+- [x] T009 [P] [US1] For each pre-existing Compose violation found in `feature/fido2/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
 
-- [ ] T010 [P] [US1] For each pre-existing Compose violation found in `feature/vault/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
+- [x] T010 [P] [US1] For each pre-existing Compose violation found in `feature/vault/src/`: suppress it with `@Suppress("RuleId") // TODO: resolve Compose rule violation — <description>`
 
-- [ ] T011 [US1] Run `./gradlew detekt` (no `--continue`); confirm clean exit (exit code 0) with zero Compose rule findings; confirm non-Compose modules (`:core:common`, `:core:bluetooth`, `:core:data`, `:core:database`, `:core:domain`, `:core:security`, `:core:crdt`) produce no Compose-rule noise
+- [x] T011 [US1] Run `./gradlew detekt` (no `--continue`); confirm clean exit (exit code 0) with zero Compose rule findings; confirm non-Compose modules (`:core:common`, `:core:bluetooth`, `:core:data`, `:core:database`, `:core:domain`, `:core:security`, `:core:crdt`) produce no Compose-rule noise
 
 **Checkpoint**: `./gradlew detekt` exits 0. Introducing a deliberate `ComposableNaming` violation causes a non-zero exit with the violation reported. Removing the violation restores clean output. SC-001 verified.
 
@@ -65,13 +65,13 @@
 
 **Independent Test**: Introduce `android:layout_gravity="left"` in any XML layout or a `@SuppressLint` removal on a known `RtlHardcoded` hit, run `./gradlew lintRelease`, confirm the build fails with a lint error report identifying the file and issue ID. Restore clean state and rerun — confirm pass.
 
-- [ ] T012 [US2] In `build.gradle.kts` (root), inside the existing `subprojects { afterEvaluate { ... } }` block, add a conditional checking `plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")` that applies the `lint { ... }` DSL with all properties from `data-model.md` Entity 2 (Lint DSL Properties table)
+- [x] T012 [US2] In `build.gradle.kts` (root), inside the existing `subprojects { afterEvaluate { ... } }` block, add a conditional checking `plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")` that applies the `lint { ... }` DSL with all properties from `data-model.md` Entity 2 (Lint DSL Properties table)
 
-- [ ] T013 [US2] In `tools/local-ci.ps1`, inside the `if (-not $SkipLint)` block, add `Run-Task "Lint (Release)" "$Gradle lintRelease"` immediately after the `Run-Task "Detekt"` line
+- [x] T013 [US2] In `tools/local-ci.ps1`, inside the `if (-not $SkipLint)` block, add `Run-Task "Lint (Release)" "$Gradle lintRelease"` immediately after the `Run-Task "Detekt"` line
 
-- [ ] T014 [US2] Run `./gradlew lintRelease` locally; confirm clean exit (or triage any pre-existing error-level lint issues — suppress with `@SuppressLint("IssueId") // TODO: resolve Lint violation` at the narrowest declaration scope)
+- [x] T014 [US2] Run `./gradlew lintRelease` locally; confirm clean exit (or triage any pre-existing error-level lint issues — suppress with `@SuppressLint("IssueId") // TODO: resolve Lint violation` at the narrowest declaration scope)
 
-- [ ] T015 [US2] Verify CI script: run `tools/local-ci.ps1` (or `tools/local-ci.ps1 -SkipTests` for speed); confirm "Lint (Release)" step appears, passes on clean code, and exits non-zero when a known lint error is introduced
+- [x] T015 [US2] Verify CI script: run `tools/local-ci.ps1` (or `tools/local-ci.ps1 -SkipTests` for speed); confirm "Lint (Release)" step appears, passes on clean code, and exits non-zero when a known lint error is introduced
 
 **Checkpoint**: `tools/local-ci.ps1` completes successfully with the Lint (Release) step present. SC-002 verified.
 
@@ -83,7 +83,7 @@
 
 **Independent Test**: Follow the documentation instructions to (a) run all checks locally using the documented command and (b) suppress one lint warning using the documented `@SuppressLint` method; confirm the suppressed warning disappears without affecting other checks.
 
-- [ ] T016 [US3] Create `docs/quality.md` with the following sections per `research.md` R-006: **Overview** (Detekt + Compose Rules, Ktlint, Android Lint), **Running locally** (commands: `./gradlew ktlintCheck`, `./gradlew detekt`, `./gradlew lintRelease`, `tools/local-ci.ps1`), **Compose rule suppressions** (`@Suppress("RuleId")` + `// TODO: resolve` pattern), **Android Lint suppressions** (`@SuppressLint` for Kotlin, `tools:ignore` for XML), **Report locations** (`build/reports/detekt/<module>.html`, `build/reports/lint/<module>.html`), **Adding new rules**
+- [x] T016 [US3] Create `docs/quality.md` with the following sections per `research.md` R-006: **Overview** (Detekt + Compose Rules, Ktlint, Android Lint), **Running locally** (commands: `./gradlew ktlintCheck`, `./gradlew detekt`, `./gradlew lintRelease`, `tools/local-ci.ps1`), **Compose rule suppressions** (`@Suppress("RuleId")` + `// TODO: resolve` pattern), **Android Lint suppressions** (`@SuppressLint` for Kotlin, `tools:ignore` for XML), **Report locations** (`build/reports/detekt/<module>.html`, `build/reports/lint/<module>.html`), **Adding new rules**
 
 **Checkpoint**: A developer unfamiliar with the project can follow `docs/quality.md` to reproduce check results locally and apply a suppression correctly. SC-003 and SC-004 verified during PR review.
 
@@ -93,11 +93,11 @@
 
 **Purpose**: Final validation, regression check, and CI confirmation.
 
-- [ ] T017 [P] Verify `./gradlew detekt` still produces zero findings on non-Compose modules (`:core:common` KMP module must not receive Compose rules) — confirms FR-001 module scoping is correct (SC-005)
+- [x] T017 [P] Verify `./gradlew detekt` still produces zero findings on non-Compose modules (`:core:common` KMP module must not receive Compose rules) — confirms FR-001 module scoping is correct (SC-005)
 
-- [ ] T018 [P] Verify `./gradlew lintRelease` HTML reports are generated at `app/build/reports/lint/app.html` and at least one feature module — confirms FR-003 report output works
+- [x] T018 [P] Verify `./gradlew lintRelease` HTML reports are generated at `app/build/reports/lint/app.html` and at least one feature module — confirms FR-003 report output works
 
-- [ ] T019 Run Local CI pipeline via `tools/local-ci.ps1` — full pipeline must pass including the new Lint (Release) step; verify execution time is under 5 minutes per SC-003
+- [x] T019 Run Local CI pipeline via `tools/local-ci.ps1` — full pipeline must pass including the new Lint (Release) step; verify execution time is under 5 minutes per SC-003
 
 ---
 

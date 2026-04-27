@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +36,7 @@ import java.util.UUID
 import com.chimali.feature.vault.ui.model.LabelUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun VaultListScreen(
     items: List<VaultItem>,
@@ -106,6 +107,7 @@ fun VaultListScreen(
     }
 }
 
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
     Row(
@@ -128,6 +130,12 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
 }
 
 @Preview(showBackground = true)
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Composable
 fun VaultListScreenPreview() {
     val date = "2023-01-01"

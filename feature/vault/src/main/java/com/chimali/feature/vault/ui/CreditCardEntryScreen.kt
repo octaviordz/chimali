@@ -1,4 +1,4 @@
-package com.chimali.feature.vault.ui
+﻿package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -28,6 +28,7 @@ import com.chimali.feature.vault.internal.payload.CreditCardPayload
 import com.chimali.feature.vault.internal.payload.CustomField
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
 @Composable
 fun CreditCardEntryScreen(
     onSave: (CreditCardPayload) -> Unit,
@@ -39,7 +40,7 @@ fun CreditCardEntryScreen(
     var expirationDate by remember { mutableStateOf("") }
     var cvv by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    
+
     // Dynamic Custom Fields State
     val customFields = remember { mutableStateListOf<CustomField>() }
 
@@ -105,7 +106,7 @@ fun CreditCardEntryScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            
+
             // Render Dynamic Custom Fields
             items(customFields.size) { index ->
                 val field = customFields[index]
@@ -113,7 +114,7 @@ fun CreditCardEntryScreen(
                     Text("${field.name}: *****")
                 }
             }
-            
+
             item {
                 Button(onClick = {
                     customFields.add(CustomField("Bank Phone", charArrayOf(), false))
@@ -154,6 +155,12 @@ fun CreditCardEntryScreen(
     }
 }
 
+@Suppress(
+    // TODO: Make internal once preview isolation is addressed
+    "PreviewPublic",
+    "FunctionNaming",
+    "ForbiddenComment",
+)
 @Preview(showBackground = true)
 @Composable
 fun CreditCardEntryScreenPreview() {
