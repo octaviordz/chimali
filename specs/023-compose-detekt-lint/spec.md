@@ -10,9 +10,10 @@
 
 - Q: Which Compose rule sub-set and severity should be activated? → A: All Compose rules enabled at **error** severity immediately (zero-tolerance from day 1).
 - Q: Which lint variant runs in CI? → A: `lintRelease` — validates against production build configuration for maximum accuracy.
-- Q: Where should the lint configuration block live? → A: **Shared convention plugin** in `build-logic/` — single change point, zero per-module drift.
+- Q: Where should the lint configuration block live? → A: **Root `build.gradle.kts` subprojects block** — single change point, zero per-module drift.
 - Q: Which modules should the Compose rule plugin target? → A: Only modules that **already apply the Compose compiler plugin** (UI/feature modules) — not pure-Kotlin or non-Compose Android modules.
 - Q: How should pre-existing Compose violations be handled at integration time? → A: Each pre-existing violation is suppressed individually with `@Suppress` and a `// TODO: resolve after integration` comment — zero-tolerance policy preserved from day 1, backlog remains visible and grep-able.
+- Q: How is "error severity" technically enforced in Detekt? → A: Enforced via `build.maxIssues: 0` in `config/detekt/detekt.yml`, which causes the build to fail on any finding.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -76,7 +77,7 @@ A developer can run both the Compose Detekt check and Android Lint locally with 
 
 - **FR-001**: The project build system MUST declare the Compose-specific static analysis rule plugin as a quality-check dependency applied **exclusively to modules that already apply the Compose compiler plugin** (i.e., UI and feature modules); it MUST NOT be applied to pure-Kotlin or non-Compose Android modules.
 - **FR-002**: The central quality-check configuration file MUST be extended to activate **all** Compose rule set rules at **error** severity (zero-tolerance), while preserving all existing complexity rules.
-- **FR-003**: The **shared Android convention plugin** in `build-logic/` MUST include a lint block that sets build-failure-on-error mode, enables HTML and XML report generation, disables known noisy Compose-unrelated checks (typography), and enables RTL-hardcoding checks — applied uniformly to all Android modules without per-module duplication.
+- **FR-003**: The **root `build.gradle.kts` subprojects block** MUST include a lint block that sets build-failure-on-error mode, enables HTML and XML report generation, disables known noisy Compose-unrelated checks (typography), and enables RTL-hardcoding checks — applied uniformly to all Android modules without per-module duplication.
 - **FR-004**: The CI script (`tools/local-ci.ps1`) MUST invoke **`lintRelease`** after the existing quality-check task, and MUST fail with a non-zero exit code when any lint error is reported. The `release` variant is required to validate against production build configuration.
 - **FR-005**: The project documentation (`docs/quality.md`) MUST include a section describing the Compose rule set, how to run checks locally, and how to apply inline or config-file suppressions for false positives.
 - **FR-006**: Generated source code MUST be excluded from both the Compose rule checks and Android Lint enforcement.
@@ -86,7 +87,7 @@ A developer can run both the Compose Detekt check and Android Lint locally with 
 
 - **Quality Rule Plugin**: The Compose-specific static analysis rule set applied as a plugin to relevant modules; version-pinned in the version catalog.
 - **Quality Configuration File**: The central YAML file governing all static analysis rules; extended without removing existing rules.
-- **Lint Configuration Block**: Lint behaviour, report paths, and error thresholds defined **once** in the shared Android convention plugin (`build-logic/`), automatically applied to all Android modules.
+- **Lint Configuration Block**: Lint behaviour, report paths, and error thresholds defined **once** in the root `build.gradle.kts` subprojects block, automatically applied to all Android modules.
 - **CI Script**: The PowerShell script orchestrating all quality gates; extended to include the lint step.
 - **Quality Documentation**: The markdown file in `docs/` describing all quality tools, their rules, and developer guidance.
 
@@ -104,6 +105,6 @@ A developer can run both the Compose Detekt check and Android Lint locally with 
 
 - The project already targets Android Gradle Plugin 9, which provides the `lint {}` DSL used in the lint configuration block.
 - The CI environment has network access to fetch the Compose rule plugin from its public repository during build.
-- Convention plugins or a shared build-logic module are available to centralise the lint block, avoiding duplication across modules.
+- The project centralizes cross-module configuration in the root `build.gradle.kts` subprojects block to avoid duplication across modules.
 - Kotlin and the Compose compiler version already in use are compatible with the latest stable Compose rule plugin release.
 - Any pre-existing Compose rule violations found at integration time will be suppressed individually (per FR-007) rather than via a global baseline or rule-severity demotion, preserving zero-tolerance from day 1.

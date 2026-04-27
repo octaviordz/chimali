@@ -97,7 +97,7 @@
 
 - [ ] T018 [P] Verify `./gradlew lintRelease` HTML reports are generated at `app/build/reports/lint/app.html` and at least one feature module — confirms FR-003 report output works
 
-- [ ] T019 Run Local CI pipeline via `tools/local-ci.ps1` — full pipeline must pass including the new Lint (Release) step
+- [ ] T019 Run Local CI pipeline via `tools/local-ci.ps1` — full pipeline must pass including the new Lint (Release) step; verify execution time is under 5 minutes per SC-003
 
 ---
 
