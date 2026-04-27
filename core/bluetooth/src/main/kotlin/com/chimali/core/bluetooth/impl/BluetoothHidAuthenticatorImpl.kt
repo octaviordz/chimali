@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import co.touchlab.kermit.Logger
@@ -27,11 +28,11 @@ import java.util.concurrent.Executors
  *  - Exposing a [state] flow that reflects the current connection lifecycle
  *    (IDLE → ADVERTISING → CONNECTED).
  *
- * ## Relationship with BluetoothHidWrapper / BluetoothHidTransportImpl
+ * ## Relationship with BluetoothHidDeviceWrapper / BluetoothHidTransportImpl
  * This class handles only the *profile registration* side: the SDP record,
  * capability advertisement, and connection state tracking. The actual HID
  * interrupt-data exchange (sending/receiving HID reports) is delegated to
- * [BluetoothHidWrapper] and orchestrated by [BluetoothHidTransportImpl],
+ * `BluetoothHidDeviceWrapper` and orchestrated by `BluetoothHidTransportImpl`,
  * which handles CTAPHID framing and routes CTAP2 commands to the appropriate
  * handlers (MakeCredential, GetAssertion, GetInfo).
  *
@@ -45,7 +46,7 @@ import java.util.concurrent.Executors
  * 4. [stop] unregisters the app (currently no-op pending cleanup refactor)
  *    and resets the state to IDLE.
  * 5. [sendConfirmation] is a skeleton call for explicit user-presence signals;
- *    the actual FIDO2 packet sending is done via [BluetoothHidWrapper].
+ *    the actual FIDO2 packet sending is done via `BluetoothHidDeviceWrapper`.
  */
 class BluetoothHidAuthenticatorImpl(
     private val context: Context
@@ -59,8 +60,11 @@ class BluetoothHidAuthenticatorImpl(
     private var hidDevice: BluetoothHidDevice? = null
 
     /** System Bluetooth adapter, used to acquire the HID Device profile proxy. */
-    private val adapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    
+    private val adapter: BluetoothAdapter? by lazy {
+        val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        manager?.adapter
+    }
+
     /**
      * Current lifecycle state of this authenticator. Exposed as a [StateFlow]
      * so observers (e.g., the ViewModel) can react to changes without polling.
@@ -109,7 +113,7 @@ class BluetoothHidAuthenticatorImpl(
     )
     override fun startAdvertising() {
         if (_state.value != AuthenticatorState.IDLE) return
-        
+
         val sdpSettings = BluetoothHidDeviceAppSdpSettings(
             "Chimali Authenticator",
             "Virtual FIDO Key",
@@ -117,7 +121,7 @@ class BluetoothHidAuthenticatorImpl(
             BluetoothHidDevice.SUBCLASS1_COMBO,
             com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR
         )
-        
+
         try {
             hidDevice?.registerApp(
                 sdpSettings,
@@ -139,7 +143,7 @@ class BluetoothHidAuthenticatorImpl(
                             Logger.d(TAG) { "App registered and advertising" }
                         }
                     }
-                    
+
                     /**
                      * Called when the HID connection state changes with the remote host.
                      * Maps [BluetoothProfile] state constants to [AuthenticatorState]:
@@ -183,8 +187,8 @@ class BluetoothHidAuthenticatorImpl(
      * Sends an explicit user-presence confirmation signal to the currently connected host.
      *
      * This is a skeleton implementation. In the current architecture, FIDO2 responses
-     * (which encode user-presence implicitly) are sent via [BluetoothHidWrapper] inside
-     * [BluetoothHidTransportImpl]. This method provides a hook for future explicit
+     * (which encode user-presence implicitly) are sent via `BluetoothHidDeviceWrapper` inside
+     * `BluetoothHidTransportImpl`. This method provides a hook for future explicit
      * out-of-band confirmation flows (e.g., a physical button tap event).
      */
     override fun sendConfirmation() {

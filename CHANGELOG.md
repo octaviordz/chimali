@@ -14,6 +14,10 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **CI Pipeline Enhancements**: Appended a `Lint (Release)` task invocation inside `tools/local-ci.ps1`, ensuring robust CI tracking for platform-specific accessibility, structural, and layout problems.
 - **Detailed changes**: [2026-04-26-compose-detekt-and-android-lint.md](docs/changelogs/2026-04-26-compose-detekt-and-android-lint.md)
 
+### Fixed
+- **Bluetooth Adapter Deprecation**: Replaced `BluetoothAdapter.getDefaultAdapter()` with `Context.getSystemService(BluetoothManager::class.java)` in `BluetoothHidAuthenticatorImpl` to address API deprecations and ensure future-proof compatibility. Also updated out-of-date KDoc references.
+- **Detailed changes**: [2026-04-26-bluetooth-adapter-deprecation-fix.md](docs/changelogs/2026-04-26-bluetooth-adapter-deprecation-fix.md)
+
 ## [Unreleased] - 2026-04-25
 
 ### Fixed
