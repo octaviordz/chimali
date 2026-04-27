@@ -1,4 +1,4 @@
-﻿package com.chimali.feature.vault.ui
+package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +36,7 @@ import java.util.UUID
 import com.chimali.feature.vault.ui.model.LabelUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun VaultListScreen(
     items: List<VaultItem>,
@@ -45,9 +45,11 @@ fun VaultListScreen(
     onItemClick: (VaultItem) -> Unit,
     onAddClick: () -> Unit,
     onLabelFilterClick: (UUID?) -> Unit,
-    onManageLabelsClick: () -> Unit
+    onManageLabelsClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Credentials Vault", modifier = Modifier.semantics { heading() }) },
@@ -107,11 +109,11 @@ fun VaultListScreen(
     }
 }
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
-fun VaultItemRow(item: VaultItem, onClick: () -> Unit) {
+fun VaultItemRow(item: VaultItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(16.dp)

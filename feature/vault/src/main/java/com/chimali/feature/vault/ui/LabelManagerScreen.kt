@@ -1,4 +1,4 @@
-﻿package com.chimali.feature.vault.ui
+package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,17 +35,19 @@ import java.util.UUID
 // Composable for managing labels
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun LabelManagerScreen(
     labels: List<LabelUiModel>,
     onCreateLabel: (name: String, colorHex: String) -> Unit,
     onDeleteLabel: (UUID) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var newLabelName by remember { mutableStateOf("") }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Manage Labels") },

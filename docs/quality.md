@@ -25,6 +25,35 @@ Or, run the entire local CI pipeline which executes these checks sequentially:
 ./tools/local-ci.ps1
 ```
 
+## Compose Modifier conventions
+
+To ensure consistency and compatibility with both `ModifierMissing` and `ComposableParamOrder` rules, all UI composables should follow these conventions:
+
+1. **Accept a Modifier**: Every public UI composable must accept a `modifier: Modifier = Modifier` parameter.
+2. **Apply to Root**: The `modifier` must be applied to the root layout element of the composable (e.g., `Scaffold`, `Surface`, `Box`, `Row`).
+3. **Parameter Ordering**: To satisfy linting rules and prevent conflicts with trailing lambdas, use the following order:
+   - Required non-lambda parameters (e.g., `state: MyState`).
+   - Required event lambdas (e.g., `onDismiss: () -> Unit`).
+   - The `modifier: Modifier = Modifier`.
+   - Optional parameters with defaults (e.g., `viewModel: MyViewModel = koinViewModel()`).
+
+**Example of a compliant signature:**
+```kotlin
+@Composable
+fun MyFeatureScreen(
+    state: MyFeatureState,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: MyViewModel = koinViewModel()
+) {
+    Surface(modifier = modifier) {
+        // ...
+    }
+}
+```
+
+By placing required event lambdas before the `modifier`, the `modifier` remains the trailing parameter, avoiding `LambdaParameterEventTrailing` violations while adhering to `ComposableParamOrder`.
+
 ## Compose rule suppressions
 
 If a specific Compose rule cannot be satisfied, you may suppress it at the **narrowest declaration scope** (never at the file or class level).

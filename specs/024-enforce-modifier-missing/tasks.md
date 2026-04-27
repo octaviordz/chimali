@@ -9,7 +9,7 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Verify `ModifierMissing` rule is active in `config/detekt/detekt.yml`.
+- [x] T001 Verify `ModifierMissing` rule is active in `config/detekt/detekt.yml`.
 
 ---
 
@@ -31,8 +31,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Search the codebase for `@Suppress("ModifierMissing")` annotations and identify files needing refactoring.
-- [ ] T003 [US1] Remove `@Suppress("ModifierMissing")` annotations from all identified files.
+- [x] T002 [US1] Search the codebase for `@Suppress("ModifierMissing")` annotations and identify files needing refactoring.
+- [x] T003 [US1] Remove `@Suppress("ModifierMissing")` annotations from all identified files.
 
 **Checkpoint**: At this point, running detekt will fail, exposing the violations.
 
@@ -46,8 +46,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T004 [US2] Refactor identified composables to accept `modifier: Modifier = Modifier` as an optional parameter.
-- [ ] T005 [US2] Update the internal implementation of the refactored composables to apply the `modifier` parameter to the root layout element.
+- [x] T004 [US2] Refactor identified composables to accept `modifier: Modifier = Modifier` as an optional parameter.
+- [x] T005 [US2] Update the internal implementation of the refactored composables to apply the `modifier` parameter to the root layout element.
 
 **Checkpoint**: At this point, all composables follow the best practices, and detekt checks should pass.
 
@@ -57,8 +57,8 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T006 Verify there are no remaining `ModifierMissing` violations by running `.\gradlew detektAll`.
-- [ ] T007 Run Local CI pipeline via `tools/local-ci.ps1`.
+- [x] T006 Verify there are no remaining `ModifierMissing` violations by running `.\gradlew detektAll`.
+- [x] T007 Run Local CI pipeline via `tools/local-ci.ps1`.
 
 ---
 

@@ -93,8 +93,6 @@ private val COLOR_CONNECTED = Color(0xFF4CAF50)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress(
-    // TODO: Add modifier parameter in follow-up refactor
-    "ModifierMissing",
     // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
     "LambdaParameterInRestartableEffect",
     // TODO: Hoist PairedDevices state to reduce ViewModel forwarding
@@ -107,6 +105,7 @@ fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
     onRegisterRequest: () -> Unit,
     onEditDevice: (String) -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: Fido2HomeViewModel = koinViewModel(),
     pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
@@ -288,6 +287,7 @@ fun Fido2HomeScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
@@ -314,8 +314,10 @@ fun Fido2HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Compact Status Card
-            StatusIndicator(connectionState, connectedDisplayName)
+            StatusIndicator(
+                state = connectionState,
+                displayName = connectedDisplayName,
+            )
 
             // Paired Devices List — takes all remaining vertical space
             PairedDevicesSection(
@@ -348,9 +350,10 @@ fun Fido2HomeScreen(
     }
 }
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming", "ComposableParamOrder")
 @Composable
 fun StatusIndicator(
+    modifier: Modifier = Modifier,
     state: HidConnectionState,
     displayName: String?,
 ) {
@@ -379,7 +382,7 @@ fun StatusIndicator(
         }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
     ) {
@@ -439,11 +442,12 @@ fun StatusIndicator(
     }
 }
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun TransportToggleButton(
     connectionState: HidConnectionState,
     onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isRunning =
         connectionState !is HidConnectionState.Idle &&
@@ -451,7 +455,7 @@ fun TransportToggleButton(
 
     ChimaliButton(
         onClick = onToggle,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor =
@@ -484,9 +488,12 @@ fun TransportToggleButton(
     }
 }
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming", "ComposableParamOrder")
 @Composable
-fun PulseAnimation(color: Color) {
+fun PulseAnimation(
+    modifier: Modifier = Modifier,
+    color: Color,
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -511,7 +518,7 @@ fun PulseAnimation(color: Color) {
 
     Box(
         modifier =
-            Modifier
+            modifier
                 .size(80.dp)
                 .clip(CircleShape)
                 .graphicsLayer {

@@ -29,13 +29,15 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 
 /** T122 — List Item */
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun CredentialItem(
     credential: PasskeyCredential,
     onClick: (PasskeyCredential) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     ListItem(
+        modifier = modifier.clickable { onClick(credential) },
         headlineContent = {
             Text(
                 text = credential.rpId,
@@ -74,23 +76,24 @@ fun CredentialItem(
                 }
             }
         },
-        modifier = Modifier.clickable { onClick(credential) },
     )
 }
 
 private const val ISO_DATE_LENGTH = 10
 
 /** T123 — Confirmation Dialog */
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun DeleteConfirmationDialog(
     title: String,
     message: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     isDestructive: Boolean = false,
 ) {
     AlertDialog(
+        modifier = modifier,
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
         icon = { if (isDestructive) Icon(Icons.Default.Warning, contentDescription = null) },
@@ -117,14 +120,16 @@ fun DeleteConfirmationDialog(
 }
 
 /** T124 — Details View (BottomSheet or Dialog in real world, using Dialog for simplicity) */
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 fun CredentialDetailsScreen(
     credential: PasskeyCredential,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     AlertDialog(
+        modifier = modifier,
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
         icon = { Icon(Icons.Default.Info, contentDescription = null) },

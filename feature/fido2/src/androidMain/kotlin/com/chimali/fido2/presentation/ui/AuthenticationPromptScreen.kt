@@ -73,8 +73,6 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * Collects user consent then delegates to biometric or PIN.
  */
 @Suppress(
-    // TODO: Add modifier parameter in follow-up refactor
-    "ModifierMissing",
     // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
     "LambdaParameterInRestartableEffect",
     "FunctionNaming",
@@ -84,6 +82,7 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
 fun AuthenticationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: AuthenticationPromptViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -158,6 +157,7 @@ fun AuthenticationPromptScreen(
     }
 
     AuthenticationPromptContent(
+        modifier = modifier,
         state = state,
         onConfirm = { viewModel.handleIntent(AuthenticationIntent.ConfirmAuthentication) },
         onCancel = { viewModel.handleIntent(AuthenticationIntent.CancelAuthentication) },
@@ -173,8 +173,9 @@ internal fun AuthenticationPromptContent(
     onCancel: () -> Unit,
     onSelectCredential: (PasskeyCredential) -> Unit,
     onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         AnimatedContent(
             targetState = state,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -359,13 +360,16 @@ internal fun AuthenticationPromptContent(
 
 // ── T098 — Authentication Progress Indicator ──────────────────────────────────
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
-fun AuthenticationProgressIndicator(message: String = "Signing in…") {
+fun AuthenticationProgressIndicator(
+    modifier: Modifier = Modifier,
+    message: String = "Signing in…",
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
-        modifier = Modifier.padding(32.dp).semantics { contentDescription = "Authentication in progress" },
+        modifier = modifier.padding(32.dp).semantics { contentDescription = "Authentication in progress" },
     ) {
         CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)
         Text(

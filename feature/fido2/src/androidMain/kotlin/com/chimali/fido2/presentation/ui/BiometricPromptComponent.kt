@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -47,8 +47,6 @@ import androidx.fragment.app.FragmentActivity
  * @param onFallback    Called when the user taps the negative/fallback button.
  */
 @Suppress(
-    // TODO: Add modifier parameter in follow-up refactor
-    "ModifierMissing",
     // TODO: Use rememberUpdatedState for lambda params in DisposableEffect
     "LambdaParameterInRestartableEffect",
     // TODO: Reorder params (lambdas should be last) in follow-up refactor
@@ -65,6 +63,7 @@ fun BiometricPromptComponent(
     onSuccess: () -> Unit,
     onError: (errorCode: Int, message: String) -> Unit,
     onFallback: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
 
@@ -127,7 +126,7 @@ fun BiometricPromptComponent(
     // Visual affordance while system dialog is being shown
     Box(
         modifier =
-            Modifier
+            modifier
                 .fillMaxSize()
                 .semantics { contentDescription = "Biometric authentication prompt" },
         contentAlignment = Alignment.Center,

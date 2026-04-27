@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-27
+
+### Changed
+- **Compose Modifier Compliance**: Systematically refactored 30+ UI composables across `:feature:vault` and `:feature:fido2` to strictly enforce `ModifierMissing` and `ComposableParamOrder` lint rules. 
+- **Parameter Ordering Standardization**: Established a project-wide signature pattern `(requiredData, requiredEventLambdas, modifier: Modifier = Modifier, optionalParams)` to resolve linting conflicts between reordering requirements and trailing lambda rules.
+- **Lint Cleanup**: Eliminated all project-wide technical debt related to `ModifierMissing` by removing `@Suppress` annotations and verifying compliance via `tools/local-ci.ps1`.
+- **Detailed changes**: [2026-04-27-compose-modifier-compliance-and-lint-cleanup.md](docs/changelogs/2026-04-27-compose-modifier-compliance-and-lint-cleanup.md)
+
 ## [Unreleased] - 2026-04-26
 
 ### Added

@@ -1,4 +1,4 @@
-﻿package com.chimali.feature.vault.ui
+package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,13 +38,14 @@ import com.chimali.feature.vault.ui.model.LegibilityFont
 import com.chimali.feature.vault.ui.model.LegibilitySettings
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun PasswordDetailScreen(
     payload: PasswordPayload,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Default legibility settings - in a real app, these would come from user preferences
     val legibilitySettings = LegibilitySettings(
@@ -55,6 +56,7 @@ fun PasswordDetailScreen(
     )
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(payload.title) },
@@ -114,10 +116,10 @@ fun PasswordDetailScreen(
     }
 }
 
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
-fun DetailRow(label: String, value: String) {
-    Column {
+fun DetailRow(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text(text = label, style = MaterialTheme.typography.labelMedium)
         Text(text = value, style = MaterialTheme.typography.bodyLarge)
     }

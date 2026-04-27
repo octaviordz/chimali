@@ -1,4 +1,4 @@
-﻿package com.chimali.feature.vault.ui
+package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -28,11 +28,12 @@ import com.chimali.feature.vault.internal.payload.CreditCardPayload
 import com.chimali.feature.vault.internal.payload.CustomField
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun CreditCardEntryScreen(
     onSave: (CreditCardPayload) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var title by remember { mutableStateOf("") }
     var cardholderName by remember { mutableStateOf("") }
@@ -45,6 +46,7 @@ fun CreditCardEntryScreen(
     val customFields = remember { mutableStateListOf<CustomField>() }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("New Credit Card") }

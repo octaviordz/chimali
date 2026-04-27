@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -37,13 +37,15 @@ import androidx.compose.ui.unit.dp
  * Uses a pulsating circular animation to indicate BLE/HID communication + key generation
  * is happening in the background.
  *
+ * @param modifier    Modifier to be applied to the layout.
  * @param message    Status message to display beneath the indicator.
  * @param size       Diameter of the indicator canvas.
  * @param strokeWidth Width of the arc strokes.
  */
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming", "ComposableParamOrder")
 @Composable
 fun RegistrationProgressIndicator(
+    modifier: Modifier = Modifier,
     message: String = "Registering passkey…",
     size: Dp = 120.dp,
     strokeWidth: Dp = 6.dp,
@@ -94,7 +96,7 @@ fun RegistrationProgressIndicator(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier =
-            Modifier
+            modifier
                 .padding(32.dp)
                 .semantics { contentDescription = "Registration in progress" },
     ) {

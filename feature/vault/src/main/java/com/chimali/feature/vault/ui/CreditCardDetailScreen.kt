@@ -1,4 +1,4 @@
-﻿package com.chimali.feature.vault.ui
+package com.chimali.feature.vault.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,15 +33,17 @@ private val BUTTON_VERTICAL_PADDING = 16.dp
 private val BUTTON_HORIZONTAL_PADDING = 24.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ModifierMissing", "FunctionNaming", "ForbiddenComment") // TODO: Add modifier parameter in follow-up refactor
+@Suppress("FunctionNaming")
 @Composable
 fun CreditCardDetailScreen(
     payload: CreditCardPayload,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(payload.title) },

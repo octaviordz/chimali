@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import android.content.Context
 import android.content.ContextWrapper
@@ -75,8 +75,6 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
  */
 @Suppress(
-    // TODO: Add modifier parameter in follow-up refactor
-    "ModifierMissing",
     // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
     "LambdaParameterInRestartableEffect",
     "FunctionNaming",
@@ -86,6 +84,7 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
 fun RegistrationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: RegistrationPromptViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -165,6 +164,7 @@ fun RegistrationPromptScreen(
         onConfirm = { viewModel.handleIntent(RegistrationIntent.ConfirmRegistration) },
         onCancel = { viewModel.handleIntent(RegistrationIntent.CancelRegistration) },
         onRetry = { viewModel.handleIntent(RegistrationIntent.Retry) },
+        modifier = modifier,
     )
 }
 
@@ -175,9 +175,10 @@ internal fun RegistrationPromptContent(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
         AnimatedContent(

@@ -61,15 +61,11 @@ import org.koin.compose.viewmodel.koinViewModel
  * T121 — List Screen to show all FIDO2 Passkeys.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress(
-    // TODO: Add modifier parameter in follow-up refactor
-    "ModifierMissing",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 fun CredentialListScreen(
     onNavigateUp: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: CredentialManagementViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -116,6 +112,7 @@ fun CredentialListScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column {
