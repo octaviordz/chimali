@@ -20,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,8 +49,6 @@ import androidx.fragment.app.FragmentActivity
  * @param onFallback    Called when the user taps the negative/fallback button.
  */
 @Suppress(
-    // TODO: Use rememberUpdatedState for lambda params in DisposableEffect
-    "LambdaParameterInRestartableEffect",
     // TODO: Reorder params (lambdas should be last) in follow-up refactor
     "ComposableParamOrder",
     "FunctionNaming",
@@ -66,6 +66,10 @@ fun BiometricPromptComponent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+
+    val updatedOnSuccess by rememberUpdatedState(onSuccess)
+    val updatedOnError by rememberUpdatedState(onError)
+    val updatedOnFallback by rememberUpdatedState(onFallback)
 
     // Display the Android system biometric dialog when this composable enters composition
     DisposableEffect(title, subtitle) {
@@ -93,7 +97,7 @@ fun BiometricPromptComponent(
                     executor,
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                            onSuccess()
+                            updatedOnSuccess()
                         }
 
                         override fun onAuthenticationError(
@@ -103,9 +107,9 @@ fun BiometricPromptComponent(
                             if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
                                 errorCode == BiometricPrompt.ERROR_USER_CANCELED
                             ) {
-                                onFallback()
+                                updatedOnFallback()
                             } else {
-                                onError(errorCode, errString.toString())
+                                updatedOnError(errorCode, errString.toString())
                             }
                         }
 

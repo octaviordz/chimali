@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,8 +74,6 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * Collects user consent then delegates to biometric or PIN.
  */
 @Suppress(
-    // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
-    "LambdaParameterInRestartableEffect",
     "FunctionNaming",
     "ForbiddenComment",
 )
@@ -90,11 +89,14 @@ fun AuthenticationPromptScreen(
     val context = LocalContext.current
     val activity = context.findFragmentActivity()
 
+    val updatedOnSuccess by rememberUpdatedState(onSuccess)
+    val updatedOnCancel by rememberUpdatedState(onCancel)
+
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
-                is AuthenticationEffect.NavigateBack -> onCancel()
-                is AuthenticationEffect.NavigateToSuccess -> onSuccess(effect.assertion.credentialId)
+                is AuthenticationEffect.NavigateBack -> updatedOnCancel()
+                is AuthenticationEffect.NavigateToSuccess -> updatedOnSuccess(effect.assertion.credentialId)
                 is AuthenticationEffect.LaunchSystemPrompt -> {
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)

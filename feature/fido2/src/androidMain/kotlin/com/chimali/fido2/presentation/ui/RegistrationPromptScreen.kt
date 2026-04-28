@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,8 +76,6 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
  */
 @Suppress(
-    // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
-    "LambdaParameterInRestartableEffect",
     "FunctionNaming",
     "ForbiddenComment",
 )
@@ -92,12 +91,15 @@ fun RegistrationPromptScreen(
     val context = LocalContext.current
     val activity = context.findFragmentActivity()
 
+    val updatedOnSuccess by rememberUpdatedState(onSuccess)
+    val updatedOnCancel by rememberUpdatedState(onCancel)
+
     // Handle one-shot effects
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
-                is RegistrationEffect.NavigateBack -> onCancel()
-                is RegistrationEffect.NavigateToSuccess -> onSuccess(effect.credential.id)
+                is RegistrationEffect.NavigateBack -> updatedOnCancel()
+                is RegistrationEffect.NavigateToSuccess -> updatedOnSuccess(effect.credential.id)
                 is RegistrationEffect.LaunchSystemPrompt -> {
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)

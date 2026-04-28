@@ -53,6 +53,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,8 +94,6 @@ private val COLOR_CONNECTED = Color(0xFF4CAF50)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress(
-    // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
-    "LambdaParameterInRestartableEffect",
     "FunctionNaming",
     "ForbiddenComment",
 )
@@ -111,19 +110,21 @@ fun Fido2HomeScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
 
+    val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)
+
     // Observe incoming FIDO2 events (e.g. from PC via Bluetooth)
     LaunchedEffect(Unit) {
         // Check for any registration request that arrived while this screen was backgrounded
         // or before it was created.
         if (viewModel.getPendingRegistration() != null) {
-            onRegisterRequest()
+            updatedOnRegisterRequest()
         }
 
         // Collect new incoming requests (replay is now 0 in the bus)
         viewModel.uiEvents
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .collect {
-                onRegisterRequest()
+                updatedOnRegisterRequest()
             }
     }
 
@@ -359,12 +360,12 @@ fun Fido2HomeScreen(
     }
 }
 
-@Suppress("FunctionNaming", "ComposableParamOrder")
+@Suppress("FunctionNaming")
 @Composable
 fun StatusIndicator(
-    modifier: Modifier = Modifier,
     state: HidConnectionState,
     displayName: String?,
+    modifier: Modifier = Modifier,
 ) {
     val (statusText, color, icon) =
         when (state) {
@@ -497,11 +498,11 @@ fun TransportToggleButton(
     }
 }
 
-@Suppress("FunctionNaming", "ComposableParamOrder")
+@Suppress("FunctionNaming")
 @Composable
 fun PulseAnimation(
-    modifier: Modifier = Modifier,
     color: Color,
+    modifier: Modifier = Modifier,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
