@@ -1,7 +1,7 @@
 {
   "integration": "windsurf",
-  "version": "0.7.3",
-  "installed_at": "2026-04-20T23:48:40.058761+00:00",
+  "version": "0.8.1",
+  "installed_at": "2026-04-28T00:00:31.835597+00:00",
   "files": {
     ".windsurf/workflows/speckit.analyze.md": "56285817b93f55ae926eade0528673d25ffcf441e8109492323bfbe8941be8f7",
     ".windsurf/workflows/speckit.checklist.md": "53ce35462c1df402780e730ea54150a30872e6e0d6d44a8bd38dd8b5d42900a9",
