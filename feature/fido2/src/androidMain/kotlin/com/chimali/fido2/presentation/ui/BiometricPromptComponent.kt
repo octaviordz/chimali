@@ -48,22 +48,17 @@ import androidx.fragment.app.FragmentActivity
  * @param onError       Called on permanent failure (too many attempts, locked out, etc.).
  * @param onFallback    Called when the user taps the negative/fallback button.
  */
-@Suppress(
-    // TODO: Reorder params (lambdas should be last) in follow-up refactor
-    "ComposableParamOrder",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
+@Suppress("FunctionNaming")
 @Composable
 fun BiometricPromptComponent(
     title: String,
     subtitle: String,
-    description: String? = null,
-    negativeButtonText: String = "Use PIN instead",
     onSuccess: () -> Unit,
     onError: (errorCode: Int, message: String) -> Unit,
     onFallback: () -> Unit,
     modifier: Modifier = Modifier,
+    description: String? = null,
+    negativeButtonText: String = "Use PIN instead",
 ) {
     val context = LocalContext.current
 

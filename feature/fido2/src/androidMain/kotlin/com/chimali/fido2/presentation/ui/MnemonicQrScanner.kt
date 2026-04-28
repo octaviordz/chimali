@@ -37,7 +37,7 @@ import java.util.concurrent.Executors
  *
  * Displays a live camera preview and uses ML Kit barcode scanning to detect
  * a QR code containing a space-separated BIP39 mnemonic. On a successful
- * scan the [onScanned] callback is invoked with the tokenised word list.
+ * scan the [onScan] callback is invoked with the tokenised word list.
  *
  * The camera is released automatically when this composable leaves the
  * composition via [DisposableEffect].
@@ -48,16 +48,11 @@ import java.util.concurrent.Executors
 @Composable
 @Suppress(
     "TooGenericExceptionCaught",
-    // TODO: Rename onScanned -> onScan (present tense) in follow-up refactor
-    "ParameterNaming",
-    // TODO: Reorder modifier to follow trailing lambda convention
-    "ComposableParamOrder",
     "FunctionNaming",
-    "ForbiddenComment",
 )
 fun MnemonicQrScanner(
+    onScan: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
-    onScanned: (List<String>) -> Unit,
     onError: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -97,7 +92,7 @@ fun MnemonicQrScanner(
                                 val words = rawValue.trim().split("\\s+".toRegex())
                                 if (words.size == 24) {
                                     hasScanned = true
-                                    onScanned(words)
+                                    onScan(words)
                                 } else {
                                     // T005 - Non-critical validation error: log and continue scanning
                                     Logger.w { "QR scan had ${words.size} words, need 24. Continuing scanner..." }

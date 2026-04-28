@@ -53,21 +53,16 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress(
-    // TODO: Reorder params (modifier after required params) in follow-up refactor
-    "ComposableParamOrder",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
+@Suppress("FunctionNaming")
 @Composable
 fun PairedDevicesSection(
-    modifier: Modifier = Modifier,
     onEditDevice: (String) -> Unit,
     devices: List<PairedDevice>,
     onPendingRemove: (PairedDevice) -> Unit,
     onUndoRemove: (String) -> Unit,
     onCommitRemove: (String) -> Unit,
     removalEvents: Flow<PairedDevice>,
+    modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

@@ -469,7 +469,7 @@ private fun RecoverSeedForm(
     } else {
         Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {
             MnemonicQrScanner(
-                onScanned = { words ->
+                onScan = { words ->
                     onShowScanner(false)
                     onIntent(DevToolsIntent.RecoverFromSeed(words))
                     scope.launch { snackbarHostState.showSnackbar("Scanned ${words.size} words.") }

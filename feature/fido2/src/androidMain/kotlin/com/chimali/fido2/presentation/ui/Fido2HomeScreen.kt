@@ -93,10 +93,7 @@ private val COLOR_CONNECTED = Color(0xFF4CAF50)
  * Provides status monitoring and transport control for the FIDO2 module.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress(
-    "FunctionNaming",
-    "ForbiddenComment",
-)
+@Suppress("FunctionNaming")
 @Composable
 fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
