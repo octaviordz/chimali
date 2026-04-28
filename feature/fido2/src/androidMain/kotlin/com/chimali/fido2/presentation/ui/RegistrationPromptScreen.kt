@@ -75,10 +75,7 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * @param onCancel    Called when user dismisses without registering.
  * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
  */
-@Suppress(
-    "FunctionNaming",
-    "ForbiddenComment",
-)
+@Suppress("FunctionNaming")
 @Composable
 fun RegistrationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,

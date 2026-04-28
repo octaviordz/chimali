@@ -31,5 +31,5 @@ Kotlin 1.9+ (Android Native): Follow standard conventions
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/025-compose-rule-enforcement/plan.md
+at specs/026-compose-multiple-emitters/plan.md
 <!-- SPECKIT END -->
