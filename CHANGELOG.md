@@ -6,6 +6,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-27
 
 ### Changed
+- **ViewModel Forwarding Cleanup**: Eliminated `@Suppress("ViewModelForwarding")` annotations and refactored `CredentialSwipeToDismissBox` to use proper callback-based communication instead of direct ViewModel parameter passing.
+- **Compose Architecture Compliance**: Updated component signature from `(credential, viewModel)` to `(credential, onPendingDelete, onSelect, modifier)` following Jetpack Compose state hoisting best practices.
+- **Static Analysis Enforcement**: Achieved zero Detekt `ViewModelForwarding` violations while maintaining 100% functional compatibility and all existing test results.
+- **Detailed changes**: [2026-04-27-viewmodel-forwarding-cleanup.md](docs/changelogs/2026-04-27-viewmodel-forwarding-cleanup.md)
+
+### Changed
 - **Compose Modifier Compliance**: Systematically refactored 30+ UI composables across `:feature:vault` and `:feature:fido2` to strictly enforce `ModifierMissing` and `ComposableParamOrder` lint rules. 
 - **Parameter Ordering Standardization**: Established a project-wide signature pattern `(requiredData, requiredEventLambdas, modifier: Modifier = Modifier, optionalParams)` to resolve linting conflicts between reordering requirements and trailing lambda rules.
 - **Lint Cleanup**: Eliminated all project-wide technical debt related to `ModifierMissing` by removing `@Suppress` annotations and verifying compliance via `tools/local-ci.ps1`.

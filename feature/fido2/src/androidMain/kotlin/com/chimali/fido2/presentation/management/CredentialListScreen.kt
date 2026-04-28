@@ -196,11 +196,14 @@ fun CredentialListScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(state.credentials, key = { it.id }) { credential ->
-                        // TODO: Add state hoisting in follow-up refactor
-                        @Suppress("ViewModelForwarding")
                         CredentialSwipeToDismissBox(
                             credential = credential,
-                            viewModel = viewModel,
+                            onPendingDelete = { credential ->
+                                viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                            },
+                            onSelect = { credential ->
+                                viewModel.onIntent(CredentialManagementIntent.SelectCredential(credential))
+                            },
                         )
                     }
                 }
@@ -257,13 +260,15 @@ fun CredentialListScreen(
 @Composable
 private fun CredentialSwipeToDismissBox(
     credential: PasskeyCredential,
-    viewModel: CredentialManagementViewModel,
+    onPendingDelete: (PasskeyCredential) -> Unit,
+    onSelect: (PasskeyCredential) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dismissState =
         rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 if (value != SwipeToDismissBoxValue.Settled) {
-                    viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                    onPendingDelete(credential)
                     false // Handle visibility via ViewModel state
                 } else {
                     false
@@ -274,6 +279,7 @@ private fun CredentialSwipeToDismissBox(
 
     SwipeToDismissBox(
         state = dismissState,
+        modifier = modifier,
         backgroundContent = {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val targetValue = dismissState.targetValue
@@ -327,7 +333,7 @@ private fun CredentialSwipeToDismissBox(
         content = {
             CredentialItem(
                 credential = credential,
-                onClick = { viewModel.onIntent(CredentialManagementIntent.SelectCredential(it)) },
+                onClick = { onSelect(it) },
             )
         },
     )
