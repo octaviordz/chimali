@@ -95,8 +95,6 @@ private val COLOR_CONNECTED = Color(0xFF4CAF50)
 @Suppress(
     // TODO: Use rememberUpdatedState for lambda params in LaunchedEffect
     "LambdaParameterInRestartableEffect",
-    // TODO: Hoist PairedDevices state to reduce ViewModel forwarding
-    "ViewModelForwarding",
     "FunctionNaming",
     "ForbiddenComment",
 )
@@ -320,10 +318,21 @@ fun Fido2HomeScreen(
             )
 
             // Paired Devices List — takes all remaining vertical space
+            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
             PairedDevicesSection(
                 modifier = Modifier.weight(1f),
                 onEditDevice = onEditDevice,
-                viewModel = pairedDevicesViewModel,
+                devices = pairedDevices,
+                onPendingRemove = { device ->
+                    pairedDevicesViewModel.pendingRemove(device)
+                },
+                onUndoRemove = { macAddress ->
+                    pairedDevicesViewModel.undoRemove(macAddress)
+                },
+                onCommitRemove = { macAddress ->
+                    pairedDevicesViewModel.commitRemove(macAddress)
+                },
+                removalEvents = pairedDevicesViewModel.removalEvents,
             )
 
             // Primary Action

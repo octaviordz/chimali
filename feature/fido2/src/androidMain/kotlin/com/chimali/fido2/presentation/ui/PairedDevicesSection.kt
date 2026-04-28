@@ -37,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,11 +46,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chimali.fido2.domain.model.PairedDevice
-import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress(
@@ -64,15 +63,18 @@ import org.koin.compose.viewmodel.koinViewModel
 fun PairedDevicesSection(
     modifier: Modifier = Modifier,
     onEditDevice: (String) -> Unit,
-    viewModel: PairedDevicesViewModel = koinViewModel(),
+    devices: List<PairedDevice>,
+    onPendingRemove: (PairedDevice) -> Unit,
+    onUndoRemove: (String) -> Unit,
+    onCommitRemove: (String) -> Unit,
+    removalEvents: Flow<PairedDevice>,
 ) {
-    val devices by viewModel.pairedDevices.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     // Collect removal events to show the Undo snackbar
-    LaunchedEffect(Unit) {
-        viewModel.removalEvents.collect { device ->
+    LaunchedEffect(removalEvents, onUndoRemove, onCommitRemove) {
+        removalEvents.collect { device ->
             scope.launch {
                 val result =
                     snackbarHostState.showSnackbar(
@@ -81,9 +83,9 @@ fun PairedDevicesSection(
                         duration = SnackbarDuration.Long,
                     )
                 if (result == SnackbarResult.ActionPerformed) {
-                    viewModel.undoRemove(device.macAddress)
+                    onUndoRemove(device.macAddress)
                 } else {
-                    viewModel.commitRemove(device.macAddress)
+                    onCommitRemove(device.macAddress)
                 }
             }
         }
@@ -124,7 +126,7 @@ fun PairedDevicesSection(
                                 PairedDeviceItem(
                                     device = device,
                                     onSwipedAway = {
-                                        viewModel.pendingRemove(device)
+                                        onPendingRemove(device)
                                     },
                                     onEditClick = { onEditDevice(device.macAddress) },
                                 )
