@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -236,7 +236,7 @@ internal fun DevelopmentToolsContent(
 // ---------------------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
-@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
+@Suppress("FunctionNaming")
 @Composable
 private fun DebugMnemonicSection(
     state: DevToolsUiState,
@@ -272,77 +272,86 @@ private fun DebugMnemonicSection(
             }
         }
 
-    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-    Text(
-        text = "⚠ Dev-only — Master Seed",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.error,
-    )
-
-    if (state.mnemonicWords == null) {
-        ChimaliOutlinedButton(
-            onClick = {
-                (context as? FragmentActivity)?.let { activity ->
-                    BiometricHelper.authenticate(
-                        activity = activity,
-                        title = "View Master Seed",
-                        description = "Authenticate to view your BIP39 mnemonic.",
-                    ) { onIntent(DevToolsIntent.LoadMnemonic) }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !state.isLoading,
-        ) {
-            Icon(Icons.Default.Visibility, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (state.isLoading) "Loading…" else "View Master Seed")
-        }
-    } else {
-        MnemonicWordGrid(words = state.mnemonicWords)
-        MnemonicActionRow(
-            showQrCode = showQrCode,
-            onCopy = { onIntent(DevToolsIntent.CopyToClipboard) },
-            onToggleQr = { showQrCode = !showQrCode },
-            onClear = {
-                onIntent(DevToolsIntent.ClearMnemonic)
-                showQrCode = false
-            },
+    Column {
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        Text(
+            text = "⚠ Dev-only — Master Seed",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error,
         )
-        if (showQrCode) MnemonicQrCodeView(words = state.mnemonicWords)
-    }
 
-    state.error?.let { err ->
-        Text(text = err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-    }
+        if (state.mnemonicWords == null) {
+            ChimaliOutlinedButton(
+                onClick = {
+                    (context as? FragmentActivity)?.let { activity ->
+                        BiometricHelper.authenticate(
+                            activity = activity,
+                            title = "View Master Seed",
+                            description = "Authenticate to view your BIP39 mnemonic.",
+                        ) { onIntent(DevToolsIntent.LoadMnemonic) }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading,
+            ) {
+                Icon(Icons.Default.Visibility, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (state.isLoading) "Loading…" else "View Master Seed")
+            }
+        } else {
+            MnemonicWordGrid(words = state.mnemonicWords)
+            MnemonicActionRow(
+                showQrCode = showQrCode,
+                onCopy = { onIntent(DevToolsIntent.CopyToClipboard) },
+                onToggleQr = { showQrCode = !showQrCode },
+                onClear = {
+                    onIntent(DevToolsIntent.ClearMnemonic)
+                    showQrCode = false
+                },
+            )
+            if (showQrCode) MnemonicQrCodeView(words = state.mnemonicWords)
+        }
 
-    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        state.error?.let { err ->
+            Text(text = err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
 
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(text = "Recover from Seed", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = { showRecoverForm = !showRecoverForm }) {
-            Icon(
-                if (showRecoverForm) Icons.Default.VisibilityOff else Icons.Default.Refresh,
-                contentDescription = "Toggle recover form",
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = "Recover from Seed",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { showRecoverForm = !showRecoverForm }) {
+                Icon(
+                    if (showRecoverForm) Icons.Default.VisibilityOff else Icons.Default.Refresh,
+                    contentDescription = "Toggle recover form",
+                )
+            }
+        }
+
+        if (showRecoverForm) {
+            RecoverSeedForm(
+                snackbarHostState = snackbarHostState,
+                onRequestCameraPermission = cameraLauncher::launch,
+                showScanner = showScanner,
+                onShowScanner = { showScanner = it },
+                onIntent = onIntent,
             )
         }
-    }
 
-    if (showRecoverForm) {
-        RecoverSeedForm(
-            snackbarHostState = snackbarHostState,
-            onRequestCameraPermission = cameraLauncher::launch,
-            showScanner = showScanner,
-            onShowScanner = { showScanner = it },
-            onIntent = onIntent,
-        )
-    }
-
-    if (state.recoverSuccess) {
-        Text(
-            "✔ Mnemonic validated successfully!",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.bodySmall,
-        )
+        if (state.recoverSuccess) {
+            Text(
+                "✔ Mnemonic validated successfully!",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 
@@ -415,7 +424,7 @@ private fun MnemonicActionRow(
     }
 }
 
-@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 private fun RecoverSeedForm(
     snackbarHostState: SnackbarHostState,
@@ -428,84 +437,88 @@ private fun RecoverSeedForm(
     val context = LocalContext.current
     var showRationale by remember { mutableStateOf(false) }
 
-    if (showRationale) {
-        AlertDialog(
-            onDismissRequest = { showRationale = false },
-            title = { Text("Camera Permission") },
-            text = { Text("The camera is required to scan the recovery mnemonic QR code.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRationale = false
-                    onRequestCameraPermission(Manifest.permission.CAMERA)
-                }) {
-                    Text("Allow")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRationale = false }) { Text("Cancel") }
-            },
-        )
-    }
-
-    if (!showScanner) {
-        ChimaliTonalButton(
-            onClick = {
-                val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                when {
-                    status == PackageManager.PERMISSION_GRANTED -> onShowScanner(true)
-                    (context as? FragmentActivity)?.let {
-                        androidx.core.app.ActivityCompat
-                            .shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-                    } == true -> showRationale = true
-                    else -> onRequestCameraPermission(Manifest.permission.CAMERA)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Default.CameraAlt, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Scan QR Code")
-        }
-    } else {
-        Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {
-            MnemonicQrScanner(
-                onScan = { words ->
-                    onShowScanner(false)
-                    onIntent(DevToolsIntent.RecoverFromSeed(words))
-                    scope.launch { snackbarHostState.showSnackbar("Scanned ${words.size} words.") }
-                },
-                onError = { errMsg ->
-                    onShowScanner(false)
-                    scope.launch {
-                        val result =
-                            snackbarHostState.showSnackbar(
-                                message = errMsg,
-                                actionLabel = "Settings",
-                                duration = SnackbarDuration.Long,
-                            )
-                        if (result == SnackbarResult.ActionPerformed) {
-                            val intent =
-                                android.content.Intent(
-                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                ).apply {
-                                    data = android.net.Uri.fromParts("package", context.packageName, null)
-                                }
-                            context.startActivity(intent)
+    Box {
+        Column {
+            if (!showScanner) {
+                ChimaliTonalButton(
+                    onClick = {
+                        val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                        when {
+                            status == PackageManager.PERMISSION_GRANTED -> onShowScanner(true)
+                            (context as? FragmentActivity)?.let {
+                                androidx.core.app.ActivityCompat
+                                    .shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                            } == true -> showRationale = true
+                            else -> onRequestCameraPermission(Manifest.permission.CAMERA)
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Scan QR Code")
+                }
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {
+                    MnemonicQrScanner(
+                        onScan = { words ->
+                            onShowScanner(false)
+                            onIntent(DevToolsIntent.RecoverFromSeed(words))
+                            scope.launch { snackbarHostState.showSnackbar("Scanned ${words.size} words.") }
+                        },
+                        onError = { errMsg ->
+                            onShowScanner(false)
+                            scope.launch {
+                                val result =
+                                    snackbarHostState.showSnackbar(
+                                        message = errMsg,
+                                        actionLabel = "Settings",
+                                        duration = SnackbarDuration.Long,
+                                    )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    val intent =
+                                        android.content.Intent(
+                                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        ).apply {
+                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                        }
+                                    context.startActivity(intent)
+                                }
+                            }
+                        },
+                    )
+                }
+                TextButton(onClick = { onShowScanner(false) }) { Text("Cancel Scan") }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "— or enter 24 words manually —",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ManualMnemonicEntryForm { words -> onIntent(DevToolsIntent.RecoverFromSeed(words)) }
+        }
+
+        if (showRationale) {
+            AlertDialog(
+                onDismissRequest = { showRationale = false },
+                title = { Text("Camera Permission") },
+                text = { Text("The camera is required to scan the recovery mnemonic QR code.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRationale = false
+                        onRequestCameraPermission(Manifest.permission.CAMERA)
+                    }) {
+                        Text("Allow")
                     }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRationale = false }) { Text("Cancel") }
                 },
             )
         }
-        TextButton(onClick = { onShowScanner(false) }) { Text("Cancel Scan") }
     }
-
-    Spacer(Modifier.height(8.dp))
-    Text(
-        "— or enter 24 words manually —",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    ManualMnemonicEntryForm { words -> onIntent(DevToolsIntent.RecoverFromSeed(words)) }
 }
 
 // ---------------------------------------------------------------------------
@@ -589,7 +602,7 @@ private fun MnemonicQrCodeView(words: List<String>) {
     }
 }
 
-@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     val wordCount = 24
@@ -600,36 +613,38 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
             }
         }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .heightIn(max = 360.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        itemsIndexed(fields) { index, value ->
-            OutlinedTextField(
-                value = value,
-                onValueChange = { fields[index] = it },
-                label = { Text("${index + 1}", style = MaterialTheme.typography.labelSmall) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
-                modifier = Modifier.fillMaxWidth(),
-            )
+    Column {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            itemsIndexed(fields) { index, value ->
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { fields[index] = it },
+                    label = { Text("${index + 1}", style = MaterialTheme.typography.labelSmall) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
-    }
 
-    Spacer(Modifier.height(8.dp))
-    ChimaliButton(
-        onClick = { onSubmit(fields.map { it.text.trim() }) },
-        modifier = Modifier.fillMaxWidth(),
-        enabled = fields.all { it.text.isNotBlank() },
-    ) {
-        Icon(Icons.Default.Key, contentDescription = null)
-        Spacer(Modifier.width(8.dp))
-        Text("Recover Seed")
+        Spacer(Modifier.height(8.dp))
+        ChimaliButton(
+            onClick = { onSubmit(fields.map { it.text.trim() }) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = fields.all { it.text.isNotBlank() },
+        ) {
+            Icon(Icons.Default.Key, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Recover Seed")
+        }
     }
 }
 
@@ -666,74 +681,78 @@ private object BiometricHelper {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 private fun AlgorithmSelector(
     selectedAlgIndex: Int,
     onAlgIndexChange: (Int) -> Unit,
 ) {
-    Text(
-        text = "Algorithm",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    val algOptions = listOf("ES256", "Ed25519", "ML-DSA-65")
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        algOptions.forEachIndexed { index, label ->
-            SegmentedButton(
-                selected = selectedAlgIndex == index,
-                onClick = { onAlgIndexChange(index) },
-                shape = SegmentedButtonDefaults.itemShape(index, algOptions.size),
-                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-            )
+    Column {
+        Text(
+            text = "Algorithm",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val algOptions = listOf("ES256", "Ed25519", "ML-DSA-65")
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            algOptions.forEachIndexed { index, label ->
+                SegmentedButton(
+                    selected = selectedAlgIndex == index,
+                    onClick = { onAlgIndexChange(index) },
+                    shape = SegmentedButtonDefaults.itemShape(index, algOptions.size),
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                )
+            }
         }
     }
 }
 
-@Suppress("MultipleEmitters", "FunctionNaming", "ForbiddenComment") // TODO: Refactor to single content emitter pattern
+@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 private fun TestRegistrationTrigger(
     selectedAlgIndex: Int,
     onHomeTestRegistration: (MakeCredentialOptions) -> Unit,
 ) {
-    ChimaliOutlinedButton(
-        onClick = {
-            val mockUserId = "user_${System.currentTimeMillis()}"
-            val algId =
-                when (selectedAlgIndex) {
-                    0 -> Fido2CryptoService.COSE_ES256
-                    1 -> Fido2CryptoService.COSE_ED25519
-                    else -> Fido2CryptoService.COSE_ML_DSA_65
-                }
-            val params =
-                when (selectedAlgIndex) {
-                    0 -> PublicKeyCredentialParameters.createES256P256()
-                    1 -> PublicKeyCredentialParameters.createEd25519()
-                    else -> PublicKeyCredentialParameters.createMlDsa65()
-                }
-            val mockOptions =
-                MakeCredentialOptions.create(
-                    rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
-                    user =
-                        PublicKeyCredentialUserEntity.create(
-                            mockUserId.toByteArray(),
-                            mockUserId,
-                            "Chimali Test User",
-                        ),
-                    challenge = "challenge".toByteArray(),
-                    pubKeyCredParams = params,
-                    selectedAlgId = algId,
-                )
-            onHomeTestRegistration(mockOptions)
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text("Trigger Test Registration UI")
+    Column {
+        ChimaliOutlinedButton(
+            onClick = {
+                val mockUserId = "user_${System.currentTimeMillis()}"
+                val algId =
+                    when (selectedAlgIndex) {
+                        0 -> Fido2CryptoService.COSE_ES256
+                        1 -> Fido2CryptoService.COSE_ED25519
+                        else -> Fido2CryptoService.COSE_ML_DSA_65
+                    }
+                val params =
+                    when (selectedAlgIndex) {
+                        0 -> PublicKeyCredentialParameters.createES256P256()
+                        1 -> PublicKeyCredentialParameters.createEd25519()
+                        else -> PublicKeyCredentialParameters.createMlDsa65()
+                    }
+                val mockOptions =
+                    MakeCredentialOptions.create(
+                        rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
+                        user =
+                            PublicKeyCredentialUserEntity.create(
+                                mockUserId.toByteArray(),
+                                mockUserId,
+                                "Chimali Test User",
+                            ),
+                        challenge = "challenge".toByteArray(),
+                        pubKeyCredParams = params,
+                        selectedAlgId = algId,
+                    )
+                onHomeTestRegistration(mockOptions)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Trigger Test Registration UI")
+        }
+        Text(
+            text = "Simulates an incoming FIDO2 MakeCredential request from a PC host.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
-    Text(
-        text = "Simulates an incoming FIDO2 MakeCredential request from a PC host.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }

@@ -38,7 +38,7 @@ function Run-Task($Name, $Command, [bool]$IgnoreFailure = $false) {
 
 # 1. Clean (Optional, Opt-in)
 if ($Clean) {
-    # We ignore failures in Clean because file locks on Windows (from Android Studio) 
+    # We ignore failures in Clean because file locks on Windows (from Android Studio)
     # are common and shouldn't block the rest of the CI checks.
     Run-Task "Clean" "$Gradle clean" $true
 }
@@ -55,7 +55,7 @@ if (-not $SkipTests) {
     # Comprehensive compilation check (Production + Unit Tests + Instrumented Tests)
     # This catches errors across all module types (KMP and standard Android)
     Run-Task "Compile All" "$Gradle compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
-    
+
     Run-Task "Unit Tests" "$Gradle test"
 }
 
