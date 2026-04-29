@@ -424,7 +424,7 @@ private fun MnemonicActionRow(
     }
 }
 
-@Suppress("FunctionNaming", "ForbiddenComment")
+@Suppress("FunctionNaming")
 @Composable
 private fun RecoverSeedForm(
     snackbarHostState: SnackbarHostState,
@@ -602,7 +602,7 @@ private fun MnemonicQrCodeView(words: List<String>) {
     }
 }
 
-@Suppress("FunctionNaming", "ForbiddenComment")
+@Suppress("FunctionNaming")
 @Composable
 private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     val wordCount = 24
@@ -681,7 +681,7 @@ private object BiometricHelper {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming", "ForbiddenComment")
+@Suppress("FunctionNaming")
 @Composable
 private fun AlgorithmSelector(
     selectedAlgIndex: Int,
