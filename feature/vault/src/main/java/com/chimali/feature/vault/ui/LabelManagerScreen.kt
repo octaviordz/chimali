@@ -111,14 +111,8 @@ fun LabelManagerScreen(
 }
 
 @Preview(showBackground = true)
-@Suppress(
-    // TODO: Make internal once preview isolation is addressed
-    "PreviewPublic",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Composable
-fun LabelManagerScreenPreview() {
+private fun LabelManagerScreenPreview() {
     val sampleLabels = remember {
         mutableStateListOf(
             LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),

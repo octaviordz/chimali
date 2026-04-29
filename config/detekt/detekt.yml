@@ -760,6 +760,7 @@ style:
   UnusedPrivateMember:
     active: true
     allowedNames: ''
+    ignoreAnnotated: ['Preview']
     # Tests are enforced. Exclude generated code to prevent build blocks.
     excludes: ['**/build/**']
   UnusedPrivateProperty:

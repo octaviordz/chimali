@@ -157,15 +157,9 @@ fun CreditCardEntryScreen(
     }
 }
 
-@Suppress(
-    // TODO: Make internal once preview isolation is addressed
-    "PreviewPublic",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Preview(showBackground = true)
 @Composable
-fun CreditCardEntryScreenPreview() {
+private fun CreditCardEntryScreenPreview() {
     CreditCardEntryScreen(
         onSave = {},
         onCancel = {}

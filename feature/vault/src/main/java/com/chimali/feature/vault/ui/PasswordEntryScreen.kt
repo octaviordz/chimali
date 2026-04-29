@@ -150,14 +150,8 @@ fun PasswordEntryScreen(
 }
 
 @Preview(showBackground = true)
-@Suppress(
-    // TODO: Make internal once preview isolation is addressed
-    "PreviewPublic",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Composable
-fun PasswordEntryScreenPreview() {
+private fun PasswordEntryScreenPreview() {
     PasswordEntryScreen(
         onSave = {},
         onCancel = {}

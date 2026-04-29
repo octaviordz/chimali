@@ -61,7 +61,8 @@ See [research.md](./research.md) for details. Identified 8 files requiring visib
 
 ## Phase 1: Design
 
-- **Visibility Strategy**: All identified public previews will be changed to `private` (unless cross-file access is required, in which case `internal` will be used).
+- **Visibility Strategy**: All identified public previews will be changed to `private`.
+- **Detekt Hardening**: `detekt.yml` is updated to ignore `@Preview` for `UnusedPrivateMember`, allowing `private` previews without per-function suppressions.
 - **Annotation Cleanup**: `@Suppress("PreviewPublic")` and `@Suppress("ForbiddenComment")` will be removed.
 - **Comment Cleanup**: Associated TODOs will be deleted.
-- **Verification**: Run `local-ci.ps1` to ensure no lint regressions.
+- **Verification**: Run `local-ci.ps1` to ensure no lint regressions and verify that public previews are still blocked.

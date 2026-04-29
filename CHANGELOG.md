@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-29
+
+### Changed
+- **Compose Preview Visibility Enforcement**: Systematically refactored all UI previews in `feature:vault` to `private` scope to clean up the public API surface.
+- **Detekt Quality Gate Hardening**: Updated `detekt.yml` to ignore `@Preview` functions for `UnusedPrivateMember` while strictly enforcing the `PreviewPublic` rule project-wide.
+- **Technical Debt Elimination**: Purged all `@Suppress("PreviewPublic")` and `@Suppress("ForbiddenComment")` annotations along with associated visibility TODOs.
+- **Detailed changes**: [2026-04-29-compose-preview-visibility-enforcement.md](docs/changelogs/2026-04-29-compose-preview-visibility-enforcement.md)
+
 ## [Unreleased] - 2026-04-27
 
 ### Changed

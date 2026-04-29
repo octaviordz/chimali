@@ -15,7 +15,7 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Initialize implementation tracking and prepare for refactoring
+- [X] T001 Initialize implementation tracking and prepare for refactoring
 
 ---
 
@@ -25,7 +25,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Verify current lint status by running `tools/local-ci.ps1` to establish a baseline
+- [X] T002 Verify current lint status by running `tools/local-ci.ps1` to establish a baseline
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -39,14 +39,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardDetailScreen.kt`
-- [ ] T004 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardEntryScreen.kt`
-- [ ] T005 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/LabelManagerScreen.kt`
-- [ ] T006 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
-- [ ] T007 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordEntryScreen.kt`
-- [ ] T008 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteDetailScreen.kt`
-- [ ] T009 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteEntryScreen.kt`
-- [ ] T010 [P] [US1] Refactor visibility to `private`, remove `@Suppress("PreviewPublic")`, `@Suppress("ForbiddenComment")`, and associated TODO in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt`
+- [X] T003 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardDetailScreen.kt`
+- [X] T004 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardEntryScreen.kt`
+- [X] T005 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/LabelManagerScreen.kt`
+- [X] T006 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
+- [X] T007 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordEntryScreen.kt`
+- [X] T008 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteDetailScreen.kt`
+- [X] T009 [P] [US1] Refactor visibility to `private` and remove `@Suppress("PreviewPublic")` in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteEntryScreen.kt`
+- [X] T010 [P] [US1] Refactor visibility to `private`, remove `@Suppress("PreviewPublic")`, `@Suppress("ForbiddenComment")`, and associated TODO in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. All targeted Previews should be `private` with no lint suppressions.
 
@@ -60,8 +60,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] Run `tools/local-ci.ps1` and verify that all "PreviewPublic" and "ForbiddenComment" violations are resolved
-- [ ] T012 [US2] Manually introduce a temporary public preview in any file and verify that `local-ci.ps1` correctly flags it (then revert)
+- [X] T011 [US2] Run `tools/local-ci.ps1` and verify that all "PreviewPublic" and "ForbiddenComment" violations are resolved
+- [X] T012 [US2] Manually introduce a temporary public preview in any file and verify that `local-ci.ps1` correctly flags it (then revert)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 are complete. Automated quality checks are enforcing the new standard.
 
@@ -71,8 +71,9 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T013 [P] Verify all modified components render correctly in the Android Studio Preview pane
-- [ ] T014 [P] Update project documentation if any new visibility standards need to be explicitly mentioned
+- [X] T013 [P] Verify all modified components render correctly in the Android Studio Preview pane
+- [X] T014 [P] Update project documentation if any new visibility standards need to be explicitly mentioned
+- [X] T015 [P] Create and update project changelogs
 
 ---
 

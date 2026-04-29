@@ -80,14 +80,8 @@ fun SecureNoteDetailScreen(
 }
 
 @Preview(showBackground = true)
-@Suppress(
-    // TODO: Make internal once preview isolation is addressed
-    "PreviewPublic",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Composable
-fun SecureNoteDetailScreenPreview() {
+private fun SecureNoteDetailScreenPreview() {
     SecureNoteDetailScreen(
         payload = SecureNotePayload(
             title = "Secret Recipe",

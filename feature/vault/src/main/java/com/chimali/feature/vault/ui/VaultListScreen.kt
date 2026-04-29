@@ -132,14 +132,8 @@ fun VaultItemRow(item: VaultItem, onClick: () -> Unit, modifier: Modifier = Modi
 }
 
 @Preview(showBackground = true)
-@Suppress(
-    // TODO: Make internal once preview isolation is addressed
-    "PreviewPublic",
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Composable
-fun VaultListScreenPreview() {
+private fun VaultListScreenPreview() {
     val date = "2023-01-01"
     val payload = "payload".toByteArray()
     val crdt = "crdt".toByteArray()
