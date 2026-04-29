@@ -79,14 +79,14 @@ private const val PULSE_ANIMATION_DURATION_MS = 1500
 private const val PULSE_START_ALPHA = 0.5f
 private const val PULSE_TARGET_SCALE = 2.5f
 
-@Suppress("MagicNumber")
-private val COLOR_ADVERTISING = Color(0xFF6200EE)
+private const val COLOR_ADVERTISING_VAL = 0xFF6200EE
+private val COLOR_ADVERTISING = Color(COLOR_ADVERTISING_VAL)
 
-@Suppress("MagicNumber")
-private val COLOR_CONNECTING = Color(0xFFFF9800)
+private const val COLOR_CONNECTING_VAL = 0xFFFF9800
+private val COLOR_CONNECTING = Color(COLOR_CONNECTING_VAL)
 
-@Suppress("MagicNumber")
-private val COLOR_CONNECTED = Color(0xFF4CAF50)
+private const val COLOR_CONNECTED_VAL = 0xFF4CAF50
+private val COLOR_CONNECTED = Color(COLOR_CONNECTED_VAL)
 
 /**
  * T156a — Authenticator Dashboard (Home Screen).

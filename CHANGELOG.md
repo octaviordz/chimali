@@ -6,6 +6,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-29
 
 ### Changed
+- **Detekt Quality Gate Hardening**: Upgraded the project's static analysis configuration to align with Android Kotlin Expert rules (e.g., `CyclomaticComplexity` at 40, `LongMethod` at 400).
+- **Technical Debt Elimination**: Systematically removed all target `@Suppress` annotations project-wide and successfully remediated all exposed quality violations (e.g., extracting magic numbers to `const val`, handling swallowed exceptions) without altering business logic.
+- **Strict Zero Literal Policy**: Enforced the `MagicNumber` rule with a restrictive ignore list to prevent the use of magic numbers in Compose configurations.
+- **Detailed changes**: [2026-04-29-detekt-expert-rules-upgrade.md](docs/changelogs/2026-04-29-detekt-expert-rules-upgrade.md)
+
+### Changed
 - **Compose Preview Visibility Enforcement**: Systematically refactored all UI previews in `feature:vault` to `private` scope to clean up the public API surface.
 - **Detekt Quality Gate Hardening**: Updated `detekt.yml` to ignore `@Preview` functions for `UnusedPrivateMember` while strictly enforcing the `PreviewPublic` rule project-wide.
 - **Technical Debt Elimination**: Purged all `@Suppress("PreviewPublic")` and `@Suppress("ForbiddenComment")` annotations along with associated visibility TODOs.

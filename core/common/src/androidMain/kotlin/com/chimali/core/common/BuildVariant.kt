@@ -1,5 +1,7 @@
 package com.chimali.core.common
 
+import co.touchlab.kermit.Logger
+
 /**
  * Android implementation of build variant detection.
  * Uses reflection to detect the debuggable flag from the current application context
@@ -18,9 +20,10 @@ actual val isDebug: Boolean by lazy {
             System.getProperty("chimali.debug") == "true"
         }
     } catch (
-        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        @Suppress("TooGenericExceptionCaught")
         e: Exception,
     ) {
+        Logger.e(e) { "Failed to determine build variant via reflection" }
         false
     }
 }

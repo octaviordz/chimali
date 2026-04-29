@@ -164,7 +164,7 @@ data class PasskeyCredential(
         /**
          * Creates a new PasskeyCredential with validation.
          */
-        @Suppress("LongParameterList")
+
         fun create(
             id: String,
             rpId: String,
@@ -177,7 +177,6 @@ data class PasskeyCredential(
             credentialId: ByteArray,
             coseAlgorithm: Int = COSE_ES256,
             credProtectPolicy: Int = 1,
-            label: String? = null,
         ): PasskeyCredential {
             val now = Instant.now()
             return PasskeyCredential(
@@ -195,7 +194,7 @@ data class PasskeyCredential(
                 credentialId = credentialId,
                 coseAlgorithm = coseAlgorithm,
                 credProtectPolicy = credProtectPolicy,
-                label = label,
+                label = null,
             )
         }
 

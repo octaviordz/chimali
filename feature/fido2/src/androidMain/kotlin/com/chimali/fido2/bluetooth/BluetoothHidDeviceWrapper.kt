@@ -37,7 +37,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 // With 1 byte HID header + 1 byte Report ID, the payload must be 62.
 // Windows 11 bthid.sys strictly enforces this and returns ERROR_NOT_SUPPORTED (0x32)
 // if it is asked to fragment an Output Report over L2CAP.
-@Suppress("MagicNumber")
+
 private val FIDO_HID_REPORT_DESCRIPTOR =
     byteArrayOf(
         // Usage Page (FIDO Alliance)
