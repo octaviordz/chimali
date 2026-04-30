@@ -20,7 +20,6 @@ interface CorruptedKeyRepairWorker {
 }
 
 @Single
-@Suppress("TooGenericExceptionCaught")
 class CorruptedKeyRepairWorkerImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val fido2CryptoService: Fido2CryptoService,
@@ -39,8 +38,10 @@ class CorruptedKeyRepairWorkerImpl(
                     val base64PubKey = Base64.getEncoder().encodeToString(publicKey.encoded)
                     passkeyCredentialDao.updatePublicKey(entity.id, base64PubKey)
                     Logger.i("Successfully repaired corrupted public key for credential: $id")
-                } catch (e: Exception) {
+                } catch (e: android.database.SQLException) {
                     Logger.e(e) { "Failed to repair public key for credential: $id" }
+                } catch (e: java.security.GeneralSecurityException) {
+                    Logger.e(e) { "Crypto error repairing public key for credential: $id" }
                 }
             }
         }

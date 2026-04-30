@@ -29,7 +29,6 @@ import org.koin.core.annotation.Single
  * and Android KeyStore for secure credential storage.
  */
 @Single
-@Suppress("TooGenericExceptionCaught", "ForbiddenComment")
 class CredentialRepositoryImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val relyingPartyDao: RelyingPartyDao,
@@ -67,7 +66,7 @@ class CredentialRepositoryImpl(
 
             passkeyCredentialDao.insertCredential(credential)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialStorageFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -76,7 +75,7 @@ class CredentialRepositoryImpl(
         return try {
             val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
             entity.toDomainModel(publicKeyDecoder).getOrNull()
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credential by ID: $credentialId" }
             null
         }
@@ -89,7 +88,7 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials by RP ID: $rpId" }
             }
         }
@@ -101,7 +100,7 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
                     entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                 }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials by User ID: $userId" }
             }
         }
@@ -115,7 +114,7 @@ class CredentialRepositoryImpl(
                         emit(it)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get all credentials" }
             }
         }
@@ -143,7 +142,7 @@ class CredentialRepositoryImpl(
             }
 
             Result.success(validCredentials)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -171,7 +170,7 @@ class CredentialRepositoryImpl(
             }
 
             Result.success(validCredentials)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -181,7 +180,7 @@ class CredentialRepositoryImpl(
             cryptoService.deleteCredentialKey(CredentialId.fromString(credentialId))
             passkeyCredentialDao.deleteCredential(credentialId)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -193,7 +192,7 @@ class CredentialRepositoryImpl(
         return try {
             val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
             entities.any { it.userId == userId }
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Error checking if credential exists for RP $rpId and User $userId" }
             false
         }
@@ -208,7 +207,7 @@ class CredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.updateSignCount(credentialId, newSignCount)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update sign count", e))
         }
     }
@@ -217,7 +216,7 @@ class CredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.updateLastUsedAt(credentialId)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update last used", e))
         }
     }
@@ -226,7 +225,7 @@ class CredentialRepositoryImpl(
         return try {
             val count = passkeyCredentialDao.getSignCount(credentialId)
             Result.success(count)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get sign count for $credentialId" }
             Result.success(0L)
         }
@@ -253,7 +252,7 @@ class CredentialRepositoryImpl(
                     entity.toDomainModel(publicKeyDecoder).getOrNull()
                 }
             Result.success(credentials)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credentials for RP: $rpId" }
             Result.success(emptyList())
         }
@@ -280,7 +279,7 @@ class CredentialRepositoryImpl(
                     )
                 }
             Result.success(summaries)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credential summaries for RP: $rpId" }
             Result.success(emptyList())
         }
@@ -294,7 +293,7 @@ class CredentialRepositoryImpl(
             val credentials = credentialIds.mapNotNull { id -> getCredentialById(id) }
             val filtered = if (rpId != null) credentials.filter { it.rpId == rpId } else credentials
             Result.success(filtered)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credentials by IDs" }
             Result.success(emptyList())
         }
@@ -303,7 +302,7 @@ class CredentialRepositoryImpl(
     override suspend fun getCredentialCountByRpId(rpId: String): Int {
         return try {
             passkeyCredentialDao.getCredentialsByRpId(rpId).first().size
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credential count for RP: $rpId" }
             0
         }
@@ -320,7 +319,7 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Search failed for query: $query" }
             }
         }
@@ -338,7 +337,7 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get recently unused credentials" }
             }
         }
@@ -352,7 +351,7 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials requiring UV" }
             }
         }
@@ -367,7 +366,7 @@ class CredentialRepositoryImpl(
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
-            } catch (e: Exception) {
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get expired credentials" }
             }
         }
@@ -381,7 +380,7 @@ class CredentialRepositoryImpl(
                 if (r.isSuccess) count++
             }
             Result.success(count)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Cleanup failed", e))
         }
     }
@@ -404,7 +403,7 @@ class CredentialRepositoryImpl(
                 return Result.failure(Fido2Exception.TooManyCredentials(MAX_USER_CREDENTIALS_PER_RP))
             }
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialCreationNotAllowed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -414,7 +413,7 @@ class CredentialRepositoryImpl(
     override suspend fun getRelyingParty(rpId: String): RelyingParty? {
         return try {
             relyingPartyDao.getRelyingPartyById(rpId)?.toDomainModel()
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get RP: $rpId" }
             null
         }
@@ -424,7 +423,7 @@ class CredentialRepositoryImpl(
         return try {
             relyingPartyDao.insertOrUpdateRelyingParty(rp)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -441,7 +440,7 @@ class CredentialRepositoryImpl(
             val updatedRp = update(currentRp)
             relyingPartyDao.updateRelyingParty(updatedRp)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -452,7 +451,7 @@ class CredentialRepositoryImpl(
         return try {
             userConsentRecordDao.insertConsent(consent)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.ConsentStorageFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -467,7 +466,7 @@ class CredentialRepositoryImpl(
                     list.map { it.toDomainModel() }.firstOrNull()
                         ?: throw NoSuchElementException("Empty consent record list")
                 }
-        } catch (e: Exception) {
+        } catch (e: NoSuchElementException) {
             Logger.e(e) { "CredentialRepository: Failed to get recent user consent" }
             flowOf()
         }
@@ -509,7 +508,7 @@ class CredentialRepositoryImpl(
                 credentialsRequiringUserVerification = needsUV,
                 averageAgeDays = avgAge,
             )
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to calculate credential statistics" }
             CredentialStatistics(0, emptyMap(), 0, 0, 0, 0.0)
         }
@@ -528,7 +527,7 @@ class CredentialRepositoryImpl(
 
             target.collect { credential -> deleteCredential(credential.id) }
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to delete all credentials for RP: $rpId" }
             Result.failure(e)
         }
@@ -539,7 +538,7 @@ class CredentialRepositoryImpl(
             getAllCredentials().collect { credential -> deleteCredential(credential.id) }
             // TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to reset authenticator" }
             Result.failure(e)
         }
@@ -552,7 +551,7 @@ class CredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.updateLabel(credentialId, label)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update label", e))
         }
     }

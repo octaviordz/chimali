@@ -1,34 +1,20 @@
 package com.chimali.fido2.data.crypto
 
-import co.touchlab.kermit.Logger
 import java.util.Arrays
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("TooGenericExceptionCaught")
 class MemoryUtils {
     fun zeroByteArray(array: ByteArray) {
-        try {
-            Arrays.fill(array, 0.toByte())
-        } catch (e: Exception) {
-            Logger.e(e) { "MemoryUtils: Failed to zero byte array" }
-        }
+        Arrays.fill(array, 0.toByte())
     }
 
     fun zeroCharArray(array: CharArray) {
-        try {
-            Arrays.fill(array, '\u0000')
-        } catch (e: Exception) {
-            Logger.e(e) { "MemoryUtils: Failed to zero char array" }
-        }
+        Arrays.fill(array, '\u0000')
     }
 
     fun <T> zeroArray(array: Array<T>) {
-        try {
-            Arrays.fill(array, null)
-        } catch (e: Exception) {
-            Logger.e(e) { "MemoryUtils: Failed to zero generic array" }
-        }
+        Arrays.fill(array, null)
     }
 
     fun secureStringToChars(input: String): CharArray {

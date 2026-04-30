@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider
+import java.security.GeneralSecurityException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +84,6 @@ sealed interface DevToolsEffect {
  * clearing; a future improvement would store them as `CharArray`.
  */
 @KoinViewModel
-@Suppress("TooGenericExceptionCaught")
 class DevToolsViewModel(
     private val masterSeedProvider: MasterSeedProvider,
     private val clipboardManagerService: ClipboardManagerService,
@@ -202,12 +202,12 @@ class DevToolsViewModel(
             } catch (e: IllegalArgumentException) {
                 Logger.e(e) { "Invalid mnemonic provided for recovery" }
                 _state.update { it.copy(isLoading = false, error = e.message) }
-            } catch (e: Exception) {
-                Logger.e(e) { "Failed to import mnemonic: ${e.message ?: "Unknown error"}" }
+            } catch (e: GeneralSecurityException) {
+                Logger.e(e) { "Crypto failure while importing mnemonic" }
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        error = "Failed to import mnemonic: ${e.message}",
+                        error = "Security error: ${e.message}",
                     )
                 }
             }

@@ -1,11 +1,9 @@
 package com.chimali.fido2.data.storage
 
-import co.touchlab.kermit.Logger
 import java.security.SecureRandom
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("TooGenericExceptionCaught")
 class SqlCipherWrapper {
     private val secureRandom = SecureRandom()
 
@@ -28,12 +26,7 @@ class SqlCipherWrapper {
         password: String,
     ): Boolean {
         // Simplified integrity check
-        return try {
-            // In a real implementation, this would open and verify the database
-            dbPath.isNotEmpty() && password.isNotEmpty()
-        } catch (e: Exception) {
-            Logger.e(e) { "SqlCipherWrapper: Database integrity verification failed for $dbPath" }
-            false
-        }
+        // In a real implementation, this would open and verify the database
+        return dbPath.isNotEmpty() && password.isNotEmpty()
     }
 }

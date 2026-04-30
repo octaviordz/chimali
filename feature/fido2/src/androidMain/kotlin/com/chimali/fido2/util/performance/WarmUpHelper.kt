@@ -18,7 +18,6 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
  *   1. [warmUpBouncyCastle] — warms BC provider + JIT for in-process EC math
  *   2. [warmUpAndroidKeyStore] — warms the AndroidKeyStore HAL / TEE IPC channel
  */
-@Suppress("TooGenericExceptionCaught")
 object WarmUpHelper {
     // ── AndroidKeyStore warm-up ─────────────────────────────────────────────
 
@@ -104,7 +103,7 @@ object WarmUpHelper {
                 val tTotal = System.currentTimeMillis() - t0
                 "AndroidKeyStore warm-up DONE: sign=${tSign}ms total=${tTotal}ms"
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
             Logger.w(e) { "AndroidKeyStore warm-up FAILED (non-fatal): ${e.message}" }
         }
@@ -143,7 +142,7 @@ object WarmUpHelper {
             sig.sign() // result intentionally discarded
 
             Logger.d { "BouncyCastle warm-up DONE: ${System.currentTimeMillis() - t0}ms" }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.w(e) { "BouncyCastle warm-up FAILED (non-fatal): ${e.message}" }
         }
     }

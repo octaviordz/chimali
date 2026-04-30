@@ -41,7 +41,6 @@ const val COSE_ML_DSA_65 = -49
  * - Signing does not require network access or Android KeyStore.
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class PostQuantumCrypto {
     init {
         // On Android, the system provides a crippled "BC" provider that lacks PQC.
@@ -60,7 +59,7 @@ class PostQuantumCrypto {
     fun isMlDsaSupported(): Boolean =
         try {
             Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) != null
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "PostQuantumCrypto: ML-DSA support check failed" }
             false
         }
@@ -96,7 +95,7 @@ class PostQuantumCrypto {
             kpg.generateKeyPair().also {
                 Logger.d { "ML-DSA-65 key pair generated; pubKeyLen=${it.public.encoded.size}" }
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "ML-DSA key generation failed" }
             null
         }
@@ -120,7 +119,7 @@ class PostQuantumCrypto {
             sig.initSign(privateKey)
             sig.update(data)
             sig.sign().also { Logger.d { "ML-DSA-65 signature produced; sigLen=${it.size}" } }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "ML-DSA signing failed" }
             null
         }
@@ -144,7 +143,7 @@ class PostQuantumCrypto {
             sig.initVerify(publicKey)
             sig.update(data)
             sig.verify(signature)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "ML-DSA verification failed" }
             false
         }

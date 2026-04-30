@@ -14,7 +14,6 @@ import okio.buffer
  * Writes logs to a rotating file in the app's internal storage.
  * Implements privacy-safe logging via [PrivacyLogScrubber].
  */
-@Suppress("TooGenericExceptionCaught")
 class LocalCrashReportingLogWriter(
     private val directoryProvider: LogDirectoryProvider,
     // 5MB limit default
@@ -34,7 +33,7 @@ class LocalCrashReportingLogWriter(
             if (!fileSystem.exists(logDir)) {
                 fileSystem.createDirectories(logDir)
             }
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             // Silently fail or print to stderr if directory creation fails
             println("CrashReportingWriter: Failed to create log directory: ${e.message}")
         }
@@ -94,15 +93,15 @@ class LocalCrashReportingLogWriter(
                 try {
                     sink.writeUtf8(logEntry)
                     sink.flush()
-                } catch (e: Exception) {
+                } catch (e: java.io.IOException) {
                     println("CrashReportingWriter: Write error: ${e.message}")
                 } finally {
                     try {
                         sink.close()
-                    } catch (ignored: Exception) {
+                    } catch (ignored: java.io.IOException) {
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
                 // Fallback for debugging writer issues
                 println("CrashReportingWriter: Failed to write local log: ${e.message}")
             }
@@ -118,7 +117,7 @@ class LocalCrashReportingLogWriter(
             if (fileSystem.exists(currentLogFile)) {
                 fileSystem.atomicMove(currentLogFile, backupFile)
             }
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             println("CrashReportingWriter: Failed to rotate logs: ${e.message}")
         }
     }

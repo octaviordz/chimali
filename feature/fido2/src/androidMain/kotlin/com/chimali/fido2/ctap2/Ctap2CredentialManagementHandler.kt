@@ -21,7 +21,6 @@ import org.koin.core.annotation.Single
  *   6 — deleteCredential
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class Ctap2CredentialManagementHandler(
     private val cborCodec: CborCodec,
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
@@ -67,8 +66,11 @@ class Ctap2CredentialManagementHandler(
                 6 -> handleDeleteCredential(params)
                 else -> byteArrayOf(CTAP2_ERR_UNSUPPORTED_OPTION)
             }
-        } catch (e: Exception) {
-            Logger.e(e) { "Exception handling credential management" }
+        } catch (e: com.chimali.fido2.domain.exception.Fido2Exception) {
+            Logger.e(e) { "Fido2Exception handling credential management" }
+            byteArrayOf(CTAP2_ERR_PROCESSING)
+        } catch (e: IllegalArgumentException) {
+            Logger.e(e) { "Invalid argument in credential management" }
             byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }

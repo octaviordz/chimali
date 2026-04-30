@@ -4,6 +4,7 @@ import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.mapper.toDomainModel
+import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
@@ -14,7 +15,6 @@ import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("TooGenericExceptionCaught")
 class PasskeyCredentialRepositoryImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val relyingPartyDao: RelyingPartyDao,
@@ -24,7 +24,7 @@ class PasskeyCredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.insertCredential(credential)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -68,7 +68,7 @@ class PasskeyCredentialRepositoryImpl(
             // Delete from DB
             passkeyCredentialDao.deleteCredential(credentialId)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -80,7 +80,7 @@ class PasskeyCredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.updateSignCount(credentialId, signCount)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -89,7 +89,7 @@ class PasskeyCredentialRepositoryImpl(
         return try {
             passkeyCredentialDao.updateLastUsedAt(credentialId)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }
@@ -102,7 +102,11 @@ class PasskeyCredentialRepositoryImpl(
         return if (passkeyCredentialDao.getCredentialsByRpIdAndUserId(rpId, userId).isEmpty()) {
             Result.success(Unit)
         } else {
-            Result.failure(Exception("Credential already exists for this user and RP"))
+            Result.failure(
+                Fido2Exception.CredentialCreationNotAllowed(
+                    "Credential already exists for this user and RP",
+                ),
+            )
         }
     }
 
@@ -128,7 +132,7 @@ class PasskeyCredentialRepositoryImpl(
         return try {
             relyingPartyDao.insertOrUpdateRelyingParty(rp)
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: android.database.SQLException) {
             Result.failure(e)
         }
     }

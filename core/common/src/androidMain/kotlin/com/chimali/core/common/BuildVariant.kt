@@ -1,6 +1,7 @@
 package com.chimali.core.common
 
 import co.touchlab.kermit.Logger
+import java.lang.reflect.InvocationTargetException
 
 /**
  * Android implementation of build variant detection.
@@ -19,11 +20,17 @@ actual val isDebug: Boolean by lazy {
             // (useful for some test environments)
             System.getProperty("chimali.debug") == "true"
         }
-    } catch (
-        @Suppress("TooGenericExceptionCaught")
-        e: Exception,
-    ) {
-        Logger.e(e) { "Failed to determine build variant via reflection" }
+    } catch (e: ClassNotFoundException) {
+        Logger.e(e) { "Failed to determine build variant via reflection: ActivityThread class not found" }
+        false
+    } catch (e: NoSuchMethodException) {
+        Logger.e(e) { "Failed to determine build variant via reflection: currentApplication method not found" }
+        false
+    } catch (e: IllegalAccessException) {
+        Logger.e(e) { "Failed to determine build variant via reflection: access denied" }
+        false
+    } catch (e: InvocationTargetException) {
+        Logger.e(e) { "Failed to determine build variant via reflection: invocation failed" }
         false
     }
 }

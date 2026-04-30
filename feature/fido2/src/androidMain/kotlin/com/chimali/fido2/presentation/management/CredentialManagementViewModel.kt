@@ -8,6 +8,7 @@ import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
+import java.io.IOException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,7 +27,6 @@ import org.koin.android.annotation.KoinViewModel
  * Uses MVI pattern: Intent -> State -> Effect
  */
 @KoinViewModel
-@Suppress("TooGenericExceptionCaught")
 class CredentialManagementViewModel(
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
     private val searchCredentialsUseCase: SearchCredentialsUseCase,
@@ -98,8 +98,9 @@ class CredentialManagementViewModel(
                             _fullCredentialList = results
                             updateStateWithFilteredCredentials()
                             _state.update { it.copy(isLoading = false, hasMore = false) }
-                        } catch (e: Exception) {
-                            _state.update { it.copy(isLoading = false, error = e.message ?: "Search failed") }
+                        } catch (e: IOException) {
+                            logger.e(e) { "Search failed for query: $query" }
+                            _state.update { it.copy(isLoading = false, error = "Search failed: ${e.message}") }
                         }
                     }
                 }

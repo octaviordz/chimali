@@ -18,7 +18,6 @@ import org.koin.core.annotation.Single
  * Uses AES-GCM for authenticated encryption with additional data.
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class CredentialEncryptionService(
     private val credentialStorageService: CredentialStorageService,
 ) {
@@ -76,7 +75,7 @@ class CredentialEncryptionService(
                         keyAlias = MASTER_KEY_ALIAS,
                     ),
                 )
-            } catch (e: Exception) {
+            } catch (e: java.security.GeneralSecurityException) {
                 Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
             }
         }
@@ -112,7 +111,7 @@ class CredentialEncryptionService(
                 val decryptedData = cipher.doFinal(encryptedData.data)
 
                 Result.success(decryptedData)
-            } catch (e: Exception) {
+            } catch (e: java.security.GeneralSecurityException) {
                 Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
             }
         }
@@ -159,7 +158,7 @@ class CredentialEncryptionService(
             decrypt(encryptedData, associatedData).map { decryptedData ->
                 String(decryptedData)
             }
-        } catch (e: Exception) {
+        } catch (e: IllegalArgumentException) {
             Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -192,7 +191,7 @@ class CredentialEncryptionService(
                     rpIdHash = hashRpId(rpId),
                 )
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -226,7 +225,7 @@ class CredentialEncryptionService(
                 val metadataJson = String(decryptedData)
                 deserializeMetadata(metadataJson)
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -253,7 +252,7 @@ class CredentialEncryptionService(
                 )
 
             Result.success(SecretKeySpec(derivedKey, ALGORITHM_AES))
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.KeyDerivationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -288,7 +287,7 @@ class CredentialEncryptionService(
                     keyAlias = "derived_${credentialId}_${rpId.hashCode()}",
                 ),
             )
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -313,7 +312,7 @@ class CredentialEncryptionService(
             val decryptedData = cipher.doFinal(encryptedData.data)
 
             Result.success(decryptedData)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -332,7 +331,7 @@ class CredentialEncryptionService(
 
             // For now, we'll just create the new key
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.KeyRotationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }
@@ -353,7 +352,7 @@ class CredentialEncryptionService(
             // In a real implementation, you would retrieve the actual key from KeyStore
             // For now, we'll generate a temporary key for demonstration
             generateMasterKey().getOrNull()
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             co.touchlab.kermit.Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
             null
         }
@@ -370,7 +369,7 @@ class CredentialEncryptionService(
 
             // In a real implementation, store this in Android KeyStore
             Result.success(key)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: UNKNOWN_ERROR, e))
         }
     }

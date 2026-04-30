@@ -4,7 +4,6 @@ package com.chimali.fido2.domain.model
  * Domain model representing a PublicKeyCredentialUserEntity.
  * This contains user information for FIDO2 credential operations.
  */
-@Suppress("TooGenericExceptionCaught")
 data class PublicKeyCredentialUserEntity(
     val id: ByteArray,
     val name: String,
@@ -130,7 +129,7 @@ data class PublicKeyCredentialUserEntity(
             val id =
                 try {
                     java.util.Base64.getUrlDecoder().decode(idBase64)
-                } catch (e: Exception) {
+                } catch (e: IllegalArgumentException) {
                     throw IllegalArgumentException("Invalid base64 user ID", e)
                 }
 

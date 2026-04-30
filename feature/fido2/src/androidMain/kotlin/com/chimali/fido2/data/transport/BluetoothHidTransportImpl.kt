@@ -57,7 +57,6 @@ import org.koin.core.annotation.Single
  * Each connected host gets its own CID tracked in [channelRegistry].
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class BluetoothHidTransportImpl(
     private val hidWrapper: BluetoothHidDeviceWrapper,
     private val hidReportParser: HidReportParser,
@@ -183,7 +182,7 @@ class BluetoothHidTransportImpl(
             Logger.e { "connect() failed with Fido2Exception: ${e.message}" }
             hidWrapper.reportError(e.message ?: "HID connection failed")
             Result.failure(e)
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
             Logger.e(e) { "connect() unexpected failure: ${e.message}" }
             val msg = "Failed to start HID transport: ${e.message}"
             hidWrapper.reportError(msg)
@@ -209,7 +208,7 @@ class BluetoothHidTransportImpl(
             hidReportParser.reset()
             Logger.i { "BluetoothHidTransport disconnected" }
             Result.success(Unit)
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
             Logger.e(e) { "disconnect() failed: ${e.message}" }
             Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
         }
@@ -577,21 +576,28 @@ class BluetoothHidTransportImpl(
     /** Extract data bytes from an ISO 7816-4 APDU (handles extended and short Lc). */
     private fun extractApduData(apdu: ByteArray): ByteArray? {
         if (apdu.size < APDU_MIN_SIZE) return null
-        return try {
-            if (apdu.size == APDU_MIN_SIZE) return ByteArray(0) // no body
-            if (apdu[APDU_LC_SHORT_OFFSET] != 0x00.toByte()) { // short Lc
-                val lc = apdu[APDU_LC_SHORT_OFFSET].toInt() and BYTE_MASK
+        if (apdu.size == APDU_MIN_SIZE) return ByteArray(0) // no body
+
+        return if (apdu[APDU_LC_SHORT_OFFSET] != 0x00.toByte()) { // short Lc
+            val lc = apdu[APDU_LC_SHORT_OFFSET].toInt() and BYTE_MASK
+            if (apdu.size >= 5 + lc) {
                 apdu.copyOfRange(5, 5 + lc)
-            } else { // extended Lc
-                if (apdu.size < APDU_LC_EXTENDED_MIN_SIZE) return null
-                val lc =
-                    ((apdu[APDU_LC_EXTENDED_OFFSET].toInt() and BYTE_MASK) shl SHIFT_8) or
-                        (apdu[APDU_LC_EXTENDED_OFFSET + 1].toInt() and BYTE_MASK)
-                apdu.copyOfRange(7, 7 + lc)
+            } else {
+                null
             }
-        } catch (e: Exception) {
-            Logger.e(e) { "BluetoothHidTransport: APDU data extraction failed" }
-            null
+        } else { // extended Lc
+            if (apdu.size < APDU_LC_EXTENDED_MIN_SIZE) return null
+            val lc = (
+                ((apdu[APDU_LC_EXTENDED_OFFSET].toInt() and BYTE_MASK) shl SHIFT_8) or
+                    (apdu[APDU_LC_EXTENDED_OFFSET + 1].toInt() and BYTE_MASK)
+            )
+            val endOffset = 7 + lc
+            if (apdu.size >= endOffset) {
+                apdu.copyOfRange(7, endOffset)
+            } else {
+                Logger.e { "BluetoothHidTransport: APDU data extraction failed - buffer too small for lc=$lc" }
+                null
+            }
         }
     }
 
@@ -631,8 +637,8 @@ class BluetoothHidTransportImpl(
             // Wrap payload in a CTAPHID_CBOR response packet
             val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
             hidReportParser.encodeResponse(responseMsg)
-        } catch (e: Exception) {
-            Logger.e(e) { "GetAssertion handler exception: ${e.message}" }
+        } catch (e: Fido2Exception) {
+            Logger.e(e) { "GetAssertion handler Fido2Exception: ${e.message}" }
             responseBuilder.errorResponse(cid, 0x30.toByte())
         }
     }
@@ -649,7 +655,7 @@ class BluetoothHidTransportImpl(
                 Logger.d { "GetInfo response packet[0] hex: $hex" }
             }
             packets
-        } catch (e: Exception) {
+        } catch (e: Fido2Exception) {
             Logger.e(e) { "GetInfo failed: ${e.message}" }
             responseBuilder.errorResponse(cid, 0x30.toByte())
         }

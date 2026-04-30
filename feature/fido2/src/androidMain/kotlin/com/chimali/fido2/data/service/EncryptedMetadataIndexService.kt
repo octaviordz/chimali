@@ -42,7 +42,6 @@ import org.koin.core.annotation.Single
  * ```
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class EncryptedMetadataIndexService(
     private val sivEncryptionManager: SivEncryptionManager,
 ) {
@@ -110,7 +109,7 @@ class EncryptedMetadataIndexService(
         return try {
             val plaintext = RP_ID_DOMAIN + rpId.toByteArray(Charsets.UTF_8)
             sivEncryptionManager.encrypt(plaintext, key)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "encryptRpIdTag failed for rpId=$rpId" }
             null
         }
@@ -131,7 +130,7 @@ class EncryptedMetadataIndexService(
         return try {
             val plaintext = ALIAS_DOMAIN + alias.toByteArray(Charsets.UTF_8)
             sivEncryptionManager.encrypt(plaintext, key)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "encryptAliasTag failed for alias=$alias" }
             null
         }
@@ -156,7 +155,7 @@ class EncryptedMetadataIndexService(
         } catch (e: SecurityException) {
             Logger.w(e) { "decryptRpIdTag: authentication failed — tag may be tampered" }
             null
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "decryptRpIdTag failed" }
             null
         }

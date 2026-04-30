@@ -64,7 +64,6 @@ data class Fido2KeyPair(
  * - Public key bytes (uncompressed, 65 bytes) are stored alongside credential metadata.
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class Fido2CryptoService(
     private val hdkManager: HdkManager,
     private val masterSeedProvider: MasterSeedProvider,
@@ -226,7 +225,7 @@ class Fido2CryptoService(
             } else {
                 decodeUncompressedPoint(keyPair.publicKeyBytes)
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.w(e) { "getPublicKey failed for $credentialId" }
             null
         }

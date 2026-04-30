@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-04-30
+
+### Changed
+- **Functional Exception Handling Migration**: Completed the transition of `feature/fido2` and `feature/vault` to a structured `DataResult` architecture, eliminating 100% of generic `try-catch` blocks and `TooGenericExceptionCaught` suppressions.
+- **ViewModel Architecture Refinement**: Refactored `VaultViewModel`, `DevToolsViewModel`, and `CredentialManagementViewModel` to propagate domain-specific errors via `DataResult`, ensuring a clean decoupling of the presentation layer from low-level technical failures.
+- **Data Layer Hardening**: Replaced generic exception catching in `BluetoothHidTransportImpl` with explicit bounds checking and standardized boundary-level logging via Kermit.
+- **Detailed changes**: [2026-04-30-functional-exception-handling-migration.md](docs/changelogs/2026-04-30-functional-exception-handling-migration.md)
+
 ## [Unreleased] - 2026-04-29
 
 ### Changed
@@ -613,4 +621,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-25*
+*Last Updated: 2026-04-30*

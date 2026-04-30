@@ -28,7 +28,6 @@ import org.koin.core.annotation.Factory
  * Handles the complete credential registration flow with user verification.
  */
 @Factory
-@Suppress("TooGenericExceptionCaught")
 class RegisterCredentialUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
@@ -152,8 +151,8 @@ class RegisterCredentialUseCase(
                 )
 
             Result.success(MakeCredentialResult(attestationObject, credential))
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.RegistrationFailed(e.message ?: "Unknown error", e))
+        } catch (e: Fido2Exception) {
+            Result.failure(e)
         }
     }
 
@@ -279,7 +278,7 @@ class RegisterCredentialUseCase(
 
                 Result.success(credential)
             }
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.CredentialGenerationFailed(e.message ?: "Unknown error", e))
         }
     }

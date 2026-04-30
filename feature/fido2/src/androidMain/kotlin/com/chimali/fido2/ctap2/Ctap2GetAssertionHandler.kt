@@ -29,7 +29,6 @@ import org.koin.core.annotation.Single
  * | 0x06 | map  | pinUvAuthParam  |
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class Ctap2GetAssertionHandler(
     private val getAssertionUseCase: GetAssertionUseCase,
     private val cborCodec: CborCodec,
@@ -104,8 +103,11 @@ class Ctap2GetAssertionHandler(
                     byteArrayOf(errorCode)
                 },
             )
-        } catch (e: Exception) {
-            Logger.e(e) { "GetAssertion handler exception: ${e.message}" }
+        } catch (e: Fido2Exception) {
+            Logger.e(e) { "GetAssertion Fido2Exception: ${e.message}" }
+            byteArrayOf(CTAP2_ERR_PROCESSING)
+        } catch (e: IllegalArgumentException) {
+            Logger.e(e) { "GetAssertion handler invalid argument: ${e.message}" }
             byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }

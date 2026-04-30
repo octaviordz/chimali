@@ -21,7 +21,6 @@ import org.koin.core.annotation.Factory
  * Handles consent recording, retrieval, and validation.
  */
 @Factory
-@Suppress("TooGenericExceptionCaught")
 class GetUserConsentUseCase(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
@@ -114,8 +113,8 @@ class GetUserConsentUseCase(
             Result.success(consentRecord)
         } catch (e: IllegalArgumentException) {
             Result.failure(e)
-        } catch (e: Exception) {
-            Result.failure(Fido2Exception.ConsentOperationFailed(e.message ?: "Unknown error", e))
+        } catch (e: Fido2Exception) {
+            Result.failure(e)
         }
     }
 

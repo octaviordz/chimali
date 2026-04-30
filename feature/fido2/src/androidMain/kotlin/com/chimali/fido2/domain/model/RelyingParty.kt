@@ -9,7 +9,6 @@ import java.time.temporal.ChronoUnit
  * Domain model representing a FIDO2 Relying Party (RP).
  * This entity represents the service/website that requests authentication.
  */
-@Suppress("TooGenericExceptionCaught")
 data class RelyingParty(
     val id: String,
     val name: String,
@@ -48,7 +47,7 @@ data class RelyingParty(
                 require(url.startsWith("https://") || url.startsWith("http://")) {
                     "Icon URL must use HTTP or HTTPS protocol"
                 }
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
                 throw IllegalArgumentException("Icon URL must be a valid URI", e)
             }
         }
@@ -82,7 +81,7 @@ data class RelyingParty(
             val uri = URI.create(id)
             val host = uri.host ?: return id
             if (uri.port != -1) "$host:${uri.port}" else host
-        } catch (e: Exception) {
+        } catch (e: IllegalArgumentException) {
             Logger.w(e) { "RelyingParty: Failed to parse domain from RP ID: $id" }
             id
         }
@@ -153,7 +152,7 @@ data class RelyingParty(
                     try {
                         val uri = URI.create(id)
                         uri.host ?: id
-                    } catch (e: Exception) {
+                    } catch (e: IllegalArgumentException) {
                         Logger.w(e) { "RelyingParty: Failed to extract host from id: $id during creation" }
                         id
                     }
@@ -184,7 +183,7 @@ data class RelyingParty(
                     rpId == "localhost" || rpId.startsWith("localhost:") ||
                         (rpId.contains('.') && !rpId.contains(' '))
                 }
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
                 Logger.e(e) { "RelyingParty: Validation failed for RP ID: $rpId" }
                 false
             }

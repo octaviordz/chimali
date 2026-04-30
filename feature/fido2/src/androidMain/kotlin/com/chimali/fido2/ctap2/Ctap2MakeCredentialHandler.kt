@@ -31,7 +31,6 @@ import org.koin.core.annotation.Single
  * - Encode the success / error CTAP2 response back as a [CtapHidMessage]
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class Ctap2MakeCredentialHandler(
     private val cborCodec: CborCodec,
     private val hidReportParser: HidReportParser,
@@ -107,8 +106,8 @@ class Ctap2MakeCredentialHandler(
         } catch (e: Fido2Exception) {
             Logger.e(e) { "MakeCredential error: ${e.message}" }
             errorPackets(cid, mapExceptionToStatus(e))
-        } catch (e: Exception) {
-            Logger.e(e) { "Unexpected error in MakeCredential" }
+        } catch (e: IllegalArgumentException) {
+            Logger.e(e) { "Unexpected illegal argument in MakeCredential" }
             errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
         }
     }

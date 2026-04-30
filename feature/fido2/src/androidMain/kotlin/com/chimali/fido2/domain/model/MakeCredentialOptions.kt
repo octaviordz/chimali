@@ -6,7 +6,6 @@ import java.util.Base64
  * Domain model representing options for making a FIDO2 credential.
  * This contains all the parameters needed for the navigator.credentials.create() operation.
  */
-@Suppress("TooGenericExceptionCaught")
 data class MakeCredentialOptions(
     val rp: PublicKeyCredentialRpEntity,
     val user: PublicKeyCredentialUserEntity,
@@ -176,7 +175,7 @@ data class MakeCredentialOptions(
             val challenge =
                 try {
                     Base64.getUrlDecoder().decode(challengeBase64)
-                } catch (e: Exception) {
+                } catch (e: IllegalArgumentException) {
                     throw IllegalArgumentException("Invalid base64 challenge", e)
                 }
 

@@ -6,7 +6,6 @@ import co.touchlab.kermit.Logger
  * Domain model representing a PublicKeyCredentialRpEntity.
  * This contains information about the relying party requesting credential creation.
  */
-@Suppress("TooGenericExceptionCaught")
 data class PublicKeyCredentialRpEntity(
     val id: String,
     val name: String,
@@ -44,7 +43,7 @@ data class PublicKeyCredentialRpEntity(
     fun getDomain(): String {
         return try {
             java.net.URI.create(id).host ?: id
-        } catch (e: Exception) {
+        } catch (e: IllegalArgumentException) {
             Logger.w(e) { "PublicKeyCredentialRpEntity: Failed to parse domain from ID: $id" }
             id
         }

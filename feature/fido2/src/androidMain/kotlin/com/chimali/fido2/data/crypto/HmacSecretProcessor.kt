@@ -38,7 +38,6 @@ import org.koin.core.annotation.Single
  * @see [CTAP2.1 §12.4](https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#sctn-hmac-secret-extension)
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class HmacSecretProcessor(
     private val masterSeedProvider: MasterSeedProvider,
 ) {
@@ -113,7 +112,7 @@ class HmacSecretProcessor(
 
             Logger.d { "hmac-secret: computed output (${output.size} bytes) for credentialId=$credentialId" }
             output
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "hmac-secret processing failed: ${e.message}" }
             null
         }

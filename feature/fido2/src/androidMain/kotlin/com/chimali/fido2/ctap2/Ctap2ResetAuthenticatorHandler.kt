@@ -9,7 +9,6 @@ import org.koin.core.annotation.Single
  * Performs a master reset of the authenticator, clearing all credentials and settings.
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class Ctap2ResetAuthenticatorHandler(
     private val resetAuthenticatorUseCase: ResetAuthenticatorUseCase,
 ) {
@@ -28,8 +27,8 @@ class Ctap2ResetAuthenticatorHandler(
             } else {
                 byteArrayOf(CTAP2_ERR_PROCESSING)
             }
-        } catch (e: Exception) {
-            Logger.e(e) { "Exception handling authenticator reset" }
+        } catch (e: com.chimali.fido2.domain.exception.Fido2Exception) {
+            Logger.e(e) { "Fido2Exception handling authenticator reset" }
             byteArrayOf(CTAP2_ERR_PROCESSING)
         }
     }

@@ -104,7 +104,6 @@ private const val FIDO_REPORT_ID: Byte = 0
  * This enables diagnosis of connectivity issues without speculative workarounds.
  */
 @org.koin.core.annotation.Single
-@Suppress("TooGenericExceptionCaught")
 class BluetoothHidDeviceWrapper(
     private val context: Context,
 ) {
@@ -174,8 +173,8 @@ class BluetoothHidDeviceWrapper(
             }
         } catch (e: SecurityException) {
             Logger.w(e) { "[DIAG:$tag] SecurityException reading diagnostic state" }
-        } catch (e: Exception) {
-            Logger.w(e) { "[DIAG:$tag] Exception reading diagnostic state" }
+        } catch (e: IllegalStateException) {
+            Logger.w(e) { "[DIAG:$tag] IllegalStateException reading diagnostic state" }
         }
     }
 
@@ -254,7 +253,7 @@ class BluetoothHidDeviceWrapper(
                                 Logger.i {
                                     "  HID connection state for ${device.address}: ${connectionStateName(hidState)}"
                                 }
-                            } catch (e: Exception) {
+                            } catch (e: IllegalStateException) {
                                 Logger.w(e) { "  Could not query HID connection state for ${device.address}" }
                             }
                         }
@@ -703,7 +702,7 @@ class BluetoothHidDeviceWrapper(
                         try {
                             val unregResult = hid.unregisterApp()
                             Logger.d { "unregisterApp() result: $unregResult" }
-                        } catch (e: Exception) {
+                        } catch (e: IllegalStateException) {
                             Logger.w(e) { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
                         }
 
@@ -748,8 +747,8 @@ class BluetoothHidDeviceWrapper(
                                     ),
                                 )
                                 return@suspendCancellableCoroutine
-                            } catch (e: Exception) {
-                                Logger.e(e) { "Unexpected Exception in registerApp" }
+                            } catch (e: IllegalStateException) {
+                                Logger.e(e) { "Unexpected IllegalStateException in registerApp" }
                                 cont.resume(
                                     Result.failure(
                                         Fido2Exception.BluetoothException(
@@ -838,8 +837,8 @@ class BluetoothHidDeviceWrapper(
         } catch (e: SecurityException) {
             Logger.e(e) { "sendReport: BLUETOOTH_CONNECT permission denied" }
             false
-        } catch (e: Exception) {
-            Logger.e(e) { "sendReport: exception — ${e.message}" }
+        } catch (e: IllegalStateException) {
+            Logger.e(e) { "sendReport: Bluetooth not available — ${e.message}" }
             false
         }
     }

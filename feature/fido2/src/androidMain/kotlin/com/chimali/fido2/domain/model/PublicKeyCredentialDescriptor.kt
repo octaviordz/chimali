@@ -6,7 +6,6 @@ import java.util.Base64
  * Domain model representing a PublicKeyCredentialDescriptor.
  * This describes existing credentials that can be excluded from creation.
  */
-@Suppress("TooGenericExceptionCaught")
 data class PublicKeyCredentialDescriptor(
     val type: PublicKeyCredentialType,
     val id: ByteArray,
@@ -121,7 +120,7 @@ data class PublicKeyCredentialDescriptor(
             val id =
                 try {
                     Base64.getUrlDecoder().decode(idBase64)
-                } catch (e: Exception) {
+                } catch (e: IllegalArgumentException) {
                     throw IllegalArgumentException("Invalid base64 credential ID", e)
                 }
 

@@ -19,7 +19,6 @@ import org.koin.core.annotation.Single
  *   protect metadata at rest without any change to its public API.
  */
 @Single
-@Suppress("TooGenericExceptionCaught")
 class CredentialStorageService {
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
@@ -40,7 +39,7 @@ class CredentialStorageService {
             keyGenerator.init(KEY_SIZE_AES)
             val secretKey = keyGenerator.generateKey()
             Result.success(secretKey)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: "Unknown error", e))
         }
     }
@@ -51,7 +50,7 @@ class CredentialStorageService {
     suspend fun keyExists(alias: String): Boolean {
         return try {
             keyStore.containsAlias(alias)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "CredentialStorageService: Error checking if key exists: $alias" }
             false
         }
@@ -76,7 +75,7 @@ class CredentialStorageService {
             val encryptedData = cipher.doFinal(data)
 
             Result.success(EncryptedData(data = encryptedData, iv = iv, keyAlias = keyAlias))
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.EncryptionFailed(e.message ?: "Unknown error", e))
         }
     }
@@ -95,7 +94,7 @@ class CredentialStorageService {
 
             val decryptedData = cipher.doFinal(encryptedData.data)
             Result.success(decryptedData)
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
             Result.failure(Fido2Exception.DecryptionFailed(e.message ?: "Unknown error", e))
         }
     }

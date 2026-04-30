@@ -71,10 +71,7 @@ class AndroidClipboardManagerService(
             Result.success(Unit)
         } catch (e: SecurityException) {
             Result.failure(ClipboardError.CopyFailed("Security exception: ${e.message}", e))
-        } catch (
-            @Suppress("TooGenericExceptionCaught")
-            e: Exception,
-        ) {
+        } catch (e: IllegalStateException) {
             Result.failure(
                 ClipboardError.PlatformError("Android", e::class.simpleName, e.message ?: "Unknown error", e),
             )
@@ -106,10 +103,7 @@ class AndroidClipboardManagerService(
             }
         } catch (e: SecurityException) {
             Result.failure(ClipboardError.ClearFailed("Security exception: ${e.message}", e))
-        } catch (
-            @Suppress("TooGenericExceptionCaught")
-            e: Exception,
-        ) {
+        } catch (e: IllegalStateException) {
             Result.failure(
                 ClipboardError.PlatformError("Android", e.javaClass.simpleName, e.message ?: "Unknown error", e),
             )
