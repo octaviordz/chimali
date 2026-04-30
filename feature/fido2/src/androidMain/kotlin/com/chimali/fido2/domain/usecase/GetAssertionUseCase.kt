@@ -1,6 +1,12 @@
 package com.chimali.fido2.domain.usecase
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrDefault
+import com.chimali.core.common.result.getOrElse
+import com.chimali.core.common.result.map
+import com.chimali.core.common.result.onFailure
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
@@ -56,75 +62,77 @@ class GetAssertionUseCase(
         private const val BYTE_MASK = 0xFF
     }
 
-    suspend operator fun invoke(options: GetAssertionOptions): Result<AssertionObject> =
-        runCatching {
-            Logger.d { "GetAssertion for rpId=${options.rpId}" }
+    suspend operator fun invoke(options: GetAssertionOptions): Outcome<AssertionObject, DomainError> {
+        Logger.d { "GetAssertion for rpId=${options.rpId}" }
 
-            // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
-            performUserVerification(options)
+        // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
+        val uvOutcome = performUserVerification(options)
+        if (uvOutcome is Outcome.Error) return uvOutcome
 
-            // 2 — Phase 1: list candidate summaries (pure DB read, no HDK derivation)
-            val candidates = findCandidateSummaries(options)
-            if (candidates.isEmpty()) {
-                throw Fido2Exception.CredentialNotFound("No credentials found for rpId=${options.rpId}")
+        // 2 — Phase 1: list candidate summaries (pure DB read, no HDK derivation)
+        val candidates = findCandidateSummaries(options)
+        if (candidates.isEmpty()) {
+            return Outcome.Error(
+                DomainError.NotFound(
+                    "No credentials found for rpId=${options.rpId}",
+                    Fido2Exception.CredentialNotFound(options.rpId),
+                ),
+            )
+        }
+
+        // 3 — Phase 2: select best candidate (MRU or allow-list match) — still no HDK
+        val selectedSummary = selectCredentialUseCase(candidates, options).getOrElse { return Outcome.Error(it) }
+
+        // 4 — Phase 3: sign — 1 HDK derivation (private key) + ECDSA.
+        //
+        // CredentialSummary.id is the credential's database primary key, which is the same
+        // key passed to Fido2CryptoService.sign(). There is no hydration step here;
+        // getCredentialById() (and its implicit getPublicKey() HDK derivation) is skipped
+        // because the public key is not needed to produce an assertion signature.
+        val selectedId = selectedSummary.id
+        val rpIdHash = ClientDataHashService.rpIdHash(options.rpId)
+        val signCount =
+            credentialRepository.getSignCount(selectedId).getOrElse {
+                return Outcome.Error(DomainError.CryptoError("Failed to get sign count: ${it.message}", it.cause))
             }
+        val newSignCount = signCount + 1
+        val authData =
+            buildAuthData(
+                rpIdHash = rpIdHash,
+                userVerified = options.userVerification != UserVerificationRequirement.DISCOURAGED,
+                signCount = newSignCount,
+            )
 
-            // 3 — Phase 2: select best candidate (MRU or allow-list match) — still no HDK
-            val selectedSummary =
-                selectCredentialUseCase(candidates, options)
-                    .getOrElse { throw it }
+        val signature =
+            signWithCredential(
+                selectedId,
+                authData,
+                options.clientDataHash,
+                selectedSummary.coseAlgorithm,
+            ).getOrElse { return Outcome.Error(it) }
 
-            // 4 — Phase 3: sign — 1 HDK derivation (private key) + ECDSA.
-            //
-            // CredentialSummary.id is the credential's database primary key, which is the same
-            // key passed to Fido2CryptoService.sign(). There is no hydration step here;
-            // getCredentialById() (and its implicit getPublicKey() HDK derivation) is skipped
-            // because the public key is not needed to produce an assertion signature.
-            val selectedId = selectedSummary.id
-            val rpIdHash = ClientDataHashService.rpIdHash(options.rpId)
-            val signCount = credentialRepository.getSignCount(selectedId).getOrElse { throw it }
-            val newSignCount = signCount + 1
-            val authData =
-                buildAuthData(
-                    rpIdHash = rpIdHash,
-                    userVerified = options.userVerification != UserVerificationRequirement.DISCOURAGED,
-                    signCount = newSignCount,
-                )
+        // 5 — persist incremented sign count
+        credentialRepository.updateSignCount(selectedId, newSignCount)
+            .onFailure { e -> Logger.w { "Failed to update sign count: ${e.message}" } }
 
-            val signature =
-                signWithCredential(selectedId, authData, options.clientDataHash, selectedSummary.coseAlgorithm)
+        // Use credentialId bytes from the summary — no full object hydration needed.
+        val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)
 
-            // 5 — persist incremented sign count
-            credentialRepository.updateSignCount(selectedId, newSignCount)
-                .getOrElse { e -> Logger.w { "Failed to update sign count: ${e.message}" } }
-
-            // Use credentialId bytes from the summary — no full object hydration needed.
-            val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)
-
-            Logger.d { "Assertion complete: credId=$selectedId signCount=$newSignCount" }
+        Logger.d { "Assertion complete: credId=$selectedId signCount=$newSignCount" }
+        return Outcome.Success(
             AssertionObject(
                 credential = credDesc,
                 authData = authData,
                 signature = signature,
                 user = null,
                 numberOfCredentials = if (candidates.size > 1) candidates.size else null,
-            )
-        }.recoverCatching { e ->
-            // CredentialNotFound is expected during pre-registration probes -- log at debug level.
-            if (e is Fido2Exception.CredentialNotFound) {
-                Logger.d { "GetAssertion (expected): ${e.message}" }
-            } else {
-                Logger.e(e) { "GetAssertion failed: ${e.message}" }
-            }
-            throw when (e) {
-                is Fido2Exception -> e
-                else -> Fido2Exception.AuthenticationFailed(e.message ?: "GetAssertion failed", e)
-            }
-        }
+            ),
+        )
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private suspend fun performUserVerification(options: GetAssertionOptions) {
+    private suspend fun performUserVerification(options: GetAssertionOptions): Outcome<Unit, DomainError> {
         // Always call getUserVerificationAvailability() regardless of the UV requirement.
         // When the result comes from the cache (populated during HID connect), this is a
         // pure memory read (~0ms). When the cache is cold, this pays the Binder IPC cost
@@ -132,9 +140,10 @@ class GetAssertionUseCase(
         val availability = userVerificationService.getUserVerificationAvailability()
         if (options.userVerification == UserVerificationRequirement.REQUIRED) {
             if (availability.getBestAvailableMethod() == com.chimali.fido2.domain.service.VerificationMethod.NONE) {
-                throw Fido2Exception.NoVerificationMethodAvailable("No method available")
+                return Outcome.Error(DomainError.OperationDenied("No verification method available"))
             }
         }
+        return Outcome.Success(Unit)
     }
 
     private suspend fun findCandidateSummaries(options: GetAssertionOptions): List<CredentialSummary> {
@@ -189,8 +198,7 @@ class GetAssertionUseCase(
         authData: ByteArray,
         clientDataHash: ByteArray,
         algId: Int,
-    ): ByteArray {
+    ): Outcome<ByteArray, DomainError> {
         return cryptoService.sign(CredentialId.fromString(credentialId), authData + clientDataHash, algId)
-            .getOrElse { throw Fido2Exception.SigningFailed(it.message ?: "Signing failed", it) }
     }
 }

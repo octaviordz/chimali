@@ -1,5 +1,11 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.ConsentMethod
 import com.chimali.fido2.domain.model.ConsentOperationType
@@ -75,7 +81,7 @@ class GetUserConsentUseCaseTest {
                     biometricStrength = BiometricStrength.STRONG,
                 )
 
-            coEvery { credentialRepository.saveUserConsent(any()) } returns Result.success(Unit)
+            coEvery { credentialRepository.saveUserConsent(any()) } returns Outcome.Success(Unit)
             coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(testConsentRecord)
         }
 
@@ -640,8 +646,11 @@ class GetUserConsentUseCaseTest {
         fun `should fail when consent storage fails`() =
             runTest {
                 coEvery { credentialRepository.saveUserConsent(any()) } returns
-                    Result.failure(
-                        Fido2Exception.ConsentStorageFailed("Consent storage failed"),
+                    Outcome.Error(
+                        DomainError.StorageError(
+                            "Consent storage failed",
+                            Fido2Exception.ConsentStorageFailed("Consent storage failed"),
+                        ),
                     )
 
                 val result =

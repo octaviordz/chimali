@@ -90,6 +90,14 @@ sealed interface DomainError {
     ) : DomainError
 
     /**
+     * An operation was canceled by the user.
+     */
+    data class OperationCanceled(
+        override val message: String = "Operation canceled",
+        override val cause: Throwable? = null,
+    ) : DomainError
+
+    /**
      * A required entity was not found.
      */
     data class NotFound(

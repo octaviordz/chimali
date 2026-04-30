@@ -1,5 +1,7 @@
 package com.chimali.fido2.presentation.management
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -47,7 +49,7 @@ class CredentialManagementViewModelTest {
         deleteAllCredentialsUseCase = mockk()
 
         // Default mock for loadCredentials on init
-        coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList())
+        coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(emptyList())
 
         viewModel =
             CredentialManagementViewModel(
@@ -91,7 +93,7 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent ConfirmDelete successfully deletes and emits toast effect`() =
         runTest {
-            coEvery { deleteCredentialUseCase("test_id") } returns Result.success(Unit)
+            coEvery { deleteCredentialUseCase("test_id") } returns Outcome.Success(Unit)
 
             val effects = mutableListOf<CredentialManagementEffect>()
             val job =
@@ -114,7 +116,7 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent ConfirmDelete failure updates state with error`() =
         runTest(UnconfinedTestDispatcher()) {
-            coEvery { deleteCredentialUseCase.invoke(any()) } returns Result.failure(Exception("Error"))
+            coEvery { deleteCredentialUseCase.invoke(any()) } returns Outcome.Error(DomainError.UnknownError("Error"))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete("test_id"))
 
@@ -125,7 +127,7 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent ConfirmDeleteAll successfully deletes all and emits toast effect`() =
         runTest {
-            coEvery { deleteAllCredentialsUseCase() } returns Result.success(Unit)
+            coEvery { deleteAllCredentialsUseCase() } returns Outcome.Success(Unit)
 
             val effects = mutableListOf<CredentialManagementEffect>()
             val job =
@@ -179,7 +181,7 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent CommitDelete calls use case and clears pending id`() =
         runTest {
-            coEvery { deleteCredentialUseCase("test_id") } returns Result.success(Unit)
+            coEvery { deleteCredentialUseCase("test_id") } returns Outcome.Success(Unit)
             val credential =
                 PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
@@ -204,9 +206,9 @@ class CredentialManagementViewModelTest {
             // Re-initialize with paginated mocks
             coEvery {
                 getAllCredentialsUseCase(any<Long>(), any<Long>())
-            } returns Result.success(emptyList()) // fallback
-            coEvery { getAllCredentialsUseCase(PAGE_SIZE, 0L) } returns Result.success(page1)
-            coEvery { getAllCredentialsUseCase(PAGE_SIZE, PAGE_SIZE) } returns Result.success(page2)
+            } returns Outcome.Success(emptyList()) // fallback
+            coEvery { getAllCredentialsUseCase(PAGE_SIZE, 0L) } returns Outcome.Success(page1)
+            coEvery { getAllCredentialsUseCase(PAGE_SIZE, PAGE_SIZE) } returns Outcome.Success(page2)
 
             val newViewModel =
                 CredentialManagementViewModel(

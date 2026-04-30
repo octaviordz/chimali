@@ -1,10 +1,15 @@
 package com.chimali.fido2.data.repository
 
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.crypto.Fido2CryptoService
+import com.chimali.fido2.data.crypto.PublicKeyDecoder
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.mapper.toDomainModel
-import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
@@ -20,22 +25,23 @@ class PasskeyCredentialRepositoryImpl(
     private val relyingPartyDao: RelyingPartyDao,
     private val cryptoService: Fido2CryptoService,
 ) : PasskeyCredentialRepository {
-    override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
+    override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.insertCredential(credential)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "PasskeyCredentialRepository: Failed to save credential id=${credential.id}" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to save credential", e))
         }
     }
 
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? {
         val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-        return entity.toDomainModel(com.chimali.fido2.data.crypto.PublicKeyDecoder()).getOrNull()
+        return entity.toDomainModel(PublicKeyDecoder()).getOrNull()
     }
 
     override suspend fun getCredentialsByRpId(rpId: String): Flow<List<PasskeyCredential>> {
-        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
+        val decoder = PublicKeyDecoder()
         return passkeyCredentialDao.getCredentialsByRpId(rpId).map { entities ->
             entities.mapNotNull { entity ->
                 entity.toDomainModel(decoder).getOrNull()
@@ -44,7 +50,7 @@ class PasskeyCredentialRepositoryImpl(
     }
 
     override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
-        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
+        val decoder = PublicKeyDecoder()
         return passkeyCredentialDao.getAllCredentials().map { entities ->
             entities.mapNotNull { entity ->
                 entity.toDomainModel(decoder).getOrNull()
@@ -53,7 +59,7 @@ class PasskeyCredentialRepositoryImpl(
     }
 
     override suspend fun searchCredentials(query: String): Flow<List<PasskeyCredential>> {
-        val decoder = com.chimali.fido2.data.crypto.PublicKeyDecoder()
+        val decoder = PublicKeyDecoder()
         return passkeyCredentialDao.searchCredentials(query, null).map { entities ->
             entities.mapNotNull { entity ->
                 entity.toDomainModel(decoder).getOrNull()
@@ -61,49 +67,52 @@ class PasskeyCredentialRepositoryImpl(
         }
     }
 
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> {
         return try {
             // Delete from KeyStore first
             cryptoService.deleteCredentialKey(CredentialId.fromString(credentialId))
             // Delete from DB
             passkeyCredentialDao.deleteCredential(credentialId)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "PasskeyCredentialRepository: Failed to delete credential id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete credential", e))
         }
     }
 
     override suspend fun updateSignCount(
         credentialId: String,
         signCount: Long,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.updateSignCount(credentialId, signCount)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "PasskeyCredentialRepository: Failed to update sign count for id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to update sign count", e))
         }
     }
 
-    override suspend fun updateLastUsedAt(credentialId: String): Result<Unit> {
+    override suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.updateLastUsedAt(credentialId)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "PasskeyCredentialRepository: Failed to update last used at for id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to update last used at", e))
         }
     }
 
     override suspend fun validateCredentialCreation(
         rpId: String,
         userId: String,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         // Basic validation for now — check if user already has a credential for this RP
         return if (passkeyCredentialDao.getCredentialsByRpIdAndUserId(rpId, userId).isEmpty()) {
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } else {
-            Result.failure(
-                Fido2Exception.CredentialCreationNotAllowed(
+            Outcome.Error(
+                DomainError.ValidationError(
                     "Credential already exists for this user and RP",
                 ),
             )
@@ -128,12 +137,13 @@ class PasskeyCredentialRepositoryImpl(
         return relyingPartyDao.getRelyingPartyById(rpId)?.toDomainModel()
     }
 
-    override suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit> {
+    override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
         return try {
             relyingPartyDao.insertOrUpdateRelyingParty(rp)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "PasskeyCredentialRepository: Failed to save relying party rpId=${rp.id}" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to save relying party", e))
         }
     }
 }

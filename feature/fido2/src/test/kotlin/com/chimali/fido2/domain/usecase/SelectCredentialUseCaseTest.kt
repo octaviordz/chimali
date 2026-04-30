@@ -1,5 +1,9 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential

@@ -1,6 +1,7 @@
-﻿package com.chimali.fido2.data.dao
+package com.chimali.fido2.data.dao
 
 import app.cash.sqldelight.coroutines.asFlow
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
 import com.chimali.fido2.domain.model.ConsentOperationType

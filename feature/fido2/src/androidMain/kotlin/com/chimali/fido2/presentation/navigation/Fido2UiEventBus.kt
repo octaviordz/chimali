@@ -1,5 +1,7 @@
 package com.chimali.fido2.presentation.navigation
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import kotlinx.coroutines.CompletableDeferred
@@ -40,12 +42,12 @@ class Fido2UiEventBus {
 sealed interface Fido2UiEvent {
     data class RegistrationRequested(
         val options: MakeCredentialOptions,
-        val deferred: CompletableDeferred<Result<MakeCredentialResult>>,
+        val deferred: CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>,
     ) : Fido2UiEvent
 
     data class AuthenticationRequested(
         val rpId: String,
         // Returning credential ID or error
-        val deferred: CompletableDeferred<Result<String>>,
+        val deferred: CompletableDeferred<Outcome<String, DomainError>>,
     ) : Fido2UiEvent
 }

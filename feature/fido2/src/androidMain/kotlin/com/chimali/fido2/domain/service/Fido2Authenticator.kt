@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.service
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AuthenticatorTransport
@@ -17,17 +19,17 @@ interface Fido2Authenticator {
      * Registers a new credential with the authenticator.
      *
      * @param options The registration options containing all necessary parameters
-     * @return Result containing AttestationObject on success, error on failure
+     * @return Outcome containing AttestationObject on success, error on failure
      */
-    suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject>
+    suspend fun makeCredential(options: MakeCredentialOptions): Outcome<AttestationObject, DomainError>
 
     /**
      * Authenticates using an existing credential.
      *
      * @param assertionOptions The assertion options for authentication
-     * @return Result containing AssertionObject on success, error on failure
+     * @return Outcome containing AssertionObject on success, error on failure
      */
-    suspend fun getAssertion(assertionOptions: GetAssertionOptions): Result<AssertionObject>
+    suspend fun getAssertion(assertionOptions: GetAssertionOptions): Outcome<AssertionObject, DomainError>
 
     /**
      * Retrieves all credentials stored on the authenticator.
@@ -49,20 +51,20 @@ interface Fido2Authenticator {
      *
      * @param credentialId The ID of the credential to delete
      * @param rpId The ID of the relying party requesting deletion
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
     suspend fun deleteCredential(
         credentialId: String,
         rpId: String? = null,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
     /**
      * Updates user verification preferences.
      *
      * @param preferences The new verification preferences
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Result<Unit>
+    suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Outcome<Unit, DomainError>
 
     /**
      * Retrieves current verification preferences.
@@ -104,9 +106,9 @@ interface Fido2Authenticator {
      * Resets the authenticator to factory settings.
      *
      * @param resetType The type of reset to perform
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Result<Unit>
+    suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Outcome<Unit, DomainError>
 
     /**
      * Retrieves the current authenticator state.
@@ -118,17 +120,17 @@ interface Fido2Authenticator {
     /**
      * Performs a health check on the authenticator.
      *
-     * @return Result containing HealthCheckResult
+     * @return Outcome containing HealthCheckResult
      */
-    suspend fun performHealthCheck(): Result<HealthCheckResult>
+    suspend fun performHealthCheck(): Outcome<HealthCheckResult, DomainError>
 
     /**
      * Configures the authenticator with specific settings.
      *
      * @param configuration The configuration to apply
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Result<Unit>
+    suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Outcome<Unit, DomainError>
 
     /**
      * Retrieves the current authenticator configuration.
@@ -148,9 +150,9 @@ interface Fido2Authenticator {
      * Initiates a pairing process with another device.
      *
      * @param pairingRequest The pairing request information
-     * @return Result containing PairingResult
+     * @return Outcome containing PairingResult
      */
-    suspend fun initiatePairing(pairingRequest: PairingRequest): Result<PairingResult>
+    suspend fun initiatePairing(pairingRequest: PairingRequest): Outcome<PairingResult, DomainError>
 
     /**
      * Retrieves supported transport methods.
@@ -163,9 +165,9 @@ interface Fido2Authenticator {
      * Validates that the authenticator can handle a specific request.
      *
      * @param request The request to validate
-     * @return Result indicating if the request can be handled
+     * @return Outcome indicating if the request can be handled
      */
-    suspend fun validateRequest(request: Fido2Request): Result<RequestValidationResult>
+    suspend fun validateRequest(request: Fido2Request): Outcome<RequestValidationResult, DomainError>
 }
 
 /**

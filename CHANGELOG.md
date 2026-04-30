@@ -6,10 +6,12 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-04-30
 
 ### Changed
-- **Functional Exception Handling Migration**: Completed the transition of `feature/fido2` and `feature/vault` to a structured `DataResult` architecture, eliminating 100% of generic `try-catch` blocks and `TooGenericExceptionCaught` suppressions.
-- **ViewModel Architecture Refinement**: Refactored `VaultViewModel`, `DevToolsViewModel`, and `CredentialManagementViewModel` to propagate domain-specific errors via `DataResult`, ensuring a clean decoupling of the presentation layer from low-level technical failures.
+- **FIDO2 Outcome Migration**: Finalized the transition of `feature/fido2` to a refined `Outcome<T, DomainError>` architecture. Successfully migrated UseCases, Services, and Handlers while preserving functional parity with existing test suites by wrapping legacy exceptions as error causes.
+- **Outcome API Enhancements**: Expanded the functional result library in `core:common` with idiomatic property-based state checks (`isSuccess`, `isFailure`) and structured processing helpers (`getOrThrow`, `getOrElse`, `mapError`).
+- **Functional Exception Handling Migration**: Completed the transition of `feature/vault` to structured functional architecture, eliminating generic `try-catch` blocks and standardizing error propagation.
+- **ViewModel Architecture Refinement**: Refactored ViewModels project-wide to propagate domain-specific errors via functional results, ensuring clean decoupling of the presentation layer from technical failures.
 - **Data Layer Hardening**: Replaced generic exception catching in `BluetoothHidTransportImpl` with explicit bounds checking and standardized boundary-level logging via Kermit.
-- **Detailed changes**: [2026-04-30-functional-exception-handling-migration.md](docs/changelogs/2026-04-30-functional-exception-handling-migration.md)
+- **Detailed changes**: [2026-04-30-fido2-outcome-migration.md](docs/changelogs/2026-04-30-fido2-outcome-migration.md) & [2026-04-30-functional-exception-handling-migration.md](docs/changelogs/2026-04-30-functional-exception-handling-migration.md)
 
 ## [Unreleased] - 2026-04-29
 

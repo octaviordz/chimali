@@ -1,5 +1,9 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.ConsentMethod
 import com.chimali.fido2.domain.model.ConsentOperationType
@@ -104,9 +108,9 @@ class GetUserConsentUseCase(
 
             // Save consent record
             val saveResult = credentialRepository.saveUserConsent(consentRecord)
-            if (saveResult.isFailure) {
+            if (saveResult is Outcome.Error) {
                 return Result.failure(
-                    saveResult.exceptionOrNull() ?: Fido2Exception.ConsentStorageFailed("Failed to save consent"),
+                    Fido2Exception.ConsentStorageFailed("Failed to save consent: ${saveResult.error.message}"),
                 )
             }
 

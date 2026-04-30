@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.navigation
+package com.chimali.fido2.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.chimali.core.common.result.map
 import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
 import org.koin.compose.viewmodel.koinViewModel

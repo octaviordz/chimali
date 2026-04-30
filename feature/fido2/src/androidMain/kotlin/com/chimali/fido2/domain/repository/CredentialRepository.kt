@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.repository
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
@@ -15,9 +17,9 @@ interface CredentialRepository {
      * Saves a new passkey credential to storage.
      *
      * @param credential The credential to save
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun saveCredential(credential: PasskeyCredential): Result<Unit>
+    suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError>
 
     /**
      * Retrieves a credential by its ID.
@@ -55,12 +57,12 @@ interface CredentialRepository {
      *
      * @param limit Maximum number of credentials to return
      * @param offset Number of credentials to skip
-     * @return Result containing list of credentials for the requested page
+     * @return Outcome containing list of credentials for the requested page
      */
     suspend fun getPagedCredentials(
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>>
+    ): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
      * Retrieves a paginated list of credentials for a specific relying party.
@@ -68,41 +70,41 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @param limit Maximum number of credentials to return
      * @param offset Number of credentials to skip
-     * @return Result containing list of credentials for the requested page
+     * @return Outcome containing list of credentials for the requested page
      */
     suspend fun getPagedCredentialsByRpId(
         rpId: String,
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>>
+    ): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
      * Updates the sign count for a credential.
      *
      * @param credentialId The ID of the credential to update
      * @param newSignCount The new sign count value
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
     suspend fun updateSignCount(
         credentialId: String,
         newSignCount: Long,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
     /**
      * Updates the last used timestamp for a credential.
      *
      * @param credentialId The ID of the credential to update
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun updateLastUsedAt(credentialId: String): Result<Unit>
+    suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError>
 
     /**
      * Deletes a credential by its ID.
      *
      * @param credentialId The ID of the credential to delete
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun deleteCredential(credentialId: String): Result<Unit>
+    suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError>
 
     /**
      * Checks if a credential exists for a given RP and user combination.
@@ -153,12 +155,12 @@ interface CredentialRepository {
      *
      * @param rpId The ID of the relying party
      * @param userId The ID of the user
-     * @return Result indicating if creation is allowed
+     * @return Outcome indicating if creation is allowed
      */
     suspend fun validateCredentialCreation(
         rpId: String,
         userId: String,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
     /**
      * Retrieves credentials that require user verification.
@@ -171,21 +173,21 @@ interface CredentialRepository {
      * T156b — Saves a new relying party or updates an existing one.
      *
      * @param rp The relying party to save
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit>
+    suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError>
 
     /**
      * Updates the relying party information for all credentials belonging to an RP.
      *
      * @param rpId The ID of the relying party
      * @param update Function to update the RP entity
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
     suspend fun updateRelyingParty(
         rpId: String,
         update: (RelyingParty) -> RelyingParty,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
     /**
      * Retrieves relying party information.
@@ -199,9 +201,9 @@ interface CredentialRepository {
      * Saves user consent record.
      *
      * @param consent The consent record to save
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun saveUserConsent(consent: UserConsentRecord): Result<Unit>
+    suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError>
 
     /**
      * Retrieves recent user consent records.
@@ -239,9 +241,9 @@ interface CredentialRepository {
      * Used by GetAssertionUseCase for synchronous candidate resolution.
      *
      * @param rpId The ID of the relying party
-     * @return Result containing list of matching credentials
+     * @return Outcome containing list of matching credentials
      */
-    suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>>
+    suspend fun getCredentialsForRp(rpId: String): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
      * T083a — Retrieves lightweight [CredentialSummary] projections for a specific RP.
@@ -252,17 +254,17 @@ interface CredentialRepository {
      * [getCredentialById] once to hydrate only the winner with its derived public key.
      *
      * @param rpId  The relying party identifier to filter by.
-     * @return Result containing a list of summaries (empty list on DB error).
+     * @return Outcome containing a list of summaries (empty list on DB error).
      */
-    suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>>
+    suspend fun getCredentialSummariesForRp(rpId: String): Outcome<List<CredentialSummary>, DomainError>
 
     /**
      * T084 — Retrieves the current sign count for a credential.
      *
      * @param credentialId  ID of the credential
-     * @return Result containing the sign count (0 if not found)
+     * @return Outcome containing the sign count (0 if not found)
      */
-    suspend fun getSignCount(credentialId: String): Result<Long>
+    suspend fun getSignCount(credentialId: String): Outcome<Long, DomainError>
 
     /**
      * T085 — Retrieves a batch of credentials by their IDs.
@@ -270,36 +272,36 @@ interface CredentialRepository {
      *
      * @param credentialIds Set of credential IDs to look up
      * @param rpId          Optional RP filter for additional scoping
-     * @return Result containing list of matching credentials
+     * @return Outcome containing list of matching credentials
      */
     suspend fun getCredentialsByIds(
         credentialIds: Set<String>,
         rpId: String? = null,
-    ): Result<List<PasskeyCredential>>
+    ): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
      * Performs cleanup of expired credentials.
      *
      * @param maxAgeDays Maximum age in days before deletion
-     * @return Result with count of deleted credentials
+     * @return Outcome with count of deleted credentials
      */
-    suspend fun cleanupExpiredCredentials(maxAgeDays: Long = 730): Result<Int>
+    suspend fun cleanupExpiredCredentials(maxAgeDays: Long = 730): Outcome<Int, DomainError>
 
     /**
      * T110 — Deletes all FIDO2 credentials. If [rpId] is provided, only deletes credentials for that RP.
      *
      * @param rpId Optional RP ID to filter destruction
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun deleteAllCredentials(rpId: String? = null): Result<Unit>
+    suspend fun deleteAllCredentials(rpId: String? = null): Outcome<Unit, DomainError>
 
     /**
      * T111 — Performs a complete authenticator reset, erasing all credentials,
      * keys, PINs, and returning the authenticator to factory defaults.
      *
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun resetAuthenticator(): Result<Unit>
+    suspend fun resetAuthenticator(): Outcome<Unit, DomainError>
 
     /**
      * Updates the custom label or note for a specific credential.
@@ -307,5 +309,5 @@ interface CredentialRepository {
     suspend fun updateLabel(
         credentialId: String,
         label: String?,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 }

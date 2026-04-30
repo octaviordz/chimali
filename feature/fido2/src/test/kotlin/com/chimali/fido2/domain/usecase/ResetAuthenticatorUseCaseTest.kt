@@ -1,5 +1,10 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -24,7 +29,7 @@ class ResetAuthenticatorUseCaseTest {
     fun `invoke should return success when repository successfully resets authenticator`() =
         runTest {
             // Arrange
-            coEvery { credentialRepository.resetAuthenticator() } returns Result.success(Unit)
+            coEvery { credentialRepository.resetAuthenticator() } returns Outcome.Success(Unit)
 
             // Act
             val result = resetAuthenticatorUseCase()
@@ -39,7 +44,13 @@ class ResetAuthenticatorUseCaseTest {
         runTest {
             // Arrange
             val exception = Exception("Secure storage wipe failed")
-            coEvery { credentialRepository.resetAuthenticator() } returns Result.failure(exception)
+            coEvery { credentialRepository.resetAuthenticator() } returns
+                Outcome.Error(
+                    DomainError.UnknownError(
+                        exception.message ?: "error",
+                        exception,
+                    ),
+                )
 
             // Act
             val result = resetAuthenticatorUseCase()

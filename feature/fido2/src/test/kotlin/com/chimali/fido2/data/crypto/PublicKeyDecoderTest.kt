@@ -1,5 +1,8 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import java.security.KeyPairGenerator
 import java.security.Security
 import java.util.Base64

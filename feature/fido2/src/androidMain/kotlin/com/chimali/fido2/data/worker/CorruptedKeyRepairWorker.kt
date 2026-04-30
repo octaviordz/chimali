@@ -1,6 +1,9 @@
 package com.chimali.fido2.data.worker
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.functionalCatching
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.domain.model.CredentialId
@@ -16,7 +19,7 @@ interface CorruptedKeyRepairWorker {
      * Executes the HDK fallback for a batch of corrupted credentials.
      * @param credentialIds A list of IDs identifying the credentials to repair.
      */
-    suspend fun doWork(credentialIds: List<String>): Result<Unit>
+    suspend fun doWork(credentialIds: List<String>): Outcome<Unit, DomainError>
 }
 
 @Single
@@ -24,8 +27,8 @@ class CorruptedKeyRepairWorkerImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val fido2CryptoService: Fido2CryptoService,
 ) : CorruptedKeyRepairWorker {
-    override suspend fun doWork(credentialIds: List<String>): Result<Unit> {
-        return runCatching {
+    override suspend fun doWork(credentialIds: List<String>): Outcome<Unit, DomainError> {
+        return functionalCatching {
             for (id in credentialIds) {
                 try {
                     val entity = passkeyCredentialDao.getCredentialById(id) ?: continue
@@ -37,9 +40,9 @@ class CorruptedKeyRepairWorkerImpl(
 
                     val base64PubKey = Base64.getEncoder().encodeToString(publicKey.encoded)
                     passkeyCredentialDao.updatePublicKey(entity.id, base64PubKey)
-                    Logger.i("Successfully repaired corrupted public key for credential: $id")
+                    Logger.i { "Successfully repaired corrupted public key for credential: $id" }
                 } catch (e: android.database.SQLException) {
-                    Logger.e(e) { "Failed to repair public key for credential: $id" }
+                    Logger.e(e) { "Database error repairing public key for credential: $id" }
                 } catch (e: java.security.GeneralSecurityException) {
                     Logger.e(e) { "Crypto error repairing public key for credential: $id" }
                 }

@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrNull
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
@@ -30,7 +32,7 @@ class GetAllCredentialsUseCaseTest {
     fun `invoke should return empty list when no credentials exist`() =
         runTest {
             // Arrange
-            coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Result.success(emptyList())
+            coEvery { credentialRepository.getPagedCredentials(any(), any()) } returns Outcome.Success(emptyList())
 
             // Act
             val result = getAllCredentialsUseCase(PAGE_SIZE_10, OFFSET_ZERO).getOrNull() ?: emptyList()
@@ -48,7 +50,7 @@ class GetAllCredentialsUseCaseTest {
             val mockCredential2 = mockk<PasskeyCredential>()
             coEvery {
                 credentialRepository.getPagedCredentials(any(), any())
-            } returns Result.success(listOf(mockCredential1, mockCredential2))
+            } returns Outcome.Success(listOf(mockCredential1, mockCredential2))
 
             // Act
             val result = getAllCredentialsUseCase(PAGE_SIZE_10, OFFSET_ZERO).getOrNull() ?: emptyList()

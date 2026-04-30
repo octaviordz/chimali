@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.database
 
+import com.chimali.core.common.result.getOrThrow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

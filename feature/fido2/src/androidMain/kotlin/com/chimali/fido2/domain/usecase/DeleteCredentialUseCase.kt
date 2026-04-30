@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
 
@@ -10,7 +12,7 @@ import org.koin.core.annotation.Factory
 class DeleteCredentialUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(credentialId: String): Result<Unit> {
+    suspend operator fun invoke(credentialId: String): Outcome<Unit, DomainError> {
         return passkeyCredentialRepository.deleteCredential(credentialId)
     }
 }

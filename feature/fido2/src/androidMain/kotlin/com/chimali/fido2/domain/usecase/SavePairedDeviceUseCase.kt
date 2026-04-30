@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
 import org.koin.core.annotation.Factory
@@ -16,9 +18,9 @@ class SavePairedDeviceUseCase(
         macAddress: String,
         name: String? = null,
         deviceClass: Int? = null,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         if (macAddress.isBlank()) {
-            return Result.failure(IllegalArgumentException("MAC address cannot be empty"))
+            return Outcome.Error(DomainError.ValidationError("MAC address cannot be empty"))
         }
 
         val now = System.currentTimeMillis()

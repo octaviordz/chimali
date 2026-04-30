@@ -1,5 +1,7 @@
 package com.chimali.fido2.integration
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
@@ -57,12 +59,12 @@ class ManagementIntegrationTest {
 
         repository = mockk()
 
-        // getPagedCredentials returns Result.success(List<PasskeyCredential>)
+        // getPagedCredentials returns Outcome.Success(List<PasskeyCredential>)
         coEvery { repository.getPagedCredentials(any(), any()) } answers {
             val limit = firstArg<Long>()
             val offset = secondArg<Long>()
             val list = credentials.value.drop(offset.toInt()).take(limit.toInt())
-            Result.success(list)
+            Outcome.Success(list)
         }
 
         // searchCredentials returns empty by default
@@ -72,13 +74,13 @@ class ManagementIntegrationTest {
         coEvery { repository.deleteCredential(any()) } answers {
             val id = firstArg<String>()
             credentials.update { list -> list.filterNot { it.id == id } }
-            Result.success(Unit)
+            Outcome.Success(Unit)
         }
 
         // deleteAllCredentials wipes in-memory list
         coEvery { repository.deleteAllCredentials(any()) } answers {
             credentials.value = emptyList()
-            Result.success(Unit)
+            Outcome.Success(Unit)
         }
 
         val getAllUseCase = GetAllCredentialsUseCase(repository)
@@ -209,7 +211,7 @@ class ManagementIntegrationTest {
     fun `delete failure sets error state`() =
         runTest(UnconfinedTestDispatcher()) {
             coEvery { repository.deleteCredential(any()) } returns
-                Result.failure(Exception("Database error"))
+                Outcome.Error(DomainError.UnknownError("Database error"))
 
             val cred = createDummyCredential("cred1")
             viewModel.setCredentials(listOf(cred))
@@ -247,7 +249,7 @@ class ManagementIntegrationTest {
     fun `delete all failure sets error state`() =
         runTest(UnconfinedTestDispatcher()) {
             coEvery { repository.deleteAllCredentials(any()) } returns
-                Result.failure(Exception("Wipe failed"))
+                Outcome.Error(DomainError.UnknownError("Wipe failed"))
 
             viewModel.setCredentials(listOf(createDummyCredential("cred1")))
 

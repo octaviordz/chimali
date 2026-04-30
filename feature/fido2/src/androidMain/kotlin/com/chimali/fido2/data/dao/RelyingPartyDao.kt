@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.dao
 
 import app.cash.sqldelight.coroutines.asFlow
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
 import com.chimali.fido2.domain.model.RelyingParty

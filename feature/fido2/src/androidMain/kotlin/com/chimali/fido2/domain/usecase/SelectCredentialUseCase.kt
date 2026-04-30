@@ -1,6 +1,8 @@
 package com.chimali.fido2.domain.usecase
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
@@ -23,29 +25,31 @@ class SelectCredentialUseCase {
     suspend operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions,
-    ): Result<CredentialSummary> =
-        runCatching {
-            when {
-                candidates.isEmpty() -> throw Fido2Exception.CredentialNotFound(
-                    "No eligible credentials for rpId=${options.rpId}",
+    ): Outcome<CredentialSummary, DomainError> {
+        return when {
+            candidates.isEmpty() ->
+                Outcome.Error(
+                    DomainError.NotFound(
+                        "No eligible credentials for rpId=${options.rpId}",
+                        Fido2Exception.CredentialNotFound(options.rpId),
+                    ),
                 )
 
-                candidates.size == 1 -> {
-                    Logger.d { "Auto-selecting single credential: ${candidates.first().id}" }
-                    candidates.first()
-                }
+            candidates.size == 1 -> {
+                Logger.d { "Auto-selecting single credential: ${candidates.first().id}" }
+                Outcome.Success(candidates.first())
+            }
 
-                else -> {
-                    Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId}" }
-                    selectMostRecentlyUsed(candidates)
-                }
+            else -> {
+                Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId}" }
+                Outcome.Success(selectMostRecentlyUsed(candidates))
             }
         }
+    }
 
     private fun selectMostRecentlyUsed(candidates: List<CredentialSummary>): CredentialSummary {
-        val selected =
-            candidates.maxByOrNull { it.lastUsedAt }
-                ?: throw Fido2Exception.CredentialNotFound("Could not resolve credential from candidates")
+        // Guaranteed not to be empty due to 'when' check in invoke()
+        val selected = candidates.maxBy { it.lastUsedAt }
 
         Logger.d { "MRU selected credential: ${selected.id} (lastUsed=${selected.lastUsedAt})" }
         return selected

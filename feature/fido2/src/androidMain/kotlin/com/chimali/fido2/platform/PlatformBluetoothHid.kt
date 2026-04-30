@@ -3,6 +3,7 @@ package com.chimali.fido2.platform
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
+import com.chimali.core.common.result.getOrDefault
 
 /**
  * T191 — Android `actual` implementation of [PlatformBluetoothHid].

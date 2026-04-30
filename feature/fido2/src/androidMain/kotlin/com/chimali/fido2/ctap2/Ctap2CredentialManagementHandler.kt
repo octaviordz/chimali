@@ -1,6 +1,9 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.isSuccess
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase

@@ -1,5 +1,11 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -127,7 +133,7 @@ class RegisterCredentialUseCaseTest {
                     "test_alias",
                     ByteArray(PUB_KEY_SIZE_65) { DUMMY_BYTE_01 },
                 )
-            coEvery { cryptoService.generateCredentialKeyPair(any()) } returns Result.success(testFido2KeyPair)
+            coEvery { cryptoService.generateCredentialKeyPair(any()) } returns Outcome.Success(testFido2KeyPair)
             coEvery { cryptoService.getPublicKey(any(), any()) } returns testPublicKey
             coEvery { cborCodec.encodeCosePublicKeyFromJavaKey(any()) } returns ByteArray(PUB_KEY_ENCODED_SIZE_77)
             coEvery {
@@ -144,15 +150,15 @@ class RegisterCredentialUseCaseTest {
                     biometricStrength = BiometricStrength.STRONG,
                 )
 
-            coEvery { userVerificationService.recordUserConsent(any()) } returns Result.success(mockk())
+            coEvery { userVerificationService.recordUserConsent(any()) } returns Outcome.Success(Unit)
             coEvery { fido2SettingsRepository.getMaxCredentialCount() } returns LIMIT_1000
-            coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Result.success(Unit)
-            coEvery { credentialRepository.saveCredential(any()) } returns Result.success(Unit)
+            coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns Outcome.Success(Unit)
+            coEvery { credentialRepository.saveCredential(any()) } returns Outcome.Success(Unit)
             coEvery { credentialRepository.getRelyingParty(any()) } returns null
-            coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Result.success(Unit)
+            coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Outcome.Success(Unit)
             coEvery {
                 credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>())
-            } returns Result.success(Unit)
+            } returns Outcome.Success(Unit)
             // T115a: Stub getCredentialStatistics so the quota check in RegisterCredentialUseCase can proceed.
             // Default: 0 credentials stored → registration allowed.
             coEvery { credentialRepository.getCredentialStatistics() } returns
@@ -167,7 +173,7 @@ class RegisterCredentialUseCaseTest {
             // T145b: stub sign() so the packed attestation path succeeds in tests
             coEvery {
                 cryptoService.sign(any(), any())
-            } returns Result.success(ByteArray(SIGNATURE_SIZE_72) { DUMMY_BYTE_30 })
+            } returns Outcome.Success(ByteArray(SIGNATURE_SIZE_72) { DUMMY_BYTE_30 })
         }
 
     @Nested
@@ -353,8 +359,11 @@ class RegisterCredentialUseCaseTest {
         fun `should fail when credential creation validation fails`() =
             runTest {
                 coEvery { credentialRepository.validateCredentialCreation(any(), any()) } returns
-                    Result.failure(
-                        Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"),
+                    Outcome.Error(
+                        DomainError.OperationDenied(
+                            "Credential creation not allowed",
+                            Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"),
+                        ),
                     )
 
                 val result = registerCredentialUseCase(testOptions)
@@ -390,8 +399,11 @@ class RegisterCredentialUseCaseTest {
         fun `should fail when user consent recording fails`() =
             runTest {
                 coEvery { userVerificationService.recordUserConsent(any()) } returns
-                    Result.failure(
-                        Fido2Exception.ConsentDenied("Consent denied"),
+                    Outcome.Error(
+                        DomainError.OperationDenied(
+                            "Consent denied",
+                            Fido2Exception.ConsentDenied("Consent denied"),
+                        ),
                     )
 
                 val result = registerCredentialUseCase(testOptions)
@@ -407,8 +419,11 @@ class RegisterCredentialUseCaseTest {
         fun `should fail when credential storage fails`() =
             runTest {
                 coEvery { credentialRepository.saveCredential(any()) } returns
-                    Result.failure(
-                        Fido2Exception.CredentialStorageFailed("Credential storage failed"),
+                    Outcome.Error(
+                        DomainError.DatabaseError(
+                            "Credential storage failed",
+                            Fido2Exception.CredentialStorageFailed("Credential storage failed"),
+                        ),
                     )
 
                 val result = registerCredentialUseCase(testOptions)
@@ -421,8 +436,11 @@ class RegisterCredentialUseCaseTest {
         fun `should fail when rp update fails`() =
             runTest {
                 coEvery { credentialRepository.saveRelyingParty(any()) } returns
-                    Result.failure(
-                        Fido2Exception.RelyingPartyUpdateFailed("Relying party update failed"),
+                    Outcome.Error(
+                        DomainError.DatabaseError(
+                            "Relying party update failed",
+                            Fido2Exception.RelyingPartyUpdateFailed("Relying party update failed"),
+                        ),
                     )
 
                 val result = registerCredentialUseCase(testOptions)

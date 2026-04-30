@@ -1,5 +1,7 @@
 package com.chimali.fido2.data.repository
 
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
@@ -22,6 +24,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 
@@ -62,6 +65,7 @@ class CredentialRepositoryImplTest {
                     cryptoService,
                     publicKeyDecoder,
                     corruptedKeyRepairWorker,
+                    UnconfinedTestDispatcher(),
                 )
 
             val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(KEY_SIZE_256) }
@@ -119,11 +123,11 @@ class CredentialRepositoryImplTest {
                 )
 
             // Common stubs
-            coEvery { publicKeyDecoder.decodePublicKey(any(), any()) } returns Result.success(testPublicKey)
+            coEvery { publicKeyDecoder.decodePublicKey(any(), any()) } returns Outcome.Success(testPublicKey)
             // Default Mocks
             coEvery { cryptoService.keyExists(any()) } returns true
             coEvery { cryptoService.getPublicKey(any(), any()) } returns testPublicKey
-            coEvery { cryptoService.deleteCredentialKey(any()) } returns Result.success(Unit)
+            coEvery { cryptoService.deleteCredentialKey(any()) } returns Outcome.Success(Unit)
 
             coEvery { passkeyCredentialDao.insertCredential(any()) } just Runs
             coEvery { passkeyCredentialDao.getCredentialById(any()) } returns null

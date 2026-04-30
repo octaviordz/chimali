@@ -1,5 +1,6 @@
 package com.chimali.fido2.ctap2
 
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.model.AssertionObject
@@ -96,7 +97,7 @@ class Ctap2WindowsCompatibilityTest {
                     user = null,
                 )
 
-            coEvery { mockUseCase(any()) } returns Result.success(assertion)
+            coEvery { mockUseCase(any()) } returns Outcome.Success(assertion)
 
             // Construct a raw GetAssertion request (rpId, clientDataHash)
             val requestMap =

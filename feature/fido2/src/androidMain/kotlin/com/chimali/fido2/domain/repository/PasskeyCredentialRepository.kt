@@ -1,11 +1,13 @@
 package com.chimali.fido2.domain.repository
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
 import kotlinx.coroutines.flow.Flow
 
 interface PasskeyCredentialRepository {
-    suspend fun saveCredential(credential: PasskeyCredential): Result<Unit>
+    suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError>
 
     suspend fun getCredentialById(credentialId: String): PasskeyCredential?
 
@@ -15,25 +17,25 @@ interface PasskeyCredentialRepository {
 
     suspend fun searchCredentials(query: String): Flow<List<PasskeyCredential>>
 
-    suspend fun deleteCredential(credentialId: String): Result<Unit>
+    suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError>
 
     suspend fun updateSignCount(
         credentialId: String,
         signCount: Long,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
-    suspend fun updateLastUsedAt(credentialId: String): Result<Unit>
+    suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError>
 
     suspend fun validateCredentialCreation(
         rpId: String,
         userId: String,
-    ): Result<Unit>
+    ): Outcome<Unit, DomainError>
 
     suspend fun getCredentialStatistics(): CredentialStatistics
 
     suspend fun getRelyingParty(rpId: String): RelyingParty?
 
-    suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit>
+    suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError>
 }
 
 /**

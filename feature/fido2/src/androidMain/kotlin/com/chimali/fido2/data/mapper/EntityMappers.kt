@@ -1,5 +1,8 @@
 package com.chimali.fido2.data.mapper
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.crypto.PublicKeyDecoder
 import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEntity
 import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
@@ -11,7 +14,9 @@ import com.chimali.fido2.domain.model.UserConsentRecord
 import java.time.Instant
 import java.util.Base64
 
-fun PasskeyCredentialEntity.toDomainModel(decoder: PublicKeyDecoder): Result<PasskeyCredential> {
+fun PasskeyCredentialEntity.toDomainModel(
+    decoder: PublicKeyDecoder,
+): Outcome<PasskeyCredential, DomainError.CryptoError> {
     return decoder.decodePublicKey(this.publicKey, this.coseAlgorithm.toInt()).map { decodedKey ->
         PasskeyCredential(
             id = this.id,

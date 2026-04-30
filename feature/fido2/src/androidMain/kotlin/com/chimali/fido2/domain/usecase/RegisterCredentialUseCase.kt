@@ -1,5 +1,9 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.map
+import com.chimali.core.common.result.mapError
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -61,18 +65,16 @@ class RegisterCredentialUseCase(
      * @param options The registration options containing all necessary parameters
      * @return Result containing MakeCredentialResult (Attestation + Passkey) on success
      */
-    suspend operator fun invoke(options: MakeCredentialOptions): Result<MakeCredentialResult> {
+    @Suppress("TooGenericExceptionCaught")
+    suspend operator fun invoke(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError> {
         return try {
             // Validate registration options
             validateRegistrationOptions(options)
 
             // Ensure relying party exists before creating consent records or credentials
             val rpResult = updateRelyingParty(options.rp)
-            if (rpResult.isFailure) {
-                return Result.failure(
-                    rpResult.exceptionOrNull()
-                        ?: Fido2Exception.RelyingPartyUpdateFailed("Failed to register relying party"),
-                )
+            if (rpResult is Outcome.Error) {
+                return Outcome.Error(rpResult.error)
             }
 
             // Check if user consent is required
@@ -86,21 +88,15 @@ class RegisterCredentialUseCase(
             // Get user consent if required
             if (consentRequired == ServiceVerificationRequirement.REQUIRED) {
                 val consentResult = getUserConsentForRegistration(options)
-                if (consentResult.isFailure) {
-                    return Result.failure(
-                        consentResult.exceptionOrNull()
-                            ?: Fido2Exception.ConsentDenied("User consent denied"),
-                    )
+                if (consentResult is Outcome.Error) {
+                    return Outcome.Error(consentResult.error)
                 }
             }
 
             // Verify user identity if required
             val verificationResult = performUserVerification(options)
-            if (verificationResult.isFailure) {
-                return Result.failure(
-                    verificationResult.exceptionOrNull()
-                        ?: Fido2Exception.UserVerificationFailed("User verification failed"),
-                )
+            if (verificationResult is Outcome.Error) {
+                return Outcome.Error(verificationResult.error)
             }
 
             // Validate credential creation with repository
@@ -109,38 +105,34 @@ class RegisterCredentialUseCase(
                     rpId = options.rp.id,
                     userId = String(options.user.id),
                 )
-            if (validationResult.isFailure) {
-                return Result.failure(
-                    validationResult.exceptionOrNull()
-                        ?: Fido2Exception.CredentialCreationNotAllowed("Credential creation not allowed"),
-                )
+            if (validationResult is Outcome.Error) {
+                return Outcome.Error(validationResult.error)
             }
 
             // FR-HID-022: Enforce global storage limit.
             val stats = passkeyCredentialRepository.getCredentialStatistics()
             val limit = settingsRepository.getMaxCredentialCount()
             if (stats.totalCredentials >= limit) {
-                return Result.failure(Fido2Exception.TooManyCredentials(limit))
+                return Outcome.Error(
+                    DomainError.StorageError(
+                        "Too many credentials: limit $limit",
+                        Fido2Exception.TooManyCredentials(limit),
+                    ),
+                )
             }
 
             // Generate the credential
             val credentialGenerationResult = generateCredential(options)
-            if (credentialGenerationResult.isFailure) {
-                return Result.failure(
-                    credentialGenerationResult.exceptionOrNull()
-                        ?: Fido2Exception.CredentialGenerationFailed("Credential generation failed"),
-                )
+            if (credentialGenerationResult is Outcome.Error) {
+                return Outcome.Error(credentialGenerationResult.error)
             }
 
-            val credential = credentialGenerationResult.getOrThrow()
+            val credential = (credentialGenerationResult as Outcome.Success).data
 
             // Store the credential
             val storageResult = passkeyCredentialRepository.saveCredential(credential)
-            if (storageResult.isFailure) {
-                return Result.failure(
-                    storageResult.exceptionOrNull()
-                        ?: Fido2Exception.CredentialStorageFailed("Credential storage failed"),
-                )
+            if (storageResult is Outcome.Error) {
+                return Outcome.Error(storageResult.error)
             }
 
             // Create attestation object
@@ -150,9 +142,15 @@ class RegisterCredentialUseCase(
                     credential = credential,
                 )
 
-            Result.success(MakeCredentialResult(attestationObject, credential))
-        } catch (e: Fido2Exception) {
-            Result.failure(e)
+            Outcome.Success(MakeCredentialResult(attestationObject, credential))
+        } catch (e: IllegalArgumentException) {
+            Outcome.Error(DomainError.ValidationError(e.message ?: "Invalid parameters", e))
+        } catch (e: IllegalStateException) {
+            Outcome.Error(DomainError.OperationDenied(e.message ?: "Invalid state", e))
+        } catch (e: Exception) {
+            // We catch generic Exception at the UseCase boundary to ensure all unexpected
+            // errors are gracefully wrapped in Outcome.Error rather than crashing the app.
+            Outcome.Error(DomainError.UnknownError("Unexpected error during registration: ${e.message}", e))
         }
     }
 
@@ -189,7 +187,9 @@ class RegisterCredentialUseCase(
     /**
      * Gets user consent for credential registration.
      */
-    private suspend fun getUserConsentForRegistration(options: MakeCredentialOptions): Result<UserConsentRecord> {
+    private suspend fun getUserConsentForRegistration(
+        options: MakeCredentialOptions,
+    ): Outcome<UserConsentRecord, DomainError> {
         val consentRecord =
             UserConsentRecord.create(
                 operationType = ConsentOperationType.REGISTRATION,
@@ -207,13 +207,15 @@ class RegisterCredentialUseCase(
                 deviceId = null,
             )
 
-        return userVerificationService.recordUserConsent(consentRecord).map { consentRecord }
+        return userVerificationService.recordUserConsent(consentRecord)
+            .map { consentRecord }
+            .mapError { DomainError.OperationDenied("Consent denied", it.cause) }
     }
 
     /**
      * Performs user verification for credential registration.
      */
-    private suspend fun performUserVerification(options: MakeCredentialOptions): Result<Unit> {
+    private suspend fun performUserVerification(options: MakeCredentialOptions): Outcome<Unit, DomainError> {
         val verificationRequirement =
             options.authenticatorSelection?.userVerification
                 ?: UserVerificationRequirement.PREFERRED
@@ -221,17 +223,22 @@ class RegisterCredentialUseCase(
         if (verificationRequirement == UserVerificationRequirement.REQUIRED) {
             val availability = userVerificationService.getUserVerificationAvailability()
             if (availability.getBestAvailableMethod() == com.chimali.fido2.domain.service.VerificationMethod.NONE) {
-                return Result.failure(Fido2Exception.NoVerificationMethodAvailable())
+                return Outcome.Error(
+                    DomainError.OperationDenied(
+                        "No verification method available",
+                        Fido2Exception.NoVerificationMethodAvailable(),
+                    ),
+                )
             }
         }
 
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     /**
      * Generates a new credential with cryptographic operations.
      */
-    private suspend fun generateCredential(options: MakeCredentialOptions): Result<PasskeyCredential> {
+    private suspend fun generateCredential(options: MakeCredentialOptions): Outcome<PasskeyCredential, DomainError> {
         return try {
             // Generate random 32-byte credential ID (bytes + encoded string).
             val credentialId = PasskeyCredential.generateRandomId()
@@ -242,18 +249,16 @@ class RegisterCredentialUseCase(
                     credentialId = credentialId,
                     algId = options.selectedAlgId,
                 )
-            if (cryptoResult.isFailure) {
-                Result.failure(
-                    cryptoResult.exceptionOrNull() ?: Fido2Exception.KeyGenerationFailed("Key generation failed"),
-                )
+            if (cryptoResult is Outcome.Error) {
+                Outcome.Error(cryptoResult.error)
             } else {
                 // Retrieve the public key object for PasskeyCredential
                 val publicKey =
                     cryptoService.getPublicKey(
                         credentialId = credentialId,
                         algId = options.selectedAlgId,
-                    ) ?: return Result.failure(
-                        Fido2Exception.KeyNotFound("Generated key not found in KeyStore: ${credentialId.encoded}"),
+                    ) ?: return Outcome.Error(
+                        DomainError.CryptoError("Generated key not found in KeyStore: ${credentialId.encoded}"),
                     )
 
                 // Generate AAGUID for this authenticator
@@ -276,17 +281,17 @@ class RegisterCredentialUseCase(
                         credProtectPolicy = credProtectPolicy,
                     )
 
-                Result.success(credential)
+                Outcome.Success(credential)
             }
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.CredentialGenerationFailed(e.message ?: "Unknown error", e))
+            Outcome.Error(DomainError.CryptoError(e.message ?: "Unknown error", e))
         }
     }
 
     /**
      * Updates relying party information in the repository.
      */
-    private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity): Result<Unit> {
+    private suspend fun updateRelyingParty(rp: PublicKeyCredentialRpEntity): Outcome<Unit, DomainError> {
         val existingRp = passkeyCredentialRepository.getRelyingParty(rp.id)
         val rpToSave =
             existingRp?.withCredentialCount(existingRp.credentialCount + 1)
@@ -355,8 +360,8 @@ class RegisterCredentialUseCase(
             )
 
         val (fmt, attStmt) =
-            if (signatureResult.isSuccess) {
-                val sig = signatureResult.getOrThrow()
+            if (signatureResult is Outcome.Success) {
+                val sig = signatureResult.data
                 "packed" to
                     AttestationStatement.create(
                         alg = options.selectedAlgId,

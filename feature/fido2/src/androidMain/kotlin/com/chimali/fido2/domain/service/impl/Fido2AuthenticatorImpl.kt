@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.service.impl
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AuthenticatorTransport
@@ -37,15 +39,11 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
             )
     }
 
-    override suspend fun makeCredential(options: MakeCredentialOptions): Result<AttestationObject> =
-        Result.failure(
-            NotImplementedError(),
-        )
+    override suspend fun makeCredential(options: MakeCredentialOptions): Outcome<AttestationObject, DomainError> =
+        Outcome.Error(DomainError.UnknownError("Not implemented"))
 
-    override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Result<AssertionObject> =
-        Result.failure(
-            NotImplementedError(),
-        )
+    override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Outcome<AssertionObject, DomainError> =
+        Outcome.Error(DomainError.UnknownError("Not implemented"))
 
     override suspend fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
 
@@ -54,12 +52,11 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
     override suspend fun deleteCredential(
         credentialId: String,
         rpId: String?,
-    ): Result<Unit> = Result.success(Unit)
+    ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun updateVerificationPreferences(preferences: VerificationPreferences): Result<Unit> =
-        Result.success(
-            Unit,
-        )
+    override suspend fun updateVerificationPreferences(
+        preferences: VerificationPreferences,
+    ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun getVerificationPreferences(): VerificationPreferences = VerificationPreferences.createDefault()
 
@@ -87,19 +84,18 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
         )
     }
 
-    override suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Result<Unit> = Result.success(Unit)
+    override suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Outcome<Unit, DomainError> =
+        Outcome.Success(Unit)
 
     override suspend fun getAuthenticatorState(): AuthenticatorState = AuthenticatorState.READY
 
-    override suspend fun performHealthCheck(): Result<HealthCheckResult> =
-        Result.success(
+    override suspend fun performHealthCheck(): Outcome<HealthCheckResult, DomainError> =
+        Outcome.Success(
             HealthCheckResult(true, emptyMap(), java.time.Instant.now(), null),
         )
 
-    override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Result<Unit> =
-        Result.success(
-            Unit,
-        )
+    override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Outcome<Unit, DomainError> =
+        Outcome.Success(Unit)
 
     override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration {
         return AuthenticatorConfiguration(
@@ -116,15 +112,13 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
 
     override suspend fun isReady(): Boolean = true
 
-    override suspend fun initiatePairing(pairingRequest: PairingRequest): Result<PairingResult> =
-        Result.failure(
-            NotImplementedError(),
-        )
+    override suspend fun initiatePairing(pairingRequest: PairingRequest): Outcome<PairingResult, DomainError> =
+        Outcome.Error(DomainError.UnknownError("Not implemented"))
 
     override suspend fun getSupportedTransports(): List<AuthenticatorTransport> = listOf(AuthenticatorTransport.BLE)
 
-    override suspend fun validateRequest(request: Fido2Request): Result<RequestValidationResult> =
-        Result.success(
+    override suspend fun validateRequest(request: Fido2Request): Outcome<RequestValidationResult, DomainError> =
+        Outcome.Success(
             RequestValidationResult(true, emptyList(), emptyList(), emptyList(), null),
         )
 }

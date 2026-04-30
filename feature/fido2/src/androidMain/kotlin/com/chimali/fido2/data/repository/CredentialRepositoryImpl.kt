@@ -1,11 +1,16 @@
 package com.chimali.fido2.data.repository
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.map
+import com.chimali.core.common.result.onFailure
+import com.chimali.core.common.result.onSuccess
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.mapper.toDomainModel
-import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -15,13 +20,16 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Single
 
 /**
@@ -36,7 +44,10 @@ class CredentialRepositoryImpl(
     private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService,
     private val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder,
     private val corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker,
+    @Named("IoDispatcher") private val ioDispatcher: CoroutineDispatcher,
 ) : CredentialRepository {
+    private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
+
     companion object {
         private const val MAX_USER_CREDENTIALS_PER_RP = 10
         private const val RECENT_USAGE_CUTOFF_DAYS = 90L
@@ -46,7 +57,7 @@ class CredentialRepositoryImpl(
 
     // ── Credential CRUD ──────────────────────────────────────────────────────
 
-    override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
+    override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         return try {
             // Re-registering the same user for the same RP replaces the existing credential.
             val existingEntities =
@@ -61,13 +72,14 @@ class CredentialRepositoryImpl(
             // Key is already stored in Android KeyStore via Fido2CryptoService in the use case.
             // We only need to check it exists and save metadata.
             if (!cryptoService.keyExists(CredentialId.fromString(credential.id))) {
-                return Result.failure(Fido2Exception.KeyNotFound("Key not found for alias: ${credential.id}"))
+                return Outcome.Error(DomainError.StorageError("Key not found for alias: ${credential.id}"))
             }
 
             passkeyCredentialDao.insertCredential(credential)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialStorageFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: Failed to save credential id=${credential.id}" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -123,7 +135,7 @@ class CredentialRepositoryImpl(
     override suspend fun getPagedCredentials(
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         return try {
             val entities = passkeyCredentialDao.getPagedCredentials(limit, offset)
             val validCredentials = mutableListOf<PasskeyCredential>()
@@ -136,14 +148,15 @@ class CredentialRepositoryImpl(
             }
 
             if (corruptedIds.isNotEmpty()) {
-                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                scope.launch {
                     corruptedKeyRepairWorker.doWork(corruptedIds)
                 }
             }
 
-            Result.success(validCredentials)
+            Outcome.Success(validCredentials)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "CredentialRepository: Failed to get paged credentials" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -151,7 +164,7 @@ class CredentialRepositoryImpl(
         rpId: String,
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         return try {
             val entities = passkeyCredentialDao.getPagedCredentialsByRpId(rpId, limit, offset)
             val validCredentials = mutableListOf<PasskeyCredential>()
@@ -164,24 +177,26 @@ class CredentialRepositoryImpl(
             }
 
             if (corruptedIds.isNotEmpty()) {
-                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                scope.launch {
                     corruptedKeyRepairWorker.doWork(corruptedIds)
                 }
             }
 
-            Result.success(validCredentials)
+            Outcome.Success(validCredentials)
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Logger.e(e) { "CredentialRepository: Failed to get paged credentials for RP: $rpId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> {
         return try {
             cryptoService.deleteCredentialKey(CredentialId.fromString(credentialId))
             passkeyCredentialDao.deleteCredential(credentialId)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: Failed to delete credential id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -203,37 +218,39 @@ class CredentialRepositoryImpl(
     override suspend fun updateSignCount(
         credentialId: String,
         newSignCount: Long,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.updateSignCount(credentialId, newSignCount)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update sign count", e))
+            Logger.e(e) { "CredentialRepository: Failed to update sign count for id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to update sign count", e))
         }
     }
 
-    override suspend fun updateLastUsedAt(credentialId: String): Result<Unit> {
+    override suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.updateLastUsedAt(credentialId)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update last used", e))
+            Logger.e(e) { "CredentialRepository: Failed to update last used at for id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to update last used", e))
         }
     }
 
-    override suspend fun getSignCount(credentialId: String): Result<Long> {
+    override suspend fun getSignCount(credentialId: String): Outcome<Long, DomainError> {
         return try {
             val count = passkeyCredentialDao.getSignCount(credentialId)
-            Result.success(count)
+            Outcome.Success(count)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get sign count for $credentialId" }
-            Result.success(0L)
+            Outcome.Success(0L)
         }
     }
 
     // ── Batch retrieval ───────────────────────────────────────────────────────
 
-    override suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>> {
+    override suspend fun getCredentialsForRp(rpId: String): Outcome<List<PasskeyCredential>, DomainError> {
         return try {
             val entities = passkeyCredentialDao.getCredentialsByRpId(rpId).first()
 
@@ -251,14 +268,14 @@ class CredentialRepositoryImpl(
                 entities.mapNotNull { entity ->
                     entity.toDomainModel(publicKeyDecoder).getOrNull()
                 }
-            Result.success(credentials)
+            Outcome.Success(credentials)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credentials for RP: $rpId" }
-            Result.success(emptyList())
+            Outcome.Success(emptyList())
         }
     }
 
-    override suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>> {
+    override suspend fun getCredentialSummariesForRp(rpId: String): Outcome<List<CredentialSummary>, DomainError> {
         return try {
             // Pure DB read — no HDK derivation at all. This is the fast path used
             // by GetAssertionUseCase to list candidates for selection without incurring
@@ -278,24 +295,24 @@ class CredentialRepositoryImpl(
                         credProtectPolicy = entity.credProtectPolicy.toInt(),
                     )
                 }
-            Result.success(summaries)
+            Outcome.Success(summaries)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credential summaries for RP: $rpId" }
-            Result.success(emptyList())
+            Outcome.Success(emptyList())
         }
     }
 
     override suspend fun getCredentialsByIds(
         credentialIds: Set<String>,
         rpId: String?,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         return try {
             val credentials = credentialIds.mapNotNull { id -> getCredentialById(id) }
             val filtered = if (rpId != null) credentials.filter { it.rpId == rpId } else credentials
-            Result.success(filtered)
+            Outcome.Success(filtered)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credentials by IDs" }
-            Result.success(emptyList())
+            Outcome.Success(emptyList())
         }
     }
 
@@ -372,16 +389,17 @@ class CredentialRepositoryImpl(
         }
     }
 
-    override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Result<Int> {
+    override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Outcome<Int, DomainError> {
         return try {
             var count = 0
             getExpiredCredentials(maxAgeDays).collect { credential ->
                 val r = deleteCredential(credential.id)
-                if (r.isSuccess) count++
+                if (r is Outcome.Success) count++
             }
-            Result.success(count)
+            Outcome.Success(count)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialDeletionFailed(e.message ?: "Cleanup failed", e))
+            Logger.e(e) { "CredentialRepository: Failed to cleanup expired credentials" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Cleanup failed", e))
         }
     }
 
@@ -390,7 +408,7 @@ class CredentialRepositoryImpl(
     override suspend fun validateCredentialCreation(
         rpId: String,
         userId: String,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return try {
             val existingCredentials =
                 getCredentialsByRpId(rpId).let { flow ->
@@ -400,11 +418,16 @@ class CredentialRepositoryImpl(
                 }
             val userCreds = existingCredentials.filter { it.userId.equals(userId, ignoreCase = true) }
             if (userCreds.size >= MAX_USER_CREDENTIALS_PER_RP) {
-                return Result.failure(Fido2Exception.TooManyCredentials(MAX_USER_CREDENTIALS_PER_RP))
+                return Outcome.Error(
+                    DomainError.OperationDenied(
+                        "Too many credentials ($MAX_USER_CREDENTIALS_PER_RP max) for this user and RP",
+                    ),
+                )
             }
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialCreationNotAllowed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: validateCredentialCreation failed for rpId=$rpId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -419,40 +442,42 @@ class CredentialRepositoryImpl(
         }
     }
 
-    override suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit> {
+    override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
         return try {
             relyingPartyDao.insertOrUpdateRelyingParty(rp)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: Failed to save relying party rpId=${rp.id}" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
     override suspend fun updateRelyingParty(
         rpId: String,
         update: (RelyingParty) -> RelyingParty,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return try {
             val currentRp =
-                getRelyingParty(rpId) ?: return Result.failure(
-                    Fido2Exception.RelyingPartyUpdateFailed("RP not found: $rpId"),
-                )
+                getRelyingParty(rpId)
+                    ?: return Outcome.Error(DomainError.NotFound("RP not found: $rpId"))
             val updatedRp = update(currentRp)
             relyingPartyDao.updateRelyingParty(updatedRp)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.RelyingPartyUpdateFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: Failed to update relying party rpId=$rpId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
     // ── User Consent ──────────────────────────────────────────────────────────
 
-    override suspend fun saveUserConsent(consent: UserConsentRecord): Result<Unit> {
+    override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> {
         return try {
             userConsentRecordDao.insertConsent(consent)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.ConsentStorageFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialRepository: Failed to save user consent" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -491,7 +516,7 @@ class CredentialRepositoryImpl(
             val now = Instant.now()
             val cutoff = now.minus(RECENT_USAGE_CUTOFF_DAYS, ChronoUnit.DAYS)
             val expired = allCredentials.count { ChronoUnit.DAYS.between(it.createdAt, now) > EXPIRY_DAYS_THRESHOLD }
-            val recentlyUsed = allCredentials.count { it.lastUsedAt?.isAfter(cutoff) == true }
+            val recentlyUsed = allCredentials.count { it.lastUsedAt.isAfter(cutoff) }
             val needsUV = 0 // Not implemented in current schema
             val avgAge =
                 if (allCredentials.isNotEmpty()) {
@@ -516,7 +541,7 @@ class CredentialRepositoryImpl(
 
     // ── Bulk deletion / reset ─────────────────────────────────────────────────
 
-    override suspend fun deleteAllCredentials(rpId: String?): Result<Unit> {
+    override suspend fun deleteAllCredentials(rpId: String?): Outcome<Unit, DomainError> {
         return try {
             val target: Flow<PasskeyCredential> =
                 if (rpId != null) {
@@ -526,33 +551,34 @@ class CredentialRepositoryImpl(
                 }
 
             target.collect { credential -> deleteCredential(credential.id) }
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to delete all credentials for RP: $rpId" }
-            Result.failure(e)
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
-    override suspend fun resetAuthenticator(): Result<Unit> {
+    override suspend fun resetAuthenticator(): Outcome<Unit, DomainError> {
         return try {
             getAllCredentials().collect { credential -> deleteCredential(credential.id) }
             // TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to reset authenticator" }
-            Result.failure(e)
+            Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
     override suspend fun updateLabel(
         credentialId: String,
         label: String?,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return try {
             passkeyCredentialDao.updateLabel(credentialId, label)
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
-            Result.failure(Fido2Exception.CredentialUpdateFailed(e.message ?: "Failed to update label", e))
+            Logger.e(e) { "CredentialRepository: Failed to update label for id=$credentialId" }
+            Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to update label", e))
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.chimali.fido2.presentation.viewmodel
 
 import com.chimali.core.clipboard.ClipboardManagerService
+import com.chimali.core.common.result.map
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.fido2.data.crypto.ImportMnemonicResult
 import com.chimali.fido2.data.crypto.MasterSeedProvider

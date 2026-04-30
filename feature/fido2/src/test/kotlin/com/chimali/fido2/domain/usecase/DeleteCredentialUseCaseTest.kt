@@ -1,5 +1,10 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -25,7 +30,7 @@ class DeleteCredentialUseCaseTest {
         runTest {
             // Arrange
             val credentialId = "test-credential-id"
-            coEvery { credentialRepository.deleteCredential(credentialId) } returns Result.success(Unit)
+            coEvery { credentialRepository.deleteCredential(credentialId) } returns Outcome.Success(Unit)
 
             // Act
             val result = deleteCredentialUseCase(credentialId)
@@ -41,7 +46,8 @@ class DeleteCredentialUseCaseTest {
             // Arrange
             val credentialId = "non-existent-id"
             val exception = Exception("Credential not found")
-            coEvery { credentialRepository.deleteCredential(credentialId) } returns Result.failure(exception)
+            coEvery { credentialRepository.deleteCredential(credentialId) } returns
+                Outcome.Error(DomainError.NotFound("Credential not found", exception))
 
             // Act
             val result = deleteCredentialUseCase(credentialId)

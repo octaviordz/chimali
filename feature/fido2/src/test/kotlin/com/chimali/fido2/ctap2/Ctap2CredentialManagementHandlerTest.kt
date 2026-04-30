@@ -1,5 +1,6 @@
 package com.chimali.fido2.ctap2
 
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.RelyingParty
@@ -97,7 +98,7 @@ class Ctap2CredentialManagementHandlerTest {
             val mockCredential = mockk<PasskeyCredential>()
             coEvery {
                 getAllCredentialsUseCase(any<Long>(), any<Long>())
-            } returns Result.success(listOf(mockCredential, mockCredential))
+            } returns Outcome.Success(listOf(mockCredential, mockCredential))
 
             val requestBytes = byteArrayOf(DUMMY_BYTE_03)
             every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_GET_METADATA)
@@ -121,7 +122,7 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
             val cred2 = createTestCredential("cred2", "https://other.com", "user2")
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(listOf(cred1, cred2))
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1, cred2))
             coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
                 RelyingParty("https://example.com", "Example", null, 1, Instant.now())
             coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
@@ -140,7 +141,7 @@ class Ctap2CredentialManagementHandlerTest {
     @Test
     fun `enumerateRPsBegin returns NO_CREDENTIALS when empty`() =
         runTest {
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(emptyList())
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(emptyList())
 
             every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
 
@@ -158,7 +159,7 @@ class Ctap2CredentialManagementHandlerTest {
             // First do a Begin to populate the session with 2 RPs
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
             val cred2 = createTestCredential("cred2", "https://other.com", "user2")
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(listOf(cred1, cred2))
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1, cred2))
             coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
                 RelyingParty("https://example.com", "Example", null, 1, Instant.now())
             coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
@@ -183,7 +184,7 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             // Begin with only 1 RP
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Result.success(listOf(cred1))
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1))
             coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
                 RelyingParty("https://example.com", "Example", null, 1, Instant.now())
 
@@ -211,7 +212,7 @@ class Ctap2CredentialManagementHandlerTest {
             val cred2 = createTestCredential("cred2", "https://example.com", "user2")
             coEvery {
                 credentialRepository.getCredentialsForRp("https://example.com")
-            } returns Result.success(listOf(cred1, cred2))
+            } returns Outcome.Success(listOf(cred1, cred2))
 
             val subCommandParams = mapOf("rpId" to "https://example.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
@@ -233,7 +234,7 @@ class Ctap2CredentialManagementHandlerTest {
         runTest {
             coEvery {
                 credentialRepository.getCredentialsForRp("https://empty.com")
-            } returns Result.success(emptyList())
+            } returns Outcome.Success(emptyList())
 
             val subCommandParams = mapOf("rpId" to "https://empty.com")
             every { cborCodec.decodeFromFido2Format(any()) } returns
@@ -257,7 +258,7 @@ class Ctap2CredentialManagementHandlerTest {
             val cred2 = createTestCredential("cred2", "https://example.com", "user2")
             coEvery {
                 credentialRepository.getCredentialsForRp("https://example.com")
-            } returns Result.success(listOf(cred1, cred2))
+            } returns Outcome.Success(listOf(cred1, cred2))
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
@@ -285,7 +286,7 @@ class Ctap2CredentialManagementHandlerTest {
             val cred1 = createTestCredential("cred1", "https://example.com", "user1")
             coEvery {
                 credentialRepository.getCredentialsForRp("https://example.com")
-            } returns Result.success(listOf(cred1))
+            } returns Outcome.Success(listOf(cred1))
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes

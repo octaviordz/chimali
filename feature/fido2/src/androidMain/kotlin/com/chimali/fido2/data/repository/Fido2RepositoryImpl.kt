@@ -1,5 +1,7 @@
 package com.chimali.fido2.data.repository
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.repository.PasskeyCredentialRepository
@@ -15,21 +17,21 @@ class Fido2RepositoryImpl(
         rpId: String,
         userName: String,
         userDisplayName: String,
-    ): Result<String> {
+    ): Outcome<String, DomainError> {
         // TODO: Implement FIDO2 registration logic
-        return Result.success("mock-credential-id")
+        return Outcome.Success("mock-credential-id")
     }
 
-    override suspend fun authenticateCredential(rpId: String): Result<String> {
+    override suspend fun authenticateCredential(rpId: String): Outcome<String, DomainError> {
         // TODO: Implement FIDO2 authentication logic
-        return Result.success("mock-authentication-id")
+        return Outcome.Success("mock-authentication-id")
     }
 
     override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
         return credentialRepository.getAllCredentials()
     }
 
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> {
         return credentialRepository.deleteCredential(credentialId)
     }
 }

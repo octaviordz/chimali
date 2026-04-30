@@ -1,5 +1,8 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.runCatchingOutcome
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
@@ -19,8 +22,10 @@ class PublicKeyDecoder {
     fun decodePublicKey(
         base64Key: String,
         coseAlgorithm: Int,
-    ): Result<PublicKey> {
-        return runCatching {
+    ): Outcome<PublicKey, DomainError.CryptoError> {
+        return runCatchingOutcome(
+            onError = { DomainError.CryptoError("Failed to decode public key", it) },
+        ) {
             val keyBytes = Base64.getDecoder().decode(base64Key)
             val keySpec = X509EncodedKeySpec(keyBytes)
 

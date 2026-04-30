@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
 import org.koin.core.annotation.Factory
 
@@ -13,7 +15,7 @@ class UpdateDeviceAliasUseCase(
     suspend operator fun invoke(
         macAddress: String,
         alias: String?,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return pairedDeviceRepository.updateAlias(macAddress, alias)
     }
 }

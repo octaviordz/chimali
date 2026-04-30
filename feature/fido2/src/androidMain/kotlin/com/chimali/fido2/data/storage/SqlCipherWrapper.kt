@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.storage
 
+import com.chimali.core.common.result.map
 import java.security.SecureRandom
 import org.koin.core.annotation.Single
 

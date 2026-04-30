@@ -13,6 +13,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrDefault
+import com.chimali.core.common.result.isSuccess
+import com.chimali.core.common.result.onFailure
 import com.chimali.fido2.domain.exception.Fido2Exception
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume

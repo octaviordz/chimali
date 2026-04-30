@@ -1,6 +1,8 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -52,7 +54,6 @@ class Ctap2GetAssertionHandler(
         // Status and Error Codes
         private const val CTAP2_OK: Byte = 0x00
         private const val CTAP2_ERR_PROCESSING: Byte = 0x17
-        private const val CTAP2_ERR_NO_VERIFICATION: Byte = 0x26
         private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x29
         private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E
         private const val CTAP1_ERR_OTHER: Byte = 0x7F.toByte()
@@ -78,31 +79,31 @@ class Ctap2GetAssertionHandler(
                     "allowCredentials=${options.allowCredentials?.size ?: "discoverable"}"
             }
 
-            val result = getAssertionUseCase(options)
-            result.fold(
-                onSuccess = { assertion ->
+            when (val result = getAssertionUseCase(options)) {
+                is Outcome.Success -> {
+                    val assertion = result.data
                     Logger.d { "Assertion success: credId=${assertion.credentialId}" }
                     val responseBytes = encodeResponse(assertion, options)
                     byteArrayOf(CTAP2_OK) + responseBytes
-                },
-                onFailure = { error ->
+                }
+                is Outcome.Error -> {
+                    val error = result.error
                     // CredentialNotFound is an expected probe response before registration.
                     // All other errors are unexpected and warrant an error-level log.
-                    if (error is Fido2Exception.CredentialNotFound) {
+                    if (error is DomainError.NotFound) {
                         Logger.d { "Assertion failed (expected): ${error.message}" }
                     } else {
-                        Logger.e(error) { "Assertion failed: ${error.message}" }
+                        Logger.e { "Assertion failed: ${error.message}" }
                     }
                     val errorCode: Byte =
                         when (error) {
-                            is Fido2Exception.CredentialNotFound -> CTAP2_ERR_NO_CREDENTIALS
-                            is Fido2Exception.UserVerificationFailed -> CTAP2_ERR_OPERATION_DENIED
-                            is Fido2Exception.NoVerificationMethodAvailable -> CTAP2_ERR_NO_VERIFICATION
+                            is DomainError.NotFound -> CTAP2_ERR_NO_CREDENTIALS
+                            is DomainError.OperationDenied -> CTAP2_ERR_OPERATION_DENIED
                             else -> CTAP1_ERR_OTHER
                         }
                     byteArrayOf(errorCode)
-                },
-            )
+                }
+            }
         } catch (e: Fido2Exception) {
             Logger.e(e) { "GetAssertion Fido2Exception: ${e.message}" }
             byteArrayOf(CTAP2_ERR_PROCESSING)

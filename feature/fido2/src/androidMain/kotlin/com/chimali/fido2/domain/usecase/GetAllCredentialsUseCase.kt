@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
@@ -14,7 +16,7 @@ class GetAllCredentialsUseCase(
     suspend operator fun invoke(
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         return passkeyCredentialRepository.getPagedCredentials(limit, offset)
     }
 }

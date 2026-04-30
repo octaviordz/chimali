@@ -1,5 +1,10 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -24,7 +29,7 @@ class DeleteAllCredentialsUseCaseTest {
     fun `invoke without rpId should delete all credentials`() =
         runTest {
             // Arrange
-            coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.success(Unit)
+            coEvery { credentialRepository.deleteAllCredentials(null) } returns Outcome.Success(Unit)
 
             // Act
             val result = deleteAllCredentialsUseCase()
@@ -39,7 +44,7 @@ class DeleteAllCredentialsUseCaseTest {
         runTest {
             // Arrange
             val rpId = "example.com"
-            coEvery { credentialRepository.deleteAllCredentials(rpId) } returns Result.success(Unit)
+            coEvery { credentialRepository.deleteAllCredentials(rpId) } returns Outcome.Success(Unit)
 
             // Act
             val result = deleteAllCredentialsUseCase(rpId)
@@ -54,7 +59,8 @@ class DeleteAllCredentialsUseCaseTest {
         runTest {
             // Arrange
             val exception = Exception("Database error")
-            coEvery { credentialRepository.deleteAllCredentials(null) } returns Result.failure(exception)
+            coEvery { credentialRepository.deleteAllCredentials(null) } returns
+                Outcome.Error(DomainError.DatabaseError("Database error", exception))
 
             // Act
             val result = deleteAllCredentialsUseCase()

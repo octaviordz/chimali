@@ -2,10 +2,10 @@ package com.chimali.feature.vault.internal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chimali.core.common.result.Outcome
 import com.chimali.feature.vault.api.VaultIntent
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultState
-import java.io.IOException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,11 +34,11 @@ class VaultViewModel(
     private fun loadItems(intent: VaultIntent.LoadItems) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                val items = vaultService.getItems(intent.filterLabelId)
-                _state.update { it.copy(isLoading = false, items = items) }
-            } catch (e: IOException) {
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load items") }
+            when (val result = vaultService.getItems(intent.filterLabelId)) {
+                is Outcome.Success -> _state.update { it.copy(isLoading = false, items = result.data) }
+                is Outcome.Error -> _state.update {
+                    it.copy(isLoading = false, errorMessage = result.error.message)
+                }
             }
         }
     }
@@ -46,13 +46,19 @@ class VaultViewModel(
     private fun saveItem(intent: VaultIntent.SaveItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                vaultService.saveItem(intent.item)
-                // Reload items after saving
-                val items = vaultService.getItems(null)
-                _state.update { it.copy(isLoading = false, items = items) }
-            } catch (e: IOException) {
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to save item") }
+            when (val saveResult = vaultService.saveItem(intent.item)) {
+                is Outcome.Success -> {
+                    // Reload items after saving
+                    when (val loadResult = vaultService.getItems(null)) {
+                        is Outcome.Success -> _state.update { it.copy(isLoading = false, items = loadResult.data) }
+                        is Outcome.Error -> _state.update {
+                            it.copy(isLoading = false, errorMessage = loadResult.error.message)
+                        }
+                    }
+                }
+                is Outcome.Error -> _state.update {
+                    it.copy(isLoading = false, errorMessage = saveResult.error.message)
+                }
             }
         }
     }
@@ -60,13 +66,19 @@ class VaultViewModel(
     private fun deleteItem(intent: VaultIntent.DeleteItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                vaultService.deleteItem(intent.id)
-                // Reload items after deletion
-                val items = vaultService.getItems(null)
-                _state.update { it.copy(isLoading = false, items = items) }
-            } catch (e: IOException) {
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "Failed to delete item") }
+            when (val deleteResult = vaultService.deleteItem(intent.id)) {
+                is Outcome.Success -> {
+                    // Reload items after deletion
+                    when (val loadResult = vaultService.getItems(null)) {
+                        is Outcome.Success -> _state.update { it.copy(isLoading = false, items = loadResult.data) }
+                        is Outcome.Error -> _state.update {
+                            it.copy(isLoading = false, errorMessage = loadResult.error.message)
+                        }
+                    }
+                }
+                is Outcome.Error -> _state.update {
+                    it.copy(isLoading = false, errorMessage = deleteResult.error.message)
+                }
             }
         }
     }

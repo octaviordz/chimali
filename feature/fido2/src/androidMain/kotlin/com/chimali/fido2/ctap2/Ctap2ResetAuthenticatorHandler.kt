@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
 import org.koin.core.annotation.Single
 

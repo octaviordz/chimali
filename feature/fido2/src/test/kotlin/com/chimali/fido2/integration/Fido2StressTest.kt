@@ -1,5 +1,10 @@
 package com.chimali.fido2.integration
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.isSuccess
+import com.chimali.core.common.result.map
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
@@ -165,7 +170,7 @@ class Fido2StressTest {
                 coEvery {
                     isUserVerificationRequired(any(), any(), any())
                 } returns ServiceVerificationRequirement.PREFERRED
-                coEvery { recordUserConsent(any()) } returns Result.success(Unit)
+                coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
             }
 
         val selectCredentialUseCase = SelectCredentialUseCase()
@@ -351,10 +356,10 @@ private class InMemoryCredentialRepository : CredentialRepository {
                 )
             }
 
-    override suspend fun saveCredential(credential: PasskeyCredential): Result<Unit> {
+    override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         credentials[credential.id] = credential
         signCounts[credential.id] = 0L
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun getCredentialById(credentialId: String): PasskeyCredential? = credentials[credentialId]
@@ -370,39 +375,39 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun getPagedCredentials(
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         val list = credentials.values.toList().drop(offset.toInt()).take(limit.toInt())
-        return Result.success(list)
+        return Outcome.Success(list)
     }
 
     override suspend fun getPagedCredentialsByRpId(
         rpId: String,
         limit: Long,
         offset: Long,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         val list = credentials.values.filter { it.rpId == rpId }.drop(offset.toInt()).take(limit.toInt())
-        return Result.success(list)
+        return Outcome.Success(list)
     }
 
     override suspend fun updateSignCount(
         credentialId: String,
         newSignCount: Long,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         signCounts[credentialId] = newSignCount
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
-    override suspend fun updateLastUsedAt(credentialId: String): Result<Unit> {
+    override suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError> {
         credentials[credentialId]?.let {
             credentials[credentialId] = it.copy(lastUsedAt = Instant.now())
         }
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
-    override suspend fun deleteCredential(credentialId: String): Result<Unit> {
+    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> {
         credentials.remove(credentialId)
         signCounts.remove(credentialId)
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun credentialExists(
@@ -421,26 +426,26 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun validateCredentialCreation(
         rpId: String,
         userId: String,
-    ): Result<Unit> = Result.success(Unit)
+    ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun saveRelyingParty(rp: RelyingParty): Result<Unit> {
+    override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
         relyingParties[rp.id] = rp
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun updateRelyingParty(
         rpId: String,
         update: (RelyingParty) -> RelyingParty,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         relyingParties[rpId]?.let { relyingParties[rpId] = update(it) }
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun getRelyingParty(rpId: String): RelyingParty? = relyingParties[rpId]
 
-    override suspend fun saveUserConsent(consent: UserConsentRecord): Result<Unit> = Result.success(Unit)
+    override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun getRecentUserConsent(
         rpId: String?,
@@ -462,11 +467,11 @@ private class InMemoryCredentialRepository : CredentialRepository {
             averageAgeDays = 0.0,
         )
 
-    override suspend fun getCredentialsForRp(rpId: String): Result<List<PasskeyCredential>> =
-        Result.success(credentials.values.filter { it.rpId == rpId })
+    override suspend fun getCredentialsForRp(rpId: String): Outcome<List<PasskeyCredential>, DomainError> =
+        Outcome.Success(credentials.values.filter { it.rpId == rpId })
 
-    override suspend fun getCredentialSummariesForRp(rpId: String): Result<List<CredentialSummary>> =
-        Result.success(
+    override suspend fun getCredentialSummariesForRp(rpId: String): Outcome<List<CredentialSummary>, DomainError> =
+        Outcome.Success(
             credentials.values
                 .filter { it.rpId == rpId }
                 .map {
@@ -480,22 +485,22 @@ private class InMemoryCredentialRepository : CredentialRepository {
                 },
         )
 
-    override suspend fun getSignCount(credentialId: String): Result<Long> =
-        Result.success(
+    override suspend fun getSignCount(credentialId: String): Outcome<Long, DomainError> =
+        Outcome.Success(
             signCounts[credentialId] ?: 0L,
         )
 
     override suspend fun getCredentialsByIds(
         credentialIds: Set<String>,
         rpId: String?,
-    ): Result<List<PasskeyCredential>> {
+    ): Outcome<List<PasskeyCredential>, DomainError> {
         val filtered = credentials.values.filter { it.id in credentialIds }
-        return Result.success(if (rpId != null) filtered.filter { it.rpId == rpId } else filtered)
+        return Outcome.Success(if (rpId != null) filtered.filter { it.rpId == rpId } else filtered)
     }
 
-    override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Result<Int> = Result.success(0)
+    override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Outcome<Int, DomainError> = Outcome.Success(0)
 
-    override suspend fun deleteAllCredentials(rpId: String?): Result<Unit> {
+    override suspend fun deleteAllCredentials(rpId: String?): Outcome<Unit, DomainError> {
         if (rpId == null) {
             credentials.clear()
             signCounts.clear()
@@ -506,23 +511,23 @@ private class InMemoryCredentialRepository : CredentialRepository {
                 signCounts.remove(it)
             }
         }
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
-    override suspend fun resetAuthenticator(): Result<Unit> {
+    override suspend fun resetAuthenticator(): Outcome<Unit, DomainError> {
         credentials.clear()
         signCounts.clear()
         relyingParties.clear()
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun updateLabel(
         credentialId: String,
         label: String?,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         credentials[credentialId]?.let {
             credentials[credentialId] = it.copy(label = label)
         }
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 }

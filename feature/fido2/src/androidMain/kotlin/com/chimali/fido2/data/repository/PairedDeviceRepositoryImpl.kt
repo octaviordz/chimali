@@ -1,7 +1,11 @@
-﻿package com.chimali.fido2.data.repository
+package com.chimali.fido2.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
@@ -33,8 +37,9 @@ class PairedDeviceRepositoryImpl(
             }
     }
 
-    override suspend fun saveDevice(device: PairedDevice): Result<Unit> =
-        runCatching {
+    @Suppress("TooGenericExceptionCaught")
+    override suspend fun saveDevice(device: PairedDevice): Outcome<Unit, DomainError> {
+        return try {
             // We do a read-modify-write to preserve createdAt if it already exists
             val existing = database.pairedDeviceQueries.selectByAddress(device.macAddress).executeAsOneOrNull()
 
@@ -59,18 +64,35 @@ class PairedDeviceRepositoryImpl(
                 deviceClass = finalClassToSave,
                 name = device.name ?: existing?.name,
             )
+            Outcome.Success(Unit)
+        } catch (e: Exception) {
+            Logger.e(e) { "Failed to save device: ${device.macAddress}" }
+            Outcome.Error(DomainError.DatabaseError("Failed to save device", e))
         }
+    }
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun updateAlias(
         macAddress: String,
         alias: String?,
-    ): Result<Unit> =
-        runCatching {
+    ): Outcome<Unit, DomainError> {
+        return try {
             database.pairedDeviceQueries.updateAlias(alias, macAddress)
+            Outcome.Success(Unit)
+        } catch (e: Exception) {
+            Logger.e(e) { "Failed to update alias for device: $macAddress" }
+            Outcome.Error(DomainError.DatabaseError("Failed to update alias", e))
         }
+    }
 
-    override suspend fun deleteDevice(macAddress: String): Result<Unit> =
-        runCatching {
+    @Suppress("TooGenericExceptionCaught")
+    override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> {
+        return try {
             database.pairedDeviceQueries.deleteByAddress(macAddress)
+            Outcome.Success(Unit)
+        } catch (e: Exception) {
+            Logger.e(e) { "Failed to delete device: $macAddress" }
+            Outcome.Error(DomainError.DatabaseError("Failed to delete device", e))
         }
+    }
 }

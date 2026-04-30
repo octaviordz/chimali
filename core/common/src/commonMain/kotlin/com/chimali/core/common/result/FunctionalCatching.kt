@@ -1,5 +1,5 @@
 /**
- * Utility functions for safely wrapping operations in [DataResult] without using
+ * Utility functions for safely wrapping operations in [Outcome] without using
  * generic `catch (e: Exception)` blocks (which violate the Detekt `TooGenericExceptionCaught` rule).
  *
  * ## Coroutine Safety
@@ -16,7 +16,7 @@
  *
  * ```kotlin
  * // For truly unknown APIs (use sparingly)
- * val result: DataResult<String, DomainError> = runCatchingResult(
+ * val result: Outcome<String, DomainError> = runCatchingOutcome(
  *     onError = { e -> DomainError.UnknownError("Unexpected failure", e) }
  * ) {
  *     undocumentedApi.doSomething()
@@ -28,11 +28,17 @@ package com.chimali.core.common.result
 import kotlinx.coroutines.CancellationException
 
 /**
- * Executes [block] and wraps the result in a [DataResult].
+ * Executes [block] and wraps the result in an [Outcome].
  *
- * - On success: returns [DataResult.Success] with the block's return value.
+ * - On success: returns [Outcome.Success] with the block's return value.
  * - On [CancellationException]: **always rethrows** to preserve structured concurrency.
- * - On any other [Throwable]: maps via [onError] and returns [DataResult.Error].
+ * - On any other [Throwable]: maps via [onError] and returns [Outcome.Error].
+ *
+ * ### Architectural Decision: @Suppress("TooGenericExceptionCaught")
+ * We catch [Throwable] here to provide a safe boundary for third-party or platform APIs
+ * that might throw undocumented runtime exceptions. This is the **only** layer where
+ * generic catching is permitted, ensuring that the rest of the business logic remains
+ * crash-safe and adheres to strict static analysis.
  *
  * **Important**: [CancellationException] is NOT caught or wrapped.
  *
@@ -40,33 +46,41 @@ import kotlinx.coroutines.CancellationException
  *                The throwable passed to [onError] is never a [CancellationException].
  */
 @Suppress("TooGenericExceptionCaught")
-inline fun <D, E : DomainError> runCatchingResult(
+inline fun <D, E : DomainError> runCatchingOutcome(
     onError: (Throwable) -> E,
     block: () -> D,
-): DataResult<D, E> =
+): Outcome<D, E> =
     try {
-        DataResult.Success(block())
+        Outcome.Success(block())
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (throwable: Throwable) {
-        DataResult.Error(onError(throwable))
+        Outcome.Error(onError(throwable))
     }
 
 /**
- * Executes [block] and wraps the result in a [DataResult.Success], or returns
- * [DataResult.Error] with a [DomainError.UnknownError] if any non-cancellation
+ * Executes [block] and wraps the result in an [Outcome.Success], or returns
+ * [Outcome.Error] with a [DomainError.UnknownError] if any non-cancellation
  * [Throwable] is caught.
  *
- * Use this as a **last resort** for truly opaque APIs. For all other cases, prefer
- * explicit `try-catch` with specific exception types and a meaningful [DomainError].
+ * This version is **suspend-aware** and safe for use in coroutines.
+ *
+ * ### Architectural Decision: @Suppress("TooGenericExceptionCaught")
+ * Generic [Throwable] is caught and wrapped into a [DomainError.UnknownError] to prevent
+ * unhandled crashes at the boundary of external or legacy code. By using this helper,
+ * we avoid polluting the rest of the codebase with `@Suppress` annotations.
  *
  * **Important**: [CancellationException] is NOT caught or wrapped.
  */
-inline fun <D> runCatchingResultOrUnknown(
+@Suppress("TooGenericExceptionCaught")
+suspend inline fun <D> functionalCatching(
     errorMessage: String = "An unexpected error occurred",
-    block: () -> D,
-): DataResult<D, DomainError.UnknownError> =
-    runCatchingResult(
-        onError = { e -> DomainError.UnknownError(errorMessage, e) },
-        block = block,
-    )
+    crossinline block: suspend () -> D,
+): Outcome<D, DomainError.UnknownError> =
+    try {
+        Outcome.Success(block())
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (throwable: Throwable) {
+        Outcome.Error(DomainError.UnknownError(errorMessage, throwable))
+    }

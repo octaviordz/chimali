@@ -12,6 +12,8 @@ import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isFailure
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus

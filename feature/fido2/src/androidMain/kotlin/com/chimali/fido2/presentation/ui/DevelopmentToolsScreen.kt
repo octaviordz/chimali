@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.common.result.map
 import com.chimali.core.ui.theme.LegibilityType
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions

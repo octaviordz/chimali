@@ -1,7 +1,10 @@
 package com.chimali.fido2.data.crypto
 
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.map
 import com.chimali.fido2.data.service.CredentialStorageService
-import com.chimali.fido2.domain.exception.Fido2Exception
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -47,11 +50,15 @@ class CredentialEncryptionService(
     suspend fun encrypt(
         data: ByteArray,
         associatedData: ByteArray? = null,
-    ): Result<CredentialStorageService.EncryptedData> {
+    ): Outcome<CredentialStorageService.EncryptedData, DomainError.CryptoError> {
         return withContext(Dispatchers.IO) {
             try {
                 // Get or create master encryption key
-                val masterKey = getOrCreateMasterKey()
+                val masterKey =
+                    getOrCreateMasterKey()
+                        ?: return@withContext Outcome.Error(
+                            DomainError.CryptoError("Failed to obtain master key"),
+                        )
 
                 // Generate random IV
                 val iv = ByteArray(GCM_IV_LENGTH)
@@ -68,7 +75,7 @@ class CredentialEncryptionService(
                 // Encrypt the data
                 val encryptedData = cipher.doFinal(data)
 
-                Result.success(
+                Outcome.Success(
                     CredentialStorageService.EncryptedData(
                         data = encryptedData,
                         iv = iv,
@@ -76,7 +83,8 @@ class CredentialEncryptionService(
                     ),
                 )
             } catch (e: java.security.GeneralSecurityException) {
-                Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+                Logger.e(e) { "CredentialEncryptionService: Encryption failed" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
             }
         }
     }
@@ -91,13 +99,15 @@ class CredentialEncryptionService(
     suspend fun decrypt(
         encryptedData: CredentialStorageService.EncryptedData,
         associatedData: ByteArray? = null,
-    ): Result<ByteArray> {
+    ): Outcome<ByteArray, DomainError.CryptoError> {
         return withContext(Dispatchers.IO) {
             try {
                 // Get master encryption key
                 val masterKey =
                     getMasterKey()
-                        ?: return@withContext Result.failure(Fido2Exception.KeyNotFound(MASTER_KEY_ALIAS))
+                        ?: return@withContext Outcome.Error(
+                            DomainError.CryptoError("Key not found: $MASTER_KEY_ALIAS"),
+                        )
 
                 // Initialize cipher for decryption
                 val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
@@ -110,9 +120,10 @@ class CredentialEncryptionService(
                 // Decrypt the data
                 val decryptedData = cipher.doFinal(encryptedData.data)
 
-                Result.success(decryptedData)
+                Outcome.Success(decryptedData)
             } catch (e: java.security.GeneralSecurityException) {
-                Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+                Logger.e(e) { "CredentialEncryptionService: Decryption failed" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
             }
         }
     }
@@ -123,7 +134,7 @@ class CredentialEncryptionService(
     suspend fun encryptString(
         value: String,
         associatedData: ByteArray? = null,
-    ): Result<String> {
+    ): Outcome<String, DomainError.CryptoError> {
         return encrypt(value.toByteArray(), associatedData).map { encryptedData ->
             // Combine IV and encrypted data for storage
             val combined = encryptedData.iv + encryptedData.data
@@ -137,12 +148,12 @@ class CredentialEncryptionService(
     suspend fun decryptString(
         encryptedValue: String,
         associatedData: ByteArray? = null,
-    ): Result<String> {
+    ): Outcome<String, DomainError.CryptoError> {
         return try {
             val combined = Base64.getDecoder().decode(encryptedValue)
 
             if (combined.size < GCM_IV_LENGTH) {
-                return Result.failure(Fido2Exception.InvalidEncryptedData("Data too short"))
+                return Outcome.Error(DomainError.CryptoError("Encrypted data too short"))
             }
 
             val iv = combined.sliceArray(0 until GCM_IV_LENGTH)
@@ -159,7 +170,8 @@ class CredentialEncryptionService(
                 String(decryptedData)
             }
         } catch (e: IllegalArgumentException) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Invalid Base64 for decryption" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -171,7 +183,7 @@ class CredentialEncryptionService(
         userId: String,
         userName: String,
         userDisplayName: String,
-    ): Result<EncryptedCredentialMetadata> {
+    ): Outcome<EncryptedCredentialMetadata, DomainError.CryptoError> {
         return try {
             val metadata =
                 CredentialMetadata(
@@ -192,7 +204,8 @@ class CredentialEncryptionService(
                 )
             }
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Failed to encrypt credential metadata for rpId=$rpId" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -202,12 +215,14 @@ class CredentialEncryptionService(
     suspend fun decryptCredentialMetadata(
         encryptedMetadata: EncryptedCredentialMetadata,
         expectedRpId: String,
-    ): Result<CredentialMetadata> {
+    ): Outcome<CredentialMetadata, DomainError.CryptoError> {
         return try {
             // Verify RP ID hash
             val expectedHash = hashRpId(expectedRpId)
             if (encryptedMetadata.rpIdHash != expectedHash) {
-                return Result.failure(Fido2Exception.RpIdMismatch(expectedRpId, encryptedMetadata.rpIdHash))
+                return Outcome.Error(
+                    DomainError.CryptoError("RP ID mismatch: expected $expectedRpId"),
+                )
             }
 
             val encryptedData = Base64.getDecoder().decode(encryptedMetadata.encryptedData)
@@ -226,7 +241,8 @@ class CredentialEncryptionService(
                 deserializeMetadata(metadataJson)
             }
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Failed to decrypt credential metadata" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -236,10 +252,12 @@ class CredentialEncryptionService(
     suspend fun deriveCredentialKey(
         credentialId: String,
         rpId: String,
-    ): Result<SecretKey> {
+    ): Outcome<SecretKey, DomainError.CryptoError> {
         return try {
             // Use HKDF to derive a unique key for each credential
-            val masterKey = getOrCreateMasterKey()
+            val masterKey =
+                getOrCreateMasterKey()
+                    ?: return Outcome.Error(DomainError.CryptoError("Failed to obtain master key"))
             val salt = (credentialId + rpId).toByteArray()
 
             val derivedKey =
@@ -251,9 +269,10 @@ class CredentialEncryptionService(
                     outputLength = 32,
                 )
 
-            Result.success(SecretKeySpec(derivedKey, ALGORITHM_AES))
+            Outcome.Success(SecretKeySpec(derivedKey, ALGORITHM_AES))
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.KeyDerivationFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Key derivation failed for credentialId=$credentialId" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -264,9 +283,11 @@ class CredentialEncryptionService(
         data: ByteArray,
         credentialId: String,
         rpId: String,
-    ): Result<CredentialStorageService.EncryptedData> {
+    ): Outcome<CredentialStorageService.EncryptedData, DomainError.CryptoError> {
         return try {
-            val derivedKey = deriveCredentialKey(credentialId, rpId).getOrThrow()
+            val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
+            if (derivedKeyOutcome is Outcome.Error) return derivedKeyOutcome
+            val derivedKey = (derivedKeyOutcome as Outcome.Success).data
 
             // Generate random IV
             val iv = ByteArray(GCM_IV_LENGTH)
@@ -280,7 +301,7 @@ class CredentialEncryptionService(
             // Encrypt the data
             val encryptedData = cipher.doFinal(data)
 
-            Result.success(
+            Outcome.Success(
                 CredentialStorageService.EncryptedData(
                     data = encryptedData,
                     iv = iv,
@@ -288,7 +309,10 @@ class CredentialEncryptionService(
                 ),
             )
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.EncryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(
+                e,
+            ) { "CredentialEncryptionService: encryptWithCredentialKey failed for credentialId=$credentialId" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
@@ -299,9 +323,11 @@ class CredentialEncryptionService(
         encryptedData: CredentialStorageService.EncryptedData,
         credentialId: String,
         rpId: String,
-    ): Result<ByteArray> {
+    ): Outcome<ByteArray, DomainError.CryptoError> {
         return try {
-            val derivedKey = deriveCredentialKey(credentialId, rpId).getOrThrow()
+            val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
+            if (derivedKeyOutcome is Outcome.Error) return derivedKeyOutcome
+            val derivedKey = (derivedKeyOutcome as Outcome.Success).data
 
             // Initialize cipher for decryption
             val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
@@ -311,16 +337,19 @@ class CredentialEncryptionService(
             // Decrypt the data
             val decryptedData = cipher.doFinal(encryptedData.data)
 
-            Result.success(decryptedData)
+            Outcome.Success(decryptedData)
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.DecryptionFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(
+                e,
+            ) { "CredentialEncryptionService: decryptWithCredentialKey failed for credentialId=$credentialId" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
     /**
      * Rotates the master encryption key.
      */
-    suspend fun rotateMasterKey(): Result<Unit> {
+    suspend fun rotateMasterKey(): Outcome<Unit, DomainError.CryptoError> {
         return try {
             generateMasterKey()
 
@@ -330,17 +359,18 @@ class CredentialEncryptionService(
             // 3. Delete the old key
 
             // For now, we'll just create the new key
-            Result.success(Unit)
+            Outcome.Success(Unit)
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.KeyRotationFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Master key rotation failed" }
+            Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
     }
 
     /**
      * Gets or creates the master encryption key.
      */
-    private suspend fun getOrCreateMasterKey(): SecretKey {
-        return getMasterKey() ?: generateMasterKey().getOrThrow()
+    private suspend fun getOrCreateMasterKey(): SecretKey? {
+        return getMasterKey() ?: generateMasterKey()
     }
 
     /**
@@ -351,9 +381,9 @@ class CredentialEncryptionService(
             credentialStorageService.keyExists(MASTER_KEY_ALIAS)
             // In a real implementation, you would retrieve the actual key from KeyStore
             // For now, we'll generate a temporary key for demonstration
-            generateMasterKey().getOrNull()
+            generateMasterKey()
         } catch (e: java.security.GeneralSecurityException) {
-            co.touchlab.kermit.Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
+            Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
             null
         }
     }
@@ -361,16 +391,16 @@ class CredentialEncryptionService(
     /**
      * Generates a new master encryption key.
      */
-    private suspend fun generateMasterKey(): Result<SecretKey> {
+    private fun generateMasterKey(): SecretKey? {
         return try {
             val keyGenerator = KeyGenerator.getInstance(ALGORITHM_AES)
             keyGenerator.init(KEY_SIZE_AES)
-            val key = keyGenerator.generateKey()
 
             // In a real implementation, store this in Android KeyStore
-            Result.success(key)
+            keyGenerator.generateKey()
         } catch (e: java.security.GeneralSecurityException) {
-            Result.failure(Fido2Exception.KeyGenerationFailed(e.message ?: UNKNOWN_ERROR, e))
+            Logger.e(e) { "CredentialEncryptionService: Master key generation failed" }
+            null
         }
     }
 

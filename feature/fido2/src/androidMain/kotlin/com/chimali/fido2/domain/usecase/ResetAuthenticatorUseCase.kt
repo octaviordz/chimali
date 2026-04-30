@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
 
@@ -11,7 +13,7 @@ import org.koin.core.annotation.Factory
 class ResetAuthenticatorUseCase(
     private val credentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(): Result<Unit> {
+    suspend operator fun invoke(): Outcome<Unit, DomainError> {
         return credentialRepository.resetAuthenticator()
     }
 }

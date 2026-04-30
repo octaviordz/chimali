@@ -1,10 +1,11 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
-import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.util.performance.LatencyProfiler
@@ -103,18 +104,19 @@ class Fido2CryptoService(
      *
      * @param credentialId   Unique credential identifier.
      * @param algId          COSE algorithm identifier (default [COSE_ES256]).
-     * @return [Fido2KeyPair] with alias and public key bytes.
+     * @return [Outcome] containing [Fido2KeyPair] with alias and public key bytes, or [DomainError.CryptoError].
      */
+    @Suppress("TooGenericExceptionCaught")
     suspend fun generateCredentialKeyPair(
         credentialId: CredentialId,
         algId: Int = COSE_ES256,
-    ): Result<Fido2KeyPair> =
+    ): Outcome<Fido2KeyPair, DomainError.CryptoError> =
         withContext(defaultDispatcher) {
-            runCatching {
+            try {
                 if (algId == COSE_ML_DSA_65) {
                     val pqChildSeed =
                         masterSeedProvider.getPqChildSeed()
-                            ?: throw Fido2Exception.KeyGenerationFailed("PQ seed not available", null)
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
                     val derivedSeed =
                         java.security.MessageDigest.getInstance("SHA-512").apply {
                             update(pqChildSeed)
@@ -122,14 +124,14 @@ class Fido2CryptoService(
                         }.digest()
                     val keyPair =
                         postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
-                            ?: throw Fido2Exception.KeyGenerationFailed("ML-DSA not supported", null)
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA not supported"))
                     val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
                     derivedSeed.fill(0)
 
                     Logger.d {
                         "ML-DSA key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
                     }
-                    return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
+                    return@withContext Outcome.Success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                 }
 
                 // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
@@ -141,7 +143,7 @@ class Fido2CryptoService(
                 if (algId == COSE_ED25519) {
                     val seed =
                         masterSeedProvider.getMasterSeed()
-                            ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
                     val derivedSeed =
                         java.security.MessageDigest.getInstance("SHA-512").apply {
                             update(seed)
@@ -157,16 +159,16 @@ class Fido2CryptoService(
                     Logger.d {
                         "Ed25519 key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
                     }
-                    return@withContext Result.success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
+                    return@withContext Outcome.Success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                 }
 
                 val seed =
                     masterSeedProvider.getMasterSeed()
-                        ?: throw Fido2Exception.KeyGenerationFailed("Master seed not available", null)
+                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
 
                 val deviceKeyPair =
                     masterSeedProvider.getDeviceKeyPair()
-                        ?: throw Fido2Exception.KeyGenerationFailed("Device key pair not available", null)
+                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Device key pair not available"))
 
                 val devicePubKeyBytes = deviceKeyPair.publicKey
                 val path = derivationPath(credentialId)
@@ -185,13 +187,15 @@ class Fido2CryptoService(
                 Logger.d {
                     "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
                 }
-                Fido2KeyPair(
-                    alias = credentialAlias(credentialId),
-                    publicKeyBytes = publicKeyBytes,
+                Outcome.Success(
+                    Fido2KeyPair(
+                        alias = credentialAlias(credentialId),
+                        publicKeyBytes = publicKeyBytes,
+                    ),
                 )
-            }.recoverCatching { e ->
-                Logger.e(e) { "Key derivation failed" }
-                throw Fido2Exception.KeyGenerationFailed(e.message ?: "Key derivation failed", e)
+            } catch (e: Exception) {
+                Logger.e(e) { "Fido2CryptoService: Key derivation failed for credentialId=$credentialId" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: "Key derivation failed", e))
             }
         }
 
@@ -199,7 +203,8 @@ class Fido2CryptoService(
      * Returns the uncompressed public key bytes (65 bytes) for a credential.
      */
     suspend fun getPublicKeyBytes(credentialId: CredentialId): ByteArray? {
-        return generateCredentialKeyPair(credentialId).getOrNull()?.publicKeyBytes
+        val result = generateCredentialKeyPair(credentialId)
+        return if (result is Outcome.Success) result.data.publicKeyBytes else null
     }
 
     /**
@@ -210,7 +215,10 @@ class Fido2CryptoService(
         algId: Int,
     ): PublicKey? {
         return try {
-            val keyPair = generateCredentialKeyPair(credentialId, algId).getOrNull() ?: return null
+            val result = generateCredentialKeyPair(credentialId, algId)
+            if (result !is Outcome.Success) return null
+            val keyPair = result.data
+
             if (algId == COSE_ML_DSA_65) {
                 val bcProvider = BouncyCastleProvider()
                 val kf = KeyFactory.getInstance("ML-DSA-65", bcProvider)
@@ -247,7 +255,7 @@ class Fido2CryptoService(
     @Suppress("RedundantSuspendModifier")
     suspend fun deleteCredentialKey(
         @Suppress("UNUSED_PARAMETER") credentialId: CredentialId,
-    ): Result<Unit> = Result.success(Unit)
+    ): Outcome<Unit, DomainError.CryptoError> = Outcome.Success(Unit)
 
     /**
      * Pre-warms the master seed cache to eliminate first-ceremony latency.
@@ -274,8 +282,9 @@ class Fido2CryptoService(
      *
      * The result is intentionally discarded. Failures are non-fatal.
      */
+    @Suppress("TooGenericExceptionCaught")
     suspend fun warmUpMasterSeed() {
-        runCatching {
+        try {
             val t0 = System.currentTimeMillis()
             Logger.d("Master seed pre-warm START")
 
@@ -285,14 +294,14 @@ class Fido2CryptoService(
                 masterSeedProvider.getMasterSeed()
                     ?: run {
                         Logger.w("Master seed pre-warm: seed not available — skipping full warmup")
-                        return@runCatching
+                        return
                     }
 
             val deviceKeyPair =
                 masterSeedProvider.getDeviceKeyPair()
                     ?: run {
                         Logger.w("Master seed pre-warm: device key pair not available — skipping full warmup")
-                        return@runCatching
+                        return
                     }
 
             val t1 = System.currentTimeMillis()
@@ -342,7 +351,7 @@ class Fido2CryptoService(
                     "sign-path=${System.currentTimeMillis() - t1}ms " +
                     "total=${System.currentTimeMillis() - t0}ms"
             }
-        }.onFailure { e ->
+        } catch (e: Exception) {
             Logger.w(e) { "Master seed pre-warm FAILED (non-fatal): ${e.message}" }
         }
     }
@@ -355,22 +364,23 @@ class Fido2CryptoService(
      *
      * @param credentialId The credential whose key should sign the data.
      * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
-     * @return DER-encoded ECDSA signature bytes.
+     * @return [Outcome] containing DER-encoded ECDSA signature bytes.
      */
+    @Suppress("TooGenericExceptionCaught")
     suspend fun sign(
         credentialId: CredentialId,
         data: ByteArray,
         algId: Int = COSE_ES256,
-    ): Result<ByteArray> =
+    ): Outcome<ByteArray, DomainError.CryptoError> =
         withContext(defaultDispatcher) {
-            runCatching {
+            try {
                 // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
                 LatencyProfiler.start(LATENCY_TAG_SIGN)
 
                 if (algId == COSE_ML_DSA_65) {
                     val pqChildSeed =
                         masterSeedProvider.getPqChildSeed()
-                            ?: throw Fido2Exception.KeyNotFound("PQ seed not available")
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
                     val derivedSeed =
                         java.security.MessageDigest.getInstance("SHA-512").apply {
                             update(pqChildSeed)
@@ -378,10 +388,10 @@ class Fido2CryptoService(
                         }.digest()
                     val keyPair =
                         postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
-                            ?: throw Fido2Exception.SigningFailed("ML-DSA generation failed", null)
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA generation failed"))
                     val signature =
                         postQuantumCrypto.sign(keyPair.private, data)
-                            ?: throw Fido2Exception.SigningFailed("ML-DSA signing failed", null)
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA signing failed"))
 
                     derivedSeed.fill(0)
                     LatencyProfiler.end(LATENCY_TAG_SIGN)
@@ -389,7 +399,7 @@ class Fido2CryptoService(
                         "Signed ${data.size} bytes with ML-DSA for " +
                             "credentialId=$credentialId sigLen=${signature.size}"
                     }
-                    return@withContext Result.success(signature)
+                    return@withContext Outcome.Success(signature)
                 }
 
                 // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
@@ -398,7 +408,7 @@ class Fido2CryptoService(
                 if (algId == COSE_ED25519) {
                     val seed =
                         masterSeedProvider.getMasterSeed()
-                            ?: throw Fido2Exception.KeyNotFound("Master seed not available")
+                            ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
                     val derivedSeed =
                         java.security.MessageDigest.getInstance("SHA-512").apply {
                             update(seed)
@@ -419,16 +429,16 @@ class Fido2CryptoService(
                         "Signed ${data.size} bytes with Ed25519 for " +
                             "credentialId=$credentialId sigLen=${signature.size}"
                     }
-                    return@withContext Result.success(signature)
+                    return@withContext Outcome.Success(signature)
                 }
 
                 val seed =
                     masterSeedProvider.getMasterSeed()
-                        ?: throw Fido2Exception.KeyNotFound("Master seed not available")
+                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
 
                 val deviceKeyPair =
                     masterSeedProvider.getDeviceKeyPair()
-                        ?: throw Fido2Exception.KeyNotFound("Device key pair not available")
+                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Device key pair not available"))
 
                 val devicePubKeyBytes = deviceKeyPair.publicKey
                 val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
@@ -460,11 +470,11 @@ class Fido2CryptoService(
 
                 LatencyProfiler.end(LATENCY_TAG_SIGN)
                 Logger.d { "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}" }
-                signature
-            }.recoverCatching { e ->
+                Outcome.Success(signature)
+            } catch (e: Exception) {
                 LatencyProfiler.end(LATENCY_TAG_SIGN) // ensure timer ends on failure path too
-                Logger.e(e) { "Signing failed for $credentialId" }
-                throw Fido2Exception.SigningFailed(e.message ?: "Signing failed", e)
+                Logger.e(e) { "Fido2CryptoService: Signing failed for $credentialId" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: "Signing failed", e))
             }
         }
 

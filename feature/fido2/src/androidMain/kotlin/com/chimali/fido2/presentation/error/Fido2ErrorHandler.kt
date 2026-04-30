@@ -1,11 +1,12 @@
 package com.chimali.fido2.presentation.error
 
+import com.chimali.core.common.result.DomainError
 import com.chimali.fido2.domain.exception.Fido2Exception
 
 /**
  * T149 / T152 — FIDO2 error handler.
  *
- * Maps [Fido2Exception] subclasses to user-facing messages and retry recommendations.
+ * Maps [Fido2Exception] and [DomainError] subclasses to user-facing messages and retry recommendations.
  * Keeps the ViewModel clean of string resources by centralising all error classification logic.
  */
 object Fido2ErrorHandler {
@@ -16,6 +17,60 @@ object Fido2ErrorHandler {
         // CTAP2 error code for transport layer
         val ctap2ErrorCode: Int? = null,
     )
+
+    /**
+     * Maps a DomainError to UI-renderable [ErrorUi].
+     */
+    fun handle(error: DomainError): ErrorUi =
+        when (error) {
+            is DomainError.OperationDenied ->
+                ErrorUi(
+                    title = "Operation denied",
+                    message = error.message,
+                    isRetryable = true,
+                    ctap2ErrorCode = 0x29,
+                )
+
+            is DomainError.NotFound ->
+                ErrorUi(
+                    title = "Not found",
+                    message = error.message,
+                    isRetryable = false,
+                    ctap2ErrorCode = 0x2E,
+                )
+
+            is DomainError.DatabaseError ->
+                ErrorUi(
+                    title = "Database error",
+                    message = "Could not access local storage. ${error.message}",
+                    isRetryable = true,
+                    ctap2ErrorCode = 0x17,
+                )
+
+            is DomainError.CryptoError ->
+                ErrorUi(
+                    title = "Security error",
+                    message = "Could not perform cryptographic operation. ${error.message}",
+                    isRetryable = true,
+                    ctap2ErrorCode = 0x17,
+                )
+
+            is DomainError.NetworkError ->
+                ErrorUi(
+                    title = "Connection error",
+                    message = "Communication with the host was interrupted. ${error.message}",
+                    isRetryable = true,
+                    ctap2ErrorCode = 0x07,
+                )
+
+            else ->
+                ErrorUi(
+                    title = "Unexpected error",
+                    message = error.message,
+                    isRetryable = true,
+                    ctap2ErrorCode = 0x7F,
+                )
+        }
 
     /**
      * Maps a throwable (expected to be [Fido2Exception]) to UI-renderable [ErrorUi].

@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.usecase
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
 
@@ -13,7 +15,7 @@ class UpdateCredentialLabelUseCase(
     suspend operator fun invoke(
         credentialId: String,
         label: String?,
-    ): Result<Unit> {
+    ): Outcome<Unit, DomainError> {
         return credentialRepository.updateLabel(credentialId, label)
     }
 }

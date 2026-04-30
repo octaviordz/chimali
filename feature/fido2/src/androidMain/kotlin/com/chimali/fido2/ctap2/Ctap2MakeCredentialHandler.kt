@@ -1,6 +1,9 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
@@ -243,7 +246,7 @@ class Ctap2MakeCredentialHandler(
                 selectedAlgId = selectedAlgId,
             )
 
-        val deferred = CompletableDeferred<Result<MakeCredentialResult>>()
+        val deferred = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
         Logger.d("Dispatching RegistrationRequested event to UI")
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
         Logger.d("Event dispatched — awaiting user response via deferred")
@@ -254,22 +257,22 @@ class Ctap2MakeCredentialHandler(
         LatencyProfiler.endUserInteraction("MakeCredential")
         Logger.d {
             "Deferred resolved — success=${makeCredentialResult.isSuccess} " +
-                "error=${makeCredentialResult.exceptionOrNull()?.message}"
+                "error=${(makeCredentialResult as? Outcome.Error)?.error?.message}"
         }
 
-        if (makeCredentialResult.isFailure) {
-            val ex = makeCredentialResult.exceptionOrNull()
-            Logger.e(ex) { "Registration failed or cancelled: ${ex?.message}" }
-            return when (ex) {
-                is Fido2Exception.CredentialException ->
+        if (makeCredentialResult is Outcome.Error) {
+            val err = makeCredentialResult.error
+            Logger.e(err.cause) { "Registration failed or cancelled: ${err.message}" }
+            return when (err) {
+                is DomainError.DatabaseError, is DomainError.StorageError ->
                     errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
-                is Fido2Exception.UserVerificationException ->
+                is DomainError.OperationDenied ->
                     errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
                 else -> errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
             }
         }
 
-        val attestation = makeCredentialResult.getOrThrow().attestationObject
+        val attestation = (makeCredentialResult as Outcome.Success).data.attestationObject
         Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
         val responseCbor = encodeAttestationResponse(attestation)
         val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor

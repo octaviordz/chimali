@@ -7,7 +7,7 @@
 
 Goal: Establish the renamed foundational `Outcome` type in `core/common`.
 
-- [ ] T001 Rename `DataResult` to `Outcome` and `runCatchingResult` to `runCatchingOutcome` in `core/common/src/commonMain/kotlin/com/chimali/core/common/result/DataResult.kt` (rename file to `Outcome.kt`). Ensure `DomainError.kt` remains aligned.
+- [x] T001 Rename `DataResult` to `Outcome` and `runCatchingResult` to `runCatchingOutcome` in `core/common/src/commonMain/kotlin/com/chimali/core/common/result/DataResult.kt` (rename file to `Outcome.kt`). Ensure `DomainError.kt` remains aligned.
 
 ## Phase 2: Foundational
 
@@ -19,12 +19,12 @@ Goal: Migrate all FIDO2 crypto services and repositories to return `Outcome` ins
 
 **Independent Test**: Trigger a storage or crypto exception in FIDO2 operations and verify it returns a categorized `Outcome.Error(DomainError.CryptoError)` or `Outcome.Error(DomainError.DatabaseError)` with Kermit logging at the boundary.
 
-- [ ] T002 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialStorageService.kt` to catch exceptions, log via Kermit, and return `Outcome<T, DomainError>`.
-- [ ] T003 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialEncryptionService.kt` to catch `GeneralSecurityException`, log via Kermit, and return `Outcome<T, DomainError.CryptoError>`.
-- [ ] T004 [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt` to consume the new `Outcome` responses from its underlying services and return `Outcome`.
-- [ ] T005 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt` to catch SQLite exceptions, log via Kermit, and return `Outcome<T, DomainError.DatabaseError>`.
-- [ ] T006 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/PasskeyCredentialRepositoryImpl.kt` to catch exceptions, log via Kermit, and return `Outcome<T, DomainError>`.
-- [ ] T007 [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` (and any other affected handlers) to safely consume the `Outcome`s returned by the repositories.
+- [x] T002 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialStorageService.kt` to catch exceptions, log via Kermit, and return `Outcome<T, DomainError>`.
+- [x] T003 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialEncryptionService.kt` to catch `GeneralSecurityException`, log via Kermit, and return `Outcome<T, DomainError.CryptoError>`.
+- [x] T004 [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt` to consume the new `Outcome` responses from its underlying services and return `Outcome`.
+- [x] T005 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt` to catch SQLite exceptions, log via Kermit, and return `Outcome<T, DomainError.DatabaseError>`.
+- [x] T006 [P] [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/PasskeyCredentialRepositoryImpl.kt` to catch exceptions, log via Kermit, and return `Outcome<T, DomainError>`.
+- [x] T007 [US1] Refactor `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` (and any other affected handlers) to safely consume the `Outcome`s returned by the repositories.
 
 ## Phase 4: User Story 2 - Exception-Free ViewModels in Vault (P1)
 
@@ -32,8 +32,8 @@ Goal: Completely remove exception-based flow control (`try-catch`) from `VaultVi
 
 **Independent Test**: Trigger a storage/network failure in `VaultService` and verify `VaultViewModel` correctly updates the `errorMessage` state via the `Outcome.Error` branch without explicitly catching exceptions.
 
-- [ ] T008 [US2] Refactor `feature/vault/src/main/java/com/chimali/feature/vault/api/VaultService.kt` (and its implementation) to catch exceptions, log via Kermit, and return `Outcome<List<Item>, DomainError>`.
-- [ ] T009 [US2] Refactor `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt` to replace `try-catch` blocks with exhaustive `when` expressions on `VaultService` outcomes.
+- [x] T008 [US2] Refactor `feature/vault/src/main/java/com/chimali/feature/vault/api/VaultService.kt` (and its implementation) to catch exceptions, log via Kermit, and return `Outcome<List<Item>, DomainError>`.
+- [x] T009 [US2] Refactor `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt` to replace `try-catch` blocks with exhaustive `when` expressions on `VaultService` outcomes.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 

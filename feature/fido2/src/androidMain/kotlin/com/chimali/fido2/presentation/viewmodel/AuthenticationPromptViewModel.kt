@@ -3,6 +3,7 @@ package com.chimali.fido2.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -191,16 +192,19 @@ class AuthenticationPromptViewModel(
     private fun performAuthentication(options: GetAssertionOptions) {
         _state.value = AuthenticationState.Processing
         viewModelScope.launch {
-            getAssertionUseCase(options)
-                .onSuccess { assertion ->
+            when (val result = getAssertionUseCase(options)) {
+                is Outcome.Success -> {
+                    val assertion = result.data
                     _state.value = AuthenticationState.Success(assertion)
                     emit(AuthenticationEffect.NavigateToSuccess(assertion))
                 }
-                .onFailure { error ->
-                    Logger.e(error) { "Authentication process failed" }
+                is Outcome.Error -> {
+                    val error = result.error
+                    Logger.e(error.cause) { "Authentication process failed: ${error.message}" }
                     val ui = Fido2ErrorHandler.handle(error)
                     _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
                 }
+            }
         }
     }
 

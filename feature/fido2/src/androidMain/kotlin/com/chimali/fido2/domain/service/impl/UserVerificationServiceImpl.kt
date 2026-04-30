@@ -1,6 +1,8 @@
 package com.chimali.fido2.domain.service.impl
 
 import androidx.biometric.BiometricManager
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.service.BiometricEnrollmentStatus
 import com.chimali.fido2.domain.service.BiometricStrength
@@ -158,9 +160,9 @@ class UserVerificationServiceImpl(
         )
     }
 
-    override suspend fun recordUserConsent(consent: UserConsentRecord): Result<Unit> {
+    override suspend fun recordUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> {
         // TODO: Persist consent record
-        return Result.success(Unit)
+        return Outcome.Success(Unit)
     }
 
     override suspend fun getRecentConsentRecords(

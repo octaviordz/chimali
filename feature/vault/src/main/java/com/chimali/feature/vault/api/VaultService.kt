@@ -1,5 +1,7 @@
 package com.chimali.feature.vault.api
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import java.util.UUID
 
 enum class VaultType {
@@ -53,7 +55,7 @@ data class VaultItem(
 }
 
 interface VaultService {
-    suspend fun getItems(labelId: UUID?): List<VaultItem>
-    suspend fun saveItem(item: VaultItem)
-    suspend fun deleteItem(id: UUID)
+    suspend fun getItems(labelId: UUID?): Outcome<List<VaultItem>, DomainError>
+    suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError>
+    suspend fun deleteItem(id: UUID): Outcome<Unit, DomainError>
 }

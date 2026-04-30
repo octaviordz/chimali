@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.service
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.UserConsentRecord
 import kotlinx.coroutines.flow.Flow
 
@@ -47,9 +49,9 @@ interface UserVerificationService {
      * Records a user consent for verification operations.
      *
      * @param consent The consent record to save
-     * @return Result indicating success or failure
+     * @return Outcome indicating success or failure
      */
-    suspend fun recordUserConsent(consent: UserConsentRecord): Result<Unit>
+    suspend fun recordUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError>
 
     /**
      * Retrieves recent user consent records for verification operations.

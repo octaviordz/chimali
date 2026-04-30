@@ -1,6 +1,11 @@
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.onFailure
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.fido2.bluetooth.BROADCAST_CID

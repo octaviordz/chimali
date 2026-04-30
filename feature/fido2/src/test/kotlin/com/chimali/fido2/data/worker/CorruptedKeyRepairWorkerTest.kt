@@ -1,5 +1,9 @@
 package com.chimali.fido2.data.worker
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.isSuccess
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -16,7 +20,7 @@ class CorruptedKeyRepairWorkerTest {
             val corruptedIds = listOf("cred-1", "cred-2")
 
             // Mock successful execution
-            coEvery { worker.doWork(corruptedIds) } returns Result.success(Unit)
+            coEvery { worker.doWork(corruptedIds) } returns Outcome.Success(Unit)
 
             val result = worker.doWork(corruptedIds)
 
@@ -31,7 +35,8 @@ class CorruptedKeyRepairWorkerTest {
             val error = RuntimeException("Database error")
 
             // Mock failure execution
-            coEvery { worker.doWork(corruptedIds) } returns Result.failure(error)
+            coEvery { worker.doWork(corruptedIds) } returns
+                Outcome.Error(DomainError.UnknownError("Database error", error))
 
             val result = worker.doWork(corruptedIds)
 

@@ -1,5 +1,7 @@
 package com.chimali.fido2.integration
 
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.UserVerificationRequirement
@@ -116,7 +118,7 @@ class AuthenticationIntegrationTest {
     fun `successful authentication transitions to Success state`() =
         runTest {
             val testAssertion = AssertionObject.createTest("cred1", "https://example.com")
-            coEvery { getAssertionUseCase(any()) } returns Result.success(testAssertion)
+            coEvery { getAssertionUseCase(any()) } returns Outcome.Success(testAssertion)
 
             viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))
             advanceUntilIdle()
@@ -140,7 +142,7 @@ class AuthenticationIntegrationTest {
     fun `failed assertion transitions to Error state`() =
         runTest {
             coEvery { getAssertionUseCase(any()) } returns
-                Result.failure(Exception("Auth failed"))
+                Outcome.Error(DomainError.UnknownError("Auth failed", Exception("Auth failed")))
 
             // Need to go through: Init → Confirm → Biometric → perform → Error
             viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))

@@ -3,7 +3,8 @@ package com.chimali.fido2.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -125,7 +126,7 @@ class RegistrationPromptViewModel(
     val effects: Flow<RegistrationEffect> = _effects.receiveAsFlow()
 
     private var pendingOptions: MakeCredentialOptions? = null
-    private var pendingDeferred: CompletableDeferred<Result<MakeCredentialResult>>? = null
+    private var pendingDeferred: CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>? = null
 
     init {
         Logger.d { "RegistrationPromptViewModel created — subscribing to event bus" }
@@ -219,7 +220,7 @@ class RegistrationPromptViewModel(
     }
 
     private fun cancelRegistration() {
-        pendingDeferred?.complete(Result.failure(Fido2Exception.UserVerificationException("Cancelled by user")))
+        pendingDeferred?.complete(Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
         pendingOptions = null
         pendingDeferred = null
         _state.value = RegistrationState.Cancelled
@@ -240,12 +241,13 @@ class RegistrationPromptViewModel(
         viewModelScope.launch {
             val result = fido2Service.makeCredential(options)
 
-            result.onSuccess { makeResult ->
+            if (result is Outcome.Success) {
+                val makeResult = result.data
                 makeResult.attestationObject
                 val credential = makeResult.credential
 
                 // Complete transport's deferred only on success with the attestation object
-                pendingDeferred?.complete(Result.success(makeResult))
+                pendingDeferred?.complete(Outcome.Success(makeResult))
 
                 _state.value = RegistrationState.Success(credential)
 
@@ -257,13 +259,13 @@ class RegistrationPromptViewModel(
                 // Clear pending only after success — on failure we keep them so Retry works
                 pendingOptions = null
                 pendingDeferred = null
-            }
-            result.onFailure { error ->
+            } else if (result is Outcome.Error) {
+                val error = result.error
                 // Complete the transport deferred with the failure so the PC gets a response
-                pendingDeferred?.complete(Result.failure(error))
+                pendingDeferred?.complete(result)
                 pendingDeferred = null // deferred is consumed; pendingOptions kept for retry
 
-                Logger.e(error) { "Registration process failed" }
+                Logger.e(error.cause) { "Registration process failed: ${error.message}" }
 
                 // T149 / T152 — delegate error classification to Fido2ErrorHandler
                 val ui = Fido2ErrorHandler.handle(error)

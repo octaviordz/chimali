@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
@@ -34,7 +35,7 @@ class CredentialListScreenTest {
 
     @Test
     fun screen_displaysEmptyState_whenNoCredentials() {
-        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(emptyList())
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(emptyList())
 
         val viewModel = setupViewModel()
 
@@ -64,7 +65,7 @@ class CredentialListScreenTest {
                 credentialId = byteArrayOf(1, 2, 3),
             )
 
-        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(listOf(mockCredential))
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(listOf(mockCredential))
 
         val viewModel = setupViewModel()
 
@@ -98,7 +99,7 @@ class CredentialListScreenTest {
                 credentialId = byteArrayOf(1, 2, 3),
             )
 
-        coEvery { getAllCredentialsUseCase(any(), any()) } returns Result.success(listOf(mockCredential))
+        coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(listOf(mockCredential))
 
         val viewModel = setupViewModel()
 
