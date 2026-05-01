@@ -4,9 +4,9 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.functionalCatching
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
-import com.chimali.fido2.domain.model.CredentialId
 import java.util.Base64
 import org.koin.core.annotation.Single
 
@@ -19,7 +19,7 @@ interface CorruptedKeyRepairWorker {
      * Executes the HDK fallback for a batch of corrupted credentials.
      * @param credentialIds A list of IDs identifying the credentials to repair.
      */
-    suspend fun doWork(credentialIds: List<String>): Outcome<Unit, DomainError>
+    suspend fun doWork(credentialIds: List<CredentialId>): Outcome<Unit, DomainError>
 }
 
 @Single
@@ -27,20 +27,20 @@ class CorruptedKeyRepairWorkerImpl(
     private val passkeyCredentialDao: PasskeyCredentialDao,
     private val fido2CryptoService: Fido2CryptoService,
 ) : CorruptedKeyRepairWorker {
-    override suspend fun doWork(credentialIds: List<String>): Outcome<Unit, DomainError> {
-        return functionalCatching {
+    override suspend fun doWork(credentialIds: List<CredentialId>): Outcome<Unit, DomainError> =
+        functionalCatching {
             for (id in credentialIds) {
                 try {
                     val entity = passkeyCredentialDao.getCredentialById(id) ?: continue
                     val publicKey =
                         fido2CryptoService.getPublicKey(
-                            CredentialId.fromString(entity.id),
+                            id,
                             entity.coseAlgorithm.toInt(),
-                        ) ?: error("Failed to derive public key for credential: $id")
+                        ) ?: error("Failed to derive public key for credential: ${id.encoded}")
 
                     val base64PubKey = Base64.getEncoder().encodeToString(publicKey.encoded)
-                    passkeyCredentialDao.updatePublicKey(entity.id, base64PubKey)
-                    Logger.i { "Successfully repaired corrupted public key for credential: $id" }
+                    passkeyCredentialDao.updatePublicKey(id, base64PubKey)
+                    Logger.i { "Successfully repaired corrupted public key for credential: ${id.encoded}" }
                 } catch (e: android.database.SQLException) {
                     Logger.e(e) { "Database error repairing public key for credential: $id" }
                 } catch (e: java.security.GeneralSecurityException) {
@@ -48,5 +48,4 @@ class CorruptedKeyRepairWorkerImpl(
                 }
             }
         }
-    }
 }

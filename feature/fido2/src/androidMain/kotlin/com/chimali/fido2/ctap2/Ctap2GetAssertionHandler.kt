@@ -3,6 +3,8 @@ package com.chimali.fido2.ctap2
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -70,8 +72,8 @@ class Ctap2GetAssertionHandler(
      * @param requestBytes CBOR-encoded request body (without the command byte).
      * @return CBOR-encoded response body including the 0x00 status byte prefix.
      */
-    suspend fun handle(requestBytes: ByteArray): ByteArray {
-        return try {
+    suspend fun handle(requestBytes: ByteArray): ByteArray =
+        try {
             val params = cborCodec.decodeFromFido2Format(requestBytes)
             val options = decodeOptions(params)
             Logger.d {
@@ -86,6 +88,7 @@ class Ctap2GetAssertionHandler(
                     val responseBytes = encodeResponse(assertion, options)
                     byteArrayOf(CTAP2_OK) + responseBytes
                 }
+
                 is Outcome.Error -> {
                     val error = result.error
                     // CredentialNotFound is an expected probe response before registration.
@@ -111,7 +114,6 @@ class Ctap2GetAssertionHandler(
             Logger.e(e) { "GetAssertion handler invalid argument: ${e.message}" }
             byteArrayOf(CTAP2_ERR_PROCESSING)
         }
-    }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
 
@@ -124,9 +126,19 @@ class Ctap2GetAssertionHandler(
         // The old JSON-based codec delivered it as a base64 string — handle both.
         val clientDataHash: ByteArray =
             when (val raw = params[REQ_CLIENT_DATA_HASH]) {
-                is ByteArray -> raw
-                is String -> java.util.Base64.getDecoder().decode(raw)
-                else -> throw Fido2Exception.InvalidParameter("Missing clientDataHash (key 0x02)")
+                is ByteArray -> {
+                    raw
+                }
+
+                is String -> {
+                    java.util.Base64
+                        .getDecoder()
+                        .decode(raw)
+                }
+
+                else -> {
+                    throw Fido2Exception.InvalidParameter("Missing clientDataHash (key 0x02)")
+                }
             }
         require(
             clientDataHash.size == CLIENT_DATA_HASH_SIZE,
@@ -141,10 +153,13 @@ class Ctap2GetAssertionHandler(
                     val idBytes: ByteArray =
                         when (val rawId = map["id"]) {
                             is ByteArray -> rawId
-                            is String -> rawId.toByteArray() // legacy / base64
+
+                            is String -> rawId.toByteArray()
+
+                            // legacy / base64
                             else -> return@mapNotNull null
                         }
-                    PublicKeyCredentialDescriptor.create(id = idBytes)
+                    PublicKeyCredentialDescriptor.create(id = CredentialId.fromByteArray(idBytes))
                 }
             }
 
@@ -163,7 +178,7 @@ class Ctap2GetAssertionHandler(
         val extensions = params[REQ_EXTENSIONS] as? Map<String, Any>
 
         return GetAssertionOptions(
-            rpId = rpId,
+            rpId = RpId(rpId),
             clientDataHash = clientDataHash,
             allowCredentials = allowCredentials,
             userVerification = userVerification,
@@ -194,7 +209,7 @@ class Ctap2GetAssertionHandler(
             responseMap[RESP_CREDENTIAL] =
                 mapOf(
                     "type" to "public-key",
-                    "id" to desc.id,
+                    "id" to desc.id.toByteArray(),
                 )
         }
 
@@ -237,7 +252,7 @@ class Ctap2GetAssertionHandler(
         assertion.user?.let { user ->
             responseMap[RESP_USER] =
                 mapOf(
-                    "id" to user.id,
+                    "id" to user.id.value,
                     "name" to user.name,
                     "displayName" to user.displayName.ifEmpty { user.name },
                 )

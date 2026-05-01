@@ -117,9 +117,9 @@ class BluetoothHidTransportImpl(
          *
          * Actual value read from [BluetoothHidConfigProvider.config] at runtime.
          */
-        private val REPORT_PACE_DELAY_MS get() = BluetoothHidConfigProvider.config.reportPaceDelayMs
-        private val KEEPALIVE_INITIAL_DELAY_MS get() = BluetoothHidConfigProvider.config.keepaliveInitialDelayMs
-        private val KEEPALIVE_PERIOD_MS get() = BluetoothHidConfigProvider.config.keepalivePeriodMs
+        private val REPORT_PACE_DELAY get() = BluetoothHidConfigProvider.config.reportPaceDelay
+        private val KEEPALIVE_INITIAL_DELAY get() = BluetoothHidConfigProvider.config.keepaliveInitialDelay
+        private val KEEPALIVE_PERIOD get() = BluetoothHidConfigProvider.config.keepalivePeriod
 
         // Protocol
         private const val NONCE_SIZE = 8
@@ -403,10 +403,10 @@ class BluetoothHidTransportImpl(
         // The rauth-android reference always sleeps first, then sends.
         val keepaliveJob: Job =
             scope.launch(Dispatchers.IO) {
-                delay(KEEPALIVE_INITIAL_DELAY_MS) // wait first; spec requires first ~100ms. Reference uses 75ms.
+                delay(KEEPALIVE_INITIAL_DELAY) // wait first; spec requires first ~100ms. Reference uses 75ms.
                 sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_PROCESSING))
                 while (true) {
-                    delay(KEEPALIVE_PERIOD_MS) // 75ms between subsequent keepalives.
+                    delay(KEEPALIVE_PERIOD) // 75ms between subsequent keepalives.
                     sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_UPNEEDED))
                 }
             }
@@ -703,7 +703,7 @@ class BluetoothHidTransportImpl(
                     if (!hidWrapper.sendReport(packet)) {
                         Logger.w { "sendReport returned false — host may have disconnected" }
                     }
-                    delay(REPORT_PACE_DELAY_MS)
+                    delay(REPORT_PACE_DELAY)
                 }
             }
     }

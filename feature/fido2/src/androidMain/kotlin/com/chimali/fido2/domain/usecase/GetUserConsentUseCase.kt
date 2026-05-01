@@ -4,20 +4,23 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
+import com.chimali.core.domain.model.ConsentMethod
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.model.ConsentMethod
-import com.chimali.fido2.domain.model.ConsentOperationType
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.service.UserVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
 import com.chimali.fido2.domain.service.VerificationMethod
-import java.time.Instant
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.toList
+import kotlinx.datetime.Instant
 import org.koin.core.annotation.Factory
 
 /**
@@ -40,15 +43,15 @@ class GetUserConsentUseCase(
      * @return Result containing the consent record on success, error on failure
      */
     suspend operator fun invoke(
-        rpId: String,
+        rpId: RpId,
         operationType: ConsentOperationType,
-        credentialId: String? = null,
+        credentialId: CredentialId? = null,
         requireVerification: Boolean = false,
         prompt: String? = null,
     ): Result<UserConsentRecord> {
         return try {
             // Validate inputs
-            validateConsentRequest(rpId, operationType, credentialId)
+            validateConsentRequest(rpId)
 
             // Check if consent is required for this operation
             val consentRequired =
@@ -69,7 +72,7 @@ class GetUserConsentUseCase(
                 if (requireVerification &&
                     consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
                 ) {
-                    performUserVerificationForConsent(rpId, operationType, prompt)
+                    performUserVerificationForConsent()
                 } else {
                     // Silent/implicit consent — no explicit verification performed
                     Result.success(
@@ -93,6 +96,7 @@ class GetUserConsentUseCase(
             // Create consent record
             val consentRecord =
                 UserConsentRecord.create(
+                    id = java.util.UUID.randomUUID().toString(),
                     operationType = operationType,
                     rpId = rpId,
                     credentialId = credentialId,
@@ -130,7 +134,7 @@ class GetUserConsentUseCase(
      * @return Flow of recent consent records
      */
     suspend fun getRecentConsentRecords(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord> {
         return credentialRepository.getRecentUserConsent(rpId, limit)
@@ -146,7 +150,7 @@ class GetUserConsentUseCase(
      */
     suspend fun getConsentRecordsByOperationType(
         operationType: ConsentOperationType,
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord> {
         return getRecentConsentRecords(rpId, limit)
@@ -161,7 +165,7 @@ class GetUserConsentUseCase(
      * @return Flow of consent records for the credential
      */
     suspend fun getConsentRecordsByCredential(
-        credentialId: String,
+        credentialId: CredentialId,
         limit: Int = 50,
     ): Flow<UserConsentRecord> {
         return getRecentConsentRecords(null, limit)
@@ -176,7 +180,7 @@ class GetUserConsentUseCase(
      * @return Flow of consent records for the RP
      */
     suspend fun getConsentRecordsByRpId(
-        rpId: String,
+        rpId: RpId,
         limit: Int = 50,
     ): Flow<UserConsentRecord> {
         return getRecentConsentRecords(rpId, limit)
@@ -194,11 +198,11 @@ class GetUserConsentUseCase(
     suspend fun getConsentRecordsByTimeRange(
         startTime: Instant,
         endTime: Instant,
-        rpId: String? = null,
+        rpId: RpId? = null,
     ): Flow<UserConsentRecord> {
         return getRecentConsentRecords(rpId, Int.MAX_VALUE)
             .filter {
-                it.timestamp.isAfter(startTime) && it.timestamp.isBefore(endTime)
+                it.timestamp > startTime && it.timestamp < endTime
             }
     }
 
@@ -211,9 +215,9 @@ class GetUserConsentUseCase(
      * @return True if consent was granted recently, false otherwise
      */
     suspend fun isRecentConsentGranted(
-        rpId: String,
+        rpId: RpId,
         operationType: ConsentOperationType,
-        minutes: Long = 5,
+        minutes: Int = 5,
     ): Boolean {
         return getConsentRecordsByOperationType(operationType, rpId, 10)
             .toList()
@@ -227,7 +231,7 @@ class GetUserConsentUseCase(
      * @param rpId Optional filter by relying party ID
      * @return Consent statistics for the specified RP or all RPs
      */
-    suspend fun getConsentStatistics(rpId: String? = null): ConsentStatistics {
+    suspend fun getConsentStatistics(rpId: RpId? = null): ConsentStatistics {
         val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE).toList()
 
         val totalConsents = consentRecords.count()
@@ -242,7 +246,6 @@ class GetUserConsentUseCase(
                 mapOf(rpId to totalConsents)
             } else {
                 consentRecords
-                    .filter { it.rpId.isNotBlank() }
                     .groupBy { it.rpId }
                     .mapValues { it.value.size }
             }
@@ -265,30 +268,16 @@ class GetUserConsentUseCase(
     /**
      * Validates consent request parameters.
      */
-    private fun validateConsentRequest(
-        rpId: String,
-        operationType: ConsentOperationType,
-        credentialId: String?,
-    ) {
-        require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(RelyingParty.isValidRpId(rpId)) {
-            "RP ID must be a valid domain or HTTPS origin: $rpId"
-        }
-
-        credentialId?.let { credId ->
-            require(credId.isNotBlank()) { "Credential ID cannot be blank if provided" }
-            require(credId.length <= 1023) { "Credential ID cannot exceed 1023 bytes" }
+    private fun validateConsentRequest(rpId: RpId) {
+        require(RelyingParty.isValidRpId(rpId.value)) {
+            "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
         }
     }
 
     /**
      * Performs user verification for consent operations.
      */
-    private suspend fun performUserVerificationForConsent(
-        rpId: String,
-        operationType: ConsentOperationType,
-        customPrompt: String?,
-    ): Result<ConsentVerificationResult> {
+    private suspend fun performUserVerificationForConsent(): Result<ConsentVerificationResult> {
         val availability = userVerificationService.getUserVerificationAvailability()
         val bestMethod = availability.getBestAvailableMethod()
 
@@ -321,15 +310,15 @@ class GetUserConsentUseCase(
     /**
      * Calculates the average number of consents per day.
      */
-    private suspend fun calculateAverageConsentsPerDay(consentRecords: List<UserConsentRecord>): Double {
+    private fun calculateAverageConsentsPerDay(consentRecords: List<UserConsentRecord>): Double {
         val consents = consentRecords
         if (consents.isEmpty()) return 0.0
 
-        val oldestTimestamp: java.time.Instant? = consents.minByOrNull { it.timestamp }?.timestamp
-        val newestTimestamp: java.time.Instant? = consents.maxByOrNull { it.timestamp }?.timestamp
+        val oldestTimestamp: Instant? = consents.minByOrNull { it.timestamp }?.timestamp
+        val newestTimestamp: Instant? = consents.maxByOrNull { it.timestamp }?.timestamp
 
         return if (oldestTimestamp != null && newestTimestamp != null) {
-            val daysBetween = java.time.Duration.between(oldestTimestamp, newestTimestamp).toDays()
+            val daysBetween = (newestTimestamp - oldestTimestamp).inWholeDays
             if (daysBetween > 0) {
                 consents.size.toDouble() / daysBetween
             } else {
@@ -360,7 +349,7 @@ data class ConsentStatistics(
     val biometricConsents: Int,
     val pinConsents: Int,
     val combinedConsents: Int,
-    val consentsByRp: Map<String, Int>,
+    val consentsByRp: Map<RpId, Int>,
     val recentConsents: Int,
     val averageConsentsPerDay: Double,
 ) {

@@ -1,5 +1,6 @@
 package com.chimali.fido2.ctap2
 
+import com.chimali.core.domain.time.TimeProvider
 import com.chimali.fido2.bluetooth.CID_SIZE
 import com.chimali.fido2.bluetooth.HID_PACKET_SIZE
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -13,7 +14,6 @@ import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.AuthenticatorTransport
 import com.chimali.fido2.domain.model.ClientData
 import com.chimali.fido2.domain.service.AuthenticatorInfo
-import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -107,7 +107,7 @@ class Ctap2ProtocolTest {
                 challenge = ByteArray(CHALLENGE_SIZE_16) { DUMMY_CHALLENGE_BYTE },
                 origin = "https://example.com",
                 crossOrigin = false,
-                timestamp = Instant.now(),
+                timestamp = TimeProvider().now(),
             )
         return AttestationObject(
             fmt = "none",

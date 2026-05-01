@@ -12,7 +12,7 @@ object TestDataFactory {
         title: String = "Test Credential",
         category: CredentialCategory = CredentialCategory.PERSONAL,
     ) = Credential(
-        id = CredentialId(id),
+        id = CredentialId.fromEncoded(id),
         title = title,
         username = "testuser",
         password = EncryptedString("encrypted-password"),

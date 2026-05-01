@@ -1,16 +1,18 @@
-package com.chimali.fido2.domain.model
+package com.chimali.core.domain.model
 
-import co.touchlab.kermit.Logger
-import java.net.URI
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import com.chimali.core.domain.valueobject.RpId
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 
 /**
  * Domain model representing a FIDO2 Relying Party (RP).
  * This entity represents the service/website that requests authentication.
  */
+@Serializable
 data class RelyingParty(
-    val id: String,
+    val id: RpId,
     val name: String,
     val iconUrl: String?,
     val credentialCount: Int,
@@ -26,41 +28,36 @@ data class RelyingParty(
      * Validates the RelyingParty according to FIDO2 specifications.
      * Throws IllegalArgumentException if validation fails.
      */
-    internal fun validate() {
+    private fun validate() {
         // Validate required fields
-        require(id.isNotBlank()) { "RP ID cannot be blank" }
         require(name.isNotBlank()) { "RP name cannot be blank" }
 
         // Validate formats
-        require(isValidRpId(id)) {
-            "RP ID must be a valid domain or HTTPS origin: $id"
+        require(isValidRpId(id.value)) {
+            "RP ID must be a valid domain or HTTPS origin: ${id.value}"
         }
-        require(name.length <= 64) { "RP name cannot exceed 64 characters" }
+        require(name.length <= MAX_NAME_LENGTH) { "RP name cannot exceed $MAX_NAME_LENGTH characters" }
         require(credentialCount >= 0) { "Credential count cannot be negative" }
 
         // Validate icon URL if present
         iconUrl?.let { url ->
             require(url.isNotBlank()) { "Icon URL cannot be blank if provided" }
-            require(url.length <= 256) { "Icon URL cannot exceed 256 characters" }
-            try {
-                URI.create(url)
-                require(url.startsWith("https://") || url.startsWith("http://")) {
-                    "Icon URL must use HTTP or HTTPS protocol"
-                }
-            } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("Icon URL must be a valid URI", e)
+            require(url.length <= MAX_ICON_URL_LENGTH) { "Icon URL cannot exceed $MAX_ICON_URL_LENGTH characters" }
+            require(url.startsWith("https://") || url.startsWith("http://")) {
+                "Icon URL must use HTTP or HTTPS protocol"
             }
         }
 
         // Validate timestamps
-        require(createdAt.isBefore(Instant.now().plusSeconds(60))) {
+        val now = Clock.System.now()
+        require(createdAt <= now + FUTURE_GRACE) {
             "Creation time cannot be more than 60 seconds in the future"
         }
         lastUsedAt?.let { lastUsed ->
-            require(lastUsed.isBefore(Instant.now().plusSeconds(60))) {
+            require(lastUsed <= now + FUTURE_GRACE) {
                 "Last used time cannot be more than 60 seconds in the future"
             }
-            require(!lastUsed.isBefore(createdAt)) {
+            require(lastUsed >= createdAt) {
                 "Last used time cannot be before creation time"
             }
         }
@@ -77,14 +74,13 @@ data class RelyingParty(
      * Returns the domain from the RP ID.
      */
     fun getDomain(): String {
-        return try {
-            val uri = URI.create(id)
-            val host = uri.host ?: return id
-            if (uri.port != -1) "$host:${uri.port}" else host
-        } catch (e: IllegalArgumentException) {
-            Logger.w(e) { "RelyingParty: Failed to parse domain from RP ID: $id" }
-            id
-        }
+        val value = id.value
+        val schemeIndex = value.indexOf("://")
+        if (schemeIndex == -1) return value
+
+        val afterScheme = value.substring(schemeIndex + SCHEME_PREFIX_LENGTH)
+        val slashIndex = afterScheme.indexOf('/')
+        return if (slashIndex == -1) afterScheme else afterScheme.substring(0, slashIndex)
     }
 
     /**
@@ -102,17 +98,10 @@ data class RelyingParty(
     }
 
     /**
-     * Returns the age of this RP in days.
-     */
-    fun getAgeInDays(): Long {
-        return ChronoUnit.DAYS.between(createdAt, Instant.now())
-    }
-
-    /**
      * Creates a copy with updated credential count.
      */
     fun withCredentialCount(newCount: Int): RelyingParty {
-        return copy(credentialCount = newCount, lastUsedAt = Instant.now())
+        return copy(credentialCount = newCount, lastUsedAt = Clock.System.now())
     }
 
     /**
@@ -123,38 +112,48 @@ data class RelyingParty(
     }
 
     /**
+     * Returns the RP age in days.
+     */
+    fun getAgeInDays(): Long {
+        val diff = Clock.System.now() - createdAt
+        return diff.inWholeDays
+    }
+
+    /**
      * Checks if this RP has been used recently.
      */
-    fun isRecentlyUsed(days: Long = 30): Boolean {
-        val cutoff = Instant.now().minusSeconds(days * 24 * 60 * 60)
-        return lastUsedAt?.isAfter(cutoff) ?: false
+    fun isRecentlyUsed(days: Int = 30): Boolean {
+        val cutoff = Clock.System.now() - kotlin.time.Duration.parse("${days}d")
+        return lastUsedAt?.let { it > cutoff } ?: false
     }
 
     companion object {
-        /**
-         * Maximum allowed sizes for various fields according to FIDO2 specs.
-         */
         const val MAX_NAME_LENGTH = 64
         const val MAX_ICON_URL_LENGTH = 256
+        private const val SCHEME_PREFIX_LENGTH = 3
+        private const val HTTP_PREFIX_LENGTH = 7
+        private val FUTURE_GRACE = 1.minutes
 
         /**
          * Creates a new RelyingParty with validation.
          */
         fun create(
-            id: String,
+            id: RpId,
             name: String,
             iconUrl: String? = null,
         ): RelyingParty {
-            val now = Instant.now()
+            val now = Clock.System.now()
             // Auto-set name to domain extracted from id if blank
             val resolvedName =
                 name.ifBlank {
-                    try {
-                        val uri = URI.create(id)
-                        uri.host ?: id
-                    } catch (e: IllegalArgumentException) {
-                        Logger.w(e) { "RelyingParty: Failed to extract host from id: $id during creation" }
-                        id
+                    val value = id.value
+                    val schemeIndex = value.indexOf("://")
+                    if (schemeIndex == -1) {
+                        value
+                    } else {
+                        val afterScheme = value.substring(schemeIndex + SCHEME_PREFIX_LENGTH)
+                        val slashIndex = afterScheme.indexOf('/')
+                        if (slashIndex == -1) afterScheme else afterScheme.substring(0, slashIndex)
                     }
                 }
             return RelyingParty(
@@ -172,20 +171,15 @@ data class RelyingParty(
          */
         fun isValidRpId(rpId: String): Boolean {
             if (rpId.isBlank()) return false
-            return try {
-                if (rpId.contains("://")) {
-                    // Must have http or https scheme
-                    val uri = URI(rpId)
-                    val scheme = uri.scheme?.lowercase()
-                    scheme in setOf("https", "http") && uri.host != null && uri.host.isNotBlank()
-                } else {
-                    // Bare domain: must contain a dot (e.g., example.com) or be localhost
-                    rpId == "localhost" || rpId.startsWith("localhost:") ||
-                        (rpId.contains('.') && !rpId.contains(' '))
-                }
-            } catch (e: IllegalArgumentException) {
-                Logger.e(e) { "RelyingParty: Validation failed for RP ID: $rpId" }
-                false
+            return if (rpId.contains("://")) {
+                // Must have http or https scheme
+                val scheme = rpId.substringBefore("://").lowercase()
+                val rest = rpId.substringAfter("://")
+                (scheme == "https" || scheme == "http") && rest.isNotBlank()
+            } else {
+                // Bare domain: must contain a dot (e.g., example.com) or be localhost
+                rpId == "localhost" || rpId.startsWith("localhost:") ||
+                    (rpId.contains('.') && !rpId.contains(' '))
             }
         }
 
@@ -194,7 +188,7 @@ data class RelyingParty(
          */
         fun normalizeRpId(rpId: String): String {
             if (rpId.startsWith("http://localhost")) return rpId
-            if (rpId.startsWith("http://")) return "https://" + rpId.substring(7)
+            if (rpId.startsWith("http://")) return "https://" + rpId.substring(HTTP_PREFIX_LENGTH)
             if (rpId.startsWith("https://")) return rpId
             return "https://$rpId"
         }

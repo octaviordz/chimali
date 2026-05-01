@@ -2,6 +2,9 @@ package com.chimali.fido2.domain.service.impl
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AuthenticatorTransport
@@ -25,7 +28,9 @@ import kotlinx.coroutines.flow.emptyFlow
 import org.koin.core.annotation.Single
 
 @Single
-class Fido2AuthenticatorImpl : Fido2Authenticator {
+class Fido2AuthenticatorImpl(
+    private val timeProvider: TimeProvider,
+) : Fido2Authenticator {
     companion object {
         private const val MAX_CREDENTIAL_COUNT = 50
         private const val MAX_CREDENTIAL_ID_LENGTH = 255
@@ -47,11 +52,11 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
 
     override suspend fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential> = emptyFlow()
+    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun deleteCredential(
-        credentialId: String,
-        rpId: String?,
+        credentialId: CredentialId,
+        rpId: RpId?,
     ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun updateVerificationPreferences(
@@ -91,7 +96,7 @@ class Fido2AuthenticatorImpl : Fido2Authenticator {
 
     override suspend fun performHealthCheck(): Outcome<HealthCheckResult, DomainError> =
         Outcome.Success(
-            HealthCheckResult(true, emptyMap(), java.time.Instant.now(), null),
+            HealthCheckResult(true, emptyMap(), timeProvider.now(), null),
         )
 
     override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Outcome<Unit, DomainError> =

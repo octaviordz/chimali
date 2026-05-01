@@ -80,6 +80,7 @@ fun CredentialListScreen(
                 is CredentialManagementEffect.ShowToast -> {
                     snackbarHostState.showSnackbar(effect.message)
                 }
+
                 is CredentialManagementEffect.ShowUndoSnackbar -> {
                     val result =
                         snackbarHostState.showSnackbar(
@@ -195,7 +196,7 @@ fun CredentialListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
-                    items(state.credentials, key = { it.id }) { credential ->
+                    items(state.credentials, key = { it.id.encoded }) { credential ->
                         CredentialSwipeToDismissBox(
                             credential = credential,
                             onPendingDelete = { credential ->
@@ -312,18 +313,20 @@ private fun CredentialSwipeToDismissBox(
                         contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier =
-                            Modifier.align(
-                                Alignment.CenterStart,
-                            ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
+                            Modifier
+                                .align(
+                                    Alignment.CenterStart,
+                                ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
                     )
                     Icon(
                         painter = avdPainter,
                         contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier =
-                            Modifier.align(
-                                Alignment.CenterEnd,
-                            ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
+                            Modifier
+                                .align(
+                                    Alignment.CenterEnd,
+                                ).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
                     )
                 }
             }

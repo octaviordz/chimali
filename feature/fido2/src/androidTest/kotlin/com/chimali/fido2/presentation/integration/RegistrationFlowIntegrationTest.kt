@@ -26,7 +26,9 @@ class RegistrationFlowIntegrationTest {
 
     // Temporarily using createComposeRule for headless CI execution
     @get:Rule
-    val composeRule = androidx.compose.ui.test.junit4.createComposeRule()
+    val composeRule =
+        androidx.compose.ui.test.junit4
+            .createComposeRule()
 
     @Test
     fun fullFlow_consentToProcessingShowsProgressIndicator() {
@@ -106,8 +108,8 @@ class RegistrationFlowIntegrationTest {
                 state =
                     RegistrationState.Success(
                         com.chimali.fido2.domain.model.PasskeyCredential.createTest(
-                            id = "cred-1",
-                            rpId = "example.com",
+                            id = com.chimali.core.domain.valueobject.CredentialId.fromEncoded("cred-1"),
+                            rpId = com.chimali.core.domain.valueobject.RpId("example.com"),
                             userName = "alice",
                         ),
                     ),

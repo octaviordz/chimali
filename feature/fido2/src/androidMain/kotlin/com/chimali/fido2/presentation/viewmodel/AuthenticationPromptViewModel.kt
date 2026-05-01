@@ -129,9 +129,9 @@ class AuthenticationPromptViewModel(
             val availability = userVerificationService.getUserVerificationAvailability()
             _state.value =
                 AuthenticationState.AwaitingUserConsent(
-                    rpId = options.rpId,
+                    rpId = options.rpId.value,
                     // RP name resolved from repo in a future pass
-                    rpName = options.rpId,
+                    rpName = options.rpId.value,
                     availableMethod = availability.getBestAvailableMethod(),
                     credentialCount = options.allowCredentials?.size ?: 0,
                 )
@@ -160,7 +160,7 @@ class AuthenticationPromptViewModel(
         viewModelScope.launch {
             _state.value = AuthenticationState.AwaitingUserVerification
             val promptTitle = "Sign in"
-            val promptSubtitle = options.rpId
+            val promptSubtitle = options.rpId.value
             emit(AuthenticationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
         }
     }
@@ -169,7 +169,7 @@ class AuthenticationPromptViewModel(
         // Re-run with updated allow-list that only contains selected credential
         val options = pendingOptions ?: return
         val filtered =
-            listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credential.credentialId))
+            listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credential.id))
         pendingOptions = options.copy(allowCredentials = filtered)
         confirmAuthentication()
     }

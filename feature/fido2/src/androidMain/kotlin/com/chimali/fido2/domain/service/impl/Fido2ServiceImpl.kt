@@ -2,6 +2,8 @@ package com.chimali.fido2.domain.service.impl
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -36,22 +38,22 @@ class Fido2ServiceImpl(
     }
 
     override suspend fun registerNewCredential(
-        rpId: String,
+        rpId: RpId,
         userName: String,
         userDisplayName: String,
-    ): Outcome<String, DomainError> {
+    ): Outcome<CredentialId, DomainError> {
         return fido2Repository.registerCredential(rpId, userName, userDisplayName)
     }
 
-    override suspend fun authenticateWithCredential(rpId: String): Outcome<String, DomainError> {
+    override suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError> {
         return fido2Repository.authenticateCredential(rpId)
     }
 
-    override suspend fun getAllCredentials(): Flow<List<PasskeyCredential>> {
+    override suspend fun getAllCredentials(): Flow<PasskeyCredential> {
         return fido2Repository.getAllCredentials()
     }
 
-    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> {
+    override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> {
         return fido2Repository.deleteCredential(credentialId)
     }
 

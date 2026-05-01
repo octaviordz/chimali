@@ -4,6 +4,10 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.map
 import com.chimali.core.common.result.mapError
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -11,14 +15,10 @@ import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.ClientData
-import com.chimali.fido2.domain.model.ConsentOperationType
-import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
@@ -53,9 +53,23 @@ class RegisterCredentialUseCase(
         private val CHIMALI_AAGUID =
             byteArrayOf(
                 // "CHIMALI\0"
-                0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00,
+                0x43,
+                0x48,
+                0x49,
+                0x4D,
+                0x41,
+                0x4C,
+                0x49,
+                0x00,
                 // ...version 1
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x01,
             )
     }
 
@@ -103,7 +117,7 @@ class RegisterCredentialUseCase(
             val validationResult =
                 passkeyCredentialRepository.validateCredentialCreation(
                     rpId = options.rp.id,
-                    userId = String(options.user.id),
+                    userId = options.user.id,
                 )
             if (validationResult is Outcome.Error) {
                 return Outcome.Error(validationResult.error)
@@ -192,6 +206,10 @@ class RegisterCredentialUseCase(
     ): Outcome<UserConsentRecord, DomainError> {
         val consentRecord =
             UserConsentRecord.create(
+                id =
+                    java.util.UUID
+                        .randomUUID()
+                        .toString(),
                 operationType = ConsentOperationType.REGISTRATION,
                 rpId = options.rp.id,
                 credentialId = null,
@@ -207,7 +225,8 @@ class RegisterCredentialUseCase(
                 deviceId = null,
             )
 
-        return userVerificationService.recordUserConsent(consentRecord)
+        return userVerificationService
+            .recordUserConsent(consentRecord)
             .map { consentRecord }
             .mapError { DomainError.OperationDenied("Consent denied", it.cause) }
     }
@@ -258,7 +277,7 @@ class RegisterCredentialUseCase(
                         credentialId = credentialId,
                         algId = options.selectedAlgId,
                     ) ?: return Outcome.Error(
-                        DomainError.CryptoError("Generated key not found in KeyStore: ${credentialId.encoded}"),
+                        DomainError.CryptoError("Generated key not found in KeyStore: $credentialId"),
                     )
 
                 // Generate AAGUID for this authenticator
@@ -268,9 +287,9 @@ class RegisterCredentialUseCase(
                 // Create the credential domain model
                 val credential =
                     PasskeyCredential.create(
-                        id = credentialId.encoded,
+                        id = credentialId,
                         rpId = options.rp.id,
-                        userId = String(options.user.id),
+                        userId = options.user.id,
                         userName = options.user.name,
                         userDisplayName = options.user.displayName,
                         publicKey = publicKey,
@@ -315,7 +334,7 @@ class RegisterCredentialUseCase(
         // the COSE key embedded in it causes "Invalid data" on the server.
         val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
 
-        // Build authenticatorData per WebAuthn §6.1
+        // Build authenticatorData per WebAuthn Â§6.1
         val authDataBytes =
             run {
                 val rpIdHash = hashRpId(options.rp.id)
@@ -326,15 +345,17 @@ class RegisterCredentialUseCase(
                         (credential.credentialId.size shr 8).toByte(),
                         (credential.credentialId.size and 0xFF).toByte(),
                     )
-                java.io.ByteArrayOutputStream().apply {
-                    write(rpIdHash)
-                    write(flags)
-                    write(counter)
-                    write(credential.aaguid)
-                    write(credIdLen)
-                    write(credential.credentialId)
-                    write(pubKeyCose)
-                }.toByteArray()
+                java.io
+                    .ByteArrayOutputStream()
+                    .apply {
+                        write(rpIdHash)
+                        write(flags)
+                        write(counter)
+                        write(credential.aaguid)
+                        write(credIdLen)
+                        write(credential.credentialId)
+                        write(pubKeyCose)
+                    }.toByteArray()
             }
 
         val authData =
@@ -354,7 +375,7 @@ class RegisterCredentialUseCase(
         // not the default ES256 — a mismatch causes "Invalid data" during server verification.
         val signatureResult =
             cryptoService.sign(
-                credentialId = CredentialId.fromString(credential.id),
+                credentialId = credential.id,
                 data = authDataBytes + options.challenge,
                 algId = options.selectedAlgId,
             )
@@ -382,15 +403,17 @@ class RegisterCredentialUseCase(
                 ClientData.create(
                     type = "webauthn.create",
                     challenge = options.challenge,
-                    origin = options.rp.id,
+                    origin = options.rp.id.value,
                 ),
         )
     }
 
-    private fun hashRpId(rpId: String): ByteArray {
-        return java.security.MessageDigest.getInstance("SHA-256")
-            .digest(rpId.toByteArray())
-    }
+    private fun hashRpId(rpId: RpId): ByteArray =
+        java.security.MessageDigest
+            .getInstance("SHA-256")
+            .apply {
+                update(rpId.value.toByteArray())
+            }.digest()
 
     private fun createAuthenticatorFlags(options: MakeCredentialOptions): ByteArray {
         var flags = 0x00

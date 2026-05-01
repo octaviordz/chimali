@@ -4,6 +4,9 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.map
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.service.CredentialStorageService
 import java.security.SecureRandom
 import java.util.Base64
@@ -179,22 +182,22 @@ class CredentialEncryptionService(
      * Encrypts credential metadata with RP ID as associated data.
      */
     suspend fun encryptCredentialMetadata(
-        rpId: String,
-        userId: String,
+        rpId: RpId,
+        userId: UserId,
         userName: String,
         userDisplayName: String,
     ): Outcome<EncryptedCredentialMetadata, DomainError.CryptoError> {
         return try {
             val metadata =
                 CredentialMetadata(
-                    rpId = rpId,
-                    userId = userId,
+                    rpId = rpId.value,
+                    userId = userId.value,
                     userName = userName,
                     userDisplayName = userDisplayName,
                 )
 
             val metadataJson = serializeMetadata(metadata)
-            val associatedData = rpId.toByteArray()
+            val associatedData = rpId.value.toByteArray()
 
             encrypt(metadataJson.toByteArray(), associatedData).map { encryptedData ->
                 EncryptedCredentialMetadata(
@@ -214,7 +217,7 @@ class CredentialEncryptionService(
      */
     suspend fun decryptCredentialMetadata(
         encryptedMetadata: EncryptedCredentialMetadata,
-        expectedRpId: String,
+        expectedRpId: RpId,
     ): Outcome<CredentialMetadata, DomainError.CryptoError> {
         return try {
             // Verify RP ID hash
@@ -235,7 +238,7 @@ class CredentialEncryptionService(
                     keyAlias = MASTER_KEY_ALIAS,
                 )
 
-            val associatedData = expectedRpId.toByteArray()
+            val associatedData = expectedRpId.value.toByteArray()
             decrypt(credentialEncryptedData, associatedData).map { decryptedData ->
                 val metadataJson = String(decryptedData)
                 deserializeMetadata(metadataJson)
@@ -250,15 +253,15 @@ class CredentialEncryptionService(
      * Creates a key derivation key for a specific credential.
      */
     suspend fun deriveCredentialKey(
-        credentialId: String,
-        rpId: String,
+        credentialId: CredentialId,
+        rpId: RpId,
     ): Outcome<SecretKey, DomainError.CryptoError> {
         return try {
             // Use HKDF to derive a unique key for each credential
             val masterKey =
                 getOrCreateMasterKey()
                     ?: return Outcome.Error(DomainError.CryptoError("Failed to obtain master key"))
-            val salt = (credentialId + rpId).toByteArray()
+            val salt = (credentialId.encoded + rpId.value).toByteArray()
 
             val derivedKey =
                 hkdfSha256(
@@ -281,8 +284,8 @@ class CredentialEncryptionService(
      */
     suspend fun encryptWithCredentialKey(
         data: ByteArray,
-        credentialId: String,
-        rpId: String,
+        credentialId: CredentialId,
+        rpId: RpId,
     ): Outcome<CredentialStorageService.EncryptedData, DomainError.CryptoError> {
         return try {
             val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
@@ -305,7 +308,7 @@ class CredentialEncryptionService(
                 CredentialStorageService.EncryptedData(
                     data = encryptedData,
                     iv = iv,
-                    keyAlias = "derived_${credentialId}_${rpId.hashCode()}",
+                    keyAlias = "derived_${credentialId.encoded}_${rpId.value.hashCode()}",
                 ),
             )
         } catch (e: java.security.GeneralSecurityException) {
@@ -321,8 +324,8 @@ class CredentialEncryptionService(
      */
     suspend fun decryptWithCredentialKey(
         encryptedData: CredentialStorageService.EncryptedData,
-        credentialId: String,
-        rpId: String,
+        credentialId: CredentialId,
+        rpId: RpId,
     ): Outcome<ByteArray, DomainError.CryptoError> {
         return try {
             val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
@@ -442,9 +445,9 @@ class CredentialEncryptionService(
     /**
      * Hashes RP ID for verification.
      */
-    private fun hashRpId(rpId: String): String {
+    private fun hashRpId(rpId: RpId): String {
         val digest = java.security.MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(rpId.toByteArray())
+        val hash = digest.digest(rpId.value.toByteArray())
         return Base64.getEncoder().encodeToString(hash)
     }
 

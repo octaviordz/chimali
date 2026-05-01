@@ -28,7 +28,7 @@ class Ctap2WindowsCompatibilityTest {
         private const val FLAG_UP = 0x01
         private const val FLAG_UV = 0x04
         private const val FLAG_AT = 0x40
-        private const val COMBINED_FLAGS_0x45 = 0x45.toByte()
+        private const val COMBINED_FLAGS_0X45 = 0x45.toByte()
         private const val AUTH_DATA_SIZE_37 = 37
         private const val SIGNATURE_SIZE_72 = 72
         private const val CRED_ID_SIZE_16 = 16
@@ -70,7 +70,7 @@ class Ctap2WindowsCompatibilityTest {
         // Emulate the bitwise forced OR in the handler
         val finalFlags = (baseFlags or FLAG_AT or FLAG_UP).toByte()
 
-        assertEquals(COMBINED_FLAGS_0x45, finalFlags, "Flags should correctly combine UP, UV, and AT")
+        assertEquals(COMBINED_FLAGS_0X45, finalFlags, "Flags should correctly combine UP, UV, and AT")
         assertTrue((finalFlags.toInt() and FLAG_AT) != 0, "AT flag (bit 6) must be logically set")
     }
 
@@ -91,7 +91,12 @@ class Ctap2WindowsCompatibilityTest {
 
             val assertion =
                 AssertionObject(
-                    credential = PublicKeyCredentialDescriptor.create(id = dummyCredId),
+                    credential =
+                        PublicKeyCredentialDescriptor.create(
+                            id =
+                                com.chimali.core.domain.valueobject.CredentialId
+                                    .fromByteArray(dummyCredId),
+                        ),
                     authData = dummyAuthData,
                     signature = dummySignature,
                     user = null,
@@ -116,7 +121,11 @@ class Ctap2WindowsCompatibilityTest {
             val cborPayload = responseBytes.copyOfRange(1, responseBytes.size)
             // We expect the payload to contain the raw byte sequences, not the ASCII strings "qqqq..." (Base64 of 0xAA)
 
-            val base64AuthData = java.util.Base64.getEncoder().encodeToString(dummyAuthData).toByteArray()
+            val base64AuthData =
+                java.util.Base64
+                    .getEncoder()
+                    .encodeToString(dummyAuthData)
+                    .toByteArray()
 
             // Verify the raw dummy sequences exist in the CBOR
             assertTrue(containsSubArray(cborPayload, dummyAuthData), "CBOR must contain raw authData bytes")

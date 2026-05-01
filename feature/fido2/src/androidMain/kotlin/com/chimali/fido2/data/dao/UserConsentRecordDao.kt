@@ -1,14 +1,15 @@
 package com.chimali.fido2.data.dao
 
 import app.cash.sqldelight.coroutines.asFlow
-import com.chimali.core.common.result.map
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
-import com.chimali.fido2.domain.model.ConsentOperationType
-import com.chimali.fido2.domain.model.UserConsentRecord
-import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Instant
 import org.koin.core.annotation.Single
 
 /**
@@ -25,14 +26,14 @@ class UserConsentRecordDao(
     suspend fun insertConsent(consent: UserConsentRecord) {
         database.userConsentRecordQueries.insert(
             id = consent.id,
-            timestamp = consent.timestamp.toEpochMilli(),
+            timestamp = consent.timestamp.toEpochMilliseconds(),
             biometricUsed = if (consent.biometricUsed) 1L else 0L,
-            credentialId = consent.credentialId,
+            credentialId = consent.credentialId?.encoded,
             deviceId = consent.deviceId,
             ipAddress = consent.ipAddress,
             operationType = consent.operationType.name,
             pinUsed = if (consent.pinUsed) 1L else 0L,
-            rpId = consent.rpId,
+            rpId = consent.rpId.value,
             userAgent = consent.userAgent,
         )
     }
@@ -40,63 +41,70 @@ class UserConsentRecordDao(
     /**
      * Retrieves a consent record by its ID.
      */
-    suspend fun getConsentById(consentId: String): UserConsentRecordEntity? {
-        return database.userConsentRecordQueries.selectById(consentId)
+    suspend fun getConsentById(consentId: String): UserConsentRecordEntity? =
+        database.userConsentRecordQueries
+            .selectById(consentId)
             .executeAsOneOrNull()
-    }
 
     /**
      * Retrieves recent consent records, optionally filtered by RP ID.
      */
     fun getRecentConsent(
-        rpId: String?,
+        rpId: RpId?,
         limit: Int,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectRecentByRpId(
-                rpId = rpId,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectRecentByRpId(
+                    rpId = rpId.value,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectRecent(limit = limit.toLong())
-                .asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectRecent(limit = limit.toLong())
+                .asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records for a specific credential.
      */
     fun getConsentByCredential(
-        credentialId: String,
+        credentialId: CredentialId,
         limit: Int,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return database.userConsentRecordQueries.selectByCredentialId(
-            credentialId = credentialId,
-            limit = limit.toLong(),
-        ).asFlow().map { query -> query.executeAsList() }
-    }
+    ): Flow<List<UserConsentRecordEntity>> =
+        database.userConsentRecordQueries
+            .selectByCredentialId(
+                credentialId = credentialId.encoded,
+                limit = limit.toLong(),
+            ).asFlow()
+            .map { query -> query.executeAsList() }
 
     /**
      * Retrieves consent records for a specific operation type.
      */
     fun getConsentByOperation(
         operationType: ConsentOperationType,
-        rpId: String?,
+        rpId: RpId?,
         limit: Int,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectByOperationAndRpId(
-                operationType = operationType.name,
-                rpId = rpId,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectByOperationAndRpId(
+                    operationType = operationType.name,
+                    rpId = rpId.value,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectByOperationType(
-                operationType = operationType.name,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectByOperationType(
+                    operationType = operationType.name,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records within a date range.
@@ -104,21 +112,24 @@ class UserConsentRecordDao(
     fun getConsentByDateRange(
         startDate: Instant,
         endDate: Instant,
-        rpId: String? = null,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectByDateRangeAndRpId(
-                start = startDate.toEpochMilli(),
-                end = endDate.toEpochMilli(),
-                rpId = rpId,
-            ).asFlow().map { query -> query.executeAsList() }
+        rpId: RpId? = null,
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectByDateRangeAndRpId(
+                    start = startDate.toEpochMilliseconds(),
+                    end = endDate.toEpochMilliseconds(),
+                    rpId = rpId.value,
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectByDateRange(
-                start = startDate.toEpochMilli(),
-                end = endDate.toEpochMilli(),
-            ).asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectByDateRange(
+                    start = startDate.toEpochMilliseconds(),
+                    end = endDate.toEpochMilliseconds(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records for a specific user.
@@ -126,12 +137,13 @@ class UserConsentRecordDao(
     fun getConsentByDevice(
         deviceId: String,
         limit: Int = 100,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return database.userConsentRecordQueries.selectByDeviceId(
-            deviceId = deviceId,
-            limit = limit.toLong(),
-        ).asFlow().map { query -> query.executeAsList() }
-    }
+    ): Flow<List<UserConsentRecordEntity>> =
+        database.userConsentRecordQueries
+            .selectByDeviceId(
+                deviceId = deviceId,
+                limit = limit.toLong(),
+            ).asFlow()
+            .map { query -> query.executeAsList() }
 
     /**
      * Retrieves consent records from a specific IP address.
@@ -139,74 +151,85 @@ class UserConsentRecordDao(
     fun getConsentByIpAddress(
         ipAddress: String,
         limit: Int = 100,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return database.userConsentRecordQueries.selectByIpAddress(
-            ipAddress = ipAddress,
-            limit = limit.toLong(),
-        ).asFlow().map { query -> query.executeAsList() }
-    }
+    ): Flow<List<UserConsentRecordEntity>> =
+        database.userConsentRecordQueries
+            .selectByIpAddress(
+                ipAddress = ipAddress,
+                limit = limit.toLong(),
+            ).asFlow()
+            .map { query -> query.executeAsList() }
 
     /**
      * Retrieves consent records using biometric verification.
      */
     fun getBiometricConsent(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 100,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectBiometricByRpId(
-                rpId = rpId,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectBiometricByRpId(
+                    rpId = rpId.value,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectBiometric(limit = limit.toLong())
-                .asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectBiometric(limit = limit.toLong())
+                .asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records using PIN verification.
      */
     fun getPinConsent(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 100,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectPinByRpId(
-                rpId = rpId,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectPinByRpId(
+                    rpId = rpId.value,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectPin(limit = limit.toLong())
-                .asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectPin(limit = limit.toLong())
+                .asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records using combined verification (biometric + PIN).
      */
     fun getCombinedConsent(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 100,
-    ): Flow<List<UserConsentRecordEntity>> {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.selectCombinedByRpId(
-                rpId = rpId,
-                limit = limit.toLong(),
-            ).asFlow().map { query -> query.executeAsList() }
+    ): Flow<List<UserConsentRecordEntity>> =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .selectCombinedByRpId(
+                    rpId = rpId.value,
+                    limit = limit.toLong(),
+                ).asFlow()
+                .map { query -> query.executeAsList() }
         } else {
-            database.userConsentRecordQueries.selectCombined(limit = limit.toLong())
-                .asFlow().map { query -> query.executeAsList() }
+            database.userConsentRecordQueries
+                .selectCombined(limit = limit.toLong())
+                .asFlow()
+                .map { query -> query.executeAsList() }
         }
-    }
 
     /**
      * Retrieves consent records sorted by timestamp (most recent first).
      */
-    fun getConsentByTimestamp(limit: Int = 100): Flow<List<UserConsentRecordEntity>> {
-        return database.userConsentRecordQueries.selectByTimestamp(limit = limit.toLong())
-            .asFlow().map { query -> query.executeAsList() }
-    }
+    fun getConsentByTimestamp(limit: Int = 100): Flow<List<UserConsentRecordEntity>> =
+        database.userConsentRecordQueries
+            .selectByTimestamp(limit = limit.toLong())
+            .asFlow()
+            .map { query -> query.executeAsList() }
 
     /**
      * Searches consent records by RP name or user agent.
@@ -216,17 +239,20 @@ class UserConsentRecordDao(
         limit: Int = 100,
     ): Flow<List<UserConsentRecordEntity>> {
         val searchPattern = "%${query.trim()}%"
-        return database.userConsentRecordQueries.search(searchPattern, limit.toLong())
-            .asFlow().map { query -> query.executeAsList() }
+        return database.userConsentRecordQueries
+            .search(searchPattern, limit.toLong())
+            .asFlow()
+            .map { query -> query.executeAsList() }
     }
 
     /**
      * Retrieves consent records older than a specific date.
      */
-    fun getOldConsent(before: Instant): Flow<List<UserConsentRecordEntity>> {
-        return database.userConsentRecordQueries.selectOldConsent(before.toEpochMilli())
-            .asFlow().map { query -> query.executeAsList() }
-    }
+    fun getOldConsent(before: Instant): Flow<List<UserConsentRecordEntity>> =
+        database.userConsentRecordQueries
+            .selectOldConsent(before.toEpochMilliseconds())
+            .asFlow()
+            .map { query -> query.executeAsList() }
 
     /**
      * Deletes a consent record by its ID.
@@ -239,23 +265,23 @@ class UserConsentRecordDao(
      * Deletes consent records older than a specific date.
      */
     suspend fun deleteConsentBefore(before: Instant): Int {
-        database.userConsentRecordQueries.deleteOldConsent(before.toEpochMilli())
+        database.userConsentRecordQueries.deleteOldConsent(before.toEpochMilliseconds())
         return getChangesCount()
     }
 
     /**
      * Deletes all consent records for a specific credential.
      */
-    suspend fun deleteConsentByCredentialId(credentialId: String): Int {
-        database.userConsentRecordQueries.deleteByCredentialId(credentialId)
+    suspend fun deleteConsentByCredentialId(credentialId: CredentialId): Int {
+        database.userConsentRecordQueries.deleteByCredentialId(credentialId.encoded)
         return getChangesCount()
     }
 
     /**
      * Deletes all consent records for a specific RP.
      */
-    suspend fun deleteConsentByRpId(rpId: String): Int {
-        database.userConsentRecordQueries.deleteByRpId(rpId)
+    suspend fun deleteConsentByRpId(rpId: RpId): Int {
+        database.userConsentRecordQueries.deleteByRpId(rpId.value)
         return getChangesCount()
     }
 
@@ -270,97 +296,102 @@ class UserConsentRecordDao(
     /**
      * Counts all consent records.
      */
-    suspend fun countAllConsent(): Long {
-        return database.userConsentRecordQueries.countAll()
+    suspend fun countAllConsent(): Long =
+        database.userConsentRecordQueries
+            .countAll()
             .executeAsOne()
-    }
 
     /**
      * Counts consent records by operation type.
      */
-    suspend fun countConsentByOperation(operationType: ConsentOperationType): Long {
-        return database.userConsentRecordQueries.countByOperationType(operationType.name)
+    suspend fun countConsentByOperation(operationType: ConsentOperationType): Long =
+        database.userConsentRecordQueries
+            .countByOperationType(operationType.name)
             .executeAsOne()
-    }
 
     /**
      * Counts consent records by RP ID.
      */
-    suspend fun countConsentByRpId(rpId: String): Long {
-        return database.userConsentRecordQueries.countByRpId(rpId)
+    suspend fun countConsentByRpId(rpId: RpId): Long =
+        database.userConsentRecordQueries
+            .countByRpId(rpId.value)
             .executeAsOne()
-    }
 
     /**
      * Counts consent records by credential ID.
      */
-    suspend fun countConsentByCredentialId(credentialId: String): Long {
-        return database.userConsentRecordQueries.countByCredentialId(credentialId)
+    suspend fun countConsentByCredentialId(credentialId: CredentialId): Long =
+        database.userConsentRecordQueries
+            .countByCredentialId(credentialId.encoded)
             .executeAsOne()
-    }
 
     /**
      * Counts biometric consent records.
      */
-    suspend fun countBiometricConsent(rpId: String? = null): Long {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.countBiometricByRpId(rpId)
+    suspend fun countBiometricConsent(rpId: RpId? = null): Long =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .countBiometricByRpId(rpId.value)
                 .executeAsOne()
         } else {
-            database.userConsentRecordQueries.countBiometric()
+            database.userConsentRecordQueries
+                .countBiometric()
                 .executeAsOne()
         }
-    }
 
     /**
      * Counts PIN consent records.
      */
-    suspend fun countPinConsent(rpId: String? = null): Long {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.countPinByRpId(rpId)
+    suspend fun countPinConsent(rpId: RpId? = null): Long =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .countPinByRpId(rpId.value)
                 .executeAsOne()
         } else {
-            database.userConsentRecordQueries.countPin()
+            database.userConsentRecordQueries
+                .countPin()
                 .executeAsOne()
         }
-    }
 
     /**
      * Counts combined consent records.
      */
-    suspend fun countCombinedConsent(rpId: String? = null): Long {
-        return if (rpId != null) {
-            database.userConsentRecordQueries.countCombinedByRpId(rpId)
+    suspend fun countCombinedConsent(rpId: RpId? = null): Long =
+        if (rpId != null) {
+            database.userConsentRecordQueries
+                .countCombinedByRpId(rpId.value)
                 .executeAsOne()
         } else {
-            database.userConsentRecordQueries.countCombined()
+            database.userConsentRecordQueries
+                .countCombined()
                 .executeAsOne()
         }
-    }
 
     /**
      * Checks if a consent record exists.
      */
-    suspend fun consentExists(consentId: String): Boolean {
-        return database.userConsentRecordQueries.existsById(consentId)
+    suspend fun consentExists(consentId: String): Boolean =
+        database.userConsentRecordQueries
+            .existsById(consentId)
             .executeAsOne()
-    }
 
     /**
      * Retrieves consent statistics for a specific RP.
      */
-    suspend fun getConsentStatisticsByRpId(rpId: String): ConsentStatistics {
+    suspend fun getConsentStatisticsByRpId(rpId: RpId): ConsentStatistics {
         val total = countConsentByRpId(rpId)
         val registration =
-            database.userConsentRecordQueries.countByOperationAndRpId(
-                operationType = ConsentOperationType.REGISTRATION.name,
-                rpId = rpId,
-            ).executeAsOne()
+            database.userConsentRecordQueries
+                .countByOperationAndRpId(
+                    operationType = ConsentOperationType.REGISTRATION.name,
+                    rpId = rpId.value,
+                ).executeAsOne()
         val authentication =
-            database.userConsentRecordQueries.countByOperationAndRpId(
-                operationType = ConsentOperationType.AUTHENTICATION.name,
-                rpId = rpId,
-            ).executeAsOne()
+            database.userConsentRecordQueries
+                .countByOperationAndRpId(
+                    operationType = ConsentOperationType.AUTHENTICATION.name,
+                    rpId = rpId.value,
+                ).executeAsOne()
         val biometric = countBiometricConsent(rpId)
         val pin = countPinConsent(rpId)
         val combined = countCombinedConsent(rpId)
@@ -381,11 +412,13 @@ class UserConsentRecordDao(
     suspend fun getOverallConsentStatistics(): OverallConsentStatistics {
         val total = countAllConsent()
         val byOperation =
-            database.userConsentRecordQueries.getStatisticsByOperation()
+            database.userConsentRecordQueries
+                .getStatisticsByOperation()
                 .executeAsList()
                 .associate { it.operationType to it.count }
         val byRp =
-            database.userConsentRecordQueries.getStatisticsByRpId(20)
+            database.userConsentRecordQueries
+                .getStatisticsByRpId(20)
                 .executeAsList()
                 .associate { it.rpId to it.count }
         val biometric = countBiometricConsent()
@@ -405,10 +438,11 @@ class UserConsentRecordDao(
     /**
      * Gets the number of changes from the last operation.
      */
-    private suspend fun getChangesCount(): Int {
-        return database.userConsentRecordQueries.changes()
-            .executeAsOne().toInt()
-    }
+    private suspend fun getChangesCount(): Int =
+        database.userConsentRecordQueries
+            .changes()
+            .executeAsOne()
+            .toInt()
 
     /**
      * Data class for consent statistics.

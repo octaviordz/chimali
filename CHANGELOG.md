@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-01
+
+### Changed
+- **Shared Domain Library Evolution**: Completed the migration of the business logic layer to Kotlin Multiplatform (KMP). Standardized on strongly-typed value classes (`RpId`, `UserId`, `PasskeyId`, `CredentialId`) to eliminate primitive obsession and ensure cross-platform type safety.
+- **FIDO2 Authentication Fix**: Resolved a critical regression where Windows devices failed to recognize security keys. Enforced raw binary serialization for FIDO2 identifiers in the CTAP2 protocol handler, ensuring strict compliance with the CTAP2 specification.
+- **CredentialId Normalization**: Hardened `CredentialId` handling with automatic Base64 padding normalization and robust decoding, resolving inconsistencies between platform-specific Base64 implementations.
+- **Domain Model Modernization**: Refactored core entities to use platform-agnostic types (`kotlinx.datetime`, `kotlinx.serialization`), enabling seamless code sharing across Android and iOS.
+- **Test Suite Stabilization**: Resolved integration test failures by remediating mock mismatches and eliminating test pollution, achieving 100% pass rate in the FIDO2 data integration suite.
+- **Detailed changes**: [2026-05-01-shared-domain-library-and-fido2-fix.md](docs/changelogs/2026-05-01-shared-domain-library-and-fido2-fix.md)
+
 ## [Unreleased] - 2026-04-30
 
 ### Changed
@@ -623,4 +633,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-04-30*
+*Last Updated: 2026-05-01*

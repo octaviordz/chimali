@@ -1,16 +1,22 @@
-package com.chimali.fido2.domain.model
+package com.chimali.core.domain.model
 
-import java.time.Instant
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 
 /**
  * Domain model representing a user consent record for FIDO2 operations.
  * This entity tracks user consent for authentication and registration operations.
  */
+@Serializable
 data class UserConsentRecord(
     val id: String,
     val operationType: ConsentOperationType,
-    val rpId: String,
-    val credentialId: String?,
+    val rpId: RpId,
+    val credentialId: CredentialId?,
     val timestamp: Instant,
     val biometricUsed: Boolean,
     val pinUsed: Boolean,
@@ -29,64 +35,67 @@ data class UserConsentRecord(
     private fun validate() {
         // Validate required fields
         require(id.isNotBlank()) { "Consent record ID cannot be blank" }
-        require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(timestamp.isBefore(Instant.now().plusSeconds(60))) {
-            "Timestamp cannot be more than 60 seconds in the future"
+
+        val now = Clock.System.now()
+        require(timestamp <= now + FUTURE_GRACE) {
+            "Consent timestamp cannot be in the future"
         }
 
         // Validate RP ID format
-        require(
-            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$")),
-        ) { "RP ID must be a valid domain or HTTPS origin" }
+        require(isValidRpId(rpId.value)) {
+            "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
+        }
 
-        // Validate credential ID if present
-        credentialId?.let { credId ->
-            require(credId.isNotBlank()) { "Credential ID cannot be blank if provided" }
-            require(credId.length <= 1023) { "Credential ID cannot exceed 1023 bytes" }
+        credentialId?.let { id ->
+            require(id.toByteArray().size <= MAX_CREDENTIAL_ID_LENGTH) {
+                "Credential ID exceeds maximum length of $MAX_CREDENTIAL_ID_LENGTH bytes"
+            }
         }
 
         // Validate optional fields
         ipAddress?.let { ip ->
             require(ip.isNotBlank()) { "IP address cannot be blank if provided" }
-            require(ip.length <= 45) { "IP address cannot exceed 45 characters" }
-            require(isValidIpAddress(ip)) { "IP address must be valid IPv4 or IPv6 format" }
+            require(ip.length <= MAX_IP_ADDRESS_LENGTH) {
+                "IP address exceeds maximum length of $MAX_IP_ADDRESS_LENGTH"
+            }
+            require(isValidIpAddress(ip)) { "Invalid IP address format: $ip" }
         }
 
         userAgent?.let { ua ->
             require(ua.isNotBlank()) { "User agent cannot be blank if provided" }
-            require(ua.length <= 512) { "User agent cannot exceed 512 characters" }
+            require(ua.length <= MAX_USER_AGENT_LENGTH) {
+                "User agent exceeds maximum length of $MAX_USER_AGENT_LENGTH"
+            }
         }
 
         deviceId?.let { device ->
             require(device.isNotBlank()) { "Device ID cannot be blank if provided" }
-            require(device.length <= 64) { "Device ID cannot exceed 64 characters" }
+            require(device.length <= MAX_DEVICE_ID_LENGTH) {
+                "Device ID exceeds maximum length of $MAX_DEVICE_ID_LENGTH"
+            }
         }
-
-        // Consent method validation is intentionally not enforced here;
-        // silent/implicit consent (no biometric or PIN) is valid when
-        // the relying party does not require explicit user verification.
     }
 
     /**
-     * Checks if this consent was given recently.
+     * Checks if this consent is still considered recent (e.g., within 5 minutes).
      */
-    fun isRecent(minutes: Long = 5): Boolean {
-        val cutoff = timestamp.plusSeconds(minutes * 60)
-        return Instant.now().isBefore(cutoff)
+    fun isRecent(minutes: Int = 5): Boolean {
+        val now = Clock.System.now()
+        return (now - timestamp) <= minutes.minutes
     }
 
     /**
-     * Checks if this consent was for a specific credential.
+     * Checks if this consent was for a specific credential ID.
      */
-    fun isForCredential(credentialId: String): Boolean {
-        return this.credentialId?.equals(credentialId, ignoreCase = true) ?: false
+    fun isForCredential(credentialId: CredentialId): Boolean {
+        return this.credentialId == credentialId
     }
 
     /**
      * Checks if this consent was for a specific relying party.
      */
-    fun isForRelyingParty(rpId: String): Boolean {
-        return this.rpId.equals(rpId, ignoreCase = true)
+    fun isForRelyingParty(rpId: RpId): Boolean {
+        return this.rpId.value.equals(rpId.value, ignoreCase = true)
     }
 
     /**
@@ -105,7 +114,7 @@ data class UserConsentRecord(
      * Returns a safe representation of the credential ID.
      */
     fun getSafeCredentialId(): String {
-        return credentialId ?: "N/A"
+        return credentialId?.encoded ?: "N/A"
     }
 
     /**
@@ -123,39 +132,47 @@ data class UserConsentRecord(
     }
 
     companion object {
-        /**
-         * Maximum allowed sizes for various fields.
-         */
         const val MAX_IP_ADDRESS_LENGTH = 45
         const val MAX_USER_AGENT_LENGTH = 512
         const val MAX_DEVICE_ID_LENGTH = 64
         const val MAX_CREDENTIAL_ID_LENGTH = 1023
+        private const val MAX_IPV6_GROUP_LENGTH = 4
+        private val FUTURE_GRACE = 1.minutes
 
         /**
          * Creates a new UserConsentRecord with validation.
          */
         fun create(
+            id: String,
             operationType: ConsentOperationType,
-            rpId: String,
-            credentialId: String? = null,
-            biometricUsed: Boolean,
-            pinUsed: Boolean,
+            rpId: RpId,
+            credentialId: CredentialId? = null,
+            timestamp: Instant = Clock.System.now(),
+            biometricUsed: Boolean = false,
+            pinUsed: Boolean = false,
             ipAddress: String? = null,
             userAgent: String? = null,
             deviceId: String? = null,
         ): UserConsentRecord {
             return UserConsentRecord(
-                id = java.util.UUID.randomUUID().toString(),
+                id = id,
                 operationType = operationType,
                 rpId = rpId,
                 credentialId = credentialId,
-                timestamp = Instant.now(),
+                timestamp = timestamp,
                 biometricUsed = biometricUsed,
                 pinUsed = pinUsed,
                 ipAddress = ipAddress,
                 userAgent = userAgent,
                 deviceId = deviceId,
             )
+        }
+
+        /**
+         * Validates RP ID format according to FIDO2 specifications.
+         */
+        private fun isValidRpId(rpId: String): Boolean {
+            return rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
         }
 
         /**
@@ -178,7 +195,7 @@ data class UserConsentRecord(
                     if (!validChars) return false
 
                     val groups = ip.split(":")
-                    return groups.all { it.length <= 4 }
+                    return groups.all { it.length <= MAX_IPV6_GROUP_LENGTH }
                 }
                 false
             } catch (_: Exception) {
@@ -191,6 +208,7 @@ data class UserConsentRecord(
 /**
  * Enumeration of consent operation types.
  */
+@Serializable
 enum class ConsentOperationType {
     REGISTRATION,
     AUTHENTICATION,
@@ -201,6 +219,7 @@ enum class ConsentOperationType {
 /**
  * Enumeration of consent methods.
  */
+@Serializable
 enum class ConsentMethod {
     NONE,
     BIOMETRIC,

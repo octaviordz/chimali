@@ -22,9 +22,7 @@ class MemoryUtils {
         return chars
     }
 
-    fun secureStringToBytes(input: String): ByteArray {
-        return input.toByteArray()
-    }
+    fun secureStringToBytes(input: String): ByteArray = input.toByteArray()
 
     fun clearString(
         @Suppress("UnusedParameter")
@@ -50,8 +48,8 @@ class MemoryUtils {
     fun compareSecureArrays(
         a: ByteArray,
         b: ByteArray,
-    ): Boolean {
-        return if (a.size != b.size) {
+    ): Boolean =
+        if (a.size != b.size) {
             false
         } else {
             var result = 0
@@ -60,13 +58,12 @@ class MemoryUtils {
             }
             result == 0
         }
-    }
 
     fun compareSecureArrays(
         a: CharArray,
         b: CharArray,
-    ): Boolean {
-        return if (a.size != b.size) {
+    ): Boolean =
+        if (a.size != b.size) {
             false
         } else {
             var result = 0
@@ -75,5 +72,4 @@ class MemoryUtils {
             }
             result == 0
         }
-    }
 }

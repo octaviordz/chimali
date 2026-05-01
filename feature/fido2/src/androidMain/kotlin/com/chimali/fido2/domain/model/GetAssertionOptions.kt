@@ -1,5 +1,8 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.valueobject.RpId
+
 /**
  * T078 — Domain model representing options for a FIDO2 GetAssertion (authentication) ceremony.
  *
@@ -7,7 +10,7 @@ package com.chimali.fido2.domain.model
  */
 data class GetAssertionOptions(
     /** Relying Party Identifier — SHA-256 of this is used as rpIdHash in authData. */
-    val rpId: String,
+    val rpId: RpId,
     /** 16-32 byte random challenge from the RP. Must be unique per ceremony. */
     val clientDataHash: ByteArray,
     /**
@@ -27,7 +30,8 @@ data class GetAssertionOptions(
     }
 
     private fun validate() {
-        require(rpId.isNotBlank()) { "RP ID cannot be blank" }
+        // rpId validation is handled by RpId value class and RelyingParty.isValidRpId
+        require(RelyingParty.isValidRpId(rpId.value)) { "Invalid RP ID: ${rpId.value}" }
         require(clientDataHash.size == CLIENT_DATA_HASH_SIZE) {
             "clientDataHash must be 32 bytes (SHA-256), got ${clientDataHash.size}"
         }
@@ -54,7 +58,7 @@ data class GetAssertionOptions(
          * Quick factory for tests or internal use when clientDataHash is already computed.
          */
         fun create(
-            rpId: String,
+            rpId: RpId,
             clientDataHash: ByteArray,
             allowCredentials: List<PublicKeyCredentialDescriptor>? = null,
             userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,

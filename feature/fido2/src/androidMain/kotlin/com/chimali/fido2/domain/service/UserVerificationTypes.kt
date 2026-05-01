@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.service
 
+import kotlinx.datetime.Instant
+
 /**
  * Data class representing user verification availability.
  */
@@ -39,7 +41,7 @@ data class BiometricVerificationResult(
     val success: Boolean,
     val biometricType: BiometricType,
     val confidence: Float,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
     val errorMessage: String?,
 ) {
     /**
@@ -60,7 +62,7 @@ data class PinVerificationResult(
     val success: Boolean,
     val attemptsRemaining: Int,
     val isLocked: Boolean,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
     val errorMessage: String?,
 ) {
     /**
@@ -87,7 +89,7 @@ data class CombinedVerificationResult(
     val biometricResult: BiometricVerificationResult?,
     val pinResult: PinVerificationResult?,
     val verificationMethod: VerificationMethod,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
 ) {
     /**
      * Checks if verification was successful.
@@ -111,7 +113,7 @@ data class CombinedVerificationResult(
  */
 data class DeviceLockVerificationResult(
     val success: Boolean,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
     val errorMessage: String?,
 ) {
     /**
@@ -127,7 +129,7 @@ data class BiometricEnrollmentStatus(
     val isEnrolled: Boolean,
     val enrolledTypes: List<BiometricType>,
     val enrollmentStrength: BiometricStrength,
-    val lastUpdated: java.time.Instant,
+    val lastUpdated: Instant,
 ) {
     /**
      * Checks if any biometric is enrolled.

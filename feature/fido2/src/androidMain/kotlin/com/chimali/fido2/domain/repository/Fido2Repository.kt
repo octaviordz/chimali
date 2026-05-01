@@ -2,19 +2,21 @@ package com.chimali.fido2.domain.repository
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
 
 interface Fido2Repository {
     suspend fun registerCredential(
-        rpId: String,
+        rpId: RpId,
         userName: String,
         userDisplayName: String,
-    ): Outcome<String, DomainError>
+    ): Outcome<CredentialId, DomainError>
 
-    suspend fun authenticateCredential(rpId: String): Outcome<String, DomainError>
+    suspend fun authenticateCredential(rpId: RpId): Outcome<CredentialId, DomainError>
 
-    suspend fun getAllCredentials(): Flow<List<PasskeyCredential>>
+    suspend fun getAllCredentials(): Flow<PasskeyCredential>
 
-    suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError>
+    suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError>
 }

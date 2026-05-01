@@ -25,7 +25,7 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Update `core:domain` build configuration to include `kotlinx-datetime`, `kotlinx-serialization`, and `signum` in `core/domain/build.gradle.kts`
+- [x] T001 Update `core:domain` build configuration to include `kotlinx-datetime`, `kotlinx-serialization`, and `signum` in `core/domain/build.gradle.kts`
 
 ---
 
@@ -35,7 +35,7 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Create unified package structures for models and value objects in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/`
+- [x] T002 Create unified package structures for models and value objects in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -51,17 +51,17 @@ description: "Task list template for feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T003 [P] [US1] Write unit test for `CredentialId` generation logic in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
+- [x] T003 [P] [US1] Write unit test for `CredentialId` generation logic in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T004 [P] [US1] Create `@JvmInline value class RpId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/RpId.kt`
-- [ ] T005 [P] [US1] Create `@JvmInline value class UserId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/UserId.kt`
-- [ ] T006 [P] [US1] Create `@JvmInline value class PasskeyId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/PasskeyId.kt`
-- [ ] T007 [US1] Migrate and refactor `CredentialId` with KMP-safe generation using `CryptoRand` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt`
-- [ ] T008 [US1] Clean up legacy references, unify existing `ValueObjects.kt` in `core:domain`, and delete the duplicate `CredentialId.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/CredentialId.kt`
-- [ ] T008a [US1] Refactor `CredentialRepository` in `feature/fido2` to use `CredentialId` instead of `String`
-- [ ] T008b [US1] Refactor FIDO2 UseCases (`SelectCredentialUseCase`, `GetAssertionUseCase`) to consume the new `CredentialId` and `RpId` types
+- [x] T004 [P] [US1] Create `@JvmInline value class RpId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/RpId.kt`
+- [x] T005 [P] [US1] Create `@JvmInline value class UserId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/UserId.kt`
+- [x] T006 [P] [US1] Create `@JvmInline value class PasskeyId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/PasskeyId.kt`
+- [x] T007 [US1] Migrate and refactor `CredentialId` with KMP-safe generation using `CryptoRand` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt`
+- [x] T008 [US1] Clean up legacy references, unify existing `ValueObjects.kt` in `core:domain`, and delete the duplicate `CredentialId.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/CredentialId.kt`
+- [x] T008a [US1] Refactor `CredentialRepository` in `feature/fido2` to use `CredentialId` instead of `String`
+- [x] T008b [US1] Refactor FIDO2 UseCases (`SelectCredentialUseCase`, `GetAssertionUseCase`) to consume the new `CredentialId` and `RpId` types
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -75,13 +75,13 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T009 [P] [US2] Write unit tests ensuring serialization compatibility of domain models in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/model/DomainModelSerializationTest.kt`
+- [x] T009 [P] [US2] Write unit tests ensuring serialization compatibility of domain models in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/model/DomainModelSerializationTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T010 [P] [US2] Create KMP-safe `RelyingParty` model using `RpId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/RelyingParty.kt`
-- [ ] T011 [P] [US2] Create KMP-safe `CredentialSummary` model using `kotlinx.datetime.Instant` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/CredentialSummary.kt`
-- [ ] T012 [P] [US2] Create KMP-safe `UserConsentRecord` model in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/UserConsentRecord.kt`
+- [x] T010 [P] [US2] Create KMP-safe `RelyingParty` model using `RpId` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/RelyingParty.kt`
+- [x] T011 [P] [US2] Create KMP-safe `CredentialSummary` model using `kotlinx.datetime.Instant` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/CredentialSummary.kt`
+- [x] T012 [P] [US2] Create KMP-safe `UserConsentRecord` model in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/model/UserConsentRecord.kt`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -91,8 +91,8 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T013 Update `feature:fido2` dependencies to ensure it references the unified `core:domain` module in `feature/fido2/build.gradle.kts`
-- [ ] T014 Run validation pipeline via `tools/local-ci.ps1`
+- [x] T013 Update `feature:fido2` dependencies to ensure it references the unified `core:domain` module in `feature/fido2/build.gradle.kts`
+- [x] T014 Run validation pipeline via `tools/local-ci.ps1`
 
 ---
 

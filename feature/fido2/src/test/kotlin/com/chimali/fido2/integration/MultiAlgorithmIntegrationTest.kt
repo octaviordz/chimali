@@ -5,6 +5,12 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isSuccess
 import com.chimali.core.common.result.map
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
@@ -13,15 +19,12 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
-import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -85,7 +88,10 @@ class MultiAlgorithmIntegrationTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @BeforeTest
     fun setUp() {
-        Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
+        Security.addProvider(
+            org.bouncycastle.jce.provider
+                .BouncyCastleProvider(),
+        )
         mockkStatic(android.util.Log::class)
         every { android.util.Log.d(any(), any()) } returns 0
         every { android.util.Log.e(any(), any(), any()) } returns 0
@@ -126,10 +132,14 @@ class MultiAlgorithmIntegrationTest {
             }
         cryptoService =
             Fido2CryptoService(
-                hdkManager,
-                masterSeedProvider,
-                postQuantumCrypto,
-                UnconfinedTestDispatcher(),
+                hdkManager = hdkManager,
+                masterSeedProvider = masterSeedProvider,
+                postQuantumCrypto = postQuantumCrypto,
+                timeProvider =
+                    mockk {
+                        every { epochMillis() } returns 0L
+                    },
+                defaultDispatcher = UnconfinedTestDispatcher(),
             )
 
         repository = MultiAlgInMemoryCredentialRepository()
@@ -191,7 +201,7 @@ class MultiAlgorithmIntegrationTest {
             val credential = result.getOrThrow().credential
             assertEquals(Fido2CryptoService.COSE_ES256, credential.coseAlgorithm)
 
-            val authOptions = buildGetAssertionOptions("https://example.com", credential.credentialId)
+            val authOptions = buildGetAssertionOptions("https://example.com", credential.id)
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess)
         }
@@ -209,7 +219,7 @@ class MultiAlgorithmIntegrationTest {
             // ML-DSA-65 public key should be quite large (>1900 bytes)
             assertTrue(credential.publicKey.encoded.size > MIN_ML_DSA_PUB_KEY_SIZE_1900)
 
-            val authOptions = buildGetAssertionOptions("https://mldsa.com", credential.credentialId)
+            val authOptions = buildGetAssertionOptions("https://mldsa.com", credential.id)
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess)
 
@@ -223,10 +233,10 @@ class MultiAlgorithmIntegrationTest {
         rpIdHost: String,
         algId: Int,
     ): MakeCredentialOptions {
-        val rp = PublicKeyCredentialRpEntity.create(id = "https://$rpIdHost", name = rpIdHost)
+        val rp = PublicKeyCredentialRpEntity.create(id = RpId("https://$rpIdHost"), name = rpIdHost)
         val user =
             PublicKeyCredentialUserEntity.create(
-                id = userId.toByteArray(),
+                id = UserId(userId),
                 name = userId,
                 displayName = userId,
             )
@@ -247,11 +257,15 @@ class MultiAlgorithmIntegrationTest {
 
     private fun buildGetAssertionOptions(
         rpId: String,
-        credId: ByteArray,
+        credId: CredentialId,
     ): GetAssertionOptions {
-        val allowList = listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credId))
+        val allowList =
+            listOf(
+                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+                    .create(id = credId),
+            )
         return GetAssertionOptions.create(
-            rpId = rpId,
+            rpId = RpId(rpId),
             clientDataHash = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_CD },
             userVerification = UserVerificationRequirement.PREFERRED,
             allowCredentials = allowList,
@@ -266,39 +280,42 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     private val credentials = ConcurrentHashMap<String, PasskeyCredential>()
     private val signCounts = ConcurrentHashMap<String, Long>()
 
-    fun getAllSummariesForRp(rpId: String): List<CredentialSummary> =
+    fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
             .filter { it.rpId == rpId }
             .map {
                 CredentialSummary(
-                    id = it.id,
+                    id = it.id.encoded,
                     rpId = it.rpId,
-                    credentialId = it.credentialId,
-                    lastUsedAt = it.lastUsedAt,
+                    credentialId = it.id,
+                    lastUsedAt = it.lastUsedAt ?: it.createdAt,
                     coseAlgorithm = it.coseAlgorithm,
                 )
             }
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
-        credentials[credential.id] = credential
-        signCounts[credential.id] = 0L
+        credentials[credential.id.encoded] = credential
+        signCounts[credential.id.encoded] = 0L
         return Outcome.Success(Unit)
     }
 
-    override suspend fun getCredentialById(credentialId: String): PasskeyCredential? = credentials[credentialId]
+    override suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? =
+        credentials[credentialId.encoded]
 
-    override suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential> =
+    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
         flowOf(
-            *credentials.values.filter {
-                it.rpId == rpId
-            }.toTypedArray(),
+            *credentials.values
+                .filter {
+                    it.rpId == rpId
+                }.toTypedArray(),
         )
 
-    override suspend fun getCredentialsByUserId(userId: String): Flow<PasskeyCredential> =
+    override suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
         flowOf(
-            *credentials.values.filter {
-                it.userId == userId
-            }.toTypedArray(),
+            *credentials.values
+                .filter {
+                    it.userId == userId
+                }.toTypedArray(),
         )
 
     override suspend fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
@@ -307,47 +324,61 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         limit: Long,
         offset: Long,
     ): Outcome<List<PasskeyCredential>, DomainError> {
-        val list = credentials.values.toList().drop(offset.toInt()).take(limit.toInt())
+        val list =
+            credentials.values
+                .toList()
+                .drop(offset.toInt())
+                .take(limit.toInt())
         return Outcome.Success(list)
     }
 
     override suspend fun getPagedCredentialsByRpId(
-        rpId: String,
+        rpId: RpId,
         limit: Long,
         offset: Long,
     ): Outcome<List<PasskeyCredential>, DomainError> {
-        val list = credentials.values.filter { it.rpId == rpId }.drop(offset.toInt()).take(limit.toInt())
+        val list =
+            credentials.values
+                .filter { it.rpId == rpId }
+                .drop(offset.toInt())
+                .take(limit.toInt())
         return Outcome.Success(list)
     }
 
     override suspend fun updateSignCount(
-        credentialId: String,
+        credentialId: CredentialId,
         newSignCount: Long,
     ): Outcome<Unit, DomainError> {
-        signCounts[credentialId] = newSignCount
+        signCounts[credentialId.encoded] = newSignCount
         return Outcome.Success(Unit)
     }
 
-    override suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError> = Outcome.Success(Unit)
+    override suspend fun updateLastUsedAt(credentialId: CredentialId): Outcome<Unit, DomainError> =
+        Outcome.Success(
+            Unit,
+        )
 
-    override suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError> = Outcome.Success(Unit)
+    override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
+        Outcome.Success(
+            Unit,
+        )
 
     override suspend fun credentialExists(
-        rpId: String,
-        userId: String,
+        rpId: RpId,
+        userId: UserId,
     ): Boolean = false
 
     override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun getCredentialCountByRpId(rpId: String): Int = 0
+    override suspend fun getCredentialCountByRpId(rpId: RpId): Int = 0
 
     override suspend fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun validateCredentialCreation(
-        rpId: String,
-        userId: String,
+        rpId: RpId,
+        userId: UserId,
     ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
@@ -355,21 +386,21 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun updateRelyingParty(
-        rpId: String,
+        rpId: RpId,
         update: (RelyingParty) -> RelyingParty,
     ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun getRelyingParty(rpId: String): RelyingParty? = null
+    override suspend fun getRelyingParty(rpId: RpId): RelyingParty? = null
 
     override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun getRecentUserConsent(
-        rpId: String?,
+        rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> = emptyFlow()
 
     override suspend fun isUserConsentRequired(
-        rpId: String,
+        rpId: RpId,
         operationType: String,
     ): Boolean = false
 
@@ -383,24 +414,24 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
             0.0,
         )
 
-    override suspend fun getCredentialsForRp(rpId: String): Outcome<List<PasskeyCredential>, DomainError> =
+    override suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError> =
         Outcome.Success(
             emptyList(),
         )
 
-    override suspend fun getCredentialSummariesForRp(rpId: String): Outcome<List<CredentialSummary>, DomainError> =
+    override suspend fun getCredentialSummariesForRp(rpId: RpId): Outcome<List<CredentialSummary>, DomainError> =
         Outcome.Success(
             getAllSummariesForRp(rpId),
         )
 
-    override suspend fun getSignCount(credentialId: String): Outcome<Long, DomainError> =
+    override suspend fun getSignCount(credentialId: CredentialId): Outcome<Long, DomainError> =
         Outcome.Success(
-            signCounts[credentialId] ?: 0L,
+            signCounts[credentialId.encoded] ?: 0L,
         )
 
     override suspend fun getCredentialsByIds(
-        credentialIds: Set<String>,
-        rpId: String?,
+        credentialIds: Set<CredentialId>,
+        rpId: RpId?,
     ): Outcome<List<PasskeyCredential>, DomainError> =
         Outcome.Success(
             emptyList(),
@@ -408,16 +439,16 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
 
     override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Outcome<Int, DomainError> = Outcome.Success(0)
 
-    override suspend fun deleteAllCredentials(rpId: String?): Outcome<Unit, DomainError> = Outcome.Success(Unit)
+    override suspend fun deleteAllCredentials(rpId: RpId?): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun resetAuthenticator(): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun updateLabel(
-        credentialId: String,
+        credentialId: CredentialId,
         label: String?,
     ): Outcome<Unit, DomainError> {
-        credentials[credentialId]?.let {
-            credentials[credentialId] = it.copy(label = label)
+        credentials[credentialId.encoded]?.let {
+            credentials[credentialId.encoded] = it.copy(label = label)
         }
         return Outcome.Success(Unit)
     }

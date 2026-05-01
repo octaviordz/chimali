@@ -4,7 +4,10 @@ package com.chimali.core.clipboard
  * Sealed class representing all possible clipboard-related errors.
  * Provides type-safe error handling for clipboard operations.
  */
-sealed class ClipboardError(message: String? = null, cause: Throwable? = null) : Exception(message, cause) {
+sealed class ClipboardError(
+    message: String? = null,
+    cause: Throwable? = null,
+) : Exception(message, cause) {
     /**
      * Clipboard service is unavailable on this platform/device.
      */

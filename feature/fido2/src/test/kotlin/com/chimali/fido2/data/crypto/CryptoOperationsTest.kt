@@ -1,6 +1,6 @@
 package com.chimali.fido2.data.crypto
 
-import com.chimali.fido2.domain.model.CredentialId
+import com.chimali.core.domain.valueobject.CredentialId
 import java.security.MessageDigest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -11,7 +11,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * T061 — Unit tests for Core Crypto operations.
+ * T061 � Unit tests for Core Crypto operations.
  *
  * Tests run on JVM (no Android dependency needed since these classes use only
  * java.security APIs for the testable public contract).
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * and are covered in AndroidKeyStoreWrapperTest (instrumented).
  */
 class CryptoOperationsTest {
-    // ── ClientDataHashService ─────────────────────────────────────────────────
+    // -- ClientDataHashService -------------------------------------------------
 
     private lateinit var clientDataHashService: ClientDataHashService
 
@@ -41,7 +41,7 @@ class CryptoOperationsTest {
         private const val DUMMY_BYTE_22 = 0x22.toByte()
     }
 
-    // ── ClientDataHashService tests ───────────────────────────────────────────
+    // -- ClientDataHashService tests -------------------------------------------
 
     @Test
     fun `computeHash returns 32 bytes`() {
@@ -124,7 +124,7 @@ class CryptoOperationsTest {
         assertFalse(json.contains("="), "Base64URL must have no padding")
     }
 
-    // ── ClientDataHashService.Companion (rpIdHash) ───────────────────────────
+    // -- ClientDataHashService.Companion (rpIdHash) ---------------------------
 
     @Test
     fun `rpIdHash produces 32-byte SHA-256 of rpId`() {
@@ -150,11 +150,11 @@ class CryptoOperationsTest {
         assertContentEquals(expected, ClientDataHashService.sha256(data))
     }
 
-    // ── Fido2CryptoService constants ──────────────────────────────────────────
+    // -- Fido2CryptoService constants ------------------------------------------
 
     @Test
     fun `credentialAlias follows expected prefix`() {
-        val credId = CredentialId.fromString("abc123")
+        val credId = CredentialId.fromByteArray("abc123".encodeToByteArray())
         val alias = Fido2CryptoService.credentialAlias(credId)
         assertTrue(alias.startsWith("device-key/1179206706/"))
     }
@@ -164,7 +164,7 @@ class CryptoOperationsTest {
         assertEquals(COSE_ES256_VAL, Fido2CryptoService.COSE_ES256)
     }
 
-    // ── Fido2KeyPair ──────────────────────────────────────────────────────────
+    // -- Fido2KeyPair ----------------------------------------------------------
 
     @Test
     fun `Fido2KeyPair equality based on alias and bytes`() {

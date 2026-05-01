@@ -1,6 +1,8 @@
 package com.chimali.fido2.domain.model
 
-import java.time.Instant
+import com.chimali.core.domain.model.RelyingParty
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.datetime.Instant
 
 /**
  * Domain model representing a FIDO2 AttestationObject.
@@ -452,7 +454,7 @@ data class ClientData(
     val challenge: ByteArray,
     val origin: String,
     val crossOrigin: Boolean,
-    val timestamp: Instant,
+    val timestamp: kotlinx.datetime.Instant,
 ) {
     init {
         validate()
@@ -472,7 +474,9 @@ data class ClientData(
         }
 
         // Validate timestamp
-        require(timestamp.isBefore(Instant.now().plusSeconds(FUTURE_GRACE_PERIOD_SECONDS))) {
+        require(
+            timestamp <= Instant.fromEpochMilliseconds(java.lang.System.currentTimeMillis()) + FUTURE_GRACE_PERIOD,
+        ) {
             "Timestamp cannot be more than $FUTURE_GRACE_PERIOD_SECONDS seconds in the future"
         }
     }
@@ -524,7 +528,8 @@ data class ClientData(
 
     companion object {
         private const val MAX_CHALLENGE_SIZE = 64
-        private const val FUTURE_GRACE_PERIOD_SECONDS = 60L
+        private const val FUTURE_GRACE_PERIOD_SECONDS = 60
+        private val FUTURE_GRACE_PERIOD = FUTURE_GRACE_PERIOD_SECONDS.seconds
         private const val TYPE_CREATE = "webauthn.create"
         private const val TYPE_GET = "webauthn.get"
 
@@ -542,7 +547,7 @@ data class ClientData(
                 challenge = challenge,
                 origin = origin,
                 crossOrigin = crossOrigin,
-                timestamp = Instant.now(),
+                timestamp = Instant.fromEpochMilliseconds(java.lang.System.currentTimeMillis()),
             )
         }
 

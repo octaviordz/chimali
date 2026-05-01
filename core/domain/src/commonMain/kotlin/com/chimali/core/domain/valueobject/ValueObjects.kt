@@ -5,15 +5,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
-value class CredentialId(val value: String)
-
-@Serializable
-@JvmInline
-value class PasskeyId(val value: String)
-
-@Serializable
-@JvmInline
-value class EncryptedString(val value: String)
+value class EncryptedString(
+    val value: String,
+)
 
 @Serializable
 enum class CredentialCategory {
@@ -27,4 +21,6 @@ enum class CredentialCategory {
 }
 
 @Serializable
-data class CredentialTag(val name: String)
+data class CredentialTag(
+    val name: String,
+)

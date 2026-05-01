@@ -2,10 +2,13 @@ package com.chimali.fido2.domain.repository
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
-import com.chimali.fido2.domain.model.CredentialSummary
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -27,7 +30,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to retrieve
      * @return The credential if found, null otherwise
      */
-    suspend fun getCredentialById(credentialId: String): PasskeyCredential?
+    suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential?
 
     /**
      * Retrieves all credentials for a specific relying party.
@@ -35,7 +38,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
      */
-    suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential>
+    suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
      * Retrieves all credentials for a specific user.
@@ -43,7 +46,7 @@ interface CredentialRepository {
      * @param userId The ID of the user
      * @return Flow of credentials for the user
      */
-    suspend fun getCredentialsByUserId(userId: String): Flow<PasskeyCredential>
+    suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential>
 
     /**
      * Retrieves all credentials stored in the system.
@@ -73,7 +76,7 @@ interface CredentialRepository {
      * @return Outcome containing list of credentials for the requested page
      */
     suspend fun getPagedCredentialsByRpId(
-        rpId: String,
+        rpId: RpId,
         limit: Long,
         offset: Long,
     ): Outcome<List<PasskeyCredential>, DomainError>
@@ -86,7 +89,7 @@ interface CredentialRepository {
      * @return Outcome indicating success or failure
      */
     suspend fun updateSignCount(
-        credentialId: String,
+        credentialId: CredentialId,
         newSignCount: Long,
     ): Outcome<Unit, DomainError>
 
@@ -96,7 +99,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to update
      * @return Outcome indicating success or failure
      */
-    suspend fun updateLastUsedAt(credentialId: String): Outcome<Unit, DomainError>
+    suspend fun updateLastUsedAt(credentialId: CredentialId): Outcome<Unit, DomainError>
 
     /**
      * Deletes a credential by its ID.
@@ -104,7 +107,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to delete
      * @return Outcome indicating success or failure
      */
-    suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError>
+    suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError>
 
     /**
      * Checks if a credential exists for a given RP and user combination.
@@ -114,8 +117,8 @@ interface CredentialRepository {
      * @return True if credential exists, false otherwise
      */
     suspend fun credentialExists(
-        rpId: String,
-        userId: String,
+        rpId: RpId,
+        userId: UserId,
     ): Boolean
 
     /**
@@ -132,7 +135,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return The number of credentials for the RP
      */
-    suspend fun getCredentialCountByRpId(rpId: String): Int
+    suspend fun getCredentialCountByRpId(rpId: RpId): Int
 
     /**
      * Retrieves credentials that haven't been used recently.
@@ -158,8 +161,8 @@ interface CredentialRepository {
      * @return Outcome indicating if creation is allowed
      */
     suspend fun validateCredentialCreation(
-        rpId: String,
-        userId: String,
+        rpId: RpId,
+        userId: UserId,
     ): Outcome<Unit, DomainError>
 
     /**
@@ -185,7 +188,7 @@ interface CredentialRepository {
      * @return Outcome indicating success or failure
      */
     suspend fun updateRelyingParty(
-        rpId: String,
+        rpId: RpId,
         update: (RelyingParty) -> RelyingParty,
     ): Outcome<Unit, DomainError>
 
@@ -195,7 +198,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return The relying party if found, null otherwise
      */
-    suspend fun getRelyingParty(rpId: String): RelyingParty?
+    suspend fun getRelyingParty(rpId: RpId): RelyingParty?
 
     /**
      * Saves user consent record.
@@ -213,7 +216,7 @@ interface CredentialRepository {
      * @return Flow of recent consent records
      */
     suspend fun getRecentUserConsent(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord>
 
@@ -225,7 +228,7 @@ interface CredentialRepository {
      * @return True if consent is required, false otherwise
      */
     suspend fun isUserConsentRequired(
-        rpId: String,
+        rpId: RpId,
         operationType: String,
     ): Boolean
 
@@ -243,7 +246,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return Outcome containing list of matching credentials
      */
-    suspend fun getCredentialsForRp(rpId: String): Outcome<List<PasskeyCredential>, DomainError>
+    suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
      * T083a — Retrieves lightweight [CredentialSummary] projections for a specific RP.
@@ -256,7 +259,7 @@ interface CredentialRepository {
      * @param rpId  The relying party identifier to filter by.
      * @return Outcome containing a list of summaries (empty list on DB error).
      */
-    suspend fun getCredentialSummariesForRp(rpId: String): Outcome<List<CredentialSummary>, DomainError>
+    suspend fun getCredentialSummariesForRp(rpId: RpId): Outcome<List<CredentialSummary>, DomainError>
 
     /**
      * T084 — Retrieves the current sign count for a credential.
@@ -264,7 +267,7 @@ interface CredentialRepository {
      * @param credentialId  ID of the credential
      * @return Outcome containing the sign count (0 if not found)
      */
-    suspend fun getSignCount(credentialId: String): Outcome<Long, DomainError>
+    suspend fun getSignCount(credentialId: CredentialId): Outcome<Long, DomainError>
 
     /**
      * T085 — Retrieves a batch of credentials by their IDs.
@@ -275,8 +278,8 @@ interface CredentialRepository {
      * @return Outcome containing list of matching credentials
      */
     suspend fun getCredentialsByIds(
-        credentialIds: Set<String>,
-        rpId: String? = null,
+        credentialIds: Set<CredentialId>,
+        rpId: RpId? = null,
     ): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
@@ -293,7 +296,7 @@ interface CredentialRepository {
      * @param rpId Optional RP ID to filter destruction
      * @return Outcome indicating success or failure
      */
-    suspend fun deleteAllCredentials(rpId: String? = null): Outcome<Unit, DomainError>
+    suspend fun deleteAllCredentials(rpId: RpId? = null): Outcome<Unit, DomainError>
 
     /**
      * T111 — Performs a complete authenticator reset, erasing all credentials,
@@ -307,7 +310,19 @@ interface CredentialRepository {
      * Updates the custom label or note for a specific credential.
      */
     suspend fun updateLabel(
-        credentialId: String,
+        credentialId: CredentialId,
         label: String?,
     ): Outcome<Unit, DomainError>
 }
+
+/**
+ * Data class representing credential statistics.
+ */
+data class CredentialStatistics(
+    val totalCredentials: Int,
+    val credentialsByRp: Map<RpId, Int>,
+    val expiredCredentials: Int,
+    val recentlyUsedCredentials: Int,
+    val credentialsRequiringUserVerification: Int,
+    val averageAgeDays: Double,
+)

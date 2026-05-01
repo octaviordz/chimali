@@ -2,6 +2,10 @@ package com.chimali.fido2.integration
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
@@ -13,7 +17,6 @@ import com.chimali.fido2.presentation.management.CredentialManagementViewModel
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.security.KeyPairGenerator
-import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,8 +75,14 @@ class ManagementIntegrationTest {
 
         // deleteCredential removes from in-memory list and returns success
         coEvery { repository.deleteCredential(any()) } answers {
-            val id = firstArg<String>()
-            credentials.update { list -> list.filterNot { it.id == id } }
+            val id = firstArg<CredentialId>()
+            credentials.update { list ->
+                val filtered = list.filterNot { it.id == id }
+                if (filtered.size == list.size) {
+                    println("DEBUG: Failed to delete. Target ID: '$id'. List IDs: ${list.map { "'${it.id}'" }}")
+                }
+                filtered
+            }
             Outcome.Success(Unit)
         }
 
@@ -99,27 +108,29 @@ class ManagementIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        io.mockk.clearMocks(repository)
         Dispatchers.resetMain()
     }
 
     private fun createDummyCredential(
-        id: String,
-        rpId: String = "example.com",
+        idString: String,
+        rpId: String = "https://example.com",
     ): PasskeyCredential {
+        val credId = CredentialId.fromEncoded(idString)
         val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(EC_KEY_SIZE_256) }.generateKeyPair()
         return PasskeyCredential(
-            id = id,
-            rpId = rpId,
-            userId = "test_user_id",
+            id = credId,
+            rpId = RpId(rpId),
+            userId = UserId("test_user_id"),
             userName = "testuser",
             userDisplayName = "Test User",
             publicKey = keyPair.public,
             privateKeyAlias = "test_alias",
             signCount = 0L,
-            createdAt = Instant.now(),
-            lastUsedAt = Instant.now(),
+            createdAt = TimeProvider().now(),
+            lastUsedAt = TimeProvider().now(),
             aaguid = ByteArray(AAGUID_SIZE_16),
-            credentialId = id.toByteArray(),
+            credentialId = credId.toByteArray(),
         )
     }
 
@@ -128,8 +139,8 @@ class ManagementIntegrationTest {
     @Test
     fun `setCredentials populates state with credentials`() =
         runTest {
-            val cred1 = createDummyCredential("cred1", "https://example.com")
-            val cred2 = createDummyCredential("cred2", "https://google.com")
+            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
+            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
 
             viewModel.setCredentials(listOf(cred1, cred2))
 
@@ -152,7 +163,7 @@ class ManagementIntegrationTest {
     @Test
     fun `selecting credential updates selectedCredential state`() =
         runTest {
-            val cred = createDummyCredential("cred1")
+            val cred = createDummyCredential("Y3JlZDE")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred))
@@ -164,7 +175,7 @@ class ManagementIntegrationTest {
     @Test
     fun `dismiss clears dialog state`() =
         runTest {
-            val cred = createDummyCredential("cred1")
+            val cred = createDummyCredential("Y3JlZDE")
             viewModel.setCredentials(listOf(cred))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
@@ -182,7 +193,7 @@ class ManagementIntegrationTest {
     @Test
     fun `show delete dialog sets credentialToDelete`() =
         runTest {
-            val cred = createDummyCredential("cred1")
+            val cred = createDummyCredential("Y3JlZDE")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
@@ -194,8 +205,8 @@ class ManagementIntegrationTest {
     @Test
     fun `confirm delete removes credential from repository`() =
         runTest {
-            val cred1 = createDummyCredential("cred1", "https://example.com")
-            val cred2 = createDummyCredential("cred2", "https://google.com")
+            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
+            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
 
@@ -204,7 +215,12 @@ class ManagementIntegrationTest {
             advanceUntilIdle()
 
             assertEquals(1, credentials.value.size)
-            assertEquals("cred2", credentials.value.first().id)
+            assertEquals(
+                "Y3JlZDI",
+                credentials.value
+                    .first()
+                    .id.encoded,
+            )
         }
 
     @Test
@@ -213,7 +229,7 @@ class ManagementIntegrationTest {
             coEvery { repository.deleteCredential(any()) } returns
                 Outcome.Error(DomainError.UnknownError("Database error"))
 
-            val cred = createDummyCredential("cred1")
+            val cred = createDummyCredential("Y3JlZDE")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred.id))
@@ -233,8 +249,8 @@ class ManagementIntegrationTest {
     @Test
     fun `confirm delete all empties repository`() =
         runTest {
-            val cred1 = createDummyCredential("cred1")
-            val cred2 = createDummyCredential("cred2")
+            val cred1 = createDummyCredential("Y3JlZDE")
+            val cred2 = createDummyCredential("Y3JlZDI")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
 
@@ -251,7 +267,7 @@ class ManagementIntegrationTest {
             coEvery { repository.deleteAllCredentials(any()) } returns
                 Outcome.Error(DomainError.UnknownError("Wipe failed"))
 
-            viewModel.setCredentials(listOf(createDummyCredential("cred1")))
+            viewModel.setCredentials(listOf(createDummyCredential("Y3JlZDE")))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
 
@@ -263,8 +279,8 @@ class ManagementIntegrationTest {
     @Test
     fun `full management flow - add select delete wipe`() =
         runTest {
-            val cred1 = createDummyCredential("cred1", "https://example.com")
-            val cred2 = createDummyCredential("cred2", "https://google.com")
+            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
+            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
             advanceUntilIdle()
@@ -285,7 +301,12 @@ class ManagementIntegrationTest {
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred1.id))
             advanceUntilIdle()
             assertEquals(1, credentials.value.size)
-            assertEquals("cred2", credentials.value.first().id)
+            assertEquals(
+                "Y3JlZDI",
+                credentials.value
+                    .first()
+                    .id.encoded,
+            )
 
             // Wipe all
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)

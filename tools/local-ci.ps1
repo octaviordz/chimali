@@ -6,6 +6,7 @@ param(
     [switch]$Clean,
     [switch]$SkipTests,
     [switch]$SkipLint,
+    [switch]$NoFix,
     [switch]$NoConfigurationCache
 )
 
@@ -45,17 +46,25 @@ if ($Clean) {
 
 # 2. Static Analysis & Linting
 if (-not $SkipLint) {
-    Run-Task "Ktlint Check" "$Gradle ktlintCheck"
-    Run-Task "Detekt" "$Gradle detekt"
+    if ($NoFix) {
+        Run-Task "Ktlint Check" "$Gradle ktlintCheck"
+        Run-Task "Detekt" "$Gradle detekt"
+    } else {
+        # Default behavior: attempt to auto-fix violations
+        Run-Task "Ktlint Format" "$Gradle ktlintFormat"
+        Run-Task "Detekt (Auto-fix)" "$Gradle detekt '-Pdetekt.autoCorrect=true'"
+    }
     Run-Task "Lint (Release)" "$Gradle lintRelease"
 }
 
-# 3. Compilation & Unit Tests
-if (-not $SkipTests) {
-    # Comprehensive compilation check (Production + Unit Tests + Instrumented Tests)
-    # This catches errors across all module types (KMP and standard Android)
-    Run-Task "Compile All" "$Gradle compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
+# 3. Comprehensive Compilation Phase
+# This ensures ALL modules and features compile correctly, including tests.
+# We run this BEFORE unit tests to fail fast if any module is broken.
+# Note: compileDebugSources covers Android, compileAndroidMain covers KMP.
+Run-Task "Compile All" "$Gradle compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue"
 
+# 4. Unit Tests Phase
+if (-not $SkipTests) {
     Run-Task "Unit Tests" "$Gradle test"
 }
 

@@ -3,34 +3,39 @@ package com.chimali.fido2.data.mapper
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.map
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.crypto.PublicKeyDecoder
 import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEntity
 import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
 import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
-import com.chimali.fido2.domain.model.ConsentOperationType
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
-import java.time.Instant
 import java.util.Base64
+import kotlinx.datetime.Instant
 
 fun PasskeyCredentialEntity.toDomainModel(
     decoder: PublicKeyDecoder,
 ): Outcome<PasskeyCredential, DomainError.CryptoError> {
     return decoder.decodePublicKey(this.publicKey, this.coseAlgorithm.toInt()).map { decodedKey ->
         PasskeyCredential(
-            id = this.id,
-            rpId = this.rpId,
-            userId = this.userId,
+            id = CredentialId.fromEncoded(this.id),
+            rpId = RpId(this.rpId),
+            userId = UserId(this.userId),
             userName = this.userName,
             userDisplayName = this.userDisplayName,
             publicKey = decodedKey,
             privateKeyAlias = this.privateKeyAlias,
             signCount = this.signCount,
-            createdAt = Instant.ofEpochMilli(this.createdAt),
-            lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) } ?: Instant.ofEpochMilli(this.createdAt),
+            createdAt = Instant.fromEpochMilliseconds(this.createdAt),
+            lastUsedAt =
+                this.lastUsedAt?.let { Instant.fromEpochMilliseconds(it) }
+                    ?: Instant.fromEpochMilliseconds(this.createdAt),
             aaguid = Base64.getDecoder().decode(this.aaguid),
-            credentialId = Base64.getDecoder().decode(this.credentialId),
+            credentialId = CredentialId.fromEncoded(this.credentialId).toByteArray(),
             coseAlgorithm = this.coseAlgorithm.toInt(),
             credProtectPolicy = this.credProtectPolicy.toInt(),
             label = this.label,
@@ -40,12 +45,12 @@ fun PasskeyCredentialEntity.toDomainModel(
 
 fun RelyingPartyEntity.toDomainModel(): RelyingParty {
     return RelyingParty(
-        id = this.id,
+        id = RpId(this.id),
         name = this.name,
         iconUrl = this.iconUrl,
         credentialCount = this.credentialCount.toInt(),
-        createdAt = Instant.ofEpochMilli(this.createdAt),
-        lastUsedAt = this.lastUsedAt?.let { Instant.ofEpochMilli(it) },
+        createdAt = Instant.fromEpochMilliseconds(this.createdAt),
+        lastUsedAt = this.lastUsedAt?.let { Instant.fromEpochMilliseconds(it) },
         isBlocked = this.isBlocked > 0L,
     )
 }
@@ -53,10 +58,10 @@ fun RelyingPartyEntity.toDomainModel(): RelyingParty {
 fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
     return UserConsentRecord(
         id = this.id,
-        rpId = this.rpId,
+        rpId = RpId(this.rpId),
         operationType = ConsentOperationType.valueOf(this.operationType),
-        credentialId = this.credentialId,
-        timestamp = Instant.ofEpochMilli(this.timestamp),
+        credentialId = this.credentialId?.let { CredentialId.fromEncoded(it) },
+        timestamp = Instant.fromEpochMilliseconds(this.timestamp),
         biometricUsed = this.biometricUsed > 0L,
         pinUsed = this.pinUsed > 0L,
         ipAddress = null,

@@ -69,6 +69,7 @@ kotlin {
          * as KMP compatibility is confirmed for each component.
          */
         commonMain.dependencies {
+            implementation(project(":core:domain"))
             implementation(compose.runtime)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
@@ -97,7 +98,9 @@ kotlin {
          */
         androidMain.dependencies {
             implementation(project(":core:common"))
+            implementation(project(":core:domain"))
             implementation(project(":core:security"))
+            implementation(libs.kotlinx.datetime)
             implementation(libs.koin.android)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
@@ -145,6 +148,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.sqldelight.sqlite.driver)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.datetime)
             }
         }
 

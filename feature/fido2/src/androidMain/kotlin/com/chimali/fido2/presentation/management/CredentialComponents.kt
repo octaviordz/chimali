@@ -40,7 +40,7 @@ fun CredentialItem(
         modifier = modifier.clickable { onClick(credential) },
         headlineContent = {
             Text(
-                text = credential.rpId,
+                text = credential.rpId.value,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
                 fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
@@ -145,7 +145,7 @@ fun CredentialDetailsScreen(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Identifier: ${credential.id}",
+                        text = "Identifier: ${credential.id.encoded}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                     )
@@ -158,7 +158,7 @@ fun CredentialDetailsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "Relying Party: ${credential.rpId}",
+                        text = "Relying Party: ${credential.rpId.value}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = com.chimali.core.ui.theme.LegibilityType.AtkinsonFontFamily,
                     )

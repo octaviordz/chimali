@@ -14,6 +14,7 @@ import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -182,7 +183,7 @@ class RegistrationPromptViewModel(
             val availability = userVerificationService.getUserVerificationAvailability()
             _state.value =
                 RegistrationState.AwaitingUserConsent(
-                    rpId = options.rp.id,
+                    rpId = options.rp.id.value,
                     rpName = options.rp.name,
                     userName = options.user.name,
                     userDisplayName = options.user.displayName.ifEmpty { options.user.name },
@@ -253,7 +254,7 @@ class RegistrationPromptViewModel(
 
                 // Hold the success screen for a moment so the user can read it before
                 // navigating away. The transport deferred is already resolved above.
-                delay(SUCCESS_DISPLAY_DURATION_MS)
+                delay(SUCCESS_DISPLAY_DURATION)
                 emit(RegistrationEffect.NavigateToSuccess(credential))
 
                 // Clear pending only after success — on failure we keep them so Retry works
@@ -279,7 +280,7 @@ class RegistrationPromptViewModel(
     }
 
     companion object {
-        /** How long the success screen is shown before automatically dismissing (ms). */
-        private const val SUCCESS_DISPLAY_DURATION_MS = 2_000L
+        /** How long the success screen is shown before automatically dismissing. */
+        private val SUCCESS_DISPLAY_DURATION = 2_000.milliseconds
     }
 }

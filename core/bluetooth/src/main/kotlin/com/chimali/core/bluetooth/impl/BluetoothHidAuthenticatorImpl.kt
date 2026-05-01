@@ -7,14 +7,14 @@ import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import androidx.annotation.RequiresPermission
 import co.touchlab.kermit.Logger
 import com.chimali.core.bluetooth.api.AuthenticatorState
 import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
+import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.annotation.RequiresPermission
-import java.util.concurrent.Executors
 
 /**
  * Concrete implementation of [BluetoothHidAuthenticator] backed by the Android
@@ -49,9 +49,9 @@ import java.util.concurrent.Executors
  *    the actual FIDO2 packet sending is done via `BluetoothHidDeviceWrapper`.
  */
 class BluetoothHidAuthenticatorImpl(
-    private val context: Context
-) : BluetoothHidAuthenticator, BluetoothProfile.ServiceListener {
-
+    private val context: Context,
+) : BluetoothHidAuthenticator,
+    BluetoothProfile.ServiceListener {
     companion object {
         private const val TAG = "BluetoothHID"
     }
@@ -108,19 +108,20 @@ class BluetoothHidAuthenticatorImpl(
     @RequiresPermission(
         allOf = [
             android.Manifest.permission.BLUETOOTH_CONNECT,
-            android.Manifest.permission.BLUETOOTH_ADVERTISE
-        ]
+            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+        ],
     )
     override fun startAdvertising() {
         if (_state.value != AuthenticatorState.IDLE) return
 
-        val sdpSettings = BluetoothHidDeviceAppSdpSettings(
-            "Chimali Authenticator",
-            "Virtual FIDO Key",
-            "Chimali",
-            BluetoothHidDevice.SUBCLASS1_COMBO,
-            com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR
-        )
+        val sdpSettings =
+            BluetoothHidDeviceAppSdpSettings(
+                "Chimali Authenticator",
+                "Virtual FIDO Key",
+                "Chimali",
+                BluetoothHidDevice.SUBCLASS1_COMBO,
+                com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR,
+            )
 
         try {
             hidDevice?.registerApp(
@@ -136,7 +137,7 @@ class BluetoothHidAuthenticatorImpl(
                      */
                     override fun onAppStatusChanged(
                         pluggedDevice: android.bluetooth.BluetoothDevice?,
-                        registered: Boolean
+                        registered: Boolean,
                     ) {
                         if (registered) {
                             _state.value = AuthenticatorState.ADVERTISING
@@ -151,14 +152,18 @@ class BluetoothHidAuthenticatorImpl(
                      *  - STATE_DISCONNECTED → IDLE     (waiting for a new connection)
                      *  - Anything else (CONNECTING/DISCONNECTING) is ignored.
                      */
-                    override fun onConnectionStateChanged(device: android.bluetooth.BluetoothDevice?, state: Int) {
-                        this@BluetoothHidAuthenticatorImpl._state.value = when (state) {
-                            BluetoothProfile.STATE_CONNECTED -> AuthenticatorState.CONNECTED
-                            BluetoothProfile.STATE_DISCONNECTED -> AuthenticatorState.IDLE
-                            else -> this@BluetoothHidAuthenticatorImpl._state.value
-                        }
+                    override fun onConnectionStateChanged(
+                        device: android.bluetooth.BluetoothDevice?,
+                        state: Int,
+                    ) {
+                        this@BluetoothHidAuthenticatorImpl._state.value =
+                            when (state) {
+                                BluetoothProfile.STATE_CONNECTED -> AuthenticatorState.CONNECTED
+                                BluetoothProfile.STATE_DISCONNECTED -> AuthenticatorState.IDLE
+                                else -> this@BluetoothHidAuthenticatorImpl._state.value
+                            }
                     }
-                }
+                },
             )
         } catch (e: SecurityException) {
             Logger.e(TAG, e) { "Bluetooth permission denied when starting advertisement" }
@@ -201,7 +206,10 @@ class BluetoothHidAuthenticatorImpl(
      * [BluetoothProfile.ServiceListener] callback — stores the [BluetoothHidDevice]
      * proxy so [startAdvertising] and other operations can use it.
      */
-    override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
+    override fun onServiceConnected(
+        profile: Int,
+        proxy: BluetoothProfile?,
+    ) {
         if (profile == BluetoothProfile.HID_DEVICE) {
             hidDevice = proxy as BluetoothHidDevice
         }

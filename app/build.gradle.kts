@@ -75,6 +75,8 @@ dependencies {
     implementation(project(":feature:authenticator"))
     implementation(project(":feature:fido2"))
 
+    implementation(libs.kotlinx.datetime)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.tracing)
     implementation(libs.androidx.lifecycle.runtime.ktx)

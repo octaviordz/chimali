@@ -3,10 +3,10 @@ package com.chimali.fido2.data.crypto
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
-import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
@@ -45,9 +45,7 @@ data class Fido2KeyPair(
         return result
     }
 
-    override fun toString(): String {
-        return "Fido2KeyPair(alias='$alias', publicKeyBytes.size=${publicKeyBytes.size})"
-    }
+    override fun toString(): String = "Fido2KeyPair(alias='$alias', publicKeyBytes.size=${publicKeyBytes.size})"
 }
 
 /**
@@ -69,6 +67,7 @@ class Fido2CryptoService(
     private val hdkManager: HdkManager,
     private val masterSeedProvider: MasterSeedProvider,
     private val postQuantumCrypto: PostQuantumCrypto,
+    private val timeProvider: com.chimali.core.domain.time.TimeProvider,
     @Named("DefaultDispatcher") private val defaultDispatcher: CoroutineDispatcher,
 ) {
     init {
@@ -118,10 +117,12 @@ class Fido2CryptoService(
                         masterSeedProvider.getPqChildSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
                     val derivedSeed =
-                        java.security.MessageDigest.getInstance("SHA-512").apply {
-                            update(pqChildSeed)
-                            update(credentialId.toByteArray())
-                        }.digest()
+                        java.security.MessageDigest
+                            .getInstance("SHA-512")
+                            .apply {
+                                update(pqChildSeed)
+                                update(credentialId.encoded.toByteArray())
+                            }.digest()
                     val keyPair =
                         postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA not supported"))
@@ -145,13 +146,18 @@ class Fido2CryptoService(
                         masterSeedProvider.getMasterSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
                     val derivedSeed =
-                        java.security.MessageDigest.getInstance("SHA-512").apply {
-                            update(seed)
-                            update("Ed25519".toByteArray())
-                            update(credentialId.toByteArray())
-                        }.digest().copyOf(ED25519_SEED_SIZE)
+                        java.security.MessageDigest
+                            .getInstance("SHA-512")
+                            .apply {
+                                update(seed)
+                                update("Ed25519".toByteArray())
+                                update(credentialId.encoded.toByteArray())
+                            }.digest()
+                            .copyOf(ED25519_SEED_SIZE)
 
-                    val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
+                    val privParams =
+                        org.bouncycastle.crypto.params
+                            .Ed25519PrivateKeyParameters(derivedSeed, 0)
                     val publicKeyBytes = privParams.generatePublicKey().encoded
 
                     derivedSeed.fill(0)
@@ -219,19 +225,25 @@ class Fido2CryptoService(
             if (result !is Outcome.Success) return null
             val keyPair = result.data
 
-            if (algId == COSE_ML_DSA_65) {
-                val bcProvider = BouncyCastleProvider()
-                val kf = KeyFactory.getInstance("ML-DSA-65", bcProvider)
-                val x509Spec = java.security.spec.X509EncodedKeySpec(keyPair.publicKeyBytes)
-                kf.generatePublic(x509Spec)
-            } else if (algId == COSE_ED25519) {
-                val bcProvider = BouncyCastleProvider()
-                val kf = KeyFactory.getInstance("Ed25519", bcProvider)
-                val prefix = ED25519_X509_PREFIX
-                val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
-                kf.generatePublic(x509Spec)
-            } else {
-                decodeUncompressedPoint(keyPair.publicKeyBytes)
+            when (algId) {
+                COSE_ML_DSA_65 -> {
+                    val bcProvider = BouncyCastleProvider()
+                    val kf = KeyFactory.getInstance("ML-DSA-65", bcProvider)
+                    val x509Spec = java.security.spec.X509EncodedKeySpec(keyPair.publicKeyBytes)
+                    kf.generatePublic(x509Spec)
+                }
+
+                COSE_ED25519 -> {
+                    val bcProvider = BouncyCastleProvider()
+                    val kf = KeyFactory.getInstance("Ed25519", bcProvider)
+                    val prefix = ED25519_X509_PREFIX
+                    val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
+                    kf.generatePublic(x509Spec)
+                }
+
+                else -> {
+                    decodeUncompressedPoint(keyPair.publicKeyBytes)
+                }
             }
         } catch (e: java.security.GeneralSecurityException) {
             Logger.w(e) { "getPublicKey failed for $credentialId" }
@@ -244,9 +256,7 @@ class Fido2CryptoService(
      */
     suspend fun keyExists(
         @Suppress("UNUSED_PARAMETER") credentialId: CredentialId,
-    ): Boolean {
-        return masterSeedProvider.getMasterSeed() != null
-    }
+    ): Boolean = masterSeedProvider.getMasterSeed() != null
 
     /**
      * No-op: HDK keys are derived on demand, there is no persistent key to delete.
@@ -285,7 +295,7 @@ class Fido2CryptoService(
     @Suppress("TooGenericExceptionCaught")
     suspend fun warmUpMasterSeed() {
         try {
-            val t0 = System.currentTimeMillis()
+            val t0 = timeProvider.epochMillis()
             Logger.d("Master seed pre-warm START")
 
             // (1) Decrypt BIP39 mnemonic from EncryptedSharedPreferences (~150ms first call).
@@ -304,7 +314,7 @@ class Fido2CryptoService(
                         return
                     }
 
-            val t1 = System.currentTimeMillis()
+            val t1 = timeProvider.epochMillis()
             Logger.d { "Master seed pre-warm: seed loaded in ${t1 - t0}ms — warming full sign() path" }
 
             // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
@@ -326,7 +336,7 @@ class Fido2CryptoService(
             val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
 
             // warms MessageDigest.getInstance("SHA-256")
-            val warmupPath = derivationPath(CredentialId.fromString("warmup"))
+            val warmupPath = derivationPath(CredentialId.fromByteArray("warmup".encodeToByteArray()))
 
             // real 2-level path derived same way as sign()
             val hdkResult =
@@ -348,8 +358,8 @@ class Fido2CryptoService(
 
             Logger.d {
                 "Master seed pre-warm DONE: seed=${t1 - t0}ms " +
-                    "sign-path=${System.currentTimeMillis() - t1}ms " +
-                    "total=${System.currentTimeMillis() - t0}ms"
+                    "sign-path=${timeProvider.epochMillis() - t1}ms " +
+                    "total=${timeProvider.epochMillis() - t0}ms"
             }
         } catch (e: Exception) {
             Logger.w(e) { "Master seed pre-warm FAILED (non-fatal): ${e.message}" }
@@ -382,10 +392,12 @@ class Fido2CryptoService(
                         masterSeedProvider.getPqChildSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
                     val derivedSeed =
-                        java.security.MessageDigest.getInstance("SHA-512").apply {
-                            update(pqChildSeed)
-                            update(credentialId.toByteArray())
-                        }.digest()
+                        java.security.MessageDigest
+                            .getInstance("SHA-512")
+                            .apply {
+                                update(pqChildSeed)
+                                update(credentialId.encoded.toByteArray())
+                            }.digest()
                     val keyPair =
                         postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA generation failed"))
@@ -410,14 +422,21 @@ class Fido2CryptoService(
                         masterSeedProvider.getMasterSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
                     val derivedSeed =
-                        java.security.MessageDigest.getInstance("SHA-512").apply {
-                            update(seed)
-                            update("Ed25519".toByteArray())
-                            update(credentialId.toByteArray())
-                        }.digest().copyOf(ED25519_SEED_SIZE)
+                        java.security.MessageDigest
+                            .getInstance("SHA-512")
+                            .apply {
+                                update(seed)
+                                update("Ed25519".toByteArray())
+                                update(credentialId.encoded.toByteArray())
+                            }.digest()
+                            .copyOf(ED25519_SEED_SIZE)
 
-                    val privParams = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(derivedSeed, 0)
-                    val signer = org.bouncycastle.crypto.signers.Ed25519Signer()
+                    val privParams =
+                        org.bouncycastle.crypto.params
+                            .Ed25519PrivateKeyParameters(derivedSeed, 0)
+                    val signer =
+                        org.bouncycastle.crypto.signers
+                            .Ed25519Signer()
                     signer.init(true, privParams)
                     signer.update(data, 0, data.size)
                     val signature = signer.generateSignature()
@@ -522,13 +541,16 @@ class Fido2CryptoService(
             )
         val ecPrivKeySpec = java.security.spec.ECPrivateKeySpec(sk, ecSpec)
         val privateKey =
-            KeyFactory.getInstance("EC", bcProvider)
+            KeyFactory
+                .getInstance("EC", bcProvider)
                 .generatePrivate(ecPrivKeySpec)
 
-        return Signature.getInstance("SHA256withECDSA", bcProvider).apply {
-            initSign(privateKey)
-            update(data)
-        }.sign()
+        return Signature
+            .getInstance("SHA256withECDSA", bcProvider)
+            .apply {
+                initSign(privateKey)
+                update(data)
+            }.sign()
     }
 
     /**
@@ -557,7 +579,8 @@ class Fido2CryptoService(
             )
         val javaPoint = ECPoint(x, y)
         val pubKeySpec = ECPublicKeySpec(javaPoint, ecSpec)
-        return KeyFactory.getInstance("EC", bcProvider)
+        return KeyFactory
+            .getInstance("EC", bcProvider)
             .generatePublic(pubKeySpec)
     }
 
@@ -603,7 +626,18 @@ class Fido2CryptoService(
 
         private val ED25519_X509_PREFIX =
             byteArrayOf(
-                0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x70, 0x03, 0x21, 0x00,
+                0x30,
+                0x2A,
+                0x30,
+                0x05,
+                0x06,
+                0x03,
+                0x2B,
+                0x65,
+                0x70,
+                0x03,
+                0x21,
+                0x00,
             )
 
         /**
@@ -615,7 +649,8 @@ class Fido2CryptoService(
          */
         private fun derivationPath(credentialId: CredentialId): List<UInt> {
             val hashBytes =
-                java.security.MessageDigest.getInstance("SHA-256")
+                java.security.MessageDigest
+                    .getInstance("SHA-256")
                     .digest(credentialId.toByteArray())
             val credIndex =
                 ((hashBytes[BYTE_INDEX_0].toUInt() and BYTE_MASK) shl INDEX_SHIFT_3) or

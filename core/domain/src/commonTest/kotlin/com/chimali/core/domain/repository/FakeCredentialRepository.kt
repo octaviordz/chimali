@@ -8,9 +8,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 class FakeCredentialRepository : CredentialRepository {
     private val credentials = mutableMapOf<CredentialId, Credential>()
 
-    override suspend fun getAllCredentials(): Result<List<Credential>> {
-        return Result.success(credentials.values.toList())
-    }
+    override suspend fun getAllCredentials(): Result<List<Credential>> = Result.success(credentials.values.toList())
 
     override suspend fun getCredentialById(id: CredentialId): Result<Credential> {
         val credential = credentials[id]
@@ -42,13 +40,12 @@ class FakeCredentialRepository : CredentialRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun deleteCredential(id: CredentialId): Result<Unit> {
-        return if (credentials.remove(id) != null) {
+    override suspend fun deleteCredential(id: CredentialId): Result<Unit> =
+        if (credentials.remove(id) != null) {
             Result.success(Unit)
         } else {
             Result.failure(DomainException.CredentialNotFound)
         }
-    }
 
     override suspend fun getCredentialsByCategory(category: CredentialCategory): Result<List<Credential>> {
         val filtered = credentials.values.filter { it.category == category }

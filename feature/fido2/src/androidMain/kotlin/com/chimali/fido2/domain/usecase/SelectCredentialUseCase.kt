@@ -3,8 +3,8 @@ package com.chimali.fido2.domain.usecase
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import org.koin.core.annotation.Factory
 
@@ -30,8 +30,8 @@ class SelectCredentialUseCase {
             candidates.isEmpty() ->
                 Outcome.Error(
                     DomainError.NotFound(
-                        "No eligible credentials for rpId=${options.rpId}",
-                        Fido2Exception.CredentialNotFound(options.rpId),
+                        "No eligible credentials for rpId=${options.rpId.value}",
+                        Fido2Exception.CredentialNotFound(options.rpId.value),
                     ),
                 )
 
@@ -41,7 +41,7 @@ class SelectCredentialUseCase {
             }
 
             else -> {
-                Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId}" }
+                Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId.value}" }
                 Outcome.Success(selectMostRecentlyUsed(candidates))
             }
         }

@@ -1,17 +1,23 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import java.security.PublicKey
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.datetime.Instant
 
 /**
  * Domain model representing a FIDO2 passkey credential.
  * This is the core entity for storing and managing user passkeys.
  */
 data class PasskeyCredential(
-    val id: String,
-    val rpId: String,
-    val userId: String,
+    val id: CredentialId,
+    val rpId: RpId,
+    val userId: UserId,
     val userName: String,
     val userDisplayName: String,
     val publicKey: PublicKey,
@@ -35,18 +41,15 @@ data class PasskeyCredential(
      */
     private fun validate() {
         // Validate required fields
-        require(id.isNotBlank()) { "Credential ID cannot be blank" }
-        require(rpId.isNotBlank()) { "RP ID cannot be blank" }
-        require(userId.isNotBlank()) { "User ID cannot be blank" }
         require(userName.isNotBlank()) { "User name cannot be blank" }
         require(userDisplayName.isNotBlank()) { "User display name cannot be blank" }
         require(privateKeyAlias.isNotBlank()) { "Private key alias cannot be blank" }
 
         // Validate formats
-        require(RelyingParty.isValidRpId(rpId)) {
-            "RP ID must be a valid domain or HTTPS origin: $rpId"
+        require(RelyingParty.isValidRpId(rpId.value)) {
+            "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
         }
-        require(userId.length <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
+        require(userId.value.length <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
         require(userName.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH bytes" }
         require(userDisplayName.length <= MAX_DISPLAY_NAME_LENGTH) {
             "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes"
@@ -62,14 +65,14 @@ data class PasskeyCredential(
         require(signCount <= Long.MAX_VALUE) { "Sign count exceeds maximum value" }
 
         // Validate timestamps
-        val now = Instant.now()
-        require(createdAt.isBefore(now.plusSeconds(FUTURE_GRACE_SECONDS))) {
+        val now = TimeProvider().now()
+        require(createdAt < now + FUTURE_GRACE_SECONDS.seconds) {
             "Creation time cannot be more than $FUTURE_GRACE_SECONDS seconds in the future"
         }
-        require(lastUsedAt.isBefore(now.plusSeconds(FUTURE_GRACE_SECONDS))) {
+        require(lastUsedAt < now + FUTURE_GRACE_SECONDS.seconds) {
             "Last used time cannot be more than $FUTURE_GRACE_SECONDS seconds in the future"
         }
-        require(!lastUsedAt.isBefore(createdAt)) {
+        require(lastUsedAt >= createdAt) {
             "Last used time cannot be before creation time"
         }
 
@@ -89,51 +92,46 @@ data class PasskeyCredential(
      * Credentials typically expire after a certain period (e.g., 2 years).
      */
     fun isExpired(maxAgeDays: Long = DEFAULT_MAX_AGE_DAYS): Boolean {
-        val expiryTime = createdAt.plusSeconds(maxAgeDays * SECONDS_IN_DAY)
-        return Instant.now().isAfter(expiryTime)
+        val expiryTime = createdAt + maxAgeDays.days
+        return TimeProvider().now() > expiryTime
     }
 
     /**
      * Checks if this credential belongs to the specified relying party.
      */
-    fun belongsToRelyingParty(rpId: String): Boolean {
-        return this.rpId.trimEnd('/').equals(rpId.trimEnd('/'), ignoreCase = true)
-    }
+    fun belongsToRelyingParty(rpId: RpId): Boolean =
+        this.rpId.value
+            .trimEnd('/')
+            .equals(rpId.value.trimEnd('/'), ignoreCase = true)
 
     /**
      * Checks if this credential belongs to the specified user.
      */
-    fun belongsToUser(userId: String): Boolean {
-        return this.userId.equals(userId, ignoreCase = true)
-    }
+    fun belongsToUser(userId: UserId): Boolean = this.userId.value.equals(userId.value, ignoreCase = true)
 
     /**
      * Returns a safe display name for the credential.
      */
-    fun getSafeDisplayName(): String {
-        return userDisplayName.ifBlank { userName }
-    }
+    fun getSafeDisplayName(): String = userDisplayName.ifBlank { userName }
 
     /**
      * Returns the credential age in days.
      */
-    fun getAgeInDays(): Long {
-        return ChronoUnit.DAYS.between(createdAt, Instant.now())
-    }
+    fun getAgeInDays(): Long = (TimeProvider().now() - createdAt).inWholeDays
 
     /**
      * Creates a copy with updated sign count.
      */
-    fun withSignCount(newSignCount: Long): PasskeyCredential {
-        return copy(signCount = newSignCount, lastUsedAt = Instant.now())
-    }
+    fun withSignCount(newSignCount: Long): PasskeyCredential =
+        copy(
+            signCount = newSignCount,
+            lastUsedAt = TimeProvider().now(),
+        )
 
     /**
      * Creates a copy with updated last used time.
      */
-    fun withLastUsedAt(newLastUsedAt: Instant): PasskeyCredential {
-        return copy(lastUsedAt = newLastUsedAt)
-    }
+    fun withLastUsedAt(newLastUsedAt: Instant): PasskeyCredential = copy(lastUsedAt = newLastUsedAt)
 
     companion object {
         // COSE algorithm IDs
@@ -153,7 +151,6 @@ data class PasskeyCredential(
 
         private const val DEFAULT_MAX_AGE_DAYS = 730L
         private const val FUTURE_GRACE_SECONDS = 60L
-        private const val SECONDS_IN_DAY = 86_400L
 
         /**
          * Generates a new cryptographically secure random credential ID.
@@ -166,9 +163,9 @@ data class PasskeyCredential(
          */
 
         fun create(
-            id: String,
-            rpId: String,
-            userId: String,
+            id: CredentialId,
+            rpId: RpId,
+            userId: UserId,
             userName: String,
             userDisplayName: String,
             publicKey: PublicKey,
@@ -178,7 +175,7 @@ data class PasskeyCredential(
             coseAlgorithm: Int = COSE_ES256,
             credProtectPolicy: Int = 1,
         ): PasskeyCredential {
-            val now = Instant.now()
+            val now = TimeProvider().now()
             return PasskeyCredential(
                 id = id,
                 rpId = rpId,
@@ -203,14 +200,14 @@ data class PasskeyCredential(
          * Must NOT be called in production code.
          */
         fun createTest(
-            id: String,
-            rpId: String,
+            id: CredentialId,
+            rpId: RpId,
             userName: String,
             coseAlgorithm: Int = COSE_ES256,
             credProtectPolicy: Int = 1,
             label: String? = null,
         ): PasskeyCredential {
-            val now = Instant.now()
+            val now = TimeProvider().now()
             val syntheticPubKey =
                 object : PublicKey {
                     override fun getAlgorithm(): String = "EC"
@@ -222,11 +219,11 @@ data class PasskeyCredential(
             return PasskeyCredential(
                 id = id,
                 rpId = rpId,
-                userId = "user_$id",
+                userId = UserId("user_${id.encoded}"),
                 userName = userName,
                 userDisplayName = userName,
                 publicKey = syntheticPubKey,
-                privateKeyAlias = "fido2_cred_$id",
+                privateKeyAlias = "fido2_cred_${id.encoded}",
                 signCount = 0L,
                 createdAt = now,
                 lastUsedAt = now,

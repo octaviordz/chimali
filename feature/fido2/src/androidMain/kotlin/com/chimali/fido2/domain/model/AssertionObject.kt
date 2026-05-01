@@ -1,7 +1,9 @@
 package com.chimali.fido2.domain.model
 
-import com.chimali.fido2.domain.usecase.GetAssertionUseCase
-import java.time.Instant
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import kotlinx.datetime.Instant
 
 /**
  * T079 — Domain model representing the output of a FIDO2 GetAssertion ceremony.
@@ -35,7 +37,7 @@ data class AssertionObject(
      */
     val numberOfCredentials: Int? = null,
     /** Timestamp of when this assertion was produced. */
-    val timestamp: Instant = Instant.now(),
+    val timestamp: Instant = TimeProvider().now(),
     /** ID of the credential that was used. Convenience field derived from [credential]. */
     val credentialId: String = credential?.getIdBase64Url() ?: "",
 ) {
@@ -58,17 +60,15 @@ data class AssertionObject(
          * Creates a minimal AssertionObject for testing without real crypto.
          */
         fun createTest(
-            credentialId: String,
-            rpId: String,
+            credentialId: CredentialId,
+            rpId: RpId,
         ): AssertionObject {
-            val rpIdHash =
-                java.security.MessageDigest.getInstance("SHA-256")
-                    .digest(rpId.toByteArray())
+            val rpIdHash = java.security.MessageDigest.getInstance("SHA-256").digest(rpId.value.toByteArray())
             val flags = byteArrayOf(TEST_FLAGS_UP_UV.toByte()) // UP | UV
             val counter = byteArrayOf(0, 0, 0, 1)
             val authData = rpIdHash + flags + counter // 37 bytes
             return AssertionObject(
-                credential = PublicKeyCredentialDescriptor.create(id = credentialId.toByteArray()),
+                credential = PublicKeyCredentialDescriptor.create(id = credentialId),
                 authData = authData,
                 signature = ByteArray(TEST_SIG_SIZE) { it.toByte() },
                 user = null,

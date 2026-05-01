@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.repository
 
-import com.chimali.fido2.domain.model.UserConsentRecord
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.repository.UserConsentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -14,7 +15,7 @@ class UserConsentRepositoryImpl : UserConsentRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun getConsentRecordsByRpId(rpId: String): Flow<List<UserConsentRecord>> {
+    override suspend fun getConsentRecordsByRpId(rpId: RpId): Flow<List<UserConsentRecord>> {
         // TODO: Implement database query logic
         return flowOf(emptyList())
     }
@@ -24,7 +25,7 @@ class UserConsentRepositoryImpl : UserConsentRepository {
         return flowOf(emptyList())
     }
 
-    override suspend fun deleteConsentRecordsByRpId(rpId: String): Result<Unit> {
+    override suspend fun deleteConsentRecordsByRpId(rpId: RpId): Result<Unit> {
         // TODO: Implement database delete logic
         return Result.success(Unit)
     }

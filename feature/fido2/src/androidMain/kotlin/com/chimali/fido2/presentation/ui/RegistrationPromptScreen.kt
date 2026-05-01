@@ -96,7 +96,7 @@ fun RegistrationPromptScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is RegistrationEffect.NavigateBack -> updatedOnCancel()
-                is RegistrationEffect.NavigateToSuccess -> updatedOnSuccess(effect.credential.id)
+                is RegistrationEffect.NavigateToSuccess -> updatedOnSuccess(effect.credential.id.encoded)
                 is RegistrationEffect.LaunchSystemPrompt -> {
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)

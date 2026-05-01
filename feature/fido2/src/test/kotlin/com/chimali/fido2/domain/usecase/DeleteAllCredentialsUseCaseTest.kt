@@ -5,6 +5,7 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -43,7 +44,7 @@ class DeleteAllCredentialsUseCaseTest {
     fun `invoke with rpId should delete only credentials for that rpId`() =
         runTest {
             // Arrange
-            val rpId = "example.com"
+            val rpId = RpId("example.com")
             coEvery { credentialRepository.deleteAllCredentials(rpId) } returns Outcome.Success(Unit)
 
             // Act

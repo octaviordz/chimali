@@ -1,7 +1,10 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import java.security.KeyPairGenerator
-import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -11,7 +14,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 
 class PasskeyCredentialTest {
@@ -29,8 +35,8 @@ class PasskeyCredentialTest {
             testPublicKey = keyPairGenerator.generateKeyPair().public
             testPrivateKeyAlias = "test_private_key_alias"
             testAaguid = ByteArray(AAGUID_SIZE_16) { it.toByte() }
-            testCredentialId = "test_credential_id".toByteArray()
-            testTimestamp = Instant.now()
+            testCredentialId = "dGVzdF9jcmVkZW50aWFsX2lk".toByteArray()
+            testTimestamp = TimeProvider().now()
         }
 
     private companion object {
@@ -38,14 +44,8 @@ class PasskeyCredentialTest {
         private const val AAGUID_SIZE_16 = 16
         private const val INVALID_AAGUID_SIZE_15 = 15
         private const val USER_ID_MAX_PLUS_ONE = 65
-        private const val SECONDS_60 = 60L
-        private const val SECONDS_30 = 30L
-        private const val DAYS_800 = 800L
         private const val DAYS_730 = 730L
         private const val DAYS_1000 = 1000L
-        private const val HOURS_PER_DAY = 24
-        private const val MINUTES_PER_HOUR = 60
-        private const val SECONDS_PER_MINUTE = 60
         private const val SIGN_COUNT_5 = 5L
         private const val MAX_SIZE_64 = 64
         private const val MAX_CRED_ID_SIZE_1023 = 1023
@@ -58,9 +58,9 @@ class PasskeyCredentialTest {
             runTest {
                 val credential =
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -73,9 +73,9 @@ class PasskeyCredentialTest {
                     )
 
                 assertNotNull(credential)
-                assertEquals("test_id", credential.id)
-                assertEquals("https://example.com", credential.rpId)
-                assertEquals("user123", credential.userId)
+                assertEquals("dGVzdF9pZA", credential.id.encoded)
+                assertEquals("https://example.com", credential.rpId.value)
+                assertEquals("user123", credential.userId.value)
                 assertEquals("testuser", credential.userName)
                 assertEquals("Test User", credential.userDisplayName)
                 assertEquals(testPublicKey, credential.publicKey)
@@ -92,9 +92,9 @@ class PasskeyCredentialTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded(""),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -113,9 +113,9 @@ class PasskeyCredentialTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "ftp://example.com/invalid",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("ftp://example.com/invalid"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -135,9 +135,9 @@ class PasskeyCredentialTest {
                 val longUserId = "a".repeat(USER_ID_MAX_PLUS_ONE)
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = longUserId,
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId(longUserId),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -157,9 +157,9 @@ class PasskeyCredentialTest {
                 val wrongSizeAaguid = ByteArray(INVALID_AAGUID_SIZE_15) { it.toByte() }
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -178,9 +178,9 @@ class PasskeyCredentialTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -199,9 +199,9 @@ class PasskeyCredentialTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -218,12 +218,12 @@ class PasskeyCredentialTest {
         @Test
         fun `should throw exception when last used time is before creation time`() =
             runTest {
-                val pastTimestamp = testTimestamp.minusSeconds(SECONDS_60)
+                val pastTimestamp = testTimestamp - 60.seconds
                 assertFailsWith<IllegalArgumentException> {
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -247,9 +247,9 @@ class PasskeyCredentialTest {
             runTest {
                 credential =
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -265,14 +265,11 @@ class PasskeyCredentialTest {
         @Test
         fun `should correctly check if credential is expired`() =
             runTest {
-                val oldTimestamp =
-                    Instant.now().minusSeconds(
-                        DAYS_800.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
-                    ) // 800 days ago
+                val oldTimestamp = TimeProvider().now() - 800.days
                 val oldCredential =
                     credential.copy(
                         createdAt = oldTimestamp,
-                        lastUsedAt = oldTimestamp.plusSeconds(SECONDS_30),
+                        lastUsedAt = oldTimestamp + 30.seconds,
                     )
 
                 assertTrue(oldCredential.isExpired(DAYS_730)) // Should be expired with 730 days limit
@@ -283,18 +280,18 @@ class PasskeyCredentialTest {
         @Test
         fun `should correctly check if credential belongs to relying party`() =
             runTest {
-                assertTrue(credential.belongsToRelyingParty("https://example.com"))
-                assertTrue(credential.belongsToRelyingParty("https://example.com/"))
-                assertTrue(credential.belongsToRelyingParty("HTTPS://EXAMPLE.COM")) // Case insensitive
-                assertFalse(credential.belongsToRelyingParty("https://other.com"))
+                assertTrue(credential.belongsToRelyingParty(RpId("https://example.com")))
+                assertTrue(credential.belongsToRelyingParty(RpId("https://example.com/")))
+                assertTrue(credential.belongsToRelyingParty(RpId("HTTPS://EXAMPLE.COM"))) // Case insensitive
+                assertFalse(credential.belongsToRelyingParty(RpId("https://other.com")))
             }
 
         @Test
         fun `should correctly check if credential belongs to user`() =
             runTest {
-                assertTrue(credential.belongsToUser("user123"))
-                assertTrue(credential.belongsToUser("USER123")) // Case insensitive
-                assertFalse(credential.belongsToUser("otheruser"))
+                assertTrue(credential.belongsToUser(UserId("user123")))
+                assertTrue(credential.belongsToUser(UserId("USER123"))) // Case insensitive
+                assertFalse(credential.belongsToUser(UserId("otheruser")))
             }
 
         @Test
@@ -317,20 +314,20 @@ class PasskeyCredentialTest {
                 val updatedCredential = credential.withSignCount(SIGN_COUNT_5)
 
                 assertEquals(SIGN_COUNT_5, updatedCredential.signCount)
-                assertEquals(credential.id, updatedCredential.id)
-                assertEquals(credential.rpId, updatedCredential.rpId)
+                assertEquals(credential.id.encoded, updatedCredential.id.encoded)
+                assertEquals(credential.rpId.value, updatedCredential.rpId.value)
                 assertNotEquals(credential.lastUsedAt, updatedCredential.lastUsedAt) // Should be updated
             }
 
         @Test
         fun `should create credential with updated last used time`() =
             runTest {
-                val newLastUsedAt = credential.createdAt.plusSeconds(SECONDS_30)
+                val newLastUsedAt = credential.createdAt + 30.seconds
                 val updatedCredential = credential.withLastUsedAt(newLastUsedAt)
 
                 assertEquals(newLastUsedAt, updatedCredential.lastUsedAt)
-                assertEquals(credential.id, updatedCredential.id)
-                assertEquals(credential.rpId, updatedCredential.rpId)
+                assertEquals(credential.id.encoded, updatedCredential.id.encoded)
+                assertEquals(credential.rpId.value, updatedCredential.rpId.value)
             }
     }
 
@@ -341,9 +338,9 @@ class PasskeyCredentialTest {
             runTest {
                 val credential =
                     PasskeyCredential.create(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -353,7 +350,7 @@ class PasskeyCredentialTest {
                     )
 
                 assertNotNull(credential)
-                assertEquals("test_id", credential.id)
+                assertEquals("dGVzdF9pZA", credential.id.encoded)
                 assertEquals(0L, credential.signCount) // Should start at 0
                 assertEquals(credential.createdAt, credential.lastUsedAt) // Should be same initially
             }
@@ -381,9 +378,9 @@ class PasskeyCredentialTest {
 
                 val credential =
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "https://example.com",
-                        userId = maxUserId,
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId(maxUserId),
                         userName = maxUserName,
                         userDisplayName = maxDisplayName,
                         publicKey = testPublicKey,
@@ -396,7 +393,7 @@ class PasskeyCredentialTest {
                     )
 
                 assertNotNull(credential)
-                assertEquals(maxUserId, credential.userId)
+                assertEquals(maxUserId, credential.userId.value)
                 assertEquals(maxUserName, credential.userName)
                 assertEquals(maxDisplayName, credential.userDisplayName)
                 assertContentEquals(maxCredentialId, credential.credentialId)
@@ -407,9 +404,9 @@ class PasskeyCredentialTest {
             runTest {
                 val credential =
                     PasskeyCredential(
-                        id = "test_id",
-                        rpId = "http://localhost:8080",
-                        userId = "user123",
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("http://localhost:8080"),
+                        userId = UserId("user123"),
                         userName = "testuser",
                         userDisplayName = "Test User",
                         publicKey = testPublicKey,
@@ -422,7 +419,7 @@ class PasskeyCredentialTest {
                     )
 
                 assertNotNull(credential)
-                assertEquals("http://localhost:8080", credential.rpId)
+                assertEquals("http://localhost:8080", credential.rpId.value)
             }
     }
 }

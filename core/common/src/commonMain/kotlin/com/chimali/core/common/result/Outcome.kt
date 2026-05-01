@@ -43,7 +43,9 @@ sealed interface Outcome<out D, out E : DomainError> {
      * Note: `Outcome<D, Nothing>` — no error type can be instantiated,
      * so callers only need to handle [Success] on this branch.
      */
-    data class Success<out D>(val data: D) : Outcome<D, Nothing>
+    data class Success<out D>(
+        val data: D,
+    ) : Outcome<D, Nothing>
 
     /**
      * The operation failed and [error] contains the categorized domain error.
@@ -51,7 +53,9 @@ sealed interface Outcome<out D, out E : DomainError> {
      * Note: `Outcome<Nothing, E>` — no data type can be instantiated,
      * so callers only need to handle [Error] on this branch.
      */
-    data class Error<out E : DomainError>(val error: E) : Outcome<Nothing, E>
+    data class Error<out E : DomainError>(
+        val error: E,
+    ) : Outcome<Nothing, E>
 }
 
 // ── Extension functions ────────────────────────────────────────────────────────

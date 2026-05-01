@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.isSuccess
 import com.chimali.core.common.result.onFailure
 import com.chimali.core.common.result.onSuccess
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -63,24 +64,53 @@ class CredentialManagementViewModel(
                 _fullCredentialList = emptyList()
                 loadCredentials()
             }
+
             is CredentialManagementIntent.LoadNextPage -> {
                 if (_state.value.hasMore && !_state.value.isPaginating && _searchQuery.value.isBlank()) {
                     loadCredentials()
                 }
             }
+
             is CredentialManagementIntent.UpdateSearchQuery -> {
                 logger.d { "Updating search query: ${intent.query}" }
                 _searchQuery.value = intent.query
             }
-            is CredentialManagementIntent.SelectCredential -> selectCredential(intent.credential)
-            is CredentialManagementIntent.ConfirmDelete -> deleteCredential(intent.credentialId)
-            is CredentialManagementIntent.ShowDeleteDialog -> showDeleteDialog(intent.credential)
-            is CredentialManagementIntent.ShowDeleteAllDialog -> showDeleteAllDialog()
-            is CredentialManagementIntent.ConfirmDeleteAll -> deleteAllCredentials()
-            is CredentialManagementIntent.DismissDialog -> dismissDialogs()
-            is CredentialManagementIntent.UndoDelete -> undoRemove(intent.credentialId)
-            is CredentialManagementIntent.PendingDelete -> pendingRemove(intent.credential)
-            is CredentialManagementIntent.CommitDelete -> commitRemove(intent.credentialId)
+
+            is CredentialManagementIntent.SelectCredential -> {
+                selectCredential(intent.credential)
+            }
+
+            is CredentialManagementIntent.ConfirmDelete -> {
+                deleteCredential(intent.credentialId)
+            }
+
+            is CredentialManagementIntent.ShowDeleteDialog -> {
+                showDeleteDialog(intent.credential)
+            }
+
+            is CredentialManagementIntent.ShowDeleteAllDialog -> {
+                showDeleteAllDialog()
+            }
+
+            is CredentialManagementIntent.ConfirmDeleteAll -> {
+                deleteAllCredentials()
+            }
+
+            is CredentialManagementIntent.DismissDialog -> {
+                dismissDialogs()
+            }
+
+            is CredentialManagementIntent.UndoDelete -> {
+                undoRemove(intent.credentialId)
+            }
+
+            is CredentialManagementIntent.PendingDelete -> {
+                pendingRemove(intent.credential)
+            }
+
+            is CredentialManagementIntent.CommitDelete -> {
+                commitRemove(intent.credentialId)
+            }
         }
     }
 
@@ -114,31 +144,32 @@ class CredentialManagementViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isPaginating = currentOffset > 0, isLoading = currentOffset == 0L, error = null) }
             val result = getAllCredentialsUseCase(pageSize, currentOffset)
-            result.onSuccess { newItems ->
-                _fullCredentialList = _fullCredentialList + newItems
-                currentOffset += newItems.size
-                val hasMore = newItems.size >= pageSize
+            result
+                .onSuccess { newItems ->
+                    _fullCredentialList = _fullCredentialList + newItems
+                    currentOffset += newItems.size
+                    val hasMore = newItems.size >= pageSize
 
-                _state.update {
-                    it.copy(
-                        credentials =
-                            _fullCredentialList
-                                .filter { c -> c.id !in it.pendingDeleteIds }
-                                .sortedByDescending { c -> c.lastUsedAt },
-                        isPaginating = false,
-                        isLoading = false,
-                        hasMore = hasMore,
-                    )
+                    _state.update {
+                        it.copy(
+                            credentials =
+                                _fullCredentialList
+                                    .filter { c -> c.id !in it.pendingDeleteIds }
+                                    .sortedByDescending { c -> c.lastUsedAt },
+                            isPaginating = false,
+                            isLoading = false,
+                            hasMore = hasMore,
+                        )
+                    }
+                }.onFailure { e ->
+                    _state.update {
+                        it.copy(
+                            isPaginating = false,
+                            isLoading = false,
+                            error = e.message ?: "Failed to load",
+                        )
+                    }
                 }
-            }.onFailure { e ->
-                _state.update {
-                    it.copy(
-                        isPaginating = false,
-                        isLoading = false,
-                        error = e.message ?: "Failed to load",
-                    )
-                }
-            }
         }
     }
 
@@ -158,6 +189,7 @@ class CredentialManagementViewModel(
      * Directly sets credentials in the state (used for testing and direct data injection).
      */
     fun setCredentials(credentials: List<PasskeyCredential>) {
+        _fullCredentialList = credentials
         _state.update {
             it.copy(
                 credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
@@ -188,7 +220,7 @@ class CredentialManagementViewModel(
         }
     }
 
-    private fun deleteCredential(credentialId: String) {
+    private fun deleteCredential(credentialId: CredentialId) {
         viewModelScope.launch {
             logger.i { "Initiating deletion for credential: $credentialId" }
             val credential = _state.value.credentials.find { it.id == credentialId }
@@ -231,13 +263,13 @@ class CredentialManagementViewModel(
         }
     }
 
-    private fun undoRemove(credentialId: String) {
+    private fun undoRemove(credentialId: CredentialId) {
         logger.i { "Undoing removal for credential: $credentialId" }
         _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
         updateStateWithFilteredCredentials()
     }
 
-    private fun commitRemove(credentialId: String) {
+    private fun commitRemove(credentialId: CredentialId) {
         viewModelScope.launch {
             logger.i { "Committing removal for credential: $credentialId" }
             val result = deleteCredentialUseCase(credentialId)
@@ -271,7 +303,7 @@ data class CredentialManagementState(
     val hasMore: Boolean = true,
     val error: String? = null,
     val showDeleteAllWarning: Boolean = false,
-    val pendingDeleteIds: Set<String> = emptySet(),
+    val pendingDeleteIds: Set<com.chimali.core.domain.valueobject.CredentialId> = emptySet(),
 )
 
 sealed interface CredentialManagementIntent {
@@ -279,29 +311,47 @@ sealed interface CredentialManagementIntent {
 
     object LoadNextPage : CredentialManagementIntent
 
-    data class UpdateSearchQuery(val query: String) : CredentialManagementIntent
+    data class UpdateSearchQuery(
+        val query: String,
+    ) : CredentialManagementIntent
 
-    data class SelectCredential(val credential: PasskeyCredential) : CredentialManagementIntent
+    data class SelectCredential(
+        val credential: PasskeyCredential,
+    ) : CredentialManagementIntent
 
-    data class ShowDeleteDialog(val credential: PasskeyCredential) : CredentialManagementIntent
+    data class ShowDeleteDialog(
+        val credential: PasskeyCredential,
+    ) : CredentialManagementIntent
 
     object ShowDeleteAllDialog : CredentialManagementIntent
 
     object DismissDialog : CredentialManagementIntent
 
-    data class ConfirmDelete(val credentialId: String) : CredentialManagementIntent
+    data class ConfirmDelete(
+        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+    ) : CredentialManagementIntent
 
     object ConfirmDeleteAll : CredentialManagementIntent
 
-    data class PendingDelete(val credential: PasskeyCredential) : CredentialManagementIntent
+    data class PendingDelete(
+        val credential: PasskeyCredential,
+    ) : CredentialManagementIntent
 
-    data class UndoDelete(val credentialId: String) : CredentialManagementIntent
+    data class UndoDelete(
+        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+    ) : CredentialManagementIntent
 
-    data class CommitDelete(val credentialId: String) : CredentialManagementIntent
+    data class CommitDelete(
+        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+    ) : CredentialManagementIntent
 }
 
 sealed interface CredentialManagementEffect {
-    data class ShowToast(val message: String) : CredentialManagementEffect
+    data class ShowToast(
+        val message: String,
+    ) : CredentialManagementEffect
 
-    data class ShowUndoSnackbar(val message: String) : CredentialManagementEffect
+    data class ShowUndoSnackbar(
+        val message: String,
+    ) : CredentialManagementEffect
 }

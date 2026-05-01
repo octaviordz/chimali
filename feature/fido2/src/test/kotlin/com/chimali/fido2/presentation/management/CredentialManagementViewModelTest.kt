@@ -2,6 +2,8 @@ package com.chimali.fido2.presentation.management
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -93,7 +95,7 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent ConfirmDelete successfully deletes and emits toast effect`() =
         runTest {
-            coEvery { deleteCredentialUseCase("test_id") } returns Outcome.Success(Unit)
+            coEvery { deleteCredentialUseCase(CredentialId.fromEncoded("dGVzdF9pZA")) } returns Outcome.Success(Unit)
 
             val effects = mutableListOf<CredentialManagementEffect>()
             val job =
@@ -101,7 +103,7 @@ class CredentialManagementViewModelTest {
                     viewModel.effect.toList(effects)
                 }
 
-            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete("test_id"))
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
             advanceUntilIdle()
 
             assertTrue(effects.isNotEmpty())
@@ -118,7 +120,7 @@ class CredentialManagementViewModelTest {
         runTest(UnconfinedTestDispatcher()) {
             coEvery { deleteCredentialUseCase.invoke(any()) } returns Outcome.Error(DomainError.UnknownError("Error"))
 
-            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete("test_id"))
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
 
             assertEquals("Failed to delete credential", viewModel.state.value.error)
             assertFalse(viewModel.state.value.isLoading)
@@ -151,7 +153,11 @@ class CredentialManagementViewModelTest {
     fun `intent PendingDelete adds id to pendingDeleteIds and emits removal event`() =
         runTest {
             val credential =
-                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+                PasskeyCredential.createTest(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("example.com"),
+                    userName = "alice",
+                )
             val removalEvents = mutableListOf<PasskeyCredential>()
             val job =
                 launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -160,7 +166,7 @@ class CredentialManagementViewModelTest {
 
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
-            assertTrue(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+            assertTrue(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
             assertEquals(credential, removalEvents.first())
             job.cancel()
         }
@@ -169,27 +175,35 @@ class CredentialManagementViewModelTest {
     fun `intent UndoDelete removes id from pendingDeleteIds`() =
         runTest {
             val credential =
-                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+                PasskeyCredential.createTest(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("example.com"),
+                    userName = "alice",
+                )
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
-            assertTrue(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+            assertTrue(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
 
-            viewModel.onIntent(CredentialManagementIntent.UndoDelete("test_id"))
+            viewModel.onIntent(CredentialManagementIntent.UndoDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
 
-            assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+            assertFalse(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
         }
 
     @Test
     fun `intent CommitDelete calls use case and clears pending id`() =
         runTest {
-            coEvery { deleteCredentialUseCase("test_id") } returns Outcome.Success(Unit)
+            coEvery { deleteCredentialUseCase(CredentialId.fromEncoded("dGVzdF9pZA")) } returns Outcome.Success(Unit)
             val credential =
-                PasskeyCredential.createTest(id = "test_id", rpId = "example.com", userName = "alice")
+                PasskeyCredential.createTest(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("example.com"),
+                    userName = "alice",
+                )
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
-            viewModel.onIntent(CredentialManagementIntent.CommitDelete("test_id"))
+            viewModel.onIntent(CredentialManagementIntent.CommitDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.pendingDeleteIds.contains("test_id"))
+            assertFalse(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
         }
 
     @Test
@@ -198,10 +212,20 @@ class CredentialManagementViewModelTest {
             val pageSizeInt = PAGE_SIZE.toInt()
             val page1 =
                 List(pageSizeInt) { i ->
-                    PasskeyCredential.createTest(id = "1_$i", rpId = "example1.com", userName = "u1")
+                    PasskeyCredential.createTest(
+                        id = CredentialId.fromEncoded("MV8kaQ"),
+                        rpId = RpId("example1.com"),
+                        userName = "u1",
+                    )
                 }
             val page2 =
-                listOf(PasskeyCredential.createTest(id = "2", rpId = "example2.com", userName = "u2"))
+                listOf(
+                    PasskeyCredential.createTest(
+                        id = CredentialId.fromEncoded("Mg"),
+                        rpId = RpId("example2.com"),
+                        userName = "u2",
+                    ),
+                )
 
             // Re-initialize with paginated mocks
             coEvery {
@@ -226,7 +250,7 @@ class CredentialManagementViewModelTest {
 
             val expectedTotal = pageSizeInt + 1
             assertEquals(expectedTotal, newViewModel.state.value.credentials.size)
-            assertTrue(newViewModel.state.value.credentials.any { it.id == "2" })
+            assertTrue(newViewModel.state.value.credentials.any { it.id.encoded == "Mg" })
             assertFalse(newViewModel.state.value.isPaginating)
         }
 }

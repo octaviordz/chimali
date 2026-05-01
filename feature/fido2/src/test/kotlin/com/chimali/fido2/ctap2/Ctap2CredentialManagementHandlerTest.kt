@@ -1,16 +1,18 @@
 package com.chimali.fido2.ctap2
 
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
@@ -120,13 +122,13 @@ class Ctap2CredentialManagementHandlerTest {
     @Test
     fun `enumerateRPsBegin returns first RP with totalRPs count`() =
         runTest {
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            val cred2 = createTestCredential("cred2", "https://other.com", "user2")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
+            val cred2 = createTestCredential("Y3JlZDI", RpId("https://other.com"), "user2")
             coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1, cred2))
-            coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
-                RelyingParty("https://example.com", "Example", null, 1, Instant.now())
-            coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
-                RelyingParty("https://other.com", "Other", null, 1, Instant.now())
+            coEvery { credentialRepository.getRelyingParty(RpId("https://example.com")) } returns
+                RelyingParty(RpId("https://example.com"), "Example", null, 1, TimeProvider().now())
+            coEvery { credentialRepository.getRelyingParty(RpId("https://other.com")) } returns
+                RelyingParty(RpId("https://other.com"), "Other", null, 1, TimeProvider().now())
 
             every { cborCodec.decodeFromFido2Format(any()) } returns mapOf("1" to SUB_ENUM_RP_BEGIN)
             val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
@@ -157,13 +159,13 @@ class Ctap2CredentialManagementHandlerTest {
     fun `enumerateRPsGetNextRP returns next RP after Begin`() =
         runTest {
             // First do a Begin to populate the session with 2 RPs
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            val cred2 = createTestCredential("cred2", "https://other.com", "user2")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
+            val cred2 = createTestCredential("Y3JlZDI", RpId("https://other.com"), "user2")
             coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1, cred2))
-            coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
-                RelyingParty("https://example.com", "Example", null, 1, Instant.now())
-            coEvery { credentialRepository.getRelyingParty("https://other.com") } returns
-                RelyingParty("https://other.com", "Other", null, 1, Instant.now())
+            coEvery { credentialRepository.getRelyingParty(RpId("https://example.com")) } returns
+                RelyingParty(RpId("https://example.com"), "Example", null, 1, TimeProvider().now())
+            coEvery { credentialRepository.getRelyingParty(RpId("https://other.com")) } returns
+                RelyingParty(RpId("https://other.com"), "Other", null, 1, TimeProvider().now())
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
@@ -183,10 +185,10 @@ class Ctap2CredentialManagementHandlerTest {
     fun `enumerateRPsGetNextRP returns NOT_ALLOWED when exhausted`() =
         runTest {
             // Begin with only 1 RP
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
             coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(cred1))
-            coEvery { credentialRepository.getRelyingParty("https://example.com") } returns
-                RelyingParty("https://example.com", "Example", null, 1, Instant.now())
+            coEvery { credentialRepository.getRelyingParty(RpId("https://example.com")) } returns
+                RelyingParty(RpId("https://example.com"), "Example", null, 1, TimeProvider().now())
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_CC)
             every { cborCodec.encodeToFido2Format(any()) } returns encodedBytes
@@ -208,10 +210,10 @@ class Ctap2CredentialManagementHandlerTest {
     @Test
     fun `enumerateCredentialsBegin returns first credential with totalCredentials`() =
         runTest {
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            val cred2 = createTestCredential("cred2", "https://example.com", "user2")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
+            val cred2 = createTestCredential("Y3JlZDI", RpId("https://example.com"), "user2")
             coEvery {
-                credentialRepository.getCredentialsForRp("https://example.com")
+                credentialRepository.getCredentialsForRp(RpId("https://example.com"))
             } returns Outcome.Success(listOf(cred1, cred2))
 
             val subCommandParams = mapOf("rpId" to "https://example.com")
@@ -233,7 +235,7 @@ class Ctap2CredentialManagementHandlerTest {
     fun `enumerateCredentialsBegin returns NO_CREDENTIALS when RP has none`() =
         runTest {
             coEvery {
-                credentialRepository.getCredentialsForRp("https://empty.com")
+                credentialRepository.getCredentialsForRp(RpId("https://empty.com"))
             } returns Outcome.Success(emptyList())
 
             val subCommandParams = mapOf("rpId" to "https://empty.com")
@@ -254,10 +256,10 @@ class Ctap2CredentialManagementHandlerTest {
     @Test
     fun `enumerateCredentialsGetNextCredential returns next credential after Begin`() =
         runTest {
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
-            val cred2 = createTestCredential("cred2", "https://example.com", "user2")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
+            val cred2 = createTestCredential("Y3JlZDI", RpId("https://example.com"), "user2")
             coEvery {
-                credentialRepository.getCredentialsForRp("https://example.com")
+                credentialRepository.getCredentialsForRp(RpId("https://example.com"))
             } returns Outcome.Success(listOf(cred1, cred2))
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
@@ -283,9 +285,9 @@ class Ctap2CredentialManagementHandlerTest {
     fun `enumerateCredentialsGetNextCredential returns NOT_ALLOWED when exhausted`() =
         runTest {
             // Begin with only 1 credential
-            val cred1 = createTestCredential("cred1", "https://example.com", "user1")
+            val cred1 = createTestCredential("Y3JlZDE", RpId("https://example.com"), "user1")
             coEvery {
-                credentialRepository.getCredentialsForRp("https://example.com")
+                credentialRepository.getCredentialsForRp(RpId("https://example.com"))
             } returns Outcome.Success(listOf(cred1))
 
             val encodedBytes = byteArrayOf(DUMMY_BYTE_DD)
@@ -312,9 +314,8 @@ class Ctap2CredentialManagementHandlerTest {
 
     private fun createTestCredential(
         id: String,
-        rpId: String,
+        rpId: RpId,
         userName: String,
-    ): PasskeyCredential {
-        return PasskeyCredential.createTest(id = id, rpId = rpId, userName = userName)
-    }
+    ): PasskeyCredential =
+        PasskeyCredential.createTest(id = CredentialId.fromEncoded(id), rpId = rpId, userName = userName)
 }

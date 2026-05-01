@@ -1,13 +1,14 @@
 package com.chimali.fido2.domain.model
 
-import co.touchlab.kermit.Logger
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.valueobject.RpId
 
 /**
  * Domain model representing a PublicKeyCredentialRpEntity.
  * This contains information about the relying party requesting credential creation.
  */
 data class PublicKeyCredentialRpEntity(
-    val id: String,
+    val id: RpId,
     val name: String,
     val icon: String?,
 ) {
@@ -21,12 +22,11 @@ data class PublicKeyCredentialRpEntity(
      */
     internal fun validate() {
         // Validate required fields
-        require(id.isNotBlank()) { "RP ID cannot be blank" }
         require(name.isNotBlank()) { "RP name cannot be blank" }
 
         // Validate formats
-        require(RelyingParty.isValidRpId(id)) {
-            "RP ID must be a valid domain or HTTPS origin: $id"
+        require(RelyingParty.isValidRpId(id.value)) {
+            "RP ID must be a valid domain or HTTPS origin: ${id.value}"
         }
         require(name.length <= 64) { "RP name cannot exceed 64 characters" }
 
@@ -41,12 +41,7 @@ data class PublicKeyCredentialRpEntity(
      * Returns the domain from the RP ID.
      */
     fun getDomain(): String {
-        return try {
-            java.net.URI.create(id).host ?: id
-        } catch (e: IllegalArgumentException) {
-            Logger.w(e) { "PublicKeyCredentialRpEntity: Failed to parse domain from ID: $id" }
-            id
-        }
+        return id.value
     }
 
     /**
@@ -67,7 +62,7 @@ data class PublicKeyCredentialRpEntity(
          * Creates a new PublicKeyCredentialRpEntity with validation.
          */
         fun create(
-            id: String,
+            id: RpId,
             name: String,
             icon: String? = null,
         ): PublicKeyCredentialRpEntity {

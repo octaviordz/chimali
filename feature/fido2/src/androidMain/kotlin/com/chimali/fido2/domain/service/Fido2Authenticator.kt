@@ -2,6 +2,8 @@ package com.chimali.fido2.domain.service
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AuthenticatorTransport
@@ -9,6 +11,7 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.Instant
 
 /**
  * Service interface for FIDO2 authenticator operations.
@@ -44,7 +47,7 @@ interface Fido2Authenticator {
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
      */
-    suspend fun getCredentialsByRpId(rpId: String): Flow<PasskeyCredential>
+    suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
      * Deletes a credential from the authenticator.
@@ -54,8 +57,8 @@ interface Fido2Authenticator {
      * @return Outcome indicating success or failure
      */
     suspend fun deleteCredential(
-        credentialId: String,
-        rpId: String? = null,
+        credentialId: CredentialId,
+        rpId: RpId? = null,
     ): Outcome<Unit, DomainError>
 
     /**
@@ -398,7 +401,7 @@ enum class AuthenticatorState {
 data class HealthCheckResult(
     val isHealthy: Boolean,
     val checks: Map<String, HealthCheckStatus>,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
     val errorMessage: String?,
 ) {
     /**
@@ -443,7 +446,7 @@ data class PairingResult(
     val success: Boolean,
     val pairingId: String?,
     val errorMessage: String?,
-    val timestamp: java.time.Instant,
+    val timestamp: Instant,
 ) {
     /**
      * Checks if pairing was successful.

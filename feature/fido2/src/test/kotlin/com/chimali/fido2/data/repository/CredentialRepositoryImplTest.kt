@@ -2,15 +2,17 @@ package com.chimali.fido2.data.repository
 
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
-import com.chimali.fido2.domain.model.ConsentOperationType
-import com.chimali.fido2.domain.model.CredentialId
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.model.RelyingParty
-import com.chimali.fido2.domain.model.UserConsentRecord
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,6 +37,7 @@ class CredentialRepositoryImplTest {
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder
     private lateinit var corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker
+    private lateinit var timeProvider: com.chimali.core.domain.time.TimeProvider
     private lateinit var repository: CredentialRepositoryImpl
 
     private lateinit var testCredential: PasskeyCredential
@@ -57,6 +60,7 @@ class CredentialRepositoryImplTest {
             cryptoService = mockk()
             publicKeyDecoder = mockk()
             corruptedKeyRepairWorker = mockk()
+            timeProvider = mockk(relaxed = true)
             repository =
                 CredentialRepositoryImpl(
                     passkeyCredentialDao,
@@ -65,6 +69,7 @@ class CredentialRepositoryImplTest {
                     cryptoService,
                     publicKeyDecoder,
                     corruptedKeyRepairWorker,
+                    timeProvider,
                     UnconfinedTestDispatcher(),
                 )
 
@@ -73,9 +78,9 @@ class CredentialRepositoryImplTest {
 
             testCredential =
                 PasskeyCredential.create(
-                    id = "test_credential_id",
-                    rpId = "https://example.com",
-                    userId = "user123",
+                    id = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                    rpId = RpId("https://example.com"),
+                    userId = UserId("user123"),
                     userName = "testuser",
                     userDisplayName = "Test User",
                     publicKey = testPublicKey,
@@ -86,16 +91,22 @@ class CredentialRepositoryImplTest {
 
             testEntity =
                 com.chimali.fido2.data.database.PasskeyCredential(
-                    id = "test_credential_id",
-                    createdAt = testCredential.createdAt.toEpochMilli(),
-                    lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
-                    aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
+                    id = "dGVzdF9jcmVkZW50aWFsX2lk",
+                    createdAt = testCredential.createdAt.toEpochMilliseconds(),
+                    lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
+                    aaguid =
+                        java.util.Base64
+                            .getEncoder()
+                            .encodeToString(testCredential.aaguid),
                     coseAlgorithm = PasskeyCredential.COSE_ES256.toLong(),
-                    credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+                    credentialId = testCredential.id.encoded,
                     credProtectPolicy = testCredential.credProtectPolicy.toLong(),
                     label = null,
                     privateKeyAlias = "test_private_key_alias",
-                    publicKey = java.util.Base64.getEncoder().encodeToString(testPublicKey.encoded),
+                    publicKey =
+                        java.util.Base64
+                            .getEncoder()
+                            .encodeToString(testPublicKey.encoded),
                     rpId = "https://example.com",
                     rpName = "example",
                     signCount = 0L,
@@ -106,15 +117,16 @@ class CredentialRepositoryImplTest {
 
             testRp =
                 RelyingParty.create(
-                    id = "https://example.com",
+                    id = RpId("https://example.com"),
                     name = "Example Website",
                 )
 
             testConsent =
                 UserConsentRecord.create(
+                    id = "1",
                     operationType = ConsentOperationType.REGISTRATION,
-                    rpId = "https://example.com",
-                    credentialId = "test_credential_id",
+                    rpId = RpId("https://example.com"),
+                    credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
                     biometricUsed = true,
                     pinUsed = false,
                     ipAddress = "192.168.1.1",
@@ -133,6 +145,7 @@ class CredentialRepositoryImplTest {
             coEvery { passkeyCredentialDao.getCredentialById(any()) } returns null
             coEvery { passkeyCredentialDao.getCredentialsByRpId(any()) } returns flowOf(listOf())
             coEvery { passkeyCredentialDao.getCredentialsByUserId(any()) } returns flowOf(listOf())
+            coEvery { passkeyCredentialDao.getCredentialsByRpIdAndUserId(any(), any()) } returns listOf()
             coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf())
             coEvery { passkeyCredentialDao.updateCredential(any()) } just Runs
             coEvery { passkeyCredentialDao.deleteCredential(any()) } just Runs
@@ -152,8 +165,8 @@ class CredentialRepositoryImplTest {
         fun `should successfully save credential`() =
             runTest {
                 val result = repository.saveCredential(testCredential)
-                assertTrue(result.isSuccess)
-                coVerify { cryptoService.keyExists(CredentialId.fromString(testCredential.id)) }
+                assertTrue(result.isSuccess, "Result was $result")
+                coVerify { cryptoService.keyExists(testCredential.id) }
                 coVerify { passkeyCredentialDao.insertCredential(testCredential) }
             }
 
@@ -169,8 +182,9 @@ class CredentialRepositoryImplTest {
         @Test
         fun `should return null when credential not found`() =
             runTest {
-                coEvery { passkeyCredentialDao.getCredentialById("nonexistent") } returns null
-                val result = repository.getCredentialById("nonexistent")
+                val unknownId = CredentialId.fromEncoded("bm9uZXhpc3RlbnQ")
+                coEvery { passkeyCredentialDao.getCredentialById(unknownId) } returns null
+                val result = repository.getCredentialById(unknownId)
                 assertNull(result)
             }
 
@@ -206,7 +220,7 @@ class CredentialRepositoryImplTest {
             runTest {
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.deleteCredential(testCredential.id)
-                assertTrue(result.isSuccess)
+                assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
             }
 
@@ -217,9 +231,9 @@ class CredentialRepositoryImplTest {
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.deleteAllCredentials()
 
-                assertTrue(result.isSuccess)
+                assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
-                coVerify { cryptoService.deleteCredentialKey(CredentialId.fromString(testCredential.id)) }
+                coVerify { cryptoService.deleteCredentialKey(testCredential.id) }
             }
 
         @Test
@@ -230,7 +244,7 @@ class CredentialRepositoryImplTest {
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.deleteAllCredentials(testCredential.rpId)
 
-                assertTrue(result.isSuccess)
+                assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
             }
 
@@ -241,7 +255,7 @@ class CredentialRepositoryImplTest {
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.resetAuthenticator()
 
-                assertTrue(result.isSuccess)
+                assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
             }
     }

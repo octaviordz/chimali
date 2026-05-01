@@ -8,6 +8,7 @@ import java.security.KeyStore
 import java.security.Security
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
+import kotlin.time.TimeSource
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 /**
@@ -57,7 +58,7 @@ object WarmUpHelper {
      */
     fun warmUpAndroidKeyStore() {
         try {
-            val t0 = System.currentTimeMillis()
+            val mark = TimeSource.Monotonic.markNow()
             Logger.d("AndroidKeyStore warm-up START")
 
             val keyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
@@ -83,7 +84,7 @@ object WarmUpHelper {
                         .build(),
                 )
                 kpg.generateKeyPair()
-                Logger.d { "AndroidKeyStore warm-up: key created in ${System.currentTimeMillis() - t0}ms" }
+                Logger.d { "AndroidKeyStore warm-up: key created in ${mark.elapsedNow()}" }
             } else {
                 Logger.d("AndroidKeyStore warm-up: reusing existing warmup key")
             }
@@ -91,7 +92,7 @@ object WarmUpHelper {
             // Retrieve the private key and run one throwaway ECDSA sign.
             // This is the step that exercises the TEE IPC path and triggers ART JIT
             // compilation of the AndroidKeyStore signing internals. The result is discarded.
-            val t1 = System.currentTimeMillis()
+            val signMark = TimeSource.Monotonic.markNow()
             val privateKey = keyStore.getKey(WARMUP_KEY_ALIAS, null)
             val sig = Signature.getInstance("SHA256withECDSA")
             sig.initSign(privateKey as java.security.PrivateKey)
@@ -99,9 +100,9 @@ object WarmUpHelper {
             sig.sign() // result intentionally discarded
 
             Logger.d {
-                val tSign = System.currentTimeMillis() - t1
-                val tTotal = System.currentTimeMillis() - t0
-                "AndroidKeyStore warm-up DONE: sign=${tSign}ms total=${tTotal}ms"
+                val tSign = signMark.elapsedNow()
+                val tTotal = mark.elapsedNow()
+                "AndroidKeyStore warm-up DONE: sign=$tSign total=$tTotal"
             }
         } catch (e: java.security.GeneralSecurityException) {
             // Non-fatal: the first real ceremony will pay the warm-up cost itself.
@@ -124,7 +125,7 @@ object WarmUpHelper {
      */
     fun warmUpBouncyCastle() {
         try {
-            val t0 = System.currentTimeMillis()
+            val mark = TimeSource.Monotonic.markNow()
             Logger.d("BouncyCastle warm-up START")
 
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -141,7 +142,7 @@ object WarmUpHelper {
             sig.update(byteArrayOf(0x00))
             sig.sign() // result intentionally discarded
 
-            Logger.d { "BouncyCastle warm-up DONE: ${System.currentTimeMillis() - t0}ms" }
+            Logger.d { "BouncyCastle warm-up DONE: ${mark.elapsedNow()}" }
         } catch (e: java.security.GeneralSecurityException) {
             Logger.w(e) { "BouncyCastle warm-up FAILED (non-fatal): ${e.message}" }
         }

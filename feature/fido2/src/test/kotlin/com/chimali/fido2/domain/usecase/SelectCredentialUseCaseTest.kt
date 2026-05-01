@@ -4,16 +4,21 @@ import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
-import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 
 /**
  * T082 — Unit tests for [SelectCredentialUseCase].
@@ -28,29 +33,26 @@ class SelectCredentialUseCaseTest {
 
     private companion object {
         private const val HASH_SIZE_32 = 32
-        private const val HOUR_IN_SECONDS_3600 = 3600L
     }
 
-    private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions {
-        return GetAssertionOptions.create(
-            rpId = rpId,
+    private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions =
+        GetAssertionOptions.create(
+            rpId = RpId(rpId),
             clientDataHash = ByteArray(HASH_SIZE_32),
         )
-    }
 
     private fun createSummary(
         id: String,
         rpId: String = "https://example.com",
-        lastUsedAt: Instant = Instant.now(),
-    ): com.chimali.fido2.domain.model.CredentialSummary {
-        return com.chimali.fido2.domain.model.CredentialSummary(
+        lastUsedAt: Instant = TimeProvider().now(),
+    ): CredentialSummary =
+        CredentialSummary(
             id = id,
-            rpId = rpId,
-            credentialId = id.toByteArray(),
+            rpId = RpId(rpId),
+            credentialId = CredentialId.fromEncoded(id),
             lastUsedAt = lastUsedAt,
             coseAlgorithm = PasskeyCredential.COSE_ES256,
         )
-    }
 
     // ── Empty candidates ─────────────────────────────────────────────────────
 
@@ -80,8 +82,9 @@ class SelectCredentialUseCaseTest {
     @Test
     fun `selects most recently used credential from multiple`() =
         runTest {
-            val older = createSummary("cred1", lastUsedAt = Instant.now().minusSeconds(HOUR_IN_SECONDS_3600))
-            val newer = createSummary("cred2", lastUsedAt = Instant.now())
+            val now = TimeProvider().now()
+            val older = createSummary("cred1", lastUsedAt = now - 3600.seconds)
+            val newer = createSummary("cred2", lastUsedAt = now)
 
             val result = useCase(listOf(older, newer), createOptions())
 

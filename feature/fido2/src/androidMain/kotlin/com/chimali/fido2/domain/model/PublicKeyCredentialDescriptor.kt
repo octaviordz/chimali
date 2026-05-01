@@ -1,6 +1,6 @@
 package com.chimali.fido2.domain.model
 
-import java.util.Base64
+import com.chimali.core.domain.valueobject.CredentialId
 
 /**
  * Domain model representing a PublicKeyCredentialDescriptor.
@@ -8,7 +8,7 @@ import java.util.Base64
  */
 data class PublicKeyCredentialDescriptor(
     val type: PublicKeyCredentialType,
-    val id: ByteArray,
+    val id: CredentialId,
     val transports: List<AuthenticatorTransport>?,
 ) {
     init {
@@ -21,8 +21,6 @@ data class PublicKeyCredentialDescriptor(
      */
     fun validate() {
         // Validate required fields
-        require(id.isNotEmpty()) { "Credential ID cannot be empty" }
-        require(id.size <= MAX_CREDENTIAL_ID_LENGTH) { "Credential ID cannot exceed $MAX_CREDENTIAL_ID_LENGTH bytes" }
         require(type != PublicKeyCredentialType.UNKNOWN) { "Credential type must be specified" }
 
         // Validate transports if present
@@ -42,15 +40,13 @@ data class PublicKeyCredentialDescriptor(
     /**
      * Returns the credential ID as a base64 URL-safe string.
      */
-    fun getIdBase64Url(): String {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(id)
-    }
+    fun getIdBase64Url(): String = id.encoded
 
     /**
      * Returns the credential ID as a hex string.
      */
     fun getIdHex(): String {
-        return id.joinToString("") { "%02x".format(it) }
+        return id.toByteArray().joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -74,7 +70,7 @@ data class PublicKeyCredentialDescriptor(
         other as PublicKeyCredentialDescriptor
 
         if (type != other.type) return false
-        if (!id.contentEquals(other.id)) return false
+        if (id != other.id) return false
         if (transports != other.transports) return false
 
         return true
@@ -82,7 +78,7 @@ data class PublicKeyCredentialDescriptor(
 
     override fun hashCode(): Int {
         var result = type.hashCode()
-        result = 31 * result + id.contentHashCode()
+        result = 31 * result + id.hashCode()
         result = 31 * result + (transports?.hashCode() ?: 0)
         return result
     }
@@ -99,7 +95,7 @@ data class PublicKeyCredentialDescriptor(
          */
         fun create(
             type: PublicKeyCredentialType = PublicKeyCredentialType.PUBLIC_KEY,
-            id: ByteArray,
+            id: CredentialId,
             transports: List<AuthenticatorTransport>? = null,
         ): PublicKeyCredentialDescriptor {
             return PublicKeyCredentialDescriptor(
@@ -117,14 +113,7 @@ data class PublicKeyCredentialDescriptor(
             idBase64: String,
             transports: List<AuthenticatorTransport>? = null,
         ): PublicKeyCredentialDescriptor {
-            val id =
-                try {
-                    Base64.getUrlDecoder().decode(idBase64)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid base64 credential ID", e)
-                }
-
-            return create(type, id, transports)
+            return create(type, CredentialId.fromEncoded(idBase64), transports)
         }
     }
 }

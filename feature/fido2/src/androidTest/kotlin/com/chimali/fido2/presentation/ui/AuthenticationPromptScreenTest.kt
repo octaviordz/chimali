@@ -10,6 +10,8 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
@@ -97,7 +99,7 @@ class AuthenticationPromptScreenTest {
 
     @Test
     fun successState_showsSignedInMessage() {
-        val testAssertion = AssertionObject.createTest("cred1", "https://example.com")
+        val testAssertion = AssertionObject.createTest(CredentialId.fromEncoded("cred1"), RpId("https://example.com"))
 
         composeTestRule.setContent {
             AuthenticationPromptContent(

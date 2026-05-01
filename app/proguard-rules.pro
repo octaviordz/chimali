@@ -31,6 +31,13 @@
 -keep interface kotlinx.coroutines.** { *; }
 -keepclassmembers class kotlinx.coroutines.** { *; }
 
+# Kotlinx Datetime
+-keep class kotlinx.datetime.** { *; }
+-keep interface kotlinx.datetime.** { *; }
+-keepclassmembers class kotlinx.datetime.** { *; }
+-keep class kotlinx.datetime.Clock$System { *; }
+-keep class kotlinx.datetime.Clock { *; }
+
 # AndroidX (Targeted keeps for app startup stability)
 -keep class androidx.startup.InitializationProvider { *; }
 -keep class androidx.work.impl.WorkDatabase { *; }

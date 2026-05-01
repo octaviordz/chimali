@@ -22,12 +22,19 @@ subprojects {
         add("detektPlugins", rootProject.libs.detekt.compose.rules)
     }
 
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+        }
+    }
+
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
         config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
         baseline = file("${projectDir}/detekt-baseline.xml")
         buildUponDefaultConfig = true
         allRules = false
         source.setFrom(files("src"))
+        autoCorrect = project.hasProperty("detekt.autoCorrect")
     }
 
     tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {

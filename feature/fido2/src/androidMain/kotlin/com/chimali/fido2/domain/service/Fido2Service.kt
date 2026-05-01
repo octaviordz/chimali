@@ -2,6 +2,8 @@ package com.chimali.fido2.domain.service
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -12,16 +14,16 @@ interface Fido2Service {
     suspend fun makeCredential(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError>
 
     suspend fun registerNewCredential(
-        rpId: String,
+        rpId: RpId,
         userName: String,
         userDisplayName: String,
-    ): Outcome<String, DomainError>
+    ): Outcome<CredentialId, DomainError>
 
-    suspend fun authenticateWithCredential(rpId: String): Outcome<String, DomainError>
+    suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError>
 
-    suspend fun getAllCredentials(): Flow<List<PasskeyCredential>>
+    suspend fun getAllCredentials(): Flow<PasskeyCredential>
 
-    suspend fun deleteCredential(credentialId: String): Outcome<Unit, DomainError>
+    suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError>
 
     suspend fun isSupported(): Boolean
 }

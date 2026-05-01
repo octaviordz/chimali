@@ -2,7 +2,7 @@ package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
-import kotlin.time.Clock
+import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.FileSystem

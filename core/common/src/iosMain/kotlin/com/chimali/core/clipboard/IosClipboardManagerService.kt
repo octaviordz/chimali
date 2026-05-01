@@ -25,8 +25,8 @@ class IosClipboardManagerService(
         label: String,
         text: String,
         clearDelayMs: Long,
-    ): Result<Unit> {
-        return try {
+    ): Result<Unit> =
+        try {
             logger.i {
                 "iOS Clipboard: Copying sensitive data" +
                     "| label: $label" +
@@ -52,10 +52,9 @@ class IosClipboardManagerService(
             logger.e(e) { "iOS Clipboard: Copy failed - ${e.message}" }
             Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }
-    }
 
-    override suspend fun clearClipboard(): Result<Unit> {
-        return try {
+    override suspend fun clearClipboard(): Result<Unit> =
+        try {
             logger.i { "iOS Clipboard: Clearing clipboard" }
 
             clearJob?.cancel()
@@ -71,5 +70,4 @@ class IosClipboardManagerService(
             logger.e(e) { "iOS Clipboard: Clear failed - ${e.message}" }
             Result.failure(ClipboardError.PlatformError("iOS", e::class.simpleName, e.message ?: "Unknown error", e))
         }
-    }
 }

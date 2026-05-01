@@ -3,11 +3,11 @@ package com.chimali.fido2.data.crypto
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.hdkeys.P256Group
-import com.chimali.fido2.domain.model.CredentialId
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Nested
 class Fido2CryptoServiceTest {
     private lateinit var hdkManager: HdkManager
     private lateinit var masterSeedProvider: MasterSeedProvider
+    private lateinit var timeProvider: com.chimali.core.domain.time.TimeProvider
     private lateinit var service: Fido2CryptoService
 
     // Use a real root key pair and seed so we can verify math
@@ -61,7 +62,10 @@ class Fido2CryptoServiceTest {
 
     @BeforeTest
     fun setUp() {
-        Security.addProvider(org.bouncycastle.jce.provider.BouncyCastleProvider())
+        Security.addProvider(
+            org.bouncycastle.jce.provider
+                .BouncyCastleProvider(),
+        )
         mockkStatic(android.util.Log::class)
         every { android.util.Log.d(any(), any()) } returns 0
         every { android.util.Log.e(any(), any(), any()) } returns 0
@@ -70,12 +74,20 @@ class Fido2CryptoServiceTest {
 
         hdkManager = mockk()
         masterSeedProvider = mockk()
+        timeProvider = mockk(relaxed = true)
 
         // Wire up defaults
         coEvery { masterSeedProvider.getMasterSeed() } returns realSeed
         coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
 
-        service = Fido2CryptoService(hdkManager, masterSeedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
+        service =
+            Fido2CryptoService(
+                hdkManager,
+                masterSeedProvider,
+                PostQuantumCrypto(),
+                timeProvider,
+                UnconfinedTestDispatcher(),
+            )
     }
 
     @AfterEach
@@ -107,11 +119,17 @@ class Fido2CryptoServiceTest {
                     )
                 } returns fakeResult
 
-                val result = service.generateCredentialKeyPair(CredentialId.fromString(credentialId))
+                val result =
+                    service.generateCredentialKeyPair(
+                        CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                    )
 
                 assertTrue(result.isSuccess)
                 val keyPair = result.getOrThrow()
-                assertEquals(Fido2CryptoService.credentialAlias(CredentialId.fromString(credentialId)), keyPair.alias)
+                assertEquals(
+                    Fido2CryptoService.credentialAlias(CredentialId.fromByteArray(credentialId.encodeToByteArray())),
+                    keyPair.alias,
+                )
                 assertEquals(PUBLIC_KEY_SIZE_65, keyPair.publicKeyBytes.size)
                 assertEquals(UNCOMPRESSED_KEY_PREFIX, keyPair.publicKeyBytes[0])
                 // Path must be a 2-element list [FIDO2_APP_INDEX, credIndex]
@@ -132,8 +150,16 @@ class Fido2CryptoServiceTest {
 
                 every { hdkManager.deriveHdk(any(), any(), any()) } returns fakeResult
 
-                val result1 = service.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
-                val result2 = service.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
+                val result1 =
+                    service
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
+                val result2 =
+                    service
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 assertTrue(result1.publicKeyBytes.contentEquals(result2.publicKeyBytes))
             }
@@ -160,8 +186,16 @@ class Fido2CryptoServiceTest {
                     }
                 }
 
-                val key1 = service.generateCredentialKeyPair(CredentialId.fromString("cred-1")).getOrThrow()
-                val key2 = service.generateCredentialKeyPair(CredentialId.fromString("cred-2")).getOrThrow()
+                val key1 =
+                    service
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray("cred-1".encodeToByteArray()),
+                        ).getOrThrow()
+                val key2 =
+                    service
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray("cred-2".encodeToByteArray()),
+                        ).getOrThrow()
 
                 assertTrue(!key1.publicKeyBytes.contentEquals(key2.publicKeyBytes))
             }
@@ -171,7 +205,10 @@ class Fido2CryptoServiceTest {
             runTest {
                 coEvery { masterSeedProvider.getMasterSeed() } returns null
 
-                val result = service.generateCredentialKeyPair(CredentialId.fromString("any-cred"))
+                val result =
+                    service.generateCredentialKeyPair(
+                        CredentialId.fromByteArray("any-cred".encodeToByteArray()),
+                    )
 
                 assertTrue(result.isFailure)
             }
@@ -186,16 +223,19 @@ class Fido2CryptoServiceTest {
                 val data = "authData + clientDataHash".toByteArray()
 
                 // Use real HDK derivation to sign
-                val realHdkManager = com.chimali.core.security.hdkeys.HdkEcdhP256()
+                val realHdkManager =
+                    com.chimali.core.security.hdkeys
+                        .HdkEcdhP256()
                 val realService =
                     Fido2CryptoService(
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
 
-                val result = realService.sign(CredentialId.fromString(credentialId), data)
+                val result = realService.sign(CredentialId.fromByteArray(credentialId.encodeToByteArray()), data)
 
                 assertTrue(result.isSuccess)
                 val signature = result.getOrThrow()
@@ -222,7 +262,7 @@ class Fido2CryptoServiceTest {
 
                 val publicKey =
                     service.getPublicKey(
-                        CredentialId.fromString("some-cred"),
+                        CredentialId.fromByteArray("some-creds".encodeToByteArray()),
                         Fido2CryptoService.COSE_ES256,
                     )
 
@@ -240,7 +280,9 @@ class Fido2CryptoServiceTest {
      */
     @Nested
     inner class KnownAnswerTests {
-        private val realHdkManager = com.chimali.core.security.hdkeys.HdkEcdhP256()
+        private val realHdkManager =
+            com.chimali.core.security.hdkeys
+                .HdkEcdhP256()
 
         @Test
         fun `T148b same seed and credentialId always derives the same public key`() =
@@ -257,12 +299,21 @@ class Fido2CryptoServiceTest {
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
 
                 // When: derive twice from the same seed
-                val keyPair1 = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
-                val keyPair2 = realService.generateCredentialKeyPair(CredentialId.fromString(credentialId)).getOrThrow()
+                val keyPair1 =
+                    realService
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
+                val keyPair2 =
+                    realService
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 // Then: public key bytes are identical (determinism — SC-006)
                 assertTrue(
@@ -284,6 +335,7 @@ class Fido2CryptoServiceTest {
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
                 val realService2 =
@@ -291,21 +343,24 @@ class Fido2CryptoServiceTest {
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
 
                 coEvery { masterSeedProvider.getMasterSeed() } returns seed1
                 coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
                 val keyPair1 =
-                    realService1.generateCredentialKeyPair(
-                        CredentialId.fromString(credentialId),
-                    ).getOrThrow()
+                    realService1
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 coEvery { masterSeedProvider.getMasterSeed() } returns seed2
                 val keyPair2 =
-                    realService2.generateCredentialKeyPair(
-                        CredentialId.fromString(credentialId),
-                    ).getOrThrow()
+                    realService2
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 // Then: Different seeds must produce different public keys
                 assertTrue(
@@ -327,22 +382,25 @@ class Fido2CryptoServiceTest {
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
 
                 coEvery { masterSeedProvider.getMasterSeed() } returns oldSeed
                 coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
                 val keysBeforeImport =
-                    realService.generateCredentialKeyPair(
-                        CredentialId.fromString(credentialId),
-                    ).getOrThrow()
+                    realService
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 // Simulate seed import (cache invalidated, new seed returned)
                 coEvery { masterSeedProvider.getMasterSeed() } returns newSeed
                 val keysAfterImport =
-                    realService.generateCredentialKeyPair(
-                        CredentialId.fromString(credentialId),
-                    ).getOrThrow()
+                    realService
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 assertTrue(
                     !keysBeforeImport.publicKeyBytes.contentEquals(keysAfterImport.publicKeyBytes),
@@ -365,7 +423,7 @@ class Fido2CryptoServiceTest {
          * cause this test to fail — which is the intent.
          *
          * Verification (Python 3):
-         *   See specs/004-fido2-hid/checklists/hdk-conformance.md §T173 for the full
+         *   See specs/004-fido2-hid/checklists/hdk-conformance.md Â§T173 for the full
          *   step-by-step reference computation.
          */
         @Test
@@ -375,7 +433,7 @@ class Fido2CryptoServiceTest {
                 val credentialId = "kat-t173-two-level-path-stable-reference"
 
                 val fixedDeviceSk = java.math.BigInteger.ONE
-                val fixedDevicePk = com.chimali.core.security.hdkeys.P256Group.G
+                val fixedDevicePk = P256Group.G
                 val fixedDeviceKeyPair =
                     HdkKeyPair(P256Group.serializeScalar(fixedDeviceSk), P256Group.serializeElement(fixedDevicePk))
 
@@ -387,12 +445,14 @@ class Fido2CryptoServiceTest {
                         realHdkManager,
                         masterSeedProvider,
                         PostQuantumCrypto(),
+                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
                 val keyPair =
-                    realService.generateCredentialKeyPair(
-                        CredentialId.fromString(credentialId),
-                    ).getOrThrow()
+                    realService
+                        .generateCredentialKeyPair(
+                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
+                        ).getOrThrow()
 
                 // Pinned expected value — captured from local run after UInt fix.
                 // The raw 65-byte uncompressed P-256 point: 0x04 || X (32 bytes) || Y (32 bytes).

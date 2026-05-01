@@ -40,6 +40,7 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation(libs.koin.android)
+                implementation(libs.kotlinx.datetime)
             }
         }
     }

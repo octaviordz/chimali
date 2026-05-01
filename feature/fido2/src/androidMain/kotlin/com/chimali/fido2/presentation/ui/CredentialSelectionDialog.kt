@@ -62,7 +62,7 @@ fun CredentialSelectionDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 300.dp),
                 ) {
-                    items(credentials) { credential ->
+                    items(credentials, key = { it.id.encoded }) { credential ->
                         CredentialItem(credential = credential, onSelect = onSelect)
                     }
                 }
@@ -116,7 +116,7 @@ private fun CredentialItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = credential.rpId,
+                    text = credential.rpId.value,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

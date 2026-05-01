@@ -4,6 +4,8 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
@@ -202,8 +204,13 @@ class Ctap2MakeCredentialHandler(
     ): List<ByteArray> {
         Logger.d { "handleMakeCredential START rpId=${req.rpId} user=${req.userName}" }
 
-        val rp = PublicKeyCredentialRpEntity.create(req.rpId, req.rpName)
-        val user = PublicKeyCredentialUserEntity.create(req.userId, req.userName, req.userDisplayName)
+        val rp = PublicKeyCredentialRpEntity.create(RpId(req.rpId), req.rpName)
+        val user =
+            PublicKeyCredentialUserEntity.create(
+                UserId.fromByteArray(req.userId),
+                req.userName,
+                req.userDisplayName,
+            )
 
         // T017a Algorithm Negotiation: Pick the first algorithm requested that we support.
         val (selectedAlgId, pubKeyCredParams) =

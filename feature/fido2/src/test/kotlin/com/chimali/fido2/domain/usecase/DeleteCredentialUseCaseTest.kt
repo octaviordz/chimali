@@ -5,6 +5,7 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.domain.repository.CredentialRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,7 +30,7 @@ class DeleteCredentialUseCaseTest {
     fun `invoke should return success when repository successfully deletes credential`() =
         runTest {
             // Arrange
-            val credentialId = "test-credential-id"
+            val credentialId = CredentialId.fromEncoded("test-credential-id")
             coEvery { credentialRepository.deleteCredential(credentialId) } returns Outcome.Success(Unit)
 
             // Act
@@ -44,7 +45,7 @@ class DeleteCredentialUseCaseTest {
     fun `invoke should return failure when repository fails to delete credential`() =
         runTest {
             // Arrange
-            val credentialId = "non-existent-id"
+            val credentialId = CredentialId.fromEncoded("non-existent-id")
             val exception = Exception("Credential not found")
             coEvery { credentialRepository.deleteCredential(credentialId) } returns
                 Outcome.Error(DomainError.NotFound("Credential not found", exception))

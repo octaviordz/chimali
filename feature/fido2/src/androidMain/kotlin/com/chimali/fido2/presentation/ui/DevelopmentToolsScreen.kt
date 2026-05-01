@@ -81,7 +81,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.chimali.core.common.result.map
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.ui.theme.LegibilityType
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions
@@ -733,10 +734,10 @@ private fun TestRegistrationTrigger(
                     }
                 val mockOptions =
                     MakeCredentialOptions.create(
-                        rp = PublicKeyCredentialRpEntity.create("webauthn.io", "WebAuthn.io (Test)"),
+                        rp = PublicKeyCredentialRpEntity.create(RpId("webauthn.io"), "WebAuthn.io (Test)"),
                         user =
                             PublicKeyCredentialUserEntity.create(
-                                mockUserId.toByteArray(),
+                                UserId(mockUserId),
                                 mockUserId,
                                 "Chimali Test User",
                             ),

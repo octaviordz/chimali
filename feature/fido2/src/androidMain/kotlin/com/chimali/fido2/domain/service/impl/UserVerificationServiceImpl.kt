@@ -3,7 +3,9 @@ package com.chimali.fido2.domain.service.impl
 import androidx.biometric.BiometricManager
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
-import com.chimali.fido2.domain.model.UserConsentRecord
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.service.BiometricEnrollmentStatus
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
@@ -12,7 +14,6 @@ import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationContext
-import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
@@ -21,6 +22,7 @@ import org.koin.core.annotation.Single
 @Suppress("ForbiddenComment")
 class UserVerificationServiceImpl(
     private val biometricManager: BiometricManager,
+    private val timeProvider: TimeProvider,
 ) : UserVerificationService {
     companion object {
         /** How long a cached availability result is considered fresh (10 seconds). */
@@ -74,7 +76,7 @@ class UserVerificationServiceImpl(
         // System.currentTimeMillis() is used rather than System.nanoTime() because
         // wall-clock precision is sufficient and it avoids the nanoTime monotonic-
         // clock overhead on some ARM platforms.
-        val now = System.currentTimeMillis()
+        val now = timeProvider.epochMillis()
         cachedAvailability?.let { cached ->
             if (now - cacheTimestampMs < CACHE_TTL_MS) {
                 return cached // ← no Binder IPC; just a memory read
@@ -145,7 +147,7 @@ class UserVerificationServiceImpl(
             isEnrolled = canAuth,
             enrolledTypes = if (canAuth) listOf(BiometricType.FINGERPRINT) else emptyList(),
             enrollmentStrength = BiometricStrength.STRONG,
-            lastUpdated = Instant.now(),
+            lastUpdated = timeProvider.now(),
         )
     }
 
@@ -166,7 +168,7 @@ class UserVerificationServiceImpl(
     }
 
     override suspend fun getRecentConsentRecords(
-        rpId: String?,
+        rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> {
         // TODO: Return persisted records
@@ -174,7 +176,7 @@ class UserVerificationServiceImpl(
     }
 
     override suspend fun isUserVerificationRequired(
-        rpId: String,
+        rpId: RpId,
         operationType: String,
         context: VerificationContext?,
     ): UserVerificationRequirement {

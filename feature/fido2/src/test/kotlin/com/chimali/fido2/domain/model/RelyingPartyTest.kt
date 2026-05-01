@@ -1,6 +1,8 @@
 package com.chimali.fido2.domain.model
 
-import java.time.Instant
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.RpId
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +12,9 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 
 class RelyingPartyTest {
@@ -19,7 +23,7 @@ class RelyingPartyTest {
     @BeforeTest
     fun setUp() =
         runTest {
-            testTimestamp = Instant.now()
+            testTimestamp = TimeProvider().now()
         }
 
     private companion object {
@@ -28,7 +32,7 @@ class RelyingPartyTest {
         private const val NAME_MAX_PLUS_ONE = 65
         private const val SECONDS_60 = 60L
         private const val SECONDS_30 = 30L
-        private const val RECENT_DAYS_THRESHOLD = 30L
+        private const val RECENT_DAYS_THRESHOLD = 30
         private const val HOURS_PER_DAY = 24
         private const val MINUTES_PER_HOUR = 60
         private const val SECONDS_PER_MINUTE = 60
@@ -47,7 +51,7 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = null,
                         credentialCount = 0,
@@ -56,7 +60,7 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals("https://example.com", rp.id)
+                assertEquals(RpId("https://example.com"), rp.id)
                 assertEquals("Example Website", rp.name)
                 assertNull(rp.iconUrl)
                 assertEquals(0, rp.credentialCount)
@@ -69,7 +73,7 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = "https://example.com/icon.png",
                         credentialCount = CRED_COUNT_5,
@@ -78,7 +82,7 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals("https://example.com", rp.id)
+                assertEquals(RpId("https://example.com"), rp.id)
                 assertEquals("Example Website", rp.name)
                 assertEquals("https://example.com/icon.png", rp.iconUrl)
                 assertEquals(CRED_COUNT_5, rp.credentialCount)
@@ -91,7 +95,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "",
+                        id = RpId(""),
                         name = "Example Website",
                         iconUrl = null,
                         credentialCount = 0,
@@ -106,7 +110,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "",
                         iconUrl = null,
                         credentialCount = 0,
@@ -121,7 +125,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "ftp://invalid-rp-id",
+                        id = RpId("ftp://invalid-rp-id"),
                         name = "Example Website",
                         iconUrl = null,
                         credentialCount = 0,
@@ -137,7 +141,7 @@ class RelyingPartyTest {
                 val longName = "a".repeat(NAME_MAX_PLUS_ONE)
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = longName,
                         iconUrl = null,
                         credentialCount = 0,
@@ -152,7 +156,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = null,
                         credentialCount = -1,
@@ -167,7 +171,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = "invalid-url",
                         credentialCount = 0,
@@ -182,7 +186,7 @@ class RelyingPartyTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = "ftp://example.com/icon.png",
                         credentialCount = 0,
@@ -195,10 +199,10 @@ class RelyingPartyTest {
         @Test
         fun `should throw exception when last used time is before creation time`() =
             runTest {
-                val pastTimestamp = testTimestamp.minusSeconds(SECONDS_60)
+                val pastTimestamp = testTimestamp - SECONDS_60.seconds
                 assertFailsWith<IllegalArgumentException> {
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = null,
                         credentialCount = 0,
@@ -218,7 +222,7 @@ class RelyingPartyTest {
             runTest {
                 rp =
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = "https://example.com/icon.png",
                         credentialCount = CRED_COUNT_5,
@@ -241,10 +245,10 @@ class RelyingPartyTest {
             runTest {
                 assertEquals("example.com", rp.getDomain())
 
-                val rpWithPath = rp.copy(id = "https://subdomain.example.com/path/to/resource")
+                val rpWithPath = rp.copy(id = RpId("https://subdomain.example.com/path/to/resource"))
                 assertEquals("subdomain.example.com", rpWithPath.getDomain())
 
-                val rpWithPort = rp.copy(id = "https://localhost:8080")
+                val rpWithPort = rp.copy(id = RpId("https://localhost:8080"))
                 assertEquals("localhost:8080", rpWithPort.getDomain())
             }
 
@@ -254,7 +258,7 @@ class RelyingPartyTest {
                 // A bare hostname without a dot (e.g. "invalid-url") is now rejected
                 // by domain validation. This verifies that behavior.
                 assertFailsWith<IllegalArgumentException> {
-                    rp.copy(id = "invalid-url")
+                    rp.copy(id = RpId("invalid-url"))
                 }
             }
 
@@ -265,7 +269,7 @@ class RelyingPartyTest {
 
                 assertTrue(rp.isTrusted(trustedDomains))
 
-                val untrustedRp = rp.copy(id = "https://untrusted.com")
+                val untrustedRp = rp.copy(id = RpId("https://untrusted.com"))
                 assertFalse(untrustedRp.isTrusted(trustedDomains))
             }
 
@@ -274,7 +278,7 @@ class RelyingPartyTest {
             runTest {
                 assertEquals("Example Website", rp.name)
 
-                val rpWithBlankName = RelyingParty.create(id = "https://example.com", name = "")
+                val rpWithBlankName = RelyingParty.create(id = RpId("https://example.com"), name = "")
                 assertEquals("example.com", rpWithBlankName.name)
             }
 
@@ -300,7 +304,7 @@ class RelyingPartyTest {
         @Test
         fun `should create rp with updated last used time`() =
             runTest {
-                val newLastUsedAt = rp.createdAt.plusSeconds(SECONDS_30)
+                val newLastUsedAt = rp.createdAt + SECONDS_30.seconds
                 val updatedRp = rp.withLastUsedAt(newLastUsedAt)
 
                 assertEquals(newLastUsedAt, updatedRp.lastUsedAt)
@@ -314,30 +318,26 @@ class RelyingPartyTest {
                 assertTrue(rp.isRecentlyUsed(RECENT_DAYS_THRESHOLD)) // Should be recent
 
                 val oldCreatedAt =
-                    Instant.now().minusSeconds(
-                        DAYS_32.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
-                    )
+                    TimeProvider().now() -
+                        (DAYS_32.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE).seconds
                 val oldRp =
                     rp.copy(
                         createdAt = oldCreatedAt,
                         lastUsedAt =
-                            oldCreatedAt.plusSeconds(
-                                DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
-                            ),
+                            oldCreatedAt +
+                                (DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE).seconds,
                     ) // 31 days ago
                 assertFalse(oldRp.isRecentlyUsed(RECENT_DAYS_THRESHOLD))
 
                 val recentCreatedAt =
-                    Instant.now().minusSeconds(
-                        DAYS_30.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
-                    )
+                    TimeProvider().now() -
+                        (DAYS_30.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE).seconds
                 val recentRp =
                     rp.copy(
                         createdAt = recentCreatedAt,
                         lastUsedAt =
-                            recentCreatedAt.plusSeconds(
-                                DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
-                            ),
+                            recentCreatedAt +
+                                (DAY_1.toLong() * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE).seconds,
                     ) // 29 days ago
                 assertTrue(recentRp.isRecentlyUsed(RECENT_DAYS_THRESHOLD))
             }
@@ -350,13 +350,13 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty.create(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                         iconUrl = "https://example.com/icon.png",
                     )
 
                 assertNotNull(rp)
-                assertEquals("https://example.com", rp.id)
+                assertEquals(RpId("https://example.com"), rp.id)
                 assertEquals("Example Website", rp.name)
                 assertEquals("https://example.com/icon.png", rp.iconUrl)
                 assertEquals(0, rp.credentialCount) // Should start at 0
@@ -368,12 +368,12 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty.create(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                     )
 
                 assertNotNull(rp)
-                assertEquals("https://example.com", rp.id)
+                assertEquals(RpId("https://example.com"), rp.id)
                 assertEquals("Example Website", rp.name)
                 assertNull(rp.iconUrl)
             }
@@ -418,7 +418,7 @@ class RelyingPartyTest {
 
                 val rp =
                     RelyingParty(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = maxName,
                         iconUrl = maxIconUrl,
                         credentialCount = 0,
@@ -436,7 +436,7 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty(
-                        id = "http://localhost:8080",
+                        id = RpId("http://localhost:8080"),
                         name = "Local Development",
                         iconUrl = null,
                         credentialCount = 0,
@@ -445,7 +445,7 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals("http://localhost:8080", rp.id)
+                assertEquals(RpId("http://localhost:8080"), rp.id)
             }
 
         @Test
@@ -453,7 +453,7 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty(
-                        id = "https://api.subdomain.example.com/v1/auth",
+                        id = RpId("https://api.subdomain.example.com/v1/auth"),
                         name = "API Service",
                         iconUrl = null,
                         credentialCount = 0,
@@ -470,7 +470,7 @@ class RelyingPartyTest {
             runTest {
                 val rp =
                     RelyingParty(
-                        id = "https://localhost:3000",
+                        id = RpId("https://localhost:3000"),
                         name = "Local Development",
                         iconUrl = null,
                         credentialCount = 0,

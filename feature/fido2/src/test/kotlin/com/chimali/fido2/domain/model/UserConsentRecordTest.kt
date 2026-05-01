@@ -1,6 +1,11 @@
 package com.chimali.fido2.domain.model
 
-import java.time.Instant
+import com.chimali.core.domain.model.ConsentMethod
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,13 +14,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 
 class UserConsentRecordTest {
     private lateinit var testTimestamp: Instant
-    private lateinit var testRpId: String
-    private lateinit var testCredentialId: String
+    private var testRpId: RpId = RpId("https://placeholder.com")
+    private var testCredentialId: CredentialId = CredentialId.fromEncoded("cGxhY2Vob2xkZXI")
     private lateinit var testIpAddress: String
     private lateinit var testUserAgent: String
     private lateinit var testDeviceId: String
@@ -23,22 +31,17 @@ class UserConsentRecordTest {
     @BeforeTest
     fun setUp() =
         runTest {
-            testTimestamp = Instant.now()
-            testRpId = "https://example.com"
-            testCredentialId = "test_credential_id"
+            testTimestamp = TimeProvider().now()
+            testRpId = RpId("https://example.com")
+            testCredentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk")
             testIpAddress = "192.168.1.1"
             testUserAgent = "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/109.0 Firefox/109.0"
             testDeviceId = "device_12345"
         }
 
     private companion object {
-        private const val FUTURE_SECONDS_120 = 120L
         private const val INVALID_CRED_ID_SIZE_1024 = 1024
-        private const val RECENT_THRESHOLD_5 = 5L
-        private const val OLD_MINUTES_6 = 6L
-        private const val RECENT_MINUTES_4 = 4L
-        private const val SECONDS_PER_MINUTE = 60
-        private const val RECENT_BUFFER_1 = 1L
+        private const val RECENT_THRESHOLD_5 = 5
         private const val MAX_IP_LEN_45 = 45
         private const val MAX_UA_LEN_512 = 512
         private const val MAX_DEVICE_ID_LEN_64 = 64
@@ -52,7 +55,7 @@ class UserConsentRecordTest {
             runTest {
                 val consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -65,7 +68,7 @@ class UserConsentRecordTest {
                     )
 
                 assertNotNull(consent)
-                assertEquals("test_id", consent.id)
+                assertEquals("dGVzdF9pZA", consent.id)
                 assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
                 assertEquals(testRpId, consent.rpId)
                 assertEquals(testCredentialId, consent.credentialId)
@@ -82,7 +85,7 @@ class UserConsentRecordTest {
             runTest {
                 val consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
                         credentialId = null,
@@ -95,7 +98,7 @@ class UserConsentRecordTest {
                     )
 
                 assertNotNull(consent)
-                assertEquals("test_id", consent.id)
+                assertEquals("dGVzdF9pZA", consent.id)
                 assertEquals(ConsentOperationType.AUTHENTICATION, consent.operationType)
                 assertEquals(testRpId, consent.rpId)
                 assertNull(consent.credentialId)
@@ -131,9 +134,9 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
-                        rpId = "",
+                        rpId = RpId(""),
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
                         biometricUsed = true,
@@ -150,9 +153,9 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
-                        rpId = "ftp://invalid-rp-id",
+                        rpId = RpId("ftp://invalid-rp-id"),
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
                         biometricUsed = true,
@@ -167,10 +170,10 @@ class UserConsentRecordTest {
         @Test
         fun `should throw exception when timestamp is in the future`() =
             runTest {
-                val futureTimestamp = Instant.now().plusSeconds(FUTURE_SECONDS_120)
+                val futureTimestamp = TimeProvider().now() + 120.seconds
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -189,10 +192,10 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        credentialId = "",
+                        credentialId = CredentialId.fromByteArray(ByteArray(0)),
                         timestamp = testTimestamp,
                         biometricUsed = true,
                         pinUsed = false,
@@ -206,13 +209,12 @@ class UserConsentRecordTest {
         @Test
         fun `should throw exception when credential id exceeds maximum length`() =
             runTest {
-                val longCredentialId = "a".repeat(INVALID_CRED_ID_SIZE_1024)
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        credentialId = longCredentialId,
+                        credentialId = CredentialId.fromByteArray(ByteArray(INVALID_CRED_ID_SIZE_1024)),
                         timestamp = testTimestamp,
                         biometricUsed = true,
                         pinUsed = false,
@@ -228,7 +230,7 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -247,7 +249,7 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -266,7 +268,7 @@ class UserConsentRecordTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -288,7 +290,7 @@ class UserConsentRecordTest {
                 // records can be created successfully.
                 val consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -312,7 +314,7 @@ class UserConsentRecordTest {
             runTest {
                 consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -332,13 +334,13 @@ class UserConsentRecordTest {
 
                 val oldConsent =
                     consent.copy(
-                        timestamp = Instant.now().minusSeconds(OLD_MINUTES_6.toLong() * SECONDS_PER_MINUTE),
+                        timestamp = TimeProvider().now() - 6.minutes,
                     ) // 6 minutes ago
                 assertFalse(oldConsent.isRecent(RECENT_THRESHOLD_5))
 
                 val recentConsent =
                     consent.copy(
-                        timestamp = Instant.now().minusSeconds(RECENT_MINUTES_4.toLong() * SECONDS_PER_MINUTE),
+                        timestamp = TimeProvider().now() - 4.minutes,
                     ) // 4 minutes ago
                 assertTrue(recentConsent.isRecent(RECENT_THRESHOLD_5))
             }
@@ -347,9 +349,11 @@ class UserConsentRecordTest {
         fun `should correctly check if consent is for specific credential`() =
             runTest {
                 assertTrue(consent.isForCredential(testCredentialId))
-                assertTrue(consent.isForCredential("TEST_CREDENTIAL_ID")) // Case insensitive
+                assertTrue(
+                    consent.isForCredential(CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk")),
+                ) // Case insensitive
 
-                assertFalse(consent.isForCredential("other_credential_id"))
+                assertFalse(consent.isForCredential(CredentialId.fromEncoded("other_credential_id")))
 
                 val consentWithoutCredential = consent.copy(credentialId = null)
                 assertFalse(consentWithoutCredential.isForCredential(testCredentialId))
@@ -359,9 +363,9 @@ class UserConsentRecordTest {
         fun `should correctly check if consent is for specific rp`() =
             runTest {
                 assertTrue(consent.isForRelyingParty(testRpId))
-                assertTrue(consent.isForRelyingParty("HTTPS://EXAMPLE.COM")) // Case insensitive
+                assertTrue(consent.isForRelyingParty(RpId("HTTPS://EXAMPLE.COM"))) // Case insensitive
 
-                assertFalse(consent.isForRelyingParty("https://other.com"))
+                assertFalse(consent.isForRelyingParty(RpId("https://other.com")))
             }
 
         @Test
@@ -382,7 +386,7 @@ class UserConsentRecordTest {
         @Test
         fun `should return safe credential id`() =
             runTest {
-                assertEquals(testCredentialId, consent.getSafeCredentialId())
+                assertEquals(testCredentialId.encoded, consent.getSafeCredentialId())
 
                 val consentWithoutCredential = consent.copy(credentialId = null)
                 assertEquals("N/A", consentWithoutCredential.getSafeCredentialId())
@@ -414,6 +418,7 @@ class UserConsentRecordTest {
             runTest {
                 val consent =
                     UserConsentRecord.create(
+                        id = "test_factory_id",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
@@ -434,7 +439,7 @@ class UserConsentRecordTest {
                 assertEquals(testUserAgent, consent.userAgent)
                 assertEquals(testDeviceId, consent.deviceId)
                 assertNotNull(consent.id) // Should be auto-generated
-                assertTrue(consent.timestamp.isBefore(Instant.now().plusSeconds(RECENT_BUFFER_1))) // Should be recent
+                assertTrue(consent.timestamp < TimeProvider().now() + 1.seconds) // Should be recent
             }
 
         @Test
@@ -442,6 +447,7 @@ class UserConsentRecordTest {
             runTest {
                 val consent =
                     UserConsentRecord.create(
+                        id = "minimal_id",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
                         biometricUsed = false,
@@ -487,7 +493,7 @@ class UserConsentRecordTest {
                 validIpAddresses.forEach { ip ->
                     val consent =
                         UserConsentRecord(
-                            id = "test_id",
+                            id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
                             credentialId = testCredentialId,
@@ -518,7 +524,7 @@ class UserConsentRecordTest {
                 validIpAddresses.forEach { ip ->
                     val consent =
                         UserConsentRecord(
-                            id = "test_id",
+                            id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
                             credentialId = testCredentialId,
@@ -553,7 +559,7 @@ class UserConsentRecordTest {
                 invalidIpAddresses.forEach { ip ->
                     assertFailsWith<IllegalArgumentException> {
                         UserConsentRecord(
-                            id = "test_id",
+                            id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
                             credentialId = testCredentialId,
@@ -574,17 +580,16 @@ class UserConsentRecordTest {
         @Test
         fun `should handle maximum allowed field sizes`() =
             runTest {
-                val maxCredentialId = "a".repeat(MAX_CRED_ID_LEN_1023)
                 val maxIpAddress = "2001:0db8:85a3:0000:0000:8a2e:0370:7334" // Valid IPv6
                 val maxUserAgent = "a".repeat(MAX_UA_LEN_512)
                 val maxDeviceId = "a".repeat(MAX_DEVICE_ID_LEN_64)
 
                 val consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        credentialId = maxCredentialId,
+                        credentialId = CredentialId.fromByteArray(ByteArray(MAX_CRED_ID_LEN_1023)),
                         timestamp = testTimestamp,
                         biometricUsed = true,
                         pinUsed = false,
@@ -594,7 +599,7 @@ class UserConsentRecordTest {
                     )
 
                 assertNotNull(consent)
-                assertEquals(maxCredentialId, consent.credentialId)
+                assertEquals(MAX_CRED_ID_LEN_1023, consent.credentialId?.toByteArray()?.size)
                 assertEquals(maxIpAddress, consent.ipAddress)
                 assertEquals(maxUserAgent, consent.userAgent)
                 assertEquals(maxDeviceId, consent.deviceId)
@@ -614,7 +619,7 @@ class UserConsentRecordTest {
                 operationTypes.forEach { operationType ->
                     val consent =
                         UserConsentRecord(
-                            id = "test_id",
+                            id = "dGVzdF9pZA",
                             operationType = operationType,
                             rpId = testRpId,
                             credentialId = testCredentialId,
@@ -636,7 +641,7 @@ class UserConsentRecordTest {
             runTest {
                 val consent =
                     UserConsentRecord(
-                        id = "test_id",
+                        id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,

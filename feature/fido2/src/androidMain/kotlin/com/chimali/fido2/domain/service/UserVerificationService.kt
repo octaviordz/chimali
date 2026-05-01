@@ -2,7 +2,8 @@ package com.chimali.fido2.domain.service
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
-import com.chimali.fido2.domain.model.UserConsentRecord
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.RpId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -61,7 +62,7 @@ interface UserVerificationService {
      * @return Flow of recent consent records
      */
     suspend fun getRecentConsentRecords(
-        rpId: String? = null,
+        rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord>
 
@@ -74,7 +75,7 @@ interface UserVerificationService {
      * @return UserVerificationRequirement indicating if verification is needed
      */
     suspend fun isUserVerificationRequired(
-        rpId: String,
+        rpId: RpId,
         operationType: String,
         context: VerificationContext? = null,
     ): UserVerificationRequirement

@@ -4,6 +4,9 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.isSuccess
 import com.chimali.core.common.result.map
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
@@ -107,12 +110,12 @@ class Ctap2CredentialManagementHandler(
             allCredentials
                 .groupBy { cred -> cred.rpId }
                 .map { (rpId, creds) ->
-                    val rpName = credentialRepository.getRelyingParty(rpId)?.name ?: rpId
+                    val rpName = (credentialRepository.getRelyingParty(rpId)?.name ?: rpId.value)
                     RpEntry(
                         rpId = rpId,
                         rpName = rpName,
                         credentialCount = creds.size,
-                        rpIdHash = sha256(rpId.toByteArray()),
+                        rpIdHash = sha256(rpId.value.toByteArray()),
                     )
                 }
                 .toMutableList()
@@ -148,7 +151,7 @@ class Ctap2CredentialManagementHandler(
             if (rpIdHash != null) {
                 findRpIdByHash(rpIdHash)
             } else {
-                (subCommandParams["rpId"] as? String)
+                (subCommandParams["rpId"] as? String)?.let { RpId(it) }
             } ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
         val credentials = credentialRepository.getCredentialsForRp(rpId).getOrNull() ?: emptyList()
@@ -159,7 +162,7 @@ class Ctap2CredentialManagementHandler(
         credentialEnumerationSession =
             credentials.map { cred ->
                 CredentialEntry(
-                    credentialId = cred.credentialId,
+                    credentialId = cred.id.toByteArray(),
                     userId = cred.userId,
                     userName = cred.userName,
                     userDisplayName = cred.userDisplayName,
@@ -193,7 +196,7 @@ class Ctap2CredentialManagementHandler(
 
         val credIdBase64 = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(credIdBytes)
 
-        val result = deleteCredentialUseCase(credIdBase64)
+        val result = deleteCredentialUseCase(CredentialId.fromEncoded(credIdBase64))
         return if (result.isSuccess) {
             byteArrayOf(CTAP2_OK)
         } else {
@@ -213,7 +216,7 @@ class Ctap2CredentialManagementHandler(
     ): ByteArray {
         val response =
             mutableMapOf(
-                "3" to mapOf("id" to entry.rpId, "name" to entry.rpName),
+                "3" to mapOf("id" to entry.rpId.value, "name" to entry.rpName),
                 "4" to entry.rpIdHash.toList(),
             )
         if (totalRPs != null) {
@@ -236,7 +239,7 @@ class Ctap2CredentialManagementHandler(
             mutableMapOf(
                 "6" to
                     mapOf(
-                        "id" to entry.userId,
+                        "id" to entry.userId.value,
                         "name" to entry.userName,
                         "displayName" to entry.userDisplayName,
                     ),
@@ -265,7 +268,7 @@ class Ctap2CredentialManagementHandler(
      * currently in the RP enumeration session (which were already loaded).
      * Falls back to a full scan through getAllCredentials if needed.
      */
-    private suspend fun findRpIdByHash(hash: ByteArray): String? {
+    private suspend fun findRpIdByHash(hash: ByteArray): RpId? {
         // First check the RP session (might still have entries from a recent Begin)
         rpEnumerationSession.forEach { entry ->
             if (entry.rpIdHash.contentEquals(hash)) return entry.rpId
@@ -275,13 +278,13 @@ class Ctap2CredentialManagementHandler(
         return allCredentials
             .map { cred -> cred.rpId }
             .distinct()
-            .firstOrNull { rpId -> sha256(rpId.toByteArray()).contentEquals(hash) }
+            .firstOrNull { rpId -> sha256(rpId.value.toByteArray()).contentEquals(hash) }
     }
 
     // ── Internal data classes ────────────────────────────────────────────────
 
     private data class RpEntry(
-        val rpId: String,
+        val rpId: RpId,
         val rpName: String,
         val credentialCount: Int,
         val rpIdHash: ByteArray,
@@ -297,7 +300,7 @@ class Ctap2CredentialManagementHandler(
 
     private data class CredentialEntry(
         val credentialId: ByteArray,
-        val userId: String,
+        val userId: UserId,
         val userName: String,
         val userDisplayName: String,
         val publicKeyBytes: ByteArray,

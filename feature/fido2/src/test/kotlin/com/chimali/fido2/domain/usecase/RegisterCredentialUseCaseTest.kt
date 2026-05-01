@@ -6,6 +6,10 @@ import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -17,7 +21,6 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialType
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
-import com.chimali.fido2.domain.model.RelyingParty
 import com.chimali.fido2.domain.model.ResidentKeyRequirement
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
@@ -97,13 +100,13 @@ class RegisterCredentialUseCaseTest {
 
             testRp =
                 PublicKeyCredentialRpEntity.create(
-                    id = "https://example.com",
+                    id = RpId("https://example.com"),
                     name = "Example Website",
                 )
 
             testUser =
                 PublicKeyCredentialUserEntity.create(
-                    id = "user123".toByteArray(),
+                    id = UserId("user123"),
                     name = "testuser",
                     displayName = "Test User",
                 )
@@ -157,7 +160,7 @@ class RegisterCredentialUseCaseTest {
             coEvery { credentialRepository.getRelyingParty(any()) } returns null
             coEvery { credentialRepository.updateRelyingParty(any(), any()) } returns Outcome.Success(Unit)
             coEvery {
-                credentialRepository.saveRelyingParty(any<com.chimali.fido2.domain.model.RelyingParty>())
+                credentialRepository.saveRelyingParty(any<RelyingParty>())
             } returns Outcome.Success(Unit)
             // T115a: Stub getCredentialStatistics so the quota check in RegisterCredentialUseCase can proceed.
             // Default: 0 credentials stored → registration allowed.
@@ -270,7 +273,7 @@ class RegisterCredentialUseCaseTest {
             runTest {
                 val existingRp =
                     RelyingParty.create(
-                        id = "https://example.com",
+                        id = RpId("https://example.com"),
                         name = "Example Website",
                     ).copy(credentialCount = COUNT_3)
 
@@ -293,7 +296,7 @@ class RegisterCredentialUseCaseTest {
                 assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialRpEntity.create(
                         // ftp is invalid scheme
-                        id = "ftp://invalid-rp.com",
+                        id = RpId("ftp://invalid-rp.com"),
                         name = "Test RP",
                     )
                 }
@@ -304,7 +307,7 @@ class RegisterCredentialUseCaseTest {
             runTest {
                 assertFailsWith<IllegalArgumentException> {
                     PublicKeyCredentialUserEntity.create(
-                        id = "user123".toByteArray(),
+                        id = UserId("user123"),
                         // Blank name is invalid
                         name = "",
                         displayName = "Test User",
@@ -544,7 +547,7 @@ class RegisterCredentialUseCaseTest {
                     listOf(
                         PublicKeyCredentialDescriptor.create(
                             type = PublicKeyCredentialType.PUBLIC_KEY,
-                            id = "existing_credential".toByteArray(),
+                            id = CredentialId.fromEncoded("existing_credential"),
                         ),
                     )
 
@@ -564,7 +567,7 @@ class RegisterCredentialUseCaseTest {
                     listOf(
                         PublicKeyCredentialDescriptor.create(
                             type = PublicKeyCredentialType.PUBLIC_KEY,
-                            id = "allowed_credential".toByteArray(),
+                            id = CredentialId.fromEncoded("allowed_credential"),
                         ),
                     )
 

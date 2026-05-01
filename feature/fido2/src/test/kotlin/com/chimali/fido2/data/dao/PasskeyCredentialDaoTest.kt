@@ -1,5 +1,8 @@
 package com.chimali.fido2.data.dao
 
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.PasskeyCredential
 import com.chimali.fido2.data.database.PasskeyCredentialQueries
@@ -17,6 +20,7 @@ class PasskeyCredentialDaoTest {
     private lateinit var database: Fido2Database
     private lateinit var queries: PasskeyCredentialQueries
     private lateinit var dao: PasskeyCredentialDao
+    private lateinit var timeProvider: com.chimali.core.domain.time.TimeProvider
     private lateinit var testCredential: com.chimali.fido2.domain.model.PasskeyCredential
     private lateinit var testEntity: PasskeyCredential
     private lateinit var publicKey: java.security.PublicKey
@@ -31,7 +35,8 @@ class PasskeyCredentialDaoTest {
     fun setUp() {
         database = mockk(relaxed = true)
         queries = mockk(relaxed = true)
-        dao = PasskeyCredentialDao(database)
+        timeProvider = mockk(relaxed = true)
+        dao = PasskeyCredentialDao(database, timeProvider)
         every { database.passkeyCredentialQueries } returns queries
 
         val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(KEY_SIZE_256) }
@@ -39,9 +44,9 @@ class PasskeyCredentialDaoTest {
 
         testCredential =
             com.chimali.fido2.domain.model.PasskeyCredential.create(
-                id = "test_id",
-                rpId = "example.com",
-                userId = "user123",
+                id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                rpId = RpId("example.com"),
+                userId = UserId("user123"),
                 userName = "testuser",
                 userDisplayName = "Test User",
                 publicKey = publicKey,
@@ -52,9 +57,9 @@ class PasskeyCredentialDaoTest {
 
         testEntity =
             PasskeyCredential(
-                id = "test_id",
-                createdAt = testCredential.createdAt.toEpochMilli(),
-                lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
+                id = "dGVzdF9pZA",
+                createdAt = testCredential.createdAt.toEpochMilliseconds(),
+                lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
                 aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
                 coseAlgorithm = testCredential.coseAlgorithm.toLong(),
                 credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
@@ -80,21 +85,21 @@ class PasskeyCredentialDaoTest {
 
                 coVerify(exactly = 1) {
                     queries.insert(
-                        id = testCredential.id,
-                        createdAt = testCredential.createdAt.toEpochMilli(),
-                        lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
+                        id = testCredential.id.encoded,
+                        createdAt = testCredential.createdAt.toEpochMilliseconds(),
+                        lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
                         aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
                         coseAlgorithm = testCredential.coseAlgorithm.toLong(),
-                        credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+                        credentialId = testCredential.id.encoded,
                         credProtectPolicy = testCredential.credProtectPolicy.toLong(),
                         label = testCredential.label,
                         privateKeyAlias = testCredential.privateKeyAlias,
                         publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
-                        rpId = testCredential.rpId,
-                        rpName = testCredential.rpId,
+                        rpId = testCredential.rpId.value,
+                        rpName = testCredential.rpId.value,
                         signCount = testCredential.signCount,
                         userDisplayName = testCredential.userDisplayName,
-                        userId = testCredential.userId,
+                        userId = testCredential.userId.value,
                         userName = testCredential.userName,
                     )
                 }
@@ -107,13 +112,13 @@ class PasskeyCredentialDaoTest {
 
                 coVerify(exactly = 1) {
                     queries.update(
-                        lastUsedAt = testCredential.lastUsedAt.toEpochMilli(),
+                        lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
                         label = testCredential.label,
-                        rpName = testCredential.rpId,
+                        rpName = testCredential.rpId.value,
                         signCount = testCredential.signCount,
                         userDisplayName = testCredential.userDisplayName,
                         userName = testCredential.userName,
-                        id = testCredential.id,
+                        id = testCredential.id.encoded,
                     )
                 }
             }
@@ -124,7 +129,7 @@ class PasskeyCredentialDaoTest {
                 dao.updateSignCount(testCredential.id, SIGN_COUNT_5)
 
                 coVerify(exactly = 1) {
-                    queries.updateSignCount(signCount = SIGN_COUNT_5, id = testCredential.id)
+                    queries.updateSignCount(signCount = SIGN_COUNT_5, id = testCredential.id.encoded)
                 }
             }
     }
@@ -136,12 +141,12 @@ class PasskeyCredentialDaoTest {
             runTest {
                 val queryMock = mockk<app.cash.sqldelight.Query<PasskeyCredential>>()
                 every { queryMock.executeAsOneOrNull() } returns testEntity
-                every { queries.selectById(testCredential.id) } returns queryMock
+                every { queries.selectById(testCredential.id.encoded) } returns queryMock
 
                 val result = dao.getCredentialById(testCredential.id)
 
                 assertEquals(testEntity, result)
-                coVerify(exactly = 1) { queries.selectById(testCredential.id) }
+                coVerify(exactly = 1) { queries.selectById(testCredential.id.encoded) }
             }
     }
 }

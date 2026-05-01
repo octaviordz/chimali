@@ -2,6 +2,7 @@ package com.chimali.fido2.domain.usecase
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.time.TimeProvider
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.PairedDeviceRepository
 import org.koin.core.annotation.Factory
@@ -13,6 +14,7 @@ import org.koin.core.annotation.Factory
 @Factory
 class SavePairedDeviceUseCase(
     private val repository: PairedDeviceRepository,
+    private val timeProvider: TimeProvider,
 ) {
     suspend operator fun invoke(
         macAddress: String,
@@ -23,7 +25,7 @@ class SavePairedDeviceUseCase(
             return Outcome.Error(DomainError.ValidationError("MAC address cannot be empty"))
         }
 
-        val now = System.currentTimeMillis()
+        val now = timeProvider.epochMillis()
         val device =
             PairedDevice(
                 macAddress = macAddress,

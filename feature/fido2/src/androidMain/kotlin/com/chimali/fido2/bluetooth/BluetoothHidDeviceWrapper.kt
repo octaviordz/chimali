@@ -21,6 +21,7 @@ import com.chimali.fido2.domain.exception.Fido2Exception
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -556,13 +557,13 @@ class BluetoothHidDeviceWrapper(
         var lastException: Exception? = null
         val cfg = BluetoothHidConfigProvider.config
         val maxRetries = cfg.initMaxRetries
-        var retryDelay = cfg.initRetryDelayMs
+        var retryDelay = cfg.initRetryDelay
 
         for (attempt in 1..maxRetries) {
             Logger.d { "initialize attempt $attempt/$maxRetries" }
 
             val result =
-                withTimeoutOrNull(cfg.initTimeoutMs) {
+                withTimeoutOrNull(cfg.initTimeout) {
                     suspendCancellableCoroutine { cont ->
                         initContinuation = cont
                         try {
@@ -605,7 +606,7 @@ class BluetoothHidDeviceWrapper(
             when {
                 result == null -> {
                     Logger.e {
-                        "initialize() timed out after ${cfg.initTimeoutMs}ms - " +
+                        "initialize() timed out after ${cfg.initTimeout} - " +
                             "onServiceConnected never received."
                     }
                     lastException =
@@ -630,7 +631,7 @@ class BluetoothHidDeviceWrapper(
             }
 
             if (attempt < maxRetries) {
-                Logger.d { "Retrying initialize() in ${retryDelay}ms..." }
+                Logger.d { "Retrying initialize() in $retryDelay..." }
                 delay(retryDelay)
                 retryDelay *= 2
             }
@@ -661,7 +662,7 @@ class BluetoothHidDeviceWrapper(
     suspend fun registerApp(): Result<Unit> {
         val cfg = BluetoothHidConfigProvider.config
         val maxRetries = cfg.registerMaxRetries
-        var retryDelay = cfg.registerRetryDelayMs
+        var retryDelay = cfg.registerRetryDelay
         var lastException: Exception? = null
 
         for (attempt in 1..maxRetries) {
@@ -674,7 +675,7 @@ class BluetoothHidDeviceWrapper(
             val bluetoothState = waitForBluetoothToTurnOn()
 
             val result =
-                withTimeoutOrNull(cfg.registerTimeoutMs) {
+                withTimeoutOrNull(cfg.registerTimeout) {
                     suspendCancellableCoroutine<Result<Unit>> { cont ->
                         val hid = hidDevice
                         if (hid == null) {
@@ -787,7 +788,7 @@ class BluetoothHidDeviceWrapper(
                     return Result.success(Unit)
                 }
                 result == null -> {
-                    Logger.e { "registerApp timed out after ${cfg.registerTimeoutMs}ms on attempt $attempt" }
+                    Logger.e { "registerApp timed out after ${cfg.registerTimeout} on attempt $attempt" }
                     lastException = Fido2Exception.BluetoothException("HID registration timed out")
                     logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
                 }
@@ -799,9 +800,12 @@ class BluetoothHidDeviceWrapper(
             }
 
             if (attempt < maxRetries) {
-                Logger.d { "Retrying registerApp in ${retryDelay}ms..." }
+                Logger.d { "Retrying registerApp() in $retryDelay..." }
                 delay(retryDelay)
-                retryDelay = minOf(retryDelay * 2, cfg.registerRetryMaxDelayMs)
+                retryDelay *= 2
+                if (retryDelay > cfg.registerRetryMaxDelay) {
+                    retryDelay = cfg.registerRetryMaxDelay
+                }
             }
         }
 
@@ -911,10 +915,10 @@ class BluetoothHidDeviceWrapper(
             waitAttempt < BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS
         ) {
             Logger.d {
-                "Bluetooth is turning on, waiting ${BLUETOOTH_TURNING_ON_WAIT_DELAY_MS}ms " +
+                "Bluetooth is turning on, waiting $BLUETOOTH_TURNING_ON_WAIT_DELAY " +
                     "(attempt ${waitAttempt + 1})..."
             }
-            delay(BLUETOOTH_TURNING_ON_WAIT_DELAY_MS)
+            delay(BLUETOOTH_TURNING_ON_WAIT_DELAY)
             bluetoothState =
                 try {
                     bluetoothAdapter?.state ?: BluetoothAdapter.ERROR
@@ -979,7 +983,7 @@ class BluetoothHidDeviceWrapper(
 
     companion object {
         private const val BLUETOOTH_TURNING_ON_WAIT_ATTEMPTS = 10
-        private const val BLUETOOTH_TURNING_ON_WAIT_DELAY_MS = 500L
+        private val BLUETOOTH_TURNING_ON_WAIT_DELAY = 500.milliseconds
     }
 }
 

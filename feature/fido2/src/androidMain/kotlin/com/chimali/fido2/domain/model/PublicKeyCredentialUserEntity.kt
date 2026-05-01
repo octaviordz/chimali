@@ -1,11 +1,13 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.domain.valueobject.UserId
+
 /**
  * Domain model representing a PublicKeyCredentialUserEntity.
  * This contains user information for FIDO2 credential operations.
  */
 data class PublicKeyCredentialUserEntity(
-    val id: ByteArray,
+    val id: UserId,
     val name: String,
     val displayName: String,
     val icon: String?,
@@ -20,8 +22,6 @@ data class PublicKeyCredentialUserEntity(
      */
     internal fun validate() {
         // Validate required fields
-        require(id.isNotEmpty()) { "User ID cannot be empty" }
-        require(id.size <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
         require(name.isNotBlank()) { "User name cannot be blank" }
         require(displayName.isNotBlank()) { "User display name cannot be blank" }
 
@@ -44,9 +44,7 @@ data class PublicKeyCredentialUserEntity(
     /**
      * Returns the user ID as a base64 URL-safe string.
      */
-    fun getIdBase64Url(): String {
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(id)
-    }
+    fun getIdBase64Url(): String = id.value
 
     /**
      * Returns a safe display name.
@@ -66,7 +64,7 @@ data class PublicKeyCredentialUserEntity(
      * Returns the user ID as a hex string.
      */
     fun getIdHex(): String {
-        return id.joinToString("") { "%02x".format(it) }
+        return id.value.toByteArray().joinToString("") { "%02x".format(it) }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -75,7 +73,7 @@ data class PublicKeyCredentialUserEntity(
 
         other as PublicKeyCredentialUserEntity
 
-        if (!id.contentEquals(other.id)) return false
+        if (id != other.id) return false
         if (name != other.name) return false
         if (displayName != other.displayName) return false
         if (icon != other.icon) return false
@@ -84,7 +82,7 @@ data class PublicKeyCredentialUserEntity(
     }
 
     override fun hashCode(): Int {
-        var result = id.contentHashCode()
+        var result = id.hashCode()
         result = 31 * result + name.hashCode()
         result = 31 * result + displayName.hashCode()
         result = 31 * result + (icon?.hashCode() ?: 0)
@@ -104,7 +102,7 @@ data class PublicKeyCredentialUserEntity(
          * Creates a new PublicKeyCredentialUserEntity with validation.
          */
         fun create(
-            id: ByteArray,
+            id: UserId,
             name: String,
             displayName: String,
             icon: String? = null,
@@ -126,14 +124,7 @@ data class PublicKeyCredentialUserEntity(
             displayName: String,
             icon: String? = null,
         ): PublicKeyCredentialUserEntity {
-            val id =
-                try {
-                    java.util.Base64.getUrlDecoder().decode(idBase64)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid base64 user ID", e)
-                }
-
-            return create(id, name, displayName, icon)
+            return create(UserId(idBase64), name, displayName, icon)
         }
     }
 }

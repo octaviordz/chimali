@@ -2,6 +2,8 @@ package com.chimali.fido2.integration
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.UserVerificationRequirement
@@ -75,13 +77,12 @@ class AuthenticationIntegrationTest {
         Dispatchers.resetMain()
     }
 
-    private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions {
-        return GetAssertionOptions.create(
-            rpId = rpId,
+    private fun createOptions(rpId: String = "https://example.com"): GetAssertionOptions =
+        GetAssertionOptions.create(
+            rpId = RpId(rpId),
             clientDataHash = ByteArray(HASH_SIZE_32),
             userVerification = UserVerificationRequirement.PREFERRED,
         )
-    }
 
     // ── Init → AwaitingUserConsent ────────────────────────────────────────────
 
@@ -117,7 +118,11 @@ class AuthenticationIntegrationTest {
     @Test
     fun `successful authentication transitions to Success state`() =
         runTest {
-            val testAssertion = AssertionObject.createTest("cred1", "https://example.com")
+            val testAssertion =
+                AssertionObject.createTest(
+                    credentialId = CredentialId.fromEncoded("Y3JlZDE"),
+                    rpId = RpId("https://example.com"),
+                )
             coEvery { getAssertionUseCase(any()) } returns Outcome.Success(testAssertion)
 
             viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))

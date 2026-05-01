@@ -5,15 +5,14 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrDefault
 import com.chimali.core.common.result.getOrElse
-import com.chimali.core.common.result.map
 import com.chimali.core.common.result.onFailure
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
-import com.chimali.fido2.domain.model.CredentialId
-import com.chimali.fido2.domain.model.CredentialSummary
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
@@ -63,7 +62,7 @@ class GetAssertionUseCase(
     }
 
     suspend operator fun invoke(options: GetAssertionOptions): Outcome<AssertionObject, DomainError> {
-        Logger.d { "GetAssertion for rpId=${options.rpId}" }
+        Logger.d { "GetAssertion for rpId=${options.rpId.value}" }
 
         // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
         val uvOutcome = performUserVerification(options)
@@ -74,8 +73,8 @@ class GetAssertionUseCase(
         if (candidates.isEmpty()) {
             return Outcome.Error(
                 DomainError.NotFound(
-                    "No credentials found for rpId=${options.rpId}",
-                    Fido2Exception.CredentialNotFound(options.rpId),
+                    "No credentials found for rpId=${options.rpId.value}",
+                    Fido2Exception.CredentialNotFound(options.rpId.value),
                 ),
             )
         }
@@ -90,9 +89,9 @@ class GetAssertionUseCase(
         // getCredentialById() (and its implicit getPublicKey() HDK derivation) is skipped
         // because the public key is not needed to produce an assertion signature.
         val selectedId = selectedSummary.id
-        val rpIdHash = ClientDataHashService.rpIdHash(options.rpId)
+        val rpIdHash = ClientDataHashService.rpIdHash(options.rpId.value)
         val signCount =
-            credentialRepository.getSignCount(selectedId).getOrElse {
+            credentialRepository.getSignCount(selectedSummary.credentialId).getOrElse {
                 return Outcome.Error(DomainError.CryptoError("Failed to get sign count: ${it.message}", it.cause))
             }
         val newSignCount = signCount + 1
@@ -105,14 +104,15 @@ class GetAssertionUseCase(
 
         val signature =
             signWithCredential(
-                selectedId,
+                selectedSummary.credentialId,
                 authData,
                 options.clientDataHash,
                 selectedSummary.coseAlgorithm,
             ).getOrElse { return Outcome.Error(it) }
 
         // 5 — persist incremented sign count
-        credentialRepository.updateSignCount(selectedId, newSignCount)
+        credentialRepository
+            .updateSignCount(selectedSummary.credentialId, newSignCount)
             .onFailure { e -> Logger.w { "Failed to update sign count: ${e.message}" } }
 
         // Use credentialId bytes from the summary — no full object hydration needed.
@@ -148,7 +148,8 @@ class GetAssertionUseCase(
 
     private suspend fun findCandidateSummaries(options: GetAssertionOptions): List<CredentialSummary> {
         val all =
-            credentialRepository.getCredentialSummariesForRp(options.rpId)
+            credentialRepository
+                .getCredentialSummariesForRp(options.rpId)
                 .getOrDefault(emptyList())
 
         val candidates =
@@ -158,7 +159,7 @@ class GetAssertionUseCase(
             } else {
                 // Non-discoverable: filter to allow-listed credential IDs only
                 val allowIds = options.allowCredentials!!.map { it.id }
-                all.filter { summary -> allowIds.any { it.contentEquals(summary.credentialId) } }
+                all.filter { summary -> allowIds.contains(summary.credentialId) }
             }
 
         // FIDO2.1 credProtect enforcement:
@@ -166,11 +167,7 @@ class GetAssertionUseCase(
         // the authenticator MUST NOT enumerate or use the credential.
         val uvWillBePerformed = options.userVerification != UserVerificationRequirement.DISCOURAGED
         return candidates.filter { summary ->
-            if (summary.credProtectPolicy == POLICY_UV_REQUIRED && !uvWillBePerformed) {
-                false // Ignore this credential
-            } else {
-                true
-            }
+            !(summary.credProtectPolicy == POLICY_UV_REQUIRED && !uvWillBePerformed) // Ignore this credential
         }
     }
 
@@ -194,11 +191,9 @@ class GetAssertionUseCase(
     }
 
     private suspend fun signWithCredential(
-        credentialId: String,
+        credentialId: CredentialId,
         authData: ByteArray,
         clientDataHash: ByteArray,
         algId: Int,
-    ): Outcome<ByteArray, DomainError> {
-        return cryptoService.sign(CredentialId.fromString(credentialId), authData + clientDataHash, algId)
-    }
+    ): Outcome<ByteArray, DomainError> = cryptoService.sign(credentialId, authData + clientDataHash, algId)
 }

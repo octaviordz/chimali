@@ -4,6 +4,7 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.valueobject.CredentialId
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -17,7 +18,7 @@ class CorruptedKeyRepairWorkerTest {
     @Test
     fun `doWork successfully processes a list of corrupted IDs`() =
         runTest {
-            val corruptedIds = listOf("cred-1", "cred-2")
+            val corruptedIds = listOf(CredentialId.fromEncoded("cred-1"), CredentialId.fromEncoded("cred-2"))
 
             // Mock successful execution
             coEvery { worker.doWork(corruptedIds) } returns Outcome.Success(Unit)
@@ -31,7 +32,7 @@ class CorruptedKeyRepairWorkerTest {
     @Test
     fun `doWork returns failure when repository update fails`() =
         runTest {
-            val corruptedIds = listOf("cred-1")
+            val corruptedIds = listOf(CredentialId.fromEncoded("cred-1"))
             val error = RuntimeException("Database error")
 
             // Mock failure execution
