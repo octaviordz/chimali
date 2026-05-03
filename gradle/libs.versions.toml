@@ -38,6 +38,7 @@ timber = "5.0.1"
 kermit = "2.0.4"
 okio = "3.9.0"
 kotlinx-datetime = "0.6.1"
+slf4j = "2.0.16"
 kmpworkmanager = "2.3.9"
 guava = "31.1-android"
 
@@ -125,6 +126,7 @@ guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 androidx-tracing = { group = "androidx.tracing", name = "tracing", version = "1.2.0" }
 # Compose-specific Detekt rules plugin — loaded via detektPlugins (no separate Gradle plugin needed)
 detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "compose-rules" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

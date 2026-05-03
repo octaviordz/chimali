@@ -147,6 +147,7 @@ kotlin {
                 implementation(libs.mockk)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.slf4j.simple)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.datetime)
             }
@@ -183,6 +184,7 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
 }
 
 val isMac = System.getProperty("os.name").lowercase().contains("mac")
