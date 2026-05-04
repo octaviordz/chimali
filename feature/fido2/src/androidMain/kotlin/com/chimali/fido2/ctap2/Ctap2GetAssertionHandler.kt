@@ -5,14 +5,19 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
+import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import org.koin.core.annotation.Single
 
 /**
@@ -34,9 +39,11 @@ import org.koin.core.annotation.Single
  */
 @Single
 class Ctap2GetAssertionHandler(
-    private val getAssertionUseCase: GetAssertionUseCase,
     private val cborCodec: CborCodec,
     private val hmacSecretProcessor: HmacSecretProcessor,
+    private val prfKeyDerivation: PrfKeyDerivation,
+    private val hidReportParser: HidReportParser,
+    private val uiEventBus: Fido2UiEventBus,
 ) {
     companion object {
         // CTAP2 Request Keys (§6.2)
@@ -58,21 +65,49 @@ class Ctap2GetAssertionHandler(
         private const val CTAP2_ERR_PROCESSING: Byte = 0x17
         private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x29
         private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E
+        private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
         private const val CTAP1_ERR_OTHER: Byte = 0x7F.toByte()
+
+        // Commands
+        private const val CTAP_CMD_CBOR: Int = 0x10
 
         // Authenticator Data Constants
         private const val AUTH_DATA_FLAGS_INDEX = 32
         private const val FLAG_ED_BIT = 0x80
         private const val CLIENT_DATA_HASH_SIZE = 32
+
+        // T020: GetAssertion does NOT perform algorithm negotiation — the credential's signing
+        // algorithm is fixed at registration time. The constants below are defined here as
+        // documentation anchors so that any future assertion-side algorithm-matching code can
+        // reference the correct L3 identifiers and explicitly reject the deprecated ones.
+        // Per WebAuthn L3 §5.4, only -8 (EdDSA) is the valid Ed25519 identifier.
+        @Suppress("UnusedPrivateMember")
+        private const val COSE_EDSA = -8 // EdDSA / Ed25519 — L3 correct
+
+        @Suppress("UnusedPrivateMember")
+        private const val COSE_DEPRECATED_19 = -19 // NOT RECOMMENDED — must never be used
+
+        @Suppress("UnusedPrivateMember")
+        private const val COSE_DEPRECATED_9 = -9 // NOT RECOMMENDED
+
+        @Suppress("UnusedPrivateMember")
+        private const val COSE_DEPRECATED_51 = -51 // NOT RECOMMENDED
+
+        @Suppress("UnusedPrivateMember")
+        private const val COSE_DEPRECATED_52 = -52 // NOT RECOMMENDED
     }
 
     /**
      * T087 — Handles a raw CTAP2 GetAssertion CBOR payload.
      *
+     * @param cid Channel ID for the response.
      * @param requestBytes CBOR-encoded request body (without the command byte).
-     * @return CBOR-encoded response body including the 0x00 status byte prefix.
+     * @return A list of 64-byte HID packets to send back to the host.
      */
-    suspend fun handle(requestBytes: ByteArray): ByteArray =
+    suspend fun handle(
+        cid: ByteArray,
+        requestBytes: ByteArray,
+    ): List<ByteArray> =
         try {
             val params = cborCodec.decodeFromFido2Format(requestBytes)
             val options = decodeOptions(params)
@@ -81,16 +116,38 @@ class Ctap2GetAssertionHandler(
                     "allowCredentials=${options.allowCredentials?.size ?: "discoverable"}"
             }
 
-            when (val result = getAssertionUseCase(options)) {
+            val deferred = kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>()
+            uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(options, deferred))
+
+            val assertionResult =
+                try {
+                    kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
+                        deferred.await()
+                    }
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
+                    return hidReportParser.encodeResponse(
+                        com.chimali.fido2.bluetooth.CtapHidMessage(
+                            cid,
+                            CTAP_CMD_CBOR,
+                            byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
+                        ),
+                    )
+                }
+
+            when (assertionResult) {
                 is Outcome.Success -> {
-                    val assertion = result.data
+                    val assertion = assertionResult.data
                     Logger.d { "Assertion success: credId=${assertion.credentialId}" }
-                    val responseBytes = encodeResponse(assertion, options)
-                    byteArrayOf(CTAP2_OK) + responseBytes
+                    val responseCbor = encodeResponse(assertion, options)
+                    val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
+                    hidReportParser.encodeResponse(
+                        com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, responsePayload),
+                    )
                 }
 
                 is Outcome.Error -> {
-                    val error = result.error
+                    val error = assertionResult.error
                     // CredentialNotFound is an expected probe response before registration.
                     // All other errors are unexpected and warrant an error-level log.
                     if (error is DomainError.NotFound) {
@@ -104,15 +161,31 @@ class Ctap2GetAssertionHandler(
                             is DomainError.OperationDenied -> CTAP2_ERR_OPERATION_DENIED
                             else -> CTAP1_ERR_OTHER
                         }
-                    byteArrayOf(errorCode)
+                    hidReportParser.encodeResponse(
+                        com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(errorCode)),
+                    )
                 }
             }
         } catch (e: Fido2Exception) {
             Logger.e(e) { "GetAssertion Fido2Exception: ${e.message}" }
-            byteArrayOf(CTAP2_ERR_PROCESSING)
+            hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP2_ERR_PROCESSING)),
+            )
+        } catch (e: java.io.IOException) {
+            Logger.e(e) { "Unexpected IO error during GetAssertion: ${e.message}" }
+            hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+            )
         } catch (e: IllegalArgumentException) {
-            Logger.e(e) { "GetAssertion handler invalid argument: ${e.message}" }
-            byteArrayOf(CTAP2_ERR_PROCESSING)
+            Logger.e(e) { "Invalid argument during GetAssertion: ${e.message}" }
+            hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+            )
+        } catch (e: IllegalStateException) {
+            Logger.e(e) { "Invalid state during GetAssertion: ${e.message}" }
+            hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+            )
         }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
@@ -213,14 +286,41 @@ class Ctap2GetAssertionHandler(
                 )
         }
 
-        // T087a: Process hmac-secret extension and build authData with extensions
-        val hmacOutput =
-            if (hmacSecretProcessor.isPresent(options.extensions)) {
-                val extensionData = options.extensions?.get(HmacSecretProcessor.EXTENSION_KEY)
+        // T047: Process hmac-secret / PRF extension.
+        // Attempt typed PrfExtensionInput parsing (integer keys 1 and 2) first;
+        // fall back to HmacSecretProcessor for legacy flat-ByteArray format.
+        // T048: >2 salts → PrfExtensionInput constructor throws → null → omit extension.
+        // T049: Missing seed → deriveAll returns null → omit extension gracefully.
+        val hmacOutput: ByteArray? =
+            run {
+                val extData = options.extensions?.get(HmacSecretProcessor.EXTENSION_KEY) ?: return@run null
                 val selectedCredId = assertion.credentialId
-                hmacSecretProcessor.process(selectedCredId, extensionData)
-            } else {
-                null
+
+                when (extData) {
+                    // Typed CBOR map format: {1 → salt1, 2 → salt2?}
+                    is Map<*, *> -> {
+                        val salt1 = (extData[1] ?: extData[1L]) as? ByteArray ?: return@run null
+                        val salt2 = (extData[2] ?: extData[2L]) as? ByteArray
+                        val salts = if (salt2 != null) listOf(salt1, salt2) else listOf(salt1)
+                        val prfInput =
+                            try {
+                                PrfExtensionInput(salts)
+                            } catch (e: IllegalArgumentException) {
+                                Logger.w { "GetAssertion hmac-secret: invalid PrfExtensionInput — ${e.message}" }
+                                return@run null
+                            }
+                        val prfOutput = prfKeyDerivation.deriveAll(prfInput, selectedCredId)
+                        if (prfOutput == null) {
+                            Logger.w { "GetAssertion hmac-secret: PRF derivation returned null — omitting (T049)" }
+                            return@run null
+                        }
+                        Logger.d { "GetAssertion PRF: derived ${if (prfOutput.output2 != null) 2 else 1} output(s)" }
+                        // Concatenate output1 [|| output2] for legacy authData embedding
+                        prfOutput.output1 + (prfOutput.output2 ?: byteArrayOf())
+                    }
+                    // Legacy flat ByteArray format (32 or 64 bytes)
+                    else -> hmacSecretProcessor.process(selectedCredId, extData)
+                }
             }
 
         // Extend authData with extensions CBOR if hmac-secret output is present

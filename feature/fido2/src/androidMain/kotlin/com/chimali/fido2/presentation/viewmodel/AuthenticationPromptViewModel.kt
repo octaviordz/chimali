@@ -3,6 +3,7 @@ package com.chimali.fido2.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
@@ -11,11 +12,16 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
@@ -92,6 +98,7 @@ sealed interface AuthenticationEffect {
 class AuthenticationPromptViewModel(
     private val getAssertionUseCase: GetAssertionUseCase,
     private val userVerificationService: UserVerificationService,
+    private val uiEventBus: Fido2UiEventBus,
 ) : ViewModel() {
     private val _state = MutableStateFlow<AuthenticationState>(AuthenticationState.Idle)
     val state: StateFlow<AuthenticationState> = _state.asStateFlow()
@@ -100,6 +107,23 @@ class AuthenticationPromptViewModel(
     val effects: Flow<AuthenticationEffect> = _effects.receiveAsFlow()
 
     private var pendingOptions: GetAssertionOptions? = null
+    private var pendingDeferred: kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>? = null
+
+    init {
+        uiEventBus.events
+            .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
+            .onEach { event ->
+                pendingDeferred = event.deferred
+                initAuthentication(event.options)
+            }
+            .launchIn(viewModelScope)
+
+        uiEventBus.currentAuthenticationRequest?.let { event ->
+            pendingDeferred = event.deferred
+            initAuthentication(event.options)
+            uiEventBus.clearAuthenticationRequest()
+        }
+    }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────
 
@@ -175,7 +199,9 @@ class AuthenticationPromptViewModel(
     }
 
     private fun cancel() {
+        pendingDeferred?.complete(Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
         pendingOptions = null
+        pendingDeferred = null
         _state.value = AuthenticationState.Cancelled
         viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
     }
@@ -195,11 +221,15 @@ class AuthenticationPromptViewModel(
             when (val result = getAssertionUseCase(options)) {
                 is Outcome.Success -> {
                     val assertion = result.data
+                    pendingDeferred?.complete(Outcome.Success(assertion))
                     _state.value = AuthenticationState.Success(assertion)
                     emit(AuthenticationEffect.NavigateToSuccess(assertion))
+                    pendingOptions = null
+                    pendingDeferred = null
                 }
                 is Outcome.Error -> {
                     val error = result.error
+                    pendingDeferred?.complete(result)
                     Logger.e(error.cause) { "Authentication process failed: ${error.message}" }
                     val ui = Fido2ErrorHandler.handle(error)
                     _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)

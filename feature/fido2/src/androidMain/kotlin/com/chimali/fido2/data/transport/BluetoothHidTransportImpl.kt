@@ -637,15 +637,7 @@ class BluetoothHidTransportImpl(
     private suspend fun handleGetAssertion(message: CtapHidMessage): List<ByteArray> {
         val cid = message.channelId
         val requestBytes = message.payload.drop(1).toByteArray() // strip the 0x02 command byte
-        return try {
-            val responsePayload = getAssertionHandler.handle(requestBytes)
-            // Wrap payload in a CTAPHID_CBOR response packet
-            val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR, responsePayload)
-            hidReportParser.encodeResponse(responseMsg)
-        } catch (e: Fido2Exception) {
-            Logger.e(e) { "GetAssertion handler Fido2Exception: ${e.message}" }
-            responseBuilder.errorResponse(cid, 0x30.toByte())
-        }
+        return getAssertionHandler.handle(cid, requestBytes)
     }
 
     // ── authenticatorGetInfo ──────────────────────────────────────────────────

@@ -73,14 +73,16 @@ class ManagementIntegrationTest {
         // searchCredentials returns empty by default
         coEvery { repository.searchCredentials(any()) } returns emptyFlow()
 
-        // deleteCredential removes from in-memory list and returns success
         coEvery { repository.deleteCredential(any()) } answers {
-            val id = firstArg<CredentialId>()
-            credentials.update { list ->
-                val filtered = list.filterNot { it.id == id }
-                if (filtered.size == list.size) {
-                    println("DEBUG: Failed to delete. Target ID: '$id'. List IDs: ${list.map { "'${it.id}'" }}")
+            val arg = firstArg<Any>()
+            val targetEncoded =
+                if (arg is String) {
+                    arg
+                } else {
+                    (arg as com.chimali.core.domain.valueobject.CredentialId).encoded
                 }
+            credentials.update { list ->
+                val filtered = list.filterNot { it.id.encoded == targetEncoded }
                 filtered
             }
             Outcome.Success(Unit)
@@ -139,8 +141,8 @@ class ManagementIntegrationTest {
     @Test
     fun `setCredentials populates state with credentials`() =
         runTest {
-            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
-            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
+            val cred1 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx", "https://example.com")
+            val cred2 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAy", "https://google.com")
 
             viewModel.setCredentials(listOf(cred1, cred2))
 
@@ -163,7 +165,7 @@ class ManagementIntegrationTest {
     @Test
     fun `selecting credential updates selectedCredential state`() =
         runTest {
-            val cred = createDummyCredential("Y3JlZDE")
+            val cred = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.SelectCredential(cred))
@@ -175,7 +177,7 @@ class ManagementIntegrationTest {
     @Test
     fun `dismiss clears dialog state`() =
         runTest {
-            val cred = createDummyCredential("Y3JlZDE")
+            val cred = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
             viewModel.setCredentials(listOf(cred))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
@@ -193,7 +195,7 @@ class ManagementIntegrationTest {
     @Test
     fun `show delete dialog sets credentialToDelete`() =
         runTest {
-            val cred = createDummyCredential("Y3JlZDE")
+            val cred = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred))
@@ -205,8 +207,8 @@ class ManagementIntegrationTest {
     @Test
     fun `confirm delete removes credential from repository`() =
         runTest {
-            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
-            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
+            val cred1 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx", "https://example.com")
+            val cred2 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAy", "https://google.com")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
 
@@ -216,7 +218,7 @@ class ManagementIntegrationTest {
 
             assertEquals(1, credentials.value.size)
             assertEquals(
-                "Y3JlZDI",
+                "dGVzdF9jcmVkZW50aWFsXzAy",
                 credentials.value
                     .first()
                     .id.encoded,
@@ -229,7 +231,7 @@ class ManagementIntegrationTest {
             coEvery { repository.deleteCredential(any()) } returns
                 Outcome.Error(DomainError.UnknownError("Database error"))
 
-            val cred = createDummyCredential("Y3JlZDE")
+            val cred = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
             viewModel.setCredentials(listOf(cred))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(cred.id))
@@ -249,8 +251,8 @@ class ManagementIntegrationTest {
     @Test
     fun `confirm delete all empties repository`() =
         runTest {
-            val cred1 = createDummyCredential("Y3JlZDE")
-            val cred2 = createDummyCredential("Y3JlZDI")
+            val cred1 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
+            val cred2 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAy")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
 
@@ -267,7 +269,7 @@ class ManagementIntegrationTest {
             coEvery { repository.deleteAllCredentials(any()) } returns
                 Outcome.Error(DomainError.UnknownError("Wipe failed"))
 
-            viewModel.setCredentials(listOf(createDummyCredential("Y3JlZDE")))
+            viewModel.setCredentials(listOf(createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")))
 
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
 
@@ -279,8 +281,8 @@ class ManagementIntegrationTest {
     @Test
     fun `full management flow - add select delete wipe`() =
         runTest {
-            val cred1 = createDummyCredential("Y3JlZDE", "https://example.com")
-            val cred2 = createDummyCredential("Y3JlZDI", "https://google.com")
+            val cred1 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx", "https://example.com")
+            val cred2 = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAy", "https://google.com")
             credentials.value = listOf(cred1, cred2)
             viewModel.setCredentials(credentials.value)
             advanceUntilIdle()
@@ -302,7 +304,7 @@ class ManagementIntegrationTest {
             advanceUntilIdle()
             assertEquals(1, credentials.value.size)
             assertEquals(
-                "Y3JlZDI",
+                "dGVzdF9jcmVkZW50aWFsXzAy",
                 credentials.value
                     .first()
                     .id.encoded,

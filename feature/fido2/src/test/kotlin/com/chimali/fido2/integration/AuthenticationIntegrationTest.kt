@@ -12,6 +12,7 @@ import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.presentation.viewmodel.AuthenticationIntent
 import com.chimali.fido2.presentation.viewmodel.AuthenticationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
@@ -69,7 +70,8 @@ class AuthenticationIntegrationTest {
                 biometricStrength = BiometricStrength.STRONG,
             )
 
-        viewModel = AuthenticationPromptViewModel(getAssertionUseCase, userVerificationService)
+        val uiEventBus = com.chimali.fido2.presentation.navigation.Fido2UiEventBus()
+        viewModel = AuthenticationPromptViewModel(getAssertionUseCase, userVerificationService, uiEventBus)
     }
 
     @AfterEach

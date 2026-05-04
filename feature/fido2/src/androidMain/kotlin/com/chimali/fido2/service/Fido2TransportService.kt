@@ -190,7 +190,7 @@ class Fido2TransportService : Service() {
                 is Fido2UiEvent.RegistrationRequested ->
                     "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
                 is Fido2UiEvent.AuthenticationRequested ->
-                    "Sign In" to "Windows is requesting a passkey for ${event.rpId}. Tap to authenticate."
+                    "Sign In" to "Windows is requesting a passkey for ${event.options.rpId.value}. Tap to authenticate."
             }
 
         val launchIntent =

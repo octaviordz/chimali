@@ -23,7 +23,7 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 **Purpose**: Verify tooling and confirm the feature branch is ready. No source changes.
 
-- [ ] T001 Verify `tools/local-ci.ps1` passes cleanly on `lab/or/chimali` before any edits (run from repo root)
+- [x] T001 Verify `tools/local-ci.ps1` passes cleanly on `lab/or/chimali` before any edits (run from repo root)
 - [x] T002 Create feature branch `032-webauthn-l3-compliance` from current `lab/or/chimali` and switch to it
 
 ---
@@ -34,13 +34,13 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 [P] Write failing unit tests for `CredentialId.fromByteArray()` size guard (boundaries: 15→fail, 16→pass, 1023→pass, 1024→fail) in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
-- [ ] T004 [P] Write failing unit tests for `PasskeyCredential.validate()` COSE allowlist — verify `coseAlgorithm = -19` is rejected and `-8` is accepted — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
-- [ ] T005 Add `MIN_CREDENTIAL_ID_BYTES = 16` and `MAX_CREDENTIAL_ID_BYTES = 1023` constants to `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt`
-- [ ] T006 Update `CredentialId.fromByteArray()` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt` to enforce the 16–1023 byte range with an `IllegalArgumentException` (make T003 tests pass)
-- [ ] T007 Rename `COSE_ED25519 = -19` to `COSE_EDSA = -8` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PasskeyCredential.kt` and update the `validate()` allowlist to permit `-8` instead of `-19` (make T004 tests pass)
-- [ ] T008 [P] Update `MIN_CEREMONY_TIMEOUT_MS`, `MAX_CEREMONY_TIMEOUT_MS`, and `DEFAULT_TIMEOUT_MS` constants in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptions.kt` (30_000 / 600_000 / 120_000); `getSafeTimeout()` returns `DEFAULT_TIMEOUT_MS` as placeholder (clamping wired in T030)
-- [ ] T009 [P] Apply identical timeout constant changes to `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/GetAssertionOptions.kt` (same placeholder pattern as T008)
+- [x] T003 [P] Write failing unit tests for `CredentialId.fromByteArray()` size guard (boundaries: 15→fail, 16→pass, 1023→pass, 1024→fail) in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
+- [x] T004 [P] Write failing unit tests for `PasskeyCredential.validate()` COSE allowlist — verify `coseAlgorithm = -19` is rejected and `-8` is accepted — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
+- [x] T005 Add `MIN_CREDENTIAL_ID_BYTES = 16` and `MAX_CREDENTIAL_ID_BYTES = 1023` constants to `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt`
+- [x] T006 Update `CredentialId.fromByteArray()` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt` to enforce the 16–1023 byte range with an `IllegalArgumentException` (make T003 tests pass)
+- [x] T007 Rename `COSE_ED25519 = -19` to `COSE_EDSA = -8` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PasskeyCredential.kt` and update the `validate()` allowlist to permit `-8` instead of `-19` (make T004 tests pass)
+- [x] T008 [P] Update `MIN_CEREMONY_TIMEOUT_MS`, `MAX_CEREMONY_TIMEOUT_MS`, and `DEFAULT_TIMEOUT_MS` constants in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptions.kt` (30_000 / 600_000 / 120_000); `getSafeTimeout()` returns `DEFAULT_TIMEOUT_MS` as placeholder (clamping wired in T030)
+- [x] T009 [P] Apply identical timeout constant changes to `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/GetAssertionOptions.kt` (same placeholder pattern as T008)
 
 **Checkpoint**: Foundation ready — `CredentialId` size guard, COSE constant rename, and timeout constants are in place. User story phases may now begin.
 
@@ -56,17 +56,17 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 > **Write tests FIRST — ensure they FAIL before implementation**
 
-- [ ] T010 [P] [US1] Add unit tests verifying `CredentialId.fromByteArray(ByteArray(1024))` throws, and `fromByteArray(ByteArray(1023))` succeeds — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
-- [ ] T010a [P] [US1] Add unit test asserting that `CredentialId.generate()` uses `SecureRandom` as its entropy source and produces exactly `CREDENTIAL_ID_SIZE_BYTES` (32) bytes — confirming the 256-bit entropy contract that satisfies FR-FIDO2-002 — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
-- [ ] T010b [P] [US1] Add unit test asserting that `CredentialId.fromByteArray()` accepts an opaque 256-byte byte array (simulating an encrypted-blob ID from a stateless authenticator) without error, and that `toByteArray()` round-trips it faithfully — satisfying FR-FIDO2-003 — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
-- [ ] T011 [P] [US1] Add unit tests for byte-level UTF-8 string validation in `PasskeyCredential`: 64-byte ASCII displayName → passes, 65-byte ASCII displayName → fails, 21-char string of 3-byte emoji → fails (63 UTF-8 bytes) in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
+- [x] T010 [P] [US1] Add unit tests verifying `CredentialId.fromByteArray(ByteArray(1024))` throws, and `fromByteArray(ByteArray(1023))` succeeds — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
+- [x] T010a [P] [US1] Add unit test asserting that `CredentialId.generate()` uses `SecureRandom` as its entropy source and produces exactly `CREDENTIAL_ID_SIZE_BYTES` (32) bytes — confirming the 256-bit entropy contract that satisfies FR-FIDO2-002 — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
+- [x] T010b [P] [US1] Add unit test asserting that `CredentialId.fromByteArray()` accepts an opaque 256-byte byte array (simulating an encrypted-blob ID from a stateless authenticator) without error, and that `toByteArray()` round-trips it faithfully — satisfying FR-FIDO2-003 — in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/valueobject/CredentialIdTest.kt`
+- [x] T011 [P] [US1] Add unit tests for byte-level UTF-8 string validation in `PasskeyCredential`: 64-byte ASCII displayName → passes, 65-byte ASCII displayName → fails, 21-char string of 3-byte emoji → fails (63 UTF-8 bytes) in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Update `PasskeyCredential.validate()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PasskeyCredential.kt` to replace `userName.length <= MAX_NAME_LENGTH` with `userName.toByteArray(Charsets.UTF_8).size <= MAX_NAME_LENGTH` (and same for `userDisplayName`) — makes T011 tests pass
-- [ ] T013 [US1] Update `Ctap2MakeCredentialHandler.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — rename local `COSE_ED25519 = -19` to `COSE_EDSA = -8` and update the algorithm negotiation `when` block to match
-- [ ] T014 [P] [US1] Update `Ctap2GetAssertionHandler.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — rename `COSE_ED25519 = -19` to `COSE_EDSA = -8` and update `when` block
-- [ ] T015 [US1] Update database mapper / SQLDelight query that reconstructs `PasskeyCredential` from storage to translate any persisted `coseAlgorithm = -19` to `-8` (one-time read-compat migration) — locate mapper in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/`
+- [x] T012 [US1] Update `PasskeyCredential.validate()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PasskeyCredential.kt` to replace `userName.length <= MAX_NAME_LENGTH` with `userName.toByteArray(Charsets.UTF_8).size <= MAX_NAME_LENGTH` (and same for `userDisplayName`) — makes T011 tests pass
+- [x] T013 [US1] Update `Ctap2MakeCredentialHandler.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — rename local `COSE_ED25519 = -19` to `COSE_EDSA = -8` and update the algorithm negotiation `when` block to match
+- [x] T014 [P] [US1] Update `Ctap2GetAssertionHandler.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — rename `COSE_ED25519 = -19` to `COSE_EDSA = -8` and update `when` block
+- [x] T015 [US1] Update database mapper / SQLDelight query that reconstructs `PasskeyCredential` from storage to translate any persisted `coseAlgorithm = -19` to `-8` (one-time read-compat migration) — locate mapper in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/`
 
 **Checkpoint**: US1 complete — `CredentialId` size guard enforced, COSE `-8` wired end-to-end, UTF-8 byte validation active, backward-compat mapper in place. Run `tools/local-ci.ps1`.
 
@@ -80,16 +80,16 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add unit tests for `Ctap2MakeCredentialHandler` algorithm negotiation — verify `-8` is accepted, `-19`/`-9`/`-51`/`-52` are rejected, `-7`/`-257`/`-49` are accepted — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt`
-- [ ] T017 [P] [US3] Add unit tests for `PublicKeyCredentialParameters.createEdDsa()` factory — verify `algorithm == "EdDSA"` and `curve == "Ed25519"` — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParametersTest.kt`
+- [x] T016 [P] [US3] Add unit tests for `Ctap2MakeCredentialHandler` algorithm negotiation — verify `-8` is accepted, `-19`/`-9`/`-51`/`-52` are rejected, `-7`/`-257`/`-49` are accepted — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt`
+- [x] T017 [P] [US3] Add unit tests for `PublicKeyCredentialParameters.createEdDsa()` factory — verify `algorithm == "EdDSA"` and `curve == "Ed25519"` — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParametersTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Rename `createEd25519()` to `createEdDsa()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParameters.kt` and update all call sites
-- [ ] T019 [US3] Update algorithm negotiation in `Ctap2MakeCredentialHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt`) to add `COSE_RS256 (-257)` to the `when` block and explicitly handle `-9`, `-19`, `-51`, `-52` as `null` (rejected) with a log warning
-- [ ] T020 [US3] Verify `Ctap2GetAssertionHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt`) also rejects `-9`, `-19`, `-51`, `-52` in its algorithm-matching logic
-- [ ] T021 [US3] Update `Fido2AuthenticatorImpl` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2AuthenticatorImpl.kt` to include `"EdDSA"` (COSE `-8`) in the `supportedAlgorithms` list returned by `getAuthenticatorInfo()`
-- [ ] T022 [P] [US3] Update `AuthenticatorInfo` in `Fido2Authenticator.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/Fido2Authenticator.kt`) if `supportedAlgorithms` is a static list — add `"EdDSA"` and ensure `"Ed25519-19"` or similar legacy entries are removed
+- [x] T018 [US3] Rename `createEd25519()` to `createEdDsa()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParameters.kt` and update all call sites
+- [x] T019 [US3] Update algorithm negotiation in `Ctap2MakeCredentialHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt`) to add `COSE_RS256 (-257)` to the `when` block and explicitly handle `-9`, `-19`, `-51`, `-52` as `null` (rejected) with a log warning
+- [x] T020 [US3] Verify `Ctap2GetAssertionHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt`) also rejects `-9`, `-19`, `-51`, `-52` in its algorithm-matching logic
+- [x] T021 [US3] Update `Fido2AuthenticatorImpl` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2AuthenticatorImpl.kt` to include `"EdDSA"` (COSE `-8`) in the `supportedAlgorithms` list returned by `getAuthenticatorInfo()`
+- [x] T022 [P] [US3] Update `AuthenticatorInfo` in `Fido2Authenticator.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/Fido2Authenticator.kt`) if `supportedAlgorithms` is a static list — add `"EdDSA"` and ensure `"Ed25519-19"` or similar legacy entries are removed
 
 **Checkpoint**: US3 complete — EdDSA negotiation works end-to-end, deprecated IDs rejected. Run `tools/local-ci.ps1`.
 
@@ -103,14 +103,14 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Add Compose UI test verifying a `displayName` of exactly 64 UTF-8 bytes renders without truncation in the credential selection bottom sheet — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/`
-- [ ] T024 [P] [US2] Add unit tests that a `PasskeyCredential` with a 64-byte UTF-8 `userDisplayName` passes validation, and a 65-byte one fails — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
+- [x] T023 [P] [US2] Add Compose UI test verifying a `displayName` of exactly 64 UTF-8 bytes renders without truncation in the credential selection bottom sheet — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/`
+- [x] T024 [P] [US2] Add unit tests that a `PasskeyCredential` with a 64-byte UTF-8 `userDisplayName` passes validation, and a 65-byte one fails — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Audit all Compose UI components in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/` for any hard-coded string truncation or `maxLines`/`overflow` settings on `name`/`displayName` Text composables and remove or raise any limit below 64 bytes
-- [ ] T026 [US2] Audit `Ctap2MakeCredentialHandler.decodeMakeCredentialRequest()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — ensure `userName` and `userDisplayName` are passed through at full length without substring/truncation before reaching `PasskeyCredential`
-- [ ] T027 [US2] Audit `Ctap2GetAssertionHandler` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — ensure `userName`/`userDisplayName` are not truncated during assertion lookup or display
+- [x] T025 [US2] Audit all Compose UI components in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/` for any hard-coded string truncation or `maxLines`/`overflow` settings on `name`/`displayName` Text composables and remove or raise any limit below 64 bytes
+- [x] T026 [US2] Audit `Ctap2MakeCredentialHandler.decodeMakeCredentialRequest()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — ensure `userName` and `userDisplayName` are passed through at full length without substring/truncation before reaching `PasskeyCredential`
+- [x] T027 [US2] Audit `Ctap2GetAssertionHandler` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — ensure `userName`/`userDisplayName` are not truncated during assertion lookup or display
 
 **Checkpoint**: US2 complete — display names preserved at full 64-byte fidelity. Run `tools/local-ci.ps1`.
 
@@ -124,15 +124,15 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ### Tests for User Story 4
 
-- [ ] T028 [P] [US4] Add unit tests for `MakeCredentialOptions.getSafeTimeout()` covering null, below-min, in-range, and above-max inputs — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptionsTest.kt`
-- [ ] T029 [P] [US4] Add unit tests for `GetAssertionOptions.getSafeTimeout()` with the same boundary cases — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/GetAssertionOptionsTest.kt`
+- [x] T028 [P] [US4] Add unit tests for `MakeCredentialOptions.getSafeTimeout()` covering null, below-min, in-range, and above-max inputs — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptionsTest.kt`
+- [x] T029 [P] [US4] Add unit tests for `GetAssertionOptions.getSafeTimeout()` with the same boundary cases — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/GetAssertionOptionsTest.kt`
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Finalize `getSafeTimeout()` implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptions.kt` — ensure `coerceIn(MIN_CEREMONY_TIMEOUT_MS, MAX_CEREMONY_TIMEOUT_MS)` is the production path (the constants were added in T007; this task wires the clamping into `getSafeTimeout()` and verifies removal of old `MAX_TIMEOUT_MS`)
-- [ ] T031 [US4] Finalize `getSafeTimeout()` implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/GetAssertionOptions.kt` (same as T030, parity)
-- [ ] T032 [US4] Add integration test sending a CTAP2 `authenticatorMakeCredential` request with an explicit timeout hint (e.g., 90,000 ms) encoded in the request options map, and asserting that the resulting `MakeCredentialOptions.getSafeTimeout()` returns 90,000 (within-range hint passed through correctly) — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt` (Also update `handleMakeCredential()` to propagate the RP timeout field from the CTAP2 request into `MakeCredentialOptions.timeout` if not already doing so.)
-- [ ] T033 [P] [US4] Verify that any ViewModel or UI layer that reads a ceremony timeout (e.g., registration countdown display in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/`) calls `getSafeTimeout()` rather than accessing `MakeCredentialOptions.timeout` directly
+- [x] T030 [US4] Finalize `getSafeTimeout()` implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/MakeCredentialOptions.kt` — ensure `coerceIn(MIN_CEREMONY_TIMEOUT_MS, MAX_CEREMONY_TIMEOUT_MS)` is the production path (the constants were added in T007; this task wires the clamping into `getSafeTimeout()` and verifies removal of old `MAX_TIMEOUT_MS`)
+- [x] T031 [US4] Finalize `getSafeTimeout()` implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/GetAssertionOptions.kt` (same as T030, parity)
+- [x] T032 [US4] Add integration test sending a CTAP2 `authenticatorMakeCredential` request with an explicit timeout hint (e.g., 90,000 ms) encoded in the request options map, and asserting that the resulting `MakeCredentialOptions.getSafeTimeout()` returns 90,000 (within-range hint passed through correctly) — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt` (Also update `handleMakeCredential()` to propagate the RP timeout field from the CTAP2 request into `MakeCredentialOptions.timeout` if not already doing so.)
+- [x] T033 [P] [US4] Verify that any ViewModel or UI layer that reads a ceremony timeout (e.g., registration countdown display in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/`) calls `getSafeTimeout()` rather than accessing `MakeCredentialOptions.timeout` directly
 
 **Checkpoint**: US4 complete — adaptive ceremony timeouts active. Run `tools/local-ci.ps1`.
 
@@ -146,14 +146,14 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ### Tests for User Story 6
 
-- [ ] T034 [P] [US6] Add unit tests for `AttestationObject` construction confirming `authData` contains non-empty AAGUID, Credential ID, and Public Key — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/AttestationObjectTest.kt`
-- [ ] T035 [P] [US6] Add unit tests for `Ctap2MakeCredentialHandler.buildAttestationStatementMap()` verifying `"packed"` and `"none"` format handling — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt`
+- [x] T034 [P] [US6] Add unit tests for `AttestationObject` construction confirming `authData` contains non-empty AAGUID, Credential ID, and Public Key — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/AttestationObjectTest.kt`
+- [x] T035 [P] [US6] Add unit tests for `Ctap2MakeCredentialHandler.buildAttestationStatementMap()` verifying `"packed"` and `"none"` format handling — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt`
 
 ### Implementation for User Story 6
 
-- [ ] T036 [US6] Audit `Ctap2MakeCredentialHandler.encodeAttestationResponse()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — ensure `buildAttestationStatementMap()` handles `"packed"`, `"none"`, and `"attCA"` formats; add `"attCA"` branch if missing
-- [ ] T037 [US6] Audit `AttestationObject.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/AttestationObject.kt` — confirm `AttestationType` covers `BASIC`, `SELF`, and `ATT_CA`; add missing types if needed
-- [ ] T038 [US6] Audit `Fido2AuthenticatorImpl.makeCredential()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2AuthenticatorImpl.kt` — verify attestation type selection respects `MakeCredentialOptions.attestation` (`AttestationConveyancePreference`); add `AttCA` branch if missing
+- [x] T036 [US6] Audit `Ctap2MakeCredentialHandler.encodeAttestationResponse()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — ensure `buildAttestationStatementMap()` handles `"packed"`, `"none"`, and `"attCA"` formats; add `"attCA"` branch if missing
+- [x] T037 [US6] Audit `AttestationObject.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/AttestationObject.kt` — confirm `AttestationType` covers `BASIC`, `SELF`, and `ATT_CA`; add missing types if needed
+- [x] T038 [US6] Audit `Fido2AuthenticatorImpl.makeCredential()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2AuthenticatorImpl.kt` — verify attestation type selection respects `MakeCredentialOptions.attestation` (`AttestationConveyancePreference`); add `AttCA` branch if missing
 
 **Checkpoint**: US6 complete — all three attestation types generate valid, verifiable objects. Run `tools/local-ci.ps1`.
 
@@ -167,20 +167,20 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ### Tests for User Story 5
 
-- [ ] T039 [P] [US5] Add unit tests for `PrfExtensionInput` validation — empty list throws, single salt passes, two salts pass, three salts throw — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PrfExtensionInputTest.kt`
-- [ ] T040 [P] [US5] Add unit tests for `PrfKeyDerivation.derive()` — output is exactly 32 bytes, deterministic (same input → same output), empty salt throws — in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivationTest.kt`
-- [ ] T041 [P] [US5] Add integration tests for CTAP2 `hmac-secret` extension parsing in `Ctap2GetAssertionHandler` — verify output CBOR map contains keys 1 and 2 when two salts provided — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`
+- [x] T039 [P] [US5] Add unit tests for `PrfExtensionInput` validation — empty list throws, single salt passes, two salts pass, three salts throw — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PrfExtensionInputTest.kt`
+- [x] T040 [P] [US5] Add unit tests for `PrfKeyDerivation.derive()` — output is exactly 32 bytes, deterministic (same input → same output), empty salt throws — in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivationTest.kt`
+- [x] T041 [P] [US5] Add integration tests for CTAP2 `hmac-secret` extension parsing in `Ctap2GetAssertionHandler` — verify output CBOR map contains keys 1 and 2 when two salts provided — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] Create `PrfExtensionInput` and `PrfExtensionOutput` data classes in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PrfExtensionInput.kt` with validation (salts: 1–2, non-empty; `MAX_SALTS = 2`, `MAX_OUTPUT_BYTES = 32`)
-- [ ] T043 [US5] Create `PrfKeyDerivation` service in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivation.kt` — implement `derive(salt: ByteArray, credentialHmacSecret: ByteArray): ByteArray` using Bouncy Castle `HMac(SHA256Digest())`; implement `deriveAll(input: PrfExtensionInput, secret: ByteArray): PrfExtensionOutput`
-- [ ] T044 [US5] Register `PrfKeyDerivation` as a Koin `single` in the FIDO2 DI module in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/di/`
-- [ ] T045 [US5] Update `Ctap2MakeCredentialHandler.decodeMakeCredentialRequest()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — parse `extensions["hmac-secret"]` map keys 1 (salt1) and 2 (salt2 optional); construct `PrfExtensionInput`; propagate to `MakeCredentialRequest`
-- [ ] T046 [US5] Update `Ctap2MakeCredentialHandler.handleMakeCredential()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — if `prfInput` is present, invoke `PrfKeyDerivation.deriveAll()` and include `PrfExtensionOutput` in the `MakeCredentialOptions.extensions` map
-- [ ] T047 [US5] Update `Ctap2GetAssertionHandler` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — parse `hmac-secret` extension from request (same as T045 pattern); derive output; serialize into authenticator data extensions CBOR map with integer keys 1 and 2
-- [ ] T048 [US5] Handle >2 salts error path in both CTAP2 handlers — return `CTAP2_ERR_INVALID_PARAMETER (0x02)` when `PrfExtensionInput` constructor throws
-- [ ] T049 [US5] Handle missing `hmac-secret` authenticator capability gracefully — if `credentialHmacSecret` cannot be retrieved for a credential, omit PRF from response without failing the ceremony
+- [x] T042 [US5] Create `PrfExtensionInput` and `PrfExtensionOutput` data classes in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PrfExtensionInput.kt` with validation (salts: 1–2, non-empty; `MAX_SALTS = 2`, `MAX_OUTPUT_BYTES = 32`)
+- [x] T043 [US5] Create `PrfKeyDerivation` service in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivation.kt` — implement `derive(salt: ByteArray, credentialHmacSecret: ByteArray): ByteArray` using Bouncy Castle `HMac(SHA256Digest())`; implement `deriveAll(input: PrfExtensionInput, secret: ByteArray): PrfExtensionOutput`
+- [x] T044 [US5] Register `PrfKeyDerivation` as a Koin `single` in the FIDO2 DI module in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/di/`
+- [x] T045 [US5] Update `Ctap2MakeCredentialHandler.decodeMakeCredentialRequest()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — parse `extensions["hmac-secret"]` map keys 1 (salt1) and 2 (salt2 optional); construct `PrfExtensionInput`; propagate to `MakeCredentialRequest`
+- [x] T046 [US5] Update `Ctap2MakeCredentialHandler.handleMakeCredential()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — if `prfInput` is present, invoke `PrfKeyDerivation.deriveAll()` and include `PrfExtensionOutput` in the `MakeCredentialOptions.extensions` map
+- [x] T047 [US5] Update `Ctap2GetAssertionHandler` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` — parse `hmac-secret` extension from request (same as T045 pattern); derive output; serialize into authenticator data extensions CBOR map with integer keys 1 and 2
+- [x] T048 [US5] Handle >2 salts error path in both CTAP2 handlers — return `CTAP2_ERR_INVALID_PARAMETER (0x02)` when `PrfExtensionInput` constructor throws
+- [x] T049 [US5] Handle missing `hmac-secret` authenticator capability gracefully — if `credentialHmacSecret` cannot be retrieved for a credential, omit PRF from response without failing the ceremony
 
 **Checkpoint**: US5 complete — PRF extension functional. Run `tools/local-ci.ps1`.
 
@@ -190,12 +190,12 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 **Purpose**: CI validation, documentation, and final static analysis sweep.
 
-- [ ] T050 [P] Update `detekt-baseline-main.xml` in `feature/fido2/` if any new suppressions are required for the new files; remove any stale baselines that covered the old `-19` constant
-- [ ] T051 [P] Run `ktlintFormat` on all modified files in `feature/fido2/` and `core/domain/` via `./gradlew ktlintFormat`
-- [ ] T052 [P] Run `detekt` on `feature/fido2/` and `core/domain/` via `./gradlew detekt`; resolve all new violations
-- [ ] T053 Execute full `tools/local-ci.ps1` pipeline and confirm zero violations, zero test failures
-- [ ] T054 Update `CHANGELOG.md` (or equivalent) with a WebAuthn L3 compliance entry documenting the five remediated findings
-- [ ] T055 [P] Update `docs/webauthn-l3-compliance-spec.md` to reflect final implementation status (mark all requirements as RESOLVED)
+- [x] T050 [P] Update `detekt-baseline-main.xml` in `feature/fido2/` if any new suppressions are required for the new files; remove any stale baselines that covered the old `-19` constant
+- [x] T051 [P] Run `ktlintFormat` on all modified files in `feature/fido2/` and `core/domain/` via `./gradlew ktlintFormat`
+- [x] T052 [P] Run `detekt` on `feature/fido2/` and `core/domain/` via `./gradlew detekt`; resolve all new violations
+- [x] T053 Execute full `tools/local-ci.ps1` pipeline and confirm zero violations, zero test failures
+- [x] T054 Update `CHANGELOG.md` (or equivalent) with a WebAuthn L3 compliance entry documenting the five remediated findings
+- [x] T055 [P] Update `docs/webauthn-l3-compliance-spec.md` to reflect final implementation status (mark all requirements as RESOLVED)
 
 ---
 

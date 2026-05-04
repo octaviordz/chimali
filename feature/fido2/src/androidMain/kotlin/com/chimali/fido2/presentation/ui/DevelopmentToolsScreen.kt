@@ -696,7 +696,7 @@ private fun AlgorithmSelector(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
         )
-        val algOptions = listOf("ES256", "Ed25519", "ML-DSA-65")
+        val algOptions = listOf("ES256", "EdDSA", "ML-DSA-65")
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             algOptions.forEachIndexed { index, label ->
                 SegmentedButton(
@@ -723,13 +723,13 @@ private fun TestRegistrationTrigger(
                 val algId =
                     when (selectedAlgIndex) {
                         0 -> Fido2CryptoService.COSE_ES256
-                        1 -> Fido2CryptoService.COSE_ED25519
+                        1 -> Fido2CryptoService.COSE_EDSA
                         else -> Fido2CryptoService.COSE_ML_DSA_65
                     }
                 val params =
                     when (selectedAlgIndex) {
                         0 -> PublicKeyCredentialParameters.createES256P256()
-                        1 -> PublicKeyCredentialParameters.createEd25519()
+                        1 -> PublicKeyCredentialParameters.createEdDsa()
                         else -> PublicKeyCredentialParameters.createMlDsa65()
                     }
                 val mockOptions =

@@ -39,10 +39,11 @@ data class GetAssertionOptions(
             require(list.size <= MAX_ALLOW_CREDENTIALS) { "allowCredentials cannot exceed 32 items" }
             // Individual descriptors are validated upon construction (init)
         }
-        timeout?.let { require(it in MIN_TIMEOUT_MS..MAX_TIMEOUT_MS) { "Timeout must be 1–300000 ms" } }
+        // Validate timeout
+        timeout?.let { require(it >= 0) { "Timeout cannot be negative" } }
     }
 
-    fun getSafeTimeout(): Long = timeout ?: DEFAULT_TIMEOUT_MS
+    fun getSafeTimeout(): Long = timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS
 
     /** True when no allowCredentials list is provided — any resident credential is valid. */
     fun isDiscoverableFlow(): Boolean = allowCredentials.isNullOrEmpty()
@@ -50,9 +51,9 @@ data class GetAssertionOptions(
     companion object {
         private const val CLIENT_DATA_HASH_SIZE = 32
         private const val MAX_ALLOW_CREDENTIALS = 32
-        private const val DEFAULT_TIMEOUT_MS = 60_000L
-        private const val MIN_TIMEOUT_MS = 1L
-        private const val MAX_TIMEOUT_MS = 300_000L
+        const val MIN_TIMEOUT_MS = 30000L // 30 seconds
+        const val MAX_TIMEOUT_MS = 600000L // 10 minutes
+        const val DEFAULT_TIMEOUT_MS = 120000L // 2 minutes
 
         /**
          * Quick factory for tests or internal use when clientDataHash is already computed.

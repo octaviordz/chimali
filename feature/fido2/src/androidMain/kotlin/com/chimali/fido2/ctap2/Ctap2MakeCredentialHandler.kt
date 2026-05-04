@@ -9,6 +9,7 @@ import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AttestationObject
@@ -16,6 +17,7 @@ import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
+import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
@@ -40,6 +42,7 @@ class Ctap2MakeCredentialHandler(
     private val cborCodec: CborCodec,
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus,
+    private val prfKeyDerivation: PrfKeyDerivation,
 ) {
     companion object {
         // CTAPHID command codes
@@ -56,11 +59,19 @@ class Ctap2MakeCredentialHandler(
         private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x27.toByte()
         private const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
         private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
+        private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
 
-        // COSE algorithm IDs
+        // COSE algorithm IDs (accepted)
         private const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
-        private const val COSE_ED25519 = -19 // EdDSA
+        private const val COSE_EDSA = -8 // EdDSA / Ed25519, per WebAuthn L3 § 5.4
+        private const val COSE_RS256 = -257 // RSASSA-PKCS1-v1_5 with SHA-256
         private const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
+
+        // COSE algorithm IDs (deprecated — NOT RECOMMENDED per WebAuthn L3, must be rejected)
+        private const val COSE_DEPRECATED_9 = -9
+        private const val COSE_DEPRECATED_19 = -19 // Old Ed25519 identifier; -8 is correct
+        private const val COSE_DEPRECATED_51 = -51
+        private const val COSE_DEPRECATED_52 = -52
 
         // AuthData flags
         private const val FLAG_UP: Int = 0x01 // User Present
@@ -174,12 +185,29 @@ class Ctap2MakeCredentialHandler(
         val requireResidentKey = options?.get("rk") as? Boolean ?: false
 
         // 0x0A / "extensions": optional FIDO2.1 extension map
-        // T056a: Parse credentialProtectionPolicy (credProtect) if present.
+        // T045: Parse hmac-secret (PRF) extension — extract salt1 and optional salt2.
         @Suppress("UNCHECKED_CAST")
         val extensions = (map[REQ_EXTENSIONS] ?: map["extensions"]) as? Map<*, *>
         val credProtectPolicy: Int? =
             extensions?.let {
                 (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
+            }
+
+        // T045: Parse hmac-secret salts from extensions["hmac-secret"].
+        // CTAP2 encodes these under integer keys 1 (salt1) and 2 (salt2, optional).
+        val prfInput: PrfExtensionInput? =
+            extensions?.let { ext ->
+                val hmacMap = ext["hmac-secret"] as? Map<*, *> ?: return@let null
+                val salt1 = (hmacMap[1] ?: hmacMap[1L]) as? ByteArray ?: return@let null
+                val salt2 = (hmacMap[2] ?: hmacMap[2L]) as? ByteArray
+                val salts = if (salt2 != null) listOf(salt1, salt2) else listOf(salt1)
+                try {
+                    PrfExtensionInput(salts)
+                } catch (e: IllegalArgumentException) {
+                    // T048: >2 salts or wrong size — propagate as null; handleMakeCredential will error.
+                    Logger.w { "hmac-secret: invalid salt input — ${e.message}" }
+                    null
+                }
             }
 
         return MakeCredentialRequest(
@@ -193,6 +221,7 @@ class Ctap2MakeCredentialHandler(
             requireUV = requireUserVerification,
             requireRK = requireResidentKey,
             credProtectPolicy = credProtectPolicy,
+            prfInput = prfInput,
         )
     }
 
@@ -212,13 +241,23 @@ class Ctap2MakeCredentialHandler(
                 req.userDisplayName,
             )
 
-        // T017a Algorithm Negotiation: Pick the first algorithm requested that we support.
+        // T019 Algorithm Negotiation: Pick the first algorithm requested that we support.
+        // Preference order: -7 (ES256/P-256) → -8 (EdDSA/Ed25519) → -257 (RS256) → -49 (ML-DSA-65)
+        // Deprecated identifiers -9, -19, -51, -52 are explicitly rejected with a log warning.
         val (selectedAlgId, pubKeyCredParams) =
             req.algorithms.firstNotNullOfOrNull { algId ->
                 when (algId) {
                     COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
-                    COSE_ED25519 -> COSE_ED25519 to PublicKeyCredentialParameters.createEd25519()
+                    COSE_EDSA -> COSE_EDSA to PublicKeyCredentialParameters.createEdDsa()
+                    COSE_RS256 -> COSE_RS256 to PublicKeyCredentialParameters.createRS256()
                     COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
+                    COSE_DEPRECATED_9, COSE_DEPRECATED_19, COSE_DEPRECATED_51, COSE_DEPRECATED_52 -> {
+                        Logger.w {
+                            "Algorithm negotiation: ignoring deprecated COSE alg $algId " +
+                                "(NOT RECOMMENDED per WebAuthn L3 §5.4)"
+                        }
+                        null
+                    }
                     else -> null
                 }
             } ?: run {
@@ -242,7 +281,32 @@ class Ctap2MakeCredentialHandler(
             }
         }
 
-        val extensionsMap = req.credProtectPolicy?.let { mapOf("credProtect" to it) }
+        // T046: Derive PRF outputs if the RP included hmac-secret extension salts.
+        // T049: If derivation fails (missing seed), omit PRF without failing the ceremony.
+        val prfOutputMap: Map<String, Any>? =
+            req.prfInput?.let { prfIn ->
+                val credentialIdStr =
+                    java.util.Base64.getUrlEncoder().withoutPadding()
+                        .encodeToString(req.clientDataHash) // use clientDataHash as credential ID proxy pre-storage
+                val prfOutput = prfKeyDerivation.deriveAll(prfIn, credentialIdStr)
+                if (prfOutput != null) {
+                    Logger.d { "PRF extension: derived output(s) for MakeCredential" }
+                    mapOf("hmac-secret" to prfOutput.toCborMap())
+                } else {
+                    Logger.w {
+                        "PRF extension: derivation returned null — " +
+                            "omitting from MakeCredential response (T049)"
+                    }
+                    null
+                }
+            }
+
+        val extensionsMap =
+            buildMap<String, Any> {
+                req.credProtectPolicy?.let { put("credProtect", it) }
+                prfOutputMap?.let { putAll(it) }
+            }.ifEmpty { null }
+
         val makeCredentialOptions =
             MakeCredentialOptions.create(
                 rp = rp,
@@ -260,7 +324,17 @@ class Ctap2MakeCredentialHandler(
 
         // NFR-PERF-030: Exclude UI interaction time from system latency
         LatencyProfiler.startUserInteraction("MakeCredential")
-        val makeCredentialResult = deferred.await()
+        val makeCredentialResult =
+            try {
+                kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
+                    deferred.await()
+                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Logger.e { "MakeCredential timed out after ${makeCredentialOptions.getSafeTimeout()}ms" }
+                return hidReportParser.encodeResponse(
+                    CtapHidMessage(cid, CTAPHID_CBOR.toInt(), byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT)),
+                )
+            }
         LatencyProfiler.endUserInteraction("MakeCredential")
         Logger.d {
             "Deferred resolved — success=${makeCredentialResult.isSuccess} " +
@@ -362,6 +436,13 @@ class Ctap2MakeCredentialHandler(
                     stmt.attCert?.let { put("sig", it) }
                     stmt.x5c?.let { put("x5c", it) }
                 }
+            // T036: AttCA — same wire format as packed; x5c carries the intermediate CA chain
+            "attCA" ->
+                buildMap {
+                    put("alg", stmt.alg)
+                    stmt.attCert?.let { put("sig", it) }
+                    stmt.x5c?.let { put("x5c", it) }
+                }
             else -> emptyMap()
         }
     }
@@ -408,6 +489,8 @@ private data class MakeCredentialRequest(
      * Null means the RP did not specify a policy.
      */
     val credProtectPolicy: Int? = null,
+    // T045: PRF extension — salts parsed from extensions["hmac-secret"]; null if absent.
+    val prfInput: PrfExtensionInput? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

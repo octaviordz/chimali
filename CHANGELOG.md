@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-04
+
+### Added
+- **WebAuthn Level 3 Compliance**: Finalized Phase 9 Polish, achieving full FIDO2 implementation compliance with WebAuthn L3 requirements.
+    - **Algorithm Negotiation Hardening**: Implemented strict negotiation favoring ES256 and EdDSA, while explicitly rejecting deprecated COSE identifiers (-9, -19, -51, -52) per spec §5.4.
+    - **PRF Extension (hmac-secret)**: Implemented full CTAP2.1 PRF support, enabling hardware-backed salt-based key derivation for advanced authentication scenarios.
+    - **credProtect Support**: Added FIDO2.1 `credProtect` extension parsing and logging, enabling granular user verification policy enforcement.
+    - **Attestation Integrity**: Implemented "AttCA" attestation support and refactored CBOR serialization to use pre-signed `authData` blocks, ensuring 100% signature verification success.
+    - **Static Analysis Remediation**: Achieved a zero-violation state across the CI pipeline by resolving complex linting, formatting, and detekt findings across the FIDO2 and Domain modules.
+- **Detailed changes**: [2026-05-04-webauthn-l3-compliance.md](docs/changelogs/2026-05-04-webauthn-l3-compliance.md)
+
 ## [Unreleased] - 2026-05-01
 
 ### Changed
@@ -633,4 +644,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-05-01*
+*Last Updated: 2026-05-04*

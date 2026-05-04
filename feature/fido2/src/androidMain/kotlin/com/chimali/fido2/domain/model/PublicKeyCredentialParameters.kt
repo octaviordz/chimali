@@ -129,9 +129,9 @@ data class PublicKeyCredentialParameters(
         }
 
         /**
-         * Creates parameters for Ed25519.
+         * Creates parameters for EdDSA with Ed25519 curve.
          */
-        fun createEd25519(): PublicKeyCredentialParameters {
+        fun createEdDsa(): PublicKeyCredentialParameters {
             return create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "EdDSA",

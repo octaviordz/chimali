@@ -135,13 +135,13 @@ class Fido2CryptoService(
                     return@withContext Outcome.Success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
                 }
 
-                // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
+                // EdDSA (Ed25519) branch — intentionally isolated from HDK-ECDH-P256.
                 // Derivation: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
                 // Ed25519 (Curve25519) is incompatible with P-256 multiplicative blinding (§3.2.2
                 // of draft-dijkhuis-cfrg-hdkeys-06), so HdkManager.deriveHdk cannot be used here.
                 // The 32-byte truncation produces the Ed25519 private key seed deterministically.
                 // The private key is zeroed immediately after the public key is extracted.
-                if (algId == COSE_ED25519) {
+                if (algId == COSE_EDSA) {
                     val seed =
                         masterSeedProvider.getMasterSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
@@ -233,7 +233,7 @@ class Fido2CryptoService(
                     kf.generatePublic(x509Spec)
                 }
 
-                COSE_ED25519 -> {
+                COSE_EDSA -> {
                     val bcProvider = BouncyCastleProvider()
                     val kf = KeyFactory.getInstance("Ed25519", bcProvider)
                     val prefix = ED25519_X509_PREFIX
@@ -414,10 +414,10 @@ class Fido2CryptoService(
                     return@withContext Outcome.Success(signature)
                 }
 
-                // Ed25519 branch — intentionally isolated from HDK-ECDH-P256.
+                // EdDSA (Ed25519) branch — intentionally isolated from HDK-ECDH-P256.
                 // Re-derives the private key from scratch: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
                 // The private scalar is zeroed immediately after signing. It is never persisted.
-                if (algId == COSE_ED25519) {
+                if (algId == COSE_EDSA) {
                     val seed =
                         masterSeedProvider.getMasterSeed()
                             ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
@@ -607,8 +607,8 @@ class Fido2CryptoService(
         // Working-draft value; IANA final assignment pending.
         const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
-        // COSE algorithm identifier for Ed25519.
-        const val COSE_ED25519 = -19 // EdDSA
+        // COSE algorithm identifier for EdDSA (Ed25519).
+        const val COSE_EDSA = -8 // EdDSA / Ed25519, per WebAuthn L3 § 5.4
 
         private const val ED25519_SEED_SIZE = 32
         private const val P256_UNCOMPRESSED_SIZE = 65

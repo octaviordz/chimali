@@ -212,7 +212,7 @@ class Ctap2Fido21FlagsTest {
             "10" to
                 listOf(
                     mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(), "type" to "public-key"),
-                    mapOf("alg" to PasskeyCredential.COSE_ED25519.toLong(), "type" to "public-key"),
+                    mapOf("alg" to PasskeyCredential.COSE_EDSA.toLong(), "type" to "public-key"),
                     mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
                 ),
         )

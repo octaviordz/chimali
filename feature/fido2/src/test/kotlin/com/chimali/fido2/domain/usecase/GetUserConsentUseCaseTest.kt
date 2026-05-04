@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.assertThrows
 
 class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -620,16 +621,14 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should fail when credential id exceeds maximum length`() =
             runTest {
-                val result =
+                assertThrows<IllegalArgumentException> {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromByteArray(ByteArray(INVALID_CRED_ID_SIZE_1024)),
                         requireVerification = true,
                     )
-
-                assertTrue(result.isFailure)
-                assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+                }
             }
     }
 

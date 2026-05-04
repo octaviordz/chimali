@@ -33,10 +33,7 @@ data class MakeCredentialOptions(
         require(challenge.size <= MAX_CHALLENGE_SIZE) { "Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes" }
 
         // Validate timeout
-        timeout?.let { timeout ->
-            require(timeout > 0) { "Timeout must be positive" }
-            require(timeout <= MAX_TIMEOUT_MS) { "Timeout cannot exceed 5 minutes (300000ms)" }
-        }
+        timeout?.let { require(it >= 0) { "Timeout cannot be negative" } }
 
         // Validate credential lists
         allowCredentials?.let { allowList ->
@@ -111,7 +108,7 @@ data class MakeCredentialOptions(
      * Returns a safe timeout value.
      */
     fun getSafeTimeout(): Long {
-        return timeout ?: DEFAULT_TIMEOUT_MS // Default 60 seconds
+        return timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS
     }
 
     companion object {
@@ -122,8 +119,9 @@ data class MakeCredentialOptions(
         const val MAX_CREDENTIAL_LIST_SIZE = 32
         const val MAX_EXTENSIONS_SIZE = 32
         const val MAX_EXTENSION_KEY_LENGTH = 32
-        const val DEFAULT_TIMEOUT_MS = 60000L // 60 seconds
-        private const val MAX_TIMEOUT_MS = 300000L
+        const val MIN_TIMEOUT_MS = 30000L // 30 seconds
+        const val MAX_TIMEOUT_MS = 600000L // 10 minutes
+        const val DEFAULT_TIMEOUT_MS = 120000L // 2 minutes
 
         /**
          * Creates a new MakeCredentialOptions with validation.

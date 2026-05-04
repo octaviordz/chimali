@@ -47,6 +47,8 @@ value class CredentialId private constructor(
 
     companion object {
         const val CREDENTIAL_ID_SIZE_BYTES = 32
+        const val MIN_CREDENTIAL_ID_BYTES = 16
+        const val MAX_CREDENTIAL_ID_BYTES = 1023
 
         /**
          * Generates a new random CredentialId.
@@ -59,8 +61,13 @@ value class CredentialId private constructor(
         /**
          * Reconstructs a [CredentialId] from a previously-stored byte array.
          */
-        fun fromByteArray(bytes: ByteArray): CredentialId =
-            CredentialId(Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(bytes))
+        fun fromByteArray(bytes: ByteArray): CredentialId {
+            require(bytes.size in MIN_CREDENTIAL_ID_BYTES..MAX_CREDENTIAL_ID_BYTES) {
+                "Credential ID must be between $MIN_CREDENTIAL_ID_BYTES " +
+                    "and $MAX_CREDENTIAL_ID_BYTES bytes, got ${bytes.size}"
+            }
+            return CredentialId(Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(bytes))
+        }
 
         /**
          * Reconstructs a [CredentialId] from a previously-stored encoded string.

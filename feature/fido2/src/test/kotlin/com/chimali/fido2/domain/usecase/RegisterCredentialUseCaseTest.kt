@@ -42,6 +42,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.assertThrows
 
 class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
@@ -346,7 +347,7 @@ class RegisterCredentialUseCaseTest {
         @Test
         fun `should fail when timeout is invalid`() =
             runTest {
-                assertFailsWith<IllegalArgumentException> {
+                assertThrows<IllegalArgumentException> {
                     MakeCredentialOptions.create(
                         rp = testRp,
                         user = testUser,

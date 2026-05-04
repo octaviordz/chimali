@@ -41,7 +41,7 @@ class RegisterCredentialUseCase(
 ) {
     companion object {
         private const val MAX_CHALLENGE_SIZE = 64
-        private const val MAX_TIMEOUT_MS = 300_000 // 5 minutes
+        private const val MAX_TIMEOUT_MS = 600_000 // 10 minutes
         private const val MAX_CREDENTIALS_IN_LIST = 32
         private const val DEFAULT_CRED_PROTECT_POLICY = 1
 
@@ -181,7 +181,7 @@ class RegisterCredentialUseCase(
 
         val timeout = options.getSafeTimeout()
         require(timeout > 0) { "Timeout must be positive" }
-        require(timeout <= MAX_TIMEOUT_MS) { "Timeout cannot exceed 5 minutes" }
+        require(timeout <= MAX_TIMEOUT_MS) { "Timeout cannot exceed 10 minutes" }
 
         options.allowCredentials?.let { allowList ->
             require(allowList.size <= MAX_CREDENTIALS_IN_LIST) {

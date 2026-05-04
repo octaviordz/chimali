@@ -100,7 +100,7 @@ class Fido2CryptoServiceTest {
         @Test
         fun `generateCredentialKeyPair delegates to HdkManager deriveHdk`() =
             runTest {
-                val credentialId = "test-cred-id-1"
+                val credentialId = "test-cred-id-16chars"
                 val devicePubKeyBytes = realDeviceKeyPair.publicKey
                 val fakeResult =
                     HdkResult(
@@ -139,7 +139,7 @@ class Fido2CryptoServiceTest {
         @Test
         fun `generateCredentialKeyPair returns same public key for same credentialId`() =
             runTest {
-                val credentialId = "stable-cred"
+                val credentialId = "stable-credential-id-16"
                 val (sk, pk) = P256Group.generateKeyPair()
                 val fakeResult =
                     HdkResult(
@@ -189,12 +189,12 @@ class Fido2CryptoServiceTest {
                 val key1 =
                     service
                         .generateCredentialKeyPair(
-                            CredentialId.fromByteArray("cred-1".encodeToByteArray()),
+                            CredentialId.fromByteArray("cred-1-long-enough".encodeToByteArray()),
                         ).getOrThrow()
                 val key2 =
                     service
                         .generateCredentialKeyPair(
-                            CredentialId.fromByteArray("cred-2".encodeToByteArray()),
+                            CredentialId.fromByteArray("cred-2-long-enough".encodeToByteArray()),
                         ).getOrThrow()
 
                 assertTrue(!key1.publicKeyBytes.contentEquals(key2.publicKeyBytes))
@@ -207,7 +207,7 @@ class Fido2CryptoServiceTest {
 
                 val result =
                     service.generateCredentialKeyPair(
-                        CredentialId.fromByteArray("any-cred".encodeToByteArray()),
+                        CredentialId.fromByteArray("any-cred-long-enough".encodeToByteArray()),
                     )
 
                 assertTrue(result.isFailure)
@@ -219,7 +219,7 @@ class Fido2CryptoServiceTest {
         @Test
         fun `sign produces non-empty signature bytes`() =
             runTest {
-                val credentialId = "sign-cred"
+                val credentialId = "sign-credential-id-16"
                 val data = "authData + clientDataHash".toByteArray()
 
                 // Use real HDK derivation to sign
@@ -262,7 +262,7 @@ class Fido2CryptoServiceTest {
 
                 val publicKey =
                     service.getPublicKey(
-                        CredentialId.fromByteArray("some-creds".encodeToByteArray()),
+                        CredentialId.fromByteArray("some-creds-long-enough".encodeToByteArray()),
                         Fido2CryptoService.COSE_ES256,
                     )
 

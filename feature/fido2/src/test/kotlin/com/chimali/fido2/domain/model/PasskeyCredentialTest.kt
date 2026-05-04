@@ -236,6 +236,103 @@ class PasskeyCredentialTest {
                     )
                 }
             }
+
+        @Test
+        fun `validate() should reject deprecated COSE_ED25519 (-19) and accept COSE_EDSA (-8)`() =
+            runTest {
+                // Testing rejection of -19 (deprecated)
+                assertFailsWith<IllegalArgumentException>(message = "Should reject COSE -19") {
+                    PasskeyCredential.create(
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
+                        userName = "testuser",
+                        userDisplayName = "Test User",
+                        publicKey = testPublicKey,
+                        privateKeyAlias = testPrivateKeyAlias,
+                        aaguid = testAaguid,
+                        credentialId = testCredentialId,
+                        coseAlgorithm = -19, // Current COSE_ED25519
+                    )
+                }
+
+                // Testing acceptance of -8 (new mandatory EdDSA)
+                PasskeyCredential.create(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("https://example.com"),
+                    userId = UserId("user123"),
+                    userName = "testuser",
+                    userDisplayName = "Test User",
+                    publicKey = testPublicKey,
+                    privateKeyAlias = testPrivateKeyAlias,
+                    aaguid = testAaguid,
+                    credentialId = testCredentialId,
+                    coseAlgorithm = -8, // New COSE_EDSA
+                )
+            }
+
+        @Test
+        fun `validate() enforces byte-level UTF-8 length limits for names`() =
+            runTest {
+                // T011: 64-byte ASCII displayName -> passes
+                PasskeyCredential.create(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("example.com"),
+                    userId = UserId("user123"),
+                    userName = "a".repeat(64),
+                    userDisplayName = "a".repeat(64),
+                    publicKey = testPublicKey,
+                    privateKeyAlias = testPrivateKeyAlias,
+                    aaguid = testAaguid,
+                    credentialId = testCredentialId,
+                )
+
+                // T011: 65-byte ASCII displayName -> fails
+                assertFailsWith<IllegalArgumentException> {
+                    PasskeyCredential.create(
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("example.com"),
+                        userId = UserId("user123"),
+                        userName = "a".repeat(65),
+                        userDisplayName = "Test User",
+                        publicKey = testPublicKey,
+                        privateKeyAlias = testPrivateKeyAlias,
+                        aaguid = testAaguid,
+                        credentialId = testCredentialId,
+                    )
+                }
+
+                // T011: Multi-byte UTF-8 validation
+                // '€' is 3 bytes in UTF-8
+                val string63 = "€".repeat(21) // 63 bytes
+                val string66 = "€".repeat(22) // 66 bytes
+
+                PasskeyCredential.create(
+                    id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                    rpId = RpId("example.com"),
+                    userId = UserId("user123"),
+                    userName = string63,
+                    userDisplayName = "Test User",
+                    publicKey = testPublicKey,
+                    privateKeyAlias = testPrivateKeyAlias,
+                    aaguid = testAaguid,
+                    credentialId = testCredentialId,
+                )
+
+                assertFailsWith<IllegalArgumentException> {
+                    PasskeyCredential.create(
+                        id = CredentialId.fromEncoded("dGVzdF9pZA"),
+                        rpId = RpId("example.com"),
+                        userId = UserId("user123"),
+                        userName = string66,
+                        userDisplayName = "Test User",
+                        publicKey = testPublicKey,
+                        privateKeyAlias = testPrivateKeyAlias,
+                        aaguid = testAaguid,
+                        credentialId = testCredentialId,
+                    )
+                }
+            }
     }
 
     @Nested

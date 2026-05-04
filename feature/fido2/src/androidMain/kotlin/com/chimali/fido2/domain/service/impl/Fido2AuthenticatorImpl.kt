@@ -76,7 +76,9 @@ class Fido2AuthenticatorImpl(
             aaguid = CHIMALI_AAGUID,
             // Also supports FIDO_2_0
             version = "U2F_V2",
-            supportedAlgorithms = listOf("ES256"),
+            // T021: supportedAlgorithms must reflect all COSE IDs accepted by algorithm negotiation
+            // per WebAuthn L3 §5.4. Order mirrors Ctap2MakeCredentialHandler preference list.
+            supportedAlgorithms = listOf("ES256", "EdDSA", "RS256", "ML-DSA"),
             supportedTransports = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE),
             supportsResidentKeys = true,
             supportsUserVerification = true,

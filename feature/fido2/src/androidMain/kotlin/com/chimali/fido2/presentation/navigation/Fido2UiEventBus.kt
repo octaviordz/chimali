@@ -46,8 +46,7 @@ sealed interface Fido2UiEvent {
     ) : Fido2UiEvent
 
     data class AuthenticationRequested(
-        val rpId: String,
-        // Returning credential ID or error
-        val deferred: CompletableDeferred<Outcome<String, DomainError>>,
+        val options: com.chimali.fido2.domain.model.GetAssertionOptions,
+        val deferred: CompletableDeferred<Outcome<com.chimali.fido2.domain.model.AssertionObject, DomainError>>,
     ) : Fido2UiEvent
 }

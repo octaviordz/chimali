@@ -81,6 +81,9 @@ data class AttestationObject(
         private const val FORMAT_ANDROID_SAFETYNET = "android-safetynet"
         private const val FORMAT_ANDROID_KEY = "android-key"
 
+        // T037: AttCA format — required for WebAuthn L3 full attestation compliance
+        private const val FORMAT_ATT_CA = "attCA"
+
         private val SUPPORTED_FORMATS =
             setOf(
                 FORMAT_PACKED,
@@ -88,6 +91,7 @@ data class AttestationObject(
                 FORMAT_NONE,
                 FORMAT_ANDROID_SAFETYNET,
                 FORMAT_ANDROID_KEY,
+                FORMAT_ATT_CA,
             )
 
         /**
@@ -121,7 +125,49 @@ data class AttestationObject(
                 clientData = clientData,
             )
         }
+
+        /**
+         * T037: Creates an AttCA (Attestation CA) attested object.
+         * Used for Basic and AttCA attestation types where a certificate chain is present.
+         */
+        fun createAttCa(
+            authData: AuthenticatorData,
+            attStmt: AttestationStatement,
+            clientData: ClientData,
+        ): AttestationObject {
+            return create(
+                fmt = FORMAT_ATT_CA,
+                authData = authData,
+                attStmt = attStmt,
+                clientData = clientData,
+            )
+        }
     }
+}
+
+/**
+ * T037: Attestation type classification per WebAuthn L3 §6.5.3.
+ *
+ * - [NONE]  — No attestation statement ("none" format). Privacy-preserving.
+ * - [SELF]  — Self attestation — authenticator signs with its own credential key.
+ * - [BASIC] — Basic attestation — authenticator has a batch attestation key.
+ * - [ATT_CA] — Attestation CA — intermediate CA certificate chain present.
+ */
+enum class AttestationType {
+    NONE,
+    SELF,
+    BASIC,
+    ATT_CA,
+    ;
+
+    /** Human-readable label for logging and UI. */
+    fun getLabel(): String =
+        when (this) {
+            NONE -> "No Attestation"
+            SELF -> "Self Attestation"
+            BASIC -> "Basic Attestation"
+            ATT_CA -> "Attestation CA"
+        }
 }
 
 /**

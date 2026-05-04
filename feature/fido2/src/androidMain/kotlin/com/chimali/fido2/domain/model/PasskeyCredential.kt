@@ -50,9 +50,11 @@ data class PasskeyCredential(
             "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
         }
         require(userId.value.length <= MAX_USER_ID_LENGTH) { "User ID cannot exceed $MAX_USER_ID_LENGTH bytes" }
-        require(userName.length <= MAX_NAME_LENGTH) { "User name cannot exceed $MAX_NAME_LENGTH bytes" }
-        require(userDisplayName.length <= MAX_DISPLAY_NAME_LENGTH) {
-            "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes"
+        require(userName.encodeToByteArray().size <= MAX_NAME_LENGTH) {
+            "User name cannot exceed $MAX_NAME_LENGTH bytes (UTF-8)"
+        }
+        require(userDisplayName.encodeToByteArray().size <= MAX_DISPLAY_NAME_LENGTH) {
+            "User display name cannot exceed $MAX_DISPLAY_NAME_LENGTH bytes (UTF-8)"
         }
         require(aaguid.size == AAGUID_LENGTH) { "AAGUID must be exactly $AAGUID_LENGTH bytes" }
         require(credentialId.isNotEmpty()) { "Credential ID cannot be empty" }
@@ -79,7 +81,7 @@ data class PasskeyCredential(
         // Validate COSE Algorithm
         require(
             coseAlgorithm == COSE_ES256 ||
-                coseAlgorithm == COSE_ED25519 ||
+                coseAlgorithm == COSE_EDSA ||
                 coseAlgorithm == COSE_ML_DSA_65 ||
                 coseAlgorithm == COSE_RS256,
         ) {
@@ -136,7 +138,7 @@ data class PasskeyCredential(
     companion object {
         // COSE algorithm IDs
         const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
-        const val COSE_ED25519 = -19 // EdDSA
+        const val COSE_EDSA = -8 // EdDSA / Ed25519, per WebAuthn L3 § 5.4
         const val COSE_RS256 = -257 // RSASSA-PKCS1-v1_5 with SHA-256 (WebAuthn §5.8.5)
 
         /** ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3). Working-draft COSE ID. */
