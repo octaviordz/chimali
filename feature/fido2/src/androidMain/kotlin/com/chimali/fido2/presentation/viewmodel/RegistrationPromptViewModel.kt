@@ -142,6 +142,7 @@ class RegistrationPromptViewModel(
                     Logger.d { "Ignoring incoming request — currently showing error to user" }
                     return@onEach
                 }
+                uiEventBus.clearRegistrationRequest()
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
             }
@@ -222,6 +223,7 @@ class RegistrationPromptViewModel(
 
     private fun cancelRegistration() {
         pendingDeferred?.complete(Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
+        uiEventBus.clearAll()
         pendingOptions = null
         pendingDeferred = null
         _state.value = RegistrationState.Cancelled
@@ -250,6 +252,7 @@ class RegistrationPromptViewModel(
                 // Complete transport's deferred only on success with the attestation object
                 pendingDeferred?.complete(Outcome.Success(makeResult))
 
+                uiEventBus.clearAll()
                 _state.value = RegistrationState.Success(credential)
 
                 // Hold the success screen for a moment so the user can read it before

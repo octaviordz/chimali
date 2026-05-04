@@ -37,6 +37,12 @@ class Fido2UiEventBus {
     fun clearAuthenticationRequest() {
         currentAuthenticationRequest = null
     }
+
+    /** Atomically clears both caches. Call after any ceremony is fully complete. */
+    fun clearAll() {
+        currentRegistrationRequest = null
+        currentAuthenticationRequest = null
+    }
 }
 
 sealed interface Fido2UiEvent {

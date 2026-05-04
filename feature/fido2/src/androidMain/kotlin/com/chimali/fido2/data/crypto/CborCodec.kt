@@ -65,10 +65,10 @@ class CborCodec {
 
         // CBOR Negative Int Helper (-7 -> 0x26)
         private const val NEG_INT_7 = 0x26
+        private const val NEG_INT_8 = 0x27
         private const val NEG_INT_1 = 0x20
         private const val NEG_INT_2 = 0x21
         private const val NEG_INT_3 = 0x22
-        private const val NEG_INT_19 = 0x32
         private const val NEG_INT_49_LEAD = 0x38
         private const val NEG_INT_49_TAIL = 0x30
 
@@ -208,7 +208,7 @@ class CborCodec {
     /**
      * Encodes an Ed25519 public key as a CBOR COSE_Key map.
      * kty(1) = 1 (OKP)
-     * alg(3) = -19 (Ed25519)
+     * alg(3) = -8 (EdDSA / Ed25519, per WebAuthn L3 §5.4)
      * crv(-1) = 6 (Ed25519)
      * x(-2) = publicKeyBytes (32 bytes)
      */
@@ -221,9 +221,9 @@ class CborCodec {
         out.write(COSE_KEY_KTY) // uint(1) - kty
         out.write(COSE_KTY_OKP) // uint(1) - OKP
 
-        // alg: 3 = -19
+        // alg: 3 = -8
         out.write(COSE_KEY_ALG) // uint(3) - alg
-        out.write(NEG_INT_19) // negative int -19 (0x20 | 18)
+        out.write(NEG_INT_8) // negative int -8 (0x20 | 7)
 
         // crv: -1 = 6 (Ed25519)
         out.write(NEG_INT_1) // negative int -1

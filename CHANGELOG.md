@@ -3,6 +3,41 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-04 (patch 6)
+
+### Fixed
+- **GetAssertion "No credentials found" after registration — Base64 padding mismatch**: `findCandidateSummaries` was comparing `allowCredentials` IDs from the CTAP2 wire (`CredentialId.fromByteArray` → no-padding `=`) against DB-stored IDs (`CredentialId.fromEncoded` → may carry trailing `=` from legacy storage paths) using `CredentialId.equals()` (exact `String` equality). Any padding difference produced a false-negative, causing 3 repeated "Credential not found" failures after registration until the host retried with a fresh CTAP2 channel. Fixed by normalizing both sides via `CredentialId.normalized` (strips trailing `=`) before comparison, using a `HashSet` for O(1) lookups.
+- **Spurious auth screen after registration completes — stale bus cache**: When webauthn.io sends a GetAssertion on a second CTAP2 channel *while* a MakeCredential is still being processed on the first, the bus stores both a `currentRegistrationRequest` and a `currentAuthenticationRequest`. After the registration ceremony completes and HomeScreen re-enters composition, its startup cache-check found the stale `currentAuthenticationRequest` and navigated to the auth screen unnecessarily. Fixed by calling `uiEventBus.clearAll()` (new method that atomically wipes both caches) on ceremony completion in both `RegistrationPromptViewModel` and `AuthenticationPromptViewModel` (success and cancel paths).
+
+## [Unreleased] - 2026-05-04 (patch 5)
+
+### Fixed
+- **FIDO2 Registration Freeze — `pendingDeferred` Was Null**: Reverted the erroneous consume-and-clear pattern introduced in patch 4 for `Fido2HomeViewModel.getPendingRegistration()` / `getPendingAuthentication()`. Those helpers now only read the cache; clearing is the responsibility of the respective `PromptViewModel` instances (already fixed in patch 4). The premature clear in HomeViewModel caused `RegistrationPromptViewModel` to find no event in the cache, leaving `pendingDeferred = null`, so confirming registration was a no-op and the CTAP2 keepalive loop ran until the foreground service was killed.
+- **FIDO2 Spurious "Sign In" Prompt During Registration — Dual `LaunchedEffect(Unit)` Race**: Two separate `LaunchedEffect(Unit)` blocks in `Fido2HomeScreen` ran simultaneously, each with an infinite `collect` loop. The second block (for `AuthenticationRequested`) was a permanent blocking collector independent of the first. On back-navigation recomposition, if `currentAuthenticationRequest` was not yet cleared, the second block re-triggered auth navigation concurrently with the first block checking for a pending registration. Fixed by merging both blocks into a single `LaunchedEffect(Unit)` that performs the one-time cache check first, then uses `coroutineScope { launch { } launch { } }` to run both live collectors in parallel under the same cancellation scope.
+
+## [Unreleased] - 2026-05-04 (patch 4)
+
+### Fixed
+- **FIDO2 Repeated UI Prompts — Stale Event Cache Not Cleared**: Fixed a bug where returning to `Fido2HomeScreen` after an authentication or registration ceremony caused a second (and third…) prompt to appear. The `Fido2UiEventBus.currentAuthenticationRequest` / `currentRegistrationRequest` fields were only cleared in the *cache path* of the ViewModel `init` block, but not in the *live SharedFlow path*. When the ViewModel received the event via the flow before the `?.let` cache check executed, `clearAuthenticationRequest()` was never called. On back-navigation, Compose recomposed `HomeScreen`, `LaunchedEffect(Unit)` re-ran, and `getPendingAuthentication()` returned the stale pointer — navigating to the auth screen again.
+    - Added `uiEventBus.clearAuthenticationRequest()` at the start of the `AuthenticationRequested` `onEach` handler in `AuthenticationPromptViewModel`.
+    - Added `uiEventBus.clearRegistrationRequest()` at the start of the `RegistrationRequested` `onEach` handler in `RegistrationPromptViewModel`.
+    - Changed `Fido2HomeViewModel.getPendingRegistration()` and `getPendingAuthentication()` to consume-and-clear atomically (via `.also { clear() }`), so even if the ViewModel hasn't been created yet, checking for a pending event from `HomeScreen` consumes it and prevents it from being re-triggered.
+
+## [Unreleased] - 2026-05-04 (patch 3)
+
+### Fixed
+- **FIDO2 Authentication UI Hang — Missing Navigation Route**: Fixed the root cause of the authentication ceremony stalling with no UI prompt. `AuthenticationPromptScreen` was fully implemented but was never wired into the navigation graph, so no route existed to navigate to it. The `Fido2UiEventBus` was correctly dispatching `AuthenticationRequested` events, but `Fido2HomeScreen` had no listener for them, leaving the HID transport waiting indefinitely for a `CompletableDeferred` that was never resolved, eventually causing process termination.
+    - Added `AUTHENTICATION_ROUTE = "fido2/authenticate"` to `Fido2Destinations`.
+    - Added a `composable(AUTHENTICATION_ROUTE)` entry in `Fido2RegistrationNavGraph`, symmetrically matching the existing `REGISTRATION_ROUTE` entry.
+    - Added `onAuthenticateRequest` callback param to `Fido2HomeScreen` and wired a `LaunchedEffect` that checks `getPendingAuthentication()` on start and collects live `AuthenticationRequested` events from the bus, navigating to `AUTHENTICATION_ROUTE` on receipt.
+    - Added `getPendingAuthentication()` helper to `Fido2HomeViewModel` to expose `Fido2UiEventBus.currentAuthenticationRequest` for the cached-event check.
+
+## [Unreleased] - 2026-05-04 (patch 2)
+
+### Fixed
+- **FIDO2 Authentication Regression — Allow-List Credential ID Mismatch**: Corrected a critical bug in `Ctap2GetAssertionHandler` where incoming allow-list credential IDs sent as Base64url strings were decoded via `String.toByteArray()` (UTF-8 encoding) instead of `CredentialId.fromEncoded()`. This produced a completely different byte sequence than the stored credential, causing the allow-list filter in `GetAssertionUseCase` to always return zero candidates, returning `CTAP2_ERR_NO_CREDENTIALS` to the RP on every authentication attempt after registration.
+- **FIDO2 Warmup Crash — `CredentialId` Minimum Length Violation**: Fixed `Fido2CryptoService.warmUpMasterSeed()` where the probe `CredentialId` was constructed from the 6-byte literal `"warmup"`, violating the 16-byte minimum enforced by `CredentialId.fromByteArray()`. The probe now uses a 17-byte string (`"warmup-chimali-v1"`) to satisfy the guard without triggering `IllegalArgumentException` during startup.
+
 ## [Unreleased] - 2026-05-04
 
 ### Added

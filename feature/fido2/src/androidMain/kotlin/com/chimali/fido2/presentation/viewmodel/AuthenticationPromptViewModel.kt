@@ -113,6 +113,7 @@ class AuthenticationPromptViewModel(
         uiEventBus.events
             .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
             .onEach { event ->
+                uiEventBus.clearAuthenticationRequest()
                 pendingDeferred = event.deferred
                 initAuthentication(event.options)
             }
@@ -200,6 +201,7 @@ class AuthenticationPromptViewModel(
 
     private fun cancel() {
         pendingDeferred?.complete(Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
+        uiEventBus.clearAll()
         pendingOptions = null
         pendingDeferred = null
         _state.value = AuthenticationState.Cancelled
@@ -222,6 +224,7 @@ class AuthenticationPromptViewModel(
                 is Outcome.Success -> {
                     val assertion = result.data
                     pendingDeferred?.complete(Outcome.Success(assertion))
+                    uiEventBus.clearAll()
                     _state.value = AuthenticationState.Success(assertion)
                     emit(AuthenticationEffect.NavigateToSuccess(assertion))
                     pendingOptions = null

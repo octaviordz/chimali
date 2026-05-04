@@ -218,21 +218,26 @@ class Ctap2GetAssertionHandler(
         ) { "clientDataHash must be $CLIENT_DATA_HASH_SIZE bytes, got ${clientDataHash.size}" }
 
         // Optional allow-list: array of PublicKeyCredentialDescriptor maps.
-        // credential ID is a byte string in CBOR → ByteArray, or legacy base64 String.
+        // Credential ID arrives as a CBOR byte-string (ByteArray) in real CTAP2.
+        // Legacy / test paths may send it as a Base64url-encoded String; in that
+        // case use CredentialId.fromEncoded() — NOT .toByteArray(), which would
+        // produce the UTF-8 bytes of the encoded string instead of the raw ID bytes.
         val allowListRaw = params[REQ_ALLOW_LIST] as? List<*>
         val allowCredentials =
             allowListRaw?.mapNotNull { descriptor ->
                 (descriptor as? Map<*, *>)?.let { map ->
-                    val idBytes: ByteArray =
+                    val credentialId: CredentialId? =
                         when (val rawId = map["id"]) {
-                            is ByteArray -> rawId
+                            // Standard CTAP2: credential ID is a raw byte-string.
+                            is ByteArray -> CredentialId.fromByteArray(rawId)
 
-                            is String -> rawId.toByteArray()
+                            // Legacy / test: credential ID is a Base64url string — decode
+                            // via fromEncoded() which is consistent with how the DB stores it.
+                            is String -> CredentialId.fromEncoded(rawId)
 
-                            // legacy / base64
                             else -> return@mapNotNull null
                         }
-                    PublicKeyCredentialDescriptor.create(id = CredentialId.fromByteArray(idBytes))
+                    credentialId?.let { PublicKeyCredentialDescriptor.create(id = it) }
                 }
             }
 

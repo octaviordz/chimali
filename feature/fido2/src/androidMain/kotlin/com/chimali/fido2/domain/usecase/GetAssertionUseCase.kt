@@ -157,9 +157,13 @@ class GetAssertionUseCase(
                 // Discoverable: any resident credential for this RP
                 all
             } else {
-                // Non-discoverable: filter to allow-listed credential IDs only
-                val allowIds = options.allowCredentials!!.map { it.id }
-                all.filter { summary -> allowIds.contains(summary.credentialId) }
+                // Non-discoverable: filter to allow-listed credential IDs only.
+                // Use normalized (no-padding) string comparison to guard against
+                // Base64url padding mismatches between wire-parsed IDs (ABSENT padding,
+                // via CredentialId.fromByteArray) and DB-stored IDs (which may carry
+                // trailing '=' from legacy storage paths via CredentialId.fromEncoded).
+                val allowNormalized = options.allowCredentials!!.map { it.id.normalized }.toHashSet()
+                all.filter { summary -> summary.credentialId.normalized in allowNormalized }
             }
 
         // FIDO2.1 credProtect enforcement:

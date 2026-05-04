@@ -8,6 +8,7 @@ object Fido2Destinations {
     const val HOME_ROUTE = "fido2/home"
     const val REGISTRATION_ROUTE = "fido2/register"
     const val REGISTRATION_SUCCESS_ROUTE = "fido2/register/success"
+    const val AUTHENTICATION_ROUTE = "fido2/authenticate"
     const val MANAGEMENT_ROUTE = "fido2/management"
     const val EDIT_PAIRED_DEVICE_ROUTE = "fido2/edit-host"
     const val DEVELOPMENT_ROUTE = "fido2/dev-tools"

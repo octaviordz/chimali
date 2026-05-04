@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chimali.core.common.result.map
+import com.chimali.fido2.presentation.ui.AuthenticationPromptScreen
 import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -65,6 +66,8 @@ private val bottomNavItems =
 fun Fido2RegistrationNavGraph(
     onRegistrationComplete: (credentialId: String) -> Unit,
     onRegistrationCancelled: () -> Unit,
+    onAuthenticationComplete: (credentialId: String) -> Unit = {},
+    onAuthenticationCancelled: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
     startDestination: String = Fido2Destinations.HOME_ROUTE,
     modifier: Modifier = Modifier,
@@ -120,6 +123,9 @@ fun Fido2RegistrationNavGraph(
                         onRegisterRequest = {
                             navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
                         },
+                        onAuthenticateRequest = {
+                            navController.navigate(Fido2Destinations.AUTHENTICATION_ROUTE)
+                        },
                         onEditDevice = { macAddress ->
                             navController.navigate("${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress")
                         },
@@ -140,6 +146,19 @@ fun Fido2RegistrationNavGraph(
                         onCancel = {
                             navController.popBackStack()
                             onRegistrationCancelled()
+                        },
+                    )
+                }
+
+                composable(Fido2Destinations.AUTHENTICATION_ROUTE) {
+                    AuthenticationPromptScreen(
+                        onSuccess = { credentialId ->
+                            navController.popBackStack()
+                            onAuthenticationComplete(credentialId)
+                        },
+                        onCancel = {
+                            navController.popBackStack()
+                            onAuthenticationCancelled()
                         },
                     )
                 }

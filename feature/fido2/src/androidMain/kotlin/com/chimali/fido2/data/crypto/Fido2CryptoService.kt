@@ -88,7 +88,7 @@ class Fido2CryptoService(
      * |------------|---------|----------------------|
      * | ES256      | -7      | **HDK-ECDH-P256** via                                              |
      * |            |         | [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
-     * | Ed25519    | -19     | **SHA-512 hash** — isolated branch; see note below |
+     * | Ed25519    | -8      | **SHA-512 hash** — isolated branch; see note below |
      * | ML-DSA-65  | -49     | **BIP-85 + SHA-512** — isolated PQ branch via [MasterSeedProvider.getPqChildSeed] |
      *
      * ### Ed25519 isolation note
@@ -336,7 +336,10 @@ class Fido2CryptoService(
             val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
 
             // warms MessageDigest.getInstance("SHA-256")
-            val warmupPath = derivationPath(CredentialId.fromByteArray("warmup".encodeToByteArray()))
+            // Use a 16-byte ID (minimum per CredentialId guard, FR-CRED-001) to avoid
+            // throwing IllegalArgumentException and aborting the warmup prematurely.
+            val warmupId = "warmup-chimali-v1".encodeToByteArray() // 17 bytes — satisfies ≥16 guard
+            val warmupPath = derivationPath(CredentialId.fromByteArray(warmupId))
 
             // real 2-level path derived same way as sign()
             val hdkResult =

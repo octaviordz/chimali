@@ -87,6 +87,8 @@ class Fido2HomeViewModel(
 
     fun getPendingRegistration(): Fido2UiEvent.RegistrationRequested? = uiEventBus.currentRegistrationRequest
 
+    fun getPendingAuthentication(): Fido2UiEvent.AuthenticationRequested? = uiEventBus.currentAuthenticationRequest
+
     companion object {
         private const val SUBSCRIBED_STOP_TIMEOUT_MS = 5000L
     }

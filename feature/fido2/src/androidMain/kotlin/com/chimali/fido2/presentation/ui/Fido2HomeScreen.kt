@@ -71,7 +71,9 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val DISCOVERABLE_DURATION_SECONDS = 120
@@ -98,6 +100,7 @@ private val COLOR_CONNECTED = Color(COLOR_CONNECTED_VAL)
 fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
     onRegisterRequest: () -> Unit,
+    onAuthenticateRequest: () -> Unit,
     onEditDevice: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: Fido2HomeViewModel = koinViewModel(),
@@ -108,21 +111,34 @@ fun Fido2HomeScreen(
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
 
     val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)
+    val updatedOnAuthenticateRequest by rememberUpdatedState(onAuthenticateRequest)
 
-    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth)
+    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth).
+    // Single LaunchedEffect so both live collectors share the same composable lifecycle.
     LaunchedEffect(Unit) {
-        // Check for any registration request that arrived while this screen was backgrounded
-        // or before it was created.
+        // One-time startup check: events that arrived before this screen entered composition.
         if (viewModel.getPendingRegistration() != null) {
             updatedOnRegisterRequest()
+        } else if (viewModel.getPendingAuthentication() != null) {
+            // Only check auth if there is no pending registration (registration takes priority
+            // when both arrive simultaneously, which shouldn't happen in practice).
+            updatedOnAuthenticateRequest()
         }
 
-        // Collect new incoming requests (replay is now 0 in the bus)
-        viewModel.uiEvents
-            .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
-            .collect {
-                updatedOnRegisterRequest()
+        // Launch both live collectors in parallel inside this scope so they are both
+        // cancelled together when the composable leaves composition.
+        coroutineScope {
+            launch {
+                viewModel.uiEvents
+                    .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
+                    .collect { updatedOnRegisterRequest() }
             }
+            launch {
+                viewModel.uiEvents
+                    .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
+                    .collect { updatedOnAuthenticateRequest() }
+            }
+        }
     }
 
     var showBluetoothError by remember { mutableStateOf(false) }
