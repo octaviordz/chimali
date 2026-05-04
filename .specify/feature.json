@@ -1,1 +1,3 @@
-﻿{"feature_directory": "specs/031-shared-domain-library"}
+{
+  "feature_directory": "specs/032-webauthn-l3-compliance"
+}

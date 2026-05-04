@@ -6,6 +6,7 @@
 This file contains links, tools, and research materials that are useful for the development of Chimali but are not direct business requirements.
 
 ## WebAuthn & FIDO2
+- **WebAuthn Level 3**: [Official W3C Recommendation](https://www.w3.org/TR/webauthn-3/) - The core specification for Web Authentication Level 3, defining the interface for creating and using public key-based credentials.
 - **Awesome WebAuthn**: [GitHub Repository](https://github.com/yackermann/awesome-webauthn) - A curated list of awesome WebAuthn resources, libraries, and tools.
 - **OpenSK**: [GitHub Repository](https://github.com/google/OpenSK) - Google's reference implementation of a FIDO2 authenticator written in Rust that supports CTAP 2.1.
 - **Trussed FIDO Authenticator (ctap2.rs)**: [Source File](https://github.com/trussed-dev/fido-authenticator/blob/main/src/ctap2.rs) - Reference implementation of CTAP2 command handlers and response builders within the Trussed framework.
