@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-06
+    
+### Added
+- **FIDO2 Stabilization & WebAuthn L3 Compliance**: Finalized the compliance remediation and UX stabilization for the FIDO2 module.
+    - **Ceremony Serialization**: Implemented `CeremonyLock` to prevent concurrent request storms and redundant UI prompts from multi-channel CTAP2 hosts.
+    - **Headless Fast-Path**: Optimized the authentication flow to automatically return assertions when exactly one credential matches and UV is not required.
+    - **Auto-Confirm UI**: Added auto-confirmation logic for UV=NONE scenarios, eliminating redundant "Sign in" clicks for un-enrolled devices.
+    - **WebAuthn L3 Hardening**: Enforced 16-byte minimum `CredentialId` length, standardized EdDSA algorithm negotiation, and implemented adaptive ceremony timeouts.
+    - **Security & Quality**: Implemented memory zeroing for PRF outputs and achieved a zero-failure state in the CI pipeline (Ktlint/Detekt).
+- **Detailed changes**: [2026-05-06-fido2-stabilization-and-l3-compliance.md](docs/changelogs/2026-05-06-fido2-stabilization-and-l3-compliance.md)
+
 ## [Unreleased] - 2026-05-04 (patch 6)
 
 ### Fixed
@@ -679,4 +690,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-05-04*
+*Last Updated: 2026-05-06*

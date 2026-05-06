@@ -8,6 +8,7 @@ import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import io.mockk.coEvery
@@ -38,6 +39,10 @@ class Ctap2WindowsCompatibilityTest {
             val mockHmacProcessor = mockk<HmacSecretProcessor>()
             val mockEventBus = mockk<Fido2UiEventBus>()
             val mockPrfDerivation = mockk<PrfKeyDerivation>()
+            val mockGetAssertionUseCase = mockk<GetAssertionUseCase>()
+
+            val mockLock = mockk<com.chimali.fido2.domain.service.CeremonyLock>(relaxed = true)
+            every { mockLock.tryLock() } returns true
 
             val handler =
                 Ctap2GetAssertionHandler(
@@ -46,12 +51,17 @@ class Ctap2WindowsCompatibilityTest {
                     prfKeyDerivation = mockPrfDerivation,
                     hidReportParser = realHidParser,
                     uiEventBus = mockEventBus,
+                    getAssertionUseCase = mockGetAssertionUseCase,
+                    ceremonyLock = mockLock,
                 )
 
             val testCid = byteArrayOf(0x01, 0x02, 0x03, 0x04)
             val dummyCredIdBytes = ByteArray(16) { 0x0A.toByte() }
             val rawAuthData = ByteArray(AUTH_DATA_SIZE_37) { 0xBB.toByte() }
             val rawSignature = ByteArray(SIG_SIZE_64) { 0xCC.toByte() }
+
+            // Fix for T052: mock candidate search to satisfy the new headless check in handle()
+            coEvery { mockGetAssertionUseCase.findCandidateSummaries(any()) } returns listOf(mockk())
 
             // Windows-style Base64 inputs
             val base64AuthData = Base64.getEncoder().encode(rawAuthData)
@@ -85,6 +95,7 @@ class Ctap2WindowsCompatibilityTest {
             // Mock HmacProcessor to pass through
             every { mockHmacProcessor.isPresent(any()) } returns false
             coEvery { mockHmacProcessor.process(any(), any()) } returns null
+            coEvery { mockGetAssertionUseCase(any()) } returns Outcome.Success(dummyAssertion)
 
             // Execute handler
             val realPackets = handler.handle(testCid, requestCbor)

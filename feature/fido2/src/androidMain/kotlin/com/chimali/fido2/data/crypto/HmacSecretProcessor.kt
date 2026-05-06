@@ -108,7 +108,12 @@ class HmacSecretProcessor(
             // Zeroise sensitive material
             credSecret.fill(0)
             salt1.fill(0)
-            if (saltEnc.size == SALT_SIZE * 2) saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2).fill(0)
+            if (saltEnc.size == SALT_SIZE * 2) {
+                // Zero the second half of the actual saltEnc or a copy if we made one
+                saltEnc.fill(0, SALT_SIZE, SALT_SIZE * 2)
+            }
+            // If we are in simplified mode (direct salt), we might want to avoid zeroing the caller's input
+            // unless the spec says so. But for security, we zero our local copies.
 
             Logger.d { "hmac-secret: computed output (${output.size} bytes) for credentialId=$credentialId" }
             output

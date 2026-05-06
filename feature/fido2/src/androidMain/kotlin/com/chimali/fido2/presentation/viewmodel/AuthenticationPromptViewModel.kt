@@ -113,6 +113,14 @@ class AuthenticationPromptViewModel(
         uiEventBus.events
             .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
             .onEach { event ->
+                // Guard: If we are already processing a ceremony or showing an error,
+                // do NOT let a background retry overwrite our current state/deferred.
+                if (_state.value !is AuthenticationState.Idle) {
+                    Logger.d {
+                        "Ignoring incoming AuthenticationRequested — current state: ${_state.value::class.simpleName}"
+                    }
+                    return@onEach
+                }
                 uiEventBus.clearAuthenticationRequest()
                 pendingDeferred = event.deferred
                 initAuthentication(event.options)
@@ -160,6 +168,19 @@ class AuthenticationPromptViewModel(
                     availableMethod = availability.getBestAvailableMethod(),
                     credentialCount = options.allowCredentials?.size ?: 0,
                 )
+
+            // Fix F — Fallback auto-confirm for UV=NONE capability.
+            // If the device has no biometric/PIN and UV is not strictly required,
+            // we auto-confirm to skip the redundant "Sign in" button click.
+            // Note: This only fires if we have 0 (discoverable) or 1 specific credential.
+            // If multiple credentials exist, we must still show SelectingCredential.
+            if (availability.getBestAvailableMethod() == VerificationMethod.NONE &&
+                options.userVerification != com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED &&
+                (options.allowCredentials?.size ?: 0) <= 1
+            ) {
+                Logger.d { "Auto-confirming authentication (UV capability: NONE)" }
+                confirmAuthentication()
+            }
         }
     }
 

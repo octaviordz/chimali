@@ -138,8 +138,12 @@ class RegistrationPromptViewModel(
             .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
             .onEach { event ->
                 Logger.d { "RegistrationRequested received via SharedFlow: rpId=${event.options.rp.id}" }
-                if (_state.value is RegistrationState.Error) {
-                    Logger.d { "Ignoring incoming request — currently showing error to user" }
+                // Guard: If we are already processing a ceremony or showing an error,
+                // do NOT let a background retry overwrite our current state/deferred.
+                if (_state.value !is RegistrationState.Idle) {
+                    Logger.d {
+                        "Ignoring incoming RegistrationRequested — current state: ${_state.value::class.simpleName}"
+                    }
                     return@onEach
                 }
                 uiEventBus.clearRegistrationRequest()
@@ -190,6 +194,17 @@ class RegistrationPromptViewModel(
                     userDisplayName = options.user.displayName.ifEmpty { options.user.name },
                     availableMethod = availability.getBestAvailableMethod(),
                 )
+
+            // Fix F — Fallback auto-confirm for UV=NONE capability.
+            // If the device has no biometric/PIN and UV is not strictly required,
+            // we auto-confirm to skip the redundant "Create Passkey" button click.
+            if (availability.getBestAvailableMethod() == VerificationMethod.NONE &&
+                options.authenticatorSelection?.userVerification !=
+                com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED
+            ) {
+                Logger.d { "Auto-confirming registration (UV capability: NONE)" }
+                confirmRegistration()
+            }
         }
     }
 

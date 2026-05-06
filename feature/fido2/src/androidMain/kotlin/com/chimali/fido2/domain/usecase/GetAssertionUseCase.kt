@@ -146,7 +146,11 @@ class GetAssertionUseCase(
         return Outcome.Success(Unit)
     }
 
-    private suspend fun findCandidateSummaries(options: GetAssertionOptions): List<CredentialSummary> {
+    /**
+     * T052: Finds candidate credentials for the given options.
+     * Exposed for headless fast-path detection in [Ctap2GetAssertionHandler].
+     */
+    suspend fun findCandidateSummaries(options: GetAssertionOptions): List<CredentialSummary> {
         val all =
             credentialRepository
                 .getCredentialSummariesForRp(options.rpId)

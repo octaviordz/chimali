@@ -41,9 +41,16 @@ This document specifies the engineering requirements and necessary updates for t
 * **CTAP2 Extension Support:** Implemented support for the `hmac-secret` CTAP2 extension to securely process PRF requests within the logical security boundary.
 * **Deterministic Outputs:** Outputs deterministic HMAC-SHA-256 derived bits (up to 32 bytes) through the `AuthenticationExtensionsAuthenticatorOutputs` map within the authenticator data.
 
+### 2.7 Ceremony Stabilization and UX Optimization
+* **Status: RESOLVED**
+* **Ceremony Serialization:** Implemented `CeremonyLock` to ensure atomic execution of FIDO2 ceremonies. This prevents concurrent request storms from "noisy" hosts (e.g., Windows 11) that previously caused redundant UI prompts.
+* **Headless Fast-Path:** Enabled "headless" authentication when exactly one credential matches and user verification is not strictly required, reducing user friction while maintaining security policy compliance.
+* **Auto-Confirm fallback:** Implemented auto-confirmation for non-biometric/PIN devices in UV=NONE scenarios, eliminating redundant "Sign in" clicks.
+
 ## 3. Implementation Plan Status
 1. **Core Cryptography:** **COMPLETE** — Updated credential generation, COSE algorithm preference lists, and PRF extension logic.
 2. **Validation and Constraints:** **COMPLETE** — Implemented strict bounds checking and enforced minimum entropy.
 3. **UI and Accessibility:** **COMPLETE** — Updated string truncation and implemented dynamic, accessible timeouts.
-4. **Testing:** **COMPLETE** — All unit and integration tests (including PRF and L3 compliance vectors) passing via local CI pipeline.
+4. **Stabilization & UX:** **COMPLETE** — Implemented `CeremonyLock` and headless fast-path to eliminate redundant prompts.
+5. **Testing:** **COMPLETE** — All unit and integration tests (including PRF and L3 compliance vectors) passing via local CI pipeline.
 

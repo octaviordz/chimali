@@ -15,10 +15,10 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
-import kotlinx.coroutines.sync.Mutex
 import org.koin.core.annotation.Single
 
 /**
@@ -45,13 +45,9 @@ class Ctap2GetAssertionHandler(
     private val prfKeyDerivation: PrfKeyDerivation,
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus,
+    private val getAssertionUseCase: GetAssertionUseCase,
+    private val ceremonyLock: CeremonyLock,
 ) {
-    // Fix A — Serialize concurrent GetAssertion requests.
-    // Only one ceremony can be in-flight at a time. If the CTAP2 host retries while
-    // biometric is showing, it receives CTAP1_ERR_CHANNEL_BUSY (0x06) immediately
-    // instead of creating orphaned CompletableDeferreds that drive a retry storm.
-    private val assertionLock = Mutex()
-
     companion object {
         // CTAP2 Request Keys (§6.2)
         private const val REQ_RP_ID = "1"
@@ -116,9 +112,9 @@ class Ctap2GetAssertionHandler(
         cid: ByteArray,
         requestBytes: ByteArray,
     ): List<ByteArray> {
-        // Fix A: Reject concurrent requests immediately.
-        if (!assertionLock.tryLock()) {
-            Logger.w { "GetAssertion: ceremony already in progress — returning CHANNEL_BUSY" }
+        // Fix A: Reject concurrent requests immediately across ALL ceremonies (Assertion or Registration).
+        if (!ceremonyLock.tryLock()) {
+            Logger.w { "GetAssertion: Authenticator is busy with another ceremony — returning CHANNEL_BUSY" }
             return hidReportParser.encodeResponse(
                 com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_CHANNEL_BUSY)),
             )
@@ -131,23 +127,40 @@ class Ctap2GetAssertionHandler(
                     "allowCredentials=${options.allowCredentials?.size ?: "discoverable"}"
             }
 
-            val deferred = kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>()
-            uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(options, deferred))
+            val candidates = getAssertionUseCase.findCandidateSummaries(options)
+            if (candidates.isEmpty()) {
+                Logger.d { "GetAssertion: no matching credentials found — returning NO_CREDENTIALS" }
+                return hidReportParser.encodeResponse(
+                    com.chimali.fido2.bluetooth.CtapHidMessage(
+                        cid,
+                        CTAP_CMD_CBOR,
+                        byteArrayOf(CTAP2_ERR_NO_CREDENTIALS),
+                    ),
+                )
+            }
 
             val assertionResult =
-                try {
-                    kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
-                        deferred.await()
+                if (shouldGoHeadless(options, candidates)) {
+                    Logger.d { "GetAssertion: executing headless fast-path (candidates=${candidates.size})" }
+                    getAssertionUseCase(options)
+                } else {
+                    val deferred = kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>()
+                    uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(options, deferred))
+
+                    try {
+                        kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
+                            deferred.await()
+                        }
+                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                        Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
+                        return hidReportParser.encodeResponse(
+                            com.chimali.fido2.bluetooth.CtapHidMessage(
+                                cid,
+                                CTAP_CMD_CBOR,
+                                byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
+                            ),
+                        )
                     }
-                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                    Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
-                    return hidReportParser.encodeResponse(
-                        com.chimali.fido2.bluetooth.CtapHidMessage(
-                            cid,
-                            CTAP_CMD_CBOR,
-                            byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
-                        ),
-                    )
                 }
 
             when (assertionResult) {
@@ -202,8 +215,22 @@ class Ctap2GetAssertionHandler(
                 com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
             )
         } finally {
-            assertionLock.unlock()
+            ceremonyLock.unlock()
         }
+    }
+
+    /**
+     * T052: Determines if the ceremony can proceed without user interaction.
+     * Fast-path criteria:
+     * 1. uv is PREFERRED (or DISCOURAGED) — host doesn't REQUIRE biometric/PIN.
+     * 2. Exactly one local credential matches the RP ID and allowList.
+     */
+    private fun shouldGoHeadless(
+        options: GetAssertionOptions,
+        candidates: List<com.chimali.core.domain.model.CredentialSummary>,
+    ): Boolean {
+        return options.userVerification != UserVerificationRequirement.REQUIRED &&
+            candidates.size == 1
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────

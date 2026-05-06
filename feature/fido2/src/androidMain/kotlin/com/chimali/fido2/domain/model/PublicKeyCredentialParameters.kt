@@ -8,6 +8,7 @@ data class PublicKeyCredentialParameters(
     val type: PublicKeyCredentialType,
     val algorithm: String,
     val curve: String?,
+    val keyType: String?,
     val salt: ByteArray?,
 ) {
     init {
@@ -28,10 +29,16 @@ data class PublicKeyCredentialParameters(
             "Algorithm must be one of: ES256, RS256, EdDSA, ML-DSA"
         }
 
-        // Validate curve if present
         curve?.let { curveValue ->
             require(curveValue in setOf("P-256", "P-384", "P-521", "Ed25519", "Ed448")) {
                 "Curve must be one of: P-256, P-384, P-521, Ed25519, Ed448"
+            }
+        }
+
+        // Validate keyType if present
+        keyType?.let { kty ->
+            require(kty in setOf("EC2", "OKP", "RSA")) {
+                "Key type must be one of: EC2, OKP, RSA"
             }
         }
 
@@ -96,12 +103,14 @@ data class PublicKeyCredentialParameters(
             type: PublicKeyCredentialType = PublicKeyCredentialType.PUBLIC_KEY,
             algorithm: String = "ES256",
             curve: String? = "P-256",
+            keyType: String? = "EC2",
             salt: ByteArray? = null,
         ): PublicKeyCredentialParameters {
             return PublicKeyCredentialParameters(
                 type = type,
                 algorithm = algorithm,
                 curve = curve,
+                keyType = keyType,
                 salt = salt,
             )
         }
@@ -110,10 +119,19 @@ data class PublicKeyCredentialParameters(
          * Creates parameters for ES256 with P-256 curve.
          */
         fun createES256P256(): PublicKeyCredentialParameters {
+            return createEs256()
+        }
+
+        /**
+         * T018a: Creates parameters for ES256 with explicit P-256 curve and EC2 key type.
+         * Fulfills FR-FIDO2-006.
+         */
+        fun createEs256(): PublicKeyCredentialParameters {
             return create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "ES256",
                 curve = "P-256",
+                keyType = "EC2",
             )
         }
 
@@ -125,6 +143,7 @@ data class PublicKeyCredentialParameters(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "RS256",
                 curve = null,
+                keyType = "RSA",
             )
         }
 
@@ -136,6 +155,7 @@ data class PublicKeyCredentialParameters(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "EdDSA",
                 curve = "Ed25519",
+                keyType = "OKP",
             )
         }
 

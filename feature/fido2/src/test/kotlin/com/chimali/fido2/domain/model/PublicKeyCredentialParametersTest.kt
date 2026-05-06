@@ -71,4 +71,15 @@ class PublicKeyCredentialParametersTest {
         assertEquals("ES256", params.algorithm)
         assertEquals("P-256", params.curve)
     }
+
+    /**
+     * T017a — Verify ES256 explicit parameters per WebAuthn L3 / FR-FIDO2-006.
+     */
+    @Test
+    fun `createEs256 returns explicit P-256 and EC2 parameters`() {
+        val params = PublicKeyCredentialParameters.createEs256()
+        assertEquals("ES256", params.algorithm, "Algorithm must be ES256")
+        assertEquals("P-256", params.curve, "ES256 must use P-256 curve (FR-FIDO2-006)")
+        assertEquals("EC2", params.keyType, "ES256 must use EC2 key type (FR-FIDO2-006)")
+    }
 }

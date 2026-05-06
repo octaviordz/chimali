@@ -450,6 +450,7 @@ data class AttestationStatement(
                 "none",
                 "android-safetynet",
                 "android-key",
+                "attCA",
             )
 
         // ML-DSA-65 signatures are 3309 bytes; 4096 covers all current PQC schemes

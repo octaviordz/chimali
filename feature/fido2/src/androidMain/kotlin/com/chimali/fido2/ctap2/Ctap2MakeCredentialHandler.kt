@@ -21,6 +21,7 @@ import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.LatencyProfiler
@@ -43,6 +44,7 @@ class Ctap2MakeCredentialHandler(
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus,
     private val prfKeyDerivation: PrfKeyDerivation,
+    private val ceremonyLock: CeremonyLock,
 ) {
     companion object {
         // CTAPHID command codes
@@ -60,6 +62,7 @@ class Ctap2MakeCredentialHandler(
         private const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
         private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
         private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
+        private const val CTAP2_ERR_CHANNEL_BUSY: Byte = 0x06.toByte()
 
         // COSE algorithm IDs (accepted)
         private const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
@@ -115,8 +118,14 @@ class Ctap2MakeCredentialHandler(
             return errorPackets(cid, CTAP2_ERR_INVALID_CBOR)
         }
 
-        val cborData = payload.drop(1).toByteArray()
+        // Fix A: Reject concurrent requests immediately across ALL ceremonies.
+        if (!ceremonyLock.tryLock()) {
+            Logger.w { "MakeCredential: Authenticator is busy with another ceremony — returning CHANNEL_BUSY" }
+            return errorPackets(cid, CTAP2_ERR_CHANNEL_BUSY)
+        }
+
         return try {
+            val cborData = payload.drop(1).toByteArray()
             val params = decodeMakeCredentialRequest(cborData)
             handleMakeCredential(cid, params)
         } catch (e: Fido2Exception) {
@@ -125,6 +134,8 @@ class Ctap2MakeCredentialHandler(
         } catch (e: IllegalArgumentException) {
             Logger.e(e) { "Unexpected illegal argument in MakeCredential" }
             errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
+        } finally {
+            ceremonyLock.unlock()
         }
     }
 

@@ -84,6 +84,16 @@ data class PrfExtensionOutput(
             output2?.let { put(2, it) }
         }
 
+    /**
+     * T043a — Explicitly zero out the output buffers after use.
+     * Call this when the result is no longer needed to prevent sensitive
+     * key material from lingering in memory (Constitution §I).
+     */
+    fun clear() {
+        output1.fill(0)
+        output2?.fill(0)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is PrfExtensionOutput) return false
