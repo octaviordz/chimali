@@ -231,11 +231,19 @@ class AuthenticationPromptViewModel(
                     pendingDeferred = null
                 }
                 is Outcome.Error -> {
+                    // Fix B — Null deferred + navigate back on error so the retry storm stops.
+                    // Previously: pendingDeferred was completed but NOT nulled, and NavigateBack
+                    // was never emitted.  The screen stayed open, the CTAP2 host retried,
+                    // the next AuthenticationRequested overwrote pendingDeferred, and a new
+                    // biometric prompt appeared.  Repeat until auto-select fired on attempt 5+.
                     val error = result.error
                     pendingDeferred?.complete(result)
+                    pendingDeferred = null
+                    pendingOptions = null
                     Logger.e(error.cause) { "Authentication process failed: ${error.message}" }
                     val ui = Fido2ErrorHandler.handle(error)
                     _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
+                    viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
                 }
             }
         }

@@ -136,7 +136,19 @@ fun Fido2HomeScreen(
             launch {
                 viewModel.uiEvents
                     .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
-                    .collect { updatedOnAuthenticateRequest() }
+                    .collect {
+                        // Fix D — Guard against navigating to auth while registration is active.
+                        // webauthn.io and some other RPs send a concurrent GetAssertion on a
+                        // second CTAP2 channel while MakeCredential is still in progress.
+                        // Registration takes priority: if a registration is already pending,
+                        // skip the auth navigation entirely (the CTAP2 handler will time out
+                        // or return CHANNEL_BUSY via the Mutex guard in Fix A).
+                        if (viewModel.getPendingRegistration() == null) {
+                            updatedOnAuthenticateRequest()
+                        } else {
+                            Logger.w { "Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active" }
+                        }
+                    }
             }
         }
     }

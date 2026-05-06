@@ -18,6 +18,7 @@ import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import kotlinx.coroutines.sync.Mutex
 import org.koin.core.annotation.Single
 
 /**
@@ -45,6 +46,12 @@ class Ctap2GetAssertionHandler(
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus,
 ) {
+    // Fix A — Serialize concurrent GetAssertion requests.
+    // Only one ceremony can be in-flight at a time. If the CTAP2 host retries while
+    // biometric is showing, it receives CTAP1_ERR_CHANNEL_BUSY (0x06) immediately
+    // instead of creating orphaned CompletableDeferreds that drive a retry storm.
+    private val assertionLock = Mutex()
+
     companion object {
         // CTAP2 Request Keys (§6.2)
         private const val REQ_RP_ID = "1"
@@ -66,6 +73,7 @@ class Ctap2GetAssertionHandler(
         private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x29
         private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E
         private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
+        private const val CTAP1_ERR_CHANNEL_BUSY: Byte = 0x06 // Returned when a ceremony is already in progress
         private const val CTAP1_ERR_OTHER: Byte = 0x7F.toByte()
 
         // Commands
@@ -107,8 +115,15 @@ class Ctap2GetAssertionHandler(
     suspend fun handle(
         cid: ByteArray,
         requestBytes: ByteArray,
-    ): List<ByteArray> =
-        try {
+    ): List<ByteArray> {
+        // Fix A: Reject concurrent requests immediately.
+        if (!assertionLock.tryLock()) {
+            Logger.w { "GetAssertion: ceremony already in progress — returning CHANNEL_BUSY" }
+            return hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_CHANNEL_BUSY)),
+            )
+        }
+        return try {
             val params = cborCodec.decodeFromFido2Format(requestBytes)
             val options = decodeOptions(params)
             Logger.d {
@@ -186,7 +201,10 @@ class Ctap2GetAssertionHandler(
             hidReportParser.encodeResponse(
                 com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
             )
+        } finally {
+            assertionLock.unlock()
         }
+    }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
 

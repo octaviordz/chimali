@@ -126,83 +126,52 @@ The `clearAll()` fix (patch 6) addresses this — but only on ceremony completio
 
 ---
 
-## 6. Fix Plan for Next Session
+## 5a. What Session cf726c10 Fixed
 
-### Fix A — High Priority: Serialize GetAssertion in CTAP2 handler
-
-**File:** `Ctap2GetAssertionHandler.kt`
-
-Add a `Mutex` or `AtomicBoolean` guard. If a GetAssertion is already in progress (deferred pending), return `CTAP1_ERR_CHANNEL_BUSY` immediately to the host. The host will retry after the current request completes. This eliminates multiple concurrent deferreds entirely.
-
-```kotlin
-private val assertionLock = Mutex()
-
-suspend fun handle(cid, requestBytes): List<ByteArray> {
-    if (!assertionLock.tryLock()) {
-        return hidReportParser.encodeResponse(
-            CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_CHANNEL_BUSY))
-        )
-    }
-    try {
-        // ... existing logic
-    } finally {
-        assertionLock.unlock()
-    }
-}
-```
-
-> Check if `CTAP1_ERR_CHANNEL_BUSY` (`0x06`) is already defined in the constants. Alternatively, use `CTAP2_ERR_OPERATION_DENIED`.
-
-### Fix B — High Priority: Navigate back on error in AuthenticationPromptViewModel
-
-**File:** `AuthenticationPromptViewModel.kt` lines 233–239
-
-After completing the deferred with an error, emit `NavigateBack` and null out `pendingDeferred`/`pendingOptions`. This stops the retry loop by returning to the HomeScreen after each failure, rather than keeping the auth screen open waiting for the next retry.
-
-```kotlin
-is Outcome.Error -> {
-    val error = result.error
-    pendingDeferred?.complete(result)
-    pendingDeferred = null
-    pendingOptions = null
-    Logger.e(error.cause) { "Authentication process failed: ${error.message}" }
-    val ui = Fido2ErrorHandler.handle(error)
-    if (ui.isRetryable) {
-        _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
-    } else {
-        _state.value = AuthenticationState.Cancelled
-        viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
-    }
-}
-```
-
-### Fix C — Medium Priority: Replace `tryEmit()` with buffered channel or `extraBufferCapacity` increase
-
-**File:** `Fido2UiEventBus.kt` line 19
-
-Change `extraBufferCapacity = 1` to `extraBufferCapacity = 4` to avoid silent drops under rapid retries. Log dropped events:
-
-```kotlin
-if (!_events.tryEmit(event)) {
-    Logger.w { "[EventBus] Event dropped (buffer full): ${event::class.simpleName}" }
-}
-```
-
-### Fix D — Low Priority: Guard HomeScreen from auth navigation during active registration
-
-**File:** `Fido2HomeScreen.kt` or `Fido2RegistrationNavGraph.kt`
-
-In the `LaunchedEffect` that navigates to auth on `AuthenticationRequested`, check `currentRoute != REGISTRATION_ROUTE && currentRoute != AUTHENTICATION_ROUTE` before calling `onAuthenticateRequest()`.
+| Fix | Status | File | Effect |
+|---|---|---|---|
+| Fix A — Mutex guard in GetAssertion handler | **APPLIED** | `Ctap2GetAssertionHandler.kt` | Concurrent host retries now get `CTAP1_ERR_CHANNEL_BUSY (0x06)` immediately; zero orphaned deferreds possible |
+| Fix B — Null deferred + `NavigateBack` on error | **APPLIED** | `AuthenticationPromptViewModel.kt` | Auth screen navigates back on failure; retry storm terminated at the source |
+| Fix C — Buffer 1→4 + drop logging | **APPLIED** | `Fido2UiEventBus.kt` | Silent event drops visible in logcat; extra headroom if Mutex is briefly locked |
+| Fix D — Guard auth nav during registration | **APPLIED** | `Fido2HomeScreen.kt` | Concurrent GetAssertion during MakeCredential no longer shows "Sign in" prompt |
 
 ---
 
-## 7. Files to Touch in Next Session
+## 6. Fix Plan — COMPLETED
+
+### Fix A ✅ — Serialize GetAssertion in CTAP2 handler
+
+**File:** `Ctap2GetAssertionHandler.kt`
+
+Added a `Mutex` instance property. `handle()` calls `assertionLock.tryLock()` at entry; if it returns `false` (lock held), `CTAP1_ERR_CHANNEL_BUSY` is returned immediately. The `finally` block calls `assertionLock.unlock()` in all exit paths.
+
+### Fix B ✅ — Navigate back on error in AuthenticationPromptViewModel
+
+**File:** `AuthenticationPromptViewModel.kt`
+
+In the `Outcome.Error` branch of `performAuthentication()`: `pendingDeferred` is nulled, `pendingOptions` is nulled, and `NavigateBack` is emitted.
+
+### Fix C ✅ — Buffered channel increase + drop logging
+
+**File:** `Fido2UiEventBus.kt`
+
+`extraBufferCapacity` changed from `1` to `4`. `tryEmit()` result is now checked; a `Logger.w` warning is emitted if an event is dropped.
+
+### Fix D ✅ — Guard HomeScreen from auth navigation during active registration
+
+**File:** `Fido2HomeScreen.kt`
+
+The `AuthenticationRequested` live collector now checks `viewModel.getPendingRegistration() == null` before calling `updatedOnAuthenticateRequest()`. If registration is pending, the auth navigation is skipped with a `Logger.w`.
+
+---
+
+## 7. Files Touched — Session cf726c10
 
 | File | Change |
 |---|---|
-| `Ctap2GetAssertionHandler.kt` | Add Mutex guard (Fix A) |
-| `AuthenticationPromptViewModel.kt` | Null deferred on error + NavigateBack (Fix B) |
-| `Fido2UiEventBus.kt` | Increase buffer, log drops (Fix C) |
+| `Ctap2GetAssertionHandler.kt` | Add `Mutex` guard (Fix A) |
+| `AuthenticationPromptViewModel.kt` | Null deferred on error + `NavigateBack` (Fix B) |
+| `Fido2UiEventBus.kt` | Buffer 1→4, log drops (Fix C) |
 | `Fido2HomeScreen.kt` | Guard auth nav during active ceremonies (Fix D) |
 
 ---
@@ -211,15 +180,25 @@ In the `LaunchedEffect` that navigates to auth on `AuthenticationRequested`, che
 
 - **Build command:** `.\gradlew :app:installDebug` (not just `bundleAndroidMainClassesToCompileJar`)
 - **Verify patch 6 normalization fix is deployed** by checking logcat for `findCandidateSummaries` debug output (add a temporary log of the normalized IDs being compared)
-- **Test sequence:** Registration → observe if auth prompt appears → Authentication × 3 → confirm single prompt + success on first attempt
+- **Test sequence:** Registration → observe if auth prompt appears (should NOT with Fix D) → Authentication × 3 → confirm single prompt + success on first attempt (should succeed with Fixes A+B)
+- **Logcat signals to confirm:**
+  - `"GetAssertion: ceremony already in progress — returning CHANNEL_BUSY"` → Fix A working
+  - `"[EventBus] Event dropped (buffer full)"` should NOT appear during normal flow → Fix C buffer sufficient
+  - Auth screen closes and returns to Home on first failure → Fix B working
+  - `"Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active"` → Fix D working
 
 ---
 
-## 9. Patch History This Session
+## 9. Patch History
 
-| Patch | File | Change |
-|---|---|---|
-| 6a | `GetAssertionUseCase.kt` | Normalized Base64 allow-list comparison |
-| 6b | `Fido2UiEventBus.kt` | Added `clearAll()` |
-| 6c | `AuthenticationPromptViewModel.kt` | `clearAll()` on success + cancel |
-| 6d | `RegistrationPromptViewModel.kt` | `clearAll()` on success + cancel |
+| Patch | Session | File | Change |
+|---|---|---|---|
+| 6a | 33c16f65 | `GetAssertionUseCase.kt` | Normalized Base64 allow-list comparison |
+| 6b | 33c16f65 | `Fido2UiEventBus.kt` | Added `clearAll()` |
+| 6c | 33c16f65 | `AuthenticationPromptViewModel.kt` | `clearAll()` on success + cancel |
+| 6d | 33c16f65 | `RegistrationPromptViewModel.kt` | `clearAll()` on success + cancel |
+| 7a | cf726c10 | `Ctap2GetAssertionHandler.kt` | Mutex guard — Fix A |
+| 7b | cf726c10 | `AuthenticationPromptViewModel.kt` | Null deferred + NavigateBack on error — Fix B |
+| 7c | cf726c10 | `Fido2UiEventBus.kt` | Buffer 1→4 + drop logging — Fix C |
+| 7d | cf726c10 | `Fido2HomeScreen.kt` | Guard auth nav during registration — Fix D |
+

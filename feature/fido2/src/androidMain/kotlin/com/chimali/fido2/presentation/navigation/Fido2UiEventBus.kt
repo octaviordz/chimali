@@ -16,7 +16,9 @@ import org.koin.core.annotation.Single
  */
 @Single
 class Fido2UiEventBus {
-    private val _events = MutableSharedFlow<Fido2UiEvent>(replay = 0, extraBufferCapacity = 1)
+    // Fix C: Increased buffer from 1 → 4 so rapid CTAP2 retries from the host don't silently drop
+    // events while the first deferred is still in-flight. Log dropped events for diagnosability.
+    private val _events = MutableSharedFlow<Fido2UiEvent>(replay = 0, extraBufferCapacity = 4)
     val events: SharedFlow<Fido2UiEvent> = _events.asSharedFlow()
 
     var currentRegistrationRequest: Fido2UiEvent.RegistrationRequested? = null
@@ -27,7 +29,9 @@ class Fido2UiEventBus {
             is Fido2UiEvent.RegistrationRequested -> currentRegistrationRequest = event
             is Fido2UiEvent.AuthenticationRequested -> currentAuthenticationRequest = event
         }
-        _events.tryEmit(event)
+        if (!_events.tryEmit(event)) {
+            co.touchlab.kermit.Logger.w { "[EventBus] Event dropped (buffer full): ${event::class.simpleName}" }
+        }
     }
 
     fun clearRegistrationRequest() {
