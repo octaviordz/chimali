@@ -82,10 +82,12 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 - [x] T016 [P] [US3] Add unit tests for `Ctap2MakeCredentialHandler` algorithm negotiation — verify `-8` is accepted, `-19`/`-9`/`-51`/`-52` are rejected, `-7`/`-257`/`-49` are accepted — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandlerTest.kt`
 - [x] T017 [P] [US3] Add unit tests for `PublicKeyCredentialParameters.createEdDsa()` factory — verify `algorithm == "EdDSA"` and `curve == "Ed25519"` — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParametersTest.kt`
+- [ ] T017a [P] [US3] Add unit tests for `PublicKeyCredentialParameters.createEs256()` factory — verify `algorithm == "ES256"`, `curve == "P-256"`, and `keyType == "EC2"` — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParametersTest.kt`
 
 ### Implementation for User Story 3
 
 - [x] T018 [US3] Rename `createEd25519()` to `createEdDsa()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialParameters.kt` and update all call sites
+- [ ] T018a [US3] Update `createEs256()` in `PublicKeyCredentialParameters.kt` to ensure it explicitly specifies the P-256 curve and EC2 key type.
 - [x] T019 [US3] Update algorithm negotiation in `Ctap2MakeCredentialHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt`) to add `COSE_RS256 (-257)` to the `when` block and explicitly handle `-9`, `-19`, `-51`, `-52` as `null` (rejected) with a log warning
 - [x] T020 [US3] Verify `Ctap2GetAssertionHandler.kt` (`feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt`) also rejects `-9`, `-19`, `-51`, `-52` in its algorithm-matching logic
 - [x] T021 [US3] Update `Fido2AuthenticatorImpl` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2AuthenticatorImpl.kt` to include `"EdDSA"` (COSE `-8`) in the `supportedAlgorithms` list returned by `getAuthenticatorInfo()`
@@ -169,12 +171,14 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 - [x] T039 [P] [US5] Add unit tests for `PrfExtensionInput` validation — empty list throws, single salt passes, two salts pass, three salts throw — in `feature/fido2/src/test/kotlin/com/chimali/fido2/domain/model/PrfExtensionInputTest.kt`
 - [x] T040 [P] [US5] Add unit tests for `PrfKeyDerivation.derive()` — output is exactly 32 bytes, deterministic (same input → same output), empty salt throws — in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivationTest.kt`
+- [ ] T040a [P] [US5] Add unit tests for `PrfKeyDerivation` verifying that sensitive byte arrays are explicitly zeroed out after use (Constitution §I).
 - [x] T041 [P] [US5] Add integration tests for CTAP2 `hmac-secret` extension parsing in `Ctap2GetAssertionHandler` — verify output CBOR map contains keys 1 and 2 when two salts provided — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`
 
 ### Implementation for User Story 5
 
 - [x] T042 [US5] Create `PrfExtensionInput` and `PrfExtensionOutput` data classes in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PrfExtensionInput.kt` with validation (salts: 1–2, non-empty; `MAX_SALTS = 2`, `MAX_OUTPUT_BYTES = 32`)
 - [x] T043 [US5] Create `PrfKeyDerivation` service in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PrfKeyDerivation.kt` — implement `derive(salt: ByteArray, credentialHmacSecret: ByteArray): ByteArray` using Bouncy Castle `HMac(SHA256Digest())`; implement `deriveAll(input: PrfExtensionInput, secret: ByteArray): PrfExtensionOutput`
+- [ ] T043a [US5] Implement memory zeroing logic (ByteArray.fill(0)) in `PrfKeyDerivation` and ensure any sensitive intermediate buffers are cleared immediately after use.
 - [x] T044 [US5] Register `PrfKeyDerivation` as a Koin `single` in the FIDO2 DI module in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/di/`
 - [x] T045 [US5] Update `Ctap2MakeCredentialHandler.decodeMakeCredentialRequest()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — parse `extensions["hmac-secret"]` map keys 1 (salt1) and 2 (salt2 optional); construct `PrfExtensionInput`; propagate to `MakeCredentialRequest`
 - [x] T046 [US5] Update `Ctap2MakeCredentialHandler.handleMakeCredential()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt` — if `prfInput` is present, invoke `PrfKeyDerivation.deriveAll()` and include `PrfExtensionOutput` in the `MakeCredentialOptions.extensions` map
@@ -186,16 +190,37 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 
 ---
 
-## Phase 9: Polish & Cross-Cutting Concerns
+## Phase 9: User Story 7 — Single User Prompt per Authentication Ceremony (Priority: P1)
+
+**Goal**: Implement a headless fast-path for GetAssertion and fallback auto-confirm for UV=NONE to eliminate redundant UI prompts.
+
+**Independent Test**: Complete an authentication ceremony on webauthn.io. Verify that the "Sign in" screen is bypassed or automatically confirmed, and that subsequent host `GetAssertion` retries do not trigger any additional UI prompts.
+
+### Tests for User Story 7
+
+- [ ] T050 [P] [US7] Add unit tests for `Ctap2GetAssertionHandler.kt` verifying that when `uv == PREFERRED` and exactly one credential matches, the handler returns `CTAP2_SUCCESS` immediately without dispatching `AuthenticationRequested` — in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`
+- [ ] T051 [P] [US7] Add unit tests for `AuthenticationPromptViewModel.kt` verifying that if `availability.getBestAvailableMethod() == VerificationMethod.NONE`, `initAuthentication()` automatically transitions to executing the ceremony — in `feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/viewmodel/AuthenticationPromptViewModelTest.kt`
+- [ ] T051a [P] [US7] Add performance integration test for `Ctap2GetAssertionHandler` verifying that headless fast-path execution completes within 200ms (Constitution §IV).
+
+### Implementation for User Story 7
+
+- [ ] T052 [US7] Update `Ctap2GetAssertionHandler.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt` to evaluate available credentials synchronously if `uv` is not strictly required, bypassing the `Fido2UiEventBus` if a single matching credential exists.
+- [ ] T053 [US7] Update `AuthenticationPromptViewModel.kt` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/AuthenticationPromptViewModel.kt` to auto-confirm and bypass the `AwaitingUserConsent` state when no biometric methods are enrolled (`VerificationMethod.NONE`).
+
+**Checkpoint**: US7 complete — Redundant prompts eliminated. Run `tools/local-ci.ps1`.
+
+---
+
+## Phase 10: Polish & Cross-Cutting Concerns
 
 **Purpose**: CI validation, documentation, and final static analysis sweep.
 
-- [x] T050 [P] Update `detekt-baseline-main.xml` in `feature/fido2/` if any new suppressions are required for the new files; remove any stale baselines that covered the old `-19` constant
-- [x] T051 [P] Run `ktlintFormat` on all modified files in `feature/fido2/` and `core/domain/` via `./gradlew ktlintFormat`
-- [x] T052 [P] Run `detekt` on `feature/fido2/` and `core/domain/` via `./gradlew detekt`; resolve all new violations
-- [x] T053 Execute full `tools/local-ci.ps1` pipeline and confirm zero violations, zero test failures
-- [x] T054 Update `CHANGELOG.md` (or equivalent) with a WebAuthn L3 compliance entry documenting the five remediated findings
-- [x] T055 [P] Update `docs/webauthn-l3-compliance-spec.md` to reflect final implementation status (mark all requirements as RESOLVED)
+- [ ] T054 [P] Update `detekt-baseline-main.xml` in `feature/fido2/` if any new suppressions are required for the new files; remove any stale baselines that covered the old `-19` constant
+- [ ] T055 [P] Run `ktlintFormat` on all modified files in `feature/fido2/` and `core/domain/` via `./gradlew ktlintFormat`
+- [ ] T056 [P] Run `detekt` on `feature/fido2/` and `core/domain/` via `./gradlew detekt`; resolve all new violations
+- [ ] T057 Execute full `tools/local-ci.ps1` pipeline and confirm zero violations, zero test failures
+- [ ] T058 Update `CHANGELOG.md` (or equivalent) with a WebAuthn L3 compliance entry documenting the five remediated findings
+- [ ] T059 [P] Update `docs/webauthn-l3-compliance-spec.md` to reflect final implementation status (mark all requirements as RESOLVED)
 
 ---
 
@@ -211,7 +236,8 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 - **Phase 6 (US4 P2)**: Depends on Phase 2 (T007/T008 constants); independent of Phases 3–5
 - **Phase 7 (US6 P2)**: Depends on Phase 3 (COSE constant rename must be done first)
 - **Phase 8 (US5 P3)**: Depends on Phase 2; logically depends on Phase 3 for COSE constant stability
-- **Phase 9 (Polish)**: Depends on all desired story phases complete
+- **Phase 9 (US7 P1)**: Depends on Phase 2
+- **Phase 10 (Polish)**: Depends on all desired story phases complete
 
 ### User Story Dependencies
 
@@ -223,6 +249,7 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 | US4 — Timeouts | 6 | P2 | Foundation (T007–T008) | YES |
 | US6 — Attestation | 7 | P2 | US1 complete (T006 COSE rename) | Mostly |
 | US5 — PRF Extension | 8 | P3 | Foundation; US1 stable | YES |
+| US7 — Single Prompt | 9 | P1 | Foundation | YES |
 
 ### Parallel Opportunities
 
@@ -233,7 +260,9 @@ description: "Task list for WebAuthn Level 3 Compliance implementation"
 - **T028 + T029**: US4 timeout test tasks — different files, full parallel
 - **T034 + T035**: US6 test tasks — different files, full parallel
 - **T039 + T040 + T041**: US5 test tasks — all different files, fully parallel
+- **T050 + T051**: US7 test tasks — different files, fully parallel
 - **Phase 3 + Phase 4**: US1 and US3 are both P1 and can be worked in parallel by two developers
+- **Phase 9**: US7 is P1 and can be worked in parallel with other independent phases
 - **Phase 5 + Phase 6**: US2 and US4 touch different files and can run in parallel
 
 ---
