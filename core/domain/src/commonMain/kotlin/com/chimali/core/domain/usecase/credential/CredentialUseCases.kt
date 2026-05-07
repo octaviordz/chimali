@@ -14,22 +14,19 @@ import org.koin.core.annotation.Factory
 class GetCredentialsUseCase(
     private val repository: CredentialRepository,
 ) : BaseUseCaseNoParams<List<Credential>>() {
-    override suspend fun invoke(): Result<List<Credential>> {
-        return repository.getAllCredentials()
-    }
+    override suspend fun invoke(): Result<List<Credential>> = repository.getAllCredentials()
 }
 
 @Factory
 class SearchCredentialsUseCase(
     private val repository: CredentialRepository,
 ) : BaseUseCase<String, List<Credential>>() {
-    override suspend fun invoke(parameters: String): Result<List<Credential>> {
-        return if (parameters.isBlank()) {
+    override suspend fun invoke(parameters: String): Result<List<Credential>> =
+        if (parameters.isBlank()) {
             repository.getAllCredentials()
         } else {
             repository.searchCredentials(parameters)
         }
-    }
 }
 
 @Factory
@@ -37,10 +34,10 @@ class SaveCredentialUseCase(
     private val repository: CredentialRepository,
     private val validator: CredentialValidator,
 ) : BaseUseCase<Credential, CredentialId>() {
-    override suspend fun invoke(parameters: Credential): Result<CredentialId> {
-        return validator.validate(parameters)
+    override suspend fun invoke(parameters: Credential): Result<CredentialId> =
+        validator
+            .validate(parameters)
             .mapCatching { repository.saveCredential(parameters).getOrThrow() }
-    }
 }
 
 @Factory
@@ -49,15 +46,16 @@ class CopyCredentialToClipboardUseCase(
     private val clipboardService: ClipboardManagerService,
     private val cryptoService: CryptoService,
 ) : BaseUseCase<CredentialId, Unit>() {
-    override suspend fun invoke(parameters: CredentialId): Result<Unit> {
-        return repository.getCredentialById(parameters)
+    override suspend fun invoke(parameters: CredentialId): Result<Unit> =
+        repository
+            .getCredentialById(parameters)
             .mapCatching { credential ->
                 val decryptedPassword = cryptoService.decrypt(credential.password)
-                clipboardService.copySensitiveData(
-                    label = credential.title,
-                    text = decryptedPassword,
-                ).getOrThrow()
+                clipboardService
+                    .copySensitiveData(
+                        label = credential.title,
+                        text = decryptedPassword,
+                    ).getOrThrow()
                 repository.updateLastUsed(parameters).getOrThrow()
             }
-    }
 }

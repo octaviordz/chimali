@@ -33,29 +33,22 @@ class Fido2ServiceImpl(
      * - AttestationObject construction
      * - Credential persistence
      */
-    override suspend fun makeCredential(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError> {
-        return registerCredentialUseCase(options)
-    }
+    override suspend fun makeCredential(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError> =
+        registerCredentialUseCase(options)
 
     override suspend fun registerNewCredential(
         rpId: RpId,
         userName: String,
         userDisplayName: String,
-    ): Outcome<CredentialId, DomainError> {
-        return fido2Repository.registerCredential(rpId, userName, userDisplayName)
-    }
+    ): Outcome<CredentialId, DomainError> = fido2Repository.registerCredential(rpId, userName, userDisplayName)
 
-    override suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError> {
-        return fido2Repository.authenticateCredential(rpId)
-    }
+    override suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError> =
+        fido2Repository.authenticateCredential(rpId)
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> {
-        return fido2Repository.getAllCredentials()
-    }
+    override suspend fun getAllCredentials(): Flow<PasskeyCredential> = fido2Repository.getAllCredentials()
 
-    override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> {
-        return fido2Repository.deleteCredential(credentialId)
-    }
+    override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
+        fido2Repository.deleteCredential(credentialId)
 
     override suspend fun isSupported(): Boolean = true
 }

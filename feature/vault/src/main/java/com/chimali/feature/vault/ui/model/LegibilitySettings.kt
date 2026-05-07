@@ -17,7 +17,7 @@ data class LegibilitySettings(
     val uppercaseColor: Color = LegibilityColors.UppercasePurple,
     val highlightLowercase: Boolean = false,
     val lowercaseColor: Color = LegibilityColors.LowercaseGreen,
-    val colorblindMode: Boolean = false
+    val colorblindMode: Boolean = false,
 )
 
 /**
@@ -25,7 +25,7 @@ data class LegibilitySettings(
  * Ordered by priority as specified in FR-001.
  */
 enum class LegibilityFont {
-    Atkinson,        // Primary: Atkinson Hyperlegible
-    JetBrainsMono,   // Fallback: JetBrains Mono
-    SystemDefault    // Final fallback: System monospace
+    Atkinson, // Primary: Atkinson Hyperlegible
+    JetBrainsMono, // Fallback: JetBrains Mono
+    SystemDefault, // Final fallback: System monospace
 }

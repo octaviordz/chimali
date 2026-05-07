@@ -106,8 +106,7 @@ class Fido2TransportService : Service() {
                 if (!isAppInForeground()) {
                     showAuthRequestNotification(event)
                 }
-            }
-            .launchIn(scope)
+            }.launchIn(scope)
 
         scope.launch {
             val result = transport.connect()
@@ -164,7 +163,8 @@ class Fido2TransportService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID)
             .setContentTitle("Chimali Authenticator")
             .setContentText("Virtual security key is advertising…")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
@@ -174,8 +174,7 @@ class Fido2TransportService : Service() {
                 android.R.drawable.ic_media_pause,
                 "Stop",
                 stopPendingIntent,
-            )
-            .build()
+            ).build()
     }
 
     private fun isAppInForeground(): Boolean {
@@ -207,7 +206,8 @@ class Fido2TransportService : Service() {
             )
 
         val notification =
-            NotificationCompat.Builder(this, AUTH_REQUEST_CHANNEL_ID)
+            NotificationCompat
+                .Builder(this, AUTH_REQUEST_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)

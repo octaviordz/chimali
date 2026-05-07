@@ -15,10 +15,10 @@ class CryptoOperationsTest {
     }
 
     @Test
-    fun `sha256 companion helper matches MessageDigest`() {
+    fun `sha256 helper matches MessageDigest`() {
         val data = "hello fido2".toByteArray()
         val expected = MessageDigest.getInstance("SHA-256").digest(data)
-        assertContentEquals(expected, ClientDataHashService.sha256(data))
+        assertContentEquals(expected, ClientDataHashService().sha256(data))
     }
 
     // -- Fido2CryptoService constants ------------------------------------------

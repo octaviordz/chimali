@@ -45,13 +45,17 @@ sealed interface RegistrationIntent {
     data object UserVerificationSuccess : RegistrationIntent
 
     /** System verification failed. */
-    data class UserVerificationFailed(val message: String) : RegistrationIntent
+    data class UserVerificationFailed(
+        val message: String,
+    ) : RegistrationIntent
 
     /** Retry after an error. */
     data object Retry : RegistrationIntent
 
     /** ViewModel needs to be initialized with the incoming CTAP2 request. */
-    data class InitRegistration(val options: MakeCredentialOptions) : RegistrationIntent
+    data class InitRegistration(
+        val options: MakeCredentialOptions,
+    ) : RegistrationIntent
 }
 
 // ── MVI: State ────────────────────────────────────────────────────────────────
@@ -76,7 +80,9 @@ sealed interface RegistrationState {
     data object Processing : RegistrationState
 
     /** Registration completed successfully. */
-    data class Success(val credential: PasskeyCredential) : RegistrationState
+    data class Success(
+        val credential: PasskeyCredential,
+    ) : RegistrationState
 
     /** Registration failed; may be retried. */
     data class Error(
@@ -91,13 +97,20 @@ sealed interface RegistrationState {
 // ── MVI: Side-effects ─────────────────────────────────────────────────────────
 
 sealed interface RegistrationEffect {
-    data class LaunchSystemPrompt(val promptTitle: String, val promptSubtitle: String) : RegistrationEffect
+    data class LaunchSystemPrompt(
+        val promptTitle: String,
+        val promptSubtitle: String,
+    ) : RegistrationEffect
 
-    data class NavigateToSuccess(val credential: PasskeyCredential) : RegistrationEffect
+    data class NavigateToSuccess(
+        val credential: PasskeyCredential,
+    ) : RegistrationEffect
 
     data object NavigateBack : RegistrationEffect
 
-    data class ShowSnackbar(val message: String) : RegistrationEffect
+    data class ShowSnackbar(
+        val message: String,
+    ) : RegistrationEffect
 }
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -149,8 +162,7 @@ class RegistrationPromptViewModel(
                 uiEventBus.clearRegistrationRequest()
                 pendingDeferred = event.deferred
                 initRegistration(event.options)
-            }
-            .launchIn(viewModelScope)
+            }.launchIn(viewModelScope)
 
         // Also consume any event stored before this ViewModel was created (replay backup).
         uiEventBus.currentRegistrationRequest?.let { event ->

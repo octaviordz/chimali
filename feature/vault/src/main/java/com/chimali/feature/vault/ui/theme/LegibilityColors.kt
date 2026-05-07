@@ -51,7 +51,7 @@ object WCAGCompliantColors {
     val OnLightSymbol = LegibilityColors.SymbolBlue
     val OnLightUppercase = LegibilityColors.UppercasePurple
     val OnLightLowercase = LegibilityColors.LowercaseGreen
-    
+
     // For use on dark backgrounds (Surface, SurfaceVariant in dark theme)
     val OnDarkNumber = LegibilityColors.NumberOrangeHighContrast
     val OnDarkSymbol = LegibilityColors.SymbolBlueHighContrast

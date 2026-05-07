@@ -90,6 +90,10 @@ class CborCodec {
         private const val COSE_KTY_EC2 = 0x02
         private const val COSE_KTY_OKP = 0x01
         private const val COSE_CRV_P256 = 0x01
+        private const val SIZE_UINT32 = 4
+        private const val SIZE_UINT64 = 8
+        private const val INDEX_3 = 3
+        private const val INDEX_7 = 7
     }
 
     // ── Decoding ──────────────────────────────────────────────────────────────
@@ -361,8 +365,8 @@ class CborCodec {
         data: ByteArray,
         offset: Int,
         info: Int,
-    ): Pair<Long, Int> {
-        return when {
+    ): Pair<Long, Int> =
+        when {
             info < HEADER_SMALL_LIMIT -> Pair(info.toLong(), offset)
             info == HEADER_UINT8 -> Pair((data[offset].toInt() and MASK_8_BITS).toLong(), offset + 1)
             info == HEADER_UINT16 -> {
@@ -374,19 +378,18 @@ class CborCodec {
 
             info == HEADER_UINT32 -> {
                 var v = 0L
-                for (i in 0..3) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()
-                Pair(v, offset + 4)
+                for (i in 0..INDEX_3) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()
+                Pair(v, offset + SIZE_UINT32)
             }
 
             info == HEADER_UINT64 -> {
                 var v = 0L
-                for (i in 0..7) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()
-                Pair(v, offset + 8)
+                for (i in 0..INDEX_7) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()
+                Pair(v, offset + SIZE_UINT64)
             }
 
             else -> Pair(0L, offset)
         }
-    }
 
     // ── Recursive encoder ─────────────────────────────────────────────────────
 
@@ -528,8 +531,12 @@ class CborCodec {
                 "fmt" to "packed",
                 "authData" to
                     mapOf(
-                        "rpIdHash" to rpIdHash, "flags" to flags.toInt(), "counter" to counter,
-                        "aaguid" to aaguid, "credentialId" to credentialId, "publicKey" to publicKeyBytes,
+                        "rpIdHash" to rpIdHash,
+                        "flags" to flags.toInt(),
+                        "counter" to counter,
+                        "aaguid" to aaguid,
+                        "credentialId" to credentialId,
+                        "publicKey" to publicKeyBytes,
                     ),
             ),
         )

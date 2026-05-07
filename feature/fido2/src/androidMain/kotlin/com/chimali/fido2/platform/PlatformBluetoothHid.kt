@@ -3,7 +3,6 @@ package com.chimali.fido2.platform
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
-import com.chimali.core.common.result.getOrDefault
 
 /**
  * T191 — Android `actual` implementation of [PlatformBluetoothHid].
@@ -11,7 +10,10 @@ import com.chimali.core.common.result.getOrDefault
  * Checks whether the device supports the Bluetooth HID Device profile using
  * PackageManager feature flags (no permissions required for capability checks).
  */
-actual class PlatformBluetoothHid(private val context: Context) {
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+actual class PlatformBluetoothHid(
+    private val context: Context,
+) {
     private val bluetoothManager: BluetoothManager? by lazy {
         context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     }

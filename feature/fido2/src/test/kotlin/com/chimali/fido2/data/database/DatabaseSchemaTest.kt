@@ -29,9 +29,18 @@ class DatabaseSchemaTest {
         // Verify PasskeyCredential table has required columns
         val expectedColumns =
             listOf(
-                "id", "rpId", "userId", "userName", "userDisplayName",
-                "publicKey", "privateKeyAlias", "signCount", "createdAt",
-                "lastUsedAt", "aaguid", "credentialId",
+                "id",
+                "rpId",
+                "userId",
+                "userName",
+                "userDisplayName",
+                "publicKey",
+                "privateKeyAlias",
+                "signCount",
+                "createdAt",
+                "lastUsedAt",
+                "aaguid",
+                "credentialId",
             )
 
         // In a real test, we'd parse the schema and verify column existence

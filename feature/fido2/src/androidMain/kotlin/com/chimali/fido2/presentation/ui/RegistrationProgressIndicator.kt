@@ -105,7 +105,7 @@ fun RegistrationProgressIndicator(
         ) {
             val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
             val radius = (size.toPx() / 2f) - strokeWidth.toPx()
-            val innerRadius = radius * 0.65f
+            val innerRadius = radius * INNER_RING_RATIO
             val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
             val innerStroke = Stroke(width = (strokeWidth.toPx() * 0.7f), cap = StrokeCap.Round)
 
@@ -117,7 +117,9 @@ fun RegistrationProgressIndicator(
                 useCenter = false,
                 style = stroke,
                 topLeft = Offset(center.x - radius, center.y - radius),
-                size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(radius * 2, radius * 2),
             )
 
             // Inner ring (counter-clockwise)
@@ -128,7 +130,9 @@ fun RegistrationProgressIndicator(
                 useCenter = false,
                 style = innerStroke,
                 topLeft = Offset(center.x - innerRadius, center.y - innerRadius),
-                size = androidx.compose.ui.geometry.Size(innerRadius * 2, innerRadius * 2),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(innerRadius * 2, innerRadius * 2),
             )
 
             // Pulsating center dot
@@ -148,8 +152,11 @@ fun RegistrationProgressIndicator(
         )
 
         LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth(0.6f),
+            modifier = Modifier.fillMaxWidth(PROGRESS_WIDTH_FRACTION),
             color = MaterialTheme.colorScheme.primary,
         )
     }
 }
+
+private const val INNER_RING_RATIO = 0.65f
+private const val PROGRESS_WIDTH_FRACTION = 0.6f

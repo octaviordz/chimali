@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import android.Manifest
 import androidx.annotation.OptIn
@@ -23,14 +23,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import co.touchlab.kermit.Logger
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
+
+private const val MNEMONIC_WORD_COUNT = 24
 
 /**
  * T146f — A CameraX-based QR code scanner composable.
@@ -82,7 +84,8 @@ fun MnemonicQrScanner(
                         }
 
                     val imageAnalysis =
-                        ImageAnalysis.Builder()
+                        ImageAnalysis
+                            .Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
 
@@ -90,12 +93,15 @@ fun MnemonicQrScanner(
                         if (!hasScanned) {
                             processImageProxy(imageProxy, scanner) { rawValue ->
                                 val words = rawValue.trim().split("\\s+".toRegex())
-                                if (words.size == 24) {
+                                if (words.size == MNEMONIC_WORD_COUNT) {
                                     hasScanned = true
                                     onScan(words)
                                 } else {
                                     // T005 - Non-critical validation error: log and continue scanning
-                                    Logger.w { "QR scan had ${words.size} words, need 24. Continuing scanner..." }
+                                    Logger.w {
+                                        "QR scan had ${words.size} words, " +
+                                            "need $MNEMONIC_WORD_COUNT. Continuing scanner..."
+                                    }
                                 }
                             }
                         }
@@ -129,7 +135,7 @@ fun MnemonicQrScanner(
         )
 
         Text(
-            text = "Point at the 24-word seed QR code",
+            text = "Point at the $MNEMONIC_WORD_COUNT-word seed QR code",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onPrimary,
             modifier =
@@ -148,9 +154,9 @@ private fun processImageProxy(
 ) {
     val mediaImage = imageProxy.image ?: return imageProxy.close()
     val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-    scanner.process(image)
+    scanner
+        .process(image)
         .addOnSuccessListener { barcodes ->
             barcodes.firstOrNull()?.rawValue?.let { onResult(it) }
-        }
-        .addOnCompleteListener { imageProxy.close() }
+        }.addOnCompleteListener { imageProxy.close() }
 }

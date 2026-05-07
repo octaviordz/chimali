@@ -16,7 +16,5 @@ class GetAllCredentialsUseCase(
     suspend operator fun invoke(
         limit: Long,
         offset: Long,
-    ): Outcome<List<PasskeyCredential>, DomainError> {
-        return passkeyCredentialRepository.getPagedCredentials(limit, offset)
-    }
+    ): Outcome<List<PasskeyCredential>, DomainError> = passkeyCredentialRepository.getPagedCredentials(limit, offset)
 }

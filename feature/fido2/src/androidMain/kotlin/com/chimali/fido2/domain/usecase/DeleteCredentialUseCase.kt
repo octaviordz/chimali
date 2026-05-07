@@ -13,7 +13,6 @@ import org.koin.core.annotation.Factory
 class DeleteCredentialUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(credentialId: CredentialId): Outcome<Unit, DomainError> {
-        return passkeyCredentialRepository.deleteCredential(credentialId)
-    }
+    suspend operator fun invoke(credentialId: CredentialId): Outcome<Unit, DomainError> =
+        passkeyCredentialRepository.deleteCredential(credentialId)
 }

@@ -6,7 +6,6 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 
 class CreditCardCryptoTest {
-
     @Test
     fun `payload clears memory correctly`() {
         val notesArray = charArrayOf('s', 'e', 'c', 'r', 'e', 't')
@@ -15,17 +14,19 @@ class CreditCardCryptoTest {
         val cvvArray = charArrayOf('1', '2', '3')
         val customFieldValue = charArrayOf('1', '2', '3', '4', '5')
 
-        val payload = CreditCardPayload(
-            title = "My Visa",
-            cardholderName = cardholderNameArray,
-            cardNumber = cardNumberArray,
-            expirationDate = "12/26",
-            cvv = cvvArray,
-            notes = notesArray,
-            customFields = listOf(
-                CustomField("Zip Code", customFieldValue, true)
+        val payload =
+            CreditCardPayload(
+                title = "My Visa",
+                cardholderName = cardholderNameArray,
+                cardNumber = cardNumberArray,
+                expirationDate = "12/26",
+                cvv = cvvArray,
+                notes = notesArray,
+                customFields =
+                    listOf(
+                        CustomField("Zip Code", customFieldValue, true),
+                    ),
             )
-        )
 
         // Clear memory
         payload.clearMemory()

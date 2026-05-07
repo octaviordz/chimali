@@ -46,23 +46,24 @@ fun SecureNoteDetailScreen(
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                     }
-                }
+                },
             )
-        }
+        },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             DetailRow(label = "Content", value = "***") // Placeholder for concealed content reveal
 
             payload.customFields?.forEach { field ->
                 DetailRow(
                     label = field.name,
-                    value = if (field.isConcealed) "***" else String(field.value)
+                    value = if (field.isConcealed) "***" else String(field.value),
                 )
             }
 
@@ -71,7 +72,7 @@ fun SecureNoteDetailScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp)
+                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
             ) {
                 Text("Back to Vault")
             }
@@ -83,13 +84,14 @@ fun SecureNoteDetailScreen(
 @Composable
 private fun SecureNoteDetailScreenPreview() {
     SecureNoteDetailScreen(
-        payload = SecureNotePayload(
-            title = "Secret Recipe",
-            content = "This is the secret recipe for the best cookies.".toCharArray(),
-            customFields = emptyList()
-        ),
+        payload =
+            SecureNotePayload(
+                title = "Secret Recipe",
+                content = "This is the secret recipe for the best cookies.".toCharArray(),
+                customFields = emptyList(),
+            ),
         onEdit = {},
         onDelete = {},
-        onBack = {}
+        onBack = {},
     )
 }

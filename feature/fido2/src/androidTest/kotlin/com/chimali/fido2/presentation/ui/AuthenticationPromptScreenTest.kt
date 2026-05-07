@@ -53,7 +53,8 @@ class AuthenticationPromptScreenTest {
         composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
 
         // T143: Verify heading role for screen title
-        composeTestRule.onNodeWithText("Sign in with Passkey")
+        composeTestRule
+            .onNodeWithText("Sign in with Passkey")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
@@ -115,10 +116,12 @@ class AuthenticationPromptScreenTest {
         composeTestRule.onNodeWithText("Authentication successful.").assertIsDisplayed()
 
         // T143: Verify live region and heading for success state
-        composeTestRule.onNodeWithText("Signed in!")
+        composeTestRule
+            .onNodeWithText("Signed in!")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
 
-        composeTestRule.onNode(hasAnyDescendant(hasText("Signed in!")))
+        composeTestRule
+            .onNode(hasAnyDescendant(hasText("Signed in!")))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
@@ -142,10 +145,12 @@ class AuthenticationPromptScreenTest {
         composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
 
         // T143: Verify live region and heading for error state
-        composeTestRule.onNodeWithText("Authentication failed")
+        composeTestRule
+            .onNodeWithText("Authentication failed")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
 
-        composeTestRule.onNode(hasAnyDescendant(hasText("Authentication failed")))
+        composeTestRule
+            .onNode(hasAnyDescendant(hasText("Authentication failed")))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 

@@ -12,6 +12,7 @@ import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
@@ -155,9 +156,12 @@ class RegistrationAuthenticationDataIntegrationTest {
         val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder =
             mockk {
                 val dummyKey =
-                    java.security.KeyPairGenerator.getInstance(
-                        "EC",
-                    ).apply { initialize(256) }.generateKeyPair().public
+                    java.security.KeyPairGenerator
+                        .getInstance(
+                            "EC",
+                        ).apply { initialize(256) }
+                        .generateKeyPair()
+                        .public
                 every { decodePublicKey(any(), any()) } returns Outcome.Success(dummyKey)
             }
 
@@ -197,6 +201,8 @@ class RegistrationAuthenticationDataIntegrationTest {
                 coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
             }
 
+        val clientDataHashService = ClientDataHashService()
+
         registerUseCase =
             RegisterCredentialUseCase(
                 passkeyCredentialRepository = repository,
@@ -204,6 +210,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                 cborCodec = CborCodec(),
                 cryptoService = cryptoService,
                 settingsRepository = settingsRepo,
+                clientDataHashService = clientDataHashService,
             )
 
         assertionUseCase =
@@ -212,6 +219,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                 userVerificationService = userVerificationService,
                 selectCredentialUseCase = SelectCredentialUseCase(),
                 cryptoService = cryptoService,
+                clientDataHashService = clientDataHashService,
             )
     }
 

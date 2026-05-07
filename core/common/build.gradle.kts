@@ -57,10 +57,6 @@ kotlin {
     }
 }
 
-ksp {
-    arg("KOIN_DEFAULT_MODULE", "true")
-}
-
 // KSP: Target-specific processor wiring for Koin Annotations (T189)
 dependencies {
     add("kspAndroid", libs.koin.ksp.compiler)

@@ -4,7 +4,6 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.isSuccess
-import com.chimali.core.common.result.map
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -17,6 +16,7 @@ import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
@@ -72,6 +72,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
  * - ≥95 of 100 authentication operations on those registrations must succeed.
  * - No `OutOfMemoryError`, deadlock, or state corruption observed across the loop.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class Fido2StressTest {
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var repository: InMemoryCredentialRepository
@@ -190,6 +191,8 @@ class Fido2StressTest {
                 coEvery { getMaxCredentialCount() } returns MAX_CREDENTIAL_LIMIT // Stress test needs high limit
             }
 
+        val clientDataHashService = ClientDataHashService()
+
         registerUseCase =
             RegisterCredentialUseCase(
                 passkeyCredentialRepository = repository,
@@ -197,6 +200,7 @@ class Fido2StressTest {
                 cborCodec = CborCodec(),
                 cryptoService = cryptoService,
                 settingsRepository = settingsRepository,
+                clientDataHashService = clientDataHashService,
             )
         assertionUseCase =
             GetAssertionUseCase(
@@ -204,6 +208,7 @@ class Fido2StressTest {
                 userVerificationService = userVerificationService,
                 selectCredentialUseCase = selectCredentialUseCase,
                 cryptoService = cryptoService,
+                clientDataHashService = clientDataHashService,
             )
     }
 
@@ -355,16 +360,17 @@ private class InMemoryCredentialRepository : CredentialRepository {
 
     fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
+            .asSequence()
             .filter { it.rpId == rpId }
             .map {
                 CredentialSummary(
                     id = it.id.encoded,
                     rpId = it.rpId,
                     credentialId = it.id,
-                    lastUsedAt = it.lastUsedAt ?: it.createdAt,
+                    lastUsedAt = it.lastUsedAt,
                     coseAlgorithm = it.coseAlgorithm,
                 )
-            }
+            }.toList()
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         credentials[credential.id.encoded] = credential
@@ -434,7 +440,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun credentialExists(
         rpId: RpId,
         userId: UserId,
-    ): Boolean = credentials.values.any { it.rpId == rpId && it.userId == userId }
+    ): Boolean = credentials.values.any { (it.rpId == rpId) && (it.userId == userId) }
 
     override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
 
@@ -500,7 +506,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
                         id = it.id.encoded,
                         rpId = it.rpId,
                         credentialId = it.id,
-                        lastUsedAt = it.lastUsedAt ?: it.createdAt,
+                        lastUsedAt = it.lastUsedAt,
                         coseAlgorithm = it.coseAlgorithm,
                     )
                 },

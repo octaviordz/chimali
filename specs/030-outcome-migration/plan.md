@@ -5,7 +5,7 @@
 
 ## Summary
 
-Migrate the `fido2` and `vault` modules to use the functional exception handling pattern by renaming `DataResult` to `Outcome`, applying it to crypto services, repositories, and `VaultService`, and converting `VaultViewModel` to use an exhaustive `when` expression instead of `try-catch` blocks.
+Migrate the `fido2` and `vault` modules to use the functional exception handling pattern by using `Outcome`, applying it to crypto services, repositories, and `VaultService`, and converting `VaultViewModel` to use an exhaustive `when` expression instead of `try-catch` blocks.
 
 ## Technical Context
 
@@ -37,7 +37,7 @@ specs/030-outcome-migration/
 ├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output (N/A)
-└── tasks.md             # Phase 2 output (future)
+└── tasks.md             # Phase 2 output
 ```
 
 ### Source Code (repository root)
@@ -47,7 +47,7 @@ specs/030-outcome-migration/
 core/
 └── common/
     └── src/commonMain/kotlin/com/chimali/core/common/result/
-        ├── Outcome.kt (renamed from DataResult.kt)
+        ├── Outcome.kt
         └── DomainError.kt
 
 feature/
@@ -71,7 +71,7 @@ feature/
             └── VaultViewModel.kt   # Remove try-catch, use exhaustive when on Outcome
 ```
 
-**Structure Decision**: A global rename from `DataResult` to `Outcome` will take place in `core/common`. The `fido2` and `vault` modules will be updated to consume this new type. No new directories are created.
+**Structure Decision**: A global migration to `Outcome` has taken place in `core/common`. The `fido2` and `vault` modules have been updated to consume this new type. No new directories are created.
 
 ## Complexity Tracking
 

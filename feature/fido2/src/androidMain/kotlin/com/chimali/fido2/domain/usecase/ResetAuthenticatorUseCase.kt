@@ -13,7 +13,5 @@ import org.koin.core.annotation.Factory
 class ResetAuthenticatorUseCase(
     private val credentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(): Outcome<Unit, DomainError> {
-        return credentialRepository.resetAuthenticator()
-    }
+    suspend operator fun invoke(): Outcome<Unit, DomainError> = credentialRepository.resetAuthenticator()
 }

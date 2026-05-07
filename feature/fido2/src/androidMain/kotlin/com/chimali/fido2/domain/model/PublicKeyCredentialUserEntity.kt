@@ -49,23 +49,17 @@ data class PublicKeyCredentialUserEntity(
     /**
      * Returns a safe display name.
      */
-    fun getSafeDisplayName(): String {
-        return displayName.ifBlank { name }
-    }
+    fun getSafeDisplayName(): String = displayName.ifBlank { name }
 
     /**
      * Checks if this user has an icon.
      */
-    fun hasIcon(): Boolean {
-        return icon?.isNotBlank() ?: false
-    }
+    fun hasIcon(): Boolean = icon?.isNotBlank() ?: false
 
     /**
      * Returns the user ID as a hex string.
      */
-    fun getIdHex(): String {
-        return id.value.toByteArray().joinToString("") { "%02x".format(it) }
-    }
+    fun getIdHex(): String = id.value.toByteArray().joinToString("") { "%02x".format(it) }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -106,14 +100,13 @@ data class PublicKeyCredentialUserEntity(
             name: String,
             displayName: String,
             icon: String? = null,
-        ): PublicKeyCredentialUserEntity {
-            return PublicKeyCredentialUserEntity(
+        ): PublicKeyCredentialUserEntity =
+            PublicKeyCredentialUserEntity(
                 id = id,
                 name = name,
                 displayName = displayName,
                 icon = icon,
             )
-        }
 
         /**
          * Creates a new PublicKeyCredentialUserEntity from base64 user ID.
@@ -123,8 +116,6 @@ data class PublicKeyCredentialUserEntity(
             name: String,
             displayName: String,
             icon: String? = null,
-        ): PublicKeyCredentialUserEntity {
-            return create(UserId(idBase64), name, displayName, icon)
-        }
+        ): PublicKeyCredentialUserEntity = create(UserId(idBase64), name, displayName, icon)
     }
 }

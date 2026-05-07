@@ -29,8 +29,12 @@ object BluetoothHidConfigProvider {
     // ── Config resolution ────────────────────────────────────────────────────
 
     private fun resolveConfig(): BluetoothHidConfig {
-        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
-        val model = android.os.Build.MODEL.lowercase()
+        val manufacturer =
+            android.os.Build.MANUFACTURER
+                .lowercase()
+        val model =
+            android.os.Build.MODEL
+                .lowercase()
 
         // For now a single default configuration is used for all devices.
         // Add OEM-specific branches here as evidence demands, e.g.:
@@ -52,7 +56,8 @@ object BluetoothHidConfigProvider {
 
     @Suppress("unused") // Kept as scaffolding for future OEM-specific configs
     private fun isMotorola(manufacturer: String, model: String): Boolean =
-        manufacturer.startsWith("moto") || manufacturer.contains("motorola") ||
+        manufacturer.startsWith("moto") ||
+            manufacturer.contains("motorola") ||
             model.startsWith("moto")
 
     @Suppress("unused") // Kept as scaffolding for future OEM-specific configs

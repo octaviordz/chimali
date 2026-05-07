@@ -45,23 +45,24 @@ fun SecureNoteEntryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("New Secure Note") }
+                title = { Text("New Secure Note") },
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -70,7 +71,7 @@ fun SecureNoteEntryScreen(
                     onValueChange = { content = it },
                     label = { Text("Content") },
                     modifier = Modifier.fillMaxWidth().height(200.dp),
-                    maxLines = 10
+                    maxLines = 10,
                 )
             }
 
@@ -94,21 +95,22 @@ fun SecureNoteEntryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = onCancel) {
                         Text("Cancel")
                     }
                     Button(
                         onClick = {
-                            val payload = SecureNotePayload(
-                                title = title,
-                                content = content.toCharArray(),
-                                customFields = customFields.toList()
-                            )
+                            val payload =
+                                SecureNotePayload(
+                                    title = title,
+                                    content = content.toCharArray(),
+                                    customFields = customFields.toList(),
+                                )
                             onSave(payload)
                         },
-                        enabled = title.isNotBlank() && content.isNotBlank()
+                        enabled = title.isNotBlank() && content.isNotBlank(),
                     ) {
                         Text("Save")
                     }
@@ -123,6 +125,6 @@ fun SecureNoteEntryScreen(
 private fun SecureNoteEntryScreenPreview() {
     SecureNoteEntryScreen(
         onSave = {},
-        onCancel = {}
+        onCancel = {},
     )
 }

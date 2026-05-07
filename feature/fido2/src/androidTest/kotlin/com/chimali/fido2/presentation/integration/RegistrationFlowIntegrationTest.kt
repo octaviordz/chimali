@@ -108,8 +108,12 @@ class RegistrationFlowIntegrationTest {
                 state =
                     RegistrationState.Success(
                         com.chimali.fido2.domain.model.PasskeyCredential.createTest(
-                            id = com.chimali.core.domain.valueobject.CredentialId.fromEncoded("cred-1"),
-                            rpId = com.chimali.core.domain.valueobject.RpId("example.com"),
+                            id =
+                                com.chimali.core.domain.valueobject.CredentialId
+                                    .fromEncoded("cred-1"),
+                            rpId =
+                                com.chimali.core.domain.valueobject
+                                    .RpId("example.com"),
                             userName = "alice",
                         ),
                     ),

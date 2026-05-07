@@ -16,52 +16,19 @@ data class AuthenticatorSelectionCriteria(
     }
 
     /**
-     * Validates the AuthenticatorSelectionCriteria according to FIDO2 specifications.
-     * Throws IllegalArgumentException if validation fails.
-     */
-    internal fun validate() {
-        // Validate timeout if present
-        timeoutSeconds?.let { timeout ->
-            require(timeout > 0) { "Timeout must be positive" }
-            require(timeout <= 300) { "Timeout cannot exceed 5 minutes (300s)" }
-        }
-
-        // Validate credential list if present
-        allowCredentials?.let { allowList ->
-            require(allowList.size <= 32) { "Allow credentials list cannot exceed 32 items" }
-            allowList.forEach { descriptor ->
-                descriptor.validate()
-            }
-        }
-    }
-
-    /**
-     * Returns the safe timeout value.
-     */
-    fun getSafeTimeoutSeconds(): Long {
-        return timeoutSeconds ?: 300L // Default 5 minutes
-    }
-
-    /**
      * Checks if resident keys are required.
      */
-    fun requiresResidentKeys(): Boolean {
-        return requireResidentKey == ResidentKeyRequirement.REQUIRED
-    }
+    fun requiresResidentKeys(): Boolean = requireResidentKey == ResidentKeyRequirement.REQUIRED
 
     /**
      * Checks if user verification is required.
      */
-    fun requiresUserVerification(): Boolean {
-        return userVerification == UserVerificationRequirement.REQUIRED
-    }
+    fun requiresUserVerification(): Boolean = userVerification == UserVerificationRequirement.REQUIRED
 
     /**
      * Checks if cross-platform authenticators are allowed.
      */
-    fun allowsCrossPlatform(): Boolean {
-        return authenticatorAttachment == AuthenticatorAttachment.CROSS_PLATFORM
-    }
+    fun allowsCrossPlatform(): Boolean = authenticatorAttachment == AuthenticatorAttachment.CROSS_PLATFORM
 
     /**
      * Returns a description of the selection criteria.
@@ -93,6 +60,10 @@ data class AuthenticatorSelectionCriteria(
     }
 
     companion object {
+        private const val MAX_TIMEOUT_SECONDS = 300
+        private const val DEFAULT_TIMEOUT_SECONDS = 300L
+        private const val MAX_ALLOW_CREDENTIALS = 32
+
         /**
          * Creates a new AuthenticatorSelectionCriteria with validation.
          */
@@ -102,15 +73,43 @@ data class AuthenticatorSelectionCriteria(
             userVerification: UserVerificationRequirement? = null,
             timeoutSeconds: Long? = null,
             allowCredentials: List<PublicKeyCredentialDescriptor>? = null,
-        ): AuthenticatorSelectionCriteria {
-            return AuthenticatorSelectionCriteria(
+        ): AuthenticatorSelectionCriteria =
+            AuthenticatorSelectionCriteria(
                 authenticatorAttachment = authenticatorAttachment,
                 requireResidentKey = requireResidentKey,
                 userVerification = userVerification,
                 timeoutSeconds = timeoutSeconds,
                 allowCredentials = allowCredentials,
             )
+    }
+
+    /**
+     * Validates the AuthenticatorSelectionCriteria according to FIDO2 specifications.
+     * Throws IllegalArgumentException if validation fails.
+     */
+    internal fun validate() {
+        // Validate timeout if present
+        timeoutSeconds?.let { timeout ->
+            require(timeout > 0) { "Timeout must be positive" }
+            require(timeout <= MAX_TIMEOUT_SECONDS) { "Timeout cannot exceed 5 minutes (${MAX_TIMEOUT_SECONDS}s)" }
         }
+
+        // Validate credential list if present
+        allowCredentials?.let { allowList ->
+            require(allowList.size <= MAX_ALLOW_CREDENTIALS) {
+                "Allow credentials list cannot exceed $MAX_ALLOW_CREDENTIALS items"
+            }
+            allowList.forEach { descriptor ->
+                descriptor.validate()
+            }
+        }
+    }
+
+    /**
+     * Returns the safe timeout value.
+     */
+    fun getSafeTimeoutSeconds(): Long {
+        return timeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS // Default 5 minutes
     }
 }
 

@@ -19,8 +19,8 @@ import kotlinx.datetime.Instant
 
 fun PasskeyCredentialEntity.toDomainModel(
     decoder: PublicKeyDecoder,
-): Outcome<PasskeyCredential, DomainError.CryptoError> {
-    return decoder.decodePublicKey(this.publicKey, this.coseAlgorithm.toInt()).map { decodedKey ->
+): Outcome<PasskeyCredential, DomainError.CryptoError> =
+    decoder.decodePublicKey(this.publicKey, this.coseAlgorithm.toInt()).map { decodedKey ->
         PasskeyCredential(
             id = CredentialId.fromEncoded(this.id),
             rpId = RpId(this.rpId),
@@ -41,10 +41,9 @@ fun PasskeyCredentialEntity.toDomainModel(
             label = this.label,
         )
     }
-}
 
-fun RelyingPartyEntity.toDomainModel(): RelyingParty {
-    return RelyingParty(
+fun RelyingPartyEntity.toDomainModel(): RelyingParty =
+    RelyingParty(
         id = RpId(this.id),
         name = this.name,
         iconUrl = this.iconUrl,
@@ -53,10 +52,9 @@ fun RelyingPartyEntity.toDomainModel(): RelyingParty {
         lastUsedAt = this.lastUsedAt?.let { Instant.fromEpochMilliseconds(it) },
         isBlocked = this.isBlocked > 0L,
     )
-}
 
-fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
-    return UserConsentRecord(
+fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord =
+    UserConsentRecord(
         id = this.id,
         rpId = RpId(this.rpId),
         operationType = ConsentOperationType.valueOf(this.operationType),
@@ -68,4 +66,3 @@ fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
         userAgent = null,
         deviceId = null,
     )
-}

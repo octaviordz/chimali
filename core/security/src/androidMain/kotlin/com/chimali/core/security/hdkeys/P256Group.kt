@@ -52,16 +52,12 @@ object P256Group {
     fun scalarMult(
         point: ECPoint,
         k: BigInteger,
-    ): ECPoint {
-        return point.multiply(k).normalize()
-    }
+    ): ECPoint = point.multiply(k).normalize()
 
     /**
      * Scalar-base multiplication: compute k * G.
      */
-    fun scalarBaseMult(k: BigInteger): ECPoint {
-        return scalarMult(G, k)
-    }
+    fun scalarBaseMult(k: BigInteger): ECPoint = scalarMult(G, k)
 
     /**
      * EC point addition: compute A + B.
@@ -69,9 +65,7 @@ object P256Group {
     fun add(
         a: ECPoint,
         b: ECPoint,
-    ): ECPoint {
-        return a.add(b).normalize()
-    }
+    ): ECPoint = a.add(b).normalize()
 
     /**
      * Generate a key pair (sk, pk) where pk = sk * G.
@@ -94,9 +88,7 @@ object P256Group {
     /**
      * Deserialize an EC point from uncompressed encoding.
      */
-    fun deserializeElement(encoded: ByteArray): ECPoint {
-        return curve.decodePoint(encoded).normalize()
-    }
+    fun deserializeElement(encoded: ByteArray): ECPoint = curve.decodePoint(encoded).normalize()
 
     /**
      * Serialize a scalar as a 32-byte big-endian byte array (I2OSP).
@@ -113,9 +105,7 @@ object P256Group {
     /**
      * Deserialize a scalar from a 32-byte big-endian byte array (OS2IP).
      */
-    fun deserializeScalar(bytes: ByteArray): BigInteger {
-        return BigInteger(1, bytes)
-    }
+    fun deserializeScalar(bytes: ByteArray): BigInteger = BigInteger(1, bytes)
 
     /**
      * ECKA-DH: Create shared secret as the x-coordinate of sk * pk.

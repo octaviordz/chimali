@@ -66,9 +66,7 @@ data class RelyingParty(
     /**
      * Checks if this RP has any credentials.
      */
-    fun hasCredentials(): Boolean {
-        return credentialCount > 0
-    }
+    fun hasCredentials(): Boolean = credentialCount > 0
 
     /**
      * Returns the domain from the RP ID.
@@ -86,30 +84,23 @@ data class RelyingParty(
     /**
      * Checks if this RP is trusted based on criteria.
      */
-    fun isTrusted(trustedDomains: Set<String>): Boolean {
-        return trustedDomains.contains(getDomain())
-    }
+    fun isTrusted(trustedDomains: Set<String>): Boolean = trustedDomains.contains(getDomain())
 
     /**
      * Returns a safe name for display.
      */
-    fun getSafeName(): String {
-        return name.ifBlank { getDomain() }
-    }
+    fun getSafeName(): String = name.ifBlank { getDomain() }
 
     /**
      * Creates a copy with updated credential count.
      */
-    fun withCredentialCount(newCount: Int): RelyingParty {
-        return copy(credentialCount = newCount, lastUsedAt = Clock.System.now())
-    }
+    fun withCredentialCount(newCount: Int): RelyingParty =
+        copy(credentialCount = newCount, lastUsedAt = Clock.System.now())
 
     /**
      * Creates a copy with updated last used time.
      */
-    fun withLastUsedAt(newLastUsedAt: Instant): RelyingParty {
-        return copy(lastUsedAt = newLastUsedAt)
-    }
+    fun withLastUsedAt(newLastUsedAt: Instant): RelyingParty = copy(lastUsedAt = newLastUsedAt)
 
     /**
      * Returns the RP age in days.
@@ -178,7 +169,8 @@ data class RelyingParty(
                 (scheme == "https" || scheme == "http") && rest.isNotBlank()
             } else {
                 // Bare domain: must contain a dot (e.g., example.com) or be localhost
-                rpId == "localhost" || rpId.startsWith("localhost:") ||
+                rpId == "localhost" ||
+                    rpId.startsWith("localhost:") ||
                     (rpId.contains('.') && !rpId.contains(' '))
             }
         }

@@ -101,18 +101,19 @@ fun AuthenticationPromptScreen(
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)
                         val promptInfo =
-                            BiometricPrompt.PromptInfo.Builder()
+                            BiometricPrompt.PromptInfo
+                                .Builder()
                                 .setTitle(effect.promptTitle)
                                 .setSubtitle(effect.promptSubtitle)
                                 .setAllowedAuthenticators(
                                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
                                         BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                                )
-                                .build()
+                                ).build()
 
                         val biometricPrompt =
                             BiometricPrompt(
-                                act, executor,
+                                act,
+                                executor,
                                 object : BiometricPrompt.AuthenticationCallback() {
                                     override fun onAuthenticationError(
                                         errorCode: Int,
@@ -362,6 +363,8 @@ internal fun AuthenticationPromptContent(
 
 // ── T098 — Authentication Progress Indicator ──────────────────────────────────
 
+private const val PROGRESS_WIDTH_FRACTION = 0.6f
+
 @Suppress("FunctionNaming")
 @Composable
 fun AuthenticationProgressIndicator(
@@ -380,6 +383,6 @@ fun AuthenticationProgressIndicator(
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
         )
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(PROGRESS_WIDTH_FRACTION))
     }
 }

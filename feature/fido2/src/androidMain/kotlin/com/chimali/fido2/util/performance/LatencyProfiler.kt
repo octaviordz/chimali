@@ -20,6 +20,9 @@ object LatencyProfiler {
     private val userInteractionStarts = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val userAccumulatedMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    private const val NS_TO_MS_CONVERSION = 1_000_000L
+    private const val PERF_BUDGET_MS = 200
+
     /**
      * Records the start time for an operation identified by [id].
      */
@@ -41,7 +44,7 @@ object LatencyProfiler {
      */
     fun endUserInteraction(id: String) {
         val startNs = userInteractionStarts.remove(id) ?: return
-        val durationMs = (System.nanoTime() - startNs) / 1_000_000L
+        val durationMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION
         val current = userAccumulatedMs[id] ?: 0L
         userAccumulatedMs[id] = current + durationMs
     }
@@ -59,10 +62,10 @@ object LatencyProfiler {
                 return -1L
             }
         val userMs = userAccumulatedMs.remove(id) ?: 0L
-        val totalMs = (System.nanoTime() - startNs) / 1_000_000L
+        val totalMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION
         val pureMs = maxOf(0L, totalMs - userMs)
 
-        val compliance = if (pureMs < 200) "✅ PASS" else "❌ OVER BUDGET"
+        val compliance = if (pureMs < PERF_BUDGET_MS) "✅ PASS" else "❌ OVER BUDGET"
         Logger.d {
             "[NFR-PERF-030] $compliance | $id = ${pureMs}ms (Total: ${totalMs}ms, User: ${userMs}ms)"
         }

@@ -98,6 +98,7 @@ class Ctap2MakeCredentialHandler(
         private const val SHIFT_16 = 16
         private const val SHIFT_8 = 8
         private const val BYTE_MASK = 0xFF
+        private const val COMMAND_MASK = 0x7F
     }
 
     // ── Entry point ───────────────────────────────────────────────────────────
@@ -144,7 +145,8 @@ class Ctap2MakeCredentialHandler(
     @Suppress("ThrowsCount")
     private fun decodeMakeCredentialRequest(cbor: ByteArray): MakeCredentialRequest {
         val map =
-            cborCodec.decodeFromFido2Format(cbor)
+            cborCodec
+                .decodeFromFido2Format(cbor)
                 .takeIf { it.isNotEmpty() }
                 ?: throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
 
@@ -297,7 +299,9 @@ class Ctap2MakeCredentialHandler(
         val prfOutputMap: Map<String, Any>? =
             req.prfInput?.let { prfIn ->
                 val credentialIdStr =
-                    java.util.Base64.getUrlEncoder().withoutPadding()
+                    java.util.Base64
+                        .getUrlEncoder()
+                        .withoutPadding()
                         .encodeToString(req.clientDataHash) // use clientDataHash as credential ID proxy pre-storage
                 val prfOutput = prfKeyDerivation.deriveAll(prfIn, credentialIdStr)
                 if (prfOutput != null) {
@@ -438,8 +442,8 @@ class Ctap2MakeCredentialHandler(
         return result.toByteArray()
     }
 
-    private fun buildAttestationStatementMap(stmt: AttestationStatement): Map<Any, Any> {
-        return when (stmt.fmt) {
+    private fun buildAttestationStatementMap(stmt: AttestationStatement): Map<Any, Any> =
+        when (stmt.fmt) {
             "none" -> emptyMap()
             "packed" ->
                 buildMap {
@@ -456,7 +460,6 @@ class Ctap2MakeCredentialHandler(
                 }
             else -> emptyMap()
         }
-    }
 
     // ── Error helpers ─────────────────────────────────────────────────────────
 
@@ -465,7 +468,7 @@ class Ctap2MakeCredentialHandler(
         statusCode: Byte,
     ): List<ByteArray> {
         val payload = byteArrayOf(statusCode)
-        val msg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and 0x7F, payload)
+        val msg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and COMMAND_MASK, payload)
         return hidReportParser.encodeResponse(msg)
     }
 

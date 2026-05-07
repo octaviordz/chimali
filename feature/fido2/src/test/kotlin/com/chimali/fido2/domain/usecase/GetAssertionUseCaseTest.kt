@@ -10,6 +10,7 @@ import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
@@ -42,6 +43,7 @@ class GetAssertionUseCaseTest {
     private lateinit var userVerificationService: UserVerificationService
     private lateinit var selectCredentialUseCase: SelectCredentialUseCase
     private lateinit var cryptoService: Fido2CryptoService
+    private lateinit var clientDataHashService: ClientDataHashService
     private lateinit var useCase: GetAssertionUseCase
 
     private val testRpId = RpId("https://example.com")
@@ -67,6 +69,7 @@ class GetAssertionUseCaseTest {
         userVerificationService = mockk()
         selectCredentialUseCase = mockk()
         cryptoService = mockk()
+        clientDataHashService = ClientDataHashService()
 
         // Default: signing succeeds with a fake DER signature
         coEvery { cryptoService.sign(any(), any(), any()) } returns Outcome.Success(fakeSignature)
@@ -89,6 +92,7 @@ class GetAssertionUseCaseTest {
                 userVerificationService,
                 selectCredentialUseCase,
                 cryptoService,
+                clientDataHashService,
             )
     }
 

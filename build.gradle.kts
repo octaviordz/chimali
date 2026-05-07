@@ -18,6 +18,12 @@ subprojects {
     apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
     apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
 
+    pluginManager.withPlugin("com.google.devtools.ksp") {
+        configure<com.google.devtools.ksp.gradle.KspExtension> {
+            arg("KOIN_DEFAULT_MODULE", "false")
+        }
+    }
+
     dependencies {
         add("detektPlugins", rootProject.libs.detekt.compose.rules)
     }
@@ -30,7 +36,7 @@ subprojects {
 
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
         config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
-        baseline = file("${projectDir}/detekt-baseline.xml")
+        baseline = layout.projectDirectory.file("detekt-baseline.xml").asFile
         buildUponDefaultConfig = true
         allRules = false
         source.setFrom(files("src"))
@@ -53,8 +59,8 @@ subprojects {
                     textReport = false
                     htmlReport = true
                     xmlReport = true
-                    htmlOutput = file("build/reports/lint/${project.name}.html")
-                    xmlOutput = file("build/reports/lint/${project.name}.xml")
+                    htmlOutput = layout.buildDirectory.file("reports/lint/${project.name}.html").get().asFile
+                    xmlOutput = layout.buildDirectory.file("reports/lint/${project.name}.xml").get().asFile
                     disable += arrayOf("TypographyFractions", "TypographyQuotes", "TypographyDashes", "TypographyEllipsis", "TypographyOther")
                     enable += arrayOf("RtlHardcoded", "RtlCompat", "RtlEnabled")
                     checkGeneratedSources = false
@@ -70,8 +76,8 @@ subprojects {
                     textReport = false
                     htmlReport = true
                     xmlReport = true
-                    htmlOutput = file("build/reports/lint/${project.name}.html")
-                    xmlOutput = file("build/reports/lint/${project.name}.xml")
+                    htmlOutput = layout.buildDirectory.file("reports/lint/${project.name}.html").get().asFile
+                    xmlOutput = layout.buildDirectory.file("reports/lint/${project.name}.xml").get().asFile
                     disable += arrayOf("TypographyFractions", "TypographyQuotes", "TypographyDashes", "TypographyEllipsis", "TypographyOther")
                     enable += arrayOf("RtlHardcoded", "RtlCompat", "RtlEnabled")
                     checkGeneratedSources = false

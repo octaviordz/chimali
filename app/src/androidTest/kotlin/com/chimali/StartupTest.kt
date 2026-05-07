@@ -8,7 +8,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class StartupTest {
-
     @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
@@ -16,7 +15,7 @@ class StartupTest {
     fun appStartsAndShowsMainScreen() {
         // Wait for a few seconds to ensure everything is loaded
         Thread.sleep(WAIT_DURATION_MS)
-        
+
         // Check for some text that should be on the main screen.
         // Assuming there's a "Passkeys" or similar title.
         // If we don't know the text, we can just check if the activity is not null.

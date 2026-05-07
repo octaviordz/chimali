@@ -9,7 +9,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @JvmInline
-value class RpId(val value: String) {
+value class RpId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "RpId cannot be blank" }
     }

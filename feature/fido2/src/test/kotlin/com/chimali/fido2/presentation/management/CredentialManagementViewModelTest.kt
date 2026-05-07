@@ -166,7 +166,10 @@ class CredentialManagementViewModelTest {
 
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
-            assertTrue(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
+            assertTrue(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(CredentialId.fromEncoded("dGVzdF9pZA")),
+            )
             assertEquals(credential, removalEvents.first())
             job.cancel()
         }
@@ -181,11 +184,17 @@ class CredentialManagementViewModelTest {
                     userName = "alice",
                 )
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
-            assertTrue(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
+            assertTrue(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(CredentialId.fromEncoded("dGVzdF9pZA")),
+            )
 
             viewModel.onIntent(CredentialManagementIntent.UndoDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
 
-            assertFalse(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
+            assertFalse(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(CredentialId.fromEncoded("dGVzdF9pZA")),
+            )
         }
 
     @Test
@@ -203,7 +212,10 @@ class CredentialManagementViewModelTest {
             viewModel.onIntent(CredentialManagementIntent.CommitDelete(CredentialId.fromEncoded("dGVzdF9pZA")))
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.pendingDeleteIds.contains(CredentialId.fromEncoded("dGVzdF9pZA")))
+            assertFalse(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(CredentialId.fromEncoded("dGVzdF9pZA")),
+            )
         }
 
     @Test
@@ -250,7 +262,10 @@ class CredentialManagementViewModelTest {
 
             val expectedTotal = pageSizeInt + 1
             assertEquals(expectedTotal, newViewModel.state.value.credentials.size)
-            assertTrue(newViewModel.state.value.credentials.any { it.id.encoded == "Mg" })
+            assertTrue(
+                newViewModel.state.value.credentials
+                    .any { it.id.encoded == "Mg" },
+            )
             assertFalse(newViewModel.state.value.isPaginating)
         }
 }

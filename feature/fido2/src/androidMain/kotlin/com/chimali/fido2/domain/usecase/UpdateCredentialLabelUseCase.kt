@@ -16,7 +16,5 @@ class UpdateCredentialLabelUseCase(
     suspend operator fun invoke(
         credentialId: CredentialId,
         label: String?,
-    ): Outcome<Unit, DomainError> {
-        return credentialRepository.updateLabel(credentialId, label)
-    }
+    ): Outcome<Unit, DomainError> = credentialRepository.updateLabel(credentialId, label)
 }

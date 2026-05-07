@@ -27,12 +27,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothAudio
-import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
@@ -218,19 +218,23 @@ fun Fido2HomeScreen(
                 val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
                 val connectGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_CONNECT,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_CONNECT,
                     ) == granted
                 val advertiseGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
                     ) == granted
                 val scanGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_SCAN,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_SCAN,
                     ) == granted
                 val notificationsGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.POST_NOTIFICATIONS,
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS,
                     ) == granted
 
                 if (!connectGranted || !advertiseGranted || !scanGranted || !notificationsGranted) {
@@ -249,15 +253,18 @@ fun Fido2HomeScreen(
                 val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
                 val connectGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_CONNECT,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_CONNECT,
                     ) == granted
                 val advertiseGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_ADVERTISE,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
                     ) == granted
                 val scanGranted =
                     ContextCompat.checkSelfPermission(
-                        context, android.Manifest.permission.BLUETOOTH_SCAN,
+                        context,
+                        android.Manifest.permission.BLUETOOTH_SCAN,
                     ) == granted
                 if (!connectGranted || !advertiseGranted || !scanGranted) {
                     bluetoothPermissionLauncher.launch(
@@ -371,7 +378,7 @@ fun Fido2HomeScreen(
                 onClick = onManageCredentials,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Default.List, contentDescription = null)
+                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Manage Saved Passkeys")
             }
@@ -404,7 +411,7 @@ fun StatusIndicator(
                 Triple(
                     "Advertising...",
                     COLOR_ADVERTISING,
-                    Icons.Default.BluetoothSearching,
+                    Icons.AutoMirrored.Filled.BluetoothSearching,
                 )
             is HidConnectionState.Connecting -> Triple("Connecting...", COLOR_CONNECTING, Icons.Default.BluetoothAudio)
             is HidConnectionState.Connected -> Triple("Connected to PC", COLOR_CONNECTED, Icons.Default.Devices)
@@ -560,7 +567,6 @@ fun PulseAnimation(
                     scaleX = scale
                     scaleY = scale
                     this.alpha = alpha
-                }
-                .background(color),
+                }.background(color),
     )
 }

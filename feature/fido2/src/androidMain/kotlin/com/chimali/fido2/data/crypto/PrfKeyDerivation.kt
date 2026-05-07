@@ -46,12 +46,13 @@ class PrfKeyDerivation(
         require(salt.size == PrfExtensionInput.SALT_SIZE_BYTES) {
             "PRF derive: salt must be exactly ${PrfExtensionInput.SALT_SIZE_BYTES} bytes; got ${salt.size}"
         }
-        return hmacSecretProcessor.process(
-            credentialId = credentialId,
-            extensionData = salt,
-        )?.also { output ->
-            Logger.d(TAG) { "PRF derive: ${output.size} bytes for credentialId=$credentialId" }
-        }
+        return hmacSecretProcessor
+            .process(
+                credentialId = credentialId,
+                extensionData = salt,
+            )?.also { output ->
+                Logger.d(TAG) { "PRF derive: ${output.size} bytes for credentialId=$credentialId" }
+            }
     }
 
     /**

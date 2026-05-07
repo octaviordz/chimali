@@ -76,9 +76,7 @@ object MultiplicativeBlinding {
     fun blindPrivateKey(
         sk: BigInteger,
         bf: BigInteger,
-    ): BigInteger {
-        return sk.multiply(bf).mod(P256Group.ORDER)
-    }
+    ): BigInteger = sk.multiply(bf).mod(P256Group.ORDER)
 
     /**
      * Combine: Combine two blinding factors.
@@ -92,9 +90,7 @@ object MultiplicativeBlinding {
     fun combine(
         bf1: BigInteger,
         bf2: BigInteger,
-    ): BigInteger {
-        return bf1.multiply(bf2).mod(P256Group.ORDER)
-    }
+    ): BigInteger = bf1.multiply(bf2).mod(P256Group.ORDER)
 
     /**
      * BlindDH: Create a blinded ECDH shared secret.

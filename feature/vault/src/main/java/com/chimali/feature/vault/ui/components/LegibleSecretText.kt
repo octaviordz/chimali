@@ -12,15 +12,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.chimali.feature.vault.ui.model.LegibilitySettings
-import com.chimali.feature.vault.ui.theme.getFontFamily
 import com.chimali.feature.vault.ui.theme.LegibilityColors
+import com.chimali.feature.vault.ui.theme.getFontFamily
 
 /**
  * A reusable Composable for displaying secrets with legibility enhancements.
- * 
+ *
  * This component applies specialized fonts and semantic highlighting to make passwords
  * and other secrets easier to read while maintaining security.
- * 
+ *
  * @param secret The raw secret string to display
  * @param isRevealed Whether the secret should be shown or masked
  * @param settings Configuration for font and highlighting preferences
@@ -33,40 +33,42 @@ fun LegibleSecretText(
     isRevealed: Boolean,
     settings: LegibilitySettings,
     modifier: Modifier = Modifier,
-    maxLines: Int = 3
+    maxLines: Int = 3,
 ) {
-    val displayText = if (isRevealed) {
-        buildLegibilityAnnotatedString(secret, settings)
-    } else {
-        AnnotatedString("•".repeat(secret.length))
-    }
+    val displayText =
+        if (isRevealed) {
+            buildLegibilityAnnotatedString(secret, settings)
+        } else {
+            AnnotatedString("•".repeat(secret.length))
+        }
 
     val fontFamily = getFontFamily(settings.fontType)
-    
+
     BasicText(
         text = displayText,
         modifier = modifier,
-        style = TextStyle(
-            fontFamily = fontFamily,
-            fontSize = 16.sp,
-            color = Color.Unspecified, // Will be inherited from theme
-            fontWeight = FontWeight.Normal,
-            lineHeight = 20.sp
-        ),
+        style =
+            TextStyle(
+                fontFamily = fontFamily,
+                fontSize = 16.sp,
+                color = Color.Unspecified, // Will be inherited from theme
+                fontWeight = FontWeight.Normal,
+                lineHeight = 20.sp,
+            ),
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
 /**
  * Builds an AnnotatedString with semantic highlighting based on character types.
- * 
+ *
  * This function processes each character in the secret and applies appropriate
  * styling based on the user's legibility settings, including Unicode symbol handling.
  */
 private fun buildLegibilityAnnotatedString(
     secret: String,
-    settings: LegibilitySettings
+    settings: LegibilitySettings,
 ): AnnotatedString {
     if (!settings.useSemanticHighlighting) {
         return AnnotatedString(secret)
@@ -83,47 +85,51 @@ private fun buildLegibilityAnnotatedString(
     }
 }
 
-private fun getLegibilityCharStyle(char: Char, settings: LegibilitySettings): TextStyle {
-    return when {
+private fun getLegibilityCharStyle(
+    char: Char,
+    settings: LegibilitySettings,
+): TextStyle =
+    when {
         char.isDigit() && settings.highlightNumbers -> {
             val color = if (settings.colorblindMode) LegibilityColors.NumberOrangeHighContrast else settings.numberColor
             TextStyle(
                 color = color,
-                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.SemiBold
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.SemiBold,
             )
         }
         char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
-            val color = if (settings.colorblindMode) {
-                LegibilityColors.UppercasePurpleHighContrast
-            } else {
-                settings.uppercaseColor
-            }
+            val color =
+                if (settings.colorblindMode) {
+                    LegibilityColors.UppercasePurpleHighContrast
+                } else {
+                    settings.uppercaseColor
+                }
             TextStyle(
                 color = color,
-                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium,
             )
         }
         char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
-            val color = if (settings.colorblindMode) {
-                LegibilityColors.LowercaseGreenHighContrast
-            } else {
-                settings.lowercaseColor
-            }
+            val color =
+                if (settings.colorblindMode) {
+                    LegibilityColors.LowercaseGreenHighContrast
+                } else {
+                    settings.lowercaseColor
+                }
             TextStyle(
                 color = color,
-                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Normal,
             )
         }
         !char.isLetterOrDigit() && settings.highlightSymbols -> {
             val color = if (settings.colorblindMode) LegibilityColors.SymbolBlueHighContrast else settings.symbolColor
             TextStyle(
                 color = color,
-                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (settings.colorblindMode) FontWeight.Bold else FontWeight.Medium,
             )
         }
         else -> TextStyle()
     }
-}
 
 /**
  * Enhanced version with colorblind-friendly background highlighting.
@@ -135,33 +141,35 @@ fun LegibleSecretTextColorblind(
     isRevealed: Boolean,
     settings: LegibilitySettings,
     modifier: Modifier = Modifier,
-    maxLines: Int = 3
+    maxLines: Int = 3,
 ) {
     if (!settings.colorblindMode) {
         LegibleSecretText(secret, isRevealed, settings, modifier, maxLines)
         return
     }
 
-    val displayText = if (isRevealed) {
-        buildColorblindAnnotatedString(secret, settings)
-    } else {
-        AnnotatedString("•".repeat(secret.length))
-    }
+    val displayText =
+        if (isRevealed) {
+            buildColorblindAnnotatedString(secret, settings)
+        } else {
+            AnnotatedString("•".repeat(secret.length))
+        }
 
     val fontFamily = getFontFamily(settings.fontType)
-    
+
     BasicText(
         text = displayText,
         modifier = modifier,
-        style = TextStyle(
-            fontFamily = fontFamily,
-            fontSize = 16.sp,
-            color = Color.Unspecified,
-            fontWeight = FontWeight.Normal,
-            lineHeight = 20.sp
-        ),
+        style =
+            TextStyle(
+                fontFamily = fontFamily,
+                fontSize = 16.sp,
+                color = Color.Unspecified,
+                fontWeight = FontWeight.Normal,
+                lineHeight = 20.sp,
+            ),
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
@@ -180,9 +188,9 @@ private fun handleUnicodeSymbol(char: Char): String {
  */
 private fun buildColorblindAnnotatedString(
     secret: String,
-    settings: LegibilitySettings
-): AnnotatedString {
-    return buildAnnotatedString {
+    settings: LegibilitySettings,
+): AnnotatedString =
+    buildAnnotatedString {
         secret.forEach { char ->
             val processedChar = handleUnicodeSymbol(char)
             val style = getColorblindCharStyle(char, settings)
@@ -195,38 +203,39 @@ private fun buildColorblindAnnotatedString(
             }
         }
     }
-}
 
-private fun getColorblindCharStyle(char: Char, settings: LegibilitySettings): TextStyle? {
-    return when {
+private fun getColorblindCharStyle(
+    char: Char,
+    settings: LegibilitySettings,
+): TextStyle? =
+    when {
         char.isDigit() && settings.highlightNumbers -> {
             TextStyle(
                 color = LegibilityColors.NumberOrangeHighContrast,
                 fontWeight = FontWeight.Bold,
-                background = LegibilityColors.NumberBackground
+                background = LegibilityColors.NumberBackground,
             )
         }
         char.isLetter() && char.isUpperCase() && settings.highlightUppercase -> {
             TextStyle(
                 color = LegibilityColors.UppercasePurpleHighContrast,
                 fontWeight = FontWeight.Bold,
-                background = LegibilityColors.UppercaseBackground
+                background = LegibilityColors.UppercaseBackground,
             )
         }
         char.isLetter() && char.isLowerCase() && settings.highlightLowercase -> {
             TextStyle(
                 color = LegibilityColors.LowercaseGreenHighContrast,
                 fontWeight = FontWeight.Bold,
-                background = LegibilityColors.LowercaseBackground
+                background = LegibilityColors.LowercaseBackground,
             )
         }
         !char.isLetterOrDigit() && settings.highlightSymbols -> {
             TextStyle(
                 color = LegibilityColors.SymbolBlueHighContrast,
                 fontWeight = FontWeight.Bold,
-                background = LegibilityColors.SymbolBackground
+                background = LegibilityColors.SymbolBackground,
             )
         }
         else -> null
     }
-}

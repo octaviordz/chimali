@@ -100,7 +100,7 @@ class WalletMasterSeedProvider(
         }
 
         Logger.i { "Generating new BIP39 mnemonic (first launch)" }
-        val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = 24)
+        val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = MNEMONIC_WORD_COUNT)
         prefs.edit {
             putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
         }
@@ -146,8 +146,8 @@ class WalletMasterSeedProvider(
         try {
             val mnemonicString = String(mnemonic)
             val words = mnemonicString.split(" ")
-            require(words.size == 24) {
-                "Invalid mnemonic: expected 24 words, got ${words.size}."
+            require(words.size == MNEMONIC_WORD_COUNT) {
+                "Invalid mnemonic: expected $MNEMONIC_WORD_COUNT words, got ${words.size}."
             }
 
             val prefs = openEncryptedPrefs()
@@ -327,6 +327,7 @@ class WalletMasterSeedProvider(
     }
 
     companion object {
+        private const val MNEMONIC_WORD_COUNT = 24
         private const val HDK_SEED_SIZE_32 = 32
         private const val P256_SCALAR_SIZE_32 = 32
         private const val BIP32_KEY_SIZE_32 = 32

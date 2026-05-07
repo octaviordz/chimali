@@ -6,7 +6,6 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 
 class PasswordCryptoTest {
-
     @Test
     fun `payload clears memory correctly`() {
         val notesArray = charArrayOf('s', 'e', 'c', 'r', 'e', 't')
@@ -14,16 +13,18 @@ class PasswordCryptoTest {
         val usernameArray = charArrayOf('u', 's', 'e', 'r')
         val customFieldValue = charArrayOf('a', 'n', 's', 'w', 'e', 'r')
 
-        val payload = PasswordPayload(
-            title = "My Bank",
-            username = usernameArray,
-            password = passwordArray,
-            uri = "https://bank.com",
-            notes = notesArray,
-            customFields = listOf(
-                CustomField("Security Question", customFieldValue, true)
+        val payload =
+            PasswordPayload(
+                title = "My Bank",
+                username = usernameArray,
+                password = passwordArray,
+                uri = "https://bank.com",
+                notes = notesArray,
+                customFields =
+                    listOf(
+                        CustomField("Security Question", customFieldValue, true),
+                    ),
             )
-        )
 
         // Clear memory
         payload.clearMemory()

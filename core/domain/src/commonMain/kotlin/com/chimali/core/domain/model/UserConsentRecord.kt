@@ -87,49 +87,38 @@ data class UserConsentRecord(
     /**
      * Checks if this consent was for a specific credential ID.
      */
-    fun isForCredential(credentialId: CredentialId): Boolean {
-        return this.credentialId == credentialId
-    }
+    fun isForCredential(credentialId: CredentialId): Boolean = this.credentialId == credentialId
 
     /**
      * Checks if this consent was for a specific relying party.
      */
-    fun isForRelyingParty(rpId: RpId): Boolean {
-        return this.rpId.value.equals(rpId.value, ignoreCase = true)
-    }
+    fun isForRelyingParty(rpId: RpId): Boolean = this.rpId.value.equals(rpId.value, ignoreCase = true)
 
     /**
      * Returns the consent method used.
      */
-    fun getConsentMethod(): ConsentMethod {
-        return when {
+    fun getConsentMethod(): ConsentMethod =
+        when {
             biometricUsed && pinUsed -> ConsentMethod.BIOMETRIC_AND_PIN
             biometricUsed -> ConsentMethod.BIOMETRIC
             pinUsed -> ConsentMethod.PIN
             else -> ConsentMethod.NONE
         }
-    }
 
     /**
      * Returns a safe representation of the credential ID.
      */
-    fun getSafeCredentialId(): String {
-        return credentialId?.encoded ?: "N/A"
-    }
+    fun getSafeCredentialId(): String = credentialId?.encoded ?: "N/A"
 
     /**
      * Checks if this consent record is for registration.
      */
-    fun isRegistrationConsent(): Boolean {
-        return operationType == ConsentOperationType.REGISTRATION
-    }
+    fun isRegistrationConsent(): Boolean = operationType == ConsentOperationType.REGISTRATION
 
     /**
      * Checks if this consent record is for authentication.
      */
-    fun isAuthenticationConsent(): Boolean {
-        return operationType == ConsentOperationType.AUTHENTICATION
-    }
+    fun isAuthenticationConsent(): Boolean = operationType == ConsentOperationType.AUTHENTICATION
 
     companion object {
         const val MAX_IP_ADDRESS_LENGTH = 45
@@ -153,8 +142,8 @@ data class UserConsentRecord(
             ipAddress: String? = null,
             userAgent: String? = null,
             deviceId: String? = null,
-        ): UserConsentRecord {
-            return UserConsentRecord(
+        ): UserConsentRecord =
+            UserConsentRecord(
                 id = id,
                 operationType = operationType,
                 rpId = rpId,
@@ -166,14 +155,12 @@ data class UserConsentRecord(
                 userAgent = userAgent,
                 deviceId = deviceId,
             )
-        }
 
         /**
          * Validates RP ID format according to FIDO2 specifications.
          */
-        private fun isValidRpId(rpId: String): Boolean {
-            return rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
-        }
+        private fun isValidRpId(rpId: String): Boolean =
+            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
 
         /**
          * Validates IP address format (IPv4 or IPv6).

@@ -45,23 +45,17 @@ data class PublicKeyCredentialDescriptor(
     /**
      * Returns the credential ID as a hex string.
      */
-    fun getIdHex(): String {
-        return id.toByteArray().joinToString("") { "%02x".format(it) }
-    }
+    fun getIdHex(): String = id.toByteArray().joinToString("") { "%02x".format(it) }
 
     /**
      * Checks if this descriptor supports specific transport.
      */
-    fun supportsTransport(transport: AuthenticatorTransport): Boolean {
-        return transports?.contains(transport) ?: false
-    }
+    fun supportsTransport(transport: AuthenticatorTransport): Boolean = transports?.contains(transport) ?: false
 
     /**
      * Returns a list of supported transports.
      */
-    fun getSupportedTransports(): List<AuthenticatorTransport> {
-        return transports ?: emptyList()
-    }
+    fun getSupportedTransports(): List<AuthenticatorTransport> = transports ?: emptyList()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -97,13 +91,12 @@ data class PublicKeyCredentialDescriptor(
             type: PublicKeyCredentialType = PublicKeyCredentialType.PUBLIC_KEY,
             id: CredentialId,
             transports: List<AuthenticatorTransport>? = null,
-        ): PublicKeyCredentialDescriptor {
-            return PublicKeyCredentialDescriptor(
+        ): PublicKeyCredentialDescriptor =
+            PublicKeyCredentialDescriptor(
                 type = type,
                 id = id,
                 transports = transports,
             )
-        }
 
         /**
          * Creates a descriptor from base64 credential ID.
@@ -112,9 +105,7 @@ data class PublicKeyCredentialDescriptor(
             type: PublicKeyCredentialType = PublicKeyCredentialType.PUBLIC_KEY,
             idBase64: String,
             transports: List<AuthenticatorTransport>? = null,
-        ): PublicKeyCredentialDescriptor {
-            return create(type, CredentialId.fromEncoded(idBase64), transports)
-        }
+        ): PublicKeyCredentialDescriptor = create(type, CredentialId.fromEncoded(idBase64), transports)
     }
 }
 

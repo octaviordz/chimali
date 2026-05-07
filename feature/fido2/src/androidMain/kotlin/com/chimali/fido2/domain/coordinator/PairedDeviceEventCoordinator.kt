@@ -24,17 +24,18 @@ class PairedDeviceEventCoordinator(
 
     init {
         // Start listening to events immediately upon injection/creation
-        fido2EventBus.events.onEach { event ->
-            when (event) {
-                is Fido2Event.InteractionSuccessful -> {
-                    // Save the device as a tracked "Paired" host
-                    savePairedDeviceUseCase(
-                        macAddress = event.hostDeviceAddress,
-                        name = event.hostDeviceName,
-                        deviceClass = event.hostDeviceClass,
-                    )
+        fido2EventBus.events
+            .onEach { event ->
+                when (event) {
+                    is Fido2Event.InteractionSuccessful -> {
+                        // Save the device as a tracked "Paired" host
+                        savePairedDeviceUseCase(
+                            macAddress = event.hostDeviceAddress,
+                            name = event.hostDeviceName,
+                            deviceClass = event.hostDeviceClass,
+                        )
+                    }
                 }
-            }
-        }.launchIn(scope)
+            }.launchIn(scope)
     }
 }

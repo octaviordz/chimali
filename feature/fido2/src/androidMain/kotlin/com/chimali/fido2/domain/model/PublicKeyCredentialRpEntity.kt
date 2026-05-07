@@ -28,28 +28,24 @@ data class PublicKeyCredentialRpEntity(
         require(RelyingParty.isValidRpId(id.value)) {
             "RP ID must be a valid domain or HTTPS origin: ${id.value}"
         }
-        require(name.length <= 64) { "RP name cannot exceed 64 characters" }
+        require(name.length <= MAX_NAME_LENGTH) { "RP name cannot exceed $MAX_NAME_LENGTH characters" }
 
         // Validate icon if present
         icon?.let { iconUrl ->
             require(iconUrl.isNotBlank()) { "Icon cannot be blank if provided" }
-            require(iconUrl.length <= 128) { "Icon cannot exceed 128 characters" }
+            require(iconUrl.length <= MAX_ICON_LENGTH) { "Icon cannot exceed $MAX_ICON_LENGTH characters" }
         }
     }
 
     /**
      * Returns the domain from the RP ID.
      */
-    fun getDomain(): String {
-        return id.value
-    }
+    fun getDomain(): String = id.value
 
     /**
      * Returns a safe name for display.
      */
-    fun getSafeName(): String {
-        return name.ifBlank { getDomain() }
-    }
+    fun getSafeName(): String = name.ifBlank { getDomain() }
 
     companion object {
         /**
@@ -65,12 +61,11 @@ data class PublicKeyCredentialRpEntity(
             id: RpId,
             name: String,
             icon: String? = null,
-        ): PublicKeyCredentialRpEntity {
-            return PublicKeyCredentialRpEntity(
+        ): PublicKeyCredentialRpEntity =
+            PublicKeyCredentialRpEntity(
                 id = id,
                 name = name,
                 icon = icon,
             )
-        }
     }
 }

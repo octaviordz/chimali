@@ -127,6 +127,9 @@ class BluetoothHidTransportImpl(
         private const val STATUS_PROCESSING: Byte = 0x01
         private const val STATUS_UPNEEDED: Byte = 0x02
 
+        private const val HEX_RADIX = 16
+        private const val APDU_DATA_OFFSET_SHORT = 5
+
         private const val BYTE_MASK = 0xFF
         private const val SHIFT_8 = 8
     }
@@ -171,8 +174,8 @@ class BluetoothHidTransportImpl(
 
     // ── Fido2Transport interface ───────────────────────────────────────────────
 
-    override suspend fun connect(): Result<Unit> {
-        return try {
+    override suspend fun connect(): Result<Unit> =
+        try {
             Logger.d { "connect() starting..." }
             hidWrapper.initialize().getOrThrow()
             Logger.d { "hidWrapper initialized, now registering app..." }
@@ -193,10 +196,9 @@ class BluetoothHidTransportImpl(
             hidWrapper.reportError(msg)
             Result.failure(Fido2Exception.TransportException(msg))
         }
-    }
 
-    override suspend fun disconnect(): Result<Unit> {
-        return try {
+    override suspend fun disconnect(): Result<Unit> =
+        try {
             Logger.d { "disconnect() starting..." }
             receiveJob?.cancel()
             receiveJob = null
@@ -217,7 +219,6 @@ class BluetoothHidTransportImpl(
             Logger.e(e) { "disconnect() failed: ${e.message}" }
             Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
         }
-    }
 
     /**
      * Low-level send — encodes [command] as a CTAPHID_CBOR init-packet and
@@ -238,62 +239,63 @@ class BluetoothHidTransportImpl(
     private fun observeConnectionState() {
         stateObserverJob?.cancel()
         stateObserverJob =
-            hidWrapper.connectionState.onEach { state ->
-                when (state) {
-                    is HidConnectionState.Connected -> {
-                        Logger.i { "Host connected: ${state.device.address}" }
-                        // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
-                        // real GetAssertion ceremony doesn't pay cold-start costs.
-                        //
-                        // The host still has to complete CTAPHID_INIT channel negotiation +
-                        // the Windows pre-flight GetAssertion checks before issuing the real
-                        // ceremony, giving this coroutine a realistic head start.
-                        //
-                        // All results are discarded — only the side-effects (cache population
-                        // and TEE channel initialization) matter. Failures are non-fatal.
-                        scope.launch(Dispatchers.IO) {
-                            // (1) BiometricManager availability cache — eliminates 50–150ms
-                            //     Binder IPC into Android SystemServer on first UV check.
-                            runCatching { userVerificationService.getUserVerificationAvailability() }
-                                .onFailure { e ->
-                                    Logger.w { "BiometricManager pre-warm failed (non-fatal): ${e.message}" }
-                                }
+            hidWrapper.connectionState
+                .onEach { state ->
+                    when (state) {
+                        is HidConnectionState.Connected -> {
+                            Logger.i { "Host connected: ${state.device.address}" }
+                            // NFR-PERF-030: Pre-warm latency-sensitive subsystems so the first
+                            // real GetAssertion ceremony doesn't pay cold-start costs.
+                            //
+                            // The host still has to complete CTAPHID_INIT channel negotiation +
+                            // the Windows pre-flight GetAssertion checks before issuing the real
+                            // ceremony, giving this coroutine a realistic head start.
+                            //
+                            // All results are discarded — only the side-effects (cache population
+                            // and TEE channel initialization) matter. Failures are non-fatal.
+                            scope.launch(Dispatchers.IO) {
+                                // (1) BiometricManager availability cache — eliminates 50–150ms
+                                //     Binder IPC into Android SystemServer on first UV check.
+                                runCatching { userVerificationService.getUserVerificationAvailability() }
+                                    .onFailure { e ->
+                                        Logger.w { "BiometricManager pre-warm failed (non-fatal): ${e.message}" }
+                                    }
 
-                            // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
-                            //     HAL init spike on the first Crypto.sign() call.
-                            //     Fido2Initializer also calls this at app start, but the first
-                            //     CTAP2 message can arrive before that warmup finishes on a
-                            //     parallel thread. Repeating it here at connect-time is safe
-                            //     (the key already exists; it's just a 5ms lookup + sign).
-                            WarmUpHelper.warmUpAndroidKeyStore()
+                                // (2) AndroidKeyStore TEE/HAL IPC channel — eliminates the 200ms+
+                                //     HAL init spike on the first Crypto.sign() call.
+                                //     Fido2Initializer also calls this at app start, but the first
+                                //     CTAP2 message can arrive before that warmup finishes on a
+                                //     parallel thread. Repeating it here at connect-time is safe
+                                //     (the key already exists; it's just a 5ms lookup + sign).
+                                WarmUpHelper.warmUpAndroidKeyStore()
 
-                            // (3) Master seed (EncryptedSharedPreferences) — the dominant
-                            //     cold-start cost in Crypto.sign(). On the first call per session,
-                            //     getMasterSeed() decrypts the BIP39 mnemonic using the
-                            //     'androidx_security_master_key_v2' AndroidKeyStore key. That
-                            //     specific key has its own lazy-init cost (~150ms) separate from
-                            //     the generic warmup key exercised by warmUpAndroidKeyStore().
-                            //     After this call, WalletMasterSeedProvider caches the seed in
-                            //     memory, so all subsequent getMasterSeed() calls are ~0ms.
-                            cryptoService.warmUpMasterSeed()
+                                // (3) Master seed (EncryptedSharedPreferences) — the dominant
+                                //     cold-start cost in Crypto.sign(). On the first call per session,
+                                //     getMasterSeed() decrypts the BIP39 mnemonic using the
+                                //     'androidx_security_master_key_v2' AndroidKeyStore key. That
+                                //     specific key has its own lazy-init cost (~150ms) separate from
+                                //     the generic warmup key exercised by warmUpAndroidKeyStore().
+                                //     After this call, WalletMasterSeedProvider caches the seed in
+                                //     memory, so all subsequent getMasterSeed() calls are ~0ms.
+                                cryptoService.warmUpMasterSeed()
+                            }
+                            // Transport is now ready for CTAPHID_INIT from the host
                         }
-                        // Transport is now ready for CTAPHID_INIT from the host
+                        is HidConnectionState.Advertising -> {
+                            Logger.d { "Advertising for host connections" }
+                            // Clean up any channels from prior host session
+                            channelRegistry.clear()
+                            hidReportParser.reset()
+                        }
+                        is HidConnectionState.Idle -> {
+                            Logger.d { "HID transport idle" }
+                        }
+                        is HidConnectionState.Error -> {
+                            Logger.e { "HID connection error: ${state.message}" }
+                        }
+                        else -> { /* Connecting — nothing to do */ }
                     }
-                    is HidConnectionState.Advertising -> {
-                        Logger.d { "Advertising for host connections" }
-                        // Clean up any channels from prior host session
-                        channelRegistry.clear()
-                        hidReportParser.reset()
-                    }
-                    is HidConnectionState.Idle -> {
-                        Logger.d { "HID transport idle" }
-                    }
-                    is HidConnectionState.Error -> {
-                        Logger.e { "HID connection error: ${state.message}" }
-                    }
-                    else -> { /* Connecting — nothing to do */ }
-                }
-            }.launchIn(scope)
+                }.launchIn(scope)
     }
 
     // ── Report receiver loop ──────────────────────────────────────────────────
@@ -320,7 +322,7 @@ class BluetoothHidTransportImpl(
         val message = result.getOrNull() ?: return // null = still accumulating
 
         Logger.d {
-            "CTAPHID cmd=0x${message.command.toString(16).uppercase()} " +
+            "CTAPHID cmd=0x${message.command.toString(HEX_RADIX).uppercase()} " +
                 "cid=${message.channelId.toHex()} payloadLen=${message.payload.size}"
         }
 
@@ -338,7 +340,7 @@ class BluetoothHidTransportImpl(
             CTAPHID_PING -> handlePing(message)
             CTAPHID_CANCEL -> handleCancel(message)
             else -> {
-                Logger.w { "Unknown CTAPHID command 0x${message.command.toString(16)}" }
+                Logger.w { "Unknown CTAPHID command 0x${message.command.toString(HEX_RADIX)}" }
                 sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_CMD))
             }
         }
@@ -385,12 +387,12 @@ class BluetoothHidTransportImpl(
                 CMD_MAKE_CREDENTIAL -> "MakeCredential"
                 CMD_GET_ASSERTION -> "GetAssertion"
                 CMD_GET_INFO -> "GetInfo"
-                else -> "CTAP2_0x${ctapCommand.toString(16)}"
+                else -> "CTAP2_0x${ctapCommand.toString(HEX_RADIX)}"
             }
         // NFR-PERF-030: Start measuring full CTAP2 processing time
         LatencyProfiler.start(operationLabel)
         Logger.d {
-            "CTAP2 command=0x${ctapCommand.toString(16)} on CID=${cid.toHex()}"
+            "CTAP2 command=0x${ctapCommand.toString(HEX_RADIX)} on CID=${cid.toHex()}"
         }
 
         // ── Periodic keepalive loop ────────────────────────────────────────────
@@ -431,7 +433,7 @@ class BluetoothHidTransportImpl(
                     CMD_GET_INFO -> handleGetInfo(cid) // authenticatorGetInfo
 
                     else -> {
-                        Logger.w { "Unsupported CTAP2 command 0x${ctapCommand.toString(16)}" }
+                        Logger.w { "Unsupported CTAP2 command 0x${ctapCommand.toString(HEX_RADIX)}" }
                         responseBuilder.errorResponse(cid, ERR_INVALID_CMD)
                     }
                 }
@@ -530,7 +532,7 @@ class BluetoothHidTransportImpl(
             }
             // Synthesise a CTAPHID_CBOR message with the unwrapped CBOR payload
             Logger.d {
-                "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and BYTE_MASK).toString(16)} as CBOR"
+                "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and BYTE_MASK).toString(HEX_RADIX)} as CBOR"
             }
             val syntheticMsg = CtapHidMessage(cid, CTAPHID_CBOR, cborData)
             handleCbor(syntheticMsg)
@@ -572,7 +574,7 @@ class BluetoothHidTransportImpl(
                 sendPackets(u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()))
             }
             else -> {
-                Logger.d { "CTAPHID_MSG U2F INS=0x${ins.toString(16)} unknown — returning SW_INS_NOT_SUPPORTED" }
+                Logger.d { "CTAPHID_MSG U2F INS=0x${ins.toString(HEX_RADIX)} unknown — returning SW_INS_NOT_SUPPORTED" }
                 sendPackets(u2fErrorResponse(cid, SW_INS_NOT_SUPPORTED_1.toInt(), SW_INS_NOT_SUPPORTED_2.toInt()))
             }
         }
@@ -585,8 +587,8 @@ class BluetoothHidTransportImpl(
 
         return if (apdu[APDU_LC_SHORT_OFFSET] != 0x00.toByte()) { // short Lc
             val lc = apdu[APDU_LC_SHORT_OFFSET].toInt() and BYTE_MASK
-            if (apdu.size >= 5 + lc) {
-                apdu.copyOfRange(5, 5 + lc)
+            if (apdu.size >= APDU_DATA_OFFSET_SHORT + lc) {
+                apdu.copyOfRange(APDU_DATA_OFFSET_SHORT, APDU_DATA_OFFSET_SHORT + lc)
             } else {
                 null
             }
@@ -596,9 +598,9 @@ class BluetoothHidTransportImpl(
                 ((apdu[APDU_LC_EXTENDED_OFFSET].toInt() and BYTE_MASK) shl SHIFT_8) or
                     (apdu[APDU_LC_EXTENDED_OFFSET + 1].toInt() and BYTE_MASK)
             )
-            val endOffset = 7 + lc
+            val endOffset = APDU_LC_EXTENDED_MIN_SIZE + lc
             if (apdu.size >= endOffset) {
-                apdu.copyOfRange(7, endOffset)
+                apdu.copyOfRange(APDU_LC_EXTENDED_MIN_SIZE, endOffset)
             } else {
                 Logger.e { "BluetoothHidTransport: APDU data extraction failed - buffer too small for lc=$lc" }
                 null
@@ -642,8 +644,8 @@ class BluetoothHidTransportImpl(
 
     // ── authenticatorGetInfo ──────────────────────────────────────────────────
 
-    private suspend fun handleGetInfo(cid: ByteArray): List<ByteArray> {
-        return try {
+    private suspend fun handleGetInfo(cid: ByteArray): List<ByteArray> =
+        try {
             val info = fido2Authenticator.getAuthenticatorInfo()
             val packets = responseBuilder.getInfoResponse(cid, info)
             // Debug: log the first packet hex so we can diagnose Windows rejection
@@ -656,7 +658,6 @@ class BluetoothHidTransportImpl(
             Logger.e(e) { "GetInfo failed: ${e.message}" }
             responseBuilder.errorResponse(cid, 0x30.toByte())
         }
-    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

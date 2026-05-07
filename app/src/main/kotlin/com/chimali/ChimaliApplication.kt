@@ -7,9 +7,9 @@ import com.chimali.core.common.di.DispatchersModule
 import com.chimali.core.database.di.databaseModule
 import com.chimali.core.domain.di.DomainModule
 import com.chimali.core.security.di.SecurityModule
+import com.chimali.feature.vault.internal.vaultModule
 import com.chimali.fido2.Fido2Initializer
 import com.chimali.fido2.di.Fido2Module
-import com.chimali.feature.vault.internal.vaultModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin

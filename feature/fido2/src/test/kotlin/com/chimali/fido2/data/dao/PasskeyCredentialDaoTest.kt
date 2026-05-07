@@ -60,13 +60,22 @@ class PasskeyCredentialDaoTest {
                 id = "dGVzdF9pZA",
                 createdAt = testCredential.createdAt.toEpochMilliseconds(),
                 lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
-                aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
+                aaguid =
+                    java.util.Base64
+                        .getEncoder()
+                        .encodeToString(testCredential.aaguid),
                 coseAlgorithm = testCredential.coseAlgorithm.toLong(),
-                credentialId = java.util.Base64.getEncoder().encodeToString(testCredential.credentialId),
+                credentialId =
+                    java.util.Base64
+                        .getEncoder()
+                        .encodeToString(testCredential.credentialId),
                 credProtectPolicy = testCredential.credProtectPolicy.toLong(),
                 label = "Test Label",
                 privateKeyAlias = "test_alias",
-                publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
+                publicKey =
+                    java.util.Base64
+                        .getEncoder()
+                        .encodeToString(publicKey.encoded),
                 rpId = "example.com",
                 rpName = "example.com",
                 signCount = 0L,
@@ -88,13 +97,19 @@ class PasskeyCredentialDaoTest {
                         id = testCredential.id.encoded,
                         createdAt = testCredential.createdAt.toEpochMilliseconds(),
                         lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
-                        aaguid = java.util.Base64.getEncoder().encodeToString(testCredential.aaguid),
+                        aaguid =
+                            java.util.Base64
+                                .getEncoder()
+                                .encodeToString(testCredential.aaguid),
                         coseAlgorithm = testCredential.coseAlgorithm.toLong(),
                         credentialId = testCredential.id.encoded,
                         credProtectPolicy = testCredential.credProtectPolicy.toLong(),
                         label = testCredential.label,
                         privateKeyAlias = testCredential.privateKeyAlias,
-                        publicKey = java.util.Base64.getEncoder().encodeToString(publicKey.encoded),
+                        publicKey =
+                            java.util.Base64
+                                .getEncoder()
+                                .encodeToString(publicKey.encoded),
                         rpId = testCredential.rpId.value,
                         rpName = testCredential.rpId.value,
                         signCount = testCredential.signCount,

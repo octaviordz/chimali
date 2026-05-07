@@ -7,7 +7,7 @@ import java.util.UUID
 enum class VaultType {
     PASSWORD,
     CREDIT_CARD,
-    NOTE
+    NOTE,
 }
 
 data class VaultItem(
@@ -19,7 +19,7 @@ data class VaultItem(
     val dateCreated: String,
     val dateModified: String,
     val lastBackedUpAt: String?,
-    val identityId: UUID
+    val identityId: UUID,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -56,6 +56,8 @@ data class VaultItem(
 
 interface VaultService {
     suspend fun getItems(labelId: UUID?): Outcome<List<VaultItem>, DomainError>
+
     suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError>
+
     suspend fun deleteItem(id: UUID): Outcome<Unit, DomainError>
 }

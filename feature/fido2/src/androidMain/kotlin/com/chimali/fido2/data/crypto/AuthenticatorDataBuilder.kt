@@ -97,7 +97,9 @@ class AuthenticatorDataBuilder {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun rpIdHash(rpId: String): ByteArray =
-        java.security.MessageDigest.getInstance("SHA-256").digest(rpId.toByteArray(Charsets.UTF_8))
+        java.security.MessageDigest
+            .getInstance("SHA-256")
+            .digest(rpId.toByteArray(Charsets.UTF_8))
 
     private fun assembleFlags(
         up: Boolean,

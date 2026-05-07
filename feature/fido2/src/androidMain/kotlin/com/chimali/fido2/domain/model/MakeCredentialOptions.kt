@@ -77,39 +77,31 @@ data class MakeCredentialOptions(
     /**
      * Returns the challenge as a base64 URL-safe string.
      */
-    fun getChallengeBase64Url(): String {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
-    }
+    fun getChallengeBase64Url(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
 
     /**
      * Checks if this request allows resident keys.
      */
-    fun allowsResidentKeys(): Boolean {
-        return authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.REQUIRED ||
+    fun allowsResidentKeys(): Boolean =
+        authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.REQUIRED ||
             authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.PREFERRED
-    }
 
     /**
      * Checks if this request requires user verification.
      */
-    fun requiresUserVerification(): Boolean {
-        return authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED ||
+    fun requiresUserVerification(): Boolean =
+        authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED ||
             authenticatorSelection?.userVerification == UserVerificationRequirement.PREFERRED
-    }
 
     /**
      * Checks if this request allows specific credential types.
      */
-    fun allowsCredentialType(type: PublicKeyCredentialType): Boolean {
-        return pubKeyCredParams.type == type
-    }
+    fun allowsCredentialType(type: PublicKeyCredentialType): Boolean = pubKeyCredParams.type == type
 
     /**
      * Returns a safe timeout value.
      */
-    fun getSafeTimeout(): Long {
-        return timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS
-    }
+    fun getSafeTimeout(): Long = timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS
 
     companion object {
         /**
@@ -138,8 +130,8 @@ data class MakeCredentialOptions(
             attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE,
             extensions: Map<String, Any>? = null,
             selectedAlgId: Int,
-        ): MakeCredentialOptions {
-            return MakeCredentialOptions(
+        ): MakeCredentialOptions =
+            MakeCredentialOptions(
                 rp = rp,
                 user = user,
                 challenge = challenge,
@@ -152,7 +144,6 @@ data class MakeCredentialOptions(
                 extensions = extensions,
                 selectedAlgId = selectedAlgId,
             )
-        }
 
         /**
          * Creates MakeCredentialOptions from base64 challenge.

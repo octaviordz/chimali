@@ -1,9 +1,5 @@
 package com.chimali.fido2.bluetooth
 
-import com.chimali.core.common.result.exceptionOrNull
-import com.chimali.core.common.result.getOrNull
-import com.chimali.core.common.result.isFailure
-import com.chimali.core.common.result.isSuccess
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -20,7 +16,7 @@ import kotlin.test.assertTrue
  * Covers:
  * - Single-packet message (payload ≤ 57 bytes)
  * - Multi-packet message reassembly (init + continuations)
- * - [encodeResponse] packet encoding
+ * - [HidReportParser.encodeResponse] packet encoding
  * - CTAPHID_INIT response generation
  * - Error response generation
  * - Sequence mismatch error handling
@@ -31,7 +27,6 @@ class HidReportParserTest {
 
     // Fixed test CID
     private val testCid = byteArrayOf(CID_0, CID_1, CID_2, CID_3)
-    private val testCidKey = "01020304"
 
     private companion object {
         private const val TEST_PAYLOAD_SIZE_20 = 20
@@ -122,7 +117,7 @@ class HidReportParserTest {
         assertTrue(result.isSuccess)
         val msg = result.getOrNull()
         assertNotNull(msg)
-        assertEquals(CTAPHID_CBOR, msg!!.command)
+        assertEquals(CTAPHID_CBOR, msg.command)
         assertContentEquals(testCid, msg.channelId)
         assertContentEquals(payload, msg.payload)
     }
@@ -137,7 +132,7 @@ class HidReportParserTest {
         assertTrue(result.isSuccess)
         val msg = result.getOrNull()
         assertNotNull(msg)
-        assertEquals(CTAPHID_PING, msg!!.command)
+        assertEquals(CTAPHID_PING, msg.command)
     }
 
     @Test
@@ -149,7 +144,7 @@ class HidReportParserTest {
         assertTrue(result.isSuccess)
         val msg = result.getOrNull()
         assertNotNull(msg)
-        assertEquals(0, msg!!.payload.size)
+        assertEquals(0, msg.payload.size)
     }
 
     // ── Multi-packet message ──────────────────────────────────────────────────
@@ -170,7 +165,7 @@ class HidReportParserTest {
         assertTrue(r2.isSuccess)
         val msg = r2.getOrNull()
         assertNotNull(msg)
-        assertContentEquals(fullPayload, msg!!.payload)
+        assertContentEquals(fullPayload, msg.payload)
     }
 
     @Test
@@ -187,7 +182,7 @@ class HidReportParserTest {
         val r3 = parser.processReport(contPacket(testCid, SEQ_1, fullPayload, INIT_DATA_SIZE + CONT_DATA_SIZE))
         val msg = r3.getOrNull()
         assertNotNull(msg)
-        assertContentEquals(fullPayload, msg!!.payload)
+        assertContentEquals(fullPayload, msg.payload)
     }
 
     // ── Sequence mismatch ─────────────────────────────────────────────────────

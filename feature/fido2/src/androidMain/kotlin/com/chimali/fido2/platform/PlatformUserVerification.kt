@@ -10,7 +10,10 @@ import androidx.biometric.BiometricManager.Authenticators
  * Wraps [BiometricManager] to answer capability queries without importing Android APIs
  * into commonMain. Injected via Koin (Context resolved from androidContext()).
  */
-actual class PlatformUserVerification(private val context: Context) {
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+actual class PlatformUserVerification(
+    private val context: Context,
+) {
     private val biometricManager: BiometricManager by lazy {
         BiometricManager.from(context)
     }

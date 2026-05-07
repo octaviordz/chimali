@@ -101,18 +101,19 @@ fun RegistrationPromptScreen(
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)
                         val promptInfo =
-                            BiometricPrompt.PromptInfo.Builder()
+                            BiometricPrompt.PromptInfo
+                                .Builder()
                                 .setTitle(effect.promptTitle)
                                 .setSubtitle(effect.promptSubtitle)
                                 .setAllowedAuthenticators(
                                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
                                         BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                                )
-                                .build()
+                                ).build()
 
                         val biometricPrompt =
                             BiometricPrompt(
-                                act, executor,
+                                act,
+                                executor,
                                 object : BiometricPrompt.AuthenticationCallback() {
                                     override fun onAuthenticationError(
                                         errorCode: Int,

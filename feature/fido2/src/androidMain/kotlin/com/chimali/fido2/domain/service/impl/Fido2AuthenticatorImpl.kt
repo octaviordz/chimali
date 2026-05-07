@@ -38,9 +38,23 @@ class Fido2AuthenticatorImpl(
         private val CHIMALI_AAGUID =
             byteArrayOf(
                 // "CHIMALI\0"
-                0x43, 0x48, 0x49, 0x4D, 0x41, 0x4C, 0x49, 0x00,
+                0x43,
+                0x48,
+                0x49,
+                0x4D,
+                0x41,
+                0x4C,
+                0x49,
+                0x00,
                 // ...version 1
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x01,
             )
     }
 
@@ -71,8 +85,8 @@ class Fido2AuthenticatorImpl(
 
     override suspend fun supportsUserVerification(): Boolean = true
 
-    override suspend fun getAuthenticatorInfo(): AuthenticatorInfo {
-        return AuthenticatorInfo(
+    override suspend fun getAuthenticatorInfo(): AuthenticatorInfo =
+        AuthenticatorInfo(
             aaguid = CHIMALI_AAGUID,
             // Also supports FIDO_2_0
             version = "U2F_V2",
@@ -89,7 +103,6 @@ class Fido2AuthenticatorImpl(
             isInitialized = true,
             isLocked = false,
         )
-    }
 
     override suspend fun resetAuthenticator(resetType: AuthenticatorResetType): Outcome<Unit, DomainError> =
         Outcome.Success(Unit)
@@ -104,8 +117,8 @@ class Fido2AuthenticatorImpl(
     override suspend fun configureAuthenticator(configuration: AuthenticatorConfiguration): Outcome<Unit, DomainError> =
         Outcome.Success(Unit)
 
-    override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration {
-        return AuthenticatorConfiguration(
+    override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration =
+        AuthenticatorConfiguration(
             requireUserVerification = true,
             allowedAlgorithms = listOf("ES256"),
             allowedTransports = listOf(AuthenticatorTransport.BLE),
@@ -115,7 +128,6 @@ class Fido2AuthenticatorImpl(
             pinSettings = null,
             securityLevel = SecurityLevel.HIGH,
         )
-    }
 
     override suspend fun isReady(): Boolean = true
 

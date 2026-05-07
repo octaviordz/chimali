@@ -25,8 +25,8 @@ class SelectCredentialUseCase {
     suspend operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions,
-    ): Outcome<CredentialSummary, DomainError> {
-        return when {
+    ): Outcome<CredentialSummary, DomainError> =
+        when {
             candidates.isEmpty() ->
                 Outcome.Error(
                     DomainError.NotFound(
@@ -45,7 +45,6 @@ class SelectCredentialUseCase {
                 Outcome.Success(selectMostRecentlyUsed(candidates))
             }
         }
-    }
 
     private fun selectMostRecentlyUsed(candidates: List<CredentialSummary>): CredentialSummary {
         // Guaranteed not to be empty due to 'when' check in invoke()

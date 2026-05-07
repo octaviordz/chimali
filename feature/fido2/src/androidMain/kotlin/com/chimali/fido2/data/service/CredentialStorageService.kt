@@ -35,8 +35,8 @@ class CredentialStorageService {
 
     // ── Symmetric (AES) operations — used by CredentialEncryptionService ─────
 
-    suspend fun generateEncryptionKey(): Outcome<SecretKey, DomainError.CryptoError> {
-        return try {
+    suspend fun generateEncryptionKey(): Outcome<SecretKey, DomainError.CryptoError> =
+        try {
             val keyGenerator = KeyGenerator.getInstance(KEY_ALGORITHM_AES)
             keyGenerator.init(KEY_SIZE_AES)
             val secretKey = keyGenerator.generateKey()
@@ -45,19 +45,17 @@ class CredentialStorageService {
             Logger.e(e) { "CredentialStorageService: Failed to generate encryption key" }
             Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
-    }
 
     /**
      * Checks if a key alias exists in Android KeyStore.
      */
-    suspend fun keyExists(alias: String): Boolean {
-        return try {
+    suspend fun keyExists(alias: String): Boolean =
+        try {
             keyStore.containsAlias(alias)
         } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "CredentialStorageService: Error checking if key exists: $alias" }
             false
         }
-    }
 
     /**
      * Encrypts data using a symmetric AES key from Android KeyStore.

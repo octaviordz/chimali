@@ -1,9 +1,9 @@
 # Feature Specification: Outcome Migration & Functional Exception Expansion
 
-**Feature Branch**: `030-outcome-migration`  
-**Created**: 2026-04-29  
-**Status**: Draft  
-**Input**: User description: "Expand the use of DataResult and DomainError (renamed to Outcome) based on identified opportunities in fido2 and vault modules."
+**Feature Branch**: `030-outcome-migration`
+**Created**: 2026-04-29
+**Status**: Draft
+**Input**: User description: "Expand the use of Outcome and DomainError based on identified opportunities in fido2 and vault modules."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -45,7 +45,7 @@ As a developer, I want `VaultViewModel` to be free of `try-catch` blocks for bus
 
 ### Functional Requirements
 
-- **FR-001**: System MUST rename `DataResult` to `Outcome` across the entire codebase to improve semantic clarity.
+- **FR-001**: System MUST use `Outcome` across the entire codebase to improve semantic clarity.
 - **FR-002**: FIDO2 crypto services (e.g., `CredentialEncryptionService`, `Fido2CryptoService`) MUST return `Outcome<T, DomainError>`.
 - **FR-003**: FIDO2 repository implementations MUST return `Outcome<T, DomainError>` for all operations that can fail.
 - **FR-004**: `VaultService` MUST return `Outcome<T, DomainError>` for all data fetching and persistence operations.
@@ -68,6 +68,6 @@ As a developer, I want `VaultViewModel` to be free of `try-catch` blocks for bus
 
 ## Assumptions
 
-- **Existing Infrastructure**: The `DomainError` hierarchy and `runCatchingResult` utilities (to be renamed to `runCatchingOutcome`) are available in `core/common`.
+- **Existing Infrastructure**: The `DomainError` hierarchy and `runCatchingOutcome` utilities are available in `core/common`.
 - **Logging Policy**: Kermit is the designated logging framework for boundary logging.
 - **Scope**: This migration focus specifically on `fido2` and `vault` modules as identified in the opportunities analysis.

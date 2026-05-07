@@ -43,6 +43,14 @@ class Ctap2CredentialManagementHandler(
         private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x30
 
         private const val DEFAULT_TIMEOUT_MS = 1000L
+
+        // subCommands per CTAP2 spec
+        private const val SUB_COMMAND_GET_CREDS_METADATA = 1
+        private const val SUB_COMMAND_ENUMERATE_RPS_BEGIN = 2
+        private const val SUB_COMMAND_ENUMERATE_RPS_GET_NEXT_RP = 3
+        private const val SUB_COMMAND_ENUMERATE_CREDENTIALS_BEGIN = 4
+        private const val SUB_COMMAND_ENUMERATE_CREDENTIALS_GET_NEXT_CREDENTIAL = 5
+        private const val SUB_COMMAND_DELETE_CREDENTIAL = 6
     }
     // ── Stateful enumeration sessions ────────────────────────────────────────
 
@@ -64,12 +72,12 @@ class Ctap2CredentialManagementHandler(
             Logger.d { "Credential Management subCommand: $subCommand" }
 
             when (subCommand) {
-                1 -> handleGetCredsMetadata()
-                2 -> handleEnumerateRPsBegin()
-                3 -> handleEnumerateRPsGetNextRP()
-                4 -> handleEnumerateCredentialsBegin(params)
-                5 -> handleEnumerateCredentialsGetNextCredential()
-                6 -> handleDeleteCredential(params)
+                SUB_COMMAND_GET_CREDS_METADATA -> handleGetCredsMetadata()
+                SUB_COMMAND_ENUMERATE_RPS_BEGIN -> handleEnumerateRPsBegin()
+                SUB_COMMAND_ENUMERATE_RPS_GET_NEXT_RP -> handleEnumerateRPsGetNextRP()
+                SUB_COMMAND_ENUMERATE_CREDENTIALS_BEGIN -> handleEnumerateCredentialsBegin(params)
+                SUB_COMMAND_ENUMERATE_CREDENTIALS_GET_NEXT_CREDENTIAL -> handleEnumerateCredentialsGetNextCredential()
+                SUB_COMMAND_DELETE_CREDENTIAL -> handleDeleteCredential(params)
                 else -> byteArrayOf(CTAP2_ERR_UNSUPPORTED_OPTION)
             }
         } catch (e: com.chimali.fido2.domain.exception.Fido2Exception) {
@@ -117,8 +125,7 @@ class Ctap2CredentialManagementHandler(
                         credentialCount = creds.size,
                         rpIdHash = sha256(rpId.value.toByteArray()),
                     )
-                }
-                .toMutableList()
+                }.toMutableList()
 
         val totalRPs = rpEnumerationSession.size
         val first = rpEnumerationSession.removeAt(0)
@@ -160,15 +167,16 @@ class Ctap2CredentialManagementHandler(
         }
 
         credentialEnumerationSession =
-            credentials.map { cred ->
-                CredentialEntry(
-                    credentialId = cred.id.toByteArray(),
-                    userId = cred.userId,
-                    userName = cred.userName,
-                    userDisplayName = cred.userDisplayName,
-                    publicKeyBytes = cred.publicKey.encoded,
-                )
-            }.toMutableList()
+            credentials
+                .map { cred ->
+                    CredentialEntry(
+                        credentialId = cred.id.toByteArray(),
+                        userId = cred.userId,
+                        userName = cred.userName,
+                        userDisplayName = cred.userDisplayName,
+                        publicKeyBytes = cred.publicKey.encoded,
+                    )
+                }.toMutableList()
 
         val totalCredentials = credentialEnumerationSession.size
         val first = credentialEnumerationSession.removeAt(0)
@@ -194,7 +202,11 @@ class Ctap2CredentialManagementHandler(
         val credDescriptor = subCommandParams["1"] as? Map<*, *> ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
         val credIdBytes = credDescriptor["id"] as? ByteArray ?: return byteArrayOf(CTAP1_ERR_MISSING_PARAMETER)
 
-        val credIdBase64 = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(credIdBytes)
+        val credIdBase64 =
+            java.util.Base64
+                .getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(credIdBytes)
 
         val result = deleteCredentialUseCase(CredentialId.fromEncoded(credIdBase64))
         return if (result.isSuccess) {
@@ -259,9 +271,7 @@ class Ctap2CredentialManagementHandler(
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private fun sha256(data: ByteArray): ByteArray {
-        return MessageDigest.getInstance("SHA-256").digest(data)
-    }
+    private fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 
     /**
      * Reverse-lookup an rpId from a stored hash.  Uses the credentials

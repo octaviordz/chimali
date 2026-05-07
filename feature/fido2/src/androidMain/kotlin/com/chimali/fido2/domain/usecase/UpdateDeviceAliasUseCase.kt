@@ -15,7 +15,5 @@ class UpdateDeviceAliasUseCase(
     suspend operator fun invoke(
         macAddress: String,
         alias: String?,
-    ): Outcome<Unit, DomainError> {
-        return pairedDeviceRepository.updateAlias(macAddress, alias)
-    }
+    ): Outcome<Unit, DomainError> = pairedDeviceRepository.updateAlias(macAddress, alias)
 }

@@ -10,9 +10,6 @@ android {
     compileSdk = 35
     defaultConfig {
         minSdk = 28
-        ksp {
-            arg("KOIN_DEFAULT_MODULE", "true")
-        }
     }
 
     compileOptions {

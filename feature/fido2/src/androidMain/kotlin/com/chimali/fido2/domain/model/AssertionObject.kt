@@ -63,7 +63,10 @@ data class AssertionObject(
             credentialId: CredentialId,
             rpId: RpId,
         ): AssertionObject {
-            val rpIdHash = java.security.MessageDigest.getInstance("SHA-256").digest(rpId.value.toByteArray())
+            val rpIdHash =
+                java.security.MessageDigest
+                    .getInstance("SHA-256")
+                    .digest(rpId.value.toByteArray())
             val flags = byteArrayOf(TEST_FLAGS_UP_UV.toByte()) // UP | UV
             val counter = byteArrayOf(0, 0, 0, 1)
             val authData = rpIdHash + flags + counter // 37 bytes

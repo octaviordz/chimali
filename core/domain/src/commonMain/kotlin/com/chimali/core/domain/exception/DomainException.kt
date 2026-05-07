@@ -11,7 +11,13 @@ sealed class DomainException : Exception() {
 
     object InvalidCredentials : DomainException()
 
-    data class ValidationError(val field: String, override val message: String) : DomainException()
+    data class ValidationError(
+        val field: String,
+        override val message: String,
+    ) : DomainException()
 
-    data class RepositoryError(override val message: String, override val cause: Throwable? = null) : DomainException()
+    data class RepositoryError(
+        override val message: String,
+        override val cause: Throwable? = null,
+    ) : DomainException()
 }

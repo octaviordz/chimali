@@ -3,7 +3,7 @@ package com.chimali.feature.vault.internal.payload
 data class SecureNotePayload(
     val title: String,
     val content: CharArray,
-    val customFields: List<CustomField>? = null
+    val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
         content.fill('0')

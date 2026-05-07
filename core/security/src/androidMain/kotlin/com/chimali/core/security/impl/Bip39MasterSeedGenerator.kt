@@ -26,7 +26,10 @@ class Bip39MasterSeedGenerator(
     private val context: Context,
 ) : MasterSeedGenerator {
     private val wordList: List<String> by lazy {
-        context.assets.open("bip39_english.txt").bufferedReader().readLines()
+        context.assets
+            .open("bip39_english.txt")
+            .bufferedReader()
+            .readLines()
             .filter { it.isNotBlank() }
             .also { require(it.size == 2048) { "BIP39 wordlist must contain exactly 2048 words, found ${it.size}" } }
     }
@@ -55,7 +58,8 @@ class Bip39MasterSeedGenerator(
                 2048,
                 512,
             )
-        return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
+        return SecretKeyFactory
+            .getInstance("PBKDF2WithHmacSHA512")
             .generateSecret(spec)
             .encoded
     }

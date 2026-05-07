@@ -11,6 +11,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AttestationConveyancePreference
@@ -51,6 +52,7 @@ class RegisterCredentialUseCaseTest {
     private lateinit var cborCodec: CborCodec
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var fido2SettingsRepository: Fido2SettingsRepository
+    private lateinit var clientDataHashService: ClientDataHashService
     private lateinit var registerCredentialUseCase: RegisterCredentialUseCase
 
     private lateinit var testPublicKey: java.security.PublicKey
@@ -85,6 +87,7 @@ class RegisterCredentialUseCaseTest {
             cborCodec = mockk()
             cryptoService = mockk()
             fido2SettingsRepository = mockk()
+            clientDataHashService = ClientDataHashService()
             registerCredentialUseCase =
                 RegisterCredentialUseCase(
                     passkeyCredentialRepository = credentialRepository,
@@ -92,6 +95,7 @@ class RegisterCredentialUseCaseTest {
                     cborCodec = cborCodec,
                     cryptoService = cryptoService,
                     settingsRepository = fido2SettingsRepository,
+                    clientDataHashService = clientDataHashService,
                 )
 
             // Setup test data
@@ -273,10 +277,11 @@ class RegisterCredentialUseCaseTest {
         fun `should update existing rp information`() =
             runTest {
                 val existingRp =
-                    RelyingParty.create(
-                        id = RpId("https://example.com"),
-                        name = "Example Website",
-                    ).copy(credentialCount = COUNT_3)
+                    RelyingParty
+                        .create(
+                            id = RpId("https://example.com"),
+                            name = "Example Website",
+                        ).copy(credentialCount = COUNT_3)
 
                 coEvery { credentialRepository.getRelyingParty(any()) } returns existingRp
 

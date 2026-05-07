@@ -53,28 +53,29 @@ fun LabelManagerScreen(
                 title = { Text("Manage Labels") },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("Back") }
-                }
+                },
             )
-        }
+        },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Create New Label Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 OutlinedTextField(
                     value = newLabelName,
                     onValueChange = { newLabelName = it },
                     label = { Text("New Label Name") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 IconButton(
                     onClick = {
@@ -83,7 +84,7 @@ fun LabelManagerScreen(
                             newLabelName = ""
                         }
                     },
-                    enabled = newLabelName.isNotBlank()
+                    enabled = newLabelName.isNotBlank(),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Label")
                 }
@@ -97,7 +98,7 @@ fun LabelManagerScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     ) {
                         Text(label.name)
                         IconButton(onClick = { onDeleteLabel(label.id) }) {
@@ -113,13 +114,14 @@ fun LabelManagerScreen(
 @Preview(showBackground = true)
 @Composable
 private fun LabelManagerScreenPreview() {
-    val sampleLabels = remember {
-        mutableStateListOf(
-            LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
-            LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50"),
-            LabelUiModel(UUID.randomUUID(), "Social", "#2196F3")
-        )
-    }
+    val sampleLabels =
+        remember {
+            mutableStateListOf(
+                LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
+                LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50"),
+                LabelUiModel(UUID.randomUUID(), "Social", "#2196F3"),
+            )
+        }
 
     LabelManagerScreen(
         labels = sampleLabels,
@@ -129,7 +131,6 @@ private fun LabelManagerScreenPreview() {
         onDeleteLabel = { id ->
             sampleLabels.removeIf { it.id == id }
         },
-        onBack = {}
+        onBack = {},
     )
 }
-

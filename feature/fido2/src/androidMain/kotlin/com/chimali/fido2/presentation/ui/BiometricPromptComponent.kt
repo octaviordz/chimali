@@ -72,7 +72,8 @@ fun BiometricPromptComponent(
         val activity = context as? FragmentActivity
 
         val promptInfo =
-            BiometricPrompt.PromptInfo.Builder()
+            BiometricPrompt.PromptInfo
+                .Builder()
                 .setTitle(title)
                 .setSubtitle(subtitle)
                 .apply {
@@ -82,8 +83,7 @@ fun BiometricPromptComponent(
                         BiometricManager.Authenticators.BIOMETRIC_STRONG or
                             BiometricManager.Authenticators.BIOMETRIC_WEAK
                     setAllowedAuthenticators(authenticators)
-                }
-                .build()
+                }.build()
 
         val biometricPrompt =
             activity?.let {

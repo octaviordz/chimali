@@ -85,7 +85,7 @@ class PostQuantumCrypto {
      * @return [KeyPair] or null if ML-DSA is not supported on this device.
      */
     fun generateMlDsaKeyPair(pqChildSeed: ByteArray): KeyPair? {
-        require(pqChildSeed.size >= 32) { "PQ child seed must be at least 32 bytes" }
+        require(pqChildSeed.size >= MIN_SEED_SIZE_32) { "PQ child seed must be at least $MIN_SEED_SIZE_32 bytes" }
         return try {
             val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
             // SHA-256 of the seed is the 32-byte ξ for ML-DSA.KeyGen_internal (FIPS 204 Algorithm 6).
@@ -155,6 +155,10 @@ class PostQuantumCrypto {
      * These bytes are stored in the credential repository alongside the COSE alg ID.
      */
     fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded
+
+    companion object {
+        private const val MIN_SEED_SIZE_32 = 32
+    }
 }
 
 /**
@@ -170,7 +174,9 @@ class PostQuantumCrypto {
  * per NIST FIPS 204 §5.1). The block counter prevents wrap-around aliasing.
  */
 @Suppress("serial")
-internal class DeterministicSecureRandom(seed: ByteArray) : SecureRandom() {
+internal class DeterministicSecureRandom(
+    seed: ByteArray,
+) : SecureRandom() {
     private val md = MessageDigest.getInstance("SHA-256")
     private val seedSnapshot: ByteArray = seed.copyOf()
     private var block: ByteArray = nextBlock(0)

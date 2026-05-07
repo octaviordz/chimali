@@ -33,6 +33,7 @@ class CredentialListScreenTest {
             getAllCredentialsUseCase,
             searchCredentialsUseCase,
             deleteCredentialUseCase,
+            null,
         )
 
     @Test

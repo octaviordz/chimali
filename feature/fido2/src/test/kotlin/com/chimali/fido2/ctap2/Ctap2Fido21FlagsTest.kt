@@ -48,8 +48,22 @@ class Ctap2Fido21FlagsTest {
 
     private val dummyAaguid =
         byteArrayOf(
-            CHAR_C, CHAR_H, CHAR_I, CHAR_M, CHAR_A, CHAR_L, CHAR_I, ZERO_BYTE,
-            ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, ZERO_BYTE, AAGUID_SUFFIX_01,
+            CHAR_C,
+            CHAR_H,
+            CHAR_I,
+            CHAR_M,
+            CHAR_A,
+            CHAR_L,
+            CHAR_I,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            ZERO_BYTE,
+            AAGUID_SUFFIX_01,
         )
 
     // ── 1. GetInfo response FIDO2.1 flags ────────────────────────────────────
@@ -192,8 +206,8 @@ class Ctap2Fido21FlagsTest {
      * Build the response map the same way Ctap2ResponseBuilder.getInfoResponse does,
      * for inspection without full round-trip encoding overhead.
      */
-    private fun buildGetInfoCborMap(): Map<String, Any> {
-        return mapOf(
+    private fun buildGetInfoCborMap(): Map<String, Any> =
+        mapOf(
             "1" to listOf("FIDO_2_0", "FIDO_2_1"),
             "2" to listOf("credProtect", "hmac-secret", "minPinLength"),
             "3" to dummyAaguid,
@@ -216,5 +230,4 @@ class Ctap2Fido21FlagsTest {
                     mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
                 ),
         )
-    }
 }

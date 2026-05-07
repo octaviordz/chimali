@@ -32,8 +32,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultType
-import java.util.UUID
 import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionNaming")
@@ -57,38 +57,39 @@ fun VaultListScreen(
                     IconButton(onClick = onManageLabelsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Manage Labels")
                     }
-                }
+                },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
                 Icon(Icons.Default.Add, contentDescription = "Add Item")
             }
-        }
+        },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             // Label Filter Bar
             ScrollableTabRow(
-                selectedTabIndex = if (selectedLabelId == null) {
-                    0
-                } else {
-                    labels.indexOfFirst { it.id == selectedLabelId } + 1
-                },
+                selectedTabIndex =
+                    if (selectedLabelId == null) {
+                        0
+                    } else {
+                        labels.indexOfFirst { it.id == selectedLabelId } + 1
+                    },
                 edgePadding = 16.dp,
                 divider = {},
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
+                contentColor = MaterialTheme.colorScheme.primary,
             ) {
                 Tab(
                     selected = selectedLabelId == null,
                     onClick = { onLabelFilterClick(null) },
-                    text = { Text("All") }
+                    text = { Text("All") },
                 )
                 labels.forEach { label ->
                     Tab(
                         selected = selectedLabelId == label.id,
                         onClick = { onLabelFilterClick(label.id) },
-                        text = { Text(label.name) }
+                        text = { Text(label.name) },
                     )
                 }
             }
@@ -111,21 +112,26 @@ fun VaultListScreen(
 
 @Suppress("FunctionNaming")
 @Composable
-fun VaultItemRow(item: VaultItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun VaultItemRow(
+    item: VaultItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp)
-            .semantics(mergeDescendants = true) { },
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp)
+                .semantics(mergeDescendants = true) { },
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
             Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = item.type.name,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -138,34 +144,36 @@ private fun VaultListScreenPreview() {
     val payload = "payload".toByteArray()
     val crdt = "crdt".toByteArray()
 
-    val sampleItems = listOf(
-        VaultItem(
-            id = UUID.randomUUID(),
-            type = VaultType.PASSWORD,
-            title = "Sample Login",
-            payload = payload,
-            crdtState = crdt,
-            dateCreated = date,
-            dateModified = date,
-            lastBackedUpAt = null,
-            identityId = UUID.randomUUID()
-        ),
-        VaultItem(
-            id = UUID.randomUUID(),
-            type = VaultType.NOTE,
-            title = "Sample Note",
-            payload = payload,
-            crdtState = crdt,
-            dateCreated = date,
-            dateModified = date,
-            lastBackedUpAt = null,
-            identityId = UUID.randomUUID()
+    val sampleItems =
+        listOf(
+            VaultItem(
+                id = UUID.randomUUID(),
+                type = VaultType.PASSWORD,
+                title = "Sample Login",
+                payload = payload,
+                crdtState = crdt,
+                dateCreated = date,
+                dateModified = date,
+                lastBackedUpAt = null,
+                identityId = UUID.randomUUID(),
+            ),
+            VaultItem(
+                id = UUID.randomUUID(),
+                type = VaultType.NOTE,
+                title = "Sample Note",
+                payload = payload,
+                crdtState = crdt,
+                dateCreated = date,
+                dateModified = date,
+                lastBackedUpAt = null,
+                identityId = UUID.randomUUID(),
+            ),
         )
-    )
-    val sampleLabels = listOf(
-        LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
-        LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50")
-    )
+    val sampleLabels =
+        listOf(
+            LabelUiModel(UUID.randomUUID(), "Work", "#FFC107"),
+            LabelUiModel(UUID.randomUUID(), "Personal", "#4CAF50"),
+        )
 
     VaultListScreen(
         items = sampleItems,
@@ -174,6 +182,6 @@ private fun VaultListScreenPreview() {
         onItemClick = {},
         onAddClick = {},
         onLabelFilterClick = {},
-        onManageLabelsClick = {}
+        onManageLabelsClick = {},
     )
 }

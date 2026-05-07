@@ -18,8 +18,12 @@ import org.koin.core.annotation.Single
 class PairedDeviceRepositoryImpl(
     private val database: Fido2Database,
 ) : PairedDeviceRepository {
-    override fun getAllPairedDevices(): Flow<List<PairedDevice>> {
-        return database.pairedDeviceQueries
+    companion object {
+        private const val MAJOR_DEVICE_CLASS_MASK = 0x1F00
+    }
+
+    override fun getAllPairedDevices(): Flow<List<PairedDevice>> =
+        database.pairedDeviceQueries
             .selectAll()
             .asFlow()
             .mapToList(Dispatchers.IO)
@@ -35,11 +39,10 @@ class PairedDeviceRepositoryImpl(
                     )
                 }
             }
-    }
 
     @Suppress("TooGenericExceptionCaught")
-    override suspend fun saveDevice(device: PairedDevice): Outcome<Unit, DomainError> {
-        return try {
+    override suspend fun saveDevice(device: PairedDevice): Outcome<Unit, DomainError> =
+        try {
             // We do a read-modify-write to preserve createdAt if it already exists
             val existing = database.pairedDeviceQueries.selectByAddress(device.macAddress).executeAsOneOrNull()
 
@@ -47,7 +50,7 @@ class PairedDeviceRepositoryImpl(
             // the host as "Uncategorized" (Major class 0). We should not let a generic 0 class
             // overwrite a previously saved known class (like Computer or Phone).
             val incomingClass = device.deviceClass
-            val isIncomingGeneric = incomingClass == null || (incomingClass and 0x1F00) == 0
+            val isIncomingGeneric = incomingClass == null || (incomingClass and MAJOR_DEVICE_CLASS_MASK) == 0
 
             val finalClassToSave =
                 if (isIncomingGeneric && existing?.deviceClass != null) {
@@ -69,30 +72,27 @@ class PairedDeviceRepositoryImpl(
             Logger.e(e) { "Failed to save device: ${device.macAddress}" }
             Outcome.Error(DomainError.DatabaseError("Failed to save device", e))
         }
-    }
 
     @Suppress("TooGenericExceptionCaught")
     override suspend fun updateAlias(
         macAddress: String,
         alias: String?,
-    ): Outcome<Unit, DomainError> {
-        return try {
+    ): Outcome<Unit, DomainError> =
+        try {
             database.pairedDeviceQueries.updateAlias(alias, macAddress)
             Outcome.Success(Unit)
         } catch (e: Exception) {
             Logger.e(e) { "Failed to update alias for device: $macAddress" }
             Outcome.Error(DomainError.DatabaseError("Failed to update alias", e))
         }
-    }
 
     @Suppress("TooGenericExceptionCaught")
-    override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> {
-        return try {
+    override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> =
+        try {
             database.pairedDeviceQueries.deleteByAddress(macAddress)
             Outcome.Success(Unit)
         } catch (e: Exception) {
             Logger.e(e) { "Failed to delete device: $macAddress" }
             Outcome.Error(DomainError.DatabaseError("Failed to delete device", e))
         }
-    }
 }

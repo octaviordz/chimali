@@ -188,48 +188,46 @@ data class VerificationPreferences(
     /**
      * Checks if biometric verification is enabled.
      */
-    fun isBiometricEnabled(): Boolean {
-        return preferredVerificationMethod == VerificationMethod.BIOMETRIC ||
+    fun isBiometricEnabled(): Boolean =
+        preferredVerificationMethod == VerificationMethod.BIOMETRIC ||
             preferredVerificationMethod == VerificationMethod.BIOMETRIC_AND_PIN
-    }
 
     /**
      * Checks if PIN verification is enabled.
      */
-    fun isPinEnabled(): Boolean {
-        return preferredVerificationMethod == VerificationMethod.PIN ||
+    fun isPinEnabled(): Boolean =
+        preferredVerificationMethod == VerificationMethod.PIN ||
             preferredVerificationMethod == VerificationMethod.BIOMETRIC_AND_PIN
-    }
 
     /**
      * Returns the timeout for the preferred method.
      */
-    fun getPreferredTimeout(): Long {
-        return when (preferredVerificationMethod) {
+    fun getPreferredTimeout(): Long =
+        when (preferredVerificationMethod) {
             VerificationMethod.BIOMETRIC -> biometricTimeoutMs
             VerificationMethod.PIN -> pinTimeoutMs
             VerificationMethod.BIOMETRIC_AND_PIN -> maxOf(biometricTimeoutMs, pinTimeoutMs)
-            else -> 30000L // Default 30 seconds
+            else -> DEFAULT_VERIFICATION_TIMEOUT_MS // Default 30 seconds
         }
-    }
 
     companion object {
+        private const val DEFAULT_VERIFICATION_TIMEOUT_MS = 30000L
+
         /**
          * Creates default verification preferences.
          */
-        fun createDefault(): VerificationPreferences {
-            return VerificationPreferences(
+        fun createDefault(): VerificationPreferences =
+            VerificationPreferences(
                 requireUserVerification = true,
                 preferredVerificationMethod = VerificationMethod.BIOMETRIC,
                 allowBiometricFallback = true,
                 allowPinFallback = true,
                 // 30 seconds
-                biometricTimeoutMs = 30000L,
+                biometricTimeoutMs = DEFAULT_VERIFICATION_TIMEOUT_MS,
                 // 60 seconds
                 pinTimeoutMs = 60000L,
                 maxVerificationAttempts = 3,
             )
-        }
     }
 }
 
@@ -258,23 +256,17 @@ data class AuthenticatorInfo(
     /**
      * Returns a description of the authenticator.
      */
-    fun getDescription(): String {
-        return "Authenticator v$version (AAGUID: ${aaguid.joinToString("") { "%02x".format(it) }})"
-    }
+    fun getDescription(): String = "Authenticator v$version (AAGUID: ${aaguid.joinToString("") { "%02x".format(it) }})"
 
     /**
      * Checks if a specific algorithm is supported.
      */
-    fun supportsAlgorithm(algorithm: String): Boolean {
-        return supportedAlgorithms.contains(algorithm)
-    }
+    fun supportsAlgorithm(algorithm: String): Boolean = supportedAlgorithms.contains(algorithm)
 
     /**
      * Checks if a specific transport is supported.
      */
-    fun supportsTransport(transport: AuthenticatorTransport): Boolean {
-        return supportedTransports.contains(transport)
-    }
+    fun supportsTransport(transport: AuthenticatorTransport): Boolean = supportedTransports.contains(transport)
 }
 
 /**
@@ -303,14 +295,13 @@ data class AuthenticatorConfiguration(
     /**
      * Returns the security level description.
      */
-    fun getSecurityLevelDescription(): String {
-        return when (securityLevel) {
+    fun getSecurityLevelDescription(): String =
+        when (securityLevel) {
             SecurityLevel.HIGH -> "High security"
             SecurityLevel.MEDIUM -> "Medium security"
             SecurityLevel.LOW -> "Low security"
             SecurityLevel.MINIMAL -> "Minimal security"
         }
-    }
 }
 
 /**
@@ -326,16 +317,12 @@ data class BiometricSettings(
     /**
      * Checks if a specific biometric type is enabled.
      */
-    fun isTypeEnabled(type: BiometricType): Boolean {
-        return enabledTypes.contains(type)
-    }
+    fun isTypeEnabled(type: BiometricType): Boolean = enabledTypes.contains(type)
 
     /**
      * Returns the strongest enabled biometric type.
      */
-    fun getStrongestType(): BiometricType? {
-        return enabledTypes.maxByOrNull { it.level }
-    }
+    fun getStrongestType(): BiometricType? = enabledTypes.maxByOrNull { it.level }
 }
 
 /**
@@ -407,9 +394,7 @@ data class HealthCheckResult(
     /**
      * Checks if all health checks passed.
      */
-    fun allChecksPassed(): Boolean {
-        return checks.values.all { it == HealthCheckStatus.PASSED }
-    }
+    fun allChecksPassed(): Boolean = checks.values.all { it == HealthCheckStatus.PASSED }
 
     /**
      * Returns a summary of health check results.
@@ -434,9 +419,7 @@ data class PairingRequest(
     /**
      * Returns a description of the pairing request.
      */
-    fun getDescription(): String {
-        return "Pair with $deviceName via $transportType (v$protocolVersion)"
-    }
+    fun getDescription(): String = "Pair with $deviceName via $transportType (v$protocolVersion)"
 }
 
 /**
@@ -467,9 +450,7 @@ data class Fido2Request(
     /**
      * Returns a description of the request.
      */
-    fun getDescription(): String {
-        return "FIDO2 $type request for $rpId"
-    }
+    fun getDescription(): String = "FIDO2 $type request for $rpId"
 }
 
 /**
@@ -490,13 +471,12 @@ data class RequestValidationResult(
     /**
      * Returns a summary of validation results.
      */
-    fun getSummary(): String {
-        return if (isValid) {
+    fun getSummary(): String =
+        if (isValid) {
             "Request is valid"
         } else {
             "Request has ${unsupportedFeatures.size} unsupported features"
         }
-    }
 }
 
 /**

@@ -30,7 +30,8 @@ class Fido2UiEventBus {
             is Fido2UiEvent.AuthenticationRequested -> currentAuthenticationRequest = event
         }
         if (!_events.tryEmit(event)) {
-            co.touchlab.kermit.Logger.w { "[EventBus] Event dropped (buffer full): ${event::class.simpleName}" }
+            co.touchlab.kermit.Logger
+                .w { "[EventBus] Event dropped (buffer full): ${event::class.simpleName}" }
         }
     }
 

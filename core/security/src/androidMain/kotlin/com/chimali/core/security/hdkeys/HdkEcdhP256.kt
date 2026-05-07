@@ -57,9 +57,7 @@ class HdkEcdhP256 : HdkManager {
      * **Index domain (T179)**: The HDK spec defines indices as `uint32` (0–2^32−1).
      * This implementation natively uses Kotlin's unsigned 32-bit `UInt`.
      */
-    internal fun createContext(index: UInt): ByteArray {
-        return ID + HashToScalar.i2osp(index, HashToScalar.I2OSP_LEN_4)
-    }
+    internal fun createContext(index: UInt): ByteArray = ID + HashToScalar.i2osp(index, HashToScalar.I2OSP_LEN_4)
 
     /**
      * DeriveSalt: Derive child salt from parent salt and context.

@@ -22,6 +22,7 @@ package com.chimali.fido2.platform
  *   until a CoreBluetooth-based implementation is provided.
  * - [isAdapterEnabled] — `true` iff Bluetooth is currently powered on.
  */
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 expect class PlatformBluetoothHid {
     /** Returns true if BT HID Device profile is supported by this device. */
     fun isSupported(): Boolean

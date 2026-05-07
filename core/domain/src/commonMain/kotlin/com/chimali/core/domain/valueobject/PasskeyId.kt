@@ -8,7 +8,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @JvmInline
-value class PasskeyId(val value: String) {
+value class PasskeyId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "PasskeyId cannot be blank" }
     }

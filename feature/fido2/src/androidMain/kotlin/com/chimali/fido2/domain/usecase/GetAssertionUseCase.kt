@@ -9,6 +9,7 @@ import com.chimali.core.common.result.onFailure
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
+import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -47,6 +48,7 @@ class GetAssertionUseCase(
     private val userVerificationService: UserVerificationService,
     private val selectCredentialUseCase: SelectCredentialUseCase,
     private val cryptoService: Fido2CryptoService,
+    private val clientDataHashService: ClientDataHashService,
 ) {
     companion object {
         private const val FLAG_USER_PRESENT = 0x01
@@ -65,8 +67,7 @@ class GetAssertionUseCase(
         Logger.d { "GetAssertion for rpId=${options.rpId.value}" }
 
         // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
-        val uvOutcome = performUserVerification(options)
-        if (uvOutcome is Outcome.Error) return uvOutcome
+        performUserVerification(options).getOrElse { return Outcome.Error(it) }
 
         // 2 — Phase 1: list candidate summaries (pure DB read, no HDK derivation)
         val candidates = findCandidateSummaries(options)
@@ -89,7 +90,7 @@ class GetAssertionUseCase(
         // getCredentialById() (and its implicit getPublicKey() HDK derivation) is skipped
         // because the public key is not needed to produce an assertion signature.
         val selectedId = selectedSummary.id
-        val rpIdHash = ClientDataHashService.rpIdHash(options.rpId.value)
+        val rpIdHash = clientDataHashService.rpIdHash(options.rpId.value)
         val signCount =
             credentialRepository.getSignCount(selectedSummary.credentialId).getOrElse {
                 return Outcome.Error(DomainError.CryptoError("Failed to get sign count: ${it.message}", it.cause))
@@ -166,7 +167,11 @@ class GetAssertionUseCase(
                 // Base64url padding mismatches between wire-parsed IDs (ABSENT padding,
                 // via CredentialId.fromByteArray) and DB-stored IDs (which may carry
                 // trailing '=' from legacy storage paths via CredentialId.fromEncoded).
-                val allowNormalized = options.allowCredentials!!.map { it.id.normalized }.toHashSet()
+                val allowNormalized =
+                    options.allowCredentials!!
+                        .asSequence()
+                        .map { it.id.normalized }
+                        .toHashSet()
                 all.filter { summary -> summary.credentialId.normalized in allowNormalized }
             }
 
@@ -175,7 +180,7 @@ class GetAssertionUseCase(
         // the authenticator MUST NOT enumerate or use the credential.
         val uvWillBePerformed = options.userVerification != UserVerificationRequirement.DISCOURAGED
         return candidates.filter { summary ->
-            !(summary.credProtectPolicy == POLICY_UV_REQUIRED && !uvWillBePerformed) // Ignore this credential
+            !((summary.credProtectPolicy == POLICY_UV_REQUIRED) && !uvWillBePerformed) // Ignore this credential
         }
     }
 

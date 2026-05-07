@@ -35,11 +35,13 @@ class DevelopmentToolsScreenTest {
         }
 
         // Top app bar title
-        composeTestRule.onNodeWithText("Development Tools")
+        composeTestRule
+            .onNodeWithText("Development Tools")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
 
         // Section title
-        composeTestRule.onNodeWithText("Test & Debug Utilities")
+        composeTestRule
+            .onNodeWithText("Test & Debug Utilities")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
@@ -59,7 +61,8 @@ class DevelopmentToolsScreenTest {
 
         // Verify that "1. apple" is a single focusable node
         // We find by index text and check if it contains the word as a child/descendant
-        composeTestRule.onNodeWithText("1.", useUnmergedTree = false)
+        composeTestRule
+            .onNodeWithText("1.", useUnmergedTree = false)
             .assertExists()
             .assert(hasAnyDescendant(hasText("apple")))
     }

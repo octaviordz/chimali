@@ -17,21 +17,18 @@ data class UserVerificationAvailability(
     /**
      * Checks if any verification method is available.
      */
-    fun hasAnyVerificationMethod(): Boolean {
-        return biometricAvailable || pinAvailable || deviceLockAvailable
-    }
+    fun hasAnyVerificationMethod(): Boolean = biometricAvailable || pinAvailable || deviceLockAvailable
 
     /**
      * Returns the best available verification method.
      */
-    fun getBestAvailableMethod(): VerificationMethod {
-        return when {
+    fun getBestAvailableMethod(): VerificationMethod =
+        when {
             biometricAvailable -> VerificationMethod.BIOMETRIC
             pinAvailable -> VerificationMethod.PIN
             deviceLockAvailable -> VerificationMethod.DEVICE_LOCK
             else -> VerificationMethod.NONE
         }
-    }
 }
 
 /**
@@ -44,6 +41,10 @@ data class BiometricVerificationResult(
     val timestamp: Instant,
     val errorMessage: String?,
 ) {
+    companion object {
+        const val BIOMETRIC_CONFIDENCE_THRESHOLD = 0.7f
+    }
+
     /**
      * Checks if verification was successful.
      */
@@ -52,7 +53,7 @@ data class BiometricVerificationResult(
     /**
      * Checks if confidence level is sufficient.
      */
-    fun hasHighConfidence(): Boolean = confidence >= 0.7f
+    fun hasHighConfidence(): Boolean = confidence >= BIOMETRIC_CONFIDENCE_THRESHOLD
 }
 
 /**
@@ -99,13 +100,12 @@ data class CombinedVerificationResult(
     /**
      * Returns the successful verification method.
      */
-    fun getSuccessfulMethod(): VerificationMethod {
-        return when {
+    fun getSuccessfulMethod(): VerificationMethod =
+        when {
             biometricResult?.isSuccessful() == true -> VerificationMethod.BIOMETRIC
             pinResult?.isSuccessful() == true -> VerificationMethod.PIN
             else -> VerificationMethod.NONE
         }
-    }
 }
 
 /**
@@ -139,9 +139,7 @@ data class BiometricEnrollmentStatus(
     /**
      * Returns the strongest enrolled biometric type.
      */
-    fun getStrongestType(): BiometricType? {
-        return enrolledTypes.maxByOrNull { it.level }
-    }
+    fun getStrongestType(): BiometricType? = enrolledTypes.maxByOrNull { it.level }
 }
 
 /**
@@ -195,7 +193,9 @@ enum class VerificationMethod {
 /**
  * Enumeration of biometric types.
  */
-enum class BiometricType(val level: Int) {
+enum class BiometricType(
+    val level: Int,
+) {
     NONE(0),
     FINGERPRINT(1),
     FACE(2),
@@ -204,22 +204,23 @@ enum class BiometricType(val level: Int) {
     ;
 
     companion object {
-        fun fromString(type: String): BiometricType {
-            return when (type.lowercase()) {
+        fun fromString(type: String): BiometricType =
+            when (type.lowercase()) {
                 "fingerprint" -> FINGERPRINT
                 "face" -> FACE
                 "iris" -> IRIS
                 "voice" -> VOICE
                 else -> NONE
             }
-        }
     }
 }
 
 /**
  * Enumeration of biometric strength levels.
  */
-enum class BiometricStrength(val level: Int) {
+enum class BiometricStrength(
+    val level: Int,
+) {
     WEAK(1),
     MEDIUM(2),
     STRONG(3),

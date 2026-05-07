@@ -46,7 +46,7 @@ class AndroidClipboardManagerService(
         return try {
             val manager =
                 clipboardManager
-                    ?: return Result.failure(ClipboardError.ClipboardUnavailable)
+                    ?: return Result.failure(ClipboardError.ClipboardUnavailable())
 
             // Android 13+ has built-in UI for clipboard that might show sensitive data.
             // We set the "is_sensitive" extra on the ClipData to prevent it showing up in the UI.
@@ -87,7 +87,7 @@ class AndroidClipboardManagerService(
 
                 val manager =
                     clipboardManager
-                        ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable)
+                        ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable())
 
                 // Clearing clipboard relies on setting empty data or clearing the primary clip.
                 // API 28+ supports clearPrimaryClip().

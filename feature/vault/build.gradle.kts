@@ -11,9 +11,6 @@ android {
     defaultConfig {
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ksp {
-            arg("KOIN_DEFAULT_MODULE", "true")
-        }
     }
 
     compileOptions {

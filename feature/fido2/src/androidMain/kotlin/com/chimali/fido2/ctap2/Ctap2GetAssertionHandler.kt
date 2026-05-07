@@ -3,6 +3,7 @@ package com.chimali.fido2.ctap2
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -79,26 +80,6 @@ class Ctap2GetAssertionHandler(
         private const val AUTH_DATA_FLAGS_INDEX = 32
         private const val FLAG_ED_BIT = 0x80
         private const val CLIENT_DATA_HASH_SIZE = 32
-
-        // T020: GetAssertion does NOT perform algorithm negotiation — the credential's signing
-        // algorithm is fixed at registration time. The constants below are defined here as
-        // documentation anchors so that any future assertion-side algorithm-matching code can
-        // reference the correct L3 identifiers and explicitly reject the deprecated ones.
-        // Per WebAuthn L3 §5.4, only -8 (EdDSA) is the valid Ed25519 identifier.
-        @Suppress("UnusedPrivateMember")
-        private const val COSE_EDSA = -8 // EdDSA / Ed25519 — L3 correct
-
-        @Suppress("UnusedPrivateMember")
-        private const val COSE_DEPRECATED_19 = -19 // NOT RECOMMENDED — must never be used
-
-        @Suppress("UnusedPrivateMember")
-        private const val COSE_DEPRECATED_9 = -9 // NOT RECOMMENDED
-
-        @Suppress("UnusedPrivateMember")
-        private const val COSE_DEPRECATED_51 = -51 // NOT RECOMMENDED
-
-        @Suppress("UnusedPrivateMember")
-        private const val COSE_DEPRECATED_52 = -52 // NOT RECOMMENDED
     }
 
     /**
@@ -116,7 +97,8 @@ class Ctap2GetAssertionHandler(
         if (!ceremonyLock.tryLock()) {
             Logger.w { "GetAssertion: Authenticator is busy with another ceremony — returning CHANNEL_BUSY" }
             return hidReportParser.encodeResponse(
-                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_CHANNEL_BUSY)),
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_CHANNEL_BUSY)),
             )
         }
         return try {
@@ -151,7 +133,7 @@ class Ctap2GetAssertionHandler(
                         kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
                             deferred.await()
                         }
-                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
                         Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
                         return hidReportParser.encodeResponse(
                             com.chimali.fido2.bluetooth.CtapHidMessage(
@@ -170,7 +152,8 @@ class Ctap2GetAssertionHandler(
                     val responseCbor = encodeResponse(assertion, options)
                     val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
                     hidReportParser.encodeResponse(
-                        com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, responsePayload),
+                        com.chimali.fido2.bluetooth
+                            .CtapHidMessage(cid, CTAP_CMD_CBOR, responsePayload),
                     )
                 }
 
@@ -190,29 +173,34 @@ class Ctap2GetAssertionHandler(
                             else -> CTAP1_ERR_OTHER
                         }
                     hidReportParser.encodeResponse(
-                        com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(errorCode)),
+                        com.chimali.fido2.bluetooth
+                            .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(errorCode)),
                     )
                 }
             }
         } catch (e: Fido2Exception) {
             Logger.e(e) { "GetAssertion Fido2Exception: ${e.message}" }
             hidReportParser.encodeResponse(
-                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP2_ERR_PROCESSING)),
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP2_ERR_PROCESSING)),
             )
         } catch (e: java.io.IOException) {
             Logger.e(e) { "Unexpected IO error during GetAssertion: ${e.message}" }
             hidReportParser.encodeResponse(
-                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
             )
         } catch (e: IllegalArgumentException) {
             Logger.e(e) { "Invalid argument during GetAssertion: ${e.message}" }
             hidReportParser.encodeResponse(
-                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
             )
         } catch (e: IllegalStateException) {
             Logger.e(e) { "Invalid state during GetAssertion: ${e.message}" }
             hidReportParser.encodeResponse(
-                com.chimali.fido2.bluetooth.CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, byteArrayOf(CTAP1_ERR_OTHER)),
             )
         } finally {
             ceremonyLock.unlock()
@@ -227,17 +215,16 @@ class Ctap2GetAssertionHandler(
      */
     private fun shouldGoHeadless(
         options: GetAssertionOptions,
-        candidates: List<com.chimali.core.domain.model.CredentialSummary>,
-    ): Boolean {
-        return options.userVerification != UserVerificationRequirement.REQUIRED &&
-            candidates.size == 1
-    }
+        candidates: List<CredentialSummary>,
+    ): Boolean =
+        (options.userVerification != UserVerificationRequirement.REQUIRED) &&
+            (candidates.size == 1)
 
     // ── Decoding ──────────────────────────────────────────────────────────────
 
     private fun decodeOptions(params: Map<String, Any>): GetAssertionOptions {
         val rpId =
-            params[REQ_RP_ID] as? String
+            (params[REQ_RP_ID] as? String)
                 ?: throw Fido2Exception.InvalidParameter("Missing rpId (key 0x01)")
 
         // clientDataHash: real CBOR delivers this as a raw ByteArray.
@@ -288,7 +275,7 @@ class Ctap2GetAssertionHandler(
 
         // options map (key 0x05): {"uv": bool, "up": bool}
         val optionsMap = params[REQ_OPTIONS] as? Map<*, *>
-        val uvRaw = optionsMap?.get("uv") as? Boolean ?: false
+        val uvRaw = (optionsMap?.get("uv") as? Boolean) ?: false
         val userVerification =
             if (uvRaw) {
                 UserVerificationRequirement.REQUIRED
@@ -349,9 +336,9 @@ class Ctap2GetAssertionHandler(
                 when (extData) {
                     // Typed CBOR map format: {1 → salt1, 2 → salt2?}
                     is Map<*, *> -> {
-                        val salt1 = (extData[1] ?: extData[1L]) as? ByteArray ?: return@run null
+                        val salt1 = ((extData[1] ?: extData[1L]) as? ByteArray) ?: return@run null
                         val salt2 = (extData[2] ?: extData[2L]) as? ByteArray
-                        val salts = if (salt2 != null) listOf(salt1, salt2) else listOf(salt1)
+                        val salts = listOfNotNull(salt1, salt2)
                         val prfInput =
                             try {
                                 PrfExtensionInput(salts)

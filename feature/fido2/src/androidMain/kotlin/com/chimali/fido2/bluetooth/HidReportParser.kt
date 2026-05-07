@@ -31,6 +31,8 @@ internal const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET // 57
 
 private const val CMD_FLAG = 0x80 // bit7 set → init packet
 private const val CMD_MASK = 0x7F
+private const val BYTE_MASK = 0xFF
+private const val SHIFT_8 = 8
 
 // Well-known CTAPHID commands
 internal const val CTAPHID_MSG = 0x03
@@ -68,7 +70,13 @@ private const val CAPABILITY_NMSG = 0x08 // Authenticator does NOT support CTAPH
 // applicable.  wiokey-android sets NMSG; we do the same.
 
 /** CID assigned to the broadcast channel (used for CTAPHID_INIT). */
-val BROADCAST_CID: ByteArray = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
+val BROADCAST_CID: ByteArray =
+    byteArrayOf(
+        BYTE_MASK.toByte(),
+        BYTE_MASK.toByte(),
+        BYTE_MASK.toByte(),
+        BYTE_MASK.toByte(),
+    )
 
 /**
  * Represents a fully assembled CTAP2 HID command — after multi-packet reassembly.
@@ -172,9 +180,9 @@ class HidReportParser {
         report: ByteArray,
     ): Result<CtapHidMessage?> {
         val cmd = report[INIT_CMD_OFFSET].toInt() and CMD_MASK
-        val bcntH = report[INIT_BCNTH_OFFSET].toInt() and 0xFF
-        val bcntL = report[INIT_BCNTL_OFFSET].toInt() and 0xFF
-        val totalLength = (bcntH shl 8) or bcntL
+        val bcntH = report[INIT_BCNTH_OFFSET].toInt() and BYTE_MASK
+        val bcntL = report[INIT_BCNTL_OFFSET].toInt() and BYTE_MASK
+        val totalLength = (bcntH shl SHIFT_8) or bcntL
 
         val dataInThisPacket = minOf(INIT_DATA_SIZE, totalLength)
         val data = report.copyOfRange(INIT_DATA_OFFSET, INIT_DATA_OFFSET + dataInThisPacket)
@@ -210,7 +218,7 @@ class HidReportParser {
                     Fido2Exception.ProtocolException("Continuation packet for unknown CID $cidKey"),
                 )
 
-        val seq = report[CONT_SEQ_OFFSET].toInt() and 0x7F
+        val seq = report[CONT_SEQ_OFFSET].toInt() and CMD_MASK
         if (seq != state.nextSeq) {
             pending.remove(cidKey)
             return Result.failure(
@@ -251,8 +259,8 @@ class HidReportParser {
         val initPacket = ByteArray(HID_PACKET_SIZE)
         message.channelId.copyInto(initPacket, 0)
         initPacket[INIT_CMD_OFFSET] = (message.command or CMD_FLAG).toByte()
-        initPacket[INIT_BCNTH_OFFSET] = ((totalLength shr 8) and 0xFF).toByte()
-        initPacket[INIT_BCNTL_OFFSET] = (totalLength and 0xFF).toByte()
+        initPacket[INIT_BCNTH_OFFSET] = ((totalLength shr SHIFT_8) and BYTE_MASK).toByte()
+        initPacket[INIT_BCNTL_OFFSET] = (totalLength and BYTE_MASK).toByte()
         val firstChunk = minOf(INIT_DATA_SIZE, totalLength)
         payload.copyInto(initPacket, INIT_DATA_OFFSET, 0, firstChunk)
         packets.add(initPacket)
@@ -263,7 +271,7 @@ class HidReportParser {
         while (offset < totalLength) {
             val contPacket = ByteArray(HID_PACKET_SIZE)
             message.channelId.copyInto(contPacket, 0)
-            contPacket[CONT_SEQ_OFFSET] = (seq and 0x7F).toByte()
+            contPacket[CONT_SEQ_OFFSET] = (seq and CMD_MASK).toByte()
             val chunk = minOf(CONT_DATA_SIZE, totalLength - offset)
             payload.copyInto(contPacket, CONT_DATA_OFFSET, offset, offset + chunk)
             packets.add(contPacket)
@@ -288,17 +296,19 @@ class HidReportParser {
         require(newCid.size == CID_SIZE) { "CID must be $CID_SIZE bytes" }
 
         val payload =
-            ByteBuffer.allocate(INIT_RESPONSE_SIZE).apply {
-                put(nonce)
-                put(newCid)
-                put(0x02.toByte()) // CTAPHID protocol version
-                put(0x01.toByte()) // Major device version
-                put(0x00.toByte()) // Minor device version
-                put(0x00.toByte()) // Build number
-                put(
-                    (CAPABILITY_CBOR or CAPABILITY_NMSG).toByte(),
-                ) // 0x0C: CBOR supported, MSG not — prevents U2F polling loop
-            }.array()
+            ByteBuffer
+                .allocate(INIT_RESPONSE_SIZE)
+                .apply {
+                    put(nonce)
+                    put(newCid)
+                    put(0x02.toByte()) // CTAPHID protocol version
+                    put(0x01.toByte()) // Major device version
+                    put(0x00.toByte()) // Minor device version
+                    put(0x00.toByte()) // Build number
+                    put(
+                        (CAPABILITY_CBOR or CAPABILITY_NMSG).toByte(),
+                    ) // 0x0C: CBOR supported, MSG not — prevents U2F polling loop
+                }.array()
 
         return CtapHidMessage(BROADCAST_CID, CTAPHID_INIT, payload)
     }
@@ -309,9 +319,7 @@ class HidReportParser {
     fun buildErrorResponse(
         cid: ByteArray,
         errorCode: Byte,
-    ): CtapHidMessage {
-        return CtapHidMessage(cid, CTAPHID_ERROR, byteArrayOf(errorCode))
-    }
+    ): CtapHidMessage = CtapHidMessage(cid, CTAPHID_ERROR, byteArrayOf(errorCode))
 
     /**
      * Builds a CTAPHID_KEEPALIVE response.
@@ -320,9 +328,7 @@ class HidReportParser {
     fun buildKeepAliveResponse(
         cid: ByteArray,
         status: Byte,
-    ): CtapHidMessage {
-        return CtapHidMessage(cid, CTAPHID_KEEPALIVE, byteArrayOf(status))
-    }
+    ): CtapHidMessage = CtapHidMessage(cid, CTAPHID_KEEPALIVE, byteArrayOf(status))
 
     /** Clears all pending reassembly state (e.g. on disconnect). */
     fun reset() {

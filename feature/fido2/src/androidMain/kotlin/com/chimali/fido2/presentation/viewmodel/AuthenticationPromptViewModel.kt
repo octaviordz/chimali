@@ -29,7 +29,9 @@ import org.koin.android.annotation.KoinViewModel
 // ── MVI: Intent ───────────────────────────────────────────────────────────────
 
 sealed interface AuthenticationIntent {
-    data class InitAuthentication(val options: GetAssertionOptions) : AuthenticationIntent
+    data class InitAuthentication(
+        val options: GetAssertionOptions,
+    ) : AuthenticationIntent
 
     data object ConfirmAuthentication : AuthenticationIntent
 
@@ -39,9 +41,13 @@ sealed interface AuthenticationIntent {
 
     data object UserVerificationSuccess : AuthenticationIntent
 
-    data class UserVerificationFailed(val message: String) : AuthenticationIntent
+    data class UserVerificationFailed(
+        val message: String,
+    ) : AuthenticationIntent
 
-    data class SelectCredential(val credential: PasskeyCredential) : AuthenticationIntent
+    data class SelectCredential(
+        val credential: PasskeyCredential,
+    ) : AuthenticationIntent
 
     data object Retry : AuthenticationIntent
 }
@@ -67,9 +73,14 @@ sealed interface AuthenticationState {
 
     data object Processing : AuthenticationState
 
-    data class Success(val assertion: AssertionObject) : AuthenticationState
+    data class Success(
+        val assertion: AssertionObject,
+    ) : AuthenticationState
 
-    data class Error(val message: String, val isRetryable: Boolean = true) : AuthenticationState
+    data class Error(
+        val message: String,
+        val isRetryable: Boolean = true,
+    ) : AuthenticationState
 
     data object Cancelled : AuthenticationState
 }
@@ -77,13 +88,20 @@ sealed interface AuthenticationState {
 // ── MVI: Effects ─────────────────────────────────────────────────────────────
 
 sealed interface AuthenticationEffect {
-    data class LaunchSystemPrompt(val promptTitle: String, val promptSubtitle: String) : AuthenticationEffect
+    data class LaunchSystemPrompt(
+        val promptTitle: String,
+        val promptSubtitle: String,
+    ) : AuthenticationEffect
 
-    data class NavigateToSuccess(val assertion: AssertionObject) : AuthenticationEffect
+    data class NavigateToSuccess(
+        val assertion: AssertionObject,
+    ) : AuthenticationEffect
 
     data object NavigateBack : AuthenticationEffect
 
-    data class ShowSnackbar(val message: String) : AuthenticationEffect
+    data class ShowSnackbar(
+        val message: String,
+    ) : AuthenticationEffect
 }
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -124,8 +142,7 @@ class AuthenticationPromptViewModel(
                 uiEventBus.clearAuthenticationRequest()
                 pendingDeferred = event.deferred
                 initAuthentication(event.options)
-            }
-            .launchIn(viewModelScope)
+            }.launchIn(viewModelScope)
 
         uiEventBus.currentAuthenticationRequest?.let { event ->
             pendingDeferred = event.deferred
@@ -215,7 +232,10 @@ class AuthenticationPromptViewModel(
         // Re-run with updated allow-list that only contains selected credential
         val options = pendingOptions ?: return
         val filtered =
-            listOf(com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor.create(id = credential.id))
+            listOf(
+                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+                    .create(id = credential.id),
+            )
         pendingOptions = options.copy(allowCredentials = filtered)
         confirmAuthentication()
     }

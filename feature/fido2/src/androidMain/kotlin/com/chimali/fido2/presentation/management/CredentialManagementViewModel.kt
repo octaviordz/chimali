@@ -13,6 +13,7 @@ import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
 import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import java.io.IOException
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,12 +31,13 @@ import org.koin.android.annotation.KoinViewModel
  * T120 — ViewModel for managing FIDO2 Credentials.
  * Uses MVI pattern: Intent -> State -> Effect
  */
+@OptIn(FlowPreview::class)
 @KoinViewModel
 class CredentialManagementViewModel(
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase,
     private val searchCredentialsUseCase: SearchCredentialsUseCase,
     private val deleteCredentialUseCase: DeleteCredentialUseCase,
-    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase? = null,
+    private val deleteAllCredentialsUseCase: DeleteAllCredentialsUseCase?,
 ) : ViewModel() {
     private val logger = Logger.withTag("CredentialManagement")
     private val _state = MutableStateFlow(CredentialManagementState())
@@ -47,8 +49,8 @@ class CredentialManagementViewModel(
     private val _removalEvents = MutableSharedFlow<PasskeyCredential>()
     val removalEvents: SharedFlow<PasskeyCredential> = _removalEvents.asSharedFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    private var _fullCredentialList: List<PasskeyCredential> = emptyList()
+    private val searchQuery = MutableStateFlow("")
+    private var fullCredentialList: List<PasskeyCredential> = emptyList()
 
     private var currentOffset: Long = 0L
     private val pageSize: Long = DEFAULT_PAGE_SIZE
@@ -61,19 +63,19 @@ class CredentialManagementViewModel(
         when (intent) {
             is CredentialManagementIntent.RefreshCredentials -> {
                 currentOffset = 0L
-                _fullCredentialList = emptyList()
+                fullCredentialList = emptyList()
                 loadCredentials()
             }
 
             is CredentialManagementIntent.LoadNextPage -> {
-                if (_state.value.hasMore && !_state.value.isPaginating && _searchQuery.value.isBlank()) {
+                if (_state.value.hasMore && !_state.value.isPaginating && searchQuery.value.isBlank()) {
                     loadCredentials()
                 }
             }
 
             is CredentialManagementIntent.UpdateSearchQuery -> {
                 logger.d { "Updating search query: ${intent.query}" }
-                _searchQuery.value = intent.query
+                searchQuery.value = intent.query
             }
 
             is CredentialManagementIntent.SelectCredential -> {
@@ -116,19 +118,19 @@ class CredentialManagementViewModel(
 
     private fun observeCredentials() {
         viewModelScope.launch {
-            _searchQuery
+            searchQuery
                 .debounce(SEARCH_DEBOUNCE_MS)
                 .collectLatest { query ->
                     if (query.isBlank()) {
                         currentOffset = 0L
-                        _fullCredentialList = emptyList()
+                        fullCredentialList = emptyList()
                         loadCredentials()
                     } else {
                         // For search, we just load all matches without pagination
                         _state.update { it.copy(isLoading = true, error = null) }
                         try {
                             val results = searchCredentialsUseCase(query).toList()
-                            _fullCredentialList = results
+                            fullCredentialList = results
                             updateStateWithFilteredCredentials()
                             _state.update { it.copy(isLoading = false, hasMore = false) }
                         } catch (e: IOException) {
@@ -146,14 +148,14 @@ class CredentialManagementViewModel(
             val result = getAllCredentialsUseCase(pageSize, currentOffset)
             result
                 .onSuccess { newItems ->
-                    _fullCredentialList = _fullCredentialList + newItems
+                    fullCredentialList = fullCredentialList + newItems
                     currentOffset += newItems.size
                     val hasMore = newItems.size >= pageSize
 
                     _state.update {
                         it.copy(
                             credentials =
-                                _fullCredentialList
+                                fullCredentialList
                                     .filter { c -> c.id !in it.pendingDeleteIds }
                                     .sortedByDescending { c -> c.lastUsedAt },
                             isPaginating = false,
@@ -166,7 +168,7 @@ class CredentialManagementViewModel(
                         it.copy(
                             isPaginating = false,
                             isLoading = false,
-                            error = e.message ?: "Failed to load",
+                            error = e.message,
                         )
                     }
                 }
@@ -177,7 +179,7 @@ class CredentialManagementViewModel(
         _state.update { state ->
             state.copy(
                 credentials =
-                    _fullCredentialList
+                    fullCredentialList
                         .filter { it.id !in state.pendingDeleteIds }
                         .sortedByDescending { it.lastUsedAt },
                 isLoading = false,
@@ -189,7 +191,7 @@ class CredentialManagementViewModel(
      * Directly sets credentials in the state (used for testing and direct data injection).
      */
     fun setCredentials(credentials: List<PasskeyCredential>) {
-        _fullCredentialList = credentials
+        fullCredentialList = credentials
         _state.update {
             it.copy(
                 credentials = credentials.sortedByDescending { c -> c.lastUsedAt },
@@ -303,7 +305,7 @@ data class CredentialManagementState(
     val hasMore: Boolean = true,
     val error: String? = null,
     val showDeleteAllWarning: Boolean = false,
-    val pendingDeleteIds: Set<com.chimali.core.domain.valueobject.CredentialId> = emptySet(),
+    val pendingDeleteIds: Set<CredentialId> = emptySet(),
 )
 
 sealed interface CredentialManagementIntent {
@@ -328,7 +330,7 @@ sealed interface CredentialManagementIntent {
     object DismissDialog : CredentialManagementIntent
 
     data class ConfirmDelete(
-        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+        val credentialId: CredentialId,
     ) : CredentialManagementIntent
 
     object ConfirmDeleteAll : CredentialManagementIntent
@@ -338,11 +340,11 @@ sealed interface CredentialManagementIntent {
     ) : CredentialManagementIntent
 
     data class UndoDelete(
-        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+        val credentialId: CredentialId,
     ) : CredentialManagementIntent
 
     data class CommitDelete(
-        val credentialId: com.chimali.core.domain.valueobject.CredentialId,
+        val credentialId: CredentialId,
     ) : CredentialManagementIntent
 }
 

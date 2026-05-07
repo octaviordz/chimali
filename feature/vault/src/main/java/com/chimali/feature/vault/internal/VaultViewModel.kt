@@ -15,9 +15,8 @@ import kotlinx.coroutines.launch
 @Suppress("ForbiddenComment")
 class VaultViewModel(
     private val vaultService: VaultService,
-    private val clipboardManager: ClipboardManagerWrapper
+    private val clipboardManager: ClipboardManagerWrapper,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(VaultState())
     val state: StateFlow<VaultState> = _state.asStateFlow()
 
@@ -36,9 +35,10 @@ class VaultViewModel(
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             when (val result = vaultService.getItems(intent.filterLabelId)) {
                 is Outcome.Success -> _state.update { it.copy(isLoading = false, items = result.data) }
-                is Outcome.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.error.message)
-                }
+                is Outcome.Error ->
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = result.error.message)
+                    }
             }
         }
     }
@@ -51,14 +51,16 @@ class VaultViewModel(
                     // Reload items after saving
                     when (val loadResult = vaultService.getItems(null)) {
                         is Outcome.Success -> _state.update { it.copy(isLoading = false, items = loadResult.data) }
-                        is Outcome.Error -> _state.update {
-                            it.copy(isLoading = false, errorMessage = loadResult.error.message)
-                        }
+                        is Outcome.Error ->
+                            _state.update {
+                                it.copy(isLoading = false, errorMessage = loadResult.error.message)
+                            }
                     }
                 }
-                is Outcome.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = saveResult.error.message)
-                }
+                is Outcome.Error ->
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = saveResult.error.message)
+                    }
             }
         }
     }
@@ -71,14 +73,16 @@ class VaultViewModel(
                     // Reload items after deletion
                     when (val loadResult = vaultService.getItems(null)) {
                         is Outcome.Success -> _state.update { it.copy(isLoading = false, items = loadResult.data) }
-                        is Outcome.Error -> _state.update {
-                            it.copy(isLoading = false, errorMessage = loadResult.error.message)
-                        }
+                        is Outcome.Error ->
+                            _state.update {
+                                it.copy(isLoading = false, errorMessage = loadResult.error.message)
+                            }
                     }
                 }
-                is Outcome.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = deleteResult.error.message)
-                }
+                is Outcome.Error ->
+                    _state.update {
+                        it.copy(isLoading = false, errorMessage = deleteResult.error.message)
+                    }
             }
         }
     }

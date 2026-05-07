@@ -32,5 +32,5 @@ enum class AuthenticatorState {
     IDLE,
     ADVERTISING,
     CONNECTED,
-    ERROR
+    ERROR,
 }

@@ -7,7 +7,6 @@ import com.chimali.core.common.result.mapError
 import com.chimali.core.domain.model.ConsentOperationType
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
-import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.exception.Fido2Exception
@@ -38,6 +37,7 @@ class RegisterCredentialUseCase(
     private val cborCodec: CborCodec,
     private val cryptoService: Fido2CryptoService,
     private val settingsRepository: Fido2SettingsRepository,
+    private val clientDataHashService: com.chimali.fido2.data.crypto.ClientDataHashService,
 ) {
     companion object {
         private const val MAX_CHALLENGE_SIZE = 64
@@ -49,6 +49,8 @@ class RegisterCredentialUseCase(
         private const val FLAG_USER_PRESENT = 0x01
         private const val FLAG_USER_VERIFIED = 0x04
         private const val FLAG_ATTESTED_CRED_DATA = 0x40
+        private const val SHIFT_8 = 8
+        private const val BYTE_MASK_FF = 0xFF
 
         private val CHIMALI_AAGUID =
             byteArrayOf(
@@ -87,9 +89,7 @@ class RegisterCredentialUseCase(
 
             // Ensure relying party exists before creating consent records or credentials
             val rpResult = updateRelyingParty(options.rp)
-            if (rpResult is Outcome.Error) {
-                return Outcome.Error(rpResult.error)
-            }
+            if (rpResult is Outcome.Error) return Outcome.Error(rpResult.error)
 
             // Check if user consent is required
             val consentRequired =
@@ -282,7 +282,7 @@ class RegisterCredentialUseCase(
 
                 // Generate AAGUID for this authenticator
                 val aaguid = CHIMALI_AAGUID
-                val credProtectPolicy = options.extensions?.get("credProtect") as? Int ?: DEFAULT_CRED_PROTECT_POLICY
+                val credProtectPolicy = (options.extensions?.get("credProtect") as? Int) ?: DEFAULT_CRED_PROTECT_POLICY
 
                 // Create the credential domain model
                 val credential =
@@ -334,16 +334,16 @@ class RegisterCredentialUseCase(
         // the COSE key embedded in it causes "Invalid data" on the server.
         val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
 
-        // Build authenticatorData per WebAuthn Â§6.1
+        // Build authenticatorData per WebAuthn §6.1
         val authDataBytes =
             run {
-                val rpIdHash = hashRpId(options.rp.id)
+                val rpIdHash = clientDataHashService.rpIdHash(options.rp.id.value)
                 val flags = createAuthenticatorFlags(options)
                 val counter = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
                 val credIdLen =
                     byteArrayOf(
-                        (credential.credentialId.size shr 8).toByte(),
-                        (credential.credentialId.size and 0xFF).toByte(),
+                        (credential.credentialId.size shr SHIFT_8).toByte(),
+                        (credential.credentialId.size and BYTE_MASK_FF).toByte(),
                     )
                 java.io
                     .ByteArrayOutputStream()
@@ -360,7 +360,7 @@ class RegisterCredentialUseCase(
 
         val authData =
             AuthenticatorData.create(
-                rpIdHash = hashRpId(options.rp.id),
+                rpIdHash = clientDataHashService.rpIdHash(options.rp.id.value),
                 flags = createAuthenticatorFlags(options),
                 counter = 0L,
                 aaguid = credential.aaguid,
@@ -407,13 +407,6 @@ class RegisterCredentialUseCase(
                 ),
         )
     }
-
-    private fun hashRpId(rpId: RpId): ByteArray =
-        java.security.MessageDigest
-            .getInstance("SHA-256")
-            .apply {
-                update(rpId.value.toByteArray())
-            }.digest()
 
     private fun createAuthenticatorFlags(options: MakeCredentialOptions): ByteArray {
         var flags = 0x00

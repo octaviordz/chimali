@@ -7,6 +7,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
+import com.chimali.core.security.hdkeys.HdkEcdhP256
 import com.chimali.core.security.hdkeys.P256Group
 import io.mockk.coEvery
 import io.mockk.every
@@ -17,6 +18,7 @@ import io.mockk.unmockkStatic
 import java.security.Security
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Nested
  * - correct delegation to HdkManager.deriveHdk and HdkManager.blindPrivateKey
  * - signing produces a non-empty DER-encoded byte array
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class Fido2CryptoServiceTest {
     private lateinit var hdkManager: HdkManager
     private lateinit var masterSeedProvider: MasterSeedProvider
@@ -140,7 +143,7 @@ class Fido2CryptoServiceTest {
         fun `generateCredentialKeyPair returns same public key for same credentialId`() =
             runTest {
                 val credentialId = "stable-credential-id-16"
-                val (sk, pk) = P256Group.generateKeyPair()
+                val (_, pk) = P256Group.generateKeyPair()
                 val fakeResult =
                     HdkResult(
                         P256Group.serializeElement(pk),
@@ -223,9 +226,7 @@ class Fido2CryptoServiceTest {
                 val data = "authData + clientDataHash".toByteArray()
 
                 // Use real HDK derivation to sign
-                val realHdkManager =
-                    com.chimali.core.security.hdkeys
-                        .HdkEcdhP256()
+                val realHdkManager = HdkEcdhP256()
                 val realService =
                     Fido2CryptoService(
                         realHdkManager,
@@ -280,9 +281,7 @@ class Fido2CryptoServiceTest {
      */
     @Nested
     inner class KnownAnswerTests {
-        private val realHdkManager =
-            com.chimali.core.security.hdkeys
-                .HdkEcdhP256()
+        private val realHdkManager = HdkEcdhP256()
 
         @Test
         fun `T148b same seed and credentialId always derives the same public key`() =

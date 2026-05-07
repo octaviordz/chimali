@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `Outcome` class (formerly `DataResult`) provides a functional way to handle errors in the domain and data layers, completely eliminating the need for `try-catch` blocks in ViewModels and UI code.
+The `Outcome` class provides a functional way to handle errors in the domain and data layers, completely eliminating the need for `try-catch` blocks in ViewModels and UI code.
 
 ## How to use
 

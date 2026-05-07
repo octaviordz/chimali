@@ -7,7 +7,7 @@ data class CreditCardPayload(
     val expirationDate: String, // MM/YY
     val cvv: CharArray,
     val notes: CharArray? = null,
-    val customFields: List<CustomField>? = null
+    val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
         cardholderName.fill('0')
@@ -28,11 +28,13 @@ data class CreditCardPayload(
         if (!cardNumber.contentEquals(other.cardNumber)) return false
         if (expirationDate != other.expirationDate) return false
         if (!cvv.contentEquals(other.cvv)) return false
-        
+
         if (notes != null) {
             if (other.notes == null) return false
             if (!notes.contentEquals(other.notes)) return false
-        } else if (other.notes != null) return false
+        } else if (other.notes != null) {
+            return false
+        }
 
         if (customFields != other.customFields) return false
 

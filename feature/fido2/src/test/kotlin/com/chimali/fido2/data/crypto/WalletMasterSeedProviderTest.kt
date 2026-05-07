@@ -33,9 +33,18 @@ import kotlinx.coroutines.test.runTest
 class WalletMasterSeedProviderTest {
     private val fakeMnemonic =
         listOf(
-            "abandon", "abandon", "abandon", "abandon",
-            "abandon", "abandon", "abandon", "abandon",
-            "abandon", "abandon", "abandon", "about",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "abandon",
+            "about",
         )
     private val fakeSeed = ByteArray(SEED_SIZE_64) { it.toByte() }
     private val fakeKeyPair = mockk<HdkKeyPair>(relaxed = true)
@@ -194,9 +203,18 @@ class WalletMasterSeedProviderTest {
         runTest {
             val shortWords =
                 listOf(
-                    "only", "twelve", "words",
-                    "here", "but", "need", "more",
-                    "this", "will", "fail", "validation", "check",
+                    "only",
+                    "twelve",
+                    "words",
+                    "here",
+                    "but",
+                    "need",
+                    "more",
+                    "this",
+                    "will",
+                    "fail",
+                    "validation",
+                    "check",
                 )
             assertEquals(MNEMONIC_WORDS_12, shortWords.size)
             val chars = shortWords.joinToString(" ").toCharArray()

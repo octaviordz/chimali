@@ -252,7 +252,8 @@ class PasskeyCredentialTest {
                         privateKeyAlias = testPrivateKeyAlias,
                         aaguid = testAaguid,
                         credentialId = testCredentialId,
-                        coseAlgorithm = -19, // Current COSE_ED25519
+                        // Current COSE_ED25519
+                        coseAlgorithm = -19,
                     )
                 }
 
@@ -267,7 +268,8 @@ class PasskeyCredentialTest {
                     privateKeyAlias = testPrivateKeyAlias,
                     aaguid = testAaguid,
                     credentialId = testCredentialId,
-                    coseAlgorithm = -8, // New COSE_EDSA
+                    // New COSE_EDSA
+                    coseAlgorithm = -8,
                 )
             }
 

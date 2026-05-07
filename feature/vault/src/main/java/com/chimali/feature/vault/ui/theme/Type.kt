@@ -7,10 +7,9 @@ import com.chimali.feature.vault.ui.model.LegibilityFont
 /**
  * Helper function to get the appropriate font family based on LegibilityFont enum.
  */
-fun getFontFamily(fontType: LegibilityFont): FontFamily {
-    return when (fontType) {
+fun getFontFamily(fontType: LegibilityFont): FontFamily =
+    when (fontType) {
         LegibilityFont.Atkinson -> LegibilityType.AtkinsonFontFamily
         LegibilityFont.JetBrainsMono -> LegibilityType.JetBrainsMonoFontFamily
         LegibilityFont.SystemDefault -> LegibilityType.SystemMonospaceFontFamily
     }
-}

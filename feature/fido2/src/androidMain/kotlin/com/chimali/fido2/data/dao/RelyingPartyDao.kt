@@ -343,6 +343,10 @@ class RelyingPartyDao(
             .executeAsOne()
             .toInt()
 
+    companion object {
+        private const val DEFAULT_TOP_RPS_LIMIT = 10L
+    }
+
     /**
      * Retrieves relying party statistics.
      */
@@ -352,7 +356,7 @@ class RelyingPartyDao(
         val blocked = countBlockedRelyingParties()
         val topRps =
             database.relyingPartyQueries
-                .getTopRelyingParties(10)
+                .getTopRelyingParties(DEFAULT_TOP_RPS_LIMIT)
                 .executeAsList()
 
         return RelyingPartyStatistics(

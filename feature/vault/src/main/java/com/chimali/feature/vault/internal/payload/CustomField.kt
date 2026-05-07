@@ -3,7 +3,7 @@ package com.chimali.feature.vault.internal.payload
 data class CustomField(
     val name: String,
     val value: CharArray,
-    val isConcealed: Boolean
+    val isConcealed: Boolean,
 ) {
     fun clearMemory() {
         value.fill('0')

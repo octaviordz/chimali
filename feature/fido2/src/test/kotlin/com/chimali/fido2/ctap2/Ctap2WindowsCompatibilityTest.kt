@@ -147,8 +147,8 @@ class Ctap2WindowsCompatibilityTest {
         credIdBytes: ByteArray,
         authData: ByteArray,
         signature: ByteArray,
-    ): AssertionObject {
-        return AssertionObject(
+    ): AssertionObject =
+        AssertionObject(
             credential =
                 PublicKeyCredentialDescriptor.create(
                     id = CredentialId.fromByteArray(credIdBytes),
@@ -157,7 +157,6 @@ class Ctap2WindowsCompatibilityTest {
             signature = signature,
             user = null,
         )
-    }
 
     // Helper to search for subarray
     private fun containsSubArray(

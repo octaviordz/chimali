@@ -73,11 +73,11 @@ object WarmUpHelper {
                         "AndroidKeyStore",
                     )
                 kpg.initialize(
-                    KeyGenParameterSpec.Builder(
-                        WARMUP_KEY_ALIAS,
-                        KeyProperties.PURPOSE_SIGN,
-                    )
-                        .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                    KeyGenParameterSpec
+                        .Builder(
+                            WARMUP_KEY_ALIAS,
+                            KeyProperties.PURPOSE_SIGN,
+                        ).setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                         .setDigests(KeyProperties.DIGEST_SHA256)
                         // No user authentication required — this key is for warmup only,
                         // never for protecting user credentials.

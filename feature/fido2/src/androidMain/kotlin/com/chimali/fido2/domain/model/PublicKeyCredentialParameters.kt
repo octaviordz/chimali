@@ -45,49 +45,40 @@ data class PublicKeyCredentialParameters(
         // Validate salt if present
         salt?.let { saltValue ->
             require(saltValue.isNotEmpty()) { "Salt cannot be empty if provided" }
-            require(saltValue.size <= 32) { "Salt cannot exceed 32 bytes" }
+            require(saltValue.size <= MAX_SALT_SIZE) { "Salt cannot exceed $MAX_SALT_SIZE bytes" }
         }
     }
 
     /**
      * Checks if this uses elliptic curve cryptography.
      */
-    fun isEllipticCurve(): Boolean {
-        return algorithm.startsWith("ES") || algorithm.startsWith("Ed")
-    }
+    fun isEllipticCurve(): Boolean = algorithm.startsWith("ES") || algorithm.startsWith("Ed")
 
     /**
      * Checks if this uses RSA.
      */
-    fun isRsa(): Boolean {
-        return algorithm.startsWith("RS")
-    }
+    fun isRsa(): Boolean = algorithm.startsWith("RS")
 
     /**
      * Returns the curve name for display.
      */
-    fun getCurveName(): String {
-        return curve ?: "N/A"
-    }
+    fun getCurveName(): String = curve ?: "N/A"
 
     /**
      * Returns the algorithm family.
      */
-    fun getAlgorithmFamily(): String {
-        return when {
+    fun getAlgorithmFamily(): String =
+        when {
             algorithm.startsWith("ES") -> "Elliptic Curve"
             algorithm.startsWith("RS") -> "RSA"
             algorithm.startsWith("Ed") -> "Edwards Curve"
             else -> "Unknown"
         }
-    }
 
     /**
      * Returns a safe salt value.
      */
-    fun getSafeSalt(): ByteArray {
-        return salt ?: ByteArray(16) { it.hashCode().toByte() }
-    }
+    fun getSafeSalt(): ByteArray = salt ?: ByteArray(DEFAULT_SALT_SIZE) { it.hashCode().toByte() }
 
     companion object {
         /**
@@ -105,71 +96,64 @@ data class PublicKeyCredentialParameters(
             curve: String? = "P-256",
             keyType: String? = "EC2",
             salt: ByteArray? = null,
-        ): PublicKeyCredentialParameters {
-            return PublicKeyCredentialParameters(
+        ): PublicKeyCredentialParameters =
+            PublicKeyCredentialParameters(
                 type = type,
                 algorithm = algorithm,
                 curve = curve,
                 keyType = keyType,
                 salt = salt,
             )
-        }
 
         /**
          * Creates parameters for ES256 with P-256 curve.
          */
-        fun createES256P256(): PublicKeyCredentialParameters {
-            return createEs256()
-        }
+        fun createES256P256(): PublicKeyCredentialParameters = createEs256()
 
         /**
          * T018a: Creates parameters for ES256 with explicit P-256 curve and EC2 key type.
          * Fulfills FR-FIDO2-006.
          */
-        fun createEs256(): PublicKeyCredentialParameters {
-            return create(
+        fun createEs256(): PublicKeyCredentialParameters =
+            create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "ES256",
                 curve = "P-256",
                 keyType = "EC2",
             )
-        }
 
         /**
          * Creates parameters for RS256.
          */
-        fun createRS256(): PublicKeyCredentialParameters {
-            return create(
+        fun createRS256(): PublicKeyCredentialParameters =
+            create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "RS256",
                 curve = null,
                 keyType = "RSA",
             )
-        }
 
         /**
          * Creates parameters for EdDSA with Ed25519 curve.
          */
-        fun createEdDsa(): PublicKeyCredentialParameters {
-            return create(
+        fun createEdDsa(): PublicKeyCredentialParameters =
+            create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "EdDSA",
                 curve = "Ed25519",
                 keyType = "OKP",
             )
-        }
 
         /**
          * Creates parameters for ML-DSA-65 (Dilithium, NIST FIPS 204 Level 3).
          * COSE algorithm ID: -49 (working-draft; IANA finalization pending).
          */
-        fun createMlDsa65(): PublicKeyCredentialParameters {
-            return create(
+        fun createMlDsa65(): PublicKeyCredentialParameters =
+            create(
                 type = PublicKeyCredentialType.PUBLIC_KEY,
                 algorithm = "ML-DSA",
                 curve = null,
             )
-        }
     }
 }
 

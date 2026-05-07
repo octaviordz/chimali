@@ -3,6 +3,7 @@ package com.chimali.fido2.data.crypto
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrElse
 import com.chimali.core.common.result.map
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
@@ -137,13 +138,12 @@ class CredentialEncryptionService(
     suspend fun encryptString(
         value: String,
         associatedData: ByteArray? = null,
-    ): Outcome<String, DomainError.CryptoError> {
-        return encrypt(value.toByteArray(), associatedData).map { encryptedData ->
+    ): Outcome<String, DomainError.CryptoError> =
+        encrypt(value.toByteArray(), associatedData).map { encryptedData ->
             // Combine IV and encrypted data for storage
             val combined = encryptedData.iv + encryptedData.data
             Base64.getEncoder().encodeToString(combined)
         }
-    }
 
     /**
      * Decrypts a string value.
@@ -186,8 +186,8 @@ class CredentialEncryptionService(
         userId: UserId,
         userName: String,
         userDisplayName: String,
-    ): Outcome<EncryptedCredentialMetadata, DomainError.CryptoError> {
-        return try {
+    ): Outcome<EncryptedCredentialMetadata, DomainError.CryptoError> =
+        try {
             val metadata =
                 CredentialMetadata(
                     rpId = rpId.value,
@@ -210,7 +210,6 @@ class CredentialEncryptionService(
             Logger.e(e) { "CredentialEncryptionService: Failed to encrypt credential metadata for rpId=$rpId" }
             Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
-    }
 
     /**
      * Decrypts credential metadata with RP ID verification.
@@ -288,9 +287,7 @@ class CredentialEncryptionService(
         rpId: RpId,
     ): Outcome<CredentialStorageService.EncryptedData, DomainError.CryptoError> {
         return try {
-            val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
-            if (derivedKeyOutcome is Outcome.Error) return derivedKeyOutcome
-            val derivedKey = (derivedKeyOutcome as Outcome.Success).data
+            val derivedKey = deriveCredentialKey(credentialId, rpId).getOrElse { return Outcome.Error(it) }
 
             // Generate random IV
             val iv = ByteArray(GCM_IV_LENGTH)
@@ -328,9 +325,7 @@ class CredentialEncryptionService(
         rpId: RpId,
     ): Outcome<ByteArray, DomainError.CryptoError> {
         return try {
-            val derivedKeyOutcome = deriveCredentialKey(credentialId, rpId)
-            if (derivedKeyOutcome is Outcome.Error) return derivedKeyOutcome
-            val derivedKey = (derivedKeyOutcome as Outcome.Success).data
+            val derivedKey = deriveCredentialKey(credentialId, rpId).getOrElse { return Outcome.Error(it) }
 
             // Initialize cipher for decryption
             val cipher = Cipher.getInstance(TRANSFORMATION_AES_GCM)
@@ -352,8 +347,8 @@ class CredentialEncryptionService(
     /**
      * Rotates the master encryption key.
      */
-    suspend fun rotateMasterKey(): Outcome<Unit, DomainError.CryptoError> {
-        return try {
+    suspend fun rotateMasterKey(): Outcome<Unit, DomainError.CryptoError> =
+        try {
             generateMasterKey()
 
             // In a real implementation, you would:
@@ -367,20 +362,17 @@ class CredentialEncryptionService(
             Logger.e(e) { "CredentialEncryptionService: Master key rotation failed" }
             Outcome.Error(DomainError.CryptoError(e.message ?: UNKNOWN_ERROR, e))
         }
-    }
 
     /**
      * Gets or creates the master encryption key.
      */
-    private suspend fun getOrCreateMasterKey(): SecretKey? {
-        return getMasterKey() ?: generateMasterKey()
-    }
+    private suspend fun getOrCreateMasterKey(): SecretKey? = getMasterKey() ?: generateMasterKey()
 
     /**
      * Gets the master encryption key.
      */
-    private suspend fun getMasterKey(): SecretKey? {
-        return try {
+    private suspend fun getMasterKey(): SecretKey? =
+        try {
             credentialStorageService.keyExists(MASTER_KEY_ALIAS)
             // In a real implementation, you would retrieve the actual key from KeyStore
             // For now, we'll generate a temporary key for demonstration
@@ -389,13 +381,12 @@ class CredentialEncryptionService(
             Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
             null
         }
-    }
 
     /**
      * Generates a new master encryption key.
      */
-    private fun generateMasterKey(): SecretKey? {
-        return try {
+    private fun generateMasterKey(): SecretKey? =
+        try {
             val keyGenerator = KeyGenerator.getInstance(ALGORITHM_AES)
             keyGenerator.init(KEY_SIZE_AES)
 
@@ -405,7 +396,6 @@ class CredentialEncryptionService(
             Logger.e(e) { "CredentialEncryptionService: Master key generation failed" }
             null
         }
-    }
 
     /**
      * HKDF-SHA256 implementation for key derivation.
@@ -431,7 +421,7 @@ class CredentialEncryptionService(
         val iterations = (outputLength + HKDF_ROUND_UP_OFFSET) / HKDF_BLOCK_SIZE // 32 bytes per hash
 
         for (i in 1..iterations) {
-            hmacSha256.init(javax.crypto.spec.SecretKeySpec(prk, "HmacSHA256"))
+            hmacSha256.init(SecretKeySpec(prk, "HmacSHA256"))
             hmacSha256.update(t)
             hmacSha256.update(info)
             hmacSha256.update(i.toByte())

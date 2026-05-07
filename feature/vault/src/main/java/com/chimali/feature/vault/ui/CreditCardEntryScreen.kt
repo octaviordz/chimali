@@ -49,23 +49,24 @@ fun CreditCardEntryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("New Credit Card") }
+                title = { Text("New Credit Card") },
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title (e.g., Amex Gold)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -73,7 +74,7 @@ fun CreditCardEntryScreen(
                     value = cardholderName,
                     onValueChange = { cardholderName = it },
                     label = { Text("Name on Card") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -81,7 +82,7 @@ fun CreditCardEntryScreen(
                     value = cardNumber,
                     onValueChange = { cardNumber = it },
                     label = { Text("Card Number") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -90,13 +91,13 @@ fun CreditCardEntryScreen(
                         value = expirationDate,
                         onValueChange = { expirationDate = it },
                         label = { Text("Exp (MM/YY)") },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     OutlinedTextField(
                         value = cvv,
                         onValueChange = { cvv = it },
                         label = { Text("CVV") },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -105,7 +106,7 @@ fun CreditCardEntryScreen(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notes") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -129,25 +130,26 @@ fun CreditCardEntryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = onCancel) {
                         Text("Cancel")
                     }
                     Button(
                         onClick = {
-                            val payload = CreditCardPayload(
-                                title = title,
-                                cardholderName = cardholderName.toCharArray(),
-                                cardNumber = cardNumber.toCharArray(),
-                                expirationDate = expirationDate,
-                                cvv = cvv.toCharArray(),
-                                notes = if (notes.isNotBlank()) notes.toCharArray() else null,
-                                customFields = customFields.toList()
-                            )
+                            val payload =
+                                CreditCardPayload(
+                                    title = title,
+                                    cardholderName = cardholderName.toCharArray(),
+                                    cardNumber = cardNumber.toCharArray(),
+                                    expirationDate = expirationDate,
+                                    cvv = cvv.toCharArray(),
+                                    notes = if (notes.isNotBlank()) notes.toCharArray() else null,
+                                    customFields = customFields.toList(),
+                                )
                             onSave(payload)
                         },
-                        enabled = title.isNotBlank() && cardNumber.isNotBlank()
+                        enabled = title.isNotBlank() && cardNumber.isNotBlank(),
                     ) {
                         Text("Save")
                     }
@@ -162,6 +164,6 @@ fun CreditCardEntryScreen(
 private fun CreditCardEntryScreenPreview() {
     CreditCardEntryScreen(
         onSave = {},
-        onCancel = {}
+        onCancel = {},
     )
 }

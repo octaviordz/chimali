@@ -65,10 +65,9 @@ class HmacSecretProcessor(
         return try {
             // Parse extension input
             val saltEnc: ByteArray =
-                when {
-                    extensionData is Map<*, *> -> {
-                        val saltRaw = extensionData["saltEnc"]
-                        when (saltRaw) {
+                when (extensionData) {
+                    is Map<*, *> -> {
+                        when (val saltRaw = extensionData["saltEnc"]) {
                             is ByteArray -> saltRaw
                             else -> {
                                 Logger.w("hmac-secret: saltEnc missing or wrong type")
@@ -76,14 +75,14 @@ class HmacSecretProcessor(
                             }
                         }
                     }
-                    extensionData is ByteArray -> extensionData // direct salt (simplified mode)
+                    is ByteArray -> extensionData // direct salt (simplified mode)
                     else -> {
                         Logger.w { "hmac-secret: unexpected extension data type ${extensionData::class.simpleName}" }
                         return null
                     }
                 }
 
-            if (saltEnc.size != SALT_SIZE && saltEnc.size != SALT_SIZE * 2) {
+            if ((saltEnc.size != SALT_SIZE) && (saltEnc.size != (SALT_SIZE * 2))) {
                 Logger.w { "hmac-secret: invalid saltEnc length ${saltEnc.size} (expected 32 or 64)" }
                 return null
             }
@@ -99,7 +98,7 @@ class HmacSecretProcessor(
             val hmacOutput1 = hmacSha256(credSecret, salt1)
             hmacOutput1.copyInto(output, 0)
 
-            if (saltEnc.size == SALT_SIZE * 2) {
+            if (saltEnc.size == (SALT_SIZE * 2)) {
                 val salt2 = saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2)
                 val hmacOutput2 = hmacSha256(credSecret, salt2)
                 hmacOutput2.copyInto(output, SALT_SIZE)

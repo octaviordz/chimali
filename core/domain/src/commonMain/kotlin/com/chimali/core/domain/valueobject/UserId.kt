@@ -11,7 +11,9 @@ import kotlinx.serialization.Serializable
 @OptIn(ExperimentalEncodingApi::class)
 @Serializable
 @JvmInline
-value class UserId(val value: String) {
+value class UserId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "UserId cannot be blank" }
     }

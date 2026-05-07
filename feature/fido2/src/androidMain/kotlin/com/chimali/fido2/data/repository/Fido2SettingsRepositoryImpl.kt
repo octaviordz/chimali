@@ -39,9 +39,7 @@ class Fido2SettingsRepositoryImpl(
         )
     }
 
-    override suspend fun getMaxCredentialCount(): Int {
-        return prefs.getInt(KEY_MAX_CREDENTIALS, DEFAULT_STORAGE_LIMIT)
-    }
+    override suspend fun getMaxCredentialCount(): Int = prefs.getInt(KEY_MAX_CREDENTIALS, DEFAULT_STORAGE_LIMIT)
 
     override suspend fun setMaxCredentialCount(count: Int) {
         prefs.edit(commit = true) {

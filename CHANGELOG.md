@@ -3,6 +3,26 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-07
+
+### Added
+- **FIDO2 Quality Hardening & MagicNumber Cleanup**: Systematically eliminated all remaining `MagicNumber` violations in the `feature:fido2` module.
+    - Refactored 38 numeric literals into descriptive constants (e.g., `MNEMONIC_WORD_COUNT`, `DEFAULT_VERIFICATION_TIMEOUT_MS`).
+    - Standardized Bluetooth device class masks and protocol-level offsets.
+    - Synchronized `detekt-baseline.xml` to maintain a zero-violation state for the `MagicNumber` rule.
+- **Architectural Refinement (Outcome Migration)**:
+    - Purged legacy `DataResult.kt` from `core:common`, finalizing the transition to the `Outcome<T, DomainError>` architecture.
+    - Refactored core domain models (`RelyingParty`, `UserConsentRecord`) and use cases to use strongly-typed functional results.
+- **Vault UX & Legibility Enhancements**: Refined the Vault UI with improved legibility controls and secret display components.
+    - Introduced `LegibleSecretText` with configurable settings for better accessibility.
+- **Build Infrastructure Modernization**:
+    - Refactored build scripts to the modern `ProjectLayout` API for Gradle 10 compatibility.
+    - Upgraded `ktlint` to 14.2.0 and hardened KSP configurations to silence deprecation warnings.
+- **CI Pipeline & Quality Hardening**:
+    - Resolved build-blocking `ktlint` violations related to backing property naming and orphan KDoc comments in the FIDO2 module.
+    - Migrated UI components to modern `AutoMirrored` icons and `lifecycle-runtime-compose` APIs to eliminate deprecation warnings.
+- **Detailed changes**: [2026-05-07-fido2-quality-hardening-and-outcome-finalization.md](docs/changelogs/2026-05-07-fido2-quality-hardening-and-outcome-finalization.md)
+
 ## [Unreleased] - 2026-05-06
     
 ### Added

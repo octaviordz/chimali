@@ -104,6 +104,9 @@ class Ctap2GetAssertionHandlerTest {
                 event.deferred.complete(Outcome.Success(assertion))
             }
 
+            every { cborCodec.encodeToFido2Format(any()) } returns byteArrayOf(0x00)
+            every { hidReportParser.encodeResponse(any()) } returns emptyList()
+
             // Act
             handler.handle(cid, requestBytes)
 

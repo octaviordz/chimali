@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.viewmodel
+package com.chimali.fido2.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,8 +19,12 @@ class PairedDevicesViewModel(
     private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
     private val updateDeviceAliasUseCase: com.chimali.fido2.domain.usecase.UpdateDeviceAliasUseCase,
 ) : ViewModel() {
+    companion object {
+        private const val SUBSCRIBE_TIMEOUT_MS = 5000L
+    }
+
     // MAC addresses pending deletion (swiped but not yet committed)
-    private val _pendingDelete = MutableStateFlow<Set<String>>(emptySet())
+    private val pendingDeleteState = MutableStateFlow<Set<String>>(emptySet())
 
     // Deletion events to be handled by the UI (e.g. show snackbar)
     private val _removalEvents = Channel<PairedDevice>(Channel.BUFFERED)
@@ -28,17 +32,17 @@ class PairedDevicesViewModel(
 
     // All devices from DB, with pending-delete items hidden from the UI
     val pairedDevices: StateFlow<List<PairedDevice>> =
-        combine(repository.getAllPairedDevices(), _pendingDelete) { all, pending ->
+        combine(repository.getAllPairedDevices(), pendingDeleteState) { all, pending ->
             all.filter { it.macAddress !in pending }
         }.stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS),
             initialValue = emptyList(),
         )
 
     /** Hide item immediately — starts the undo window. */
     fun pendingRemove(device: PairedDevice) {
-        _pendingDelete.value = _pendingDelete.value + device.macAddress
+        pendingDeleteState.value = pendingDeleteState.value + device.macAddress
         viewModelScope.launch {
             _removalEvents.send(device)
         }
@@ -46,12 +50,12 @@ class PairedDevicesViewModel(
 
     /** User pressed Undo — bring the item back. */
     fun undoRemove(macAddress: String) {
-        _pendingDelete.value = _pendingDelete.value - macAddress
+        pendingDeleteState.value = pendingDeleteState.value - macAddress
     }
 
     /** Snackbar timed out — permanently delete from DB. */
     fun commitRemove(macAddress: String) {
-        _pendingDelete.value = _pendingDelete.value - macAddress
+        pendingDeleteState.value = pendingDeleteState.value - macAddress
         viewModelScope.launch {
             repository.deleteDevice(macAddress)
         }

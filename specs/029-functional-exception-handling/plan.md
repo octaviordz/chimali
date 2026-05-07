@@ -5,7 +5,7 @@
 
 ## Summary
 
-Enforce specific exception handling by eliminating `@Suppress("TooGenericExceptionCaught")` and migrating the codebase to a functional error handling paradigm using a custom `DataResult<D, E>` and `DomainError`. This ensures errors are logged at the exact boundary they occur (via Kermit) and correctly propagated without generic `try-catch` flow control in the presentation layer.
+Enforce specific exception handling by eliminating `@Suppress("TooGenericExceptionCaught")` and migrating the codebase to a functional error handling paradigm using a custom `Outcome<D, E>` and `DomainError`. This ensures errors are logged at the exact boundary they occur (via Kermit) and correctly propagated without generic `try-catch` flow control in the presentation layer.
 
 ## Technical Context
 
@@ -46,7 +46,7 @@ specs/029-functional-exception-handling/
 core/
 └── common/
     └── src/commonMain/kotlin/com/chimali/core/common/result/
-        ├── DataResult.kt
+        ├── Outcome.kt
         └── DomainError.kt
 
 feature/
@@ -54,10 +54,10 @@ feature/
     ├── data/
     │   └── repository/     # Update data sources to catch precise exceptions and log at boundary
     └── presentation/
-        └── viewmodel/      # Remove try-catch, handle DataResult with exhaustive when
+        └── viewmodel/      # Remove try-catch, handle Outcome with exhaustive when
 ```
 
-**Structure Decision**: A new `result` package will be created in `core/common` to host `DataResult` and `DomainError`. Existing feature modules will be modified to use this pattern.
+**Structure Decision**: A new `result` package will be created in `core/common` to host `Outcome` and `DomainError`. Existing feature modules will be modified to use this pattern.
 
 ## Complexity Tracking
 

@@ -4,6 +4,6 @@ No `NEEDS CLARIFICATION` markers were present in the specification. The technica
 
 ## Decisions
 
-- **Decision**: Rename `DataResult` to `Outcome`.
+- **Decision**: Finalized the rename of `DataResult` to `Outcome`.
   - **Rationale**: Based on user feedback, `Outcome` is more semantic and modern than `DataResult`, and aligns perfectly with `DomainError`.
-  - **Alternatives considered**: `Either`, `DomainResult`, `Attempt`. `Outcome` was explicitly chosen by the user for readability.
+  - **Outcome**: The legacy `DataResult.kt` file has been removed and all documentation updated to reflect the new terminology.

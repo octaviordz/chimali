@@ -126,17 +126,15 @@ class UserVerificationServiceImpl(
         cacheTimestampMs = 0L
     }
 
-    override suspend fun isBiometricAvailable(): Boolean {
-        return biometricManager.canAuthenticate(
+    override suspend fun isBiometricAvailable(): Boolean =
+        biometricManager.canAuthenticate(
             BiometricManager.Authenticators.BIOMETRIC_STRONG,
         ) == BiometricManager.BIOMETRIC_SUCCESS
-    }
 
-    override suspend fun isPinAvailable(): Boolean {
-        return biometricManager.canAuthenticate(
+    override suspend fun isPinAvailable(): Boolean =
+        biometricManager.canAuthenticate(
             BiometricManager.Authenticators.DEVICE_CREDENTIAL,
         ) == BiometricManager.BIOMETRIC_SUCCESS
-    }
 
     override suspend fun getBiometricEnrollmentStatus(): BiometricEnrollmentStatus {
         val canAuth =
@@ -151,8 +149,8 @@ class UserVerificationServiceImpl(
         )
     }
 
-    override suspend fun getPinConfiguration(): PinConfiguration {
-        return PinConfiguration(
+    override suspend fun getPinConfiguration(): PinConfiguration =
+        PinConfiguration(
             minLength = MIN_PIN_LENGTH,
             maxLength = MAX_PIN_LENGTH,
             requireComplexity = false,
@@ -160,7 +158,6 @@ class UserVerificationServiceImpl(
             maxAttempts = DEFAULT_MAX_ATTEMPTS,
             lockoutDuration = DEFAULT_LOCKOUT_DURATION,
         )
-    }
 
     override suspend fun recordUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> {
         // TODO: Persist consent record
@@ -179,7 +176,5 @@ class UserVerificationServiceImpl(
         rpId: RpId,
         operationType: String,
         context: VerificationContext?,
-    ): UserVerificationRequirement {
-        return UserVerificationRequirement.PREFERRED
-    }
+    ): UserVerificationRequirement = UserVerificationRequirement.PREFERRED
 }

@@ -46,37 +46,55 @@ import kotlinx.coroutines.withTimeoutOrNull
 private val FIDO_HID_REPORT_DESCRIPTOR =
     byteArrayOf(
         // Usage Page (FIDO Alliance)
-        0x06.toByte(), 0xD0.toByte(), 0xF1.toByte(),
+        0x06.toByte(),
+        0xD0.toByte(),
+        0xF1.toByte(),
         // Usage (FIDO Usage Data In)
-        0x09.toByte(), 0x01.toByte(),
+        0x09.toByte(),
+        0x01.toByte(),
         // Collection (Application)
-        0xA1.toByte(), 0x01.toByte(),
+        0xA1.toByte(),
+        0x01.toByte(),
         // ── Input Report ──
         // Usage (Input Report Data)
-        0x09.toByte(), 0x20.toByte(),
+        0x09.toByte(),
+        0x20.toByte(),
         // Logical Minimum (0)
-        0x15.toByte(), 0x00.toByte(),
+        0x15.toByte(),
+        0x00.toByte(),
         // Logical Maximum (255)
-        0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),
+        0x26.toByte(),
+        0xFF.toByte(),
+        0x00.toByte(),
         // Report Size (8 bits)
-        0x75.toByte(), 0x08.toByte(),
+        0x75.toByte(),
+        0x08.toByte(),
         // Report Count (62)
-        0x95.toByte(), 0x3E.toByte(),
+        0x95.toByte(),
+        0x3E.toByte(),
         // Input (Data, Variable, Absolute)
-        0x81.toByte(), 0x02.toByte(),
+        0x81.toByte(),
+        0x02.toByte(),
         // ── Output Report ──
         // Usage (Output Report Data)
-        0x09.toByte(), 0x21.toByte(),
+        0x09.toByte(),
+        0x21.toByte(),
         // Logical Minimum (0)
-        0x15.toByte(), 0x00.toByte(),
+        0x15.toByte(),
+        0x00.toByte(),
         // Logical Maximum (255)
-        0x26.toByte(), 0xFF.toByte(), 0x00.toByte(),
+        0x26.toByte(),
+        0xFF.toByte(),
+        0x00.toByte(),
         // Report Size (8 bits)
-        0x75.toByte(), 0x08.toByte(),
+        0x75.toByte(),
+        0x08.toByte(),
         // Report Count (62)
-        0x95.toByte(), 0x3E.toByte(),
+        0x95.toByte(),
+        0x3E.toByte(),
         // Output (Data, Variable, Absolute)
-        0x91.toByte(), 0x02.toByte(),
+        0x91.toByte(),
+        0x02.toByte(),
         // End Collection
         0xC0.toByte(),
     )
@@ -998,11 +1016,17 @@ sealed class HidConnectionState {
     object Advertising : HidConnectionState()
 
     /** A host is in the process of connecting. */
-    data class Connecting(val device: BluetoothDevice) : HidConnectionState()
+    data class Connecting(
+        val device: BluetoothDevice,
+    ) : HidConnectionState()
 
     /** A host is connected and can exchange HID reports. */
-    data class Connected(val device: BluetoothDevice) : HidConnectionState()
+    data class Connected(
+        val device: BluetoothDevice,
+    ) : HidConnectionState()
 
     /** An unrecoverable error occurred. */
-    data class Error(val message: String) : HidConnectionState()
+    data class Error(
+        val message: String,
+    ) : HidConnectionState()
 }

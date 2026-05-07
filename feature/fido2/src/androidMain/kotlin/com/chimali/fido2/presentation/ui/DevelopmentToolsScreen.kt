@@ -107,6 +107,11 @@ import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
+private const val QR_CORNER_ROUNDING = 0.25f
+private val INDEX_WIDTH = 24.dp
+private const val MNEMONIC_GRID_COLUMNS = 3
+private const val MNEMONIC_WORD_COUNT = 24
+
 /**
  * T146b/c/d/e/f — Development / QA screen housing test utilities.
  *
@@ -265,9 +270,10 @@ private fun DebugMnemonicSection(
                         )
                     if (result == SnackbarResult.ActionPerformed) {
                         val intent =
-                            android.content.Intent(
-                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            ).apply { data = android.net.Uri.fromParts("package", context.packageName, null) }
+                            android.content
+                                .Intent(
+                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                ).apply { data = android.net.Uri.fromParts("package", context.packageName, null) }
                         context.startActivity(intent)
                     }
                 }
@@ -479,11 +485,12 @@ private fun RecoverSeedForm(
                                     )
                                 if (result == SnackbarResult.ActionPerformed) {
                                     val intent =
-                                        android.content.Intent(
-                                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        ).apply {
-                                            data = android.net.Uri.fromParts("package", context.packageName, null)
-                                        }
+                                        android.content
+                                            .Intent(
+                                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            ).apply {
+                                                data = android.net.Uri.fromParts("package", context.packageName, null)
+                                            }
                                     context.startActivity(intent)
                                 }
                             }
@@ -531,7 +538,7 @@ private fun RecoverSeedForm(
 @Composable
 private fun MnemonicWordGrid(words: List<String>) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -549,8 +556,7 @@ private fun MnemonicWordGrid(words: List<String>) {
                             1.dp,
                             MaterialTheme.colorScheme.outlineVariant,
                             RoundedCornerShape(6.dp),
-                        )
-                        .semantics(mergeDescendants = true) { },
+                        ).semantics(mergeDescendants = true) { },
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -560,7 +566,7 @@ private fun MnemonicWordGrid(words: List<String>) {
                         text = "${index + 1}.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(24.dp),
+                        modifier = Modifier.width(INDEX_WIDTH),
                     )
                     Text(
                         text = word,
@@ -586,7 +592,7 @@ private fun MnemonicQrCodeView(words: List<String>) {
             shapes =
                 QrShapes(
                     ball = QrBallShape.circle(),
-                    frame = QrFrameShape.roundCorners(.25f),
+                    frame = QrFrameShape.roundCorners(QR_CORNER_ROUNDING),
                     darkPixel = QrPixelShape.roundCorners(),
                 ),
         )
@@ -607,7 +613,7 @@ private fun MnemonicQrCodeView(words: List<String>) {
 @Suppress("FunctionNaming")
 @Composable
 private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
-    val wordCount = 24
+    val wordCount = MNEMONIC_WORD_COUNT
     val fields =
         remember {
             mutableStateListOf<TextFieldValue>().also { list ->
@@ -617,7 +623,7 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
 
     Column {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -670,14 +676,14 @@ private object BiometricHelper {
                 },
             )
         prompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder()
+            BiometricPrompt.PromptInfo
+                .Builder()
                 .setTitle(title)
                 .setDescription(description)
                 .setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                )
-                .build(),
+                ).build(),
         )
     }
 }

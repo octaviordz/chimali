@@ -52,7 +52,8 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithText("Alice").assertIsDisplayed()
 
         // T143: Verify heading role for screen title
-        composeTestRule.onNodeWithText("Create Passkey")
+        composeTestRule
+            .onNodeWithText("Create Passkey")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
@@ -76,7 +77,8 @@ class RegistrationPromptScreenTest {
 
         // T143: Verify RP card merges descendants
         // We find by RP name and check if it's a single node containing the ID
-        composeTestRule.onNode(hasText("Example Corp").and(hasText("example.com")), useUnmergedTree = false)
+        composeTestRule
+            .onNode(hasText("Example Corp").and(hasText("example.com")), useUnmergedTree = false)
             .assertExists()
     }
 
@@ -181,7 +183,8 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithText("Try again").assertIsDisplayed()
 
         // T143: Verify live region for automatic announcement
-        composeTestRule.onNode(hasAnyDescendant(hasText("Something went wrong")))
+        composeTestRule
+            .onNode(hasAnyDescendant(hasText("Something went wrong")))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 

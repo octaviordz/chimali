@@ -11,7 +11,7 @@ sealed class ClipboardError(
     /**
      * Clipboard service is unavailable on this platform/device.
      */
-    data object ClipboardUnavailable : ClipboardError("Clipboard service unavailable")
+    class ClipboardUnavailable : ClipboardError("Clipboard service unavailable")
 
     /**
      * Failed to copy data to clipboard.
@@ -28,15 +28,6 @@ sealed class ClipboardError(
         val reason: String,
         override val cause: Throwable? = null,
     ) : ClipboardError("Clear failed: $reason", cause)
-
-    /**
-     * Timer operation failed (creation, cancellation, etc.).
-     */
-    data class TimerFailed(
-        val operation: String,
-        val reason: String,
-        override val cause: Throwable? = null,
-    ) : ClipboardError("Timer operation $operation failed: $reason", cause)
 
     /**
      * Platform-specific clipboard error.

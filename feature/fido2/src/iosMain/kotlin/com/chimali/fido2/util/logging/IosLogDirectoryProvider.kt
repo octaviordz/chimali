@@ -11,13 +11,14 @@ class IosLogDirectoryProvider : LogDirectoryProvider {
     @OptIn(ExperimentalForeignApi::class)
     override fun getLogDirectory(): Path {
         val docDir =
-            NSFileManager.defaultManager.URLForDirectory(
-                directory = NSApplicationSupportDirectory,
-                inDomain = NSUserDomainMask,
-                appropriateForURL = null,
-                create = true,
-                error = null,
-            )?.path ?: ""
+            NSFileManager.defaultManager
+                .URLForDirectory(
+                    directory = NSApplicationSupportDirectory,
+                    inDomain = NSUserDomainMask,
+                    appropriateForURL = null,
+                    create = true,
+                    error = null,
+                )?.path ?: ""
         return "$docDir/logs".toPath()
     }
 }

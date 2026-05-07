@@ -65,6 +65,7 @@ class Ctap2ResponseBuilder(
         // Response defaults
         private const val MAX_MSG_SIZE = 1200L
         private const val MAX_CRED_ID_LEN = 255L
+        private const val HEX_RADIX = 16
     }
 
     // ── MakeCredential response ───────────────────────────────────────────────
@@ -262,6 +263,6 @@ class Ctap2ResponseBuilder(
             CTAP2_ERR_KEY_STORE_FULL -> "CTAP2_ERR_KEY_STORE_FULL (0x28)"
             CTAP2_ERR_PIN_BLOCKED -> "CTAP2_ERR_PIN_BLOCKED (0x32)"
             CTAP2_ERR_PIN_INVALID -> "CTAP2_ERR_PIN_INVALID (0x31)"
-            else -> "UNKNOWN (0x${code.toInt().and(0xFF).toString(16).uppercase()})"
+            else -> "UNKNOWN (0x${code.toInt().and(BYTE_MASK).toString(HEX_RADIX).uppercase()})"
         }
 }

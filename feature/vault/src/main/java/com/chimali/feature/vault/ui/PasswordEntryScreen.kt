@@ -48,23 +48,24 @@ fun PasswordEntryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("New Password") }
+                title = { Text("New Password") },
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -72,7 +73,7 @@ fun PasswordEntryScreen(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Username") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -80,7 +81,7 @@ fun PasswordEntryScreen(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -88,7 +89,7 @@ fun PasswordEntryScreen(
                     value = uri,
                     onValueChange = { uri = it },
                     label = { Text("Website / URI") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
@@ -96,7 +97,7 @@ fun PasswordEntryScreen(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notes") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -122,24 +123,25 @@ fun PasswordEntryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = onCancel) {
                         Text("Cancel")
                     }
                     Button(
                         onClick = {
-                            val payload = PasswordPayload(
-                                title = title,
-                                username = username.toCharArray(),
-                                password = password.toCharArray(),
-                                uri = uri,
-                                notes = if (notes.isNotBlank()) notes.toCharArray() else null,
-                                customFields = customFields.toList()
-                            )
+                            val payload =
+                                PasswordPayload(
+                                    title = title,
+                                    username = username.toCharArray(),
+                                    password = password.toCharArray(),
+                                    uri = uri,
+                                    notes = if (notes.isNotBlank()) notes.toCharArray() else null,
+                                    customFields = customFields.toList(),
+                                )
                             onSave(payload)
                         },
-                        enabled = title.isNotBlank() && password.isNotBlank()
+                        enabled = title.isNotBlank() && password.isNotBlank(),
                     ) {
                         Text("Save")
                     }
@@ -154,6 +156,6 @@ fun PasswordEntryScreen(
 private fun PasswordEntryScreenPreview() {
     PasswordEntryScreen(
         onSave = {},
-        onCancel = {}
+        onCancel = {},
     )
 }

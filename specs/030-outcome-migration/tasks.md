@@ -7,7 +7,7 @@
 
 Goal: Establish the renamed foundational `Outcome` type in `core/common`.
 
-- [x] T001 Rename `DataResult` to `Outcome` and `runCatchingResult` to `runCatchingOutcome` in `core/common/src/commonMain/kotlin/com/chimali/core/common/result/DataResult.kt` (rename file to `Outcome.kt`). Ensure `DomainError.kt` remains aligned.
+- [x] T001 Ensure the renamed foundational `Outcome` type in `core/common` is correctly implemented and `Outcome.kt` is clean. Ensure `DomainError.kt` remains aligned.
 
 ## Phase 2: Foundational
 
@@ -51,4 +51,4 @@ Goal: Validate architectural constraints, static analysis compliance, and ensure
 - Phase 5 must be completed last.
 
 ## Implementation Strategy
-Start by renaming `DataResult` to `Outcome` (T001). This will temporarily break the build for components using `DataResult`. Immediately follow up by refactoring the FIDO2 crypto/repository layers (US1) and Vault layers (US2) to use `Outcome`. This ensures a focused migration path that quickly restores a compiling state with the new functional paradigm.
+Finalize the transition from `DataResult` to `Outcome` (T001). Immediately follow up by refactoring the FIDO2 crypto/repository layers (US1) and Vault layers (US2) to use `Outcome`. This ensures a focused migration path that quickly restores a compiling state with the new functional paradigm.

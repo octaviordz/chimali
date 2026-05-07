@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrNull
-import com.chimali.core.common.result.map
 import com.chimali.core.common.result.onFailure
 import com.chimali.core.common.result.onSuccess
 import com.chimali.core.domain.model.CredentialSummary
@@ -283,7 +282,7 @@ class CredentialRepositoryImpl(
                         rpId = RpId(entity.rpId),
                         credentialId = CredentialId.fromEncoded(entity.credentialId),
                         lastUsedAt =
-                            kotlinx.datetime.Instant.fromEpochMilliseconds(
+                            Instant.fromEpochMilliseconds(
                                 entity.lastUsedAt
                                     ?: entity.createdAt,
                             ),
@@ -483,7 +482,7 @@ class CredentialRepositoryImpl(
             userConsentRecordDao
                 .getRecentConsent(rpId, limit)
                 .map { list ->
-                    list.map { it.toDomainModel() }.firstOrNull()
+                    list.asSequence().map { it.toDomainModel() }.firstOrNull()
                         ?: throw NoSuchElementException("Empty consent record list")
                 }
         } catch (e: NoSuchElementException) {
@@ -514,7 +513,7 @@ class CredentialRepositoryImpl(
             val needsUV = 0 // Not implemented in current schema
             val avgAge =
                 if (allCredentials.isNotEmpty()) {
-                    allCredentials.map { (now - it.createdAt).inWholeDays }.average()
+                    allCredentials.asSequence().map { (now - it.createdAt).inWholeDays }.average()
                 } else {
                     0.0
                 }
@@ -537,11 +536,7 @@ class CredentialRepositoryImpl(
     override suspend fun deleteAllCredentials(rpId: RpId?): Outcome<Unit, DomainError> =
         try {
             val target: Flow<PasskeyCredential> =
-                if (rpId != null) {
-                    getCredentialsByRpId(rpId)
-                } else {
-                    getAllCredentials()
-                }
+                rpId?.let { getCredentialsByRpId(it) } ?: getAllCredentials()
 
             target.collect { credential -> deleteCredential(credential.id) }
             Outcome.Success(Unit)
@@ -553,7 +548,7 @@ class CredentialRepositoryImpl(
     override suspend fun resetAuthenticator(): Outcome<Unit, DomainError> =
         try {
             getAllCredentials().collect { credential -> deleteCredential(credential.id) }
-            // TODO: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
+            // Finalize: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
             Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to reset authenticator" }

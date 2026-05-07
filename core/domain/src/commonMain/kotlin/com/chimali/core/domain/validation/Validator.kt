@@ -10,8 +10,8 @@ interface Validator<T> {
 
 @Factory
 class CredentialValidator : Validator<Credential> {
-    override fun validate(item: Credential): Result<Credential> {
-        return when {
+    override fun validate(item: Credential): Result<Credential> =
+        when {
             item.title.isBlank() ->
                 Result.failure(
                     DomainException.ValidationError("title", "Title cannot be empty"),
@@ -22,5 +22,4 @@ class CredentialValidator : Validator<Credential> {
                 )
             else -> Result.success(item)
         }
-    }
 }

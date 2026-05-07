@@ -70,7 +70,7 @@ class AuthenticationIntegrationTest {
                 biometricStrength = BiometricStrength.STRONG,
             )
 
-        val uiEventBus = com.chimali.fido2.presentation.navigation.Fido2UiEventBus()
+        val uiEventBus = Fido2UiEventBus()
         viewModel = AuthenticationPromptViewModel(getAssertionUseCase, userVerificationService, uiEventBus)
     }
 
@@ -98,7 +98,7 @@ class AuthenticationIntegrationTest {
 
             val state = viewModel.state.value
             assertIs<AuthenticationState.AwaitingUserConsent>(state)
-            assertEquals("https://example.com", (state as AuthenticationState.AwaitingUserConsent).rpId)
+            assertEquals("https://example.com", state.rpId)
         }
 
     // ── Cancel ───────────────────────────────────────────────────────────────
@@ -137,9 +137,9 @@ class AuthenticationIntegrationTest {
             val state = viewModel.state.value
             // State should be either AwaitingUserVerification, Processing, or Success depending on timing
             assertTrue(
-                state is AuthenticationState.AwaitingUserVerification ||
-                    state is AuthenticationState.Processing ||
-                    state is AuthenticationState.Success,
+                (state is AuthenticationState.AwaitingUserVerification) ||
+                    (state is AuthenticationState.Processing) ||
+                    (state is AuthenticationState.Success),
             )
         }
 
@@ -161,9 +161,9 @@ class AuthenticationIntegrationTest {
 
             val state = viewModel.state.value
             assertTrue(
-                state is AuthenticationState.Error ||
-                    state is AuthenticationState.Processing ||
-                    state is AuthenticationState.AwaitingUserVerification,
+                (state is AuthenticationState.Error) ||
+                    (state is AuthenticationState.Processing) ||
+                    (state is AuthenticationState.AwaitingUserVerification),
             )
         }
 

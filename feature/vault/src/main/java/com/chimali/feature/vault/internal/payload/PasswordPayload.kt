@@ -1,13 +1,12 @@
 package com.chimali.feature.vault.internal.payload
 
-
 data class PasswordPayload(
     val title: String,
     val username: CharArray,
     val password: CharArray,
     val uri: String,
     val notes: CharArray? = null,
-    val customFields: List<CustomField>? = null
+    val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
         username.fill('0')
@@ -26,11 +25,13 @@ data class PasswordPayload(
         if (!username.contentEquals(other.username)) return false
         if (!password.contentEquals(other.password)) return false
         if (uri != other.uri) return false
-        
+
         if (notes != null) {
             if (other.notes == null) return false
             if (!notes.contentEquals(other.notes)) return false
-        } else if (other.notes != null) return false
+        } else if (other.notes != null) {
+            return false
+        }
 
         if (customFields != other.customFields) return false
 

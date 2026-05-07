@@ -25,11 +25,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CredentialRepositoryImplTest {
     private lateinit var passkeyCredentialDao: PasskeyCredentialDao
     private lateinit var relyingPartyDao: RelyingPartyDao
@@ -176,7 +178,7 @@ class CredentialRepositoryImplTest {
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
                 val result = repository.getCredentialById(testCredential.id)
                 assertNotNull(result)
-                assertEquals(testCredential.id, result?.id)
+                assertEquals(testCredential.id, result.id)
             }
 
         @Test

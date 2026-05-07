@@ -22,8 +22,8 @@ class PublicKeyDecoder {
     fun decodePublicKey(
         base64Key: String,
         coseAlgorithm: Int,
-    ): Outcome<PublicKey, DomainError.CryptoError> {
-        return runCatchingOutcome(
+    ): Outcome<PublicKey, DomainError.CryptoError> =
+        runCatchingOutcome(
             onError = { DomainError.CryptoError("Failed to decode public key", it) },
         ) {
             val keyBytes = Base64.getDecoder().decode(base64Key)
@@ -39,7 +39,6 @@ class PublicKeyDecoder {
 
             keyFactory.generatePublic(keySpec)
         }
-    }
 
     companion object {
         const val COSE_ML_DSA_65 = -49

@@ -8,7 +8,6 @@ import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import co.touchlab.kermit.Logger
 import com.chimali.core.ui.R as CoreR
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.presentation.ui.BiometricPromptComponent
@@ -82,15 +83,11 @@ fun CredentialListScreen(
                 }
 
                 is CredentialManagementEffect.ShowUndoSnackbar -> {
-                    val result =
-                        snackbarHostState.showSnackbar(
-                            message = effect.message,
-                            actionLabel = "Undo",
-                            duration = SnackbarDuration.Long,
-                        )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        // This would need a way to know which ID, but removalEvents is the primary way now
-                    }
+                    snackbarHostState.showSnackbar(
+                        message = effect.message,
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Long,
+                    )
                 }
             }
         }
@@ -127,35 +124,43 @@ fun CredentialListScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onNavigateUp) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
                 )
                 SearchBar(
-                    query = searchQuery,
-                    onQueryChange = {
-                        searchQuery = it
-                        viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(it))
-                    },
-                    onSearch = { },
-                    active = false,
-                    onActiveChange = { },
-                    placeholder = { Text("Search passkeys") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                searchQuery = ""
-                                viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(""))
-                            }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
-                            }
-                        }
-                    },
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = searchQuery,
+                            onQueryChange = {
+                                searchQuery = it
+                                viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(it))
+                            },
+                            onSearch = { },
+                            expanded = false,
+                            onExpandedChange = { },
+                            placeholder = { Text("Search passkeys") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = {
+                                            searchQuery = ""
+                                            viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(""))
+                                        },
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                    }
+                                }
+                            },
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = { },
                 ) { }
             }
         },
@@ -181,7 +186,8 @@ fun CredentialListScreen(
                 val shouldLoadMore by remember {
                     derivedStateOf {
                         val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-                        lastVisibleItem != null && lastVisibleItem.index >= state.credentials.size - LOAD_THRESHOLD
+                        (lastVisibleItem != null) &&
+                            (lastVisibleItem.index >= (state.credentials.size - LOAD_THRESHOLD))
                     }
                 }
 
@@ -240,6 +246,7 @@ fun CredentialListScreen(
             },
             onFallback = {
                 showBiometricPrompt = null
+                Logger.d { "CredentialList: Biometric prompt fallback/dismissed" }
             },
         )
     }
@@ -275,14 +282,13 @@ private fun CredentialSwipeToDismissBox(
                     false
                 }
             },
-            positionalThreshold = { totalDistance -> totalDistance * 0.5f },
-        )
+        ) { totalDistance -> totalDistance * DISMISS_THRESHOLD }
 
     SwipeToDismissBox(
         state = dismissState,
         modifier = modifier,
         backgroundContent = {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 val targetValue = dismissState.targetValue
                 val color by animateColorAsState(
                     targetValue =
@@ -343,3 +349,4 @@ private fun CredentialSwipeToDismissBox(
 }
 
 private const val LOAD_THRESHOLD = 5
+private const val DISMISS_THRESHOLD = 0.5f

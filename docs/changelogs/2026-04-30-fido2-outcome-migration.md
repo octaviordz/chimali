@@ -6,7 +6,7 @@ The goal of this task was to finalize the migration of the `feature/fido2` modul
 ## Key Changes
 
 ### Functional Architecture Refinement
-- **Outcome System**: Finalized the implementation of `Outcome<D, E>` as a replacement for both legacy `Result` and the interim `DataResult` types.
+- **Outcome System**: Finalized the implementation of `Outcome<D, E>` as a replacement for both legacy `Result` and the interim `DataResult` types. The legacy `DataResult.kt` file has been completely removed.
 - **API Enhancements**: Added comprehensive extension properties and functions to `Outcome.kt`:
     - `isSuccess` and `isFailure` (Properties) for idiomatic state checks.
     - `getOrThrow`, `getOrElse`, `map`, and `mapError` for structured result processing.

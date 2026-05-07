@@ -130,7 +130,7 @@ class Ctap2ProtocolTest {
 
         // Init flag must be set in CMD byte
         val cmdByte = packets[0][INIT_CMD_OFFSET].toInt() and BYTE_MASK_FF
-        assertTrue(cmdByte and BIT_7_MASK != 0)
+        assertTrue((cmdByte and BIT_7_MASK) != 0)
 
         // BCNT = 1 (just status byte)
         val bcnth = packets[0][INIT_BCNTH_OFFSET].toInt() and BYTE_MASK_FF

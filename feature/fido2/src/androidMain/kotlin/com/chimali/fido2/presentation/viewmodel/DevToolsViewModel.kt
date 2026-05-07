@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
+private const val MNEMONIC_WORD_COUNT = 24
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -47,7 +49,9 @@ sealed interface DevToolsIntent {
     data object CopyToClipboard : DevToolsIntent
 
     /** Attempt to re-ingest a mnemonic (e.g. from QR scan or manual entry). */
-    data class RecoverFromSeed(val words: List<String>) : DevToolsIntent
+    data class RecoverFromSeed(
+        val words: List<String>,
+    ) : DevToolsIntent
 
     /**
      * T148c — Notifies the ViewModel that Android BiometricPrompt reported an error.
@@ -56,7 +60,10 @@ sealed interface DevToolsIntent {
      * and [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT].
      * On lockout the ViewModel must clear any sensitive state from memory immediately.
      */
-    data class BiometricError(val errorCode: Int, val message: String) : DevToolsIntent
+    data class BiometricError(
+        val errorCode: Int,
+        val message: String,
+    ) : DevToolsIntent
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +74,9 @@ sealed interface DevToolsEffect {
     /** Prompt the caller to show the system biometric dialog before loading. */
     data object RequestBiometric : DevToolsEffect
 
-    data class ShowSnackbar(val message: String) : DevToolsEffect
+    data class ShowSnackbar(
+        val message: String,
+    ) : DevToolsEffect
 }
 
 // ---------------------------------------------------------------------------
@@ -177,9 +186,9 @@ class DevToolsViewModel(
      * If a seed already existed, the user is warned that previous credentials are orphaned.
      */
     private fun recoverFromSeed(words: List<String>) {
-        if (words.size != 24) {
+        if (words.size != MNEMONIC_WORD_COUNT) {
             _state.update {
-                it.copy(error = "Invalid mnemonic: expected 24 words, got ${words.size}.")
+                it.copy(error = "Invalid mnemonic: expected $MNEMONIC_WORD_COUNT words, got ${words.size}.")
             }
             return
         }

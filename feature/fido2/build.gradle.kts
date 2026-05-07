@@ -167,10 +167,6 @@ kotlin {
     }
 }
 
-ksp {
-    arg("KOIN_DEFAULT_MODULE", "true")
-}
-
 // KSP: Target-specific Koin Annotations processor (T189)
 // KMP modules must use kspAndroid/kspIos* instead of the deprecated ksp()
 dependencies {

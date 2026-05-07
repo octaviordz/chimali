@@ -42,37 +42,12 @@ data class AttestationObject(
     /**
      * Checks if this attestation is self-attested.
      */
-    fun isSelfAttested(): Boolean {
-        return fmt == FORMAT_NONE
-    }
+    fun isSelfAttested(): Boolean = fmt == FORMAT_NONE
 
     /**
      * Checks if this attestation uses packed format.
      */
-    fun isPacked(): Boolean {
-        return fmt == FORMAT_PACKED
-    }
-
-    /**
-     * Checks if this attestation is from Android SafetyNet.
-     */
-    fun isAndroidSafetyNet(): Boolean {
-        return fmt == FORMAT_ANDROID_SAFETYNET
-    }
-
-    /**
-     * Returns a safe format description.
-     */
-    fun getFormatDescription(): String {
-        return when (fmt) {
-            FORMAT_PACKED -> "Packed attestation format"
-            FORMAT_FIDO_U2F -> "FIDO U2F format"
-            FORMAT_NONE -> "No attestation"
-            FORMAT_ANDROID_SAFETYNET -> "Android SafetyNet attestation"
-            FORMAT_ANDROID_KEY -> "Android Key attestation"
-            else -> "Unknown format: $fmt"
-        }
-    }
+    fun isPacked(): Boolean = fmt == FORMAT_PACKED
 
     companion object {
         private const val FORMAT_PACKED = "packed"
@@ -102,14 +77,13 @@ data class AttestationObject(
             authData: AuthenticatorData,
             attStmt: AttestationStatement,
             clientData: ClientData,
-        ): AttestationObject {
-            return AttestationObject(
+        ): AttestationObject =
+            AttestationObject(
                 fmt = fmt,
                 authData = authData,
                 attStmt = attStmt,
                 clientData = clientData,
             )
-        }
 
         /**
          * Creates a self-attested object.
@@ -117,14 +91,13 @@ data class AttestationObject(
         fun createSelfAttested(
             authData: AuthenticatorData,
             clientData: ClientData,
-        ): AttestationObject {
-            return create(
+        ): AttestationObject =
+            create(
                 fmt = FORMAT_NONE,
                 authData = authData,
                 attStmt = AttestationStatement.createNone(),
                 clientData = clientData,
             )
-        }
 
         /**
          * T037: Creates an AttCA (Attestation CA) attested object.
@@ -134,14 +107,13 @@ data class AttestationObject(
             authData: AuthenticatorData,
             attStmt: AttestationStatement,
             clientData: ClientData,
-        ): AttestationObject {
-            return create(
+        ): AttestationObject =
+            create(
                 fmt = FORMAT_ATT_CA,
                 authData = authData,
                 attStmt = attStmt,
                 clientData = clientData,
             )
-        }
     }
 }
 
@@ -206,30 +178,7 @@ data class AuthenticatorData(
     /**
      * Checks if user verification is required.
      */
-    fun isUserVerificationRequired(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UV_MASK) != 0
-    }
-
-    /**
-     * Checks if user was present.
-     */
-    fun isUserPresent(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UP_MASK) != 0
-    }
-
-    /**
-     * Checks if user verification is satisfied.
-     */
-    fun isUserVerified(): Boolean {
-        return flags.isNotEmpty() && (flags[0].toInt() and FLAG_UV_MASK) != 0
-    }
-
-    /**
-     * Returns the credential ID as base64.
-     */
-    fun getCredentialIdBase64(): String {
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(credentialId)
-    }
+    fun isUserVerificationRequired(): Boolean = flags.isNotEmpty() && ((flags[0].toInt() and FLAG_UV_MASK) != 0)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -237,23 +186,21 @@ data class AuthenticatorData(
 
         other as AuthenticatorData
 
-        if (!rpIdHash.contentEquals(other.rpIdHash)) return false
-        if (!flags.contentEquals(other.flags)) return false
-        if (counter != other.counter) return false
-        if (!aaguid.contentEquals(other.aaguid)) return false
-        if (!credentialId.contentEquals(other.credentialId)) return false
-        if (!publicKey.contentEquals(other.publicKey)) return false
-
-        return true
+        return rpIdHash.contentEquals(other.rpIdHash) &&
+            flags.contentEquals(other.flags) &&
+            (counter == other.counter) &&
+            aaguid.contentEquals(other.aaguid) &&
+            credentialId.contentEquals(other.credentialId) &&
+            publicKey.contentEquals(other.publicKey)
     }
 
     override fun hashCode(): Int {
         var result = rpIdHash.contentHashCode()
-        result = 31 * result + flags.contentHashCode()
-        result = 31 * result + counter.hashCode()
-        result = 31 * result + aaguid.contentHashCode()
-        result = 31 * result + credentialId.contentHashCode()
-        result = 31 * result + publicKey.contentHashCode()
+        result = (31 * result) + flags.contentHashCode()
+        result = (31 * result) + counter.hashCode()
+        result = (31 * result) + aaguid.contentHashCode()
+        result = (31 * result) + credentialId.contentHashCode()
+        result = (31 * result) + publicKey.contentHashCode()
         return result
     }
 
@@ -262,7 +209,6 @@ data class AuthenticatorData(
         private const val FLAGS_SIZE = 1
         private const val AAGUID_SIZE = 16
         private const val MAX_CREDENTIAL_ID_SIZE = 1023
-        private const val FLAG_UP_MASK = 0x01
         private const val FLAG_UV_MASK = 0x04
 
         /** P-256 uncompressed point in COSE CBOR = ~77 bytes; ML-DSA-65 DER = ~1952 bytes → use 2048 as the cap. */
@@ -278,8 +224,8 @@ data class AuthenticatorData(
             aaguid: ByteArray,
             credentialId: ByteArray,
             publicKey: ByteArray,
-        ): AuthenticatorData {
-            return AuthenticatorData(
+        ): AuthenticatorData =
+            AuthenticatorData(
                 rpIdHash = rpIdHash,
                 flags = flags,
                 counter = counter,
@@ -287,7 +233,6 @@ data class AuthenticatorData(
                 credentialId = credentialId,
                 publicKey = publicKey,
             )
-        }
     }
 }
 
@@ -325,7 +270,7 @@ data class AttestationStatement(
                     "Algorithm must be a valid COSE algorithm identifier"
                 }
             }
-            else -> require(false) { "Algorithm must be a String or Integer" }
+            else -> throw IllegalArgumentException("Algorithm must be a String or Integer")
         }
 
         // Validate format
@@ -352,27 +297,6 @@ data class AttestationStatement(
                 require(cert.size <= MAX_CERT_SIZE) { "Certificate in chain cannot exceed $MAX_CERT_SIZE bytes" }
             }
         }
-    }
-
-    /**
-     * Checks if this statement has an attestation certificate.
-     */
-    fun hasCertificate(): Boolean {
-        return attCert?.isNotEmpty() ?: false
-    }
-
-    /**
-     * Checks if this statement has auth data.
-     */
-    fun hasAuthData(): Boolean {
-        return authData?.isNotEmpty() ?: false
-    }
-
-    /**
-     * Checks if this statement has an X5C chain.
-     */
-    fun hasX5cChain(): Boolean {
-        return x5c?.isNotEmpty() ?: false
     }
 
     override fun equals(other: Any?): Boolean {
@@ -411,7 +335,7 @@ data class AttestationStatement(
 
     override fun hashCode(): Int {
         var result = alg.hashCode()
-        result = 31 * result + fmt.hashCode()
+        result = 31 * result + (fmt.hashCode())
         result = 31 * result + (attCert?.contentHashCode() ?: 0)
         result = 31 * result + (authData?.contentHashCode() ?: 0)
         result = 31 * result + (x5c?.fold(1) { acc, bytes -> 31 * acc + bytes.contentHashCode() } ?: 0)
@@ -433,14 +357,30 @@ data class AttestationStatement(
 
         private val SUPPORTED_ALGORITHMS =
             setOf(
-                "ES256", "RS256", "RS1", "ES384", "RS384", "ES512", "RS512", "EdDSA", "Ed25519", "none",
+                "ES256",
+                "RS256",
+                "RS1",
+                "ES384",
+                "RS384",
+                "ES512",
+                "RS512",
+                "EdDSA",
+                "Ed25519",
+                "none",
             )
 
         private val SUPPORTED_COSE_ALGORITHMS =
             setOf(
-                COSE_ALG_ES256, COSE_ALG_ES384, COSE_ALG_ES512,
-                COSE_ALG_PS256, COSE_ALG_PS384, COSE_ALG_PS512,
-                COSE_ALG_EDDSA, COSE_ALG_ED25519, COSE_ALG_ML_DSA_65, COSE_ALG_RS256,
+                COSE_ALG_ES256,
+                COSE_ALG_ES384,
+                COSE_ALG_ES512,
+                COSE_ALG_PS256,
+                COSE_ALG_PS384,
+                COSE_ALG_PS512,
+                COSE_ALG_EDDSA,
+                COSE_ALG_ED25519,
+                COSE_ALG_ML_DSA_65,
+                COSE_ALG_RS256,
             )
 
         private val SUPPORTED_FORMATS =
@@ -467,28 +407,26 @@ data class AttestationStatement(
             attCert: ByteArray? = null,
             authData: ByteArray? = null,
             x5c: List<ByteArray>? = null,
-        ): AttestationStatement {
-            return AttestationStatement(
+        ): AttestationStatement =
+            AttestationStatement(
                 alg = alg,
                 fmt = fmt,
                 attCert = attCert,
                 authData = authData,
                 x5c = x5c,
             )
-        }
 
         /**
          * Creates a "none" attestation statement.
          */
-        fun createNone(): AttestationStatement {
-            return AttestationStatement(
+        fun createNone(): AttestationStatement =
+            AttestationStatement(
                 alg = "none",
                 fmt = "none",
                 attCert = null,
                 authData = null,
                 x5c = null,
             )
-        }
     }
 }
 
@@ -501,7 +439,7 @@ data class ClientData(
     val challenge: ByteArray,
     val origin: String,
     val crossOrigin: Boolean,
-    val timestamp: kotlinx.datetime.Instant,
+    val timestamp: Instant,
 ) {
     init {
         validate()
@@ -522,31 +460,10 @@ data class ClientData(
 
         // Validate timestamp
         require(
-            timestamp <= Instant.fromEpochMilliseconds(java.lang.System.currentTimeMillis()) + FUTURE_GRACE_PERIOD,
+            timestamp <= Instant.fromEpochMilliseconds(System.currentTimeMillis()) + FUTURE_GRACE_PERIOD,
         ) {
             "Timestamp cannot be more than $FUTURE_GRACE_PERIOD_SECONDS seconds in the future"
         }
-    }
-
-    /**
-     * Returns the challenge as a base64 URL-safe string.
-     */
-    fun getChallengeBase64Url(): String {
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
-    }
-
-    /**
-     * Checks if this is for credential creation.
-     */
-    fun isCredentialCreation(): Boolean {
-        return type == TYPE_CREATE
-    }
-
-    /**
-     * Checks if this is for credential assertion.
-     */
-    fun isCredentialAssertion(): Boolean {
-        return type == TYPE_GET
     }
 
     override fun equals(other: Any?): Boolean {
@@ -555,21 +472,19 @@ data class ClientData(
 
         other as ClientData
 
-        if (type != other.type) return false
-        if (!challenge.contentEquals(other.challenge)) return false
-        if (origin != other.origin) return false
-        if (crossOrigin != other.crossOrigin) return false
-        if (timestamp != other.timestamp) return false
-
-        return true
+        return (type == other.type) &&
+            challenge.contentEquals(other.challenge) &&
+            (origin == other.origin) &&
+            (crossOrigin == other.crossOrigin) &&
+            (timestamp == other.timestamp)
     }
 
     override fun hashCode(): Int {
         var result = type.hashCode()
-        result = 31 * result + challenge.contentHashCode()
-        result = 31 * result + origin.hashCode()
-        result = 31 * result + crossOrigin.hashCode()
-        result = 31 * result + timestamp.hashCode()
+        result = (31 * result) + challenge.contentHashCode()
+        result = (31 * result) + origin.hashCode()
+        result = (31 * result) + crossOrigin.hashCode()
+        result = (31 * result) + timestamp.hashCode()
         return result
     }
 
@@ -578,7 +493,6 @@ data class ClientData(
         private const val FUTURE_GRACE_PERIOD_SECONDS = 60
         private val FUTURE_GRACE_PERIOD = FUTURE_GRACE_PERIOD_SECONDS.seconds
         private const val TYPE_CREATE = "webauthn.create"
-        private const val TYPE_GET = "webauthn.get"
 
         /**
          * Creates a new ClientData with validation.
@@ -588,33 +502,13 @@ data class ClientData(
             challenge: ByteArray,
             origin: String,
             crossOrigin: Boolean = false,
-        ): ClientData {
-            return ClientData(
+        ): ClientData =
+            ClientData(
                 type = type,
                 challenge = challenge,
                 origin = origin,
                 crossOrigin = crossOrigin,
-                timestamp = Instant.fromEpochMilliseconds(java.lang.System.currentTimeMillis()),
+                timestamp = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
             )
-        }
-
-        /**
-         * Creates a ClientData from base64 challenge.
-         */
-        fun fromBase64Challenge(
-            type: String = TYPE_CREATE,
-            challengeBase64: String,
-            origin: String,
-            crossOrigin: Boolean = false,
-        ): ClientData {
-            val challenge =
-                try {
-                    java.util.Base64.getUrlDecoder().decode(challengeBase64)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid base64 challenge", e)
-                }
-
-            return create(type, challenge, origin, crossOrigin)
-        }
     }
 }

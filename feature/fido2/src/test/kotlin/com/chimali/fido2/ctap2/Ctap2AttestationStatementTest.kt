@@ -27,8 +27,8 @@ class Ctap2AttestationStatementTest {
         alg: Any,
         sig: ByteArray? = null,
         x5c: List<ByteArray>? = null,
-    ): Map<Any, Any> {
-        return when (fmt) {
+    ): Map<Any, Any> =
+        when (fmt) {
             "none" -> emptyMap()
             "packed", "attCA" ->
                 buildMap {
@@ -38,7 +38,6 @@ class Ctap2AttestationStatementTest {
                 }
             else -> emptyMap()
         }
-    }
 
     // ── "packed" format ───────────────────────────────────────────────────────
 

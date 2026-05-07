@@ -32,6 +32,10 @@ class GetUserConsentUseCase(
     private val credentialRepository: CredentialRepository,
     private val userVerificationService: UserVerificationService,
 ) {
+    companion object {
+        private const val RECENT_CONSENT_LOOKBACK_LIMIT = 10
+    }
+
     /**
      * Records user consent for a specific operation.
      *
@@ -96,7 +100,10 @@ class GetUserConsentUseCase(
             // Create consent record
             val consentRecord =
                 UserConsentRecord.create(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id =
+                        java.util.UUID
+                            .randomUUID()
+                            .toString(),
                     operationType = operationType,
                     rpId = rpId,
                     credentialId = credentialId,
@@ -136,9 +143,7 @@ class GetUserConsentUseCase(
     suspend fun getRecentConsentRecords(
         rpId: RpId? = null,
         limit: Int = 50,
-    ): Flow<UserConsentRecord> {
-        return credentialRepository.getRecentUserConsent(rpId, limit)
-    }
+    ): Flow<UserConsentRecord> = credentialRepository.getRecentUserConsent(rpId, limit)
 
     /**
      * Retrieves consent records for a specific operation type.
@@ -152,10 +157,9 @@ class GetUserConsentUseCase(
         operationType: ConsentOperationType,
         rpId: RpId? = null,
         limit: Int = 50,
-    ): Flow<UserConsentRecord> {
-        return getRecentConsentRecords(rpId, limit)
+    ): Flow<UserConsentRecord> =
+        getRecentConsentRecords(rpId, limit)
             .filter { it.operationType == operationType }
-    }
 
     /**
      * Retrieves consent records for a specific credential.
@@ -167,10 +171,9 @@ class GetUserConsentUseCase(
     suspend fun getConsentRecordsByCredential(
         credentialId: CredentialId,
         limit: Int = 50,
-    ): Flow<UserConsentRecord> {
-        return getRecentConsentRecords(null, limit)
+    ): Flow<UserConsentRecord> =
+        getRecentConsentRecords(null, limit)
             .filter { it.isForCredential(credentialId) }
-    }
 
     /**
      * Retrieves consent records for a specific relying party.
@@ -182,10 +185,9 @@ class GetUserConsentUseCase(
     suspend fun getConsentRecordsByRpId(
         rpId: RpId,
         limit: Int = 50,
-    ): Flow<UserConsentRecord> {
-        return getRecentConsentRecords(rpId, limit)
+    ): Flow<UserConsentRecord> =
+        getRecentConsentRecords(rpId, limit)
             .filter { it.isForRelyingParty(rpId) }
-    }
 
     /**
      * Retrieves recent consent records within a time range.
@@ -199,12 +201,11 @@ class GetUserConsentUseCase(
         startTime: Instant,
         endTime: Instant,
         rpId: RpId? = null,
-    ): Flow<UserConsentRecord> {
-        return getRecentConsentRecords(rpId, Int.MAX_VALUE)
+    ): Flow<UserConsentRecord> =
+        getRecentConsentRecords(rpId, Int.MAX_VALUE)
             .filter {
                 it.timestamp > startTime && it.timestamp < endTime
             }
-    }
 
     /**
      * Checks if consent was recently granted for a specific operation.
@@ -218,12 +219,11 @@ class GetUserConsentUseCase(
         rpId: RpId,
         operationType: ConsentOperationType,
         minutes: Int = 5,
-    ): Boolean {
-        return getConsentRecordsByOperationType(operationType, rpId, 10)
+    ): Boolean =
+        getConsentRecordsByOperationType(operationType, rpId, RECENT_CONSENT_LOOKBACK_LIMIT)
             .toList()
             .filter { it.isRecent(minutes) }
             .any { it.isRegistrationConsent() || it.isAuthenticationConsent() }
-    }
 
     /**
      * Retrieves consent statistics.
@@ -356,25 +356,23 @@ data class ConsentStatistics(
     /**
      * Returns the most used consent method.
      */
-    fun getMostUsedMethod(): ConsentMethod {
-        return when {
+    fun getMostUsedMethod(): ConsentMethod =
+        when {
             biometricConsents > pinConsents && biometricConsents > combinedConsents -> ConsentMethod.BIOMETRIC
             pinConsents > biometricConsents && pinConsents > combinedConsents -> ConsentMethod.PIN
             combinedConsents > biometricConsents && combinedConsents > pinConsents -> ConsentMethod.BIOMETRIC_AND_PIN
             else -> ConsentMethod.NONE
         }
-    }
 
     /**
      * Returns the total number of verification methods used.
      */
-    fun getTotalVerificationMethods(): Int {
-        return setOfNotNull(
+    fun getTotalVerificationMethods(): Int =
+        setOfNotNull(
             if (biometricConsents > 0) ConsentMethod.BIOMETRIC else null,
             if (pinConsents > 0) ConsentMethod.PIN else null,
             if (combinedConsents > 0) ConsentMethod.BIOMETRIC_AND_PIN else null,
         ).size
-    }
 
     /**
      * Returns a summary of the statistics.

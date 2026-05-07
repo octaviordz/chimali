@@ -4,7 +4,6 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isSuccess
-import com.chimali.core.common.result.map
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -16,12 +15,14 @@ import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
@@ -57,6 +58,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MultiAlgorithmIntegrationTest {
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var repository: MultiAlgInMemoryCredentialRepository
@@ -169,6 +171,8 @@ class MultiAlgorithmIntegrationTest {
                 coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
             }
 
+        val clientDataHashService = ClientDataHashService()
+
         registerUseCase =
             RegisterCredentialUseCase(
                 passkeyCredentialRepository = repository,
@@ -176,6 +180,7 @@ class MultiAlgorithmIntegrationTest {
                 cborCodec = CborCodec(),
                 cryptoService = cryptoService,
                 settingsRepository = settingsRepository,
+                clientDataHashService = clientDataHashService,
             )
         assertionUseCase =
             GetAssertionUseCase(
@@ -183,6 +188,7 @@ class MultiAlgorithmIntegrationTest {
                 userVerificationService = userVerificationService,
                 selectCredentialUseCase = selectCredentialUseCase,
                 cryptoService = cryptoService,
+                clientDataHashService = clientDataHashService,
             )
     }
 
@@ -261,7 +267,7 @@ class MultiAlgorithmIntegrationTest {
     ): GetAssertionOptions {
         val allowList =
             listOf(
-                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+                PublicKeyCredentialDescriptor
                     .create(id = credId),
             )
         return GetAssertionOptions.create(
@@ -282,16 +288,17 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
 
     fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
+            .asSequence()
             .filter { it.rpId == rpId }
             .map {
                 CredentialSummary(
                     id = it.id.encoded,
                     rpId = it.rpId,
                     credentialId = it.id,
-                    lastUsedAt = it.lastUsedAt ?: it.createdAt,
+                    lastUsedAt = it.lastUsedAt,
                     coseAlgorithm = it.coseAlgorithm,
                 )
-            }
+            }.toList()
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         credentials[credential.id.encoded] = credential
@@ -326,9 +333,10 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     ): Outcome<List<PasskeyCredential>, DomainError> {
         val list =
             credentials.values
-                .toList()
+                .asSequence()
                 .drop(offset.toInt())
                 .take(limit.toInt())
+                .toList()
         return Outcome.Success(list)
     }
 
@@ -339,9 +347,11 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     ): Outcome<List<PasskeyCredential>, DomainError> {
         val list =
             credentials.values
+                .asSequence()
                 .filter { it.rpId == rpId }
                 .drop(offset.toInt())
                 .take(limit.toInt())
+                .toList()
         return Outcome.Success(list)
     }
 

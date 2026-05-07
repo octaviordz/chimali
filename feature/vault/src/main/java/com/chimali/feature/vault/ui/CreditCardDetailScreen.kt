@@ -54,21 +54,22 @@ fun CreditCardDetailScreen(
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                     }
-                }
+                },
             )
-        }
+        },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(SCREEN_PADDING),
-            verticalArrangement = Arrangement.spacedBy(ROW_SPACING)
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(SCREEN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(ROW_SPACING),
         ) {
             DetailRow(label = "Name on Card", value = String(payload.cardholderName))
             DetailRow(
                 label = "Card Number",
-                value = String(payload.cardNumber).chunked(CARD_NUMBER_CHUNK_SIZE).joinToString(" ")
+                value = String(payload.cardNumber).chunked(CARD_NUMBER_CHUNK_SIZE).joinToString(" "),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_SPACING)) {
                 DetailRow(label = "Expires", value = payload.expirationDate)
@@ -82,7 +83,7 @@ fun CreditCardDetailScreen(
             payload.customFields?.forEach { field ->
                 DetailRow(
                     label = field.name,
-                    value = if (field.isConcealed) "***" else String(field.value)
+                    value = if (field.isConcealed) "***" else String(field.value),
                 )
             }
 
@@ -91,10 +92,11 @@ fun CreditCardDetailScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                contentPadding = PaddingValues(
-                    vertical = BUTTON_VERTICAL_PADDING,
-                    horizontal = BUTTON_HORIZONTAL_PADDING
-                )
+                contentPadding =
+                    PaddingValues(
+                        vertical = BUTTON_VERTICAL_PADDING,
+                        horizontal = BUTTON_HORIZONTAL_PADDING,
+                    ),
             ) {
                 Text("Back to Vault")
             }
@@ -106,17 +108,18 @@ fun CreditCardDetailScreen(
 @Composable
 private fun CreditCardDetailScreenPreview() {
     CreditCardDetailScreen(
-        payload = CreditCardPayload(
-            title = "Personal Visa",
-            cardholderName = "John Doe".toCharArray(),
-            cardNumber = "1234567890123456".toCharArray(),
-            expirationDate = "12/26",
-            cvv = "123".toCharArray(),
-            notes = "Sample card notes".toCharArray(),
-            customFields = emptyList()
-        ),
+        payload =
+            CreditCardPayload(
+                title = "Personal Visa",
+                cardholderName = "John Doe".toCharArray(),
+                cardNumber = "1234567890123456".toCharArray(),
+                expirationDate = "12/26",
+                cvv = "123".toCharArray(),
+                notes = "Sample card notes".toCharArray(),
+                customFields = emptyList(),
+            ),
         onEdit = {},
         onDelete = {},
-        onBack = {}
+        onBack = {},
     )
 }

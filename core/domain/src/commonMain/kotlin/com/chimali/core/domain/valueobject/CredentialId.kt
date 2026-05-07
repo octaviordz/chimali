@@ -13,9 +13,7 @@ internal expect fun generateSecureRandomBytes(size: Int): ByteArray
 /**
  * Typed representation of a FIDO2 credential identifier.
  *
- * Carries both the raw [bytes] (32 cryptographically-secure random bytes) and the
- * [encoded] Base64URL-safe string representation. Holding both avoids repeated
- * String → ByteArray conversions (e.g. inside HDK derivation paths).
+ * Wraps the [encoded] Base64URL-safe string representation of a credential ID.
  *
  * ## Construction
  * - New credentials: use [CredentialId.generate] to create a fresh random ID.

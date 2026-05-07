@@ -1,8 +1,8 @@
 # Feature Specification: Functional Exception Handling
 
-**Feature Branch**: `[029-functional-exception-handling]`  
-**Created**: 2026-04-29  
-**Status**: Draft  
+**Feature Branch**: `[029-functional-exception-handling]`
+**Created**: 2026-04-29
+**Status**: Draft
 **Input**: User description: "Create a specification to enhance code quality by enforcing detetk TooGenericExceptionCaught rule. Goal remove instances of @Suppress("TooGenericExceptionCaught") and implement code fixes based on expert knowledge, and best practices. Based on Android, and Kotlin development best practices analyze the different modules and provide a exception handling solution that avoid the use of having try catch uses all over the place."
 
 ## Clarifications
@@ -55,7 +55,7 @@ As a developer, I want all exceptions to be uniformly propagated and logged with
 - **FR-002**: Try-catch blocks MUST catch precise exception types (e.g., `IOException`, `SecurityException`) based on the APIs being called.
 - **FR-003**: The Detekt `TooGenericExceptionCaught` rule MUST remain fully enforced in the configuration.
 - **FR-004**: System MUST establish a unified functional exception handling mechanism to encapsulate success and failure states across all boundaries, eliminating ad-hoc `try-catch` blocks in the presentation layer (ViewModels) for flow control.
-- **FR-005**: System MUST utilize a custom sealed class (e.g., `DataResult<D, E>`) as the primary wrapper for results.
+- **FR-005**: System MUST utilize a custom sealed class (e.g., `Outcome<D, E>`) as the primary wrapper for results.
 - **FR-006**: The refactoring MUST NOT alter the existing business logic or control flow; it should solely refine the exception handling mechanism.
 - **FR-007**: System MUST perform exception logging and crash reporting at the specific module, library, or feature boundary where the error is handled, strictly avoiding centralized logging at the presentation layer.
 
