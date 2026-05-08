@@ -170,9 +170,9 @@ class Fido2StressTest {
             mockk {
                 coEvery { getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = true,
-                        pinAvailable = true,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = true,
+                        isPinAvailable = true,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                         maxPinLength = MOCK_MAX_PIN,
                         minPinLength = MOCK_MIN_PIN,
@@ -381,13 +381,13 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? =
         credentials.values.find { it.id == credentialId }
 
-    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
+    override fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
         flowOf(*credentials.values.filter { it.rpId == rpId }.toTypedArray())
 
-    override suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
+    override fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
         flowOf(*credentials.values.filter { it.userId == userId }.toTypedArray())
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
+    override fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
 
     override suspend fun getPagedCredentials(
         limit: Long,
@@ -442,20 +442,20 @@ private class InMemoryCredentialRepository : CredentialRepository {
         userId: UserId,
     ): Boolean = credentials.values.any { (it.rpId == rpId) && (it.userId == userId) }
 
-    override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
+    override fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun getCredentialCountByRpId(rpId: RpId): Int = credentials.values.count { it.rpId == rpId }
 
-    override suspend fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
+    override fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
+    override fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun validateCredentialCreation(
         rpId: RpId,
         userId: UserId,
     ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
+    override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
         relyingParties[rp.id] = rp
@@ -474,7 +474,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
 
     override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun getRecentUserConsent(
+    override fun getRecentUserConsent(
         rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> = emptyFlow()

@@ -18,8 +18,8 @@ data class UserConsentRecord(
     val rpId: RpId,
     val credentialId: CredentialId?,
     val timestamp: Instant,
-    val biometricUsed: Boolean,
-    val pinUsed: Boolean,
+    val isBiometricUsed: Boolean,
+    val isPinUsed: Boolean,
     val ipAddress: String?,
     val userAgent: String?,
     val deviceId: String?,
@@ -99,9 +99,9 @@ data class UserConsentRecord(
      */
     fun getConsentMethod(): ConsentMethod =
         when {
-            biometricUsed && pinUsed -> ConsentMethod.BIOMETRIC_AND_PIN
-            biometricUsed -> ConsentMethod.BIOMETRIC
-            pinUsed -> ConsentMethod.PIN
+            isBiometricUsed && isPinUsed -> ConsentMethod.BIOMETRIC_AND_PIN
+            isBiometricUsed -> ConsentMethod.BIOMETRIC
+            isPinUsed -> ConsentMethod.PIN
             else -> ConsentMethod.NONE
         }
 
@@ -137,8 +137,8 @@ data class UserConsentRecord(
             rpId: RpId,
             credentialId: CredentialId? = null,
             timestamp: Instant = Clock.System.now(),
-            biometricUsed: Boolean = false,
-            pinUsed: Boolean = false,
+            isBiometricUsed: Boolean = false,
+            isPinUsed: Boolean = false,
             ipAddress: String? = null,
             userAgent: String? = null,
             deviceId: String? = null,
@@ -149,8 +149,8 @@ data class UserConsentRecord(
                 rpId = rpId,
                 credentialId = credentialId,
                 timestamp = timestamp,
-                biometricUsed = biometricUsed,
-                pinUsed = pinUsed,
+                isBiometricUsed = isBiometricUsed,
+                isPinUsed = isPinUsed,
                 ipAddress = ipAddress,
                 userAgent = userAgent,
                 deviceId = deviceId,

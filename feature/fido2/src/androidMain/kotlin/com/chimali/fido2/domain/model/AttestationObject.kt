@@ -438,7 +438,7 @@ data class ClientData(
     val type: String,
     val challenge: ByteArray,
     val origin: String,
-    val crossOrigin: Boolean,
+    val isCrossOrigin: Boolean,
     val timestamp: Instant,
 ) {
     init {
@@ -475,7 +475,7 @@ data class ClientData(
         return (type == other.type) &&
             challenge.contentEquals(other.challenge) &&
             (origin == other.origin) &&
-            (crossOrigin == other.crossOrigin) &&
+            (isCrossOrigin == other.isCrossOrigin) &&
             (timestamp == other.timestamp)
     }
 
@@ -483,7 +483,7 @@ data class ClientData(
         var result = type.hashCode()
         result = (31 * result) + challenge.contentHashCode()
         result = (31 * result) + origin.hashCode()
-        result = (31 * result) + crossOrigin.hashCode()
+        result = (31 * result) + isCrossOrigin.hashCode()
         result = (31 * result) + timestamp.hashCode()
         return result
     }
@@ -501,13 +501,13 @@ data class ClientData(
             type: String = TYPE_CREATE,
             challenge: ByteArray,
             origin: String,
-            crossOrigin: Boolean = false,
+            isCrossOrigin: Boolean = false,
         ): ClientData =
             ClientData(
                 type = type,
                 challenge = challenge,
                 origin = origin,
-                crossOrigin = crossOrigin,
+                isCrossOrigin = isCrossOrigin,
                 timestamp = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
             )
     }

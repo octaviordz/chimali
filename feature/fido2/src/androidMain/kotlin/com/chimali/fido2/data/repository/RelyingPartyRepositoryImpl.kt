@@ -20,7 +20,7 @@ class RelyingPartyRepositoryImpl : RelyingPartyRepository {
         return null
     }
 
-    override suspend fun getAllRelyingParties(): Flow<List<RelyingParty>> {
+    override fun getAllRelyingParties(): Flow<List<RelyingParty>> {
         // TODO: Implement database query logic
         return flowOf(emptyList())
     }

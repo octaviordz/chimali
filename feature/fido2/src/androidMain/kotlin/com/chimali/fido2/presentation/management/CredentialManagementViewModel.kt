@@ -209,7 +209,7 @@ class CredentialManagementViewModel(
     }
 
     private fun showDeleteAllDialog() {
-        _state.update { it.copy(showDeleteAllWarning = true) }
+        _state.update { it.copy(isShowDeleteAllWarning = true) }
     }
 
     private fun dismissDialogs() {
@@ -217,7 +217,7 @@ class CredentialManagementViewModel(
             it.copy(
                 selectedCredential = null,
                 credentialToDelete = null,
-                showDeleteAllWarning = false,
+                isShowDeleteAllWarning = false,
             )
         }
     }
@@ -243,7 +243,7 @@ class CredentialManagementViewModel(
         val useCase = deleteAllCredentialsUseCase ?: return
         viewModelScope.launch {
             logger.i { "Initiating deletion of all credentials" }
-            _state.update { it.copy(isLoading = true, showDeleteAllWarning = false) }
+            _state.update { it.copy(isLoading = true, isShowDeleteAllWarning = false) }
             val result = useCase()
             if (result.isSuccess) {
                 logger.i { "Successfully deleted all credentials" }
@@ -304,7 +304,7 @@ data class CredentialManagementState(
     val isPaginating: Boolean = false,
     val hasMore: Boolean = true,
     val error: String? = null,
-    val showDeleteAllWarning: Boolean = false,
+    val isShowDeleteAllWarning: Boolean = false,
     val pendingDeleteIds: Set<CredentialId> = emptySet(),
 )
 

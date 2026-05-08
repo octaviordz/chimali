@@ -183,7 +183,7 @@ fun CredentialListScreen(
             } else {
                 val listState = rememberLazyListState()
 
-                val shouldLoadMore by remember {
+                val isLoadMoreRequired by remember {
                     derivedStateOf {
                         val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
                         (lastVisibleItem != null) &&
@@ -191,8 +191,8 @@ fun CredentialListScreen(
                     }
                 }
 
-                LaunchedEffect(shouldLoadMore) {
-                    if (shouldLoadMore) {
+                LaunchedEffect(isLoadMoreRequired) {
+                    if (isLoadMoreRequired) {
                         viewModel.onIntent(CredentialManagementIntent.LoadNextPage)
                     }
                 }

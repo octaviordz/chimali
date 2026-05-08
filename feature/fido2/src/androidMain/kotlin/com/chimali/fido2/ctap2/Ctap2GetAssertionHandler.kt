@@ -275,9 +275,9 @@ class Ctap2GetAssertionHandler(
 
         // options map (key 0x05): {"uv": bool, "up": bool}
         val optionsMap = params[REQ_OPTIONS] as? Map<*, *>
-        val uvRaw = (optionsMap?.get("uv") as? Boolean) ?: false
+        val isUvRequired = (optionsMap?.get("uv") as? Boolean) ?: false
         val userVerification =
-            if (uvRaw) {
+            if (isUvRequired) {
                 UserVerificationRequirement.REQUIRED
             } else {
                 UserVerificationRequirement.PREFERRED

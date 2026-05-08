@@ -123,7 +123,7 @@ class Ctap2ResponseBuilder(
                 KEY_OPTIONS to
                     // options
                     mapOf(
-                        "rk" to info.supportsResidentKeys,
+                        "rk" to info.isResidentKeySupported,
                         "up" to true,
                         // device has internal UV (biometric)
                         "uv" to true,

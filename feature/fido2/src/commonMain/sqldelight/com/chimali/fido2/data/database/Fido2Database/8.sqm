@@ -1,0 +1,5 @@
+-- Migration 8: Rename boolean properties to align with Detekt rules
+-- Renames biometricUsed to isBiometricUsed and pinUsed to isPinUsed
+
+ALTER TABLE UserConsentRecord RENAME COLUMN biometricUsed TO isBiometricUsed;
+ALTER TABLE UserConsentRecord RENAME COLUMN pinUsed TO isPinUsed;

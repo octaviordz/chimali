@@ -65,8 +65,8 @@ class DatabaseSchemaTest {
                 "rpId",
                 "credentialId",
                 "timestamp",
-                "biometricUsed",
-                "pinUsed",
+                "isBiometricUsed",
+                "isPinUsed",
             )
 
         assertEquals(USER_CONSENT_COLUMNS, expectedColumns.size)

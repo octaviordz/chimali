@@ -50,7 +50,7 @@ class GetUserConsentUseCase(
         rpId: RpId,
         operationType: ConsentOperationType,
         credentialId: CredentialId? = null,
-        requireVerification: Boolean = false,
+        isVerificationRequired: Boolean = false,
         prompt: String? = null,
     ): Result<UserConsentRecord> {
         return try {
@@ -73,7 +73,7 @@ class GetUserConsentUseCase(
 
             // If verification is required, perform user verification
             val verificationResult =
-                if (requireVerification &&
+                if (isVerificationRequired &&
                     consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
                 ) {
                     performUserVerificationForConsent()
@@ -81,8 +81,8 @@ class GetUserConsentUseCase(
                     // Silent/implicit consent — no explicit verification performed
                     Result.success(
                         ConsentVerificationResult(
-                            biometricUsed = false,
-                            pinUsed = false,
+                            isBiometricUsed = false,
+                            isPinUsed = false,
                             verificationMethod = null,
                         ),
                     )
@@ -107,8 +107,8 @@ class GetUserConsentUseCase(
                     operationType = operationType,
                     rpId = rpId,
                     credentialId = credentialId,
-                    biometricUsed = verification.biometricUsed,
-                    pinUsed = verification.pinUsed,
+                    isBiometricUsed = verification.isBiometricUsed,
+                    isPinUsed = verification.isPinUsed,
                     // Will be populated by actual implementation
                     ipAddress = null,
                     // Will be populated by actual implementation
@@ -140,7 +140,7 @@ class GetUserConsentUseCase(
      * @param limit Maximum number of records to retrieve
      * @return Flow of recent consent records
      */
-    suspend fun getRecentConsentRecords(
+    fun getRecentConsentRecords(
         rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord> = credentialRepository.getRecentUserConsent(rpId, limit)
@@ -153,7 +153,7 @@ class GetUserConsentUseCase(
      * @param limit Maximum number of records to retrieve
      * @return Flow of consent records for the operation type
      */
-    suspend fun getConsentRecordsByOperationType(
+    fun getConsentRecordsByOperationType(
         operationType: ConsentOperationType,
         rpId: RpId? = null,
         limit: Int = 50,
@@ -168,7 +168,7 @@ class GetUserConsentUseCase(
      * @param limit Maximum number of records to retrieve
      * @return Flow of consent records for the credential
      */
-    suspend fun getConsentRecordsByCredential(
+    fun getConsentRecordsByCredential(
         credentialId: CredentialId,
         limit: Int = 50,
     ): Flow<UserConsentRecord> =
@@ -182,7 +182,7 @@ class GetUserConsentUseCase(
      * @param limit Maximum number of records to retrieve
      * @return Flow of consent records for the RP
      */
-    suspend fun getConsentRecordsByRpId(
+    fun getConsentRecordsByRpId(
         rpId: RpId,
         limit: Int = 50,
     ): Flow<UserConsentRecord> =
@@ -197,7 +197,7 @@ class GetUserConsentUseCase(
      * @param rpId Optional filter by relying party ID
      * @return Flow of consent records within the time range
      */
-    suspend fun getConsentRecordsByTimeRange(
+    fun getConsentRecordsByTimeRange(
         startTime: Instant,
         endTime: Instant,
         rpId: RpId? = null,
@@ -291,8 +291,8 @@ class GetUserConsentUseCase(
 
         return Result.success(
             ConsentVerificationResult(
-                biometricUsed = availability.biometricAvailable,
-                pinUsed = availability.pinAvailable,
+                isBiometricUsed = availability.isBiometricAvailable,
+                isPinUsed = availability.isPinAvailable,
                 verificationMethod =
                     when (bestMethod) {
                         com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC ->
@@ -334,8 +334,8 @@ class GetUserConsentUseCase(
  * Data class representing consent verification result.
  */
 data class ConsentVerificationResult(
-    val biometricUsed: Boolean,
-    val pinUsed: Boolean,
+    val isBiometricUsed: Boolean,
+    val isPinUsed: Boolean,
     val verificationMethod: VerificationMethod?,
 )
 

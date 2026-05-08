@@ -45,7 +45,7 @@ class Fido2ServiceImpl(
     override suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError> =
         fido2Repository.authenticateCredential(rpId)
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> = fido2Repository.getAllCredentials()
+    override fun getAllCredentials(): Flow<PasskeyCredential> = fido2Repository.getAllCredentials()
 
     override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
         fido2Repository.deleteCredential(credentialId)

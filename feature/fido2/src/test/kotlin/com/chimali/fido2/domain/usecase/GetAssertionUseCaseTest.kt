@@ -77,9 +77,9 @@ class GetAssertionUseCaseTest {
         // Default: UV preferred, biometric available
         coEvery { userVerificationService.getUserVerificationAvailability() } returns
             UserVerificationAvailability(
-                biometricAvailable = true,
-                pinAvailable = true,
-                deviceLockAvailable = false,
+                isBiometricAvailable = true,
+                isPinAvailable = true,
+                isDeviceLockAvailable = false,
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                 maxPinLength = MAX_PIN_LEN_8,
                 minPinLength = MIN_PIN_LEN_4,
@@ -139,9 +139,9 @@ class GetAssertionUseCaseTest {
         runTest {
             coEvery { userVerificationService.getUserVerificationAvailability() } returns
                 UserVerificationAvailability(
-                    biometricAvailable = false,
-                    pinAvailable = false,
-                    deviceLockAvailable = false,
+                    isBiometricAvailable = false,
+                    isPinAvailable = false,
+                    isDeviceLockAvailable = false,
                     supportedBiometricTypes = emptyList(),
                     maxPinLength = 0,
                     minPinLength = 0,

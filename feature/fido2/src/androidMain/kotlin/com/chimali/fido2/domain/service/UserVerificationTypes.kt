@@ -6,9 +6,9 @@ import kotlinx.datetime.Instant
  * Data class representing user verification availability.
  */
 data class UserVerificationAvailability(
-    val biometricAvailable: Boolean,
-    val pinAvailable: Boolean,
-    val deviceLockAvailable: Boolean,
+    val isBiometricAvailable: Boolean,
+    val isPinAvailable: Boolean,
+    val isDeviceLockAvailable: Boolean,
     val supportedBiometricTypes: List<BiometricType>,
     val maxPinLength: Int,
     val minPinLength: Int,
@@ -17,16 +17,16 @@ data class UserVerificationAvailability(
     /**
      * Checks if any verification method is available.
      */
-    fun hasAnyVerificationMethod(): Boolean = biometricAvailable || pinAvailable || deviceLockAvailable
+    fun hasAnyVerificationMethod(): Boolean = isBiometricAvailable || isPinAvailable || isDeviceLockAvailable
 
     /**
      * Returns the best available verification method.
      */
     fun getBestAvailableMethod(): VerificationMethod =
         when {
-            biometricAvailable -> VerificationMethod.BIOMETRIC
-            pinAvailable -> VerificationMethod.PIN
-            deviceLockAvailable -> VerificationMethod.DEVICE_LOCK
+            isBiometricAvailable -> VerificationMethod.BIOMETRIC
+            isPinAvailable -> VerificationMethod.PIN
+            isDeviceLockAvailable -> VerificationMethod.DEVICE_LOCK
             else -> VerificationMethod.NONE
         }
 }
@@ -35,7 +35,7 @@ data class UserVerificationAvailability(
  * Data class representing biometric verification result.
  */
 data class BiometricVerificationResult(
-    val success: Boolean,
+    val isSuccess: Boolean,
     val biometricType: BiometricType,
     val confidence: Float,
     val timestamp: Instant,
@@ -48,7 +48,7 @@ data class BiometricVerificationResult(
     /**
      * Checks if verification was successful.
      */
-    fun isSuccessful(): Boolean = success
+    fun isSuccessful(): Boolean = isSuccess
 
     /**
      * Checks if confidence level is sufficient.
@@ -60,7 +60,7 @@ data class BiometricVerificationResult(
  * Data class representing PIN verification result.
  */
 data class PinVerificationResult(
-    val success: Boolean,
+    val isSuccess: Boolean,
     val attemptsRemaining: Int,
     val isLocked: Boolean,
     val timestamp: Instant,
@@ -69,7 +69,7 @@ data class PinVerificationResult(
     /**
      * Checks if verification was successful.
      */
-    fun isSuccessful(): Boolean = success
+    fun isSuccessful(): Boolean = isSuccess
 
     /**
      * Checks if PIN attempts are exhausted.
@@ -86,7 +86,7 @@ data class PinVerificationResult(
  * Data class representing combined verification result.
  */
 data class CombinedVerificationResult(
-    val success: Boolean,
+    val isSuccess: Boolean,
     val biometricResult: BiometricVerificationResult?,
     val pinResult: PinVerificationResult?,
     val verificationMethod: VerificationMethod,
@@ -95,7 +95,7 @@ data class CombinedVerificationResult(
     /**
      * Checks if verification was successful.
      */
-    fun isSuccessful(): Boolean = success
+    fun isSuccessful(): Boolean = isSuccess
 
     /**
      * Returns the successful verification method.
@@ -112,14 +112,14 @@ data class CombinedVerificationResult(
  * Data class representing device lock verification result.
  */
 data class DeviceLockVerificationResult(
-    val success: Boolean,
+    val isSuccess: Boolean,
     val timestamp: Instant,
     val errorMessage: String?,
 ) {
     /**
      * Checks if verification was successful.
      */
-    fun isSuccessful(): Boolean = success
+    fun isSuccessful(): Boolean = isSuccess
 }
 
 /**
@@ -148,7 +148,7 @@ data class BiometricEnrollmentStatus(
 data class PinConfiguration(
     val minLength: Int,
     val maxLength: Int,
-    val requireComplexity: Boolean,
+    val isComplexityRequired: Boolean,
     val allowedSpecialChars: String?,
     val maxAttempts: Int,
     val lockoutDuration: Long,
@@ -158,7 +158,7 @@ data class PinConfiguration(
      */
     fun validatePin(pin: String): Boolean {
         if (pin.length < minLength || pin.length > maxLength) return false
-        if (requireComplexity && !meetsComplexityRequirements(pin)) return false
+        if (isComplexityRequired && !meetsComplexityRequirements(pin)) return false
         return true
     }
 
@@ -166,7 +166,7 @@ data class PinConfiguration(
      * Checks if PIN meets complexity requirements.
      */
     private fun meetsComplexityRequirements(pin: String): Boolean {
-        if (!requireComplexity) return true
+        if (!isComplexityRequired) return true
 
         val hasLetter = pin.any { it.isLetter() }
         val hasDigit = pin.any { it.isDigit() }

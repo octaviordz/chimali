@@ -213,10 +213,10 @@ class RegisterCredentialUseCase(
                 operationType = ConsentOperationType.REGISTRATION,
                 rpId = options.rp.id,
                 credentialId = null,
-                biometricUsed =
+                isBiometricUsed =
                     options.authenticatorSelection?.userVerification ==
                         UserVerificationRequirement.REQUIRED,
-                pinUsed = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED,
+                isPinUsed = options.authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED,
                 // Will be populated by actual implementation
                 ipAddress = null,
                 // Will be populated by actual implementation

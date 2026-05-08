@@ -9,7 +9,7 @@ interface RelyingPartyRepository {
 
     suspend fun getRelyingPartyById(rpId: RpId): RelyingParty?
 
-    suspend fun getAllRelyingParties(): Flow<List<RelyingParty>>
+    fun getAllRelyingParties(): Flow<List<RelyingParty>>
 
     suspend fun deleteRelyingParty(rpId: RpId): Result<Unit>
 

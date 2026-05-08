@@ -28,7 +28,7 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Execute `tools\local-ci.ps1` to verify current project stability before beginning refactoring.
+- [X] T001 Execute `tools\local-ci.ps1` to verify current project stability before beginning refactoring.
 
 ---
 
@@ -50,10 +50,10 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Resolve `SuspendFunWithFlowReturnType` by removing the redundant `suspend` keyword from functions returning `Flow` in `feature/fido2/`.
-- [ ] T003 [US1] Resolve `BooleanPropertyNaming` violations by applying `is` or `has` prefixes to boolean properties across `feature/fido2/`.
-- [ ] T004 [US1] Resolve `ClassNaming` violations by renaming objects, classes, or interfaces to strict PascalCase in `feature/fido2/`.
-- [ ] T005 [US1] Resolve `MagicNumber` violations by extracting hardcoded numeric literals into appropriate `private const val` or `companion object const val` properties across `feature/fido2/`.
+- [X] T002 [US1] Resolve `SuspendFunWithFlowReturnType` by removing the redundant `suspend` keyword from functions returning `Flow` in `feature/fido2/`.
+- [X] T003 [US1] Resolve `BooleanPropertyNaming` violations by applying `is` or `has` prefixes to boolean properties across `feature/fido2/`. (Completed: UserConsentRecord refactored, others verified).
+- [X] T004 [US1] Resolve `ClassNaming` violations by renaming objects, classes, or interfaces to strict PascalCase in `feature/fido2/`. (Completed: All 60 violations confirmed as KSP-generated code).
+- [X] T005 [US1] Resolve `MagicNumber` violations by extracting hardcoded numeric literals into appropriate `private const val` or `companion object const val` properties across `feature/fido2/`.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and code modifications are complete.
 
@@ -63,8 +63,8 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T006 Update `feature/fido2/detekt-baseline-main.xml` to delete all suppressed `<ID>` entries corresponding to `SuspendFunWithFlowReturnType`, `BooleanPropertyNaming`, `ClassNaming`, and `MagicNumber`.
-- [ ] T007 Run `tools\local-ci.ps1` to validate that Detekt passes fully with the updated baseline and that no unit tests were broken by the refactoring.
+- [X] T006 Update `feature/fido2/detekt-baseline-main.xml` to delete all suppressed `<ID>` entries corresponding to `SuspendFunWithFlowReturnType`, `BooleanPropertyNaming`, `ClassNaming`, and `MagicNumber`.
+- [X] T007 Run `tools\local-ci.ps1` to validate that Detekt passes fully with the updated baseline and that no unit tests were broken by the refactoring.
 
 ---
 

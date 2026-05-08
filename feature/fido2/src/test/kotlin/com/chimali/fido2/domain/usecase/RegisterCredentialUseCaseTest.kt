@@ -149,9 +149,9 @@ class RegisterCredentialUseCaseTest {
             } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
             coEvery { userVerificationService.getUserVerificationAvailability() } returns
                 UserVerificationAvailability(
-                    biometricAvailable = true,
-                    pinAvailable = true,
-                    deviceLockAvailable = true,
+                    isBiometricAvailable = true,
+                    isPinAvailable = true,
+                    isDeviceLockAvailable = true,
                     supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                     maxPinLength = MAX_PIN_LEN_8,
                     minPinLength = MIN_PIN_LEN_4,
@@ -216,9 +216,9 @@ class RegisterCredentialUseCaseTest {
                 // Mock PIN as the only available method
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = false,
-                        pinAvailable = true,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = false,
+                        isPinAvailable = true,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
                         maxPinLength = MAX_PIN_LEN_8,
                         minPinLength = MIN_PIN_LEN_4,
@@ -389,9 +389,9 @@ class RegisterCredentialUseCaseTest {
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = false,
-                        pinAvailable = false,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = false,
+                        isPinAvailable = false,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
                         maxPinLength = 0,
                         minPinLength = 0,

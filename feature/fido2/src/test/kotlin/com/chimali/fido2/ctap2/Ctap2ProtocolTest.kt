@@ -106,7 +106,7 @@ class Ctap2ProtocolTest {
                 type = "webauthn.create",
                 challenge = ByteArray(CHALLENGE_SIZE_16) { DUMMY_CHALLENGE_BYTE },
                 origin = "https://example.com",
-                crossOrigin = false,
+                isCrossOrigin = false,
                 timestamp = TimeProvider().now(),
             )
         return AttestationObject(
@@ -189,8 +189,8 @@ class Ctap2ProtocolTest {
                 version = "1.0",
                 supportedAlgorithms = listOf("ES256"),
                 supportedTransports = listOf(AuthenticatorTransport.BLE),
-                supportsResidentKeys = true,
-                supportsUserVerification = true,
+                isResidentKeySupported = true,
+                isUserVerificationSupported = true,
                 maxCredentialCount = MAX_CRED_COUNT_50,
                 maxCredentialIdLength = MAX_CRED_ID_LEN_128,
                 firmwareVersion = "1.0.0",

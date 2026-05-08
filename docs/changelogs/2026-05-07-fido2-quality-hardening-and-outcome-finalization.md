@@ -15,6 +15,8 @@ This release focuses on systematic technical debt elimination, finalizing the pr
     - **Security Thresholds**: `MNEMONIC_WORD_COUNT` and `DEFAULT_VERIFICATION_TIMEOUT_MS`.
     - **UI Parameters**: `INNER_RING_RATIO` and `PROGRESS_WIDTH_FRACTION` in registration indicators.
 - **Detekt Synchronization**: Purged all `MagicNumber` entries from `detekt-baseline.xml`, ensuring a zero-violation state for the rule in the FIDO2 module.
+- **Database Migration**: Implemented `8.sqm` SQLDelight migration to rename `biometricUsed` and `pinUsed` columns in the `UserConsentRecord` table to `isBiometricUsed` and `isPinUsed` respectively. This aligns the database layer with Detekt's `BooleanPropertyNaming` rule without breaking compatibility for existing users.
+- **Baseline Cleanup**: Deleted `feature/fido2/detekt-baseline-main.xml` as all technical debt suppressions (`MagicNumber`, `BooleanPropertyNaming`, `ClassNaming`, `SuspendFunWithFlowReturnType`) have been fully resolved across the module.
 - **CI Pipeline Fixes**:
     - **Backing Properties**: Resolved `ktlint` violations in `PairedDevicesViewModel.kt` by renaming internal state flows to comply with new property naming rules.
     - **KDoc Cleanup**: Removed orphan KDoc blocks in `AuthenticatorSelectionCriteria.kt` that were causing build failures.

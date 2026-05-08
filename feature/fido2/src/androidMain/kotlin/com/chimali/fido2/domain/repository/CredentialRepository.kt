@@ -38,7 +38,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
      */
-    suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
+    fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
      * Retrieves all credentials for a specific user.
@@ -46,14 +46,14 @@ interface CredentialRepository {
      * @param userId The ID of the user
      * @return Flow of credentials for the user
      */
-    suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential>
+    fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential>
 
     /**
      * Retrieves all credentials stored in the system.
      *
      * @return Flow of all credentials
      */
-    suspend fun getAllCredentials(): Flow<PasskeyCredential>
+    fun getAllCredentials(): Flow<PasskeyCredential>
 
     /**
      * Retrieves a paginated list of credentials stored in the system.
@@ -127,7 +127,7 @@ interface CredentialRepository {
      * @param maxAgeDays Maximum age in days before considering as expired
      * @return Flow of expired credentials
      */
-    suspend fun getExpiredCredentials(maxAgeDays: Long = 730): Flow<PasskeyCredential>
+    fun getExpiredCredentials(maxAgeDays: Long = 730): Flow<PasskeyCredential>
 
     /**
      * Retrieves the count of credentials for a relying party.
@@ -143,7 +143,7 @@ interface CredentialRepository {
      * @param days Number of days to consider as "recent"
      * @return Flow of recently unused credentials
      */
-    suspend fun getRecentlyUnusedCredentials(days: Long = 30): Flow<PasskeyCredential>
+    fun getRecentlyUnusedCredentials(days: Long = 30): Flow<PasskeyCredential>
 
     /**
      * Searches credentials by display name or user name.
@@ -151,7 +151,7 @@ interface CredentialRepository {
      * @param query The search query
      * @return Flow of matching credentials
      */
-    suspend fun searchCredentials(query: String): Flow<PasskeyCredential>
+    fun searchCredentials(query: String): Flow<PasskeyCredential>
 
     /**
      * Validates that a credential can be created for the given RP and user.
@@ -170,7 +170,7 @@ interface CredentialRepository {
      *
      * @return Flow of credentials requiring user verification
      */
-    suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential>
+    fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential>
 
     /**
      * T156b — Saves a new relying party or updates an existing one.
@@ -215,7 +215,7 @@ interface CredentialRepository {
      * @param limit Maximum number of records to retrieve
      * @return Flow of recent consent records
      */
-    suspend fun getRecentUserConsent(
+    fun getRecentUserConsent(
         rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord>

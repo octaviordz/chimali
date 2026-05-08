@@ -182,9 +182,9 @@ class RegistrationAuthenticationDataIntegrationTest {
             mockk {
                 coEvery { getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = true,
-                        pinAvailable = true,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = true,
+                        isPinAvailable = true,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                         maxPinLength = 8,
                         minPinLength = 4,

@@ -15,12 +15,12 @@ class UserConsentRepositoryImpl : UserConsentRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun getConsentRecordsByRpId(rpId: RpId): Flow<List<UserConsentRecord>> {
+    override fun getConsentRecordsByRpId(rpId: RpId): Flow<List<UserConsentRecord>> {
         // TODO: Implement database query logic
         return flowOf(emptyList())
     }
 
-    override suspend fun getAllConsentRecords(): Flow<List<UserConsentRecord>> {
+    override fun getAllConsentRecords(): Flow<List<UserConsentRecord>> {
         // TODO: Implement database query logic
         return flowOf(emptyList())
     }

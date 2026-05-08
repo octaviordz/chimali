@@ -252,14 +252,14 @@ private fun DebugMnemonicSection(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var showQrCode by remember { mutableStateOf(false) }
-    var showScanner by rememberSaveable { mutableStateOf(false) }
-    var showRecoverForm by rememberSaveable { mutableStateOf(false) }
+    var isQrCodeVisible by remember { mutableStateOf(false) }
+    var isScannerVisible by rememberSaveable { mutableStateOf(false) }
+    var isRecoverFormVisible by rememberSaveable { mutableStateOf(false) }
 
     val cameraLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                showScanner = true
+                isScannerVisible = true
             } else {
                 scope.launch {
                     val result =
@@ -309,15 +309,15 @@ private fun DebugMnemonicSection(
         } else {
             MnemonicWordGrid(words = state.mnemonicWords)
             MnemonicActionRow(
-                showQrCode = showQrCode,
+                isQrCodeVisible = isQrCodeVisible,
                 onCopy = { onIntent(DevToolsIntent.CopyToClipboard) },
-                onToggleQr = { showQrCode = !showQrCode },
+                onToggleQr = { isQrCodeVisible = !isQrCodeVisible },
                 onClear = {
                     onIntent(DevToolsIntent.ClearMnemonic)
-                    showQrCode = false
+                    isQrCodeVisible = false
                 },
             )
-            if (showQrCode) MnemonicQrCodeView(words = state.mnemonicWords)
+            if (isQrCodeVisible) MnemonicQrCodeView(words = state.mnemonicWords)
         }
 
         state.error?.let { err ->
@@ -335,25 +335,25 @@ private fun DebugMnemonicSection(
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = { showRecoverForm = !showRecoverForm }) {
+            IconButton(onClick = { isRecoverFormVisible = !isRecoverFormVisible }) {
                 Icon(
-                    if (showRecoverForm) Icons.Default.VisibilityOff else Icons.Default.Refresh,
+                    if (isRecoverFormVisible) Icons.Default.VisibilityOff else Icons.Default.Refresh,
                     contentDescription = "Toggle recover form",
                 )
             }
         }
 
-        if (showRecoverForm) {
+        if (isRecoverFormVisible) {
             RecoverSeedForm(
                 snackbarHostState = snackbarHostState,
                 onRequestCameraPermission = cameraLauncher::launch,
-                showScanner = showScanner,
-                onShowScanner = { showScanner = it },
+                isScannerVisible = isScannerVisible,
+                onShowScanner = { isScannerVisible = it },
                 onIntent = onIntent,
             )
         }
 
-        if (state.recoverSuccess) {
+        if (state.isRecoverSuccessful) {
             Text(
                 "✔ Mnemonic validated successfully!",
                 color = MaterialTheme.colorScheme.primary,
@@ -367,7 +367,7 @@ private fun DebugMnemonicSection(
 @Suppress("FunctionNaming")
 @Composable
 private fun MnemonicActionRow(
-    showQrCode: Boolean,
+    isQrCodeVisible: Boolean,
     onCopy: () -> Unit,
     onToggleQr: () -> Unit,
     onClear: () -> Unit,
@@ -400,12 +400,12 @@ private fun MnemonicActionRow(
                 verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
             ) {
                 Icon(
-                    if (showQrCode) Icons.Default.VisibilityOff else Icons.Default.QrCode,
+                    if (isQrCodeVisible) Icons.Default.VisibilityOff else Icons.Default.QrCode,
                     contentDescription = null,
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )
                 Text(
-                    if (showQrCode) "Hide QR" else "QR",
+                    if (isQrCodeVisible) "Hide QR" else "QR",
                     textAlign = TextAlign.Center,
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )
@@ -437,17 +437,17 @@ private fun MnemonicActionRow(
 private fun RecoverSeedForm(
     snackbarHostState: SnackbarHostState,
     onRequestCameraPermission: (String) -> Unit,
-    showScanner: Boolean,
+    isScannerVisible: Boolean,
     onShowScanner: (Boolean) -> Unit,
     onIntent: (DevToolsIntent) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var showRationale by remember { mutableStateOf(false) }
+    var isRationaleVisible by remember { mutableStateOf(false) }
 
     Box {
         Column {
-            if (!showScanner) {
+            if (!isScannerVisible) {
                 ChimaliTonalButton(
                     onClick = {
                         val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -456,7 +456,7 @@ private fun RecoverSeedForm(
                             (context as? FragmentActivity)?.let {
                                 androidx.core.app.ActivityCompat
                                     .shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-                            } == true -> showRationale = true
+                            } == true -> isRationaleVisible = true
                             else -> onRequestCameraPermission(Manifest.permission.CAMERA)
                         }
                     },
@@ -509,21 +509,21 @@ private fun RecoverSeedForm(
             ManualMnemonicEntryForm { words -> onIntent(DevToolsIntent.RecoverFromSeed(words)) }
         }
 
-        if (showRationale) {
+        if (isRationaleVisible) {
             AlertDialog(
-                onDismissRequest = { showRationale = false },
+                onDismissRequest = { isRationaleVisible = false },
                 title = { Text("Camera Permission") },
                 text = { Text("The camera is required to scan the recovery mnemonic QR code.") },
                 confirmButton = {
                     TextButton(onClick = {
-                        showRationale = false
+                        isRationaleVisible = false
                         onRequestCameraPermission(Manifest.permission.CAMERA)
                     }) {
                         Text("Allow")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showRationale = false }) { Text("Cancel") }
+                    TextButton(onClick = { isRationaleVisible = false }) { Text("Cancel") }
                 },
             )
         }

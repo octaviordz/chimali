@@ -187,7 +187,7 @@ class ManagementIntegrationTest {
             val state = viewModel.state.value
 
             assertNull(state.credentialToDelete)
-            assertFalse(state.showDeleteAllWarning)
+            assertFalse(state.isShowDeleteAllWarning)
         }
 
     // ── Delete Single Credential ─────────────────────────────────────────────
@@ -245,7 +245,7 @@ class ManagementIntegrationTest {
     fun `show delete all dialog sets warning flag`() =
         runTest {
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-            assertTrue(viewModel.state.value.showDeleteAllWarning)
+            assertTrue(viewModel.state.value.isShowDeleteAllWarning)
         }
 
     @Test
@@ -296,7 +296,7 @@ class ManagementIntegrationTest {
             // Dismiss (clears dialogs only)
             viewModel.onIntent(CredentialManagementIntent.DismissDialog)
             assertNull(viewModel.state.value.credentialToDelete)
-            assertFalse(viewModel.state.value.showDeleteAllWarning)
+            assertFalse(viewModel.state.value.isShowDeleteAllWarning)
 
             // Delete single
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(cred1))
@@ -312,7 +312,7 @@ class ManagementIntegrationTest {
 
             // Wipe all
             viewModel.onIntent(CredentialManagementIntent.ShowDeleteAllDialog)
-            assertTrue(viewModel.state.value.showDeleteAllWarning)
+            assertTrue(viewModel.state.value.isShowDeleteAllWarning)
             viewModel.onIntent(CredentialManagementIntent.ConfirmDeleteAll)
             advanceUntilIdle()
             assertTrue(credentials.value.isEmpty())

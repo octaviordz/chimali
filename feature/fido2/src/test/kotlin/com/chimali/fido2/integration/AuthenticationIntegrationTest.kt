@@ -61,9 +61,9 @@ class AuthenticationIntegrationTest {
 
         coEvery { userVerificationService.getUserVerificationAvailability() } returns
             UserVerificationAvailability(
-                biometricAvailable = true,
-                pinAvailable = true,
-                deviceLockAvailable = false,
+                isBiometricAvailable = true,
+                isPinAvailable = true,
+                isDeviceLockAvailable = false,
                 supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                 maxPinLength = MAX_PIN_LEN_8,
                 minPinLength = MIN_PIN_LEN_4,

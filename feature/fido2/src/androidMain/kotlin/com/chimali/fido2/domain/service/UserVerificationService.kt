@@ -61,7 +61,7 @@ interface UserVerificationService {
      * @param limit Maximum number of records to retrieve
      * @return Flow of recent consent records
      */
-    suspend fun getRecentConsentRecords(
+    fun getRecentConsentRecords(
         rpId: RpId? = null,
         limit: Int = 50,
     ): Flow<UserConsentRecord>

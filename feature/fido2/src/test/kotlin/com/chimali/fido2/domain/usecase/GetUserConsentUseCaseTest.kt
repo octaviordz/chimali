@@ -65,8 +65,8 @@ class GetUserConsentUseCaseTest {
                     operationType = ConsentOperationType.REGISTRATION,
                     rpId = testRpId,
                     credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                    biometricUsed = true,
-                    pinUsed = false,
+                    isBiometricUsed = true,
+                    isPinUsed = false,
                     ipAddress = "192.168.1.1",
                     userAgent = "Test User Agent",
                     deviceId = "test_device_id",
@@ -78,9 +78,9 @@ class GetUserConsentUseCaseTest {
             } returns com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED
             coEvery { userVerificationService.getUserVerificationAvailability() } returns
                 UserVerificationAvailability(
-                    biometricAvailable = true,
-                    pinAvailable = true,
-                    deviceLockAvailable = true,
+                    isBiometricAvailable = true,
+                    isPinAvailable = true,
+                    isDeviceLockAvailable = true,
                     supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                     maxPinLength = MAX_PIN_LEN_8,
                     minPinLength = MIN_PIN_LEN_4,
@@ -98,9 +98,9 @@ class GetUserConsentUseCaseTest {
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = true,
-                        pinAvailable = false,
-                        deviceLockAvailable = true,
+                        isBiometricAvailable = true,
+                        isPinAvailable = false,
+                        isDeviceLockAvailable = true,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                         maxPinLength = MAX_PIN_LEN_8,
                         minPinLength = MIN_PIN_LEN_4,
@@ -111,7 +111,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isSuccess)
@@ -120,8 +120,8 @@ class GetUserConsentUseCaseTest {
                 assertEquals(ConsentOperationType.REGISTRATION, consentRecord.operationType)
                 assertEquals(testRpId, consentRecord.rpId)
                 assertEquals("dGVzdF9jcmVkZW50aWFsX2lk", consentRecord.credentialId?.encoded)
-                assertTrue(consentRecord.biometricUsed)
-                assertFalse(consentRecord.pinUsed)
+                assertTrue(consentRecord.isBiometricUsed)
+                assertFalse(consentRecord.isPinUsed)
 
                 // Verify all expected interactions
                 coVerify { userVerificationService.isUserVerificationRequired(any(), any(), any()) }
@@ -135,9 +135,9 @@ class GetUserConsentUseCaseTest {
                 // Mock PIN as the only available method
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = false,
-                        pinAvailable = true,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = false,
+                        isPinAvailable = true,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
                         maxPinLength = MAX_PIN_LEN_8,
                         minPinLength = MIN_PIN_LEN_4,
@@ -149,14 +149,14 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.AUTHENTICATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isSuccess)
                 val consentRecord = result.getOrThrow()
                 assertEquals(ConsentOperationType.AUTHENTICATION, consentRecord.operationType)
-                assertFalse(consentRecord.biometricUsed)
-                assertTrue(consentRecord.pinUsed)
+                assertFalse(consentRecord.isBiometricUsed)
+                assertTrue(consentRecord.isPinUsed)
 
                 // Expected behavior is to just check availability and proceed with recording the consent.
             }
@@ -174,14 +174,14 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.CREDENTIAL_DELETION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = false,
+                        isVerificationRequired = false,
                     )
 
                 assertTrue(result.isSuccess)
                 val consentRecord = result.getOrThrow()
                 assertEquals(ConsentOperationType.CREDENTIAL_DELETION, consentRecord.operationType)
-                assertFalse(consentRecord.biometricUsed)
-                assertFalse(consentRecord.pinUsed)
+                assertFalse(consentRecord.isBiometricUsed)
+                assertFalse(consentRecord.isPinUsed)
 
                 // Verify no verification check was performed
                 coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
@@ -195,7 +195,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = null,
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isSuccess)
@@ -214,7 +214,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                         prompt = customPrompt,
                     )
 
@@ -236,8 +236,8 @@ class GetUserConsentUseCaseTest {
                             id = "auth_consent_id",
                             operationType = ConsentOperationType.AUTHENTICATION,
                             rpId = testRpId,
-                            biometricUsed = false,
-                            pinUsed = true,
+                            isBiometricUsed = false,
+                            isPinUsed = true,
                         ),
                     )
 
@@ -262,16 +262,16 @@ class GetUserConsentUseCaseTest {
                         id = "reg_consent_id",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
                 val authConsent =
                     UserConsentRecord.create(
                         id = "auth_consent_id",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
-                        biometricUsed = false,
-                        pinUsed = true,
+                        isBiometricUsed = false,
+                        isPinUsed = true,
                     )
 
                 coEvery {
@@ -300,8 +300,8 @@ class GetUserConsentUseCaseTest {
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = targetCredentialId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
                 val otherConsent =
                     UserConsentRecord.create(
@@ -309,8 +309,8 @@ class GetUserConsentUseCaseTest {
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
                         credentialId = CredentialId.fromEncoded("b3RoZXJfaWQ"),
-                        biometricUsed = false,
-                        pinUsed = true,
+                        isBiometricUsed = false,
+                        isPinUsed = true,
                     )
 
                 coEvery {
@@ -333,16 +333,16 @@ class GetUserConsentUseCaseTest {
                         id = "target_rp_consent",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = targetRpId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
                 val otherConsent =
                     UserConsentRecord.create(
                         id = "other_rp_consent",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = RpId("https://other.com"),
-                        biometricUsed = false,
-                        pinUsed = true,
+                        isBiometricUsed = false,
+                        isPinUsed = true,
                     )
 
                 coEvery {
@@ -367,8 +367,8 @@ class GetUserConsentUseCaseTest {
                         id = "in_range_consent",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
                 val outOfRangeConsent =
                     UserConsentRecord
@@ -376,8 +376,8 @@ class GetUserConsentUseCaseTest {
                             id = "out_of_range_consent",
                             operationType = ConsentOperationType.AUTHENTICATION,
                             rpId = testRpId,
-                            biometricUsed = false,
-                            pinUsed = true,
+                            isBiometricUsed = false,
+                            isPinUsed = true,
                         ).copy(timestamp = TimeProvider().now() - 7200.seconds) // 2 hours ago
 
                 coEvery {
@@ -404,22 +404,22 @@ class GetUserConsentUseCaseTest {
                             id = "stat_reg_1",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                         ),
                         UserConsentRecord.create(
                             id = "stat_auth_1",
                             operationType = ConsentOperationType.AUTHENTICATION,
                             rpId = testRpId,
-                            biometricUsed = false,
-                            pinUsed = true,
+                            isBiometricUsed = false,
+                            isPinUsed = true,
                         ),
                         UserConsentRecord.create(
                             id = "stat_reg_other",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = RpId("https://other.com"),
-                            biometricUsed = true,
-                            pinUsed = true,
+                            isBiometricUsed = true,
+                            isPinUsed = true,
                         ),
                     )
 
@@ -451,8 +451,8 @@ class GetUserConsentUseCaseTest {
                         id = "target_stat_consent",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(targetRpConsent)
@@ -476,22 +476,22 @@ class GetUserConsentUseCaseTest {
                             id = "most_used_1",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                         ),
                         UserConsentRecord.create(
                             id = "most_used_2",
                             operationType = ConsentOperationType.AUTHENTICATION,
                             rpId = testRpId,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                         ),
                         UserConsentRecord.create(
                             id = "most_used_3",
                             operationType = ConsentOperationType.CREDENTIAL_UPDATE,
                             rpId = testRpId,
-                            biometricUsed = false,
-                            pinUsed = true,
+                            isBiometricUsed = false,
+                            isPinUsed = true,
                         ),
                     )
 
@@ -516,8 +516,8 @@ class GetUserConsentUseCaseTest {
                         id = "recent_consent",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                     )
 
                 coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(recentConsent)
@@ -541,8 +541,8 @@ class GetUserConsentUseCaseTest {
                             id = "old_consent",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                         ).copy(
                             timestamp = TimeProvider().now() - 600.seconds,
                         ) // 10 minutes ago
@@ -585,7 +585,7 @@ class GetUserConsentUseCaseTest {
                         rpId = RpId(""),
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
                 }
             }
@@ -598,7 +598,7 @@ class GetUserConsentUseCaseTest {
                         rpId = RpId("invalid-rp-id"),
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isFailure)
@@ -613,7 +613,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromByteArray(ByteArray(0)),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
                 }
             }
@@ -626,7 +626,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromByteArray(ByteArray(INVALID_CRED_ID_SIZE_1024)),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
                 }
             }
@@ -639,9 +639,9 @@ class GetUserConsentUseCaseTest {
             runTest {
                 coEvery { userVerificationService.getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = false,
-                        pinAvailable = false,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = false,
+                        isPinAvailable = false,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = emptyList(),
                         maxPinLength = 0,
                         minPinLength = 0,
@@ -653,7 +653,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isFailure)
@@ -676,7 +676,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isFailure)
@@ -704,7 +704,7 @@ class GetUserConsentUseCaseTest {
                             operationType = operationType,
                             credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
                             // Skip verification for this test
-                            requireVerification = false,
+                            isVerificationRequired = false,
                         )
 
                     assertTrue(result.isSuccess)
@@ -730,7 +730,7 @@ class GetUserConsentUseCaseTest {
                             rpId = testRpId,
                             operationType = operationType,
                             credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                            requireVerification = true,
+                            isVerificationRequired = true,
                         )
 
                     assertTrue(result.isSuccess)
@@ -750,7 +750,7 @@ class GetUserConsentUseCaseTest {
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromByteArray(ByteArray(MAX_CRED_ID_LEN_1023)),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isSuccess)
@@ -768,7 +768,7 @@ class GetUserConsentUseCaseTest {
                         rpId = httpRpId,
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
-                        requireVerification = true,
+                        isVerificationRequired = true,
                     )
 
                 assertTrue(result.isSuccess)

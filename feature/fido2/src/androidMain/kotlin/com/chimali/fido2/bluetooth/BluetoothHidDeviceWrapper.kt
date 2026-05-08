@@ -332,7 +332,7 @@ class BluetoothHidDeviceWrapper(
                 }
             }
         }
-    private var receiverRegistered = false
+    private var isReceiverRegistered = false
 
     // ── Callbacks ─────────────────────────────────────────────────────────────
 
@@ -377,7 +377,7 @@ class BluetoothHidDeviceWrapper(
                 logDiagnosticSnapshot("APP_STATUS_CHANGED")
 
                 if (registered) {
-                    if (pluggedDevice != null && BluetoothHidConfigProvider.config.requiresPhantomDisconnect) {
+                    if (pluggedDevice != null && BluetoothHidConfigProvider.config.isPhantomDisconnectRequired) {
                         // A device is already reported at registration time.
                         // This is a stale socket from a previous session — disconnect it to free
                         // the L2CAP channel for new incoming connections.
@@ -386,9 +386,9 @@ class BluetoothHidDeviceWrapper(
                                 "Disconnecting to free L2CAP socket."
                         }
                         try {
-                            val disconnected = hidDevice?.disconnect(pluggedDevice)
+                            val isDisconnected = hidDevice?.disconnect(pluggedDevice)
                             Logger.d {
-                                "disconnect(${pluggedDevice.address}) result=$disconnected — " +
+                                "disconnect(${pluggedDevice.address}) result=$isDisconnected — " +
                                     "socket should be freed for new connections."
                             }
                         } catch (e: SecurityException) {
@@ -549,7 +549,7 @@ class BluetoothHidDeviceWrapper(
         if (hidDevice != null) return Result.success(Unit)
 
         // Register adapter-state receiver for BT hardware toggle and bond-state changes.
-        if (!receiverRegistered) {
+        if (!isReceiverRegistered) {
             val filter =
                 IntentFilter().apply {
                     addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
@@ -565,7 +565,7 @@ class BluetoothHidDeviceWrapper(
             } else {
                 context.registerReceiver(bluetoothStateReceiver, filter)
             }
-            receiverRegistered = true
+            isReceiverRegistered = true
             Logger.d {
                 "BluetoothAdapter state + bond-state receiver registered (exported=" +
                     "${android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU})"
@@ -588,11 +588,11 @@ class BluetoothHidDeviceWrapper(
                             val adapterState = bluetoothAdapter?.state
                             Logger.d { "Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)" }
                             Logger.d { "Calling getProfileProxy for HID_DEVICE..." }
-                            val success =
+                            val isSuccess =
                                 bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
                                     ?: false
-                            Logger.d { "getProfileProxy returned: $success" }
-                            if (!success) {
+                            Logger.d { "getProfileProxy returned: $isSuccess" }
+                            if (!isSuccess) {
                                 Logger.e {
                                     "getProfileProxy returned false - " +
                                         "Bluetooth may be off or profile unsupported"
@@ -723,8 +723,8 @@ class BluetoothHidDeviceWrapper(
                         // exclusive HID_DEVICE registration slot.
                         Logger.d { "Step 1: Calling unregisterApp() to clear any stale registration..." }
                         try {
-                            val unregResult = hid.unregisterApp()
-                            Logger.d { "unregisterApp() result: $unregResult" }
+                            val isUnregistrationSuccessful = hid.unregisterApp()
+                            Logger.d { "unregisterApp() result: $isUnregistrationSuccessful" }
                         } catch (e: IllegalStateException) {
                             Logger.w(e) { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
                         }
@@ -749,7 +749,7 @@ class BluetoothHidDeviceWrapper(
                         val registerResult =
                             try {
                                 Logger.d("Step 3: Calling registerApp with SDP subclass COMBO and null QoS...")
-                                val callResult =
+                                val isCallSuccessful =
                                     hid.registerApp(
                                         sdp,
                                         null,
@@ -757,8 +757,8 @@ class BluetoothHidDeviceWrapper(
                                         Executors.newSingleThreadExecutor(),
                                         registrationCallback,
                                     )
-                                Logger.i { "registerApp() framework return value: $callResult" }
-                                callResult
+                                Logger.i { "registerApp() framework return value: $isCallSuccessful" }
+                                isCallSuccessful
                             } catch (e: SecurityException) {
                                 Logger.e(e) { "SecurityException in registerApp" }
                                 cont.resume(
@@ -857,9 +857,9 @@ class BluetoothHidDeviceWrapper(
 
         val report = ensureReportSize(data)
         return try {
-            val sent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
-            Logger.d { "sendReport dispatched len=${report.size} success=$sent" }
-            sent
+            val isSent = hid.sendReport(device, FIDO_REPORT_ID.toInt(), report)
+            Logger.d { "sendReport dispatched len=${report.size} success=$isSent" }
+            isSent
         } catch (e: SecurityException) {
             Logger.e(e) { "sendReport: BLUETOOTH_CONNECT permission denied" }
             false
@@ -886,10 +886,10 @@ class BluetoothHidDeviceWrapper(
     fun close() {
         Logger.d("close() called")
         unregisterApp()
-        if (receiverRegistered) {
+        if (isReceiverRegistered) {
             runCatching { context.unregisterReceiver(bluetoothStateReceiver) }
                 .onFailure { Logger.w { "close: failed to unregister BT state receiver: ${it.message}" } }
-            receiverRegistered = false
+            isReceiverRegistered = false
         }
         try {
             hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }

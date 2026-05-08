@@ -99,9 +99,9 @@ class UserVerificationServiceImpl(
 
         val result =
             UserVerificationAvailability(
-                biometricAvailable = biometricAvailable,
-                pinAvailable = pinAvailable,
-                deviceLockAvailable = pinAvailable,
+                isBiometricAvailable = biometricAvailable,
+                isPinAvailable = pinAvailable,
+                isDeviceLockAvailable = pinAvailable,
                 supportedBiometricTypes = if (biometricAvailable) listOf(BiometricType.FINGERPRINT) else emptyList(),
                 maxPinLength = MAX_PIN_LENGTH,
                 minPinLength = MIN_PIN_LENGTH,
@@ -153,7 +153,7 @@ class UserVerificationServiceImpl(
         PinConfiguration(
             minLength = MIN_PIN_LENGTH,
             maxLength = MAX_PIN_LENGTH,
-            requireComplexity = false,
+            isComplexityRequired = false,
             allowedSpecialChars = null,
             maxAttempts = DEFAULT_MAX_ATTEMPTS,
             lockoutDuration = DEFAULT_LOCKOUT_DURATION,
@@ -164,7 +164,7 @@ class UserVerificationServiceImpl(
         return Outcome.Success(Unit)
     }
 
-    override suspend fun getRecentConsentRecords(
+    override fun getRecentConsentRecords(
         rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> {

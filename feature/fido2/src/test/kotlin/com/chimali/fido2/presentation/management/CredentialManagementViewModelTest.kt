@@ -89,7 +89,7 @@ class CredentialManagementViewModelTest {
 
             assertNull(viewModel.state.value.selectedCredential)
             assertNull(viewModel.state.value.credentialToDelete)
-            assertFalse(viewModel.state.value.showDeleteAllWarning)
+            assertFalse(viewModel.state.value.isShowDeleteAllWarning)
         }
 
     @Test

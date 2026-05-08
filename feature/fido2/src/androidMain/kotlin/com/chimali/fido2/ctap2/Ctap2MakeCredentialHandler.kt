@@ -194,8 +194,8 @@ class Ctap2MakeCredentialHandler(
         // 0x07: options (optional)
         @Suppress("UNCHECKED_CAST")
         val options = (map[REQ_OPTIONS] ?: map["options"]) as? Map<*, *>
-        val requireUserVerification = options?.get("uv") as? Boolean ?: false
-        val requireResidentKey = options?.get("rk") as? Boolean ?: false
+        val isUvRequired = options?.get("uv") as? Boolean ?: false
+        val isRkRequired = options?.get("rk") as? Boolean ?: false
 
         // 0x0A / "extensions": optional FIDO2.1 extension map
         // T045: Parse hmac-secret (PRF) extension — extract salt1 and optional salt2.
@@ -231,8 +231,8 @@ class Ctap2MakeCredentialHandler(
             userName = userName,
             userDisplayName = userDisplayName,
             algorithms = algorithms,
-            requireUV = requireUserVerification,
-            requireRK = requireResidentKey,
+            isUvRequired = isUvRequired,
+            isRkRequired = isRkRequired,
             credProtectPolicy = credProtectPolicy,
             prfInput = prfInput,
         )
@@ -493,8 +493,8 @@ private data class MakeCredentialRequest(
     val userName: String,
     val userDisplayName: String,
     val algorithms: List<Int>,
-    val requireUV: Boolean,
-    val requireRK: Boolean,
+    val isUvRequired: Boolean,
+    val isRkRequired: Boolean,
     /**
      * T056a — FIDO2.1 credProtect policy from the client extensions map (key 0x0A).
      *   1 = credProtectOptional (default if absent)
@@ -517,8 +517,8 @@ private data class MakeCredentialRequest(
         if (userName != other.userName) return false
         if (userDisplayName != other.userDisplayName) return false
         if (algorithms != other.algorithms) return false
-        if (requireUV != other.requireUV) return false
-        if (requireRK != other.requireRK) return false
+        if (isUvRequired != other.isUvRequired) return false
+        if (isRkRequired != other.isRkRequired) return false
         if (credProtectPolicy != other.credProtectPolicy) return false
 
         return true
@@ -532,8 +532,8 @@ private data class MakeCredentialRequest(
         result = 31 * result + userName.hashCode()
         result = 31 * result + userDisplayName.hashCode()
         result = 31 * result + algorithms.hashCode()
-        result = 31 * result + requireUV.hashCode()
-        result = 31 * result + requireRK.hashCode()
+        result = 31 * result + isUvRequired.hashCode()
+        result = 31 * result + isRkRequired.hashCode()
         result = 31 * result + (credProtectPolicy ?: 0)
         return result
     }

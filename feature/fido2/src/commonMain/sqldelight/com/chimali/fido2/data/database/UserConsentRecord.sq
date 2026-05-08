@@ -1,5 +1,5 @@
 insert:
-INSERT INTO UserConsentRecord (id, timestamp, biometricUsed, credentialId, deviceId, ipAddress, operationType, pinUsed, rpId, userAgent)
+INSERT INTO UserConsentRecord (id, timestamp, isBiometricUsed, credentialId, deviceId, ipAddress, operationType, isPinUsed, rpId, userAgent)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectById:
@@ -43,17 +43,17 @@ SELECT * FROM UserConsentRecord WHERE rpId = :deviceId LIMIT :limit;
 selectByIpAddress:
 SELECT * FROM UserConsentRecord WHERE rpId = :ipAddress LIMIT :limit;
 selectBiometricByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 LIMIT :limit;
 selectBiometric:
-SELECT * FROM UserConsentRecord WHERE biometricUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE isBiometricUsed > 0 LIMIT :limit;
 selectPinByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND pinUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isPinUsed > 0 LIMIT :limit;
 selectPin:
-SELECT * FROM UserConsentRecord WHERE pinUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE isPinUsed > 0 LIMIT :limit;
 selectCombinedByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 AND pinUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 AND isPinUsed > 0 LIMIT :limit;
 selectCombined:
-SELECT * FROM UserConsentRecord WHERE biometricUsed > 0 AND pinUsed > 0 LIMIT :limit;
+SELECT * FROM UserConsentRecord WHERE isBiometricUsed > 0 AND isPinUsed > 0 LIMIT :limit;
 selectByTimestamp:
 SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
 search:
@@ -75,17 +75,17 @@ SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId;
 countByCredentialId:
 SELECT count(*) FROM UserConsentRecord WHERE credentialId = :credentialId;
 countBiometricByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0;
 countBiometric:
-SELECT count(*) FROM UserConsentRecord WHERE biometricUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE isBiometricUsed > 0;
 countPinByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND pinUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isPinUsed > 0;
 countPin:
-SELECT count(*) FROM UserConsentRecord WHERE pinUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE isPinUsed > 0;
 countCombinedByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND biometricUsed > 0 AND pinUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 AND isPinUsed > 0;
 countCombined:
-SELECT count(*) FROM UserConsentRecord WHERE biometricUsed > 0 AND pinUsed > 0;
+SELECT count(*) FROM UserConsentRecord WHERE isBiometricUsed > 0 AND isPinUsed > 0;
 existsById:
 SELECT count(*) > 0 FROM UserConsentRecord WHERE id = :id;
 getStatisticsByOperation:

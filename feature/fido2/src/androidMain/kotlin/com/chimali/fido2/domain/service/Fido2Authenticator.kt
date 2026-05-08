@@ -39,7 +39,7 @@ interface Fido2Authenticator {
      *
      * @return Flow of stored credentials
      */
-    suspend fun getCredentials(): Flow<PasskeyCredential>
+    fun getCredentials(): Flow<PasskeyCredential>
 
     /**
      * Retrieves credentials for a specific relying party.
@@ -47,7 +47,7 @@ interface Fido2Authenticator {
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
      */
-    suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
+    fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
      * Deletes a credential from the authenticator.
@@ -177,10 +177,10 @@ interface Fido2Authenticator {
  * Data class representing verification preferences.
  */
 data class VerificationPreferences(
-    val requireUserVerification: Boolean,
+    val isUserVerificationRequired: Boolean,
     val preferredVerificationMethod: VerificationMethod,
-    val allowBiometricFallback: Boolean,
-    val allowPinFallback: Boolean,
+    val isBiometricFallbackAllowed: Boolean,
+    val isPinFallbackAllowed: Boolean,
     val biometricTimeoutMs: Long,
     val pinTimeoutMs: Long,
     val maxVerificationAttempts: Int,
@@ -218,10 +218,10 @@ data class VerificationPreferences(
          */
         fun createDefault(): VerificationPreferences =
             VerificationPreferences(
-                requireUserVerification = true,
+                isUserVerificationRequired = true,
                 preferredVerificationMethod = VerificationMethod.BIOMETRIC,
-                allowBiometricFallback = true,
-                allowPinFallback = true,
+                isBiometricFallbackAllowed = true,
+                isPinFallbackAllowed = true,
                 // 30 seconds
                 biometricTimeoutMs = DEFAULT_VERIFICATION_TIMEOUT_MS,
                 // 60 seconds
@@ -239,8 +239,8 @@ data class AuthenticatorInfo(
     val version: String,
     val supportedAlgorithms: List<String>,
     val supportedTransports: List<AuthenticatorTransport>,
-    val supportsResidentKeys: Boolean,
-    val supportsUserVerification: Boolean,
+    val isResidentKeySupported: Boolean,
+    val isUserVerificationSupported: Boolean,
     val maxCredentialCount: Int,
     val maxCredentialIdLength: Int,
     val firmwareVersion: String,
@@ -273,10 +273,10 @@ data class AuthenticatorInfo(
  * Data class representing authenticator configuration.
  */
 data class AuthenticatorConfiguration(
-    val requireUserVerification: Boolean,
+    val isUserVerificationRequired: Boolean,
     val allowedAlgorithms: List<String>,
     val allowedTransports: List<AuthenticatorTransport>,
-    val enableResidentKeys: Boolean,
+    val isResidentKeysEnabled: Boolean,
     val maxCredentialCount: Int,
     val biometricSettings: BiometricSettings?,
     val pinSettings: PinSettings?,
@@ -312,7 +312,7 @@ data class BiometricSettings(
     val requiredStrength: BiometricStrength,
     val timeoutMs: Long,
     val maxAttempts: Int,
-    val allowFallback: Boolean,
+    val isFallbackAllowed: Boolean,
 ) {
     /**
      * Checks if a specific biometric type is enabled.
@@ -331,18 +331,18 @@ data class BiometricSettings(
 data class PinSettings(
     val minLength: Int,
     val maxLength: Int,
-    val requireComplexity: Boolean,
+    val isComplexityRequired: Boolean,
     val allowedSpecialChars: String?,
     val maxAttempts: Int,
     val lockoutDurationMs: Long,
-    val allowBiometricFallback: Boolean,
+    val isBiometricFallbackAllowed: Boolean,
 ) {
     /**
      * Validates a PIN against these settings.
      */
     fun validatePin(pin: String): Boolean {
         if (pin.length !in minLength..maxLength) return false
-        if (requireComplexity && !meetsComplexityRequirements(pin)) return false
+        if (isComplexityRequired && !meetsComplexityRequirements(pin)) return false
         return true
     }
 
@@ -350,7 +350,7 @@ data class PinSettings(
      * Checks if PIN meets complexity requirements.
      */
     private fun meetsComplexityRequirements(pin: String): Boolean {
-        if (!requireComplexity) return true
+        if (!isComplexityRequired) return true
 
         val hasLetter = pin.any { it.isLetter() }
         val hasDigit = pin.any { it.isDigit() }
@@ -426,7 +426,7 @@ data class PairingRequest(
  * Data class representing pairing result.
  */
 data class PairingResult(
-    val success: Boolean,
+    val isSuccess: Boolean,
     val pairingId: String?,
     val errorMessage: String?,
     val timestamp: Instant,
@@ -434,7 +434,7 @@ data class PairingResult(
     /**
      * Checks if pairing was successful.
      */
-    fun isSuccessful(): Boolean = success
+    fun isSuccessful(): Boolean = isSuccess
 }
 
 /**

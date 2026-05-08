@@ -50,5 +50,5 @@ data class BluetoothHidConfig(
      * Confirmed necessary on Motorola G-series; harmless on other OEMs because
      * the code path only triggers when a non-null `pluggedDevice` is reported.
      */
-    val requiresPhantomDisconnect: Boolean = true,
+    val isPhantomDisconnectRequired: Boolean = true,
 )

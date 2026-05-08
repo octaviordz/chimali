@@ -100,7 +100,7 @@ class DevToolsViewModelTest {
 
             val state = viewModel.state.value
             assertFalse(state.isLoading)
-            assertTrue(state.recoverSuccess)
+            assertTrue(state.isRecoverSuccessful)
             assertNull(state.error)
         }
 
@@ -110,7 +110,7 @@ class DevToolsViewModelTest {
             viewModel.onIntent(DevToolsIntent.RecoverFromSeed(listOf("word1", "word2")))
 
             val state = viewModel.state.value
-            assertFalse(state.recoverSuccess)
+            assertFalse(state.isRecoverSuccessful)
             assertNotNull(state.error)
             assertTrue(state.error.contains("2"))
         }

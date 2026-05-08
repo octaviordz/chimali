@@ -21,8 +21,10 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **CI Pipeline & Quality Hardening**:
     - Resolved build-blocking `ktlint` violations related to backing property naming and orphan KDoc comments in the FIDO2 module.
     - Migrated UI components to modern `AutoMirrored` icons and `lifecycle-runtime-compose` APIs to eliminate deprecation warnings.
+- **FIDO2 Database Migration & Baseline Cleanup**:
+    - Implemented SQLDelight migration `8.sqm` to safely rename `biometricUsed` and `pinUsed` columns to `isBiometricUsed` and `isPinUsed` across the `UserConsentRecord` table, avoiding schema crashes for existing users while satisfying strict Detekt Boolean naming rules.
+    - Fully deleted `detekt-baseline-main.xml` as `feature:fido2` is now 100% compliant with all configured static analysis quality gates.
 - **Detailed changes**: [2026-05-07-fido2-quality-hardening-and-outcome-finalization.md](docs/changelogs/2026-05-07-fido2-quality-hardening-and-outcome-finalization.md)
-
 ## [Unreleased] - 2026-05-06
     
 ### Added

@@ -150,9 +150,9 @@ class MultiAlgorithmIntegrationTest {
             mockk {
                 coEvery { getUserVerificationAvailability() } returns
                     UserVerificationAvailability(
-                        biometricAvailable = true,
-                        pinAvailable = true,
-                        deviceLockAvailable = false,
+                        isBiometricAvailable = true,
+                        isPinAvailable = true,
+                        isDeviceLockAvailable = false,
                         supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
                         maxPinLength = MAX_PIN_LENGTH,
                         minPinLength = MIN_PIN_LENGTH,
@@ -309,7 +309,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     override suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? =
         credentials[credentialId.encoded]
 
-    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
+    override fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
         flowOf(
             *credentials.values
                 .filter {
@@ -317,7 +317,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
                 }.toTypedArray(),
         )
 
-    override suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
+    override fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
         flowOf(
             *credentials.values
                 .filter {
@@ -325,7 +325,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
                 }.toTypedArray(),
         )
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
+    override fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
 
     override suspend fun getPagedCredentials(
         limit: Long,
@@ -378,20 +378,20 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         userId: UserId,
     ): Boolean = false
 
-    override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
+    override fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun getCredentialCountByRpId(rpId: RpId): Int = 0
 
-    override suspend fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
+    override fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
+    override fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun validateCredentialCreation(
         rpId: RpId,
         userId: UserId,
     ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
+    override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
@@ -404,7 +404,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
 
     override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
-    override suspend fun getRecentUserConsent(
+    override fun getRecentUserConsent(
         rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> = emptyFlow()

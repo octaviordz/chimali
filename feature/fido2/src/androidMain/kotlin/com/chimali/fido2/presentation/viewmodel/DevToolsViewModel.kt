@@ -28,7 +28,7 @@ data class DevToolsUiState(
     val isMnemonicVisible: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val recoverSuccess: Boolean = false,
+    val isRecoverSuccessful: Boolean = false,
 )
 
 // ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ class DevToolsViewModel(
             it.copy(
                 mnemonicWords = null,
                 isMnemonicVisible = false,
-                recoverSuccess = false,
+                isRecoverSuccessful = false,
                 error = null,
             )
         }
@@ -206,7 +206,7 @@ class DevToolsViewModel(
                         is ImportMnemonicResult.Replaced ->
                             "⚠️ Existing seed overwritten. Re-registration required for previous credentials."
                     }
-                _state.update { it.copy(isLoading = false, recoverSuccess = true) }
+                _state.update { it.copy(isLoading = false, isRecoverSuccessful = true) }
                 _effects.send(DevToolsEffect.ShowSnackbar(message))
             } catch (e: IllegalArgumentException) {
                 Logger.e(e) { "Invalid mnemonic provided for recovery" }

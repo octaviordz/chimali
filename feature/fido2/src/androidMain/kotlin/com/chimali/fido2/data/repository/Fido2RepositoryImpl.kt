@@ -29,7 +29,7 @@ class Fido2RepositoryImpl(
         return Outcome.Success(CredentialId.fromEncoded("mock-authentication-id"))
     }
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> = credentialRepository.getAllCredentials()
+    override fun getAllCredentials(): Flow<PasskeyCredential> = credentialRepository.getAllCredentials()
 
     override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
         credentialRepository.deleteCredential(credentialId)

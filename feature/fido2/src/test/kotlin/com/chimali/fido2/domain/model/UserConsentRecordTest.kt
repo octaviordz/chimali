@@ -60,8 +60,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -73,8 +73,8 @@ class UserConsentRecordTest {
                 assertEquals(testRpId, consent.rpId)
                 assertEquals(testCredentialId, consent.credentialId)
                 assertEquals(testTimestamp, consent.timestamp)
-                assertTrue(consent.biometricUsed)
-                assertFalse(consent.pinUsed)
+                assertTrue(consent.isBiometricUsed)
+                assertFalse(consent.isPinUsed)
                 assertEquals(testIpAddress, consent.ipAddress)
                 assertEquals(testUserAgent, consent.userAgent)
                 assertEquals(testDeviceId, consent.deviceId)
@@ -90,8 +90,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = null,
                         timestamp = testTimestamp,
-                        biometricUsed = false,
-                        pinUsed = true,
+                        isBiometricUsed = false,
+                        isPinUsed = true,
                         ipAddress = null,
                         userAgent = null,
                         deviceId = null,
@@ -103,8 +103,8 @@ class UserConsentRecordTest {
                 assertEquals(testRpId, consent.rpId)
                 assertNull(consent.credentialId)
                 assertEquals(testTimestamp, consent.timestamp)
-                assertFalse(consent.biometricUsed)
-                assertTrue(consent.pinUsed)
+                assertFalse(consent.isBiometricUsed)
+                assertTrue(consent.isPinUsed)
                 assertNull(consent.ipAddress)
                 assertNull(consent.userAgent)
                 assertNull(consent.deviceId)
@@ -120,8 +120,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -139,8 +139,8 @@ class UserConsentRecordTest {
                         rpId = RpId(""),
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -158,8 +158,8 @@ class UserConsentRecordTest {
                         rpId = RpId("ftp://invalid-rp-id"),
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -178,8 +178,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = futureTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -197,8 +197,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = CredentialId.fromByteArray(ByteArray(0)),
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -216,8 +216,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = CredentialId.fromByteArray(ByteArray(INVALID_CRED_ID_SIZE_1024)),
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -235,8 +235,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = "invalid-ip",
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -254,8 +254,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = "",
                         deviceId = testDeviceId,
@@ -273,8 +273,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = "",
@@ -295,8 +295,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = false,
-                        pinUsed = false,
+                        isBiometricUsed = false,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -319,8 +319,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -373,13 +373,13 @@ class UserConsentRecordTest {
             runTest {
                 assertEquals(ConsentMethod.BIOMETRIC, consent.getConsentMethod())
 
-                val pinConsent = consent.copy(biometricUsed = false, pinUsed = true)
+                val pinConsent = consent.copy(isBiometricUsed = false, isPinUsed = true)
                 assertEquals(ConsentMethod.PIN, pinConsent.getConsentMethod())
 
-                val combinedConsent = consent.copy(biometricUsed = true, pinUsed = true)
+                val combinedConsent = consent.copy(isBiometricUsed = true, isPinUsed = true)
                 assertEquals(ConsentMethod.BIOMETRIC_AND_PIN, combinedConsent.getConsentMethod())
 
-                val noConsent = consent.copy(biometricUsed = false, pinUsed = false)
+                val noConsent = consent.copy(isBiometricUsed = false, isPinUsed = false)
                 assertEquals(ConsentMethod.NONE, noConsent.getConsentMethod())
             }
 
@@ -422,8 +422,8 @@ class UserConsentRecordTest {
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
                         credentialId = testCredentialId,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
@@ -433,8 +433,8 @@ class UserConsentRecordTest {
                 assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
                 assertEquals(testRpId, consent.rpId)
                 assertEquals(testCredentialId, consent.credentialId)
-                assertTrue(consent.biometricUsed)
-                assertFalse(consent.pinUsed)
+                assertTrue(consent.isBiometricUsed)
+                assertFalse(consent.isPinUsed)
                 assertEquals(testIpAddress, consent.ipAddress)
                 assertEquals(testUserAgent, consent.userAgent)
                 assertEquals(testDeviceId, consent.deviceId)
@@ -450,16 +450,16 @@ class UserConsentRecordTest {
                         id = "minimal_id",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
-                        biometricUsed = false,
-                        pinUsed = true,
+                        isBiometricUsed = false,
+                        isPinUsed = true,
                     )
 
                 assertNotNull(consent)
                 assertEquals(ConsentOperationType.AUTHENTICATION, consent.operationType)
                 assertEquals(testRpId, consent.rpId)
                 assertNull(consent.credentialId)
-                assertFalse(consent.biometricUsed)
-                assertTrue(consent.pinUsed)
+                assertFalse(consent.isBiometricUsed)
+                assertTrue(consent.isPinUsed)
                 assertNull(consent.ipAddress)
                 assertNull(consent.userAgent)
                 assertNull(consent.deviceId)
@@ -498,8 +498,8 @@ class UserConsentRecordTest {
                             rpId = testRpId,
                             credentialId = testCredentialId,
                             timestamp = testTimestamp,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                             ipAddress = ip,
                             userAgent = testUserAgent,
                             deviceId = testDeviceId,
@@ -529,8 +529,8 @@ class UserConsentRecordTest {
                             rpId = testRpId,
                             credentialId = testCredentialId,
                             timestamp = testTimestamp,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                             ipAddress = ip,
                             userAgent = testUserAgent,
                             deviceId = testDeviceId,
@@ -564,8 +564,8 @@ class UserConsentRecordTest {
                             rpId = testRpId,
                             credentialId = testCredentialId,
                             timestamp = testTimestamp,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                             ipAddress = ip,
                             userAgent = testUserAgent,
                             deviceId = testDeviceId,
@@ -591,8 +591,8 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = CredentialId.fromByteArray(ByteArray(MAX_CRED_ID_LEN_1023)),
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = false,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
                         ipAddress = maxIpAddress,
                         userAgent = maxUserAgent,
                         deviceId = maxDeviceId,
@@ -624,8 +624,8 @@ class UserConsentRecordTest {
                             rpId = testRpId,
                             credentialId = testCredentialId,
                             timestamp = testTimestamp,
-                            biometricUsed = true,
-                            pinUsed = false,
+                            isBiometricUsed = true,
+                            isPinUsed = false,
                             ipAddress = testIpAddress,
                             userAgent = testUserAgent,
                             deviceId = testDeviceId,
@@ -646,16 +646,16 @@ class UserConsentRecordTest {
                         rpId = testRpId,
                         credentialId = testCredentialId,
                         timestamp = testTimestamp,
-                        biometricUsed = true,
-                        pinUsed = true,
+                        isBiometricUsed = true,
+                        isPinUsed = true,
                         ipAddress = testIpAddress,
                         userAgent = testUserAgent,
                         deviceId = testDeviceId,
                     )
 
                 assertNotNull(consent)
-                assertTrue(consent.biometricUsed)
-                assertTrue(consent.pinUsed)
+                assertTrue(consent.isBiometricUsed)
+                assertTrue(consent.isPinUsed)
                 assertEquals(ConsentMethod.BIOMETRIC_AND_PIN, consent.getConsentMethod())
             }
     }

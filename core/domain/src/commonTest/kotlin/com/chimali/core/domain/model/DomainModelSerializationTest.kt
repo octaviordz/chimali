@@ -68,8 +68,8 @@ class DomainModelSerializationTest {
                 rpId = RpId("https://example.com"),
                 credentialId = CredentialId.fromByteArray("test-id".encodeToByteArray()),
                 timestamp = Clock.System.now(),
-                biometricUsed = true,
-                pinUsed = false,
+                isBiometricUsed = true,
+                isPinUsed = false,
                 ipAddress = "127.0.0.1",
                 userAgent = "Mozilla/5.0",
                 deviceId = "device-123",
@@ -83,8 +83,8 @@ class DomainModelSerializationTest {
         assertEquals(record.rpId, decoded.rpId)
         assertEquals(record.credentialId, decoded.credentialId)
         assertEquals(record.timestamp, decoded.timestamp)
-        assertEquals(record.biometricUsed, decoded.biometricUsed)
-        assertEquals(record.pinUsed, decoded.pinUsed)
+        assertEquals(record.isBiometricUsed, decoded.isBiometricUsed)
+        assertEquals(record.isPinUsed, decoded.isPinUsed)
         assertEquals(record.ipAddress, decoded.ipAddress)
         assertEquals(record.userAgent, decoded.userAgent)
         assertEquals(record.deviceId, decoded.deviceId)

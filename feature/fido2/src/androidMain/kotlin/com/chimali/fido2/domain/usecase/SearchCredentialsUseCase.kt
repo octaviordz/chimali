@@ -12,6 +12,5 @@ import org.koin.core.annotation.Factory
 class SearchCredentialsUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
-    suspend operator fun invoke(query: String): Flow<PasskeyCredential> =
-        passkeyCredentialRepository.searchCredentials(query)
+    operator fun invoke(query: String): Flow<PasskeyCredential> = passkeyCredentialRepository.searchCredentials(query)
 }

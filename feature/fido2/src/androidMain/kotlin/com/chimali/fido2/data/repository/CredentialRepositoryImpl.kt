@@ -95,7 +95,7 @@ class CredentialRepositoryImpl(
     }
 
     /** Interface returns Flow<PasskeyCredential> (individual items emitted from a list). */
-    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
+    override fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
         flow {
             try {
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
@@ -106,7 +106,7 @@ class CredentialRepositoryImpl(
             }
         }
 
-    override suspend fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
+    override fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
         flow {
             try {
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
@@ -117,7 +117,7 @@ class CredentialRepositoryImpl(
             }
         }
 
-    override suspend fun getAllCredentials(): Flow<PasskeyCredential> =
+    override fun getAllCredentials(): Flow<PasskeyCredential> =
         flow {
             try {
                 passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
@@ -319,7 +319,7 @@ class CredentialRepositoryImpl(
 
     // ── Querying / searching ──────────────────────────────────────────────────
 
-    override suspend fun searchCredentials(query: String): Flow<PasskeyCredential> =
+    override fun searchCredentials(query: String): Flow<PasskeyCredential> =
         flow {
             try {
                 val lq = query.lowercase()
@@ -335,7 +335,7 @@ class CredentialRepositoryImpl(
             }
         }
 
-    override suspend fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> =
+    override fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> =
         flow {
             try {
                 val cutoff = timeProvider.now() - days.days
@@ -355,7 +355,7 @@ class CredentialRepositoryImpl(
             }
         }
 
-    override suspend fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> =
+    override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> =
         flow {
             try {
                 passkeyCredentialDao
@@ -370,7 +370,7 @@ class CredentialRepositoryImpl(
             }
         }
 
-    override suspend fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> =
+    override fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> =
         flow {
             try {
                 val cutoff = timeProvider.now() - maxAgeDays.days
@@ -474,7 +474,7 @@ class CredentialRepositoryImpl(
             Outcome.Error(DomainError.DatabaseError(e.message ?: UNKNOWN_ERROR, e))
         }
 
-    override suspend fun getRecentUserConsent(
+    override fun getRecentUserConsent(
         rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> =

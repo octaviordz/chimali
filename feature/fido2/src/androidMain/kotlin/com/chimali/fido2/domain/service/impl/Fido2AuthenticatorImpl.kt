@@ -64,9 +64,9 @@ class Fido2AuthenticatorImpl(
     override suspend fun getAssertion(assertionOptions: GetAssertionOptions): Outcome<AssertionObject, DomainError> =
         Outcome.Error(DomainError.UnknownError("Not implemented"))
 
-    override suspend fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
+    override fun getCredentials(): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> = emptyFlow()
+    override fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun deleteCredential(
         credentialId: CredentialId,
@@ -94,8 +94,8 @@ class Fido2AuthenticatorImpl(
             // per WebAuthn L3 §5.4. Order mirrors Ctap2MakeCredentialHandler preference list.
             supportedAlgorithms = listOf("ES256", "EdDSA", "RS256", "ML-DSA"),
             supportedTransports = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE),
-            supportsResidentKeys = true,
-            supportsUserVerification = true,
+            isResidentKeySupported = true,
+            isUserVerificationSupported = true,
             maxCredentialCount = MAX_CREDENTIAL_COUNT,
             maxCredentialIdLength = MAX_CREDENTIAL_ID_LENGTH,
             firmwareVersion = "1.0",
@@ -119,10 +119,10 @@ class Fido2AuthenticatorImpl(
 
     override suspend fun getAuthenticatorConfiguration(): AuthenticatorConfiguration =
         AuthenticatorConfiguration(
-            requireUserVerification = true,
+            isUserVerificationRequired = true,
             allowedAlgorithms = listOf("ES256"),
             allowedTransports = listOf(AuthenticatorTransport.BLE),
-            enableResidentKeys = true,
+            isResidentKeysEnabled = true,
             maxCredentialCount = MAX_CREDENTIAL_COUNT,
             biometricSettings = null,
             pinSettings = null,

@@ -24,12 +24,12 @@ class UserConsentRecordDao(
         database.userConsentRecordQueries.insert(
             id = consent.id,
             timestamp = consent.timestamp.toEpochMilliseconds(),
-            biometricUsed = if (consent.biometricUsed) 1L else 0L,
+            isBiometricUsed = if (consent.isBiometricUsed) 1L else 0L,
             credentialId = consent.credentialId?.encoded,
             deviceId = consent.deviceId,
             ipAddress = consent.ipAddress,
             operationType = consent.operationType.name,
-            pinUsed = if (consent.pinUsed) 1L else 0L,
+            isPinUsed = if (consent.isPinUsed) 1L else 0L,
             rpId = consent.rpId.value,
             userAgent = consent.userAgent,
         )
