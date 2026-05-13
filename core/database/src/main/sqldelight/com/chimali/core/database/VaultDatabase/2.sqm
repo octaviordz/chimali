@@ -1,0 +1,18 @@
+-- Migration 2: Add Event Sourcing Infrastructure
+-- This migration adds the EventStore and SnapshotStore tables to support aggregate hydration.
+
+CREATE TABLE EventStore (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL, -- Encrypted JSON
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+
+CREATE TABLE SnapshotStore (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL, -- Encrypted JSON
+    PRIMARY KEY (aggregate_id, sequence_number)
+);

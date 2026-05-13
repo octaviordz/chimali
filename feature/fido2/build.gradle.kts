@@ -13,7 +13,6 @@ sqldelight {
         create("Fido2Database") {
             packageName.set("com.chimali.fido2.data.database")
             dialect("app.cash.sqldelight:sqlite-3-38-dialect:${libs.versions.sqldelight.get()}")
-            version = 3
         }
     }
 }
