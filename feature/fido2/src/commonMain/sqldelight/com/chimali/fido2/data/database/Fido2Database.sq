@@ -83,3 +83,66 @@ FROM RelyingParty rp
 LEFT JOIN UserConsentRecord ucr ON rp.id = ucr.rpId
 GROUP BY rp.id, rp.name, rp.credentialCount;
 
+-- Event Sourcing Infrastructure
+CREATE TABLE EventStore (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL, -- Encrypted JSON
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+
+CREATE TABLE SnapshotStore (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL, -- Encrypted JSON
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+
+-- EventStore Queries
+insertEvent:
+INSERT INTO EventStore (aggregate_id, sequence_number, timestamp, payload)
+VALUES (?, ?, ?, ?);
+
+getEvents:
+SELECT * FROM EventStore 
+WHERE aggregate_id = ? 
+AND timestamp <= ? 
+ORDER BY sequence_number ASC;
+
+getEventsFrom:
+SELECT * FROM EventStore 
+WHERE aggregate_id = ? 
+AND sequence_number > ? 
+ORDER BY sequence_number ASC;
+
+-- SnapshotStore Queries
+insertSnapshot:
+INSERT INTO SnapshotStore (aggregate_id, sequence_number, timestamp, payload)
+VALUES (?, ?, ?, ?);
+
+getLatestSnapshot:
+SELECT * FROM SnapshotStore 
+WHERE aggregate_id = ? 
+ORDER BY sequence_number DESC 
+LIMIT 1;
+
+deleteOldSnapshots:
+DELETE FROM SnapshotStore 
+WHERE aggregate_id = ? 
+AND sequence_number NOT IN (
+    SELECT sequence_number FROM SnapshotStore 
+    WHERE aggregate_id = ? 
+    ORDER BY sequence_number DESC 
+    LIMIT 2
+);
+
+truncateAll:
+DELETE FROM PasskeyCredential;
+DELETE FROM RelyingParty;
+DELETE FROM UserConsentRecord;
+DELETE FROM BluetoothHidSession;
+DELETE FROM EventStore;
+DELETE FROM SnapshotStore;
+

@@ -6,6 +6,9 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.onFailure
 import com.chimali.core.common.result.onSuccess
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -47,6 +50,7 @@ class CredentialRepositoryImpl(
     private val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder,
     private val corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker,
     private val timeProvider: TimeProvider,
+    private val aggregateService: AggregateService<PasskeyCommand, PasskeyState>,
     @Named("IoDispatcher") private val ioDispatcher: CoroutineDispatcher,
 ) : CredentialRepository {
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
@@ -62,6 +66,36 @@ class CredentialRepositoryImpl(
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
         return try {
+            // Event Sourcing: Dispatch Register command
+            val command =
+                PasskeyCommand.Register(
+                    id = credential.id.encoded,
+                    rpId = credential.rpId.value,
+                    userId = credential.userId.value,
+                    userName = credential.userName,
+                    userDisplayName = credential.userDisplayName,
+                    credentialId = credential.id.toByteArray(),
+                    publicKey =
+                        java.util.Base64
+                            .getEncoder()
+                            .encodeToString(credential.publicKey.encoded),
+                    aaguid =
+                        java.util.Base64
+                            .getEncoder()
+                            .encodeToString(credential.aaguid),
+                    signCount = credential.signCount,
+                )
+
+            val aggregateResult = aggregateService.execute(credential.id.encoded, command)
+            if (aggregateResult.isFailure) {
+                return Outcome.Error(
+                    DomainError.StorageError(
+                        "Failed to persist passkey event: ${aggregateResult.exceptionOrNull()?.message}",
+                    ),
+                )
+            }
+
+            // Sync with read model (SQL)
             // Re-registering the same user for the same RP replaces the existing credential.
             val existingEntities =
                 passkeyCredentialDao.getCredentialsByRpIdAndUserId(credential.rpId, credential.userId)
@@ -189,6 +223,18 @@ class CredentialRepositoryImpl(
 
     override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
         try {
+            // Event Sourcing: Dispatch Delete command
+            val aggregateResult =
+                aggregateService.execute(
+                    credentialId.encoded,
+                    PasskeyCommand.Delete(credentialId.encoded),
+                )
+            if (aggregateResult.isFailure) {
+                Logger.w {
+                    "Failed to persist delete event for ${credentialId.encoded}, continuing with read-model deletion"
+                }
+            }
+
             cryptoService.deleteCredentialKey(credentialId)
             passkeyCredentialDao.deleteCredential(credentialId)
             Outcome.Success(Unit)
@@ -218,6 +264,16 @@ class CredentialRepositoryImpl(
         newSignCount: Long,
     ): Outcome<Unit, DomainError> =
         try {
+            // Event Sourcing: Dispatch Authenticate command (updates signCount and lastUsedAt)
+            val aggregateResult =
+                aggregateService.execute(
+                    credentialId.encoded,
+                    PasskeyCommand.Authenticate(credentialId.encoded, newSignCount),
+                )
+            if (aggregateResult.isFailure) {
+                Logger.w { "Failed to persist authentication event for ${credentialId.encoded}" }
+            }
+
             passkeyCredentialDao.updateSignCount(credentialId, newSignCount)
             Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
@@ -227,6 +283,17 @@ class CredentialRepositoryImpl(
 
     override suspend fun updateLastUsedAt(credentialId: CredentialId): Outcome<Unit, DomainError> =
         try {
+            // Event Sourcing: Dispatch Authenticate command with current sign count to update lastUsedAt
+            val currentSignCount = passkeyCredentialDao.getSignCount(credentialId)
+            val aggregateResult =
+                aggregateService.execute(
+                    credentialId.encoded,
+                    PasskeyCommand.Authenticate(credentialId.encoded, currentSignCount),
+                )
+            if (aggregateResult.isFailure) {
+                Logger.w { "Failed to persist authentication event for ${credentialId.encoded}" }
+            }
+
             passkeyCredentialDao.updateLastUsedAt(credentialId)
             Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {

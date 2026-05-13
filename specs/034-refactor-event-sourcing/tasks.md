@@ -35,10 +35,10 @@ description: "Task list for Event Sourcing Model Integration"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 [P] Setup EventStore and Snapshot SQL schemas for Vault in `core/database/src/main/sqldelight/com/chimali/core/database/Vault.sq`
-- [ ] T006 [P] Setup EventStore and Snapshot SQL schemas for Passkey in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq`
-- [ ] T007 Rename the core database from `ChimaliDatabase` to `VaultDatabase` in both SQLDelight schema files and Kotlin DI modules (`DatabaseModule.kt`, `VaultModule.kt`).
-- [ ] T008 Add SQLDelight data truncation migration scripts for both databases to automatically clear existing `VaultEntry` and `PasskeyCredential` data.
+- [x] T005 [P] Setup EventStore and Snapshot SQL schemas for Vault in `core/database/src/main/sqldelight/com/chimali/core/database/Vault.sq`
+- [x] T006 [P] Setup EventStore and Snapshot SQL schemas for Passkey in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq`
+- [x] T007 Rename the core database from `ChimaliDatabase` to `VaultDatabase` in both SQLDelight schema files and Kotlin DI modules (`DatabaseModule.kt`, `VaultModule.kt`).
+- [x] T008 Add SQLDelight data truncation migration scripts for both databases to automatically clear existing `VaultEntry` and `PasskeyCredential` data.
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -52,25 +52,25 @@ description: "Task list for Event Sourcing Model Integration"
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test for VaultDecider pure functions in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/VaultDeciderTest.kt`
-- [ ] T009 [P] [US1] Unit test for PasskeyDecider pure functions in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/PasskeyDeciderTest.kt`
-- [ ] T010 [P] [US1] Integration test for Vault Aggregate Service in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt`
+- [x] T008 [P] [US1] Unit test for VaultDecider pure functions in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/vault/VaultDeciderTest.kt`
+- [x] T009 [P] [US1] Unit test for PasskeyDecider pure functions in `core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/passkey/PasskeyDeciderTest.kt`
+- [x] T010 [P] [US1] Integration test for Vault Aggregate Service in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt`
 
 ### Implementation for User Story 1 (Vault Aggregate)
 
-- [ ] T011 [P] [US1] Create `VaultEvent.kt`, `VaultCommand.kt`, and `VaultState.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/vault/`. All event and state classes MUST be annotated with `@Serializable` (KMP-compatible).
-- [ ] T012 [US1] Implement `VaultDecider.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/vault/`
-- [ ] T013 [US1] Implement `EventStoreRepositoryImpl.kt` for VaultDatabase in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
-- [ ] T014 [US1] Implement `VaultAggregateServiceImpl.kt` with append and retry logic in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
-- [ ] T015 [US1] Refactor `VaultRepositoryImpl.kt` to dispatch commands via AggregateService in `feature/vault/src/main/java/com/chimali/feature/vault/internal/`
+- [x] T011 [P] [US1] Create `VaultEvent.kt`, `VaultCommand.kt`, and `VaultState.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/vault/`. All event and state classes MUST be annotated with `@Serializable` (KMP-compatible).
+- [x] T012 [US1] Implement `VaultDecider.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/vault/`
+- [x] T013 [US1] Implement `EventStoreRepositoryImpl.kt` for VaultDatabase in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
+- [x] T014 [US1] Implement `VaultAggregateServiceImpl.kt` with append and retry logic in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
+- [x] T015 [US1] Refactor `VaultRepositoryImpl.kt` to dispatch commands via AggregateService in `feature/vault/src/main/java/com/chimali/feature/vault/internal/`
 
 ### Implementation for User Story 1 (Passkey Aggregate)
 
-- [ ] T016 [P] [US1] Create `PasskeyEvent.kt`, `PasskeyCommand.kt`, and `PasskeyState.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/`. All event and state classes MUST be annotated with `@Serializable` (KMP-compatible).
-- [ ] T017 [US1] Implement `PasskeyDecider.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/`
-- [ ] T018 [US1] Implement `PasskeyEventStoreRepositoryImpl.kt` for Fido2Database in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/`
-- [ ] T019 [US1] Implement `PasskeyAggregateServiceImpl.kt` with append and retry logic in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/`
-- [ ] T020 [US1] Refactor `PasskeyRepositoryImpl.kt` to dispatch commands via AggregateService in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/`
+- [x] T016 [P] [US1] Create `PasskeyEvent.kt`, `PasskeyCommand.kt`, and `PasskeyState.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/`. All event and state classes MUST be annotated with `@Serializable` (KMP-compatible).
+- [x] T017 [US1] Implement `PasskeyDecider.kt` in `core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/`
+- [x] T018 [US1] Implement `PasskeyEventStoreRepositoryImpl.kt` for Fido2Database in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/`
+- [x] T019 [US1] Implement `PasskeyAggregateServiceImpl.kt` with append and retry logic in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/`
+- [x] T020 [US1] Refactor `PasskeyRepositoryImpl.kt` to dispatch commands via AggregateService in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -83,15 +83,13 @@ description: "Task list for Event Sourcing Model Integration"
 **Independent Test**: Replay the event stream up to a specific timestamp and compare the reconstructed state against expected values.
 
 ### Tests for User Story 2
-
-- [ ] T021 [P] [US2] Integration test for temporal queries (`asOf` timestamp) in both databases.
+- [x] T021 [P] [US2] Integration test for temporal queries (`asOf` timestamp) in both databases.
 
 ### Implementation for User Story 2
-
-- [ ] T022 [P] [US2] Implement `getEventsUpTo` in `EventStoreRepositoryImpl.kt` (Vault)
-- [ ] T023 [P] [US2] Implement `getEventsUpTo` in `PasskeyEventStoreRepositoryImpl.kt` (Passkey)
-- [ ] T024 [US2] Implement `getStateAt(asOf: Instant)` in `VaultAggregateServiceImpl.kt`
-- [ ] T025 [US2] Implement `getStateAt(asOf: Instant)` in `PasskeyAggregateServiceImpl.kt`
+- [x] T022 [P] [US2] Implement `getEventsUpTo` in `EventStoreRepositoryImpl.kt` (Vault)
+- [x] T023 [P] [US2] Implement `getEventsUpTo` in `PasskeyEventStoreRepositoryImpl.kt` (Passkey)
+- [x] T024 [US2] Implement `getStateAt(asOf: Instant)` in `VaultAggregateServiceImpl.kt`
+- [x] T025 [US2] Implement `getStateAt(asOf: Instant)` in `PasskeyAggregateServiceImpl.kt`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -105,14 +103,14 @@ description: "Task list for Event Sourcing Model Integration"
 
 ### Tests for User Story 3
 
-- [ ] T026 [P] [US3] Unit test for Snapshot loading and fallback in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImplTest.kt`
+- [X] T026 [P] [US3] Unit test for Snapshot loading and fallback in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImplTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T027 [P] [US3] Implement `SnapshotRepositoryImpl.kt` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
-- [ ] T028 [P] [US3] Implement `PasskeySnapshotRepositoryImpl.kt` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/`
-- [ ] T029 [US3] Integrate snapshot saving logic (threshold: 20 events) into `VaultAggregateServiceImpl.kt`
-- [ ] T030 [US3] Integrate snapshot saving logic (threshold: 20 events) into `PasskeyAggregateServiceImpl.kt`
+- [X] T027 [P] [US3] Implement `SnapshotRepositoryImpl.kt` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/`
+- [X] T028 [P] [US3] Implement `PasskeySnapshotRepositoryImpl.kt` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt`
+- [X] T029 [US3] Integrate snapshot saving logic (threshold: 20 events) into `VaultAggregateServiceImpl.kt`
+- [X] T030 [US3] Integrate snapshot saving logic (threshold: 20 events) into `PasskeyAggregateServiceImpl.kt`
 
 **Checkpoint**: All user stories should now be independently functional
 

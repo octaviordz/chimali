@@ -4,10 +4,20 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.biometric.BiometricManager
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
+import com.chimali.core.domain.repository.EventStoreRepository
+import com.chimali.core.domain.repository.SnapshotRepository
 import com.chimali.core.events.Fido2EventBus
+import com.chimali.core.security.api.EncryptionManager
 import com.chimali.fido2.data.database.Fido2Database
+import com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImpl
+import com.chimali.fido2.data.eventsourcing.PasskeyEventStoreRepositoryImpl
+import com.chimali.fido2.data.eventsourcing.PasskeySnapshotRepositoryImpl
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Single
 
 /**
@@ -56,4 +66,33 @@ class Fido2Module {
      */
     @Single
     fun fido2EventBus(): Fido2EventBus = Fido2EventBus()
+
+    /**
+     * T018 — Provides the Passkey Event Store Repository.
+     */
+    @Single
+    fun passkeyEventStoreRepository(
+        database: Fido2Database,
+        encryptionManager: EncryptionManager,
+    ): EventStoreRepository = PasskeyEventStoreRepositoryImpl(database, encryptionManager)
+
+    /**
+     * T028 — Provides the Passkey Snapshot Repository.
+     */
+    @Single
+    @Named("passkey")
+    fun passkeySnapshotRepository(
+        database: Fido2Database,
+        encryptionManager: EncryptionManager,
+    ): SnapshotRepository = PasskeySnapshotRepositoryImpl(database, encryptionManager)
+
+    /**
+     * T019 — Provides the Passkey Aggregate Service.
+     */
+    @Single
+    fun passkeyAggregateService(
+        eventStoreRepository: EventStoreRepository,
+        @Named("passkey") snapshotRepository: SnapshotRepository,
+    ): AggregateService<PasskeyCommand, PasskeyState> =
+        PasskeyAggregateServiceImpl(eventStoreRepository, snapshotRepository)
 }

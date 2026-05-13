@@ -70,6 +70,7 @@ kotlin {
          */
         commonMain.dependencies {
             implementation(project(":core:domain"))
+            implementation(project(":core:security"))
             implementation(compose.runtime)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
@@ -99,7 +100,6 @@ kotlin {
         androidMain.dependencies {
             implementation(project(":core:common"))
             implementation(project(":core:domain"))
-            implementation(project(":core:security"))
             implementation(libs.kotlinx.datetime)
             implementation(libs.koin.android)
             implementation(libs.koin.compose)

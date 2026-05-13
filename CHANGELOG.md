@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-13
+
+### Changed
+- **Event Sourcing Security Audit & Gap Analysis**: Conducted a comprehensive audit of the event sourcing persistence layer, identifying a critical security gap where placeholder "dummy" keys were used for payload encryption.
+    - Documented 10 call sites across core and feature repositories using zero-filled keys.
+    - Authored a technical remediation plan [analysis-encryption-key-management.md](specs/034-refactor-event-sourcing/analysis-encryption-key-management.md) proposing HMAC-SHA512 key derivation from the BIP39 master seed.
+    - Restored security `TODO`s and applied linting suppressions to all affected repository classes.
+    - Authored a [handover document](specs/034-refactor-event-sourcing/handover-encryption-key-management.md) to guide the implementation of production-grade key management.
+- **Detailed changes**: [2026-05-13-event-sourcing-security-audit.md](docs/changelogs/2026-05-13-event-sourcing-security-audit.md)
+
 ## [Unreleased] - 2026-05-07
 
 ### Added

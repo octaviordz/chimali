@@ -23,7 +23,7 @@ kotlin {
 
 sqldelight {
     databases {
-        create("ChimaliDatabase") {
+        create("VaultDatabase") {
             packageName.set("com.chimali.core.database")
         }
     }

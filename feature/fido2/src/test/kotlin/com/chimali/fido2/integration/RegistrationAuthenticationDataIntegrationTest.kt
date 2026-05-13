@@ -165,6 +165,14 @@ class RegistrationAuthenticationDataIntegrationTest {
                 every { decodePublicKey(any(), any()) } returns Outcome.Success(dummyKey)
             }
 
+        val aggregateService: com.chimali.core.domain.eventsourcing.AggregateService<
+            com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand,
+            com.chimali.core.domain.eventsourcing.passkey.PasskeyState,
+        > =
+            mockk {
+                coEvery { execute(any(), any()) } returns Result.success(mockk(relaxed = true))
+            }
+
         repository =
             CredentialRepositoryImpl(
                 passkeyCredentialDao = passkeyDao,
@@ -174,6 +182,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                 publicKeyDecoder = publicKeyDecoder,
                 corruptedKeyRepairWorker = repairWorker,
                 timeProvider = timeProvider,
+                aggregateService = aggregateService,
                 ioDispatcher = testDispatcher,
             )
 

@@ -3,7 +3,10 @@ package com.chimali.feature.vault.internal
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
-import com.chimali.core.database.ChimaliDatabase
+import com.chimali.core.database.VaultDatabase
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.vault.VaultCommand
+import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultType
@@ -13,8 +16,10 @@ import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class VaultRepositoryImpl(
-    private val database: ChimaliDatabase,
+    private val database: VaultDatabase,
+    private val aggregateService: AggregateService<VaultCommand, VaultState>,
 ) : VaultService {
     override suspend fun getItems(labelId: UUID?): Outcome<List<VaultItem>, DomainError> =
         withContext(Dispatchers.IO) {
@@ -50,26 +55,52 @@ class VaultRepositoryImpl(
             }
         }
 
-    @Suppress("ForbiddenComment")
     override suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError> =
         withContext(Dispatchers.IO) {
             try {
-                // TODO: Integrate actual Android Keystore encryption for payload,
-                // Uniffi bridge for CRDT merge state logic mapping
-                database.vaultQueries.insertVaultEntry(
-                    id = item.id.toString(),
-                    doc_id = item.id.toString(), // Using item ID as doc_id for now
-                    type = item.type.name,
-                    title = item.title,
-                    encrypted_payload = item.payload,
-                    crdt_state = item.crdtState,
-                    date_created = item.dateCreated,
-                    date_modified = item.dateModified,
-                    last_backed_up_at = item.lastBackedUpAt,
-                    identity_id = item.identityId.toString(),
-                )
-                Outcome.Success(Unit)
-            } catch (e: android.database.SQLException) {
+                val exists = database.vaultQueries.getVaultEntryById(item.id.toString()).executeAsOneOrNull() != null
+
+                val command =
+                    if (!exists) {
+                        VaultCommand.Create(
+                            id = item.id.toString(),
+                            type = item.type.name,
+                            title = item.title,
+                            payload = item.payload,
+                            identityId = item.identityId.toString(),
+                        )
+                    } else {
+                        VaultCommand.Update(
+                            id = item.id.toString(),
+                            title = item.title,
+                            payload = item.payload,
+                        )
+                    }
+
+                val result = aggregateService.execute(item.id.toString(), command)
+
+                if (result.isSuccess) {
+                    val state = result.getOrThrow()
+                    // Projection: Update the read model table
+                    database.vaultQueries.insertVaultEntry(
+                        id = state.id,
+                        doc_id = state.id,
+                        type = state.type,
+                        title = state.title,
+                        encrypted_payload = state.payload,
+                        crdt_state = item.crdtState,
+                        date_created = item.dateCreated,
+                        date_modified = item.dateModified,
+                        last_backed_up_at = item.lastBackedUpAt,
+                        identity_id = state.identityId.ifEmpty { item.identityId.toString() },
+                    )
+                    Outcome.Success(Unit)
+                } else {
+                    val error = result.exceptionOrNull()
+                    Logger.e(error) { "VaultRepositoryImpl: Aggregate execution failed for id=${item.id}" }
+                    Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to save vault item"))
+                }
+            } catch (e: Exception) {
                 Logger.e(e) { "VaultRepositoryImpl: Failed to save vault item id=${item.id}" }
                 Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to save vault item", e))
             }
@@ -78,9 +109,16 @@ class VaultRepositoryImpl(
     override suspend fun deleteItem(id: UUID): Outcome<Unit, DomainError> =
         withContext(Dispatchers.IO) {
             try {
-                database.vaultQueries.deleteVaultEntry(id.toString())
-                Outcome.Success(Unit)
-            } catch (e: android.database.SQLException) {
+                val result = aggregateService.execute(id.toString(), VaultCommand.Delete(id.toString()))
+                if (result.isSuccess) {
+                    database.vaultQueries.deleteVaultEntry(id.toString())
+                    Outcome.Success(Unit)
+                } else {
+                    val error = result.exceptionOrNull()
+                    Logger.e(error) { "VaultRepositoryImpl: Aggregate delete failed for id=$id" }
+                    Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to delete vault item"))
+                }
+            } catch (e: Exception) {
                 Logger.e(e) { "VaultRepositoryImpl: Failed to delete vault item id=$id" }
                 Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete vault item", e))
             }

@@ -42,7 +42,7 @@ class DomainModelSerializationTest {
             CredentialSummary(
                 id = "test-uuid",
                 rpId = RpId("example.com"),
-                credentialId = CredentialId.fromByteArray("test-id".encodeToByteArray()),
+                credentialId = CredentialId.fromByteArray("test-id-12345678".encodeToByteArray()),
                 lastUsedAt = Clock.System.now(),
                 coseAlgorithm = -7,
                 credProtectPolicy = 1,
@@ -66,7 +66,7 @@ class DomainModelSerializationTest {
                 id = "consent-uuid",
                 operationType = ConsentOperationType.AUTHENTICATION,
                 rpId = RpId("https://example.com"),
-                credentialId = CredentialId.fromByteArray("test-id".encodeToByteArray()),
+                credentialId = CredentialId.fromByteArray("test-id-12345678".encodeToByteArray()),
                 timestamp = Clock.System.now(),
                 isBiometricUsed = true,
                 isPinUsed = false,

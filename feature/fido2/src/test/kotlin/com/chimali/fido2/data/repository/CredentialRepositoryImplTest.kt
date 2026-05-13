@@ -2,6 +2,9 @@ package com.chimali.fido2.data.repository
 
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
 import com.chimali.core.domain.model.ConsentOperationType
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -63,6 +66,10 @@ class CredentialRepositoryImplTest {
             publicKeyDecoder = mockk()
             corruptedKeyRepairWorker = mockk()
             timeProvider = mockk(relaxed = true)
+            val aggregateService: AggregateService<PasskeyCommand, PasskeyState> =
+                mockk {
+                    coEvery { execute(any(), any()) } returns Result.success(mockk(relaxed = true))
+                }
             repository =
                 CredentialRepositoryImpl(
                     passkeyCredentialDao,
@@ -72,6 +79,7 @@ class CredentialRepositoryImplTest {
                     publicKeyDecoder,
                     corruptedKeyRepairWorker,
                     timeProvider,
+                    aggregateService,
                     UnconfinedTestDispatcher(),
                 )
 
