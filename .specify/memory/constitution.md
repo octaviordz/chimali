@@ -1,8 +1,8 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.9.5 → 0.9.6
-- List of modified principles: III. Uncompromising Architecture & Quality (Updated DI standard from Hilt to Koin for KMP support)
-- Added sections: None
+- Version change: 0.9.8 → 0.10.0
+- List of modified principles: Added VIII. Event Sourcing Architecture, shifted Local CI/CD to IX.
+- Added sections: VIII. Event Sourcing Architecture
 - Removed sections: None
 - Templates requiring updates: None
 - Follow-up TODOs: None
@@ -82,9 +82,16 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
 
-### VIII. Local CI/CD & Enforcement
+### VIII. Event Sourcing Architecture
+The application MUST implement an Event Sourcing architecture to enable complete auditability and traceability. 
+- **Immutable History**: Events MUST be appended, never updated or deleted. All state mutations are captured as a sequence of immutable events.
+- **Temporal Queries (Time Travel)**: The system MUST be able to reconstruct the exact state of any entity at any specific point in time by replaying events up to that moment.
+- **Debuggability**: It MUST be possible to diagnose production issues by replaying real production events in a test environment to understand exactly how an entity reached a corrupted state.
+- **High Performance and Scalability**: The architecture MUST be designed to support high performance and scalability as a secondary goal, ensuring the event store and read models can efficiently handle the system's load.
+
+### IX. Local CI/CD & Enforcement
 1. **Local CI Pipeline**: All developers MUST run the Local CI pipeline (`tools/local-ci.ps1`) before committing. This pipeline includes static analysis (`Ktlint`, `Detekt`) and all unit tests.
 2. **Git Hook Enforcement**: A `pre-commit` git hook is mandatory to prevent accidental commits of broken or untested code. The hook is installed via `tools/setup-hooks.ps1`.
 3. **Verification**: Any change that bypasses the Local CI gate (e.g., via `--no-verify`) MUST be documented with a valid justification in the commit message.
 
-**Version**: 0.9.8 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-04-21
+**Version**: 0.10.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-12
