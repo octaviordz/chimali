@@ -7,7 +7,8 @@
 
 ### 1.1. EventStoreKeyProvider
 An interface responsible for providing the deterministic encryption key for the event sourcing persistence layer.
-- **Contract**: `suspend fun getEventStoreKey(): ByteArray`
+- **Contract**: `suspend fun getEventStoreKey(aggregateLabel: String): ByteArray`
+- **Input**: `aggregateLabel` — a domain-specific HMAC label (e.g., `"chimali_vault_es_v1"`, `"chimali_passkey_es_v1"`)
 - **Output**: 32-byte `ByteArray` to be used directly by `AesEncryptionManager`.
 
 ## 2. Validation & Constraints

@@ -9,8 +9,8 @@
 - **Alternatives considered**: Moving the asset to `src/main/assets` (which isn't ideal for a KMP project layout).
 
 ## 2. Secure Key Derivation for Event Sourcing
-- **Decision**: Implement `EventStoreKeyProvider` that derives a 32-byte key from the BIP39 Master Seed using `HMAC-SHA512` with the label `"chimali_eventstore_v1"`, taking the first 32 bytes of the HMAC output.
-- **Rationale**: Follows the existing deterministic derivation pattern used in `WalletMasterSeedProvider`. Ensures that the Vault and FIDO2 aggregates are encrypted using a strong, predictable key tied to the user's root of trust.
+- **Decision**: Implement `EventStoreKeyProvider` that derives a 32-byte key from the BIP39 Master Seed using `HMAC-SHA512` with aggregate-specific labels (e.g., `"chimali_vault_es_v1"`, `"chimali_passkey_es_v1"`), taking the first 32 bytes of the HMAC output. Each aggregate gets a distinct derived key for domain isolation.
+- **Rationale**: Follows the existing deterministic derivation pattern used in `WalletMasterSeedProvider`. Aggregate-specific labels ensure cryptographic domain separation between Vault and Passkey event stores.
 - **Alternatives considered**: Using `PBKDF2-SHA512` (unnecessary computationally since the seed is already high entropy).
 
 ## 3. Dealing with Dummy-Encrypted Legacy Data
