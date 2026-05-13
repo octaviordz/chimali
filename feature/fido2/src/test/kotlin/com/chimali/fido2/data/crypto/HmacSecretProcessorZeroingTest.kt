@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.security.api.MasterSeedProvider
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlin.test.Test

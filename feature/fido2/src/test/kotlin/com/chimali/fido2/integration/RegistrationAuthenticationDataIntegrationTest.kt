@@ -10,11 +10,11 @@ import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
-import com.chimali.fido2.data.crypto.MasterSeedProvider
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao

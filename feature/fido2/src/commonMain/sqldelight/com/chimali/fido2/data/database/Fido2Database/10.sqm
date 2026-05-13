@@ -1,0 +1,6 @@
+-- T035: Truncate legacy event store and snapshot data.
+-- Legacy data was encrypted with an insecure dummy key that is now being replaced
+-- by a deterministic master-seed-derived key. To prevent decryption failures and
+-- ensure a clean security state, we purge all existing records.
+DELETE FROM EventStore;
+DELETE FROM SnapshotStore;

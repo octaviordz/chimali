@@ -13,8 +13,8 @@ import org.koin.dsl.module
 
 val coreDataModule =
     module {
-        single<EventStoreRepository> { EventStoreRepositoryImpl(get(), get()) }
-        single<SnapshotRepository>(named("vault")) { SnapshotRepositoryImpl(get(), get()) }
+        single<EventStoreRepository> { EventStoreRepositoryImpl(get(), get(), get()) }
+        single<SnapshotRepository>(named("vault")) { SnapshotRepositoryImpl(get(), get(), get()) }
         single<AggregateService<VaultCommand, VaultState>> {
             VaultAggregateServiceImpl(get(), get(named("vault")))
         }

@@ -19,7 +19,7 @@
 
 **Purpose**: No new project initialization needed. This feature modifies existing modules. Setup ensures the build configuration fix is in place.
 
-- [ ] T001 Add `sourceSets.getByName("main") { assets.srcDirs("src/androidMain/assets") }` to the `android {}` block in `core/security/build.gradle.kts` and verify Gradle sync succeeds
+- [x] T001 Add `sourceSets.getByName("main") { assets.srcDirs("src/androidMain/assets") }` to the `android {}` block in `core/security/build.gradle.kts` and verify Gradle sync succeeds
 
 **Checkpoint**: Build configuration fix applied. BIP39 asset will now be bundled into the APK.
 
@@ -33,14 +33,14 @@
 
 ### Tests for Foundation
 
-- [ ] T003 Write unit tests for `EventStoreKeyProviderImpl` in `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/EventStoreKeyProviderImplTest.kt`: (a) verify HMAC-SHA512 key derivation produces a 32-byte key, (b) verify `IllegalStateException` is thrown when master seed is not initialized, (c) verify distinct keys are produced for vault vs passkey labels
+- [x] T003 Write unit tests for `EventStoreKeyProviderImpl` in `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/EventStoreKeyProviderImplTest.kt`: (a) verify HMAC-SHA512 key derivation produces a 32-byte key, (b) verify `IllegalStateException` is thrown when master seed is not initialized, (c) verify distinct keys are produced for vault vs passkey labels
 
 ### Implementation for Foundation
 
-- [ ] T006 Define `EventStoreKeyProvider` interface with `suspend fun getEventStoreKey(aggregateLabel: String): ByteArray` in `core/security/src/commonMain/kotlin/com/chimali/core/security/EventStoreKeyProvider.kt`
-- [ ] T007 Implement `EventStoreKeyProviderImpl` using HMAC-SHA512 derivation from `WalletMasterSeedProvider.getMasterSeed()` in `core/security/src/androidMain/kotlin/com/chimali/core/security/impl/EventStoreKeyProviderImpl.kt`
-- [ ] T008 Register `EventStoreKeyProviderImpl` as a singleton in Koin via `core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt`
-- [ ] T009 Run tests T003–T005 and verify they pass
+- [x] T006 Define `EventStoreKeyProvider` interface with `suspend fun getEventStoreKey(aggregateLabel: String): ByteArray` in `core/security/src/commonMain/kotlin/com/chimali/core/security/EventStoreKeyProvider.kt`
+- [x] T007 Implement `EventStoreKeyProviderImpl` using HMAC-SHA512 derivation from `WalletMasterSeedProvider.getMasterSeed()` in `core/security/src/androidMain/kotlin/com/chimali/core/security/impl/EventStoreKeyProviderImpl.kt`
+- [x] T008 Register `EventStoreKeyProviderImpl` as a singleton in Koin via `core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt`
+- [x] T009 Run tests T003–T005 and verify they pass
 
 **Checkpoint**: Foundation ready — `EventStoreKeyProvider` is defined, implemented, tested, and registered in DI.
 
@@ -54,9 +54,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Build debug APK via `./gradlew :app:assembleDebug` and verify build succeeds
-- [ ] T011 [US1] Verify `bip39_english.txt` is present in the debug APK via Analyze APK or `verifyBip39Asset` task
-- [ ] T012 [US1] Run `./gradlew :core:security:androidHostTest` and verify all 7 Bip39 unit tests pass
+- [x] T010 [US1] Build debug APK via `./gradlew :app:assembleDebug` and verify build succeeds
+- [x] T011 [US1] Verify `bip39_english.txt` is present in the debug APK via Analyze APK or `verifyBip39Asset` task
+- [x] T012 [US1] Run `./gradlew :core:security:androidHostTest` and verify all 7 Bip39 unit tests pass
 
 **Checkpoint**: User Story 1 complete. BIP39 wordlist asset is bundled, app launches without `FileNotFoundException`.
 
@@ -70,34 +70,34 @@
 
 ### SQLDelight Migrations (Truncation)
 
-- [ ] T013 [P] [US2] Create SQLDelight migration `3.sqm` to truncate `EventStore` and `SnapshotStore` tables in `core/database/src/main/sqldelight/com/chimali/core/database/VaultDatabase/3.sqm`
-- [ ] T014 [P] [US2] Create SQLDelight migration `10.sqm` to truncate `EventStore` and `SnapshotStore` tables in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database/10.sqm`
+- [x] T013 [P] [US2] Create SQLDelight migration `3.sqm` to truncate `EventStore` and `SnapshotStore` tables in `core/database/src/main/sqldelight/com/chimali/core/database/VaultDatabase/3.sqm`
+- [x] T014 [P] [US2] Create SQLDelight migration `10.sqm` to truncate `EventStore` and `SnapshotStore` tables in `feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database/10.sqm`
 
 ### DI Wiring (must precede repository refactoring)
 
-- [ ] T015 [P] [US2] Update `DataModule` DI wiring to pass `EventStoreKeyProvider` to Vault repository constructors in `core/data/src/main/kotlin/com/chimali/core/data/di/DataModule.kt`
-- [ ] T016 [P] [US2] Update `Fido2Module` DI wiring to pass `EventStoreKeyProvider` to Passkey repository constructors in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/di/Fido2Module.kt`
+- [x] T015 [P] [US2] Update `DataModule` DI wiring to pass `EventStoreKeyProvider` to Vault repository constructors in `core/data/src/main/kotlin/com/chimali/core/data/di/DataModule.kt`
+- [x] T016 [P] [US2] Update `Fido2Module` DI wiring to pass `EventStoreKeyProvider` to Passkey repository constructors in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/di/Fido2Module.kt`
 
 ### Refactoring Vault Repositories (core:data)
 
-- [ ] T017 [US2] Inject `EventStoreKeyProvider` into `EventStoreRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_vault_es_v1")` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/EventStoreRepositoryImpl.kt`
-- [ ] T018 [US2] Inject `EventStoreKeyProvider` into `SnapshotRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_vault_es_v1")` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImpl.kt`
+- [x] T017 [US2] Inject `EventStoreKeyProvider` into `EventStoreRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_vault_es_v1")` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/EventStoreRepositoryImpl.kt`
+- [x] T018 [US2] Inject `EventStoreKeyProvider` into `SnapshotRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_vault_es_v1")` in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImpl.kt`
 
 ### Refactoring Passkey Repositories (feature:fido2)
 
-- [ ] T019 [P] [US2] Inject `EventStoreKeyProvider` into `PasskeyEventStoreRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_passkey_es_v1")` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt`
-- [ ] T020 [P] [US2] Inject `EventStoreKeyProvider` into `PasskeySnapshotRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_passkey_es_v1")` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt`
+- [x] T019 [P] [US2] Inject `EventStoreKeyProvider` into `PasskeyEventStoreRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_passkey_es_v1")` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt`
+- [x] T020 [P] [US2] Inject `EventStoreKeyProvider` into `PasskeySnapshotRepositoryImpl` and replace `dummyKey` with `keyProvider.getEventStoreKey("chimali_passkey_es_v1")` in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt`
 
 ### Update Existing Tests
 
-- [ ] T021 [P] [US2] Update `VaultAggregateServiceImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt`
-- [ ] T022 [P] [US2] Update `SnapshotRepositoryImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImplTest.kt`
-- [ ] T023 [P] [US2] Update `PasskeyAggregateServiceImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImplTest.kt`
+- [x] T021 [P] [US2] Update `VaultAggregateServiceImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt`
+- [x] T022 [P] [US2] Update `SnapshotRepositoryImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImplTest.kt`
+- [x] T023 [P] [US2] Update `PasskeyAggregateServiceImplTest` to mock `EventStoreKeyProvider` instead of relying on `dummyKey` in `feature/fido2/src/test/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImplTest.kt`
 
 ### Verification
 
-- [ ] T024 [US2] Run full test suite `./gradlew test` and verify all tests pass with new key provider mocks
-- [ ] T025 [US2] Verify no remaining `dummyKey` references exist in production code (test code excluded)
+- [x] T024 [US2] Run full test suite `./gradlew test` and verify all tests pass with new key provider mocks
+- [x] T025 [US2] Verify no remaining `dummyKey` references exist in production code (test code excluded)
 
 **Checkpoint**: User Story 2 complete. All event/snapshot repositories use real derived keys. Legacy dummy-encrypted data truncated via migrations.
 
@@ -107,8 +107,8 @@
 
 **Purpose**: Final validation and CI compliance.
 
-- [ ] T026 Run `tools/local-ci.ps1` and verify full pipeline passes (Ktlint, Detekt, unit tests)
-- [ ] T027 Run quickstart.md validation: build APK, verify asset presence, launch app, confirm no crash, confirm FIDO2 registration works
+- [x] T026 Run `tools/local-ci.ps1` and verify full pipeline passes (Ktlint, Detekt, unit tests)
+- [x] T027 Run quickstart.md validation: build APK, verify asset presence, launch app, confirm no crash, confirm FIDO2 registration works
 
 ---
 

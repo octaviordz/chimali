@@ -5,6 +5,14 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 
 ## [Unreleased] - 2026-05-13
 
+### Fixed
+- **BIP39 Asset Loading & FIDO2 Initialization**: Resolved the `FileNotFoundException: bip39_english.txt` crash on app launch by correcting the AGP asset mapping in `core:security`.
+- **Event Sourcing Security Remediation**: Successfully implemented the production-grade key management plan, replacing all legacy "dummy" encryption keys with real AES-256 keys derived from the BIP39 master seed.
+    - Introduced `EventStoreKeyProvider` for deterministic HMAC-SHA512 key derivation with aggregate-specific labels.
+    - Refactored Vault and Passkey event/snapshot repositories to use secure keys, resolving task T032.
+    - Executed a one-time truncation of `EventStore` and `SnapshotStore` tables via SQLDelight migrations (`3.sqm`, `10.sqm`) to purge insecure legacy data.
+- **Detailed changes**: [2026-05-13-event-sourcing-remediation-and-bip39-fix.md](docs/changelogs/2026-05-13-event-sourcing-remediation-and-bip39-fix.md)
+
 ### Changed
 - **Event Sourcing Security Audit & Gap Analysis**: Conducted a comprehensive audit of the event sourcing persistence layer, identifying a critical security gap where placeholder "dummy" keys were used for payload encryption.
     - Documented 10 call sites across core and feature repositories using zero-filled keys.
@@ -36,7 +44,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
     - Fully deleted `detekt-baseline-main.xml` as `feature:fido2` is now 100% compliant with all configured static analysis quality gates.
 - **Detailed changes**: [2026-05-07-fido2-quality-hardening-and-outcome-finalization.md](docs/changelogs/2026-05-07-fido2-quality-hardening-and-outcome-finalization.md)
 ## [Unreleased] - 2026-05-06
-    
+
 ### Added
 - **FIDO2 Stabilization & WebAuthn L3 Compliance**: Finalized the compliance remediation and UX stabilization for the FIDO2 module.
     - **Ceremony Serialization**: Implemented `CeremonyLock` to prevent concurrent request storms and redundant UI prompts from multi-channel CTAP2 hosts.
@@ -135,7 +143,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **Detailed changes**: [2026-04-27-viewmodel-forwarding-cleanup.md](docs/changelogs/2026-04-27-viewmodel-forwarding-cleanup.md)
 
 ### Changed
-- **Compose Modifier Compliance**: Systematically refactored 30+ UI composables across `:feature:vault` and `:feature:fido2` to strictly enforce `ModifierMissing` and `ComposableParamOrder` lint rules. 
+- **Compose Modifier Compliance**: Systematically refactored 30+ UI composables across `:feature:vault` and `:feature:fido2` to strictly enforce `ModifierMissing` and `ComposableParamOrder` lint rules.
 - **Parameter Ordering Standardization**: Established a project-wide signature pattern `(requiredData, requiredEventLambdas, modifier: Modifier = Modifier, optionalParams)` to resolve linting conflicts between reordering requirements and trailing lambda rules.
 - **Lint Cleanup**: Eliminated all project-wide technical debt related to `ModifierMissing` by removing `@Suppress` annotations and verifying compliance via `tools/local-ci.ps1`.
 - **Detailed changes**: [2026-04-27-compose-modifier-compliance-and-lint-cleanup.md](docs/changelogs/2026-04-27-compose-modifier-compliance-and-lint-cleanup.md)

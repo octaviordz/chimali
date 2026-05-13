@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.chimali.core.clipboard.ClipboardManagerService
-import com.chimali.fido2.data.crypto.ImportMnemonicResult
-import com.chimali.fido2.data.crypto.MasterSeedProvider
+import com.chimali.core.security.api.ImportMnemonicResult
+import com.chimali.core.security.api.MasterSeedProvider
 import java.security.GeneralSecurityException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow

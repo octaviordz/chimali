@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.security.api.MasterSeedProvider
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import org.koin.core.annotation.Single

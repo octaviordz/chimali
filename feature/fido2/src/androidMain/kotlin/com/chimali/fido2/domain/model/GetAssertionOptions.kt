@@ -79,17 +79,17 @@ data class GetAssertionOptions(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is GetAssertionOptions) return false
-        return rpId == other.rpId &&
+        return (rpId == other.rpId) &&
             clientDataHash.contentEquals(other.clientDataHash) &&
-            allowCredentials == other.allowCredentials &&
-            userVerification == other.userVerification
+            (allowCredentials == other.allowCredentials) &&
+            (userVerification == other.userVerification)
     }
 
     override fun hashCode(): Int {
         var result = rpId.hashCode()
-        result = 31 * result + clientDataHash.contentHashCode()
-        result = 31 * result + (allowCredentials?.hashCode() ?: 0)
-        result = 31 * result + userVerification.hashCode()
+        result = (31 * result) + clientDataHash.contentHashCode()
+        result = (31 * result) + (allowCredentials?.hashCode() ?: 0)
+        result = (31 * result) + userVerification.hashCode()
         return result
     }
 }

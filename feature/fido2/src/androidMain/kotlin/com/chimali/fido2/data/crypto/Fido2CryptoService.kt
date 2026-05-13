@@ -5,6 +5,7 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.api.HdkManager
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase

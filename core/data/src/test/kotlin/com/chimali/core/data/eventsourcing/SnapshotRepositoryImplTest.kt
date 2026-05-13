@@ -6,6 +6,8 @@ import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.Snapshot
 import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -19,15 +21,18 @@ import org.junit.Test
 class SnapshotRepositoryImplTest {
     private lateinit var database: VaultDatabase
     private val encryptionManager = mockk<EncryptionManager>()
+    private val keyProvider = mockk<EventStoreKeyProvider>()
     private lateinit var repository: SnapshotRepositoryImpl
     private val aggregateId = UUID.randomUUID().toString()
+    private val testKey = ByteArray(32) { 1 }
 
     @Before
     fun setup() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         VaultDatabase.Schema.create(driver)
         database = VaultDatabase(driver)
-        repository = SnapshotRepositoryImpl(database, encryptionManager)
+        coEvery { keyProvider.getEventStoreKey(any()) } returns testKey
+        repository = SnapshotRepositoryImpl(database, encryptionManager, keyProvider)
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyEvent
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
 import com.chimali.fido2.data.database.Fido2Database
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
@@ -21,14 +22,8 @@ import kotlinx.serialization.modules.subclass
 class PasskeyEventStoreRepositoryImpl(
     private val database: Fido2Database,
     private val encryptionManager: EncryptionManager,
+    private val keyProvider: EventStoreKeyProvider,
 ) : EventStoreRepository {
-    companion object {
-        private const val KEY_SIZE = 32
-    }
-
-    // TODO: Replace with real key derivation from MasterSeedProvider (T032)
-    private val dummyKey = ByteArray(KEY_SIZE) { 0 }
-
     private val json =
         Json {
             serializersModule =
@@ -48,10 +43,12 @@ class PasskeyEventStoreRepositoryImpl(
         runCatching {
             if (kind != EventKind.PASSKEY) return@runCatching
 
+            val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
+
             database.transaction {
                 events.forEach { event ->
                     val payloadJson = json.encodeToString(event)
-                    val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), dummyKey)
+                    val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
                     database.fido2DatabaseQueries.insertEvent(
                         aggregate_id = event.aggregateId,
@@ -73,8 +70,9 @@ class PasskeyEventStoreRepositoryImpl(
 
             val timestampLimit = upTo?.toString() ?: "9999-12-31T23:59:59Z"
 
+            val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
             database.fido2DatabaseQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, dummyKey)
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
                 json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
             }
         }
@@ -87,8 +85,9 @@ class PasskeyEventStoreRepositoryImpl(
         runCatching {
             if (kind != EventKind.PASSKEY) return@runCatching emptyList()
 
+            val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
             database.fido2DatabaseQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, dummyKey)
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
                 json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
             }
         }

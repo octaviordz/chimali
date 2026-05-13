@@ -62,6 +62,7 @@ data class PublicKeyCredentialParameters(
     /**
      * Returns the curve name for display.
      */
+    @Suppress("unused")
     fun getCurveName(): String = curve ?: "N/A"
 
     /**
@@ -78,7 +79,37 @@ data class PublicKeyCredentialParameters(
     /**
      * Returns a safe salt value.
      */
+    @Suppress("unused")
     fun getSafeSalt(): ByteArray = salt ?: ByteArray(DEFAULT_SALT_SIZE) { it.hashCode().toByte() }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as PublicKeyCredentialParameters
+
+        if (type != other.type) return false
+        if (algorithm != other.algorithm) return false
+        if (curve != other.curve) return false
+        if (keyType != other.keyType) return false
+        if (salt != null) {
+            if (other.salt == null) return false
+            if (!salt.contentEquals(other.salt)) return false
+        } else if (other.salt != null) {
+            return false
+        }
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = (31 * result) + algorithm.hashCode()
+        result = (31 * result) + (curve?.hashCode() ?: 0)
+        result = (31 * result) + (keyType?.hashCode() ?: 0)
+        result = (31 * result) + (salt?.contentHashCode() ?: 0)
+        return result
+    }
 
     companion object {
         /**

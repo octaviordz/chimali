@@ -11,6 +11,7 @@ import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImpl
 import com.chimali.fido2.data.eventsourcing.PasskeyEventStoreRepositoryImpl
@@ -74,7 +75,8 @@ class Fido2Module {
     fun passkeyEventStoreRepository(
         database: Fido2Database,
         encryptionManager: EncryptionManager,
-    ): EventStoreRepository = PasskeyEventStoreRepositoryImpl(database, encryptionManager)
+        keyProvider: EventStoreKeyProvider,
+    ): EventStoreRepository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, keyProvider)
 
     /**
      * T028 — Provides the Passkey Snapshot Repository.
@@ -84,7 +86,8 @@ class Fido2Module {
     fun passkeySnapshotRepository(
         database: Fido2Database,
         encryptionManager: EncryptionManager,
-    ): SnapshotRepository = PasskeySnapshotRepositoryImpl(database, encryptionManager)
+        keyProvider: EventStoreKeyProvider,
+    ): SnapshotRepository = PasskeySnapshotRepositoryImpl(database, encryptionManager, keyProvider)
 
     /**
      * T019 — Provides the Passkey Aggregate Service.

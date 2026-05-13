@@ -77,31 +77,69 @@ data class MakeCredentialOptions(
     /**
      * Returns the challenge as a base64 URL-safe string.
      */
+    @Suppress("unused")
     fun getChallengeBase64Url(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
 
     /**
      * Checks if this request allows resident keys.
      */
+    @Suppress("unused")
     fun allowsResidentKeys(): Boolean =
-        authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.REQUIRED ||
-            authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.PREFERRED
+        (authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.REQUIRED) ||
+            (authenticatorSelection?.requireResidentKey == ResidentKeyRequirement.PREFERRED)
 
     /**
      * Checks if this request requires user verification.
      */
+    @Suppress("unused")
     fun requiresUserVerification(): Boolean =
-        authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED ||
-            authenticatorSelection?.userVerification == UserVerificationRequirement.PREFERRED
+        (authenticatorSelection?.userVerification == UserVerificationRequirement.REQUIRED) ||
+            (authenticatorSelection?.userVerification == UserVerificationRequirement.PREFERRED)
 
     /**
      * Checks if this request allows specific credential types.
      */
+    @Suppress("unused")
     fun allowsCredentialType(type: PublicKeyCredentialType): Boolean = pubKeyCredParams.type == type
 
     /**
      * Returns a safe timeout value.
      */
     fun getSafeTimeout(): Long = timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MakeCredentialOptions
+
+        if (rp != other.rp) return false
+        if (user != other.user) return false
+        if (!challenge.contentEquals(other.challenge)) return false
+        if (pubKeyCredParams != other.pubKeyCredParams) return false
+        if (timeout != other.timeout) return false
+        if (allowCredentials != other.allowCredentials) return false
+        if (excludeCredentials != other.excludeCredentials) return false
+        if (authenticatorSelection != other.authenticatorSelection) return false
+        if (attestation != other.attestation) return false
+        if (extensions != other.extensions) return false
+        return selectedAlgId == other.selectedAlgId
+    }
+
+    override fun hashCode(): Int {
+        var result = rp.hashCode()
+        result = (31 * result) + user.hashCode()
+        result = (31 * result) + challenge.contentHashCode()
+        result = (31 * result) + pubKeyCredParams.hashCode()
+        result = (31 * result) + (timeout?.hashCode() ?: 0)
+        result = (31 * result) + (allowCredentials?.hashCode() ?: 0)
+        result = (31 * result) + (excludeCredentials?.hashCode() ?: 0)
+        result = (31 * result) + (authenticatorSelection?.hashCode() ?: 0)
+        result = (31 * result) + attestation.hashCode()
+        result = (31 * result) + (extensions?.hashCode() ?: 0)
+        result = (31 * result) + selectedAlgId
+        return result
+    }
 
     companion object {
         /**
@@ -148,6 +186,7 @@ data class MakeCredentialOptions(
         /**
          * Creates MakeCredentialOptions from base64 challenge.
          */
+        @Suppress("unused")
         fun fromBase64Challenge(
             rp: PublicKeyCredentialRpEntity,
             user: PublicKeyCredentialUserEntity,

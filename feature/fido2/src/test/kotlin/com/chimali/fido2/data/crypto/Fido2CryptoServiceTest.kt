@@ -7,6 +7,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.HdkResult
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.hdkeys.HdkEcdhP256
 import com.chimali.core.security.hdkeys.P256Group
 import io.mockk.coEvery

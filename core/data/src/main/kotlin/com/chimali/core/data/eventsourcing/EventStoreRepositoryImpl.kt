@@ -6,6 +6,7 @@ import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -23,14 +24,8 @@ import org.koin.core.annotation.Single
 class EventStoreRepositoryImpl(
     private val database: VaultDatabase,
     private val encryptionManager: EncryptionManager,
+    private val keyProvider: EventStoreKeyProvider,
 ) : EventStoreRepository {
-    companion object {
-        private const val KEY_SIZE = 32
-    }
-
-    // TODO: Replace with real key derivation from MasterSeedProvider (T032)
-    private val dummyKey = ByteArray(KEY_SIZE) { 0 }
-
     private val json =
         Json {
             serializersModule =
@@ -50,10 +45,12 @@ class EventStoreRepositoryImpl(
         runCatching {
             if (kind != EventKind.VAULT_ENTRY) return@runCatching // This implementation only handles Vault events
 
+            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+
             database.transaction {
                 events.forEach { event ->
                     val payloadJson = json.encodeToString(event)
-                    val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), dummyKey)
+                    val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
                     database.vaultQueries.insertEvent(
                         aggregate_id = event.aggregateId,
@@ -76,8 +73,10 @@ class EventStoreRepositoryImpl(
             // Using a very large timestamp string if upTo is null to fetch all events
             val timestampLimit = upTo?.toString() ?: "9999-12-31T23:59:59Z"
 
+            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+
             database.vaultQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, dummyKey)
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
                 json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
             }
         }
@@ -90,8 +89,10 @@ class EventStoreRepositoryImpl(
         runCatching {
             if (kind != EventKind.VAULT_ENTRY) return@runCatching emptyList()
 
+            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+
             database.vaultQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, dummyKey)
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
                 json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
             }
         }

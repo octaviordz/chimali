@@ -14,6 +14,7 @@ import org.koin.core.annotation.Module
  *  - [com.chimali.core.security.impl.AesSivEncryptionManager] → SivEncryptionManager
  *  - [com.chimali.core.security.impl.Bip39MasterSeedGenerator] → MasterSeedGenerator
  *  - [com.chimali.core.security.hdkeys.HdkEcdhP256] → HdkManager
+ *  - [com.chimali.core.security.impl.EventStoreKeyProviderImpl] → EventStoreKeyProvider
  *
  * Usage in [ChimaliApplication]:
  * ```kotlin

@@ -1,25 +1,4 @@
-package com.chimali.fido2.data.crypto
-
-import com.chimali.core.security.api.HdkKeyPair
-
-/*
- * T145a — Provides access to the master seed and the device root key pair for FIDO2
- * key derivation via [Fido2CryptoService].
- *
- * The master seed is a 32-byte secret that acts as the root of trust for all
- * FIDO2 credentials, satisfying NFR-SEC-040 (Master Key Management) and
- * FR-AUTH-030 (backup via Master Seed / Shamir's Secret Sharing).
- *
- * The device key pair is generated once per installation from the master seed
- * using [com.chimali.core.security.api.HdkManager.generateDeviceKeyPair]. Both
- * the seed and the private scalar must be stored encrypted (e.g., in SQLCipher)
- * and must never appear in plaintext logs or persistent storage.
- *
- * Implementations are responsible for:
- * - Providing the master seed when unlocked.
- * - Providing the device key pair derived from that seed.
- * - Returning null when the seed is not available (vault locked / not yet created).
- */
+package com.chimali.core.security.api
 
 /**
  * Result of a [MasterSeedProvider.importMnemonic] operation.
@@ -34,6 +13,17 @@ sealed interface ImportMnemonicResult {
     data object Replaced : ImportMnemonicResult
 }
 
+/**
+ * Provides access to the master seed and the device root key pair.
+ *
+ * The master seed is a 32-byte secret that acts as the root of trust for all
+ * credentials, satisfying NFR-SEC-040 (Master Key Management) and
+ * FR-AUTH-030 (backup via Master Seed / Shamir's Secret Sharing).
+ *
+ * The device key pair is generated once per installation from the master seed.
+ * Both the seed and the private scalar must be stored encrypted (e.g., in SQLCipher)
+ * and must never appear in plaintext logs or persistent storage.
+ */
 interface MasterSeedProvider {
     /**
      * Returns the 32-byte master seed, or null if not yet initialized or wallet is locked.
@@ -51,13 +41,13 @@ interface MasterSeedProvider {
      * Returns the raw BIP39 mnemonic as an ordered word list, or null if not yet initialized.
      *
      * ⚠️ The caller is responsible for zeroing the returned list's backing arrays
-     * immediately after use. This function must NOT be called outside [BuildConfig.DEBUG]
+     * immediately after use. This function must NOT be called outside production
      * contexts in production code.
      */
     suspend fun getMnemonic(): List<String>?
 
     /**
-     * T146g — Imports a BIP39 mnemonic, persisting it as the new active master seed.
+     * Imports a BIP39 mnemonic, persisting it as the new active master seed.
      *
      * The [mnemonic] [CharArray] must contain exactly 24 space-separated words joined into
      * a single char sequence (e.g. `"word1 word2 … word24".toCharArray()`).  The array is
@@ -71,7 +61,7 @@ interface MasterSeedProvider {
     suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult
 
     /**
-     * T017a — Returns a 64-byte BIP-85-derived child seed for the ML-DSA (PQ) key branch.
+     * Returns a 64-byte BIP-85-derived child seed for the ML-DSA (PQ) key branch.
      *
      * Derived via fully-hardened CKD path `[83696968', 83286642', 2']` from the master seed
      * followed by HMAC-SHA512("bip-entropy-from-k", k) — the BIP-85 entropy extraction step.

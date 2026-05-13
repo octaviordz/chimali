@@ -2,7 +2,9 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
+import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.api.MasterSeedProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

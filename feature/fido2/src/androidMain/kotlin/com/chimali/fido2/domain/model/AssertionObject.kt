@@ -3,6 +3,7 @@ package com.chimali.fido2.domain.model
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import kotlinx.datetime.Instant
 
 /**
@@ -53,8 +54,11 @@ data class AssertionObject(
         private const val FLAG_UP_MASK = 0x01
         private const val FLAG_UV_MASK = 0x04
         private const val TEST_FLAGS_UP_UV = 0x05
-
         private const val TEST_SIG_SIZE = 64
+
+        private const val SIGN_COUNT_BYTE_OFFSET_1 = 1
+        private const val SIGN_COUNT_BYTE_OFFSET_2 = 2
+        private const val SIGN_COUNT_BYTE_OFFSET_3 = 3
 
         /**
          * Creates a minimal AssertionObject for testing without real crypto.
@@ -77,10 +81,6 @@ data class AssertionObject(
                 user = null,
             )
         }
-
-        private const val SIGN_COUNT_BYTE_OFFSET_1 = 1
-        private const val SIGN_COUNT_BYTE_OFFSET_2 = 2
-        private const val SIGN_COUNT_BYTE_OFFSET_3 = 3
     }
 
     init {
@@ -91,6 +91,7 @@ data class AssertionObject(
     }
 
     /** Extracts the sign-count from bytes 33–36 (big-endian uint32) of authData. */
+    @Suppress("unused")
     fun extractSignCount(): Long {
         if (authData.size < MIN_AUTH_DATA_SIZE) return 0L
         return ((authData[SIGN_COUNT_OFFSET].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_0_SHIFT) or
@@ -115,10 +116,12 @@ data class AssertionObject(
     }
 
     /** Returns true if the UP (user present) flag is set in authData byte 32. */
+    @Suppress("unused")
     fun isUserPresent(): Boolean =
         authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UP_MASK) != 0
 
     /** Returns true if the UV (user verified) flag is set in authData byte 32. */
+    @Suppress("unused")
     fun isUserVerified(): Boolean =
         authData.size > FLAGS_OFFSET && (authData[FLAGS_OFFSET].toInt() and FLAG_UV_MASK) != 0
 
