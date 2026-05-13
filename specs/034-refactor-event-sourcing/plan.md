@@ -1,151 +1,104 @@
-# Implementation Plan: Event Sourcing Model Integration
+# Implementation Plan: [FEATURE]
 
-**Branch**: `lab/or/chimali` | **Date**: 2026-05-12 | **Spec**: [spec.md](file:///D:/octav/source/repos/Chimali/specs/034-refactor-event-sourcing/spec.md)
-**Input**: Feature specification from `specs/034-refactor-event-sourcing/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Refactor the Chimali persistence layer from direct CRUD to an Event Sourcing architecture using the **Decider pattern** (Command → Decide → Events → Evolve → State). The F# prototype (`EventSourcingModule.fs`) provides the reference model. Two in-scope aggregates — **VaultEntry** (core:database) and **PasskeyCredential** (feature:fido2) — each get their own EventStore and Snapshot tables in their respective SQLDelight databases. Existing data is truncated (no migration) and the core database is renamed from **ChimaliDatabase** to **VaultDatabase** to more accurately reflect its domain purpose. Concurrency is handled via optimistic locking with automated retry. The existing read-model tables (`VaultEntry`, `PasskeyCredential`) are preserved as synchronous projections. Hydration is accelerated via snapshots (every 20 events) and audit traces are stored as structured JSON.
-
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Kotlin 2.1.x (KMP commonMain for domain, JVM for Android platform)
-**Primary Dependencies**: kotlinx-serialization (JSON), kotlinx-datetime, SQLDelight, SQLCipher, Koin
-**Storage**: SQLCipher (VaultDatabase for Vault), SQLDelight KMP (Fido2Database for Passkey) — separate EventStore tables per database
-**Testing**: kotlin.test (commonMain), JUnit 5, MockK — TDD mandatory per Constitution
-**Target Platform**: Android (SDK 28+), KMP-ready module structure
-**Project Type**: Mobile app (Android) with Kotlin Multiplatform domain layer
-**Performance Goals**: Sub-100ms state hydration for entities with >1,000 events via snapshot-accelerated replay (threshold: 20 events)
-**Constraints**: All event payloads encrypted with AES-256-GCM before storage. Existing data truncated during transition. Schema evolution follows additive-only rules.
-**Scale/Scope**: 10,000+ vault items, 2 aggregate roots (VaultEntry, PasskeyCredential)
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Security First | ✅ PASS | Event payloads encrypted AES-256-GCM before storage. SQLCipher file-level encryption maintained. |
-| II. Master Seed Architecture | ✅ PASS (N/A) | No changes to key derivation. Events carry encrypted payloads, not raw secrets. |
-| III. Architecture & Quality | ✅ PASS | Decider pattern is pure functional, maps to MVI/UDF. Sealed interfaces enforce exhaustive matching. No magic numbers. |
-| IV. Performance & Reliability | ✅ PASS | Snapshot-accelerated hydration targets <100ms. Automated retry handles concurrency transparently. |
-| V. Cross-Platform Utility | ✅ PASS (N/A) | ES infrastructure in KMP commonMain. FIDO2 HID layer unchanged. |
-| VI. Accessibility | ✅ PASS (N/A) | Infrastructure refactor; no UI changes. |
-| VII. Documentation | ✅ PASS | Comprehensive spec, research, data-model, and contracts already generated. |
-| VIII. Event Sourcing | ✅ PASS | This feature directly implements the principle. Immutable history, temporal queries, debuggability all addressed. |
-| IX. Local CI/CD | ✅ PASS | All changes must pass `tools/local-ci.ps1`. TDD enforced. |
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/034-refactor-event-sourcing/
-├── plan.md              # This file
-├── spec.md                        # Feature specification with clarifications
-├── research.md                    # Phase 0: Technology decisions
-├── data-model.md                  # Phase 1: Domain entities and SQL schema
-├── quickstart.md                  # Phase 1: Developer onboarding guide
-├── contracts/
-│   └── event-store-contract.md    # Phase 1: Interface contracts
-├── EventSourcingModule.fs         # F# reference model (input)
-├── ClaimModule.fs                 # F# reference model (input)
-└── tasks.md                       # Phase 2: Task breakdown (from /speckit-tasks)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit-plan command output)
+├── research.md          # Phase 0 output (/speckit-plan command)
+├── data-model.md        # Phase 1 output (/speckit-plan command)
+├── quickstart.md        # Phase 1 output (/speckit-plan command)
+├── contracts/           # Phase 1 output (/speckit-plan command)
+└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-core/domain/src/commonMain/kotlin/com/chimali/core/domain/
-├── eventsourcing/                      # NEW: ES infrastructure contracts
-│   ├── DomainEvent.kt                  # Base sealed interface
-│   ├── EventKind.kt                    # Enum discriminator
-│   ├── Decider.kt                      # Generic Decider<State, Command, Event> interface
-│   ├── AggregateService.kt             # Generic orchestrator interface
-│   ├── Snapshot.kt                     # Generic Snapshot<T> data class
-│   └── TraceEntry.kt                   # Audit log entry
-├── eventsourcing/vault/                # NEW: Vault aggregate domain types
-│   ├── VaultEvent.kt                   # Sealed interface: EntryCreated, EntryUpdated, etc.
-│   ├── VaultCommand.kt                 # Sealed interface: CreateEntry, UpdateContent, etc.
-│   ├── VaultState.kt                   # Write-model state (aggregate root state)
-│   └── VaultDecider.kt                 # Pure decide/evolve implementation
-├── eventsourcing/passkey/              # NEW: Passkey aggregate domain types
-│   ├── PasskeyEvent.kt                 # Sealed interface: PasskeyCreated, PasskeyUpdated, etc.
-│   ├── PasskeyCommand.kt              # Sealed interface for passkey commands
-│   ├── PasskeyState.kt                # Write-model state
-│   └── PasskeyDecider.kt             # Pure decide/evolve implementation
-├── repository/
-│   ├── EventStoreRepository.kt         # NEW: Append/read events interface
-│   └── SnapshotRepository.kt           # NEW: Save/load snapshots interface
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-core/database/src/main/sqldelight/com/chimali/core/database/
-├── Vault.sq                            # MODIFIED: Add EventStore + Snapshot tables
-│                                       # (existing VaultEntry table preserved as read model)
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-core/data/src/main/kotlin/com/chimali/core/data/
-├── eventsourcing/                      # NEW: ES persistence implementations
-│   ├── EventStoreRepositoryImpl.kt     # SQLDelight implementation for VaultDatabase
-│   ├── SnapshotRepositoryImpl.kt       # SQLDelight implementation for VaultDatabase
-│   └── VaultAggregateServiceImpl.kt    # Orchestrator: hydrate → decide → append → project → snapshot
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
 
-feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/
-├── Fido2Database.sq                    # MODIFIED: Add EventStore + Snapshot tables
-│                                       # (existing PasskeyCredential table preserved as read model)
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
 
-feature/fido2/src/.../data/
-├── eventsourcing/                      # NEW: Passkey ES persistence
-│   ├── PasskeyEventStoreRepositoryImpl.kt
-│   ├── PasskeySnapshotRepositoryImpl.kt
-│   └── PasskeyAggregateServiceImpl.kt
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
 
-feature/vault/src/main/java/com/chimali/feature/vault/internal/
-├── VaultRepositoryImpl.kt              # MODIFIED: Dispatch commands through VaultAggregateService
-                                        # instead of direct SQL inserts
-
-core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/
-├── VaultDeciderTest.kt                 # NEW: Pure decide/evolve unit tests
-├── PasskeyDeciderTest.kt               # NEW: Pure decide/evolve unit tests
-
-core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/
-├── EventStoreRepositoryImplTest.kt     # NEW: Append, read, concurrency tests
-├── SnapshotRepositoryImplTest.kt       # NEW: Save, load, corruption fallback tests
-├── VaultAggregateServiceImplTest.kt    # NEW: End-to-end hydrate → decide → project tests
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Event Sourcing infrastructure interfaces are placed in `core:domain` (KMP commonMain) for cross-platform reuse. Concrete implementations are split between `core:data` (for VaultDatabase/Vault) and `feature:fido2` (for Fido2Database/Passkey), keeping the existing module boundaries intact. Each database maintains its own `EventStore` and `Snapshot` tables.
-
-## F# Reference Model Mapping
-
-The following table maps the F# prototype (`EventSourcingModule.fs`) to the Kotlin implementation targets:
-
-| F# Construct | Line(s) | Kotlin Target | Module |
-|---|---|---|---|
-| `type VaultEntry` (state) | 6-17 | `VaultState` data class | core:domain |
-| `type VaultEvent` (DU) | 20-26 | `VaultEvent` sealed interface | core:domain |
-| `type PasskeyEvent` (DU) | 28-31 | `PasskeyEvent` sealed interface | core:domain |
-| `type VaultCommand` (DU) | 34-38 | `VaultCommand` sealed interface | core:domain |
-| `type EventKind` | 41 | `EventKind` enum class | core:domain |
-| `type EventStore` (record) | 43-54 | `EventStore` SQL table + `DomainEvent` sealed interface | core:domain + core:database |
-| `let apply` (evolve) | 60-74 | `VaultDecider.evolve()` | core:domain |
-| `let decide` (decide) | 79-95 | `VaultDecider.decide()` | core:domain |
-| `type VaultEntryReadModel` | 103-108 | Existing `VaultEntry` SQL table (synchronous projection) | core:database |
-| `let project` | 110-122 | `VaultAggregateServiceImpl.projectToReadModel()` | core:data |
-| `VaultCommand` with `identityId` | 134-146 | `VaultCommand` sealed interface with `identityId` property | core:domain |
-| `type Snapshot` | 157-160 | `Snapshot<T>` generic data class | core:domain |
-| `let rehydrate` | 163-170 | `AggregateService.getState()` internal logic | core:data |
-
-### Key Differences from F# Model
-
-1. **Identity ownership**: The F# model shows `identityId` added to commands at line 134-146. Kotlin implementation enforces this as a required `identityId` property on the `VaultCommand` sealed interface, validated in `VaultDecider.decide()`.
-2. **Dual-database**: F# model assumes a single store. Kotlin implementation creates separate `EventStore` tables in `VaultDatabase` (Vault aggregate) and `Fido2Database` (Passkey aggregate) per clarification.
-3. **Automated retry**: F# model doesn't address concurrency. Kotlin `AggregateServiceImpl` wraps the hydrate→decide→append cycle in a retry loop that catches `OptimisticConcurrencyException` and re-hydrates.
-4. **Encryption**: F# model uses plain-text payloads. Kotlin implementation encrypts all event payloads with AES-256-GCM before SQL storage, per Constitution I.
-5. **TraceEntry**: The `project` function (F# line 110) is split in Kotlin: the read-model projection updates the SQL `VaultEntry` table, and a separate `TraceEntry` list is accumulated during `evolve` for FR-004 audit logging.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|--------------------------------------|
-| Dual EventStore tables | Preserves existing module boundary (core vs feature:fido2) | Single shared table would couple Fido2Database to VaultDatabase, breaking KMP module isolation |
-| Repository pattern for EventStore | Abstracts encryption + SQL + serialization | Direct SQL access would leak encryption concerns into domain logic |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
