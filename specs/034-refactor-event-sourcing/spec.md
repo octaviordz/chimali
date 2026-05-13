@@ -10,7 +10,7 @@
 ### Session 2026-05-12
 
 - Q: Which aggregates are in scope for this refactor? → A: Core aggregates: VaultEntry (with Label, VaultEntryLabel) and PasskeyCredential. All entities participate in event sourcing through their aggregate root — not every entity requires a one-to-one event sourcing relationship, but all must be event-sourced either directly or via their aggregate. Identity, RelyingParty, BluetoothHidSession, and PairedDevice are out of scope for initial refactor.
-- Q: How will event storage be distributed across existing databases? → A: Separate EventStore tables per database (ChimaliDatabase and Fido2Database), with shared common interfaces in core:domain to ensure architectural consistency.
+- Q: How will event storage be distributed across existing databases? → A: Separate EventStore tables per database (VaultDatabase and Fido2Database), with shared common interfaces in core:domain to ensure architectural consistency.
 - Q: What is the migration strategy for existing data? → A: No migration required; existing data in VaultEntry and PasskeyCredential tables can be truncated during the transition.
 - Q: How are concurrent modification conflicts handled? → A: Automated retry; the system re-hydrates the latest state and re-executes the Decider logic transparently to the user.
 - Q: How should event schema evolution be handled? → A: Additive changes only; new fields must have default values to ensure backward compatibility with historical events.
@@ -22,6 +22,9 @@
 - Q: What is the format for the audit trace log? → A: Structured JSON format, optimized for machine-readability and precise auditing.
 - Q: How should data truncation be handled during deployment? → A: Automatically via SQLDelight migration scripts; no explicit user confirmation or backup is required for this pre-production refactor.
 - Q: What is the primary interface for temporal queries? → A: Timestamp-based reconstruction (`asOf(timestamp)`), allowing the system to load events up to that specific point in time.
+- Q: What is the raw serialization format for events and snapshots? → A: Kotlin Serialization (JSON).
+- Q: What is the data retention policy for event history? → A: Perpetual History (Never prune).
+- Q: What is the snapshot retention policy? → A: Retain Last Two (Latest + 1 previous).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -86,9 +89,13 @@ As a system administrator, I want the system to periodically save snapshots of r
 - **FR-005**: System MUST provide a timestamp-based interface (`asOf(timestamp)`) to perform temporal queries, returning the state of an entity as it existed at any specified point in time.
 - **FR-006**: System MUST support `Snapshot` generation, storing the computed state alongside the sequence number of the last processed event. Snapshots MUST be generated automatically every 20 events per aggregate.
 - **FR-007**: System MUST be capable of state hydration starting from a given `Snapshot`, applying only the events with sequence numbers greater than the snapshot's.
-- **FR-008**: System MUST utilize unique identifiers (e.g., `Permanode`, `BlobRef`) to securely identity aggregate roots.
+- **FR-008**: System MUST utilize unique identifiers (`aggregateId`) to securely identify aggregate roots.
 - **FR-009**: The VaultEntry aggregate root MUST event-source all child entities (VaultEntry, Label, VaultEntryLabel) through VaultEntry-level events.
-- **FR-010**: The PasskeyCredential aggregate root MUST event-source PasskeyCredential mutations through Passkey-level events.
+- FR-010: The PasskeyCredential aggregate root MUST event-source PasskeyCredential mutations through Passkey-level events.
+- **FR-011**: System MUST rename the existing `ChimaliDatabase` to `VaultDatabase` to accurately reflect its domain purpose, taking advantage of the automated data truncation.
+- **FR-012**: System MUST utilize Kotlin Serialization (JSON) for the raw payload of events and snapshots before encryption.
+- **FR-013**: System MUST retain the complete, immutable event history for every aggregate root; pruning or deletion of historical events is strictly prohibited.
+- **FR-014**: System MUST retain the two most recent snapshots per aggregate root (latest and immediately preceding) to ensure redundancy during snapshot generation; older snapshots MUST be automatically deleted.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -97,21 +104,21 @@ As a system administrator, I want the system to periodically save snapshots of r
 - **Model**: The reconstructed view of an entity's state, alongside its complete audit `Trace`.
 - **Snapshot**: A point-in-time materialization of a `Model` and its corresponding event `SequenceNumber` to optimize future hydration.
 - **Event Store**: The underlying storage mechanism maintaining the strict, append-only sequence of events.
-- **VaultEntry Aggregate**: Aggregate root owning VaultEntry, Label, and VaultEntryLabel entities. Persisted in `core:database` (ChimaliDatabase / SQLCipher).
+- **VaultEntry Aggregate**: Aggregate root owning VaultEntry, Label, and VaultEntryLabel entities. Persisted in `core:database` (VaultDatabase / SQLCipher).
 - **PasskeyCredential Aggregate**: Aggregate root for FIDO2 credential data. Persisted in `feature:fido2` (Fido2Database / SQLDelight KMP).
 
 ### Aggregate Root Map (In-Scope)
 
 | Aggregate Root | Owned Entities | Database |
 |----------------|----------------|----------|
-| VaultEntry | VaultEntry, Label, VaultEntryLabel | core:database (ChimaliDatabase) |
+| VaultEntry | VaultEntry, Label, VaultEntryLabel | core:database (VaultDatabase) |
 | PasskeyCredential | PasskeyCredential | feature:fido2 (Fido2Database) |
 
 ### Out-of-Scope Aggregates (Future Consideration)
 
 | Aggregate Root | Owned Entities | Database | Rationale |
 |----------------|----------------|----------|-----------|
-| Identity | Identity, IdentityBackup | core:database | Low mutation frequency; extend later |
+| Identity | Identity, IdentityBackup | core:database (VaultDatabase) | Low mutation frequency; extend later |
 | RelyingParty | RelyingParty, UserConsentRecord | feature:fido2 | UserConsentRecord is inherently append-only; extend later |
 | BluetoothHidSession | BluetoothHidSession | feature:fido2 | Transient session data |
 | PairedDevice | PairedDevice | feature:fido2 | Device pairing cache |
@@ -128,7 +135,10 @@ As a system administrator, I want the system to periodically save snapshots of r
 ## Assumptions
 
 - The event store maintains strict global or per-aggregate ordering of sequence numbers.
+- Event history is permanent and grows monotonically over time for every aggregate root.
+- Only the two most recent snapshots are maintained in storage for each aggregate root for redundancy and space optimization.
 - Snapshots are safe to periodically discard, as the source of truth remains the immutable event stream.
 - Event structure changes (schema evolution) are handled gracefully by the Decider through additive changes and default value support for new fields.
-- The two databases (ChimaliDatabase and Fido2Database) each maintain their own EventStore table. Events are not cross-referenced between databases.
+- Event payloads and snapshots are serialized as JSON strings using Kotlin Serialization before being encrypted with AES-256-GCM.
+- The two databases (VaultDatabase and Fido2Database) each maintain their own EventStore table. Events are not cross-referenced between databases.
 - Existing data in the VaultEntry and PasskeyCredential tables will be truncated (cleared) automatically via SQLDelight migration scripts during the initial deployment.

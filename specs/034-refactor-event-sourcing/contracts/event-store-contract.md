@@ -210,6 +210,7 @@ interface AggregateService<State, Command, Event> {
 
     /**
      * Retrieves the complete audit trace for an aggregate.
+     * Returned as a structured JSON array of entries.
      *
      * @param aggregateId The unique identifier of the aggregate.
      * @return Ordered list of trace entries (FR-004).
@@ -243,7 +244,7 @@ class OptimisticConcurrencyException(
 
 ### Per-Database Implementations
 
-| Contract | ChimaliDatabase (core:data) | Fido2Database (feature:fido2) |
+| Contract | VaultDatabase (core:data) | Fido2Database (feature:fido2) |
 |----------|----------------------------|-------------------------------|
 | `EventStoreRepository` | `EventStoreRepositoryImpl` | `PasskeyEventStoreRepositoryImpl` |
 | `SnapshotRepository` | `SnapshotRepositoryImpl` | `PasskeySnapshotRepositoryImpl` |

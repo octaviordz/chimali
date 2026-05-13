@@ -5,18 +5,19 @@
 
 ## Summary
 
-Refactor the Chimali persistence layer from direct CRUD to an Event Sourcing architecture using the **Decider pattern** (Command → Decide → Events → Evolve → State). The F# prototype (`EventSourcingModule.fs`) provides the reference model. Two in-scope aggregates — **VaultEntry** (core:database) and **PasskeyCredential** (feature:fido2) — each get their own EventStore and Snapshot tables in their respective SQLDelight databases. Existing data is truncated (no migration). Concurrency is handled via optimistic locking with automated retry. The existing read-model tables (`VaultEntry`, `PasskeyCredential`) are preserved as synchronous projections.
+Refactor the Chimali persistence layer from direct CRUD to an Event Sourcing architecture using the **Decider pattern** (Command → Decide → Events → Evolve → State). The F# prototype (`EventSourcingModule.fs`) provides the reference model. Two in-scope aggregates — **VaultEntry** (core:database) and **PasskeyCredential** (feature:fido2) — each get their own EventStore and Snapshot tables in their respective SQLDelight databases. Existing data is truncated (no migration) and the core database is renamed from **ChimaliDatabase** to **VaultDatabase** to more accurately reflect its domain purpose. Concurrency is handled via optimistic locking with automated retry. The existing read-model tables (`VaultEntry`, `PasskeyCredential`) are preserved as synchronous projections. Hydration is accelerated via snapshots (every 20 events) and audit traces are stored as structured JSON.
+
 
 ## Technical Context
 
 **Language/Version**: Kotlin 2.1.x (KMP commonMain for domain, JVM for Android platform)
 **Primary Dependencies**: kotlinx-serialization (JSON), kotlinx-datetime, SQLDelight, SQLCipher, Koin
-**Storage**: SQLCipher (ChimaliDatabase for Vault), SQLDelight KMP (Fido2Database for Passkey) — separate EventStore tables per database
+**Storage**: SQLCipher (VaultDatabase for Vault), SQLDelight KMP (Fido2Database for Passkey) — separate EventStore tables per database
 **Testing**: kotlin.test (commonMain), JUnit 5, MockK — TDD mandatory per Constitution
 **Target Platform**: Android (SDK 28+), KMP-ready module structure
 **Project Type**: Mobile app (Android) with Kotlin Multiplatform domain layer
-**Performance Goals**: Sub-100ms state hydration for entities with >1,000 events via snapshot-accelerated replay
-**Constraints**: All event payloads encrypted with AES-256-GCM before storage. Existing data truncated during transition.
+**Performance Goals**: Sub-100ms state hydration for entities with >1,000 events via snapshot-accelerated replay (threshold: 20 events)
+**Constraints**: All event payloads encrypted with AES-256-GCM before storage. Existing data truncated during transition. Schema evolution follows additive-only rules.
 **Scale/Scope**: 10,000+ vault items, 2 aggregate roots (VaultEntry, PasskeyCredential)
 
 ## Constitution Check
@@ -41,7 +42,7 @@ Refactor the Chimali persistence layer from direct CRUD to an Event Sourcing arc
 
 ```text
 specs/034-refactor-event-sourcing/
-├── plan.md                        # This file
+├── plan.md              # This file
 ├── spec.md                        # Feature specification with clarifications
 ├── research.md                    # Phase 0: Technology decisions
 ├── data-model.md                  # Phase 1: Domain entities and SQL schema
@@ -84,8 +85,8 @@ core/database/src/main/sqldelight/com/chimali/core/database/
 
 core/data/src/main/kotlin/com/chimali/core/data/
 ├── eventsourcing/                      # NEW: ES persistence implementations
-│   ├── EventStoreRepositoryImpl.kt     # SQLDelight implementation for ChimaliDatabase
-│   ├── SnapshotRepositoryImpl.kt       # SQLDelight implementation for ChimaliDatabase
+│   ├── EventStoreRepositoryImpl.kt     # SQLDelight implementation for VaultDatabase
+│   ├── SnapshotRepositoryImpl.kt       # SQLDelight implementation for VaultDatabase
 │   └── VaultAggregateServiceImpl.kt    # Orchestrator: hydrate → decide → append → project → snapshot
 
 feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/
@@ -112,7 +113,7 @@ core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/
 ├── VaultAggregateServiceImplTest.kt    # NEW: End-to-end hydrate → decide → project tests
 ```
 
-**Structure Decision**: Event Sourcing infrastructure interfaces are placed in `core:domain` (KMP commonMain) for cross-platform reuse. Concrete implementations are split between `core:data` (for ChimaliDatabase/Vault) and `feature:fido2` (for Fido2Database/Passkey), keeping the existing module boundaries intact. Each database maintains its own `EventStore` and `Snapshot` tables.
+**Structure Decision**: Event Sourcing infrastructure interfaces are placed in `core:domain` (KMP commonMain) for cross-platform reuse. Concrete implementations are split between `core:data` (for VaultDatabase/Vault) and `feature:fido2` (for Fido2Database/Passkey), keeping the existing module boundaries intact. Each database maintains its own `EventStore` and `Snapshot` tables.
 
 ## F# Reference Model Mapping
 
@@ -137,7 +138,7 @@ The following table maps the F# prototype (`EventSourcingModule.fs`) to the Kotl
 ### Key Differences from F# Model
 
 1. **Identity ownership**: The F# model shows `identityId` added to commands at line 134-146. Kotlin implementation enforces this as a required `identityId` property on the `VaultCommand` sealed interface, validated in `VaultDecider.decide()`.
-2. **Dual-database**: F# model assumes a single store. Kotlin implementation creates separate `EventStore` tables in `ChimaliDatabase` (Vault aggregate) and `Fido2Database` (Passkey aggregate) per clarification.
+2. **Dual-database**: F# model assumes a single store. Kotlin implementation creates separate `EventStore` tables in `VaultDatabase` (Vault aggregate) and `Fido2Database` (Passkey aggregate) per clarification.
 3. **Automated retry**: F# model doesn't address concurrency. Kotlin `AggregateServiceImpl` wraps the hydrate→decide→append cycle in a retry loop that catches `OptimisticConcurrencyException` and re-hydrates.
 4. **Encryption**: F# model uses plain-text payloads. Kotlin implementation encrypts all event payloads with AES-256-GCM before SQL storage, per Constitution I.
 5. **TraceEntry**: The `project` function (F# line 110) is split in Kotlin: the read-model projection updates the SQL `VaultEntry` table, and a separate `TraceEntry` list is accumulated during `evolve` for FR-004 audit logging.
@@ -146,5 +147,5 @@ The following table maps the F# prototype (`EventSourcingModule.fs`) to the Kotl
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|--------------------------------------|
-| Dual EventStore tables | Preserves existing module boundary (core vs feature:fido2) | Single shared table would couple Fido2Database to ChimaliDatabase, breaking KMP module isolation |
+| Dual EventStore tables | Preserves existing module boundary (core vs feature:fido2) | Single shared table would couple Fido2Database to VaultDatabase, breaking KMP module isolation |
 | Repository pattern for EventStore | Abstracts encryption + SQL + serialization | Direct SQL access would leak encryption concerns into domain logic |

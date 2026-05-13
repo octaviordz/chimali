@@ -274,15 +274,17 @@ data class PasskeyState(
 
 ---
 
-### 9. TraceEntry (Audit Log)
+### 9. Trace (Audit Log)
 
-Maps to `ClaimModule.fs` §3 (`TraceEntry`):
+The audit trace is generated during state reconstruction and returned as a structured JSON array of entries.
 
 ```kotlin
 @Serializable
 data class TraceEntry(
     val timestamp: Instant,
     val description: String,
+    val eventType: String,
+    val metadata: Map<String, String> = emptyMap(),
 )
 ```
 
@@ -306,7 +308,7 @@ data class Snapshot<T>(
 
 ## SQL Schema
 
-### ChimaliDatabase (core:database) — EventStore + Snapshot Tables
+### VaultDatabase (core:database) — EventStore + Snapshot Tables
 
 Added to `Vault.sq` alongside existing tables:
 
@@ -386,7 +388,7 @@ CREATE TABLE Snapshot (
 
 ## Entity Relationships
 
-### ChimaliDatabase (Vault Aggregate)
+### VaultDatabase (Vault Aggregate)
 
 ```mermaid
 erDiagram

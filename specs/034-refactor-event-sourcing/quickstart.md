@@ -5,7 +5,7 @@
 
 ## Architecture Overview
 
-The Event Sourcing architecture replaces direct CRUD operations with an append-only event log. State is reconstructed by replaying events through a pure `Decider` function. There are two separate `EventStore` tables: one in `ChimaliDatabase` (core:data) for the VaultEntry aggregate, and one in `Fido2Database` (feature:fido2) for the PasskeyCredential aggregate.
+The Event Sourcing architecture replaces direct CRUD operations with an append-only event log. State is reconstructed by replaying events through a pure `Decider` function. There are two separate `EventStore` tables: one in `VaultDatabase` (core:data) for the VaultEntry aggregate, and one in `Fido2Database` (feature:fido2) for the PasskeyCredential aggregate.
 
 ```
 ┌──────────────┐     ┌──────────┐     ┌──────────────┐
