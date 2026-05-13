@@ -13,6 +13,15 @@
 - Q: How will event storage be distributed across existing databases? → A: Separate EventStore tables per database (ChimaliDatabase and Fido2Database), with shared common interfaces in core:domain to ensure architectural consistency.
 - Q: What is the migration strategy for existing data? → A: No migration required; existing data in VaultEntry and PasskeyCredential tables can be truncated during the transition.
 - Q: How are concurrent modification conflicts handled? → A: Automated retry; the system re-hydrates the latest state and re-executes the Decider logic transparently to the user.
+- Q: How should event schema evolution be handled? → A: Additive changes only; new fields must have default values to ensure backward compatibility with historical events.
+
+### Session 2026-05-13
+
+- Q: How should event schema evolution be handled? → A: Additive changes only; new fields must have default values to ensure backward compatibility with historical events.
+- Q: What is the default threshold for snapshot generation? → A: Every 20 events per aggregate root.
+- Q: What is the format for the audit trace log? → A: Structured JSON format, optimized for machine-readability and precise auditing.
+- Q: How should data truncation be handled during deployment? → A: Automatically via SQLDelight migration scripts; no explicit user confirmation or backup is required for this pre-production refactor.
+- Q: What is the primary interface for temporal queries? → A: Timestamp-based reconstruction (`asOf(timestamp)`), allowing the system to load events up to that specific point in time.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -64,7 +73,7 @@ As a system administrator, I want the system to periodically save snapshots of r
 
 - What happens if a snapshot is corrupted or deleted? (System MUST gracefully fall back to full from-scratch hydration).
 - How are concurrent commands handled to ensure sequence numbers don't conflict? (Optimistic concurrency via UNIQUE constraint; system MUST implement automated retry by re-hydrating and re-applying the command).
-- How does the system handle schema evolution for events (e.g., an attribute type changes)?
+- How does the system handle schema evolution for events? (Strictly additive changes; new fields MUST include default values for backward compatibility).
 
 ## Requirements *(mandatory)*
 
@@ -73,9 +82,9 @@ As a system administrator, I want the system to periodically save snapshots of r
 - **FR-001**: System MUST represent state mutations as immutable, append-only events (e.g., `Claim` entities targeting specific attributes with Set/Add/Remove operations).
 - **FR-002**: System MUST prohibit the deletion or modification of any persisted event.
 - **FR-003**: System MUST utilize a `Decider` mechanism to deterministically reconstruct an entity's current state (the `Model`) by folding an ordered stream of events.
-- **FR-004**: System MUST generate a human-readable `Trace` audit log during state reconstruction, detailing each chronological mutation.
-- **FR-005**: System MUST provide an interface to perform temporal queries, returning the state of an entity as it existed at any specified point in time.
-- **FR-006**: System MUST support `Snapshot` generation, storing the computed state alongside the sequence number of the last processed event.
+- **FR-004**: System MUST generate a structured JSON `Trace` audit log during state reconstruction, detailing each chronological mutation for precise machine-auditing.
+- **FR-005**: System MUST provide a timestamp-based interface (`asOf(timestamp)`) to perform temporal queries, returning the state of an entity as it existed at any specified point in time.
+- **FR-006**: System MUST support `Snapshot` generation, storing the computed state alongside the sequence number of the last processed event. Snapshots MUST be generated automatically every 20 events per aggregate.
 - **FR-007**: System MUST be capable of state hydration starting from a given `Snapshot`, applying only the events with sequence numbers greater than the snapshot's.
 - **FR-008**: System MUST utilize unique identifiers (e.g., `Permanode`, `BlobRef`) to securely identity aggregate roots.
 - **FR-009**: The VaultEntry aggregate root MUST event-source all child entities (VaultEntry, Label, VaultEntryLabel) through VaultEntry-level events.
@@ -120,7 +129,6 @@ As a system administrator, I want the system to periodically save snapshots of r
 
 - The event store maintains strict global or per-aggregate ordering of sequence numbers.
 - Snapshots are safe to periodically discard, as the source of truth remains the immutable event stream.
-- Event structure changes (schema evolution) are handled gracefully by the Decider.
+- Event structure changes (schema evolution) are handled gracefully by the Decider through additive changes and default value support for new fields.
 - The two databases (ChimaliDatabase and Fido2Database) each maintain their own EventStore table. Events are not cross-referenced between databases.
-- Existing data in the VaultEntry and PasskeyCredential tables will be truncated (cleared) during the initial deployment of the event sourcing architecture.
-- Event structure changes (schema evolution) are handled gracefully by the Decider.
+- Existing data in the VaultEntry and PasskeyCredential tables will be truncated (cleared) automatically via SQLDelight migration scripts during the initial deployment.
