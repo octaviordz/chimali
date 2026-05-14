@@ -17,9 +17,9 @@
 
 **Purpose**: Establish the analysis document structure and gather all necessary inputs
 
-- [ ] T001 Create analysis document skeleton at specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
-- [ ] T002 [P] Read and catalog all BIP-32/BIP-85/BIP-44 references in source code files, test files, and build.gradle.kts files (e.g., bitcoinj dependencies, WalletMasterSeedProvider.kt, PostQuantumCrypto.kt, Fido2CryptoService.kt, and associated test files)
-- [ ] T003 [P] Read and catalog all BIP-32/BIP-44/BIP-85 references in documentation files: .specify/memory/constitution.md, docs/brd.md, docs/changelogs/, CHANGELOG.md
+- [x] T001 Create analysis document skeleton at specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
+- [x] T002 [P] Read and catalog all BIP-32/BIP-85/BIP-44 references in source code files, test files, and build.gradle.kts files (e.g., bitcoinj dependencies, WalletMasterSeedProvider.kt, PostQuantumCrypto.kt, Fido2CryptoService.kt, and associated test files)
+- [x] T003 [P] Read and catalog all BIP-32/BIP-44/BIP-85 references in documentation files: .specify/memory/constitution.md, docs/brd.md, docs/changelogs/, CHANGELOG.md
 
 ---
 
@@ -27,9 +27,9 @@
 
 **Purpose**: Deep-read the HDK draft specification to establish the technical foundation for the feasibility analysis
 
-- [ ] T004 Read and summarize relevant sections of draft-dijkhuis-cfrg-hdkeys-06 (https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06) (§2.2 Seed, §2.4 DeriveSalt, §2.5 Key Derivation Rules, §3.2 Multiplicative Blinding, §4.1 HDK-ECDH-P256) — write findings to the "HDK Spec Summary" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
-- [ ] T005 Read existing HDK implementation in core/security/src/ to catalog which HDK operations are already implemented (HdkEcdhP256, DeriveSalt, BlindPublicKey, DeriveBlindingFactor, HashToScalar) — write findings to the "Current HDK Implementation Inventory" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
-- [ ] T006 Read and catalog the current PQ branch isolation logic in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt (functions: derivePqChildSeed, ckdHard, and all BIP-32/85 constants) — write findings to the "PQ Branch Isolation Audit" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
+- [x] T004 Read and summarize relevant sections of draft-dijkhuis-cfrg-hdkeys-06 (https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06) (§2.2 Seed, §2.4 DeriveSalt, §2.5 Key Derivation Rules, §3.2 Multiplicative Blinding, §4.1 HDK-ECDH-P256) — write findings to the "HDK Spec Summary" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
+- [x] T005 Read existing HDK implementation in core/security/src/ to catalog which HDK operations are already implemented (HdkEcdhP256, DeriveSalt, BlindPublicKey, DeriveBlindingFactor, HashToScalar) — write findings to the "Current HDK Implementation Inventory" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
+- [x] T006 Read and catalog the current PQ branch isolation logic in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt (functions: derivePqChildSeed, ckdHard, and all BIP-32/85 constants) — write findings to the "PQ Branch Isolation Audit" section of specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md
 
 **Checkpoint**: All raw inputs gathered — feasibility evaluation can begin
 
@@ -43,11 +43,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Write "Feasibility and Evidence" section in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md evaluating whether DeriveSalt (§2.4) can replace BIP-32 CKD for PQ branch isolation — include cryptographic rationale
-- [ ] T008 [US1] Write "PQ Branch Migration Strategy" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md proposing the replacement of derivePqChildSeed/ckdHard with an HDK DeriveSalt-based approach using a domain-separated context string
-- [ ] T009 [US1] Write "BIP-39 Seed Generation — No Change Required" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md confirming that Bip39MasterSeedGenerator (core/security/src/androidMain/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGenerator.kt) is independent from BIP-32 and requires zero changes
-- [ ] T010 [US1] Write "Existing Wallets — Clean Break Decision" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md documenting that keys derived via BIP-32/85 CKD will become inaccessible after migration and justifying the clean-break approach
-- [ ] T011 [US1] Write "Risk Assessment" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md identifying risks (draft stability, no third-party library, PQ curve support gaps) and mitigations
+- [x] T007 [US1] Write "Feasibility and Evidence" section in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md evaluating whether DeriveSalt (§2.4) can replace BIP-32 CKD for PQ branch isolation — include cryptographic rationale
+- [x] T008 [US1] Write "PQ Branch Migration Strategy" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md proposing the replacement of derivePqChildSeed/ckdHard with an HDK DeriveSalt-based approach using a domain-separated context string
+- [x] T009 [US1] Write "BIP-39 Seed Generation — No Change Required" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md confirming that Bip39MasterSeedGenerator (core/security/src/androidMain/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGenerator.kt) is independent from BIP-32 and requires zero changes
+- [x] T010 [US1] Write "Existing Wallets — Clean Break Decision" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md documenting that keys derived via BIP-32/85 CKD will become inaccessible after migration and justifying the clean-break approach
+- [x] T011 [US1] Write "Risk Assessment" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md identifying risks (draft stability, no third-party library, PQ curve support gaps) and mitigations
 
 **Checkpoint**: Feasibility section complete — can be reviewed independently
 
@@ -61,12 +61,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [P] [US2] Write "Code Changes — WalletMasterSeedProvider" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing removal of ckdHard(), derivePqChildSeed(), and all BIP-32/85 constants from feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T013 [P] [US2] Write "Code Changes — PostQuantumCrypto" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing KDoc updates in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt to remove BIP-85/CKD references
-- [ ] T014 [P] [US2] Write "Code Changes — Fido2CryptoService" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing KDoc updates in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt to remove BIP-32 references from the derivation table
-- [ ] T015 [US2] Write "Constitution Redlines" section in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md with proposed diff/redlines for .specify/memory/constitution.md §II (Master Seed Architecture) — replace BIP-85/BIP-32 PQ branch language with HDK DeriveSalt context-based derivation
-- [ ] T016 [US2] Write "Documentation Updates" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md listing all BIP-32/44/85 references in docs/brd.md, CHANGELOG.md, and docs/changelogs/ that must be updated or annotated as historical
-- [ ] T017 [US2] Write "Recommended New Tests" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md proposing test vectors for the new DeriveSalt-based PQ child seed derivation to replace the old BIP-85 CKD tests
+- [x] T012 [P] [US2] Write "Code Changes — WalletMasterSeedProvider" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing removal of ckdHard(), derivePqChildSeed(), and all BIP-32/85 constants from feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T013 [P] [US2] Write "Code Changes — PostQuantumCrypto" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing KDoc updates in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt to remove BIP-85/CKD references
+- [x] T014 [P] [US2] Write "Code Changes — Fido2CryptoService" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md detailing KDoc updates in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt to remove BIP-32 references from the derivation table
+- [x] T015 [US2] Write "Constitution Redlines" section in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md with proposed diff/redlines for .specify/memory/constitution.md §II (Master Seed Architecture) — replace BIP-85/BIP-32 PQ branch language with HDK DeriveSalt context-based derivation
+- [x] T016 [US2] Write "Documentation Updates" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md listing all BIP-32/44/85 references in docs/brd.md, CHANGELOG.md, and docs/changelogs/ that must be updated or annotated as historical
+- [x] T017 [US2] Write "Recommended New Tests" subsection in specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md proposing test vectors for the new DeriveSalt-based PQ child seed derivation to replace the old BIP-85 CKD tests
 
 **Checkpoint**: All code and constitution changes are fully mapped out
 
@@ -76,8 +76,8 @@
 
 **Purpose**: Final review and quality assurance of the analysis document
 
-- [ ] T018 Review the complete analysis document at specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md for internal consistency, completeness against spec.md success criteria (SC-001 through SC-004), and correctness of file path references
-- [ ] T019 Verify SC-004 compliance: confirm that NO product source code files were modified during this analysis phase (only spec artifacts created)
+- [x] T018 Review the complete analysis document at specs/036-replace-bip32-with-hdk/analysis-hdk-migration.md for internal consistency, completeness against spec.md success criteria (SC-001 through SC-004), and correctness of file path references
+- [x] T019 Verify SC-004 compliance: confirm that NO product source code files were modified during this analysis phase (only spec artifacts created)
 
 ---
 
