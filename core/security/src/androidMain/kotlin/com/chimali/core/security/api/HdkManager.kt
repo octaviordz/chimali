@@ -11,7 +11,7 @@ interface HdkManager {
     /**
      * Generate a new random seed of Ns bytes for HDK derivation.
      *
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.6">
+     * @see <a href="https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06#section-2.6">
      * draft-dijkhuis-cfrg-hdkeys-06 §2.6 (GenerateSeed)</a>
      */
     fun generateSeed(): ByteArray
@@ -34,7 +34,7 @@ interface HdkManager {
      * @param seed The root seed (32 bytes).
      * @param path List of unsigned 32-bit indices for derivation (e.g., [0u], [0u, 1u, 2u]).
      * @return The derived HDK result containing blinded public key, salt, and blinding factor.
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-2.5">
+     * @see <a href="https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06#section-2.5">
      * draft-dijkhuis-cfrg-hdkeys-06 §2.5 (HDK)</a>
      */
     fun deriveHdk(
@@ -51,7 +51,7 @@ interface HdkManager {
      * @param devicePrivateKey The device private key (32 bytes, big-endian).
      * @param blindingFactor The combined blinding factor (32 bytes, big-endian).
      * @return The blinded private key (32 bytes).
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.2.2">
+     * @see <a href="https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06#section-3.2.2">
      * draft-dijkhuis-cfrg-hdkeys-06 §3.2.2 (Multiplicative Blinding)</a>
      */
     fun blindPrivateKey(
@@ -69,7 +69,7 @@ interface HdkManager {
      * @param blindingFactor The combined blinding factor (32 bytes).
      * @param readerPublicKey The reader's public key (uncompressed, 65 bytes).
      * @return Shared secret (32 bytes).
-     * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-cfrg-hdkeys-06.html#section-3.3.1">
+     * @see <a href="https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06#section-3.3.1">
      * draft-dijkhuis-cfrg-hdkeys-06 §3.3.1 (Proof of Possession)</a>
      */
     fun createBlindedSharedSecret(
