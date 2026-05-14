@@ -110,4 +110,24 @@ interface HdkManager {
         parentPublicKey: ByteArray,
         expectedPublicKey: ByteArray,
     ): HdkResult
+
+    /**
+     * Derive a child salt from a parent salt and a context byte array.
+     *
+     * Per §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`:
+     *   `salt' = H(salt || ctx)`
+     *
+     * This is the core derivation primitive used for domain-separated
+     * child seed extraction (e.g., PQ branch isolation).
+     *
+     * @param salt  The parent salt (Ns bytes, typically 32).
+     * @param ctx   The context bytes for domain separation.
+     * @return The derived child salt (Ns bytes).
+     * @see <a href="https://datatracker.ietf.org/doc/html/draft-dijkhuis-cfrg-hdkeys-06#section-2.4">
+     * draft-dijkhuis-cfrg-hdkeys-06 §2.4 (DeriveSalt)</a>
+     */
+    fun deriveSalt(
+        salt: ByteArray,
+        ctx: ByteArray,
+    ): ByteArray
 }

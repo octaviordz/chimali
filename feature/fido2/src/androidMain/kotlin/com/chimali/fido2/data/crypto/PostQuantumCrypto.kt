@@ -21,12 +21,10 @@ const val COSE_ML_DSA_65 = -49
  * T017a — Post-Quantum signing via **ML-DSA-65** (Dilithium, NIST FIPS 204 Level 3).
  *
  * ## Design
- * Keys are derived deterministically from a BIP-85-style child seed produced by
- * [WalletMasterSeedProvider.getPqChildSeed], which is cryptographically isolated from
- * the ECDSA branch via a fully-hardened CKD path `[83696968', 83286642', 2']`.
- *
- * This follows the **Hybrid HD Wallet** design from the Tectonic Labs blogpost:
- * https://hackmd.io/abYfydDxRMGkwguLiAqVbg
+ * Keys are derived deterministically from a 64-byte child seed produced by
+ * [WalletMasterSeedProvider.getPqChildSeed]. This seed is derived via **HDK DeriveSalt**
+ * (§2.4 of `draft-dijkhuis-cfrg-hdkeys-06`) using the context `"PQ_ML-DSA_Branch"`,
+ * ensuring it is cryptographically isolated from the classical ECDSA branch.
  *
  * ## Algorithm Choice
  * - **ML-DSA-65** (Dilithium Level 3) is chosen over Falcon/FN-DSA because its deterministic

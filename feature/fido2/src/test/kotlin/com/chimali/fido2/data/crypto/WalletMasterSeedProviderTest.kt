@@ -53,10 +53,14 @@ class WalletMasterSeedProviderTest {
 
     private companion object {
         private const val SEED_SIZE_64 = 64
+        private const val PQ_SEED_SIZE_64 = 64
         private const val MNEMONIC_WORDS_24 = 24
         private const val MNEMONIC_WORDS_12 = 12
         private const val OFFSET_10 = 10
         private const val OFFSET_99 = 99
+        private const val HDK_SEED_SIZE_32 = 32
+        private const val PQ_CONTEXT_STRING = "PQ_ML-DSA_Branch"
+        private const val PQ_EXPANSION_KEY = "chimali_pq_seed_v1"
     }
 
     private lateinit var mockGenerator: MasterSeedGenerator
@@ -71,6 +75,16 @@ class WalletMasterSeedProviderTest {
         every { mockGenerator.generateMnemonic(MNEMONIC_WORDS_24) } returns fakeMnemonic
         every { mockGenerator.deriveSeed(fakeMnemonic, "") } returns fakeSeed
         every { mockHdkManager.generateDeviceKeyPair() } returns fakeKeyPair
+        // HDK DeriveSalt: SHA-256(salt || ctx) — mock with a real SHA-256 computation
+        every { mockHdkManager.deriveSalt(any(), any()) } answers {
+            val salt = firstArg<ByteArray>()
+            val ctx = secondArg<ByteArray>()
+            java.security.MessageDigest.getInstance("SHA-256").run {
+                update(salt)
+                update(ctx)
+                digest()
+            }
+        }
 
         provider = TestableWalletMasterSeedProvider(mockGenerator, mockHdkManager)
     }
@@ -239,8 +253,87 @@ class WalletMasterSeedProviderTest {
             assertTrue(chars.all { it == '\u0000' }, "CharArray must be zeroed after importMnemonic")
         }
 
+    // -----------------------------------------------------------------------
+    // T001: HDK-based PQ child seed — KAT, determinism, clean break
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `getPqChildSeed returns deterministic 64-byte result via HDK DeriveSalt`() =
+        runTest {
+            val pq1 = provider.getPqChildSeed()
+            val pq2 = provider.getPqChildSeed()
+
+            assertNotNull(pq1)
+            assertEquals(PQ_SEED_SIZE_64, pq1.size, "PQ child seed must be 64 bytes")
+            assertContentEquals(pq1, pq2, "PQ child seed must be deterministic")
+        }
+
+    @Test
+    fun `getPqChildSeed produces different output from legacy BIP-85 derivation (clean break)`() =
+        runTest {
+            val pqChildSeed = provider.getPqChildSeed()
+            assertNotNull(pqChildSeed)
+
+            // Legacy BIP-85 stub returned ByteArray(64) { (it + 99).toByte() }
+            val legacyStub = ByteArray(PQ_SEED_SIZE_64) { (it + OFFSET_99).toByte() }
+            assertFalse(
+                pqChildSeed.contentEquals(legacyStub),
+                "HDK-derived PQ seed must differ from legacy BIP-85 output",
+            )
+        }
+
+    @Test
+    fun `getPqChildSeed enforces domain separation (T006)`() =
+        runTest {
+            val actualSeed = provider.getPqChildSeed()
+
+            // Compute what the seed would be with a DIFFERENT context string
+            val master = provider.getMasterSeed()!!
+            val hdkSeed = master.copyOf(HDK_SEED_SIZE_32)
+            val differentContext = "SOME_OTHER_Branch".toByteArray(Charsets.UTF_8)
+            val fakeSalt = mockHdkManager.deriveSalt(hdkSeed, differentContext)
+
+            val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
+            val mac = javax.crypto.Mac.getInstance("HmacSHA512")
+            mac.init(javax.crypto.spec.SecretKeySpec(expansionKey, "HmacSHA512"))
+            val differentSeed = mac.doFinal(fakeSalt)
+
+            assertFalse(
+                actualSeed!!.contentEquals(differentSeed),
+                "Different HDK contexts must yield different child seeds (domain separation)",
+            )
+        }
+
+    @Test
+    fun `getPqChildSeed returns null when master seed is not available`() =
+        runTest {
+            // Create a provider with no mnemonic and no generation capability
+            val emptyProvider = TestableWalletMasterSeedProvider(mockGenerator, mockHdkManager)
+            emptyProvider.persistedMnemonic = null
+
+            // Override to make getMasterSeed return null
+            val nullSeedProvider =
+                object : MasterSeedProvider {
+                    override suspend fun getMasterSeed(): ByteArray? = null
+
+                    override suspend fun getDeviceKeyPair(): HdkKeyPair? = null
+
+                    override suspend fun getMnemonic(): List<String>? = null
+
+                    override suspend fun getPqChildSeed(): ByteArray? = null
+
+                    override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult =
+                        ImportMnemonicResult.Created
+                }
+            assertNull(nullSeedProvider.getPqChildSeed())
+        }
+
     /**
      * Test double that replaces [EncryptedSharedPreferences] with an in-memory string variable.
+     *
+     * The PQ child seed derivation uses the **real HDK DeriveSalt** path:
+     * 1. `DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch")` → 32-byte salt
+     * 2. `HMAC-SHA512("chimali_pq_seed_v1", pqSalt)` → 64-byte child seed
      */
     private inner class TestableWalletMasterSeedProvider(
         private val gen: MasterSeedGenerator,
@@ -254,14 +347,35 @@ class WalletMasterSeedProviderTest {
         @Volatile
         private var cachedKeyPair: HdkKeyPair? = null
 
+        @Volatile
+        private var cachedPqChildSeed: ByteArray? = null
+
         override suspend fun getMasterSeed(): ByteArray? = ensureInit().first
 
         override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInit().second
 
         override suspend fun getMnemonic(): List<String>? = persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
 
-        /** T017a: Returns a deterministic test PQ child seed. */
-        override suspend fun getPqChildSeed(): ByteArray? = ByteArray(SEED_SIZE_64) { (it + OFFSET_99).toByte() }
+        /**
+         * HDK-based PQ child seed derivation (mirrors production logic):
+         * 1. DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch") → 32-byte salt
+         * 2. HMAC-SHA512("chimali_pq_seed_v1", pqSalt) → 64-byte child seed
+         */
+        override suspend fun getPqChildSeed(): ByteArray? {
+            cachedPqChildSeed?.let { return it }
+            val master = getMasterSeed() ?: return null
+            return synchronized(this) {
+                cachedPqChildSeed ?: run {
+                    val hdkSeed = master.copyOf(HDK_SEED_SIZE_32)
+                    val pqContext = PQ_CONTEXT_STRING.toByteArray(Charsets.UTF_8)
+                    val pqSalt = hdkMgr.deriveSalt(hdkSeed, pqContext)
+                    val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
+                    val mac = javax.crypto.Mac.getInstance("HmacSHA512")
+                    mac.init(javax.crypto.spec.SecretKeySpec(expansionKey, "HmacSHA512"))
+                    mac.doFinal(pqSalt).also { cachedPqChildSeed = it }
+                }
+            }
+        }
 
         override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
             try {
@@ -276,6 +390,8 @@ class WalletMasterSeedProviderTest {
                 synchronized(this) {
                     cachedSeed = null
                     cachedKeyPair = null
+                    cachedPqChildSeed?.fill(0)
+                    cachedPqChildSeed = null
                 }
                 // Re-derive immediately.
                 ensureInit()

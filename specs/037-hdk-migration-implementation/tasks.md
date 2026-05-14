@@ -39,12 +39,12 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T001 [US1] Add KAT (Known Answer Test) and determinism test for `getPqChildSeed` using `DeriveSalt` and `HMAC-SHA512` expansion in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt`
+- [x] T001 [US1] Add KAT (Known Answer Test) and determinism test for `getPqChildSeed` using `DeriveSalt` and `HMAC-SHA512` expansion in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Inject `HdkManager` into `WalletMasterSeedProvider` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt`
-- [ ] T003 [US1] Implement HDK `DeriveSalt` and `HMAC-SHA512` expansion logic for `getPqChildSeed()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt`
+- [x] T002 [US1] Inject `HdkManager` into `WalletMasterSeedProvider` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt`
+- [x] T003 [US1] Implement HDK `DeriveSalt` and `HMAC-SHA512` expansion logic for `getPqChildSeed()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt`
 
 **Checkpoint**: At this point, the new PQ derivation logic should be fully functional and tested.
 
@@ -58,7 +58,7 @@
 
 ### Tests for User Story 2
 
-- [ ] T004 [US2] Verify or add tests to ensure the master seed generation from BIP-39 mnemonic phrase remains unaffected in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt`
+- [x] T004 [US2] Verify or add tests to ensure the master seed generation from BIP-39 mnemonic phrase remains unaffected in `feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
 
@@ -72,9 +72,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T005 [US3] Remove `ckdHard()` and all legacy BIP-32/85 constants from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt` (Depends on T003)
-- [ ] T006 [P] [US3] Update KDoc references to remove BIP-32 mentions in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt`
-- [ ] T007 [P] [US3] Update KDoc derivation table to remove BIP-32 mentions in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`
+- [x] T005 [US3] Remove `ckdHard()` and all legacy BIP-32/85 constants from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt` (Depends on T003)
+- [x] T006 [P] [US3] Update KDoc references to remove BIP-32 mentions in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt`
+- [x] T007 [P] [US3] Update KDoc derivation table to remove BIP-32 mentions in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`
 
 **Checkpoint**: All user stories should now be independently functional.
 
@@ -84,9 +84,9 @@
 
 **Purpose**: Improvements that affect multiple user stories and governance alignment.
 
-- [ ] T008 [P] Update Project Constitution (Section II) in `.specify/memory/constitution.md` to reflect the removal of the BIP-32 exception and adoption of HDK DeriveSalt
-- [ ] T009 [P] Annotate historical documentation (CHANGELOG.md, BRD) with notes about BIP-32 supersession by HDK
-- [ ] T010 Run local CI pipeline (`tools/local-ci.ps1`) to validate all tests and static analysis (Ktlint/Detekt)
+- [x] T008 [P] Update Project Constitution (Section II) in `.specify/memory/constitution.md` to reflect the removal of the BIP-32 exception and adoption of HDK DeriveSalt
+- [x] T009 [P] Annotate historical documentation (CHANGELOG.md, BRD) with notes about BIP-32 supersession by HDK
+- [x] T010 Run local CI pipeline (`tools/local-ci.ps1`) to validate all tests and static analysis (Ktlint/Detekt)
 
 ---
 

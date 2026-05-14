@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
 import com.chimali.core.security.api.HdkKeyPair
+import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.api.MasterSeedProvider
@@ -42,6 +43,7 @@ private const val KEY_MNEMONIC = "bip39_mnemonic"
 class WalletMasterSeedProvider(
     private val context: Context,
     private val masterSeedGenerator: MasterSeedGenerator,
+    private val hdkManager: HdkManager,
 ) : MasterSeedProvider {
     @Volatile
     private var cachedSeed: ByteArray? = null
@@ -204,20 +206,6 @@ class WalletMasterSeedProvider(
         )
     }
 
-    // ── T017a: BIP-85-style PQ branch seed derivation ─────────────────────────
-
-    /**
-     * T017a — Returns a 64-byte BIP-85-derived child seed for the ML-DSA key branch.
-     *
-     * Process (mirroring the HHD blogpost + BIP-85 spec):
-     * 1. Derive a BIP-32 master root key via HMAC-SHA512("Bitcoin seed", masterSeed).
-     * 2. Apply three rounds of hardened CKD (adds 2^31 to each index):
-     *    m/83696968’/83286642’/2’
-     * 3. Run the BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", k).
-     *
-     * The result is a 64-byte seed used to initialize a deterministic SecureRandom
-     * for ML-DSA key generation.
-     */
     override suspend fun getPqChildSeed(): ByteArray? {
         cachedPqChildSeed?.let { return it }
         val master = getMasterSeed() ?: return null
@@ -226,97 +214,40 @@ class WalletMasterSeedProvider(
         }
     }
 
+    // ── HDK DeriveSalt-based PQ branch seed derivation ──────────────────────
+
     /**
      * Derives a 64-byte deterministic child seed for the ML-DSA (post-quantum) key branch
-     * using **BIP-85** entropy extraction over a **BIP-32** hardened derivation path.
+     * using **HDK DeriveSalt** (§2.4 of `draft-dijkhuis-cfrg-hdkeys-06`) and HMAC-SHA512
+     * expansion.
      *
-     * ## Isolation from HDK spec
+     * ## Process
      *
-     * This function uses BIP-32 hardened Child Key Derivation (CKD) as a child-seed
-     * _extraction_ mechanism. This is **intentional and explicitly isolated** from the
-     * HDK-ECDH-P256 derivation path:
+     * 1. Derive a 32-byte salt via `DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch")`.
+     * 2. Expand the salt to 64 bytes via `HMAC-SHA512("chimali_pq_seed_v1", pqSalt)`.
      *
-     * - The output of this function is a raw seed bytes for ML-DSA key generation — it
-     *   is **never** fed into [HdkManager.deriveHdk] or any HDK function.
-     * - The classical ECDSA branch ([getMasterSeed] → [HdkManager.deriveHdk]) and this PQ
-     *   branch are **cryptographically isolated**: a compromise of one branch does not
-     *   implicate the other.
-     * - The BIP-32 usage here is purely a **BIP-85 compatibility tool** for deterministic
-     *   entropy extraction — not an HDK path in any sense of `draft-dijkhuis-cfrg-hdkeys-06`.
+     * ## Isolation from ECDSA branch
      *
-     * ## Derivation path
+     * The context string `"PQ_ML-DSA_Branch"` is unique and will never collide with
+     * HDK-ECDH-P256 contexts (which use `ID || I2OSP(index, 4)` format per §2.3).
+     * The output of this function is a raw seed for ML-DSA key generation — it is
+     * **never** fed into [HdkManager.deriveHdk] or any HDK function.
      *
-     * 1. BIP-32 master root key: `HMAC-SHA512("Bitcoin seed", masterSeed)` (BIP-32 §Master key
-     *    generation)
-     * 2. Three rounds of hardened CKD via [ckdHard]: `m/83696968'/83286642'/2'`
-     *    - `83696968'` = BIP-85 purpose namespace
-     *    - `83286642'` = application number ("Tectonic" T9 encoding)
-     *    - `2'`        = index for the PQ (ML-DSA) branch
-     * 3. BIP-85 entropy: `HMAC-SHA512("bip-entropy-from-k", derivedKey)`
+     * ## Clean break
      *
-     * The result is a 64-byte seed used to deterministically initialize ML-DSA key generation
-     * in [PostQuantumCrypto.generateMlDsaKeyPair].
+     * This replaces the former BIP-85-style derivation (`m/83696968'/83286642'/2'`).
+     * The outputs are cryptographically incompatible — existing PQ keys derived via
+     * the legacy path are invalidated.
      */
     private fun derivePqChildSeed(masterSeed: ByteArray): ByteArray {
-        // BIP-32 master root key from the master seed
-        val masterRootKey = hmacSha512("Bitcoin seed".toByteArray(Charsets.UTF_8), masterSeed)
-        val k = masterRootKey.copyOfRange(0, BIP32_KEY_SIZE_32) // IL = key
-        val c = masterRootKey.copyOfRange(BIP32_KEY_SIZE_32, BIP32_HMAC_SIZE_64) // IR = chain code
+        val hdkSeed = masterSeed.copyOf(HDK_SEED_SIZE_32)
+        val pqContext = PQ_CONTEXT_STRING.toByteArray(Charsets.UTF_8)
+        val pqSalt = hdkManager.deriveSalt(hdkSeed, pqContext)
 
-        // Three rounds of hardened CKD: [83696968', 83286642', 2']
-        val path =
-            intArrayOf(
-                // "BIP85" purpose namespace (hardened)
-                BIP85_PURPOSE_83696968 + HARDENED_OFFSET,
-                // HHD app_no = "Tectonic" T9 (hardened)
-                BIP85_APP_NO_83286642 + HARDENED_OFFSET,
-                // index=2 → PQ (Falcon/ML-DSA) branch (hardened)
-                BIP85_INDEX_PQ_ML_DSA + HARDENED_OFFSET,
-            )
-
-        var currentKey = k
-        var currentChain = c
-        for (index in path) {
-            val (nextKey, nextChain) = ckdHard(currentKey, currentChain, index)
-            currentKey = nextKey
-            currentChain = nextChain
-        }
-
-        // BIP-85 entropy extraction: HMAC-SHA512("bip-entropy-from-k", derivedKey)
-        val childSeed = hmacSha512("bip-entropy-from-k".toByteArray(Charsets.UTF_8), currentKey)
-        Logger.d { "PQ child seed derived; seedLen=${childSeed.size}" }
+        val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
+        val childSeed = hmacSha512(expansionKey, pqSalt)
+        Logger.d { "PQ child seed derived via HDK DeriveSalt; seedLen=${childSeed.size}" }
         return childSeed
-    }
-
-    /**
-     * BIP-32 hardened Child Key Derivation (CKD) function.
-     *
-     * `I = HMAC-SHA512(key=chainCode, data=0x00 || parentKey || I2OSP(index, 4))`
-     * Returns `(IL, IR)` = (new child key bytes, new child chain code bytes).
-     *
-     * ## Role in this codebase
-     *
-     * This is a **BIP-85 compatibility tool** used solely by [derivePqChildSeed] to
-     * extract deterministic entropy for ML-DSA key generation. It is **not** part of the
-     * HDK-ECDH-P256 derivation stack and has **no relation** to [HdkManager.deriveHdk]
-     * or any function defined in `draft-dijkhuis-cfrg-hdkeys-06`. The BIP-32 semantics
-     * (hardened index, chain code, "Bitcoin seed" HMAC key) are confined entirely to
-     * the PQ branch. See [derivePqChildSeed] for the isolation rationale.
-     */
-    private fun ckdHard(
-        parentKey: ByteArray,
-        chainCode: ByteArray,
-        index: Int,
-    ): Pair<ByteArray, ByteArray> {
-        val data = ByteArray(BIP32_CKD_DATA_SIZE)
-        data[0] = 0x00
-        parentKey.copyInto(data, 1)
-        data[BIP32_INDEX_POS_0] = ((index ushr BIT_SHIFT_24) and BYTE_MASK_FF).toByte()
-        data[BIP32_INDEX_POS_1] = ((index ushr BIT_SHIFT_16) and BYTE_MASK_FF).toByte()
-        data[BIP32_INDEX_POS_2] = ((index ushr BIT_SHIFT_8) and BYTE_MASK_FF).toByte()
-        data[BIP32_INDEX_POS_3] = (index and BYTE_MASK_FF).toByte()
-        val i = hmacSha512(chainCode, data)
-        return Pair(i.copyOfRange(0, BIP32_KEY_SIZE_32), i.copyOfRange(BIP32_KEY_SIZE_32, BIP32_HMAC_SIZE_64))
     }
 
     private fun hmacSha512(
@@ -332,25 +263,7 @@ class WalletMasterSeedProvider(
         private const val MNEMONIC_WORD_COUNT = 24
         private const val HDK_SEED_SIZE_32 = 32
         private const val P256_SCALAR_SIZE_32 = 32
-        private const val BIP32_KEY_SIZE_32 = 32
-        private const val BIP32_HMAC_SIZE_64 = 64
-        private const val BIP32_CKD_DATA_SIZE = 1 + 32 + 4
-
-        private const val BIP85_PURPOSE_83696968 = 83696968
-        private const val BIP85_APP_NO_83286642 = 83286642
-        private const val BIP85_INDEX_PQ_ML_DSA = 2
-
-        // 2^31 as Int (wraps around)
-        private const val HARDENED_OFFSET = 0x80000000.toInt()
-
-        private const val BIP32_INDEX_POS_0 = 33
-        private const val BIP32_INDEX_POS_1 = 34
-        private const val BIP32_INDEX_POS_2 = 35
-        private const val BIP32_INDEX_POS_3 = 36
-
-        private const val BIT_SHIFT_24 = 24
-        private const val BIT_SHIFT_16 = 16
-        private const val BIT_SHIFT_8 = 8
-        private const val BYTE_MASK_FF = 0xFF
+        private const val PQ_CONTEXT_STRING = "PQ_ML-DSA_Branch"
+        private const val PQ_EXPANSION_KEY = "chimali_pq_seed_v1"
     }
 }

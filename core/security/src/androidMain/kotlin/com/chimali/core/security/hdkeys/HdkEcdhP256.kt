@@ -69,7 +69,7 @@ class HdkEcdhP256 : HdkManager {
      * The [ID] domain separator is already embedded in [ctx] and MUST NOT be
      * prepended again to the hash input.
      */
-    internal fun deriveSalt(
+    override fun deriveSalt(
         salt: ByteArray,
         ctx: ByteArray,
     ): ByteArray {

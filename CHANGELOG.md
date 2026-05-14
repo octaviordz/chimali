@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-14
+
+### Changed
+- **Cryptographic Architecture (HDK Migration)**: Completed the migration of the Post-Quantum (ML-DSA) key branch from legacy BIP-32/85 derivation to the IETF `draft-dijkhuis-cfrg-hdkeys-06` HDK standard.
+    - Introduced `HdkManager.deriveSalt` to enforce domain-separated salt derivation for the PQ branch.
+    - Eliminated all legacy BIP-32/85 CKD paths and constants from the codebase, strictly adopting HDK primitives for deterministic generation.
+    - Restored cryptographic isolation between the classical ECDSA tree and the post-quantum keys.
+- **Detailed changes**: [2026-05-14-hdk-migration-pq-branch.md](docs/changelogs/2026-05-14-hdk-migration-pq-branch.md)
+
 ## [Unreleased] - 2026-05-13
 
 ### Fixed

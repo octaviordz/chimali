@@ -34,7 +34,7 @@ The root of trust is established via a **Master Seed (Master Key)** architecture
 - Salt values (including the seed) **MUST NOT** be reused outside of HDK derivation calls.
 - The seed is generated with 32 bytes of entropy (`SecureRandom`) and stored encrypted via `EncryptedSharedPreferences` (AES-256-GCM).
 
-**PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses a **BIP-85-style** hardened CKD derivation (`m/83696968'/83286642'/2'`) to produce a child seed that is cryptographically isolated from the ECDSA HDK branch. This BIP-32 CKD usage is intentional, limited to the PQ branch only, and does **not** conflict with the HDK spec because that child seed never enters the `HdkEcdhP256` derivation tree. The ECDSA branch uses `HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
+**PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses **HDK DeriveSalt** (§2.4) with the context `"PQ_ML-DSA_Branch"`, followed by HMAC-SHA512 expansion, to produce a child seed that is cryptographically isolated from the ECDSA HDK branch. This ensures full compliance with `draft-dijkhuis-cfrg-hdkeys-06` without any legacy BIP-32/85 dependencies. The ECDSA branch uses `HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
 
 **Spec alignment**:
 - `DeriveSalt` conforms to §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`. The normative definition `H(salt || ctx)` is strictly implemented. The `ID` domain separator is embedded in `ctx` via §2.3 (`ctx = ID || I2OSP(index, 4)`) and is not prepended again to the hash input.

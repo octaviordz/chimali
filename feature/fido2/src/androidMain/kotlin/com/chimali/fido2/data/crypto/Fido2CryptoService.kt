@@ -90,7 +90,8 @@ class Fido2CryptoService(
      * | ES256      | -7      | **HDK-ECDH-P256** via                                              |
      * |            |         | [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
      * | Ed25519    | -8      | **SHA-512 hash** — isolated branch; see note below |
-     * | ML-DSA-65  | -49     | **BIP-85 + SHA-512** — isolated PQ branch via [MasterSeedProvider.getPqChildSeed] |
+     * | ML-DSA-65  | -49     | **HDK DeriveSalt + SHA-512** — isolated PQ branch via                              |
+     * |            |         | [MasterSeedProvider.getPqChildSeed]                                                |
      *
      * ### Ed25519 isolation note
      *
