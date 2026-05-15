@@ -1,17 +1,15 @@
 package com.chimali.fido2.presentation.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.style.TextOverflow
 import org.junit.Rule
 import org.junit.Test
-
-import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 
 /**
  * T023 — Compose UI test: a [displayName] of exactly 64 UTF-8 bytes renders without truncation

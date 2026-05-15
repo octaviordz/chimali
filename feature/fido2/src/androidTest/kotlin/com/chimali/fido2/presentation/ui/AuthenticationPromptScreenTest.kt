@@ -1,5 +1,6 @@
 package com.chimali.fido2.presentation.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -7,7 +8,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.chimali.core.domain.valueobject.CredentialId
@@ -17,9 +18,6 @@ import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
 import org.junit.Rule
 import org.junit.Test
-
-import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 
 /**
  * T099 — Compose UI tests for [AuthenticationPromptScreen].
