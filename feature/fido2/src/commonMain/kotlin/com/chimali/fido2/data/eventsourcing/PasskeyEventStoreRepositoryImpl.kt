@@ -18,7 +18,6 @@ import kotlinx.serialization.modules.subclass
  * Implementation of EventStoreRepository for the Fido2Database.
  * Handles serialization and encryption of Passkey aggregate events.
  */
-@Suppress("ForbiddenComment")
 class PasskeyEventStoreRepositoryImpl(
     private val database: Fido2Database,
     private val encryptionManager: EncryptionManager,

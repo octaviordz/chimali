@@ -36,7 +36,6 @@ import com.chimali.feature.vault.ui.model.LabelUiModel
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun VaultListScreen(
     items: List<VaultItem>,
@@ -110,7 +109,6 @@ fun VaultListScreen(
     }
 }
 
-@Suppress("FunctionNaming")
 @Composable
 fun VaultItemRow(
     item: VaultItem,

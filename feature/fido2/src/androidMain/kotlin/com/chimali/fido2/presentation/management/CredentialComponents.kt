@@ -29,7 +29,6 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 
 /** T122 — List Item */
-@Suppress("FunctionNaming")
 @Composable
 fun CredentialItem(
     credential: PasskeyCredential,
@@ -82,7 +81,6 @@ fun CredentialItem(
 private const val ISO_DATE_LENGTH = 10
 
 /** T123 — Confirmation Dialog */
-@Suppress("FunctionNaming")
 @Composable
 fun DeleteConfirmationDialog(
     title: String,
@@ -120,7 +118,6 @@ fun DeleteConfirmationDialog(
 }
 
 /** T124 — Details View (BottomSheet or Dialog in real world, using Dialog for simplicity) */
-@Suppress("FunctionNaming", "ForbiddenComment")
 @Composable
 fun CredentialDetailsScreen(
     credential: PasskeyCredential,

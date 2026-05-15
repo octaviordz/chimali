@@ -23,7 +23,8 @@ actual class PlatformBluetoothHid(
      * BluetoothHidDeviceWrapper requires this to be true before calling initialize().
      */
     actual fun isSupported(): Boolean =
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) &&
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) &&
             bluetoothManager?.adapter != null
 
     /**

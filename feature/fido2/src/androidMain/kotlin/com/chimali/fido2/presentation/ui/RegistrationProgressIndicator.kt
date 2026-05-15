@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
  * @param size       Diameter of the indicator canvas.
  * @param strokeWidth Width of the arc strokes.
  */
-@Suppress("FunctionNaming")
 @Composable
 fun RegistrationProgressIndicator(
     modifier: Modifier = Modifier,

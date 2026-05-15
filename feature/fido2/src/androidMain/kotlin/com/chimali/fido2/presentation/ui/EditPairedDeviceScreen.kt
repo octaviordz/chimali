@@ -41,7 +41,6 @@ import org.koin.compose.viewmodel.koinViewModel
  * Replaces the previous AlertDialog for better UX as requested.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun EditPairedDeviceScreen(
     macAddress: String,

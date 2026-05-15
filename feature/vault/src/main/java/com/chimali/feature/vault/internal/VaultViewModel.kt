@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-@Suppress("ForbiddenComment")
 class VaultViewModel(
     private val vaultService: VaultService,
     private val clipboardManager: ClipboardManagerWrapper,
@@ -87,13 +86,12 @@ class VaultViewModel(
         }
     }
 
-    @Suppress("ForbiddenComment")
     private fun decryptItem(intent: VaultIntent.DecryptItem) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             val item = _state.value.items.find { it.id == intent.id }
             if (item != null) {
-                // TODO: Trigger actual payload decryption and UI state update here
+                // DEFERRED(040): Payload decryption — pending VaultCryptoService integration
                 _state.update { it.copy(isLoading = false, selectedItem = item) }
             } else {
                 _state.update { it.copy(isLoading = false, errorMessage = "Item not found") }

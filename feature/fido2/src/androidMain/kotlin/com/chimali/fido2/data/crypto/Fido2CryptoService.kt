@@ -107,7 +107,6 @@ class Fido2CryptoService(
      * @param algId          COSE algorithm identifier (default [COSE_ES256]).
      * @return [Outcome] containing [Fido2KeyPair] with alias and public key bytes, or [DomainError.CryptoError].
      */
-    @Suppress("TooGenericExceptionCaught")
     suspend fun generateCredentialKeyPair(
         credentialId: CredentialId,
         algId: Int = COSE_ES256,
@@ -201,8 +200,13 @@ class Fido2CryptoService(
                         publicKeyBytes = publicKeyBytes,
                     ),
                 )
-            } catch (e: Exception) {
-                Logger.e(e) { "Fido2CryptoService: Key derivation failed for credentialId=$credentialId" }
+            } catch (e: java.security.GeneralSecurityException) {
+                Logger.e(
+                    e,
+                ) { "Fido2CryptoService: Key derivation failed (security error) for credentialId=$credentialId" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: "Key derivation failed", e))
+            } catch (e: IllegalStateException) {
+                Logger.e(e) { "Fido2CryptoService: Key derivation failed (state error) for credentialId=$credentialId" }
                 Outcome.Error(DomainError.CryptoError(e.message ?: "Key derivation failed", e))
             }
         }
@@ -294,7 +298,6 @@ class Fido2CryptoService(
      *
      * The result is intentionally discarded. Failures are non-fatal.
      */
-    @Suppress("TooGenericExceptionCaught")
     suspend fun warmUpMasterSeed() {
         try {
             val t0 = timeProvider.epochMillis()
@@ -366,8 +369,10 @@ class Fido2CryptoService(
                     "sign-path=${timeProvider.epochMillis() - t1}ms " +
                     "total=${timeProvider.epochMillis() - t0}ms"
             }
-        } catch (e: Exception) {
-            Logger.w(e) { "Master seed pre-warm FAILED (non-fatal): ${e.message}" }
+        } catch (e: java.security.GeneralSecurityException) {
+            Logger.w(e) { "Master seed pre-warm FAILED (security error): ${e.message}" }
+        } catch (e: IllegalStateException) {
+            Logger.w(e) { "Master seed pre-warm FAILED (state error): ${e.message}" }
         }
     }
 
@@ -381,7 +386,6 @@ class Fido2CryptoService(
      * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
      * @return [Outcome] containing DER-encoded ECDSA signature bytes.
      */
-    @Suppress("TooGenericExceptionCaught")
     suspend fun sign(
         credentialId: CredentialId,
         data: ByteArray,
@@ -495,9 +499,13 @@ class Fido2CryptoService(
                 LatencyProfiler.end(LATENCY_TAG_SIGN)
                 Logger.d { "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}" }
                 Outcome.Success(signature)
-            } catch (e: Exception) {
-                LatencyProfiler.end(LATENCY_TAG_SIGN) // ensure timer ends on failure path too
-                Logger.e(e) { "Fido2CryptoService: Signing failed for $credentialId" }
+            } catch (e: java.security.GeneralSecurityException) {
+                LatencyProfiler.end(LATENCY_TAG_SIGN)
+                Logger.e(e) { "Fido2CryptoService: Signing failed (security error) for $credentialId" }
+                Outcome.Error(DomainError.CryptoError(e.message ?: "Signing failed", e))
+            } catch (e: IllegalStateException) {
+                LatencyProfiler.end(LATENCY_TAG_SIGN)
+                Logger.e(e) { "Fido2CryptoService: Signing failed (state error) for $credentialId" }
                 Outcome.Error(DomainError.CryptoError(e.message ?: "Signing failed", e))
             }
         }

@@ -20,7 +20,6 @@ import org.koin.core.annotation.Single
  * Handles serialization and encryption of Vault aggregate events.
  */
 @Single
-@Suppress("ForbiddenComment")
 class EventStoreRepositoryImpl(
     private val database: VaultDatabase,
     private val encryptionManager: EncryptionManager,
@@ -41,10 +40,10 @@ class EventStoreRepositoryImpl(
     override suspend fun append(
         kind: EventKind,
         events: List<DomainEvent>,
-    ): Result<Unit> =
-        runCatching {
-            if (kind != EventKind.VAULT_ENTRY) return@runCatching // This implementation only handles Vault events
+    ): Result<Unit> {
+        if (kind != EventKind.VAULT_ENTRY) return Result.success(Unit)
 
+        return try {
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
             database.transaction {
@@ -60,40 +59,54 @@ class EventStoreRepositoryImpl(
                     )
                 }
             }
+            Result.success(Unit)
+        } catch (e: android.database.SQLException) {
+            Result.failure(e)
         }
+    }
 
     override suspend fun getEvents(
         kind: EventKind,
         aggregateId: String,
         upTo: Instant?,
-    ): Result<List<DomainEvent>> =
-        runCatching {
-            if (kind != EventKind.VAULT_ENTRY) return@runCatching emptyList()
+    ): Result<List<DomainEvent>> {
+        if (kind != EventKind.VAULT_ENTRY) return Result.success(emptyList())
 
+        return try {
             // Using a very large timestamp string if upTo is null to fetch all events
             val timestampLimit = upTo?.toString() ?: "9999-12-31T23:59:59Z"
 
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
-            database.vaultQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-            }
+            val events =
+                database.vaultQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                }
+            Result.success(events)
+        } catch (e: android.database.SQLException) {
+            Result.failure(e)
         }
+    }
 
     override suspend fun getEventsFrom(
         kind: EventKind,
         aggregateId: String,
         fromSequence: Long,
-    ): Result<List<DomainEvent>> =
-        runCatching {
-            if (kind != EventKind.VAULT_ENTRY) return@runCatching emptyList()
+    ): Result<List<DomainEvent>> {
+        if (kind != EventKind.VAULT_ENTRY) return Result.success(emptyList())
 
+        return try {
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
-            database.vaultQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-            }
+            val events =
+                database.vaultQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                }
+            Result.success(events)
+        } catch (e: android.database.SQLException) {
+            Result.failure(e)
         }
+    }
 }

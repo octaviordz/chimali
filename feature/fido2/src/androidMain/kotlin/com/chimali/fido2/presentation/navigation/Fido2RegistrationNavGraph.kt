@@ -60,7 +60,6 @@ private val bottomNavItems =
     // Modifier is intentionally applied to the inner Box wrapping NavHost
     "ModifierNotUsedAtRoot",
     "FunctionNaming",
-    "ForbiddenComment",
 )
 @Composable
 fun Fido2RegistrationNavGraph(

@@ -35,7 +35,6 @@ import java.util.UUID
 // Composable for managing labels
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun LabelManagerScreen(
     labels: List<LabelUiModel>,

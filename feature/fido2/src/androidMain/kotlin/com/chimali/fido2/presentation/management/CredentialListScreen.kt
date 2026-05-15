@@ -62,7 +62,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * T121 — List Screen to show all FIDO2 Passkeys.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming", "ForbiddenComment")
+@Suppress("FunctionNaming")
 @Composable
 fun CredentialListScreen(
     onNavigateUp: () -> Unit,

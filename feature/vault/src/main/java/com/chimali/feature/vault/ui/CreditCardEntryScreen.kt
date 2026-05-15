@@ -28,7 +28,6 @@ import com.chimali.feature.vault.internal.payload.CreditCardPayload
 import com.chimali.feature.vault.internal.payload.CustomField
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun CreditCardEntryScreen(
     onSave: (CreditCardPayload) -> Unit,

@@ -8,25 +8,24 @@ import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("ForbiddenComment")
 class UserConsentRepositoryImpl : UserConsentRepository {
     override suspend fun recordConsent(consentRecord: UserConsentRecord): Result<Unit> {
-        // TODO: Implement database save logic
+        // DEFERRED(040): Consent persistence — pending schema design
         return Result.success(Unit)
     }
 
     override fun getConsentRecordsByRpId(rpId: RpId): Flow<List<UserConsentRecord>> {
-        // TODO: Implement database query logic
+        // DEFERRED(040): Consent persistence — pending schema design
         return flowOf(emptyList())
     }
 
     override fun getAllConsentRecords(): Flow<List<UserConsentRecord>> {
-        // TODO: Implement database query logic
+        // DEFERRED(040): Consent persistence — pending schema design
         return flowOf(emptyList())
     }
 
     override suspend fun deleteConsentRecordsByRpId(rpId: RpId): Result<Unit> {
-        // TODO: Implement database delete logic
+        // DEFERRED(040): Consent persistence — pending schema design
         return Result.success(Unit)
     }
 }

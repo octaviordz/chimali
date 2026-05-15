@@ -14,7 +14,6 @@ import kotlinx.serialization.json.Json
  * Implementation of SnapshotRepository for the Fido2Database.
  * Handles serialization and encryption of Passkey aggregate snapshots.
  */
-@Suppress("ForbiddenComment")
 class PasskeySnapshotRepositoryImpl(
     private val database: Fido2Database,
     private val encryptionManager: EncryptionManager,

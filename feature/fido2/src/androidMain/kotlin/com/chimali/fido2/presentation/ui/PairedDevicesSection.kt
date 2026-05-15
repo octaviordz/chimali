@@ -1,4 +1,4 @@
-﻿package com.chimali.fido2.presentation.ui
+package com.chimali.fido2.presentation.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -53,7 +53,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun PairedDevicesSection(
     onEditDevice: (String) -> Unit,
@@ -141,7 +140,6 @@ fun PairedDevicesSection(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 private fun PairedDeviceItem(
     device: PairedDevice,

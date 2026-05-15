@@ -19,8 +19,8 @@
 
 **Purpose**: Verify baseline compliance before any modifications
 
-- [ ] T001 Run `tools/local-ci.ps1` and capture baseline output to confirm current green state before modifications
-- [ ] T002 Run `Select-String -Path "feature/**/*.kt","core/**/*.kt" -Pattern '@Suppress' -Recurse` to capture the pre-remediation suppression count for SC-007 measurement
+- [x] T001 Run `tools/local-ci.ps1` and capture baseline output to confirm current green state before modifications
+- [x] T002 Run `Select-String -Path "feature/**/*.kt","core/**/*.kt" -Pattern '@Suppress' -Recurse` to capture the pre-remediation suppression count for SC-007 measurement (Baseline: 110)
 
 ---
 
@@ -32,30 +32,30 @@
 
 ### Implementation for User Story 1 — Vault UI (8 files)
 
-- [ ] T003 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt`
-- [ ] T004 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteEntryScreen.kt`
-- [ ] T005 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordEntryScreen.kt`
-- [ ] T006 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteDetailScreen.kt`
-- [ ] T007 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
-- [ ] T008 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/LabelManagerScreen.kt`
-- [ ] T009 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardEntryScreen.kt`
-- [ ] T010 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardDetailScreen.kt`
+- [x] T003 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/VaultListScreen.kt`
+- [x] T004 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteEntryScreen.kt`
+- [x] T005 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordEntryScreen.kt`
+- [x] T006 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/SecureNoteDetailScreen.kt`
+- [x] T007 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/PasswordDetailScreen.kt`
+- [x] T008 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/LabelManagerScreen.kt`
+- [x] T009 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardEntryScreen.kt`
+- [x] T010 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/vault/src/main/java/com/chimali/feature/vault/ui/CreditCardDetailScreen.kt`
 
 ### Implementation for User Story 1 — Fido2 UI (9 files)
 
-- [ ] T011 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt`
-- [ ] T012 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`
-- [ ] T013 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationPromptScreen.kt`
-- [ ] T014 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationProgressIndicator.kt`
-- [ ] T015 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/PairedDevicesSection.kt`
-- [ ] T016 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/EditPairedDeviceScreen.kt`
-- [ ] T017 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/BiometricPromptComponent.kt`
-- [ ] T018 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/AuthenticationPromptScreen.kt`
-- [ ] T019 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`
+- [x] T011 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt`
+- [x] T012 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`
+- [x] T013 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationPromptScreen.kt`
+- [x] T014 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationProgressIndicator.kt`
+- [x] T015 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/PairedDevicesSection.kt`
+- [x] T016 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/EditPairedDeviceScreen.kt`
+- [x] T017 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/BiometricPromptComponent.kt`
+- [x] T018 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/AuthenticationPromptScreen.kt`
+- [x] T019 [P] [US1] Remove all `@Suppress("FunctionNaming")` annotations in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`
 
 ### Validation for User Story 1
 
-- [ ] T020 [US1] Run `tools/local-ci.ps1` and verify zero `FunctionNaming` violations. Run `Select-String -Pattern '@Suppress\("FunctionNaming"\)' -Path "feature/**/*.kt" -Recurse` and confirm zero results (SC-001)
+- [x] T020 [US1] Run `tools/local-ci.ps1` and verify zero `FunctionNaming` violations. Run `Select-String -Pattern '@Suppress\("FunctionNaming"\)' -Path "feature/**/*.kt" -Recurse` and confirm zero results (SC-001)
 
 **Checkpoint**: US1 complete — all 35 redundant `FunctionNaming` suppressions removed. CI green.
 
@@ -69,28 +69,28 @@
 
 ### Category A — Stale Suppressions (no underlying TODOs)
 
-- [ ] T021 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 23) in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/EventStoreRepositoryImpl.kt`
-- [ ] T022 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 19) in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImpl.kt`
-- [ ] T023 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 21) in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt`
-- [ ] T024 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 17) in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt`
-- [ ] T024a [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`: remove `"ForbiddenComment"` from suppression list (line 123) (Stale suppression)
+- [x] T021 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 23) in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/EventStoreRepositoryImpl.kt`
+- [x] T022 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 19) in `core/data/src/main/kotlin/com/chimali/core/data/eventsourcing/SnapshotRepositoryImpl.kt`
+- [x] T023 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 21) in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt`
+- [x] T024 [P] [US2] Remove `@Suppress("ForbiddenComment")` from class-level annotation (line 17) in `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt`
+- [x] T024a [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialComponents.kt`: remove `"ForbiddenComment"` from suppression list (line 123) (Stale suppression)
 
 ### Category B — Genuine TODO Conversions
 
-- [ ] T025 [P] [US2] In `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt`: remove both `@Suppress("ForbiddenComment")` (lines 15, 90) and replace `// TODO: Trigger actual payload decryption and UI state update here` (line 96) with `// DEFERRED(040): Payload decryption — pending VaultCryptoService integration`
-- [ ] T026 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2RepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 14) and replace `// TODO: Implement FIDO2 registration logic` (line 23) with `// DEFERRED(040): FIDO2 registration — pending CTAP2 ceremony implementation` and replace `// TODO: Implement FIDO2 authentication logic` (line 28) with `// DEFERRED(040): FIDO2 authentication — pending CTAP2 ceremony implementation`
-- [ ] T027 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/UserConsentRepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 11) and replace all 4 `// TODO:` comments (lines 14, 19, 24, 29) with `// DEFERRED(040): Consent persistence — pending schema design`
-- [ ] T028 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/RelyingPartyRepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 11) and replace all 5 `// TODO:` comments (lines 14, 19, 24, 29, 37) with `// DEFERRED(040): RP persistence — pending schema design`
-- [ ] T029 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/UserVerificationServiceImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 22) and replace `// TODO: Persist consent record` (line 163) with `// DEFERRED(040): Consent persistence — pending UserConsentRepository completion` and replace `// TODO: Return persisted records` (line 171) with `// DEFERRED(040): Consent query — pending UserConsentRepository completion`
-- [ ] T029a [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`: remove `@Suppress("ForbiddenComment")` (line 65) and replace stale `// TODO:` with `// DEFERRED(040): Credential sorting — pending preference integration`
-- [ ] T029b [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 719) and replace `// TODO:` (line 725) with `// DEFERRED(040): Debug logs — pending Timber integration`
-- [ ] T029c [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/AuthenticationPromptScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 78) and replace `// TODO:` (line 85) with `// DEFERRED(040): Biometric error handling`
-- [ ] T029d [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationPromptScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 302) and replace `// TODO:` (line 310) with `// DEFERRED(040): Attestation verification`
-- [ ] T029e [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/navigation/Fido2RegistrationNavGraph.kt`: remove `"ForbiddenComment"` from suppression list (line 63) and replace `// TODO:` (line 70) with `// DEFERRED(040): Deep link handling`
+- [x] T025 [P] [US2] In `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt`: remove both `@Suppress("ForbiddenComment")` (lines 15, 90) and replace `// TODO: Trigger actual payload decryption and UI state update here` (line 96) with `// DEFERRED(040): Payload decryption — pending VaultCryptoService integration`
+- [x] T026 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2RepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 14) and replace `// TODO: Implement FIDO2 registration logic` (line 23) with `// DEFERRED(040): FIDO2 registration — pending CTAP2 ceremony implementation` and replace `// TODO: Implement FIDO2 authentication logic` (line 28) with `// DEFERRED(040): FIDO2 authentication — pending CTAP2 ceremony implementation`
+- [x] T027 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/UserConsentRepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 11) and replace all 4 `// TODO:` comments (lines 14, 19, 24, 29) with `// DEFERRED(040): Consent persistence — pending schema design`
+- [x] T028 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/RelyingPartyRepositoryImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 11) and replace all 5 `// TODO:` comments (lines 14, 19, 24, 29, 37) with `// DEFERRED(040): RP persistence — pending schema design`
+- [x] T029 [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/UserVerificationServiceImpl.kt`: remove `@Suppress("ForbiddenComment")` (line 22) and replace `// TODO: Persist consent record` (line 163) with `// DEFERRED(040): Consent persistence — pending UserConsentRepository completion` and replace `// TODO: Return persisted records` (line 171) with `// DEFERRED(040): Consent query — pending UserConsentRepository completion`
+- [x] T029a [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt`: remove `@Suppress("ForbiddenComment")` (line 65) and replace stale `// TODO:` with `// DEFERRED(040): Credential sorting — pending preference integration`
+- [x] T029b [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 719) and replace `// TODO:` (line 725) with `// DEFERRED(040): Debug logs — pending Timber integration`
+- [x] T029c [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/AuthenticationPromptScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 78) and replace `// TODO:` (line 85) with `// DEFERRED(040): Biometric error handling`
+- [x] T029d [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/RegistrationPromptScreen.kt`: remove `"ForbiddenComment"` from suppression list (line 302) and replace `// TODO:` (line 310) with `// DEFERRED(040): Attestation verification`
+- [x] T029e [P] [US2] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/navigation/Fido2RegistrationNavGraph.kt`: remove `"ForbiddenComment"` from suppression list (line 63) and replace `// TODO:` (line 70) with `// DEFERRED(040): Deep link handling`
 
 ### Validation for User Story 2
 
-- [ ] T030 [US2] Run `tools/local-ci.ps1` and verify zero `ForbiddenComment` violations. Run `Select-String -Pattern '@Suppress\("ForbiddenComment"\)' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and confirm zero results (SC-002)
+- [x] T030 [US2] Run `tools/local-ci.ps1` and verify zero `ForbiddenComment` violations. Run `Select-String -Pattern '@Suppress\("ForbiddenComment"\)' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and confirm zero results (SC-002)
 
 **Checkpoint**: US2 complete — all 10 `ForbiddenComment` suppressions removed, underlying TODOs either eliminated (Category A) or converted to `DEFERRED(040):` format (Category B). CI green.
 
@@ -104,14 +104,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] In `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultRepositoryImpl.kt`: remove class-level `@Suppress("TooGenericExceptionCaught")` (line 19). In `saveItem()` (line 103), replace `catch (e: Exception)` with `catch (e: android.database.SQLException)` mapped to `DomainError.DatabaseError` and `catch (e: IllegalStateException)` mapped to `DomainError.OperationDenied`. In `deleteItem()` (line 121), apply the same pattern. The `getItems()` function already uses specific catches and needs no change.
-- [ ] T032 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/RegisterCredentialUseCase.kt`: remove `@Suppress("TooGenericExceptionCaught")` (line 84). The function already catches `IllegalArgumentException` and `IllegalStateException` specifically (lines 160-163). Replace the terminal `catch (e: Exception)` (line 164) with `catch (e: java.security.GeneralSecurityException)` mapped to `DomainError.CryptoError` for crypto failures, plus use `runCatchingOutcome` wrapper from `FunctionalCatching.kt` for the outermost boundary if a true safety-net is still needed.
-- [ ] T033 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/PairedDeviceRepositoryImpl.kt`: remove all 3 `@Suppress("TooGenericExceptionCaught")` annotations (lines 43, 76, 89). Replace each `catch (e: Exception)` (lines 71, 84, 94) with `catch (e: android.database.SQLException)` mapped to `DomainError.DatabaseError` and `catch (e: IllegalArgumentException)` mapped to `DomainError.ValidationError`.
-- [ ] T034 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`: remove `@Suppress("TooGenericExceptionCaught")` from `generateCredentialKeyPair()` (line 110), `warmUpMasterSeed()` (line 297), and `sign()` (line 384). For `generateCredentialKeyPair()` and `sign()`, replace `catch (e: Exception)` with `catch (e: java.security.GeneralSecurityException)` and `catch (e: IllegalStateException)`. For `warmUpMasterSeed()`, which is non-fatal fire-and-forget, use `runCatchingOutcome` or narrow to `catch (e: java.security.GeneralSecurityException)` + `catch (e: IllegalStateException)`, logging and discarding the error.
+- [x] T031 [US3] In `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultRepositoryImpl.kt`: remove class-level `@Suppress("TooGenericExceptionCaught")` (line 19). In `saveItem()` (line 103), replace `catch (e: Exception)` with `catch (e: android.database.SQLException)` mapped to `DomainError.DatabaseError` and `catch (e: IllegalStateException)` mapped to `DomainError.OperationDenied`. In `deleteItem()` (line 121), apply the same pattern. The `getItems()` function already uses specific catches and needs no change.
+- [x] T032 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/RegisterCredentialUseCase.kt`: remove `@Suppress("TooGenericExceptionCaught")` (line 84). The function already catches `IllegalArgumentException` and `IllegalStateException` specifically (lines 160-163). Replace the terminal `catch (e: Exception)` (line 164) with `catch (e: java.security.GeneralSecurityException)` mapped to `DomainError.CryptoError` for crypto failures, plus use `runCatchingOutcome` wrapper from `FunctionalCatching.kt` for the outermost boundary if a true safety-net is still needed.
+- [x] T033 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/PairedDeviceRepositoryImpl.kt`: remove all 3 `@Suppress("TooGenericExceptionCaught")` annotations (lines 43, 76, 89). Replace each `catch (e: Exception)` (lines 71, 84, 94) with `catch (e: android.database.SQLException)` mapped to `DomainError.DatabaseError` and `catch (e: IllegalArgumentException)` mapped to `DomainError.ValidationError`.
+- [x] T034 [P] [US3] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`: remove `@Suppress("TooGenericExceptionCaught")` from `generateCredentialKeyPair()` (line 110), `warmUpMasterSeed()` (line 297), and `sign()` (line 384). For `generateCredentialKeyPair()` and `sign()`, replace `catch (e: Exception)` with `catch (e: java.security.GeneralSecurityException)` and `catch (e: IllegalStateException)`. For `warmUpMasterSeed()`, which is non-fatal fire-and-forget, use `runCatchingOutcome` or narrow to `catch (e: java.security.GeneralSecurityException)` + `catch (e: IllegalStateException)`, logging and discarding the error.
 
 ### Validation for User Story 3
 
-- [ ] T035 [US3] Run `tools/local-ci.ps1` and verify all tests pass. Run `Select-String -Pattern '@Suppress\("TooGenericExceptionCaught"\)' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and confirm only `FunctionalCatching.kt` appears (SC-003, SC-006)
+- [x] T035 [US3] Run `tools/local-ci.ps1` and verify all tests pass. Run `Select-String -Pattern '@Suppress\("TooGenericExceptionCaught"\)' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and confirm only `FunctionalCatching.kt` appears (SC-003, SC-006)
 
 **Checkpoint**: US3 complete — all 8 remediable `TooGenericExceptionCaught` suppressions removed. Exception handling follows constitutional mandate. CI green.
 
@@ -125,11 +125,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt`: add a private inline extension function `Intent.getParcelableExtraCompat<T : Parcelable>(key: String): T?` that uses `Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU` to call the new API and falls back to the deprecated API with `@Suppress("DEPRECATION")` narrowed to the single expression. Replace the two call sites (lines ~252, ~322) to use `intent.getParcelableExtraCompat<BluetoothDevice>(...)` and remove both existing `@Suppress("DEPRECATION")` annotations.
+- [x] T036 [US4] In `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt`: add a private inline extension function `Intent.getParcelableExtraCompat<T : Parcelable>(key: String): T?` that uses `Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU` to call the new API and falls back to the deprecated API with `@Suppress("DEPRECATION")` narrowed to the single expression. Replace the two call sites (lines ~252, ~322) to use `intent.getParcelableExtraCompat<BluetoothDevice>(...)` and remove both existing `@Suppress("DEPRECATION")` annotations.
 
 ### Validation for User Story 4
 
-- [ ] T037 [US4] Run `tools/local-ci.ps1` and verify zero deprecation warnings in the affected module. Confirm `@Suppress("DEPRECATION")` exists only inside the compat helper function (SC-004)
+- [x] T037 [US4] Run `tools/local-ci.ps1` and verify zero deprecation warnings in the affected module. Confirm `@Suppress("DEPRECATION")` exists only inside the compat helper function (SC-004)
 
 **Checkpoint**: US4 complete — deprecated API modernized with SDK-gated compat pattern. Suppression narrowed to 1 expression. CI green.
 
@@ -139,10 +139,10 @@
 
 **Purpose**: Final verification, measurement, and documentation
 
-- [ ] T038 Run full `tools/local-ci.ps1` (Detekt, Ktlint, all unit tests) and confirm zero violations across all modules (SC-005, SC-006)
-- [ ] T038a Verify that `config/detekt/detekt-baseline.xml` and module-level baselines have NOT been modified unless explicitly documented for a deferred resolution (FR-007)
-- [ ] T039 [P] Capture final suppression count via `Select-String -Pattern '@Suppress' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and compute SC-007: at least 80% reduction from pre-remediation baseline (T002 output)
-- [ ] T040 [P] Verify exclusion list: confirm `FunctionalCatching.kt` retains `TooGenericExceptionCaught`, KMP files retain `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`, and test files retain `UNCHECKED_CAST` — per FR-006
+- [x] T038 Run full `tools/local-ci.ps1` (Detekt, Ktlint, all unit tests) and confirm zero violations across all modules (SC-005, SC-006)
+- [x] T038a Verify that `config/detekt/detekt-baseline.xml` and module-level baselines have NOT been modified unless explicitly documented for a deferred resolution (FR-007)
+- [x] T039 [P] Capture final suppression count via `Select-String -Pattern '@Suppress' -Path "feature/**/*.kt","core/**/*.kt" -Recurse` and compute SC-007: at least 80% reduction from pre-remediation baseline (T002 output)
+- [x] T040 [P] Verify exclusion list: confirm `FunctionalCatching.kt` retains `TooGenericExceptionCaught`, KMP files retain `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`, and test files retain `UNCHECKED_CAST` — per FR-006
 
 ---
 

@@ -48,7 +48,6 @@ import androidx.fragment.app.FragmentActivity
  * @param onError       Called on permanent failure (too many attempts, locked out, etc.).
  * @param onFallback    Called when the user taps the negative/fallback button.
  */
-@Suppress("FunctionNaming")
 @Composable
 fun BiometricPromptComponent(
     title: String,

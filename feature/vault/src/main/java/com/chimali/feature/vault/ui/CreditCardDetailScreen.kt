@@ -33,7 +33,6 @@ private val BUTTON_VERTICAL_PADDING = 16.dp
 private val BUTTON_HORIZONTAL_PADDING = 24.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun CreditCardDetailScreen(
     payload: CreditCardPayload,

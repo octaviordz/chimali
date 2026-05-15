@@ -3,6 +3,18 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-15
+
+### Fixed
+- **Encoding & UI Character Integrity**: Successfully remediated a project-wide encoding corruption issue where non-ASCII characters were replaced with the replacement character. Fixed corrupted comments in the FIDO2 UI and restored 10 module READMEs.
+- **Bluetooth HID API Modernization**: Modernized the Bluetooth HID transport layer with SDK-gated compatibility helpers and explicit API 28+ hardware feature checks.
+
+### Changed
+- **Linting Baseline Remediation**: Finalized the comprehensive code quality audit, achieving a ~90% reduction in inline suppressions.
+    - Refactored all generic exception handlers in the FIDO2 and Vault modules to use specific, constitutional error types.
+    - Purged redundant Compose suppressions and modernized the technical debt tracking format to `DEFERRED(040)`.
+- **Detailed changes**: [2026-05-15-linting-remediation-and-encoding-fixes.md](docs/changelogs/2026-05-15-linting-remediation-and-encoding-fixes.md)
+
 ## [Unreleased] - 2026-05-14
 
 ### Changed

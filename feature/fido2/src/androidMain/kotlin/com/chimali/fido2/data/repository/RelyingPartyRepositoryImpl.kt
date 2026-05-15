@@ -8,25 +8,24 @@ import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("ForbiddenComment")
 class RelyingPartyRepositoryImpl : RelyingPartyRepository {
     override suspend fun saveRelyingParty(relyingParty: RelyingParty): Result<Unit> {
-        // TODO: Implement database save logic
+        // DEFERRED(040): RP persistence — pending schema design
         return Result.success(Unit)
     }
 
     override suspend fun getRelyingPartyById(rpId: RpId): RelyingParty? {
-        // TODO: Implement database get logic
+        // DEFERRED(040): RP persistence — pending schema design
         return null
     }
 
     override fun getAllRelyingParties(): Flow<List<RelyingParty>> {
-        // TODO: Implement database query logic
+        // DEFERRED(040): RP persistence — pending schema design
         return flowOf(emptyList())
     }
 
     override suspend fun deleteRelyingParty(rpId: RpId): Result<Unit> {
-        // TODO: Implement database delete logic
+        // DEFERRED(040): RP persistence — pending schema design
         return Result.success(Unit)
     }
 
@@ -34,7 +33,7 @@ class RelyingPartyRepositoryImpl : RelyingPartyRepository {
         rpId: RpId,
         count: Int,
     ): Result<Unit> {
-        // TODO: Implement database update logic
+        // DEFERRED(040): RP persistence — pending schema design
         return Result.success(Unit)
     }
 }

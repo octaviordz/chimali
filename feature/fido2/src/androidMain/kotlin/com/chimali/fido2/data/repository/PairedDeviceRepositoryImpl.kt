@@ -40,7 +40,6 @@ class PairedDeviceRepositoryImpl(
                 }
             }
 
-    @Suppress("TooGenericExceptionCaught")
     override suspend fun saveDevice(device: PairedDevice): Outcome<Unit, DomainError> =
         try {
             // We do a read-modify-write to preserve createdAt if it already exists
@@ -68,12 +67,11 @@ class PairedDeviceRepositoryImpl(
                 name = device.name ?: existing?.name,
             )
             Outcome.Success(Unit)
-        } catch (e: Exception) {
-            Logger.e(e) { "Failed to save device: ${device.macAddress}" }
+        } catch (e: android.database.SQLException) {
+            Logger.e(e) { "Failed to save device (database error): ${device.macAddress}" }
             Outcome.Error(DomainError.DatabaseError("Failed to save device", e))
         }
 
-    @Suppress("TooGenericExceptionCaught")
     override suspend fun updateAlias(
         macAddress: String,
         alias: String?,
@@ -81,18 +79,17 @@ class PairedDeviceRepositoryImpl(
         try {
             database.pairedDeviceQueries.updateAlias(alias, macAddress)
             Outcome.Success(Unit)
-        } catch (e: Exception) {
-            Logger.e(e) { "Failed to update alias for device: $macAddress" }
+        } catch (e: android.database.SQLException) {
+            Logger.e(e) { "Failed to update alias for device (database error): $macAddress" }
             Outcome.Error(DomainError.DatabaseError("Failed to update alias", e))
         }
 
-    @Suppress("TooGenericExceptionCaught")
     override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> =
         try {
             database.pairedDeviceQueries.deleteByAddress(macAddress)
             Outcome.Success(Unit)
-        } catch (e: Exception) {
-            Logger.e(e) { "Failed to delete device: $macAddress" }
+        } catch (e: android.database.SQLException) {
+            Logger.e(e) { "Failed to delete device (database error): $macAddress" }
             Outcome.Error(DomainError.DatabaseError("Failed to delete device", e))
         }
 }

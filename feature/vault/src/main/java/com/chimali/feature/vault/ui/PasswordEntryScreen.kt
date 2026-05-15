@@ -28,7 +28,6 @@ import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun PasswordEntryScreen(
     onSave: (PasswordPayload) -> Unit,

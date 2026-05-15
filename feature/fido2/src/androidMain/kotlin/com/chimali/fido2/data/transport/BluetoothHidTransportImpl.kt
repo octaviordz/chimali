@@ -455,21 +455,29 @@ class BluetoothHidTransportImpl(
         if (state is HidConnectionState.Connected) {
             val mac = state.device.address
             val name =
-                try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    try {
+                        state.device.name
+                    } catch (e: SecurityException) {
+                        Logger.w(e) { "BluetoothHidTransport: Failed to get device name" }
+                        null
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
                     state.device.name
-                } catch (e: SecurityException) {
-                    Logger.w(e) { "BluetoothHidTransport: Failed to get device name" }
-                    null
                 }
 
-            // Requires API 31+ or suppression for BLUETOOTH_CONNECT, but we already have permission
-            // The property is `bluetoothClass.deviceClass` which returns the Int representing the major/minor class
             val devClass =
-                try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    try {
+                        state.device.bluetoothClass?.deviceClass
+                    } catch (e: SecurityException) {
+                        Logger.w(e) { "BluetoothHidTransport: Failed to get bluetooth class" }
+                        null
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
                     state.device.bluetoothClass?.deviceClass
-                } catch (e: SecurityException) {
-                    Logger.w(e) { "BluetoothHidTransport: Failed to get bluetooth class" }
-                    null
                 }
 
             Logger.d { "FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass" }

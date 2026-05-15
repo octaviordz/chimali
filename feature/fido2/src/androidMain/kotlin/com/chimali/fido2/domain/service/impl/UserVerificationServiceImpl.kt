@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.flowOf
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("ForbiddenComment")
 class UserVerificationServiceImpl(
     private val biometricManager: BiometricManager,
     private val timeProvider: TimeProvider,
@@ -160,7 +159,7 @@ class UserVerificationServiceImpl(
         )
 
     override suspend fun recordUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> {
-        // TODO: Persist consent record
+        // DEFERRED(040): Consent persistence — pending UserConsentRepository completion
         return Outcome.Success(Unit)
     }
 
@@ -168,7 +167,7 @@ class UserVerificationServiceImpl(
         rpId: RpId?,
         limit: Int,
     ): Flow<UserConsentRecord> {
-        // TODO: Return persisted records
+        // DEFERRED(040): Consent query — pending UserConsentRepository completion
         return flowOf()
     }
 

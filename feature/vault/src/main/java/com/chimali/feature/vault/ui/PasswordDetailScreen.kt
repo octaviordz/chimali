@@ -38,7 +38,6 @@ import com.chimali.feature.vault.ui.model.LegibilityFont
 import com.chimali.feature.vault.ui.model.LegibilitySettings
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun PasswordDetailScreen(
     payload: PasswordPayload,
@@ -118,7 +117,6 @@ fun PasswordDetailScreen(
     }
 }
 
-@Suppress("FunctionNaming")
 @Composable
 fun DetailRow(
     label: String,
@@ -131,7 +129,6 @@ fun DetailRow(
     }
 }
 
-@Suppress("FunctionNaming")
 @Composable
 private fun PasswordRow(
     password: CharArray,
@@ -177,7 +174,6 @@ private fun PasswordRow(
     }
 }
 
-@Suppress("FunctionNaming")
 @Composable
 private fun ConcealedCustomFieldRow(
     name: String,

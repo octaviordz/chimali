@@ -16,7 +16,6 @@ import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("TooGenericExceptionCaught")
 class VaultRepositoryImpl(
     private val database: VaultDatabase,
     private val aggregateService: AggregateService<VaultCommand, VaultState>,
@@ -100,9 +99,12 @@ class VaultRepositoryImpl(
                     Logger.e(error) { "VaultRepositoryImpl: Aggregate execution failed for id=${item.id}" }
                     Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to save vault item"))
                 }
-            } catch (e: Exception) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to save vault item id=${item.id}" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to save vault item", e))
+            } catch (e: android.database.SQLException) {
+                Logger.e(e) { "VaultRepositoryImpl: Database failure during save id=${item.id}" }
+                Outcome.Error(DomainError.DatabaseError(e.message ?: "Database error during save", e))
+            } catch (e: IllegalStateException) {
+                Logger.e(e) { "VaultRepositoryImpl: State failure during save id=${item.id}" }
+                Outcome.Error(DomainError.StorageError(e.message ?: "Invalid state during save", e))
             }
         }
 
@@ -118,9 +120,12 @@ class VaultRepositoryImpl(
                     Logger.e(error) { "VaultRepositoryImpl: Aggregate delete failed for id=$id" }
                     Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to delete vault item"))
                 }
-            } catch (e: Exception) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to delete vault item id=$id" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete vault item", e))
+            } catch (e: android.database.SQLException) {
+                Logger.e(e) { "VaultRepositoryImpl: Database failure during delete id=$id" }
+                Outcome.Error(DomainError.DatabaseError(e.message ?: "Database error during delete", e))
+            } catch (e: IllegalStateException) {
+                Logger.e(e) { "VaultRepositoryImpl: State failure during delete id=$id" }
+                Outcome.Error(DomainError.StorageError(e.message ?: "Invalid state during delete", e))
             }
         }
 }

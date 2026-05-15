@@ -16,7 +16,6 @@ import org.koin.core.annotation.Single
  * Handles serialization and encryption of Vault aggregate snapshots.
  */
 @Single
-@Suppress("ForbiddenComment")
 class SnapshotRepositoryImpl(
     private val database: VaultDatabase,
     private val encryptionManager: EncryptionManager,
@@ -37,10 +36,10 @@ class SnapshotRepositoryImpl(
     override suspend fun <T> save(
         kind: EventKind,
         snapshot: Snapshot<T>,
-    ): Result<Unit> =
-        runCatching {
-            if (kind != EventKind.VAULT_ENTRY) return@runCatching
+    ): Result<Unit> {
+        if (kind != EventKind.VAULT_ENTRY) return Result.success(Unit)
 
+        return try {
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
             database.transaction {
@@ -59,23 +58,33 @@ class SnapshotRepositoryImpl(
                 // Retain only the last 2 snapshots to save space
                 database.vaultQueries.deleteOldSnapshots(snapshot.aggregateId, snapshot.aggregateId)
             }
+            Result.success(Unit)
+        } catch (e: android.database.SQLException) {
+            Result.failure(e)
         }
+    }
 
     override suspend fun <T> getLatest(
         kind: EventKind,
         aggregateId: String,
-    ): Result<Snapshot<T>?> =
-        runCatching {
-            if (kind != EventKind.VAULT_ENTRY) return@runCatching null
+    ): Result<Snapshot<T>?> {
+        if (kind != EventKind.VAULT_ENTRY) return Result.success(null)
 
+        return try {
             val row = database.vaultQueries.getLatestSnapshot(aggregateId).executeAsOneOrNull()
-            if (row == null) return@runCatching null
+            if (row == null) {
+                Result.success(null)
+            } else {
+                val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                val stateSerializer = getSerializer<T>(kind)
+                val snapshotSerializer = Snapshot.serializer(stateSerializer)
 
-            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
-            val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-            val stateSerializer = getSerializer<T>(kind)
-            val snapshotSerializer = Snapshot.serializer(stateSerializer)
-
-            json.decodeFromString(snapshotSerializer, decryptedPayload.decodeToString())
+                val result = json.decodeFromString(snapshotSerializer, decryptedPayload.decodeToString())
+                Result.success(result)
+            }
+        } catch (e: android.database.SQLException) {
+            Result.failure(e)
         }
+    }
 }

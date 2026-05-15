@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.SecureNotePayload
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("FunctionNaming")
 @Composable
 fun SecureNoteDetailScreen(
     payload: SecureNotePayload,

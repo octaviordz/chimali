@@ -73,10 +73,6 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * Shown when a website requests sign-in with an existing passkey.
  * Collects user consent then delegates to biometric or PIN.
  */
-@Suppress(
-    "FunctionNaming",
-    "ForbiddenComment",
-)
 @Composable
 fun AuthenticationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
@@ -365,7 +361,6 @@ internal fun AuthenticationPromptContent(
 
 private const val PROGRESS_WIDTH_FRACTION = 0.6f
 
-@Suppress("FunctionNaming")
 @Composable
 fun AuthenticationProgressIndicator(
     modifier: Modifier = Modifier,

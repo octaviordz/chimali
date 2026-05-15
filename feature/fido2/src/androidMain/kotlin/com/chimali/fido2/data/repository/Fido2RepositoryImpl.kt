@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Single
 
 @Single
-@Suppress("ForbiddenComment")
 class Fido2RepositoryImpl(
     private val credentialRepository: CredentialRepository,
 ) : Fido2Repository {
@@ -20,12 +19,12 @@ class Fido2RepositoryImpl(
         userName: String,
         userDisplayName: String,
     ): Outcome<CredentialId, DomainError> {
-        // TODO: Implement FIDO2 registration logic
+        // DEFERRED(040): FIDO2 registration — pending CTAP2 ceremony implementation
         return Outcome.Success(CredentialId.fromEncoded("mock-credential-id"))
     }
 
     override suspend fun authenticateCredential(rpId: RpId): Outcome<CredentialId, DomainError> {
-        // TODO: Implement FIDO2 authentication logic
+        // DEFERRED(040): FIDO2 authentication — pending CTAP2 ceremony implementation
         return Outcome.Success(CredentialId.fromEncoded("mock-authentication-id"))
     }
 

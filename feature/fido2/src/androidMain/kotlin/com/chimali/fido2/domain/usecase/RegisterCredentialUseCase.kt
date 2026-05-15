@@ -81,7 +81,6 @@ class RegisterCredentialUseCase(
      * @param options The registration options containing all necessary parameters
      * @return Result containing MakeCredentialResult (Attestation + Passkey) on success
      */
-    @Suppress("TooGenericExceptionCaught")
     suspend operator fun invoke(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError> {
         return try {
             // Validate registration options
@@ -161,10 +160,6 @@ class RegisterCredentialUseCase(
             Outcome.Error(DomainError.ValidationError(e.message ?: "Invalid parameters", e))
         } catch (e: IllegalStateException) {
             Outcome.Error(DomainError.OperationDenied(e.message ?: "Invalid state", e))
-        } catch (e: Exception) {
-            // We catch generic Exception at the UseCase boundary to ensure all unexpected
-            // errors are gracefully wrapped in Outcome.Error rather than crashing the app.
-            Outcome.Error(DomainError.UnknownError("Unexpected error during registration: ${e.message}", e))
         }
     }
 
