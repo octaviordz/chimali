@@ -19,7 +19,7 @@ description: "Task list for Code Quality and Linting Baseline Audit"
 
 **Purpose**: Document initialization
 
-- [ ] T001 Initialize the `specs/039-linting-baseline-audit/audit.md` file with appropriate markdown headers and structure based on the spec.
+- [X] T001 Initialize the `specs/039-linting-baseline-audit/audit.md` file with appropriate markdown headers and structure based on the spec.
 
 ---
 
@@ -41,9 +41,9 @@ description: "Task list for Code Quality and Linting Baseline Audit"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Search for Detekt and Ktlint baseline XML configurations across the project and document them in `specs/039-linting-baseline-audit/audit.md`.
-- [ ] T003 [US1] Search for inline `@Suppress` or `@SuppressWarnings` annotations in Kotlin source files and catalog them in `specs/039-linting-baseline-audit/audit.md`.
-- [ ] T004 [US1] Cross-reference discovered suppressions with valid exclusions in `config/detekt/detekt.yml` and mark them accordingly in `specs/039-linting-baseline-audit/audit.md`.
+- [X] T002 [US1] Search for Detekt and Ktlint baseline XML configurations across the project and document them in `specs/039-linting-baseline-audit/audit.md`.
+- [X] T003 [US1] Search for inline `@Suppress` or `@SuppressWarnings` annotations in Kotlin source files and catalog them in `specs/039-linting-baseline-audit/audit.md`.
+- [X] T004 [US1] Cross-reference discovered suppressions with valid exclusions in `config/detekt/detekt.yml` and mark them accordingly in `specs/039-linting-baseline-audit/audit.md`.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -57,8 +57,8 @@ description: "Task list for Code Quality and Linting Baseline Audit"
 
 ### Implementation for User Story 2
 
-- [ ] T005 [P] [US2] Search the codebase for `TODO` and `FIXME` comments and catalog significant implementation holes in `specs/039-linting-baseline-audit/audit.md`.
-- [ ] T006 [P] [US2] Review all application modules across the project for architectural deviations from the project constitution and document them in `specs/039-linting-baseline-audit/audit.md`.
+- [X] T005 [P] [US2] Search the codebase for `TODO` and `FIXME` comments and catalog significant implementation holes in `specs/039-linting-baseline-audit/audit.md`.
+- [X] T006 [P] [US2] Review all application modules across the project for architectural deviations from the project constitution and document them in `specs/039-linting-baseline-audit/audit.md`.
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -68,7 +68,7 @@ description: "Task list for Code Quality and Linting Baseline Audit"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T007 Review and finalize the formatting, clarity, and completeness of `specs/039-linting-baseline-audit/audit.md`.
+- [X] T007 Review and finalize the formatting, clarity, and completeness of `specs/039-linting-baseline-audit/audit.md`.
 
 ---
 
