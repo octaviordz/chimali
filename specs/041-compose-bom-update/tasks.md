@@ -19,7 +19,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T001 Open and analyze `gradle/libs.versions.toml` to map out all Compose-related dependencies and version pins
+- [x] T001 Open and analyze `gradle/libs.versions.toml` to map out all Compose-related dependencies and version pins
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -33,8 +33,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Update the Compose BOM version to `2026.04.00` in `gradle/libs.versions.toml`
-- [ ] T003 [US1] Clean project to clear cached classes (`./gradlew clean`)
+- [x] T002 [US1] Update the Compose BOM version to `2026.04.00` in `gradle/libs.versions.toml`
+- [x] T003 [US1] Clean project to clear cached classes (`./gradlew clean`)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -48,8 +48,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T004 [US2] Run instrumented tests to ensure 100% of previously passing tests continue to pass
-- [ ] T005 [US2] Run the full Local CI pipeline (`tools/local-ci.ps1`) to ensure unit tests, Detekt, and Ktlint checks pass with the updated BOM
+- [x] T004 [US2] Run instrumented tests to ensure 100% of previously passing tests continue to pass
+- [x] T005 [US2] Run the full Local CI pipeline (`tools/local-ci.ps1`) to ensure unit tests, Detekt, and Ktlint checks pass with the updated BOM
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -63,8 +63,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T006 [US3] Remove manual version pins for any Compose libraries in `gradle/libs.versions.toml` that are now managed by the BOM
-- [ ] T007 [US3] Ensure the Compose compiler plugin version aligns with the current Kotlin version (2.3.20) in `gradle/libs.versions.toml`
+- [x] T006 [US3] Remove manual version pins for any Compose libraries in `gradle/libs.versions.toml` that are now managed by the BOM
+- [x] T007 [US3] Ensure the Compose compiler plugin version aligns with the current Kotlin version (2.3.20) in `gradle/libs.versions.toml`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -74,7 +74,7 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T008 [P] Fix any new deprecation warnings introduced by the Compose BOM update across the codebase
+- [x] T008 [P] Fix any new deprecation warnings introduced by the Compose BOM update across the codebase
 
 ---
 

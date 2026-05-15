@@ -33,6 +33,9 @@ dependencies {
 kotlin {
     android {
         namespace = "com.chimali.fido2"
+        androidResources {
+            enable = true
+        }
         compileSdk = 35
         minSdk = 28
 
