@@ -2,11 +2,11 @@
 
 **Date:** 2026-03-12  
 **Scope:** `.specify/memory/constitution.md`, `docs/brd.md`  
-**Triggered by:** T145c analysis (speckit.analyze) and HHD research
+**Triggered by:** T145c analysis (speckit.analyze) and HDK research
 
 ## Overview
 
-Following a cross-artifact consistency analysis (speckit.analyze) for T145c and a research phase on Hybrid Hierarchical Deterministic (HHD) key derivation, two project governance documents were updated to reflect clarified security policies and the architectural decision to support post-quantum cryptography via a BIP39 root seed.
+Following a cross-artifact consistency analysis (speckit.analyze) for T145c and a research phase on Hierarchical Deterministic Key (HDK) derivation, two project governance documents were updated to reflect clarified security policies and the architectural decision to support post-quantum cryptography via a BIP39 root seed.
 
 ---
 
@@ -20,13 +20,13 @@ Following a cross-artifact consistency analysis (speckit.analyze) for T145c and 
 
 > **Rationale**: `EncryptedSharedPreferences` from `androidx.security:security-crypto` uses AES-256-SIV for key encryption (required for deterministic lookup) and AES-256-GCM for values. The mnemonic string is stored as a value, so it is always GCM-protected. The SIV exception is documented to prevent future confusion during code review.
 
-### §II — Master Seed Architecture: HHD Support Added
+### §II — Master Seed Architecture: HDK Support Added
 
 **Previous**: §II described BIP39 + HDK-ECDH-P256 (IETF `draft-dijkhuis-cfrg-hdkeys-06`).
 
-**New**: §II now also references the **Hybrid Hierarchical Deterministic (HHD)** architecture. A single BIP39 root seed can derive keys for both classical schemes (ECDSA/Ed25519, via BIP-44/SLIP-10 paths) and Post-Quantum schemes (e.g., Falcon-512) without requiring an additional mnemonic.
+**New**: §II now also references the **Hierarchical Deterministic Key (HDK)** architecture. A single BIP39 root seed can derive keys for both classical schemes (ECDSA/Ed25519) and Post-Quantum schemes (e.g., ML-DSA-65) without requiring an additional mnemonic.
 
-> **Rationale**: The HHD architecture was selected after analyzing the IETF HD Keys draft and comparing with implementations in Walt-ID, Bulwark Vault, and the EU Digital Identity Wallet. It provides the best balance of portability, forward-compatibility, and FIDO2 compliance.
+> **Rationale**: The HDK architecture was selected after analyzing the IETF HD Keys draft and comparing with implementations in Walt-ID, Bulwark Vault, and the EU Digital Identity Wallet. It provides the best balance of portability, forward-compatibility, and FIDO2 compliance.
 
 ---
 
@@ -36,7 +36,7 @@ Following a cross-artifact consistency analysis (speckit.analyze) for T145c and 
 
 **Previous text** (summarized): Required BIP39 for mnemonic seed generation and HDK for key management.
 
-**New text** (summarized): Now explicitly states that the HHD architecture is used, supporting derivation of both classical and Post-Quantum signature schemes from a single BIP39 root seed using standard BIP-44 / SLIP-10 derivation paths. References `draft-dijkhuis-cfrg-hdkeys-06`.
+**New text** (summarized): Now explicitly states that the HDK architecture is used, supporting derivation of both classical and Post-Quantum signature schemes from a single BIP39 root seed. References `draft-dijkhuis-cfrg-hdkeys-06`.
 
 ---
 

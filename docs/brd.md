@@ -28,7 +28,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - High user satisfaction with the Jetpack Compose-based modern UI.
 
 ## 3. Business Goals & Objectives
-1.  **Security Leadership**: Implement industry-standard (AES-256) and Post-Quantum Cryptography (PQC) encryption, leveraging Android's Hardware Security Module (HSM).
+1.  **Security Leadership**: Implement industry-standard (AES-256) and Post-Quantum Cryptography (PQC) protection, leveraging the **Android Keystore** (TEE-backed, StrongBox-preferred where available).
 2.  **Cross-Platform Utility**: Allow users to authenticate on desktop systems without requiring specialized hardware keys.
 3.  **Modern UX**: Deliver a premium user experience through fluid animations, intuitive interactions, and a Material Design 3 (M3) design system.
 4.  **Future-Proofing**: Full support for FIDO2 and WebAuthn via Passkeys.
@@ -81,10 +81,10 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
-- **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) to enable hardware offloading, and **AES-256-SIV** for searchable encrypted metadata and key wrapping to provide nonce-misuse resistance. If the device supports Quantum-Resistant (Post-Quantum Cryptography) algorithms (e.g., ML-DSA-65), the application must utilize these as the primary cryptographic method.
+- **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) to enable hardware offloading, and **AES-256-SIV** for searchable encrypted metadata and key wrapping to provide nonce-misuse resistance. The application SHOULD support Post-Quantum digital signature schemes (e.g., ML-DSA-65) for FIDO2 attestation and assertion signing, as defined in NFR-SEC-040.
 - **NFR-SEC-020**: Sensitive keys must be stored in the Android KeyStore (strongbox encouraged).
 - **NFR-SEC-030**: Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
-- **NFR-SEC-040: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture accommodates **Hybrid Hierarchical Deterministic Derivation (HHD)** to allow deterministic derivation of both classical (e.g., ES256, ECDSA/Ed25519) and Post-Quantum (e.g., ML-DSA-65, Falcon-512) signature schemes from the single BIP39 root seed using standard paths (BIP-44 / SLIP-10 adaptations).
+- **NFR-SEC-040: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture allows deterministic derivation of both classical (e.g., ECDSA/P-256) and Post-Quantum (e.g., ML-DSA-65) signature schemes from the single BIP39 root seed; the Post-Quantum branch is cryptographically isolated via HDK `DeriveSalt` with a dedicated context string.
 
 ### 5.2 Performance & Reliability
 - **NFR-PERF-010: Startup Performance** (Android Vitals Targets):

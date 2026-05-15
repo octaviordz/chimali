@@ -87,7 +87,7 @@ BUILD SUCCESSFUL
 | **Key exportability** | HDK-derived keys are software keys; the master seed is the single secret. Recovery = mnemonic. |
 | **Mnemonic storage** | AES-256-GCM (EncryptedSharedPreferences value encryption). |
 | **Memory safety** | Private scalars exist in memory only for the duration of the signing operation. |
-| **Quantum readiness** | Architecture supports HHD (Hybrid HD), enabling PQ key derivation from the same BIP39 root (see BRD NFR-SEC-040). |
+| **Quantum readiness** | Architecture supports HDK (Hierarchical Deterministic Key), enabling PQ key derivation from the same BIP39 root (see BRD NFR-SEC-040). |
 
 > ⚠️ **Migration Notice**: Credentials registered under T145a's ephemeral seed are orphaned (the ephemeral seed no longer exists). Users must re-register any previously created passkey credentials.
 

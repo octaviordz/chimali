@@ -35,6 +35,7 @@
 
 | | |
 |---|---|
+| **Status** | ✅ Resolved |
 | **File** | `brd.md` line 87 |
 | **Severity** | 🔴 Critical |
 | **Quote** | *"The architecture accommodates **Hybrid Hierarchical Deterministic Derivation (HHD)** to allow deterministic derivation of both classical (e.g., ES256, ECDSA/Ed25519) and Post-Quantum (e.g., ML-DSA-65, Falcon-512) signature schemes from the single BIP39 root seed using standard paths (BIP-44 / SLIP-10 adaptations)."* |

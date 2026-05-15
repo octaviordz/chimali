@@ -4,7 +4,7 @@
 ## Overview
 This update implements Post-Quantum Cryptography (PQC) for the Chimali FIDO2 authenticator, fulfilling NFR-SEC-010. It transitions the experimental post-quantum stack from **ML-KEM (Kyber)**—which is an encryption/encapsulation scheme—to **ML-DSA-65 (Dilithium)**, which is the NIST FIPS 204 standardized digital signature scheme required for FIDO2 operations (`MakeCredential` and `GetAssertion`). 
 
-These changes also establish a cryptographically isolated key hierarchy following HHD (Hierarchical Deterministic Wallet) derivation strategies and implement algorithm negotiation for CTAP2.
+These changes also establish a cryptographically isolated key hierarchy following HDK (Hierarchical Deterministic Key) derivation strategies and implement algorithm negotiation for CTAP2.
 
 ## Key Changes
 
@@ -13,7 +13,7 @@ These changes also establish a cryptographically isolated key hierarchy followin
 - **Provider Migration**: Transitioned from the experimental `BouncyCastlePQCProvider` to the standard `BouncyCastleProvider` (`bcprov-jdk18on` v1.80), which now ships with production-ready ML-DSA support.
 - **Deterministic Key Generation**: ML-DSA keypairs are generated deterministically by seeding a `SHA1PRNG` SecureRandom instance with a 64-byte derived child seed.
 
-### 2. BIP-85 Cryptographic Isolation (HHD)
+### 2. BIP-85 Cryptographic Isolation (HDK)
 - **`MasterSeedProvider` Extension**: Added the `getPqChildSeed()` contract.
 - **`WalletMasterSeedProvider` Derivation**: Implemented specific derivation for the post-quantum hierarchy. To ensure a compromise of PQ keys does not affect classical ECDSA keys (and vice versa), the PQ seed is derived using:
   1. A root BIP-32 key derived using `HMAC-SHA512("Bitcoin seed", masterSeed)`

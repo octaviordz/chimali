@@ -18,7 +18,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **Data Layer**: SQLDelight (Persistence), Android KeyStore (Security), Bluetooth HID API (Transport).
 
 ## 3. Business Goals & Objectives (Technical Translation)
-- **Security Leadership**: Integration of BouncyCastle 1.80 for ML-KEM and ML-DSA support.
+- **Security Leadership**: Integration of BouncyCastle 1.80+ for **ML-DSA** (Post-Quantum digital signatures for FIDO2 attestation). ML-KEM support is available for future remote key provisioning flows.
 - **Cross-Platform Utility**: Custom HID descriptors to ensure compatibility across OS types via `BluetoothHidDevice`.
 - **Modern UX**: Use of `androidx.compose.animation` for micro-interactions and M3 dynamic color tokens.
 
@@ -54,14 +54,14 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **Technical Detail**: 
   - **Mnemonic**: BIP39 (12/24 words).
   - **Entropy**: Derived from `SecureRandom`.
-  - **Seed Derivation**: PBKDF2-HMAC-SHA512.
-  - **Child Key Derivation**: SLIP-10 for unified derivation of EC and EdDSA/PQC keys.
+  - **Mnemonic-to-Seed Stretching**: BIP-39 PBKDF2(HMAC-SHA512, 2048 iterations).
+  - **Child Key Derivation**: HDK per IETF `draft-dijkhuis-cfrg-hdkeys-06`. Classical (P-256) keys use HDK blinding; PQ (ML-DSA) keys use `DeriveSalt`-based branch isolation.
 
 ## 5. Non-Functional Requirements (Technical Standards)
 ### 5.1 Encryption Standards (NFR-SEC-010)
 - **Classical**: AES-256-GCM (Hardware accelerated) for large blobs.
 - **Searchable Metadata**: AES-256-SIV (nonce-misuse resistant).
-- **Post-Quantum**: ML-KEM-768 for key encapsulation (via BouncyCastle 1.80+).
+- **Post-Quantum KEM**: ML-KEM-768 reserved for future remote key provisioning (via BouncyCastle 1.80+). Not used for data encryption.
 
 ### 5.2 Signature Schemes (NFR-SEC-040)
 - **ECC**: P-256 (COSE -7) for wide compatibility.

@@ -15,7 +15,7 @@
 
 **Purpose**: Initial verification and audit review
 
-- [ ] T001 Review all findings in `specs/038-correct-crypto-terminology/audit.md` against current `docs/brd.md` and `docs/trd.md`
+- [x] T001 Review all findings in `specs/038-correct-crypto-terminology/audit.md` against current `docs/brd.md` and `docs/trd.md`
 
 ---
 
@@ -25,9 +25,9 @@
 
 **⚠️ CRITICAL**: These deletions must be complete before reclassifying valid primitives.
 
-- [ ] T002 [P] Remove invented term "HHD" (Hybrid Hierarchical Deterministic) from `docs/brd.md`
-- [ ] T003 [P] Remove unused algorithm "Falcon-512" from `docs/brd.md`
-- [ ] T004 [P] Remove all occurrences of the term "HHD" from `docs/trd.md`
+- [x] T002 [P] Remove invented term "HHD" (Hybrid Hierarchical Deterministic) from `docs/brd.md`
+- [x] T003 [P] Remove unused algorithm "Falcon-512" from `docs/brd.md`
+- [x] T004 [P] Remove all occurrences of the term "HHD" from `docs/trd.md`
 
 **Checkpoint**: Invented terminology purged - valid primitive reclassification can begin.
 
@@ -41,11 +41,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Reclassify ML-DSA-65 as a digital signature algorithm (not encryption) in `docs/brd.md` line 84
-- [ ] T006 [US1] Replace SLIP-10/BIP-44 PQC derivation with HDK `DeriveSalt` per Constitution Principle II in `docs/brd.md` line 87
-- [ ] T007 [US1] Replace SLIP-10 PQC derivation with HDK `DeriveSalt` in `docs/trd.md` line 58
-- [ ] T008 [US1] Move ML-KEM-768 out of "Encryption Standards" and reclassify as KEM in `docs/trd.md` line 64
-- [ ] T009 [US1] Clarify PBKDF2-HMAC-SHA512 role as mnemonic stretching (not entry KDF) in `docs/trd.md` line 57
+- [x] T005 [US1] Reclassify ML-DSA-65 as a digital signature algorithm (not encryption) in `docs/brd.md` line 84
+- [x] T006 [US1] Replace SLIP-10/BIP-44 PQC derivation with HDK `DeriveSalt` per Constitution Principle II in `docs/brd.md` line 87
+- [x] T007 [US1] Replace SLIP-10 PQC derivation with HDK `DeriveSalt` in `docs/trd.md` line 58
+- [x] T008 [US1] Move ML-KEM-768 out of "Encryption Standards" and reclassify as KEM in `docs/trd.md` line 64
+- [x] T009 [US1] Clarify PBKDF2-HMAC-SHA512 role as mnemonic stretching (not entry KDF) in `docs/trd.md` line 57
 
 **Checkpoint**: Foundational documents are now factually accurate regarding cryptographic primitives.
 
@@ -59,8 +59,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Align NFR-SEC-040 with HDK and remove "legacy BIP-32 style components" from `docs/brd.md` line 87
-- [ ] T011 [US2] Separate ML-KEM and ML-DSA support descriptions in `docs/trd.md` line 21 to distinguish roles
+- [x] T010 [US2] Align NFR-SEC-040 with HDK and remove "legacy BIP-32 style components" from `docs/brd.md` line 87
+- [x] T011 [US2] Separate ML-KEM and ML-DSA support descriptions in `docs/trd.md` line 21 to distinguish roles
 
 **Checkpoint**: BRD and TRD are now 100% consistent with the active Technical Constitution.
 
@@ -74,7 +74,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T012 [US3] Replace "HSM" with "Android Keystore" in `docs/brd.md` line 31
+- [x] T012 [US3] Replace "HSM" with "Android Keystore" in `docs/brd.md` line 31
 
 **Checkpoint**: Document uses platform-appropriate security terminology.
 
@@ -84,9 +84,9 @@
 
 **Purpose**: Final verification and documentation cleanup
 
-- [ ] T013 Verify all technical terms against `constitution.md` Principle II and Principle X.5
-- [ ] T014 [P] Final search for "HHD", "Falcon-512", and "SLIP-10" to ensure no PQC context remains in `docs/`
-- [ ] T015 [P] Update the `specs/038-correct-crypto-terminology/audit.md` to mark all findings as resolved
+- [x] T013 Verify all technical terms against `constitution.md` Principle II and Principle X.5
+- [x] T014 [P] Final search for "HHD", "Falcon-512", and "SLIP-10" to ensure no PQC context remains in `docs/`
+- [x] T015 [P] Update the `specs/038-correct-crypto-terminology/audit.md` to mark all findings as resolved
 
 ---
 
