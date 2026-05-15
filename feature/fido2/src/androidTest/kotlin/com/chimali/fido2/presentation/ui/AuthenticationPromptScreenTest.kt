@@ -18,6 +18,9 @@ import com.chimali.fido2.presentation.viewmodel.AuthenticationState
 import org.junit.Rule
 import org.junit.Test
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+
 /**
  * T099 — Compose UI tests for [AuthenticationPromptScreen].
  *
@@ -26,7 +29,7 @@ import org.junit.Test
  */
 class AuthenticationPromptScreenTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     // ── AwaitingUserConsent state ────────────────────────────────────────────
 

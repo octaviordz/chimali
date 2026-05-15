@@ -16,6 +16,9 @@ import com.chimali.fido2.presentation.viewmodel.RegistrationState
 import org.junit.Rule
 import org.junit.Test
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+
 /**
  * T068 — Compose UI tests for the Registration screen.
  *
@@ -25,7 +28,7 @@ import org.junit.Test
  */
 class RegistrationPromptScreenTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     // ── AwaitingUserConsent state ─────────────────────────────────────────────
 

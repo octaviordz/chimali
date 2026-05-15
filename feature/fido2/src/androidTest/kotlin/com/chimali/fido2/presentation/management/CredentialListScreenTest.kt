@@ -20,9 +20,12 @@ import java.security.PublicKey
 import org.junit.Rule
 import org.junit.Test
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+
 class CredentialListScreenTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private val getAllCredentialsUseCase: GetAllCredentialsUseCase = mockk()
     private val searchCredentialsUseCase: SearchCredentialsUseCase = mockk()

@@ -20,15 +20,8 @@ import org.junit.Test
  * performed with manual testing. These focus on the UI + ViewModel portion.
  */
 class RegistrationFlowIntegrationTest {
-    // NOTE: Replace with your application's Activity once wired up
-    // @get:Rule
-    // val composeRule = createAndroidComposeRule<MainActivity>()
-
-    // Temporarily using createComposeRule for headless CI execution
     @get:Rule
-    val composeRule =
-        androidx.compose.ui.test.junit4
-            .createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun fullFlow_consentToProcessingShowsProgressIndicator() {

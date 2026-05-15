@@ -10,6 +10,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import org.junit.Rule
 import org.junit.Test
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+
 /**
  * T023 — Compose UI test: a [displayName] of exactly 64 UTF-8 bytes renders without truncation
  * in a credential selection context.
@@ -19,7 +22,7 @@ import org.junit.Test
  */
 class CredentialDisplayNameTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     /**
      * A 64-character ASCII displayName — exactly 64 UTF-8 bytes.

@@ -14,12 +14,15 @@ import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
 import org.junit.Rule
 import org.junit.Test
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+
 /**
  * T143 — Accessibility tests for [DevelopmentToolsScreen].
  */
 class DevelopmentToolsScreenTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun devTools_titlesHaveHeadingRole() {

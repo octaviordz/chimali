@@ -1,12 +1,13 @@
 package com.chimali.feature.vault.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultType
@@ -19,7 +20,15 @@ import org.junit.Test
  */
 class VaultListScreenTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun simpleSmokeTest() {
+        composeTestRule.setContent {
+            androidx.compose.material3.Text("Hello World")
+        }
+        composeTestRule.onNodeWithText("Hello World").assertExists()
+    }
 
     @Test
     fun vaultList_titleIsHeading() {
