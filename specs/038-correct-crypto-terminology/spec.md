@@ -3,7 +3,7 @@
 **Feature Branch**: `038-correct-crypto-terminology`  
 **Created**: 2026-05-15  
 **Status**: Draft  
-**Input**: User description: "correct and enhance statements. Use analysis document @[specs/cryptographic-terminology-audit.md] information to implement fixes."
+**Input**: User description: "correct and enhance statements. Use analysis document @[specs/038-correct-crypto-terminology/audit.md] information to implement fixes."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -81,12 +81,12 @@ As a developer, I need to know exactly which hardware components are being lever
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of "Critical" findings identified in `specs/cryptographic-terminology-audit.md` are resolved in the target files (`brd.md`, `trd.md`).
+- **SC-001**: 100% of "Critical" findings identified in `specs/038-correct-crypto-terminology/audit.md` are resolved in the target files (`brd.md`, `trd.md`).
 - **SC-002**: Documentation achieves 100% terminological consistency with `constitution.md` Version 0.13.0.
 - **SC-003**: A keyword search for "HHD" or "Falcon-512" in the `docs/` and `.specify/` directories returns zero results.
 
 ## Assumptions
 
 - **Constitutional Supremacy**: The `constitution.md` is the final authority on architectural and cryptographic decisions.
-- **Audit Completeness**: The `cryptographic-terminology-audit.md` has correctly identified the lines requiring modification.
+- **Audit Completeness**: The `audit.md` has correctly identified the lines requiring modification.
 - **No functional changes**: This feature is documentation-only; it does not change the underlying cryptographic implementation, which is already aligned with the constitution.

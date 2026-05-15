@@ -1,8 +1,9 @@
 # Cryptographic Terminology Audit
 
+**Feature**: [spec.md](file:///d:/octav/source/repos/Chimali/specs/038-correct-crypto-terminology/spec.md)
 **Scope**: `constitution.md`, `brd.md`, `trd.md`
 **Date**: 2026-05-14
-**Objective**: Identify statements where a cryptographic algorithm, mechanism, or primitive is described as something it factually is not.
+**Objective**: Identify statements where a cryptographic algorithm, mechanism, or primitive is described as something it factually is not. This audit serves as the primary input for feature 038.
 
 ---
 
