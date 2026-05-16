@@ -8,13 +8,14 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ### Fixed
 - **Encoding & UI Character Integrity**: Successfully remediated a project-wide encoding corruption issue where non-ASCII characters were replaced with the replacement character. Fixed corrupted comments in the FIDO2 UI and restored 10 module READMEs.
 - **Bluetooth HID API Modernization**: Modernized the Bluetooth HID transport layer with SDK-gated compatibility helpers and explicit API 28+ hardware feature checks.
+- **FIDO2 Performance Telemetry (NFR-PERF-030)**: Resolved a false-positive performance budget violation during `GetAssertion`. Implemented proper `LatencyProfiler` start/end user interaction markers in `Ctap2GetAssertionHandler.kt` to accurately segregate user interaction time from raw system latency.
 
 ### Changed
 - **Linting Baseline Remediation**: Finalized the comprehensive code quality audit, achieving a ~90% reduction in inline suppressions.
     - Refactored all generic exception handlers in the FIDO2 and Vault modules to use specific, constitutional error types.
     - Purged redundant Compose suppressions and modernized the technical debt tracking format to `DEFERRED(040)`.
 - **Compose BOM Upgrade & CI Stabilization**: Upgraded the Compose BOM to version `2026.05.00` to resolve instrumented testing noise. Fixed KMP resource parsing issues during UI testing and restored missing `createAndroidComposeRule` imports that caused FIDO2 module compilation failures.
-- **Detailed changes**: [2026-05-15-compose-bom-update-and-test-fixes.md](docs/changelogs/2026-05-15-compose-bom-update-and-test-fixes.md), [2026-05-15-linting-remediation-and-encoding-fixes.md](docs/changelogs/2026-05-15-linting-remediation-and-encoding-fixes.md)
+- **Detailed changes**: [2026-05-15-compose-bom-update-and-test-fixes.md](docs/changelogs/2026-05-15-compose-bom-update-and-test-fixes.md), [2026-05-15-linting-remediation-and-encoding-fixes.md](docs/changelogs/2026-05-15-linting-remediation-and-encoding-fixes.md), [2026-05-15-fido2-getassertion-performance-telemetry-fix.md](docs/changelogs/2026-05-15-fido2-getassertion-performance-telemetry-fix.md)
 
 ## [Unreleased] - 2026-05-14
 

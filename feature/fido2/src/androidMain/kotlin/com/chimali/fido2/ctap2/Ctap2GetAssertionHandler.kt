@@ -20,6 +20,7 @@ import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.LatencyProfiler
 import org.koin.core.annotation.Single
 
 /**
@@ -130,6 +131,7 @@ class Ctap2GetAssertionHandler(
                     uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(options, deferred))
 
                     try {
+                        LatencyProfiler.startUserInteraction("GetAssertion")
                         kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
                             deferred.await()
                         }
@@ -142,6 +144,8 @@ class Ctap2GetAssertionHandler(
                                 byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
                             ),
                         )
+                    } finally {
+                        LatencyProfiler.endUserInteraction("GetAssertion")
                     }
                 }
 

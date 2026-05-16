@@ -38,7 +38,7 @@
 
 ### Implementation for User Story 1
 
-- [ ] T001 [US1] Wrap `deferred.await()` with `LatencyProfiler.startUserInteraction` and `endUserInteraction` inside a `try/finally` block in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/Ctap2GetAssertionHandler.kt`
+- [x] T001 [US1] Wrap `deferred.await()` with `LatencyProfiler.startUserInteraction` and `endUserInteraction` inside a `try/finally` block in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/Ctap2GetAssertionHandler.kt`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
