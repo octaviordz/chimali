@@ -1,16 +1,10 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.12.1 → 0.13.0
+- Version change: 0.13.0 → 0.14.0
 - List of modified principles:
-  - X. Coding Conventions & Best Practices (materially expanded with
-    comprehensive Kotlin/KMP idioms, Compose performance, SQL anti-patterns,
-    CBOR/binary encoding conventions, and structured concurrency rules)
-- Added sections:
-  - XI. Risk Management & Pragmatism
-  - X.4 Compose & UI Performance Guidelines
-  - X.5 Cryptographic Code Guidelines
-  - X.6 CBOR, Binary & Wire Protocol Guidelines
-  - X.7 Anti-Patterns & Prohibited Practices
+  - X.3 SQL & Database Guidelines — added mandatory column ordering
+    convention (PK → audit/temporal → alphabetized remaining)
+- Added sections: None
 - Removed sections: None
 - Templates requiring updates:
   - ✅ `.specify/templates/plan-template.md` — No updates needed
@@ -161,6 +155,12 @@ To ensure a highly maintainable, readable, and performant codebase, the followin
   - Foreign Keys: Name the column after the referenced table with `_id` suffix (e.g., `vault_item_id`).
   - SQLDelight Queries: `camelCase` for named queries (e.g., `getVaultItemById`).
   - Migration Files: `<version_number>.sqm` (e.g., `2.sqm`, `3.sqm`).
+- **Column Ordering**:
+  - All `CREATE TABLE` statements and migration `ALTER TABLE … ADD COLUMN` groupings MUST follow this canonical column order:
+    1. **Primary key column(s)** first (e.g., `id`).
+    2. **Audit / temporal columns** next, alphabetized by column name, (e.g. `created_at`, `last_used_at`, `updated_at` include only those applicable to the table).
+    3. **All remaining columns** alphabetized by column name.
+  - This ordering applies to both `.sq` schema definitions and `.sqm` migration files. When adding columns via migration, the column MUST be placed so that a full schema dump would still satisfy the ordering rule.
 - **Idioms & Best Practices**:
   - Use prepared statements and bind variables (native to SQLDelight) to prevent SQL injection.
   - Keep business logic out of the database. Use SQL for storage, retrieval, and basic constraints. No stored procedures or complex computed columns.
@@ -222,4 +222,4 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 - **Performance Targets**: Performance targets defined in Principle IV represent upper bounds. Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient; optimizing for all edge-case devices is explicitly out of scope for initial delivery.
 - **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive but unfinished one. Ship the smallest valuable slice, then iterate.
 
-**Version**: 0.13.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-14
+**Version**: 0.14.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-16
