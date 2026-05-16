@@ -51,7 +51,7 @@ class EventStoreRepositoryImpl(
                     val payloadJson = json.encodeToString(event)
                     val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
-                    database.vaultQueries.insertEvent(
+                    database.vaultQueries.insert_event(
                         aggregate_id = event.aggregateId,
                         sequence_number = event.sequenceNumber,
                         timestamp = event.timestamp.toString(),
@@ -79,10 +79,15 @@ class EventStoreRepositoryImpl(
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
             val events =
-                database.vaultQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
-                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-                }
+                database.vaultQueries
+                    .get_events(
+                        aggregate_id = aggregateId,
+                        timestamp = timestampLimit,
+                    ).executeAsList()
+                    .map { row ->
+                        val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                        json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                    }
             Result.success(events)
         } catch (e: android.database.SQLException) {
             Result.failure(e)
@@ -100,10 +105,15 @@ class EventStoreRepositoryImpl(
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
 
             val events =
-                database.vaultQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
-                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-                }
+                database.vaultQueries
+                    .get_events_from(
+                        aggregate_id = aggregateId,
+                        sequence_number = fromSequence,
+                    ).executeAsList()
+                    .map { row ->
+                        val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                        json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                    }
             Result.success(events)
         } catch (e: android.database.SQLException) {
             Result.failure(e)

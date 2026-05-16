@@ -1,173 +1,172 @@
 import kotlin.String;
 
-CREATE TABLE Identity (
+CREATE TABLE identity (
     id TEXT NOT NULL PRIMARY KEY,
     alias TEXT NOT NULL
 );
 
-CREATE TABLE IdentityBackup (
+CREATE TABLE label (
     id TEXT NOT NULL PRIMARY KEY,
-    identity_id TEXT NOT NULL,
+    color_hex TEXT NOT NULL,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE identity_backup (
+    id TEXT NOT NULL PRIMARY KEY,
     last_backed_up_at TEXT NOT NULL,
     backup_method TEXT NOT NULL,
     configuration_json TEXT NOT NULL,
-    FOREIGN KEY(identity_id) REFERENCES Identity(id) ON DELETE CASCADE
+    identity_id TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
 );
 
-CREATE TABLE VaultEntry (
+CREATE TABLE vault_entry (
     id TEXT NOT NULL PRIMARY KEY,
-    doc_id TEXT NOT NULL,
-    type TEXT NOT NULL,
-    title TEXT NOT NULL,
-    encrypted_payload BLOB NOT NULL,
-    crdt_state BLOB NOT NULL,
     date_created TEXT NOT NULL,
     date_modified TEXT NOT NULL,
     last_backed_up_at TEXT,
+    crdt_state BLOB NOT NULL,
+    doc_id TEXT NOT NULL,
+    encrypted_payload BLOB NOT NULL,
     identity_id TEXT NOT NULL,
-    FOREIGN KEY(identity_id) REFERENCES Identity(id) ON DELETE CASCADE
+    title TEXT NOT NULL,
+    type TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
 );
 
-CREATE TABLE Label (
-    id TEXT NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL,
-    color_hex TEXT NOT NULL
-);
-
-CREATE TABLE VaultEntryLabel (
+CREATE TABLE vault_entry_label (
     entry_id TEXT NOT NULL,
     label_id TEXT NOT NULL,
     PRIMARY KEY (entry_id, label_id),
-    FOREIGN KEY(entry_id) REFERENCES VaultEntry(id) ON DELETE CASCADE,
-    FOREIGN KEY(label_id) REFERENCES Label(id) ON DELETE CASCADE
+    FOREIGN KEY(entry_id) REFERENCES vault_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY(label_id) REFERENCES label(id) ON DELETE CASCADE
+);
+
+CREATE TABLE event_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+
+CREATE TABLE snapshot_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
 );
 
 -- Identity Queries
-insertIdentity:
-INSERT OR REPLACE INTO Identity(id, alias)
+insert_identity:
+INSERT OR REPLACE INTO identity(id, alias)
 VALUES (?, ?);
 
-getIdentities:
-SELECT id, alias FROM Identity;
+get_identities:
+SELECT id, alias FROM identity;
 
-getIdentityById:
-SELECT id, alias FROM Identity WHERE id = ?;
+get_identity_by_id:
+SELECT id, alias FROM identity WHERE id = ?;
 
-deleteIdentity:
-DELETE FROM Identity WHERE id = ?;
+delete_identity:
+DELETE FROM identity WHERE id = ?;
 
 -- IdentityBackup Queries
-insertIdentityBackup:
-INSERT OR REPLACE INTO IdentityBackup(id, identity_id, last_backed_up_at, backup_method, configuration_json)
+insert_identity_backup:
+INSERT OR REPLACE INTO identity_backup(id, last_backed_up_at, backup_method, configuration_json, identity_id)
 VALUES (?, ?, ?, ?, ?);
 
-getIdentityBackups:
-SELECT id, identity_id, last_backed_up_at, backup_method, configuration_json FROM IdentityBackup WHERE identity_id = ?;
+get_identity_backups:
+SELECT id, last_backed_up_at, backup_method, configuration_json, identity_id FROM identity_backup WHERE identity_id = ?;
 
-deleteIdentityBackup:
-DELETE FROM IdentityBackup WHERE id = ?;
+delete_identity_backup:
+DELETE FROM identity_backup WHERE id = ?;
 
 -- VaultEntry Queries
-insertVaultEntry:
-INSERT OR REPLACE INTO VaultEntry(id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id)
+insert_vault_entry:
+INSERT OR REPLACE INTO vault_entry(id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-getVaultEntries:
-SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry;
+get_vault_entries:
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM vault_entry;
 
-getVaultEntriesByIdentity:
-SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry WHERE identity_id = ?;
+get_vault_entries_by_identity:
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM vault_entry WHERE identity_id = ?;
 
-getVaultEntryById:
-SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry WHERE id = ?;
+get_vault_entry_by_id:
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM vault_entry WHERE id = ?;
 
-deleteVaultEntry:
-DELETE FROM VaultEntry WHERE id = ?;
+delete_vault_entry:
+DELETE FROM vault_entry WHERE id = ?;
 
 -- Label Queries
-insertLabel:
-INSERT OR REPLACE INTO Label(id, name, color_hex)
+insert_label:
+INSERT OR REPLACE INTO label(id, color_hex, name)
 VALUES (?, ?, ?);
 
-getLabels:
-SELECT id, name, color_hex FROM Label;
+get_labels:
+SELECT id, color_hex, name FROM label;
 
-deleteLabel:
-DELETE FROM Label WHERE id = ?;
+delete_label:
+DELETE FROM label WHERE id = ?;
 
 -- VaultEntryLabel Queries
-insertVaultEntryLabel:
-INSERT OR REPLACE INTO VaultEntryLabel(entry_id, label_id)
+insert_vault_entry_label:
+INSERT OR REPLACE INTO vault_entry_label(entry_id, label_id)
 VALUES (?, ?);
 
-deleteVaultEntryLabels:
-DELETE FROM VaultEntryLabel WHERE entry_id = ?;
+delete_vault_entry_labels:
+DELETE FROM vault_entry_label WHERE entry_id = ?;
 
-getVaultEntriesByLabel:
-SELECT id, doc_id, type, title, encrypted_payload, crdt_state, date_created, date_modified, last_backed_up_at, identity_id FROM VaultEntry
-INNER JOIN VaultEntryLabel ON VaultEntry.id = VaultEntryLabel.entry_id
-WHERE VaultEntryLabel.label_id = ?;
-
--- Event Sourcing Infrastructure
-CREATE TABLE EventStore (
-    aggregate_id TEXT NOT NULL,
-    sequence_number INTEGER NOT NULL,
-    timestamp TEXT NOT NULL,
-    payload BLOB NOT NULL, -- Encrypted JSON
-    PRIMARY KEY (aggregate_id, sequence_number)
-);
-
-CREATE TABLE SnapshotStore (
-    aggregate_id TEXT NOT NULL,
-    sequence_number INTEGER NOT NULL,
-    timestamp TEXT NOT NULL,
-    payload BLOB NOT NULL, -- Encrypted JSON
-    PRIMARY KEY (aggregate_id, sequence_number)
-);
+get_vault_entries_by_label:
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM vault_entry
+INNER JOIN vault_entry_label ON vault_entry.id = vault_entry_label.entry_id
+WHERE vault_entry_label.label_id = ?;
 
 -- EventStore Queries
-insertEvent:
-INSERT INTO EventStore (aggregate_id, sequence_number, timestamp, payload)
+insert_event:
+INSERT INTO event_store (aggregate_id, sequence_number, timestamp, payload)
 VALUES (?, ?, ?, ?);
 
-getEvents:
-SELECT * FROM EventStore 
+get_events:
+SELECT * FROM event_store 
 WHERE aggregate_id = ? 
 AND timestamp <= ? 
 ORDER BY sequence_number ASC;
 
-getEventsFrom:
-SELECT * FROM EventStore 
+get_events_from:
+SELECT * FROM event_store 
 WHERE aggregate_id = ? 
 AND sequence_number > ? 
 ORDER BY sequence_number ASC;
 
 -- SnapshotStore Queries
-insertSnapshot:
-INSERT INTO SnapshotStore (aggregate_id, sequence_number, timestamp, payload)
+insert_snapshot:
+INSERT INTO snapshot_store (aggregate_id, sequence_number, timestamp, payload)
 VALUES (?, ?, ?, ?);
 
-getLatestSnapshot:
-SELECT * FROM SnapshotStore 
+get_latest_snapshot:
+SELECT * FROM snapshot_store 
 WHERE aggregate_id = ? 
 ORDER BY sequence_number DESC 
 LIMIT 1;
 
-deleteOldSnapshots:
-DELETE FROM SnapshotStore 
+delete_old_snapshots:
+DELETE FROM snapshot_store 
 WHERE aggregate_id = ? 
 AND sequence_number NOT IN (
-    SELECT sequence_number FROM SnapshotStore 
+    SELECT sequence_number FROM snapshot_store 
     WHERE aggregate_id = ? 
     ORDER BY sequence_number DESC 
     LIMIT 2
 );
 
-truncateAll:
-DELETE FROM VaultEntry;
-DELETE FROM IdentityBackup;
-DELETE FROM Identity;
-DELETE FROM VaultEntryLabel;
-DELETE FROM Label;
-DELETE FROM EventStore;
-DELETE FROM SnapshotStore;
+truncate_all:
+DELETE FROM vault_entry;
+DELETE FROM identity_backup;
+DELETE FROM identity;
+DELETE FROM vault_entry_label;
+DELETE FROM label;
+DELETE FROM event_store;
+DELETE FROM snapshot_store;

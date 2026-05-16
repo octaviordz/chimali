@@ -46,7 +46,7 @@ class PasskeySnapshotRepositoryImpl(
                 val payloadJson = json.encodeToString(snapshotSerializer, snapshot)
                 val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
-                database.fido2DatabaseQueries.insertSnapshot(
+                database.fido2DatabaseQueries.insert_snapshot(
                     aggregate_id = snapshot.aggregateId,
                     sequence_number = snapshot.sequenceNumber,
                     timestamp = snapshot.timestamp.toString(),
@@ -54,7 +54,10 @@ class PasskeySnapshotRepositoryImpl(
                 )
 
                 // Retain only the last 2 snapshots
-                database.fido2DatabaseQueries.deleteOldSnapshots(snapshot.aggregateId, snapshot.aggregateId)
+                database.fido2DatabaseQueries.delete_old_snapshots(
+                    aggregate_id = snapshot.aggregateId,
+                    aggregate_id_ = snapshot.aggregateId,
+                )
             }
         }
 
@@ -65,7 +68,7 @@ class PasskeySnapshotRepositoryImpl(
         runCatching {
             if (kind != EventKind.PASSKEY) return@runCatching null
 
-            val row = database.fido2DatabaseQueries.getLatestSnapshot(aggregateId).executeAsOneOrNull()
+            val row = database.fido2DatabaseQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()
             if (row == null) return@runCatching null
 
             val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")

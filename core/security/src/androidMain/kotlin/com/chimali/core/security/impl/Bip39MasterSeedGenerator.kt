@@ -1,6 +1,5 @@
 package com.chimali.core.security.impl
 
-import android.content.Context
 import com.chimali.core.security.api.MasterSeedGenerator
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -22,12 +21,13 @@ import org.koin.core.annotation.Single
  * salt as specified in BIP39.
  */
 @Single
-class Bip39MasterSeedGenerator(
-    private val context: Context,
-) : MasterSeedGenerator {
+class Bip39MasterSeedGenerator : MasterSeedGenerator {
     private val wordList: List<String> by lazy {
-        context.assets
-            .open("bip39_english.txt")
+        val stream =
+            javaClass.classLoader?.getResourceAsStream("bip39_english.txt")
+                ?: error("Missing bip39_english.txt resource")
+
+        stream
             .bufferedReader()
             .readLines()
             .filter { it.isNotBlank() }

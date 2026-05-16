@@ -1,24 +1,24 @@
-CREATE TABLE PairedDevice (
-    macAddress TEXT NOT NULL PRIMARY KEY,
-    createdAt INTEGER NOT NULL,
-    lastUsedAt INTEGER NOT NULL,
+CREATE TABLE paired_device (
+    mac_address TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER NOT NULL,
     alias TEXT,
-    deviceClass INTEGER,
+    device_class INTEGER,
     name TEXT
 );
 
-insertOrReplace:
-INSERT OR REPLACE INTO PairedDevice (macAddress, createdAt, lastUsedAt, alias, deviceClass, name)
+insert_or_replace:
+INSERT OR REPLACE INTO paired_device (mac_address, created_at, last_used_at, alias, device_class, name)
 VALUES (?, ?, ?, ?, ?, ?);
 
-updateAlias:
-UPDATE PairedDevice SET alias = ? WHERE macAddress = ?;
+update_alias:
+UPDATE paired_device SET alias = ? WHERE mac_address = ?;
 
-selectAll:
-SELECT * FROM PairedDevice ORDER BY lastUsedAt DESC;
+select_all:
+SELECT * FROM paired_device ORDER BY last_used_at DESC;
 
-deleteByAddress:
-DELETE FROM PairedDevice WHERE macAddress = ?;
+delete_by_address:
+DELETE FROM paired_device WHERE mac_address = ?;
 
-selectByAddress:
-SELECT * FROM PairedDevice WHERE macAddress = ?;
+select_by_address:
+SELECT * FROM paired_device WHERE mac_address = ?;

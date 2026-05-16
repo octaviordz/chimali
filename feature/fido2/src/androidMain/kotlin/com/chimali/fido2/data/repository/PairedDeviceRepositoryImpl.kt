@@ -24,26 +24,26 @@ class PairedDeviceRepositoryImpl(
 
     override fun getAllPairedDevices(): Flow<List<PairedDevice>> =
         database.pairedDeviceQueries
-            .selectAll()
+            .select_all()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows ->
                 rows.map { row ->
                     PairedDevice(
-                        macAddress = row.macAddress,
+                        macAddress = row.mac_address,
                         name = row.name,
-                        deviceClass = row.deviceClass?.toInt(),
+                        deviceClass = row.device_class?.toInt(),
                         alias = row.alias,
-                        lastUsedAt = row.lastUsedAt,
-                        createdAt = row.createdAt,
+                        lastUsedAt = row.last_used_at,
+                        createdAt = row.created_at,
                     )
                 }
             }
 
     override suspend fun saveDevice(device: PairedDevice): Outcome<Unit, DomainError> =
         try {
-            // We do a read-modify-write to preserve createdAt if it already exists
-            val existing = database.pairedDeviceQueries.selectByAddress(device.macAddress).executeAsOneOrNull()
+            // We do a read-modify-write to preserve created_at if it already exists
+            val existing = database.pairedDeviceQueries.select_by_address(device.macAddress).executeAsOneOrNull()
 
             // The event passes new deviceClass. However, sometimes Android reconnects and classifies
             // the host as "Uncategorized" (Major class 0). We should not let a generic 0 class
@@ -52,18 +52,18 @@ class PairedDeviceRepositoryImpl(
             val isIncomingGeneric = incomingClass == null || (incomingClass and MAJOR_DEVICE_CLASS_MASK) == 0
 
             val finalClassToSave =
-                if (isIncomingGeneric && existing?.deviceClass != null) {
-                    existing.deviceClass // Keep the old valid one
+                if (isIncomingGeneric && existing?.device_class != null) {
+                    existing.device_class // Keep the old valid one
                 } else {
-                    incomingClass?.toLong() ?: existing?.deviceClass
+                    incomingClass?.toLong() ?: existing?.device_class
                 }
 
-            database.pairedDeviceQueries.insertOrReplace(
-                macAddress = device.macAddress,
-                createdAt = existing?.createdAt ?: device.createdAt,
-                lastUsedAt = device.lastUsedAt,
+            database.pairedDeviceQueries.insert_or_replace(
+                mac_address = device.macAddress,
+                created_at = existing?.created_at ?: device.createdAt,
+                last_used_at = device.lastUsedAt,
                 alias = device.alias ?: existing?.alias,
-                deviceClass = finalClassToSave,
+                device_class = finalClassToSave,
                 name = device.name ?: existing?.name,
             )
             Outcome.Success(Unit)
@@ -77,7 +77,7 @@ class PairedDeviceRepositoryImpl(
         alias: String?,
     ): Outcome<Unit, DomainError> =
         try {
-            database.pairedDeviceQueries.updateAlias(alias, macAddress)
+            database.pairedDeviceQueries.update_alias(alias, macAddress)
             Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "Failed to update alias for device (database error): $macAddress" }
@@ -86,7 +86,7 @@ class PairedDeviceRepositoryImpl(
 
     override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> =
         try {
-            database.pairedDeviceQueries.deleteByAddress(macAddress)
+            database.pairedDeviceQueries.delete_by_address(macAddress)
             Outcome.Success(Unit)
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "Failed to delete device (database error): $macAddress" }

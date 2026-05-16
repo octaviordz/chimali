@@ -346,15 +346,15 @@ class CredentialRepositoryImpl(
                 entities.map { entity ->
                     CredentialSummary(
                         id = entity.id,
-                        rpId = RpId(entity.rpId),
-                        credentialId = CredentialId.fromEncoded(entity.credentialId),
+                        rpId = RpId(entity.rp_id),
+                        credentialId = CredentialId.fromEncoded(entity.credential_id),
                         lastUsedAt =
                             Instant.fromEpochMilliseconds(
-                                entity.lastUsedAt
-                                    ?: entity.createdAt,
+                                entity.last_used_at
+                                    ?: entity.created_at,
                             ),
-                        coseAlgorithm = entity.coseAlgorithm.toInt(),
-                        credProtectPolicy = entity.credProtectPolicy.toInt(),
+                        coseAlgorithm = entity.cose_algorithm.toInt(),
+                        credProtectPolicy = entity.cred_protect_policy.toInt(),
                     )
                 }
             Outcome.Success(summaries)
@@ -393,7 +393,7 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao
                     .getAllCredentials()
                     .first()
-                    .filter { it.userName.lowercase().contains(lq) || it.userDisplayName.lowercase().contains(lq) }
+                    .filter { it.user_name.lowercase().contains(lq) || it.user_display_name.lowercase().contains(lq) }
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }
@@ -411,8 +411,8 @@ class CredentialRepositoryImpl(
                     .first()
                     .filter { entity ->
                         val lastUsed =
-                            entity.lastUsedAt?.let { Instant.fromEpochMilliseconds(it) }
-                                ?: Instant.fromEpochMilliseconds(entity.createdAt)
+                            entity.last_used_at?.let { Instant.fromEpochMilliseconds(it) }
+                                ?: Instant.fromEpochMilliseconds(entity.created_at)
                         lastUsed < cutoff
                     }.forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
@@ -444,7 +444,7 @@ class CredentialRepositoryImpl(
                 passkeyCredentialDao
                     .getAllCredentials()
                     .first()
-                    .filter { Instant.fromEpochMilliseconds(it.createdAt) < cutoff }
+                    .filter { Instant.fromEpochMilliseconds(it.created_at) < cutoff }
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
                     }

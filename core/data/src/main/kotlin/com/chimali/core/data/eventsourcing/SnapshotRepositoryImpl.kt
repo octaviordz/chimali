@@ -48,7 +48,7 @@ class SnapshotRepositoryImpl(
                 val payloadJson = json.encodeToString(snapshotSerializer, snapshot)
                 val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
-                database.vaultQueries.insertSnapshot(
+                database.vaultQueries.insert_snapshot(
                     aggregate_id = snapshot.aggregateId,
                     sequence_number = snapshot.sequenceNumber,
                     timestamp = snapshot.timestamp.toString(),
@@ -56,7 +56,10 @@ class SnapshotRepositoryImpl(
                 )
 
                 // Retain only the last 2 snapshots to save space
-                database.vaultQueries.deleteOldSnapshots(snapshot.aggregateId, snapshot.aggregateId)
+                database.vaultQueries.delete_old_snapshots(
+                    aggregate_id = snapshot.aggregateId,
+                    aggregate_id_ = snapshot.aggregateId,
+                )
             }
             Result.success(Unit)
         } catch (e: android.database.SQLException) {
@@ -71,7 +74,7 @@ class SnapshotRepositoryImpl(
         if (kind != EventKind.VAULT_ENTRY) return Result.success(null)
 
         return try {
-            val row = database.vaultQueries.getLatestSnapshot(aggregateId).executeAsOneOrNull()
+            val row = database.vaultQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()
             if (row == null) {
                 Result.success(null)
             } else {

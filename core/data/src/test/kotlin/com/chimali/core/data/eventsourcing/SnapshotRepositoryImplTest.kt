@@ -61,7 +61,7 @@ class SnapshotRepositoryImplTest {
             repository.save(EventKind.VAULT_ENTRY, snapshot).getOrThrow()
 
             // Verify it was inserted into the database
-            val dbRow = database.vaultQueries.getLatestSnapshot(aggregateId).executeAsOneOrNull()
+            val dbRow = database.vaultQueries.get_latest_snapshot(aggregateId).executeAsOneOrNull()
             io.mockk.verify { encryptionManager.encrypt(any(), any()) }
             assertEquals(aggregateId, dbRow?.aggregate_id)
             assertEquals(1L, dbRow?.sequence_number)
@@ -83,7 +83,7 @@ class SnapshotRepositoryImplTest {
             val encryptedPayload = byteArrayOf(1, 2, 3)
 
             // Setup database state directly
-            database.vaultQueries.insertSnapshot(
+            database.vaultQueries.insert_snapshot(
                 aggregate_id = aggregateId,
                 sequence_number = 1,
                 timestamp = snapshot.timestamp.toString(),
@@ -153,7 +153,7 @@ class SnapshotRepositoryImplTest {
             // I'll assume the SQL is correct if it doesn't crash,
             // but let's verify sequence numbers of what's left.
 
-            val latest = database.vaultQueries.getLatestSnapshot(aggregateId).executeAsOne()
+            val latest = database.vaultQueries.get_latest_snapshot(aggregateId).executeAsOne()
             assertEquals(3L, latest.sequence_number)
         }
 }

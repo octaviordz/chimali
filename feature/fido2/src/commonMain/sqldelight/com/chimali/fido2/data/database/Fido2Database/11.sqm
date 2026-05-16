@@ -1,0 +1,171 @@
+-- Migration: Rename tables to snake_case, rename columns to snake_case, and align column ordering
+-- Module: feature:fido2 (Fido2Database)
+
+-- 1. Drop views and indexes before table renames
+DROP VIEW IF EXISTS CredentialSummary;
+DROP VIEW IF EXISTS RelyingPartyStats;
+
+DROP INDEX IF EXISTS idx_passkey_credential_rpId;
+DROP INDEX IF EXISTS idx_passkey_credential_userId;
+DROP INDEX IF EXISTS idx_user_consent_rpId;
+DROP INDEX IF EXISTS idx_user_consent_timestamp;
+DROP INDEX IF EXISTS idx_bluetooth_session_active;
+
+-- 2. PasskeyCredential -> passkey_credential
+ALTER TABLE PasskeyCredential RENAME TO PasskeyCredential_old;
+CREATE TABLE passkey_credential (
+    id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    aaguid TEXT NOT NULL,
+    cose_algorithm INTEGER NOT NULL DEFAULT -7,
+    credential_id TEXT NOT NULL,
+    cred_protect_policy INTEGER NOT NULL DEFAULT 1,
+    label TEXT,
+    private_key_alias TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    rp_id TEXT NOT NULL,
+    rp_name TEXT NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    user_display_name TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    UNIQUE(rp_id, user_id)
+);
+INSERT INTO passkey_credential (
+    id, created_at, last_used_at, aaguid, cose_algorithm, credential_id,
+    cred_protect_policy, label, private_key_alias, public_key, rp_id,
+    rp_name, sign_count, user_display_name, user_id, user_name
+)
+SELECT 
+    id, createdAt, lastUsedAt, aaguid, coseAlgorithm, credentialId,
+    credProtectPolicy, label, privateKeyAlias, publicKey, rpId,
+    rpName, signCount, userDisplayName, userId, userName
+FROM PasskeyCredential_old;
+DROP TABLE PasskeyCredential_old;
+
+-- 3. RelyingParty -> relying_party
+ALTER TABLE RelyingParty RENAME TO RelyingParty_old;
+CREATE TABLE relying_party (
+    id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    credential_count INTEGER NOT NULL DEFAULT 0,
+    icon_url TEXT,
+    is_blocked INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL
+);
+INSERT INTO relying_party (id, created_at, last_used_at, credential_count, icon_url, is_blocked, name)
+SELECT id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name FROM RelyingParty_old;
+DROP TABLE RelyingParty_old;
+
+-- 4. UserConsentRecord -> user_consent_record
+ALTER TABLE UserConsentRecord RENAME TO UserConsentRecord_old;
+CREATE TABLE user_consent_record (
+    id TEXT NOT NULL PRIMARY KEY,
+    timestamp INTEGER NOT NULL,
+    biometric_used INTEGER NOT NULL DEFAULT 0,
+    credential_id TEXT,
+    device_id TEXT,
+    ip_address TEXT,
+    operation_type TEXT NOT NULL,
+    pin_used INTEGER NOT NULL DEFAULT 0,
+    rp_id TEXT NOT NULL,
+    user_agent TEXT,
+    FOREIGN KEY(rp_id) REFERENCES relying_party(id) ON DELETE CASCADE
+);
+INSERT INTO user_consent_record (
+    id, timestamp, biometric_used, credential_id, device_id,
+    ip_address, operation_type, pin_used, rp_id, user_agent
+)
+SELECT 
+    id, timestamp, isBiometricUsed, credentialId, deviceId,
+    ipAddress, operationType, isPinUsed, rpId, userAgent
+FROM UserConsentRecord_old;
+DROP TABLE UserConsentRecord_old;
+
+-- 5. BluetoothHidSession -> bluetooth_hid_session
+ALTER TABLE BluetoothHidSession RENAME TO BluetoothHidSession_old;
+CREATE TABLE bluetooth_hid_session (
+    session_id TEXT NOT NULL PRIMARY KEY,
+    start_time INTEGER NOT NULL,
+    last_activity_time INTEGER NOT NULL,
+    host_device_address TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    protocol_version TEXT NOT NULL
+);
+INSERT INTO bluetooth_hid_session (session_id, start_time, last_activity_time, host_device_address, is_active, protocol_version)
+SELECT sessionId, startTime, lastActivityTime, hostDeviceAddress, isActive, protocolVersion FROM BluetoothHidSession_old;
+DROP TABLE BluetoothHidSession_old;
+
+-- 6. PairedDevice -> paired_device
+ALTER TABLE PairedDevice RENAME TO PairedDevice_old;
+CREATE TABLE paired_device (
+    mac_address TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER NOT NULL,
+    alias TEXT,
+    device_class INTEGER,
+    name TEXT
+);
+INSERT INTO paired_device (mac_address, created_at, last_used_at, alias, device_class, name)
+SELECT macAddress, createdAt, lastUsedAt, alias, deviceClass, name FROM PairedDevice_old;
+DROP TABLE PairedDevice_old;
+
+-- 7. EventStore -> event_store
+ALTER TABLE EventStore RENAME TO EventStore_old;
+CREATE TABLE event_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+INSERT INTO event_store (aggregate_id, sequence_number, timestamp, payload)
+SELECT aggregate_id, sequence_number, timestamp, payload FROM EventStore_old;
+DROP TABLE EventStore_old;
+
+-- 8. SnapshotStore -> snapshot_store
+ALTER TABLE SnapshotStore RENAME TO SnapshotStore_old;
+CREATE TABLE snapshot_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+INSERT INTO snapshot_store (aggregate_id, sequence_number, timestamp, payload)
+SELECT aggregate_id, sequence_number, timestamp, payload FROM SnapshotStore_old;
+DROP TABLE SnapshotStore_old;
+
+-- 9. Recreate indexes with new names
+CREATE INDEX idx_passkey_credential_rp_id ON passkey_credential(rp_id);
+CREATE INDEX idx_passkey_credential_user_id ON passkey_credential(user_id);
+CREATE INDEX idx_user_consent_record_rp_id ON user_consent_record(rp_id);
+CREATE INDEX idx_user_consent_record_timestamp ON user_consent_record(timestamp);
+CREATE INDEX idx_bluetooth_hid_session_is_active ON bluetooth_hid_session(is_active);
+
+-- 10. Recreate views with new names
+CREATE VIEW credential_summary AS
+SELECT 
+    pc.id,
+    pc.rp_id,
+    rp.name AS rp_name,
+    pc.user_name,
+    pc.user_display_name,
+    pc.created_at,
+    pc.last_used_at,
+    pc.sign_count
+FROM passkey_credential pc
+JOIN relying_party rp ON pc.rp_id = rp.id;
+
+CREATE VIEW relying_party_stats AS
+SELECT 
+    rp.id,
+    rp.name,
+    rp.credential_count,
+    COUNT(ucr.id) AS consent_count,
+    MAX(ucr.timestamp) AS last_consent_time
+FROM relying_party rp
+LEFT JOIN user_consent_record ucr ON rp.id = ucr.rp_id
+GROUP BY rp.id, rp.name, rp.credential_count;

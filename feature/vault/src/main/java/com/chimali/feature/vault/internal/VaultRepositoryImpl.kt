@@ -25,9 +25,9 @@ class VaultRepositoryImpl(
             try {
                 val entries =
                     if (labelId == null) {
-                        database.vaultQueries.getVaultEntries().executeAsList()
+                        database.vaultQueries.get_vault_entries().executeAsList()
                     } else {
-                        database.vaultQueries.getVaultEntriesByLabel(labelId.toString()).executeAsList()
+                        database.vaultQueries.get_vault_entries_by_label(labelId.toString()).executeAsList()
                     }
 
                 val items =
@@ -57,7 +57,8 @@ class VaultRepositoryImpl(
     override suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError> =
         withContext(Dispatchers.IO) {
             try {
-                val exists = database.vaultQueries.getVaultEntryById(item.id.toString()).executeAsOneOrNull() != null
+                val exists =
+                    database.vaultQueries.get_vault_entry_by_id(item.id.toString()).executeAsOneOrNull() != null
 
                 val command =
                     if (!exists) {
@@ -81,7 +82,7 @@ class VaultRepositoryImpl(
                 if (result.isSuccess) {
                     val state = result.getOrThrow()
                     // Projection: Update the read model table
-                    database.vaultQueries.insertVaultEntry(
+                    database.vaultQueries.insert_vault_entry(
                         id = state.id,
                         doc_id = state.id,
                         type = state.type,
@@ -113,7 +114,7 @@ class VaultRepositoryImpl(
             try {
                 val result = aggregateService.execute(id.toString(), VaultCommand.Delete(id.toString()))
                 if (result.isSuccess) {
-                    database.vaultQueries.deleteVaultEntry(id.toString())
+                    database.vaultQueries.delete_vault_entry(id.toString())
                     Outcome.Success(Unit)
                 } else {
                     val error = result.exceptionOrNull()

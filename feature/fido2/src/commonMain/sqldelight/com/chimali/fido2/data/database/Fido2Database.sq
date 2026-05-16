@@ -1,90 +1,92 @@
-CREATE TABLE PasskeyCredential (
+CREATE TABLE passkey_credential (
     id TEXT NOT NULL PRIMARY KEY,
-    createdAt INTEGER NOT NULL,
-    lastUsedAt INTEGER,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
     aaguid TEXT NOT NULL,
-    coseAlgorithm INTEGER NOT NULL DEFAULT -7,
-    credentialId TEXT NOT NULL,
-    credProtectPolicy INTEGER NOT NULL DEFAULT 1,
+    cose_algorithm INTEGER NOT NULL DEFAULT -7,
+    credential_id TEXT NOT NULL,
+    cred_protect_policy INTEGER NOT NULL DEFAULT 1,
     label TEXT,
-    privateKeyAlias TEXT NOT NULL,
-    publicKey TEXT NOT NULL,
-    rpId TEXT NOT NULL,
-    rpName TEXT NOT NULL,
-    signCount INTEGER NOT NULL DEFAULT 0,
-    userDisplayName TEXT NOT NULL,
-    userId TEXT NOT NULL,
-    userName TEXT NOT NULL,
-    UNIQUE(rpId, userId)
+    private_key_alias TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    rp_id TEXT NOT NULL,
+    rp_name TEXT NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    user_display_name TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    UNIQUE(rp_id, user_id)
 );
 
-CREATE TABLE RelyingParty (
+CREATE TABLE relying_party (
     id TEXT NOT NULL PRIMARY KEY,
-    createdAt INTEGER NOT NULL,
-    lastUsedAt INTEGER,
-    credentialCount INTEGER NOT NULL DEFAULT 0,
-    iconUrl TEXT,
-    isBlocked INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    credential_count INTEGER NOT NULL DEFAULT 0,
+    icon_url TEXT,
+    is_blocked INTEGER NOT NULL DEFAULT 0,
     name TEXT NOT NULL
 );
 
-CREATE TABLE UserConsentRecord (
+CREATE TABLE user_consent_record (
     id TEXT NOT NULL PRIMARY KEY,
     timestamp INTEGER NOT NULL,
-    isBiometricUsed INTEGER NOT NULL DEFAULT 0,
-    credentialId TEXT,
-    deviceId TEXT,
-    ipAddress TEXT,
-    operationType TEXT NOT NULL,
-    isPinUsed INTEGER NOT NULL DEFAULT 0,
-    rpId TEXT NOT NULL,
-    userAgent TEXT,
-    FOREIGN KEY(rpId) REFERENCES RelyingParty(id) ON DELETE CASCADE
+    biometric_used INTEGER NOT NULL DEFAULT 0,
+    credential_id TEXT,
+    device_id TEXT,
+    ip_address TEXT,
+    operation_type TEXT NOT NULL,
+    pin_used INTEGER NOT NULL DEFAULT 0,
+    rp_id TEXT NOT NULL,
+    user_agent TEXT,
+    FOREIGN KEY(rp_id) REFERENCES relying_party(id) ON DELETE CASCADE
 );
 
-CREATE TABLE BluetoothHidSession (
-    sessionId TEXT NOT NULL PRIMARY KEY,
-    startTime INTEGER NOT NULL,
-    lastActivityTime INTEGER NOT NULL,
-    hostDeviceAddress TEXT NOT NULL,
-    isActive INTEGER NOT NULL DEFAULT 1,
-    protocolVersion TEXT NOT NULL
+CREATE TABLE bluetooth_hid_session (
+    session_id TEXT NOT NULL PRIMARY KEY,
+    start_time INTEGER NOT NULL,
+    last_activity_time INTEGER NOT NULL,
+    host_device_address TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    protocol_version TEXT NOT NULL
 );
+
+-- Table paired_device is defined in PairedDevice.sq
 
 -- Indexes for performance
-CREATE INDEX idx_passkey_credential_rpId ON PasskeyCredential(rpId);
-CREATE INDEX idx_passkey_credential_userId ON PasskeyCredential(userId);
-CREATE INDEX idx_user_consent_rpId ON UserConsentRecord(rpId);
-CREATE INDEX idx_user_consent_timestamp ON UserConsentRecord(timestamp);
-CREATE INDEX idx_bluetooth_session_active ON BluetoothHidSession(isActive);
+CREATE INDEX idx_passkey_credential_rp_id ON passkey_credential(rp_id);
+CREATE INDEX idx_passkey_credential_user_id ON passkey_credential(user_id);
+CREATE INDEX idx_user_consent_record_rp_id ON user_consent_record(rp_id);
+CREATE INDEX idx_user_consent_record_timestamp ON user_consent_record(timestamp);
+CREATE INDEX idx_bluetooth_hid_session_is_active ON bluetooth_hid_session(is_active);
 
 -- Views for common queries
-CREATE VIEW CredentialSummary AS
+CREATE VIEW credential_summary AS
 SELECT 
     pc.id,
-    pc.rpId,
-    rp.name AS rpName,
-    pc.userName,
-    pc.userDisplayName,
-    pc.createdAt,
-    pc.lastUsedAt,
-    pc.signCount
-FROM PasskeyCredential pc
-JOIN RelyingParty rp ON pc.rpId = rp.id;
+    pc.rp_id,
+    rp.name AS rp_name,
+    pc.user_name,
+    pc.user_display_name,
+    pc.created_at,
+    pc.last_used_at,
+    pc.sign_count
+FROM passkey_credential pc
+JOIN relying_party rp ON pc.rp_id = rp.id;
 
-CREATE VIEW RelyingPartyStats AS
+CREATE VIEW relying_party_stats AS
 SELECT 
     rp.id,
     rp.name,
-    rp.credentialCount,
-    COUNT(ucr.id) AS consentCount,
-    MAX(ucr.timestamp) AS lastConsentTime
-FROM RelyingParty rp
-LEFT JOIN UserConsentRecord ucr ON rp.id = ucr.rpId
-GROUP BY rp.id, rp.name, rp.credentialCount;
+    rp.credential_count,
+    COUNT(ucr.id) AS consent_count,
+    MAX(ucr.timestamp) AS last_consent_time
+FROM relying_party rp
+LEFT JOIN user_consent_record ucr ON rp.id = ucr.rp_id
+GROUP BY rp.id, rp.name, rp.credential_count;
 
 -- Event Sourcing Infrastructure
-CREATE TABLE EventStore (
+CREATE TABLE event_store (
     aggregate_id TEXT NOT NULL,
     sequence_number INTEGER NOT NULL,
     timestamp TEXT NOT NULL,
@@ -92,7 +94,7 @@ CREATE TABLE EventStore (
     PRIMARY KEY (aggregate_id, sequence_number)
 );
 
-CREATE TABLE SnapshotStore (
+CREATE TABLE snapshot_store (
     aggregate_id TEXT NOT NULL,
     sequence_number INTEGER NOT NULL,
     timestamp TEXT NOT NULL,
@@ -101,48 +103,47 @@ CREATE TABLE SnapshotStore (
 );
 
 -- EventStore Queries
-insertEvent:
-INSERT INTO EventStore (aggregate_id, sequence_number, timestamp, payload)
+insert_event:
+INSERT INTO event_store (aggregate_id, sequence_number, timestamp, payload)
 VALUES (?, ?, ?, ?);
 
-getEvents:
-SELECT * FROM EventStore 
+get_events:
+SELECT * FROM event_store 
 WHERE aggregate_id = ? 
 AND timestamp <= ? 
 ORDER BY sequence_number ASC;
 
-getEventsFrom:
-SELECT * FROM EventStore 
+get_events_from:
+SELECT * FROM event_store 
 WHERE aggregate_id = ? 
 AND sequence_number > ? 
 ORDER BY sequence_number ASC;
 
 -- SnapshotStore Queries
-insertSnapshot:
-INSERT INTO SnapshotStore (aggregate_id, sequence_number, timestamp, payload)
+insert_snapshot:
+INSERT INTO snapshot_store (aggregate_id, sequence_number, timestamp, payload)
 VALUES (?, ?, ?, ?);
 
-getLatestSnapshot:
-SELECT * FROM SnapshotStore 
+get_latest_snapshot:
+SELECT * FROM snapshot_store 
 WHERE aggregate_id = ? 
 ORDER BY sequence_number DESC 
 LIMIT 1;
 
-deleteOldSnapshots:
-DELETE FROM SnapshotStore 
+delete_old_snapshots:
+DELETE FROM snapshot_store 
 WHERE aggregate_id = ? 
 AND sequence_number NOT IN (
-    SELECT sequence_number FROM SnapshotStore 
+    SELECT sequence_number FROM snapshot_store 
     WHERE aggregate_id = ? 
     ORDER BY sequence_number DESC 
     LIMIT 2
 );
 
-truncateAll:
-DELETE FROM PasskeyCredential;
-DELETE FROM RelyingParty;
-DELETE FROM UserConsentRecord;
-DELETE FROM BluetoothHidSession;
-DELETE FROM EventStore;
-DELETE FROM SnapshotStore;
-
+truncate_all:
+DELETE FROM passkey_credential;
+DELETE FROM relying_party;
+DELETE FROM user_consent_record;
+DELETE FROM bluetooth_hid_session;
+DELETE FROM event_store;
+DELETE FROM snapshot_store;

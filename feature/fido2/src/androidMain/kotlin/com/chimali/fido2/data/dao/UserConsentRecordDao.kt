@@ -4,7 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
-import com.chimali.fido2.data.database.UserConsentRecord as UserConsentRecordEntity
+import com.chimali.fido2.data.database.User_consent_record as UserConsentRecordEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
@@ -24,14 +24,14 @@ class UserConsentRecordDao(
         database.userConsentRecordQueries.insert(
             id = consent.id,
             timestamp = consent.timestamp.toEpochMilliseconds(),
-            isBiometricUsed = if (consent.isBiometricUsed) 1L else 0L,
-            credentialId = consent.credentialId?.encoded,
-            deviceId = consent.deviceId,
-            ipAddress = consent.ipAddress,
-            operationType = consent.operationType.name,
-            isPinUsed = if (consent.isPinUsed) 1L else 0L,
-            rpId = consent.rpId.value,
-            userAgent = consent.userAgent,
+            biometric_used = if (consent.isBiometricUsed) 1L else 0L,
+            credential_id = consent.credentialId?.encoded,
+            device_id = consent.deviceId,
+            ip_address = consent.ipAddress,
+            operation_type = consent.operationType.name,
+            pin_used = if (consent.isPinUsed) 1L else 0L,
+            rp_id = consent.rpId.value,
+            user_agent = consent.userAgent,
         )
     }
 
@@ -44,14 +44,14 @@ class UserConsentRecordDao(
     ): Flow<List<UserConsentRecordEntity>> =
         if (rpId != null) {
             database.userConsentRecordQueries
-                .selectRecentByRpId(
-                    rpId = rpId.value,
+                .select_recent_by_rp_id(
+                    rp_id = rpId.value,
                     limit = limit.toLong(),
                 ).asFlow()
                 .map { query -> query.executeAsList() }
         } else {
             database.userConsentRecordQueries
-                .selectRecent(limit = limit.toLong())
+                .select_recent(limit = limit.toLong())
                 .asFlow()
                 .map { query -> query.executeAsList() }
         }

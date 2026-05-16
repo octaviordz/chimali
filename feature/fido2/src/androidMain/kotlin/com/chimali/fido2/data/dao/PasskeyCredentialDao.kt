@@ -6,7 +6,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.database.Fido2Database
-import com.chimali.fido2.data.database.PasskeyCredential as PasskeyCredentialEntity
+import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
 import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -27,28 +27,28 @@ class PasskeyCredentialDao(
     fun insertCredential(credential: PasskeyCredential) {
         database.passkeyCredentialQueries.insert(
             id = credential.id.encoded,
-            createdAt = credential.createdAt.toEpochMilliseconds(),
-            lastUsedAt = credential.lastUsedAt.toEpochMilliseconds(),
+            created_at = credential.createdAt.toEpochMilliseconds(),
+            last_used_at = credential.lastUsedAt.toEpochMilliseconds(),
             aaguid =
                 java.util.Base64
                     .getEncoder()
                     .encodeToString(credential.aaguid),
-            coseAlgorithm = credential.coseAlgorithm.toLong(),
-            credentialId = credential.id.encoded,
-            credProtectPolicy = credential.credProtectPolicy.toLong(),
+            cose_algorithm = credential.coseAlgorithm.toLong(),
+            credential_id = credential.id.encoded,
+            cred_protect_policy = credential.credProtectPolicy.toLong(),
             label = credential.label,
-            privateKeyAlias = credential.privateKeyAlias,
-            publicKey =
+            private_key_alias = credential.privateKeyAlias,
+            public_key =
                 java.util.Base64
                     .getEncoder()
                     .encodeToString(credential.publicKey.encoded),
-            rpId = credential.rpId.value,
+            rp_id = credential.rpId.value,
             // fallback
-            rpName = credential.rpId.value,
-            signCount = credential.signCount,
-            userDisplayName = credential.userDisplayName,
-            userId = credential.userId.value,
-            userName = credential.userName,
+            rp_name = credential.rpId.value,
+            sign_count = credential.signCount,
+            user_display_name = credential.userDisplayName,
+            user_id = credential.userId.value,
+            user_name = credential.userName,
         )
     }
 
@@ -57,7 +57,7 @@ class PasskeyCredentialDao(
      */
     fun getCredentialById(credentialId: CredentialId): PasskeyCredentialEntity? =
         database.passkeyCredentialQueries
-            .selectById(credentialId.encoded)
+            .select_by_id(id = credentialId.encoded)
             .executeAsOneOrNull()
 
     /**
@@ -65,7 +65,7 @@ class PasskeyCredentialDao(
      */
     fun getCredentialsByRpId(rpId: RpId): Flow<List<PasskeyCredentialEntity>> =
         database.passkeyCredentialQueries
-            .selectByRpId(rpId.value)
+            .select_by_rp_id(rp_id = rpId.value)
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -77,7 +77,12 @@ class PasskeyCredentialDao(
         limit: Long,
         offset: Long,
     ): List<PasskeyCredentialEntity> =
-        database.passkeyCredentialQueries.getPagedCredentialsByRpId(rpId.value, limit, offset).executeAsList()
+        database.passkeyCredentialQueries
+            .get_paged_credentials_by_rp_id(
+                rp_id = rpId.value,
+                limit = limit,
+                offset = offset,
+            ).executeAsList()
 
     /**
      * Retrieves a paginated list of all credentials.
@@ -86,7 +91,7 @@ class PasskeyCredentialDao(
         limit: Long,
         offset: Long,
     ): List<PasskeyCredentialEntity> =
-        database.passkeyCredentialQueries.getPagedCredentials(limit, offset).executeAsList()
+        database.passkeyCredentialQueries.get_paged_credentials(limit = limit, offset = offset).executeAsList()
 
     /**
      * Retrieves all credentials for a specific RP and user (sync).
@@ -96,7 +101,7 @@ class PasskeyCredentialDao(
         userId: UserId,
     ): List<PasskeyCredentialEntity> =
         database.passkeyCredentialQueries
-            .selectByRpIdAndUserId(rpId.value, userId.value)
+            .select_by_rp_id_and_user_id(rp_id = rpId.value, user_id = userId.value)
             .executeAsList()
 
     /**
@@ -104,7 +109,7 @@ class PasskeyCredentialDao(
      */
     fun getCredentialsByUserId(userId: UserId): Flow<List<PasskeyCredentialEntity>> =
         database.passkeyCredentialQueries
-            .selectByUserId(userId.value)
+            .select_by_user_id(user_id = userId.value)
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -113,7 +118,7 @@ class PasskeyCredentialDao(
      */
     fun getAllCredentials(): Flow<List<PasskeyCredentialEntity>> =
         database.passkeyCredentialQueries
-            .selectAll()
+            .select_all()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -122,13 +127,13 @@ class PasskeyCredentialDao(
      */
     fun updateCredential(credential: PasskeyCredential) {
         database.passkeyCredentialQueries.update(
-            lastUsedAt = credential.lastUsedAt.toEpochMilliseconds(),
+            last_used_at = credential.lastUsedAt.toEpochMilliseconds(),
             label = credential.label,
             // fallback
-            rpName = credential.rpId.value,
-            signCount = credential.signCount,
-            userDisplayName = credential.userDisplayName,
-            userName = credential.userName,
+            rp_name = credential.rpId.value,
+            sign_count = credential.signCount,
+            user_display_name = credential.userDisplayName,
+            user_name = credential.userName,
             id = credential.id.encoded,
         )
     }
@@ -140,7 +145,7 @@ class PasskeyCredentialDao(
         credentialId: CredentialId,
         label: String?,
     ) {
-        database.passkeyCredentialQueries.updateLabel(
+        database.passkeyCredentialQueries.update_label(
             label = label,
             id = credentialId.encoded,
         )
@@ -153,8 +158,8 @@ class PasskeyCredentialDao(
         credentialId: CredentialId,
         publicKey: String,
     ) {
-        database.passkeyCredentialQueries.updatePublicKey(
-            publicKey = publicKey,
+        database.passkeyCredentialQueries.update_public_key(
+            public_key = publicKey,
             id = credentialId.encoded,
         )
     }
@@ -166,8 +171,8 @@ class PasskeyCredentialDao(
         credentialId: CredentialId,
         signCount: Long,
     ) {
-        database.passkeyCredentialQueries.updateSignCount(
-            signCount = signCount,
+        database.passkeyCredentialQueries.update_sign_count(
+            sign_count = signCount,
             id = credentialId.encoded,
         )
     }
@@ -176,8 +181,8 @@ class PasskeyCredentialDao(
      * Updates the last used timestamp for a credential.
      */
     fun updateLastUsedAt(credentialId: CredentialId) {
-        database.passkeyCredentialQueries.updateLastUsedAt(
-            lastUsedAt = timeProvider.now().toEpochMilliseconds(),
+        database.passkeyCredentialQueries.update_last_used_at(
+            last_used_at = timeProvider.now().toEpochMilliseconds(),
             id = credentialId.encoded,
         )
     }
@@ -187,13 +192,13 @@ class PasskeyCredentialDao(
      */
     fun getSignCount(credentialId: CredentialId): Long =
         database.passkeyCredentialQueries
-            .getSignCount(id = credentialId.encoded)
+            .get_sign_count(id = credentialId.encoded)
             .executeAsOneOrNull() ?: 0L
 
     /**
      * Deletes a credential by its ID.
      */
     fun deleteCredential(credentialId: CredentialId) {
-        database.passkeyCredentialQueries.deleteById(credentialId.encoded)
+        database.passkeyCredentialQueries.delete_by_id(id = credentialId.encoded)
     }
 }

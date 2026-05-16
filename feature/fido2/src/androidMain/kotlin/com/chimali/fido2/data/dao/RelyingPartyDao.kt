@@ -6,7 +6,7 @@ import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
-import com.chimali.fido2.data.database.RelyingParty as RelyingPartyEntity
+import com.chimali.fido2.data.database.Relying_party as RelyingPartyEntity
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -28,11 +28,11 @@ class RelyingPartyDao(
     suspend fun insertOrUpdateRelyingParty(rp: RelyingParty) {
         database.relyingPartyQueries.insert(
             id = rp.id.value,
-            createdAt = rp.createdAt.toEpochMilliseconds(),
-            lastUsedAt = rp.lastUsedAt?.toEpochMilliseconds(),
-            credentialCount = rp.credentialCount.toLong(),
-            iconUrl = rp.iconUrl,
-            isBlocked = if (rp.isBlocked) 1L else 0L,
+            created_at = rp.createdAt.toEpochMilliseconds(),
+            last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),
+            credential_count = rp.credentialCount.toLong(),
+            icon_url = rp.iconUrl,
+            is_blocked = if (rp.isBlocked) 1L else 0L,
             name = rp.name,
         )
     }
@@ -42,7 +42,7 @@ class RelyingPartyDao(
      */
     suspend fun getRelyingPartyById(rpId: RpId): RelyingPartyEntity? =
         database.relyingPartyQueries
-            .selectById(rpId.value)
+            .select_by_id(id = rpId.value)
             .executeAsOneOrNull()
 
     /**
@@ -50,7 +50,7 @@ class RelyingPartyDao(
      */
     fun getAllRelyingParties(): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectAll()
+            .select_all()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -59,10 +59,10 @@ class RelyingPartyDao(
      */
     suspend fun updateRelyingParty(rp: RelyingParty) {
         database.relyingPartyQueries.update(
-            lastUsedAt = rp.lastUsedAt?.toEpochMilliseconds(),
-            credentialCount = rp.credentialCount.toLong(),
-            iconUrl = rp.iconUrl,
-            isBlocked = if (rp.isBlocked) 1L else 0L,
+            last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),
+            credential_count = rp.credentialCount.toLong(),
+            icon_url = rp.iconUrl,
+            is_blocked = if (rp.isBlocked) 1L else 0L,
             name = rp.name,
             id = rp.id.value,
         )
@@ -75,10 +75,10 @@ class RelyingPartyDao(
         rpId: RpId,
         count: Int,
     ) {
-        database.relyingPartyQueries.updateCredentialCount(
+        database.relyingPartyQueries.update_credential_count(
             id = rpId.value,
-            credentialCount = count.toLong(),
-            lastUsedAt = timeProvider.now().toEpochMilliseconds(),
+            credential_count = count.toLong(),
+            last_used_at = timeProvider.now().toEpochMilliseconds(),
         )
     }
 
@@ -86,9 +86,9 @@ class RelyingPartyDao(
      * Increments the credential count for a relying party.
      */
     suspend fun incrementCredentialCount(rpId: RpId) {
-        database.relyingPartyQueries.incrementCredentialCount(
+        database.relyingPartyQueries.increment_credential_count(
             id = rpId.value,
-            lastUsedAt = timeProvider.now().toEpochMilliseconds(),
+            last_used_at = timeProvider.now().toEpochMilliseconds(),
         )
     }
 
@@ -96,9 +96,9 @@ class RelyingPartyDao(
      * Decrements the credential count for a relying party.
      */
     suspend fun decrementCredentialCount(rpId: RpId) {
-        database.relyingPartyQueries.decrementCredentialCount(
+        database.relyingPartyQueries.decrement_credential_count(
             id = rpId.value,
-            lastUsedAt = timeProvider.now().toEpochMilliseconds(),
+            last_used_at = timeProvider.now().toEpochMilliseconds(),
         )
     }
 
@@ -106,9 +106,9 @@ class RelyingPartyDao(
      * Updates the last used timestamp for a relying party.
      */
     suspend fun updateLastUsedAt(rpId: RpId) {
-        database.relyingPartyQueries.updateLastUsedAt(
+        database.relyingPartyQueries.update_last_used_at(
             id = rpId.value,
-            lastUsedAt = timeProvider.now().toEpochMilliseconds(),
+            last_used_at = timeProvider.now().toEpochMilliseconds(),
         )
     }
 
@@ -119,9 +119,9 @@ class RelyingPartyDao(
         rpId: RpId,
         isBlocked: Boolean,
     ) {
-        database.relyingPartyQueries.updateBlockedStatus(
+        database.relyingPartyQueries.update_blocked_status(
             id = rpId.value,
-            isBlocked = if (isBlocked) 1L else 0L,
+            is_blocked = if (isBlocked) 1L else 0L,
         )
     }
 
@@ -129,7 +129,7 @@ class RelyingPartyDao(
      * Deletes a relying party by its ID.
      */
     suspend fun deleteRelyingParty(rpId: RpId) {
-        database.relyingPartyQueries.deleteById(rpId.value)
+        database.relyingPartyQueries.delete_by_id(id = rpId.value)
     }
 
     /**
@@ -138,7 +138,7 @@ class RelyingPartyDao(
     fun searchRelyingParties(query: String): Flow<List<RelyingPartyEntity>> {
         val searchPattern = "%${query.trim()}%"
         return database.relyingPartyQueries
-            .searchByName(searchPattern)
+            .search_by_name(query = searchPattern)
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -148,7 +148,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesWithCredentials(): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectWithCredentials()
+            .select_with_credentials()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -157,7 +157,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesWithoutCredentials(): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectWithoutCredentials()
+            .select_without_credentials()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -166,7 +166,7 @@ class RelyingPartyDao(
      */
     fun getBlockedRelyingParties(): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectBlocked()
+            .select_blocked()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -175,7 +175,7 @@ class RelyingPartyDao(
      */
     fun getUnblockedRelyingParties(): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectUnblocked()
+            .select_unblocked()
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -184,7 +184,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesByCredentialCount(limit: Int = 50): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByCredentialCount(limit.toLong())
+            .select_by_credential_count(limit = limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -193,7 +193,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesByLastUsed(limit: Int = 50): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByLastUsed(limit.toLong())
+            .select_by_last_used(limit = limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -202,7 +202,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesByCreationDate(limit: Int = 50): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByCreationDate(limit.toLong())
+            .select_by_creation_date(limit = limit.toLong())
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -214,7 +214,7 @@ class RelyingPartyDao(
         endDate: Instant,
     ): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByDateRange(
+            .select_by_date_range(
                 start = startDate.toEpochMilliseconds(),
                 end = endDate.toEpochMilliseconds(),
             ).asFlow()
@@ -226,7 +226,7 @@ class RelyingPartyDao(
     fun getUnusedRelyingParties(days: Int): Flow<List<RelyingPartyEntity>> {
         val cutoffDate = timeProvider.now().toEpochMilliseconds() - days.days.inWholeMilliseconds
         return database.relyingPartyQueries
-            .selectUnused(cutoffDate)
+            .select_unused(cutoff_date = cutoffDate)
             .asFlow()
             .map { query -> query.executeAsList() }
     }
@@ -236,7 +236,7 @@ class RelyingPartyDao(
      */
     suspend fun countAllRelyingParties(): Long =
         database.relyingPartyQueries
-            .countAll()
+            .count_all()
             .executeAsOne()
 
     /**
@@ -244,7 +244,7 @@ class RelyingPartyDao(
      */
     suspend fun countRelyingPartiesWithCredentials(): Long =
         database.relyingPartyQueries
-            .countWithCredentials()
+            .count_with_credentials()
             .executeAsOne()
 
     /**
@@ -252,7 +252,7 @@ class RelyingPartyDao(
      */
     suspend fun countBlockedRelyingParties(): Long =
         database.relyingPartyQueries
-            .countBlocked()
+            .count_blocked()
             .executeAsOne()
 
     /**
@@ -260,7 +260,7 @@ class RelyingPartyDao(
      */
     suspend fun relyingPartyExists(rpId: RpId): Boolean =
         database.relyingPartyQueries
-            .existsById(rpId.value)
+            .exists_by_id(id = rpId.value)
             .executeAsOne()
 
     /**
@@ -268,7 +268,7 @@ class RelyingPartyDao(
      */
     suspend fun isRelyingPartyBlocked(rpId: RpId): Boolean =
         database.relyingPartyQueries
-            .isBlocked(rpId.value)
+            .is_blocked(id = rpId.value)
             .executeAsOne() > 0L
 
     /**
@@ -276,7 +276,7 @@ class RelyingPartyDao(
      */
     fun getRelyingPartiesByDomain(domain: String): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByDomain("%$domain%")
+            .select_by_domain(domain = "%$domain%")
             .asFlow()
             .map { query -> query.executeAsList() }
 
@@ -288,7 +288,7 @@ class RelyingPartyDao(
         maxCount: Int,
     ): Flow<List<RelyingPartyEntity>> =
         database.relyingPartyQueries
-            .selectByCredentialCountRange(
+            .select_by_credential_count_range(
                 min = minCount.toLong(),
                 max = maxCount.toLong(),
             ).asFlow()
@@ -303,10 +303,10 @@ class RelyingPartyDao(
                 database.relyingPartyQueries.update(
                     id = rp.id.value,
                     name = rp.name,
-                    iconUrl = rp.iconUrl,
-                    credentialCount = rp.credentialCount.toLong(),
-                    lastUsedAt = rp.lastUsedAt?.toEpochMilliseconds(),
-                    isBlocked = if (rp.isBlocked) 1L else 0L,
+                    icon_url = rp.iconUrl,
+                    credential_count = rp.credentialCount.toLong(),
+                    last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),
+                    is_blocked = if (rp.isBlocked) 1L else 0L,
                 )
             }
         }
@@ -319,7 +319,7 @@ class RelyingPartyDao(
         var deletedCount = 0
         database.transaction {
             rpIds.forEach { rpId ->
-                database.relyingPartyQueries.deleteById(rpId.value)
+                database.relyingPartyQueries.delete_by_id(id = rpId.value)
                 deletedCount++
             }
         }
@@ -330,7 +330,7 @@ class RelyingPartyDao(
      * Cleans up relying parties without credentials.
      */
     suspend fun cleanupEmptyRelyingParties(): Int {
-        database.relyingPartyQueries.deleteEmptyRelyingParties()
+        database.relyingPartyQueries.delete_empty_relying_parties()
         return getChangesCount()
     }
 
@@ -356,7 +356,7 @@ class RelyingPartyDao(
         val blocked = countBlockedRelyingParties()
         val topRps =
             database.relyingPartyQueries
-                .getTopRelyingParties(DEFAULT_TOP_RPS_LIMIT)
+                .get_top_relying_parties(limit = DEFAULT_TOP_RPS_LIMIT)
                 .executeAsList()
 
         return RelyingPartyStatistics(
@@ -368,7 +368,7 @@ class RelyingPartyDao(
                     TopRelyingParty(
                         id = it.id,
                         name = it.name,
-                        credentialCount = it.credentialCount,
+                        credentialCount = it.credential_count,
                     )
                 },
         )

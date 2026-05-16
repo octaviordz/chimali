@@ -1,0 +1,95 @@
+-- Migration: Rename tables to snake_case and align column ordering
+-- Module: core:database (VaultDatabase)
+
+-- Identity -> identity
+ALTER TABLE Identity RENAME TO Identity_old;
+CREATE TABLE identity (
+    id TEXT NOT NULL PRIMARY KEY,
+    alias TEXT NOT NULL
+);
+INSERT INTO identity (id, alias)
+SELECT id, alias FROM Identity_old;
+DROP TABLE Identity_old;
+
+-- Label -> label
+ALTER TABLE Label RENAME TO Label_old;
+CREATE TABLE label (
+    id TEXT NOT NULL PRIMARY KEY,
+    color_hex TEXT NOT NULL,
+    name TEXT NOT NULL
+);
+INSERT INTO label (id, color_hex, name)
+SELECT id, color_hex, name FROM Label_old;
+DROP TABLE Label_old;
+
+-- IdentityBackup -> identity_backup
+ALTER TABLE IdentityBackup RENAME TO IdentityBackup_old;
+CREATE TABLE identity_backup (
+    id TEXT NOT NULL PRIMARY KEY,
+    last_backed_up_at TEXT NOT NULL,
+    backup_method TEXT NOT NULL,
+    configuration_json TEXT NOT NULL,
+    identity_id TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
+);
+INSERT INTO identity_backup (id, last_backed_up_at, backup_method, configuration_json, identity_id)
+SELECT id, last_backed_up_at, backup_method, configuration_json, identity_id FROM IdentityBackup_old;
+DROP TABLE IdentityBackup_old;
+
+-- VaultEntry -> vault_entry
+ALTER TABLE VaultEntry RENAME TO VaultEntry_old;
+CREATE TABLE vault_entry (
+    id TEXT NOT NULL PRIMARY KEY,
+    date_created TEXT NOT NULL,
+    date_modified TEXT NOT NULL,
+    last_backed_up_at TEXT,
+    crdt_state BLOB NOT NULL,
+    doc_id TEXT NOT NULL,
+    encrypted_payload BLOB NOT NULL,
+    identity_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    type TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
+);
+INSERT INTO vault_entry (id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type)
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM VaultEntry_old;
+DROP TABLE VaultEntry_old;
+
+-- VaultEntryLabel -> vault_entry_label
+ALTER TABLE VaultEntryLabel RENAME TO VaultEntryLabel_old;
+CREATE TABLE vault_entry_label (
+    entry_id TEXT NOT NULL,
+    label_id TEXT NOT NULL,
+    PRIMARY KEY (entry_id, label_id),
+    FOREIGN KEY(entry_id) REFERENCES vault_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY(label_id) REFERENCES label(id) ON DELETE CASCADE
+);
+INSERT INTO vault_entry_label (entry_id, label_id)
+SELECT entry_id, label_id FROM VaultEntryLabel_old;
+DROP TABLE VaultEntryLabel_old;
+
+-- EventStore -> event_store
+ALTER TABLE EventStore RENAME TO EventStore_old;
+CREATE TABLE event_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+INSERT INTO event_store (aggregate_id, sequence_number, timestamp, payload)
+SELECT aggregate_id, sequence_number, timestamp, payload FROM EventStore_old;
+DROP TABLE EventStore_old;
+
+-- SnapshotStore -> snapshot_store
+ALTER TABLE SnapshotStore RENAME TO SnapshotStore_old;
+CREATE TABLE snapshot_store (
+    aggregate_id TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (aggregate_id, sequence_number)
+);
+INSERT INTO snapshot_store (aggregate_id, sequence_number, timestamp, payload)
+SELECT aggregate_id, sequence_number, timestamp, payload FROM SnapshotStore_old;
+DROP TABLE SnapshotStore_old;

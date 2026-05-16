@@ -49,7 +49,7 @@ class PasskeyEventStoreRepositoryImpl(
                     val payloadJson = json.encodeToString(event)
                     val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
 
-                    database.fido2DatabaseQueries.insertEvent(
+                    database.fido2DatabaseQueries.insert_event(
                         aggregate_id = event.aggregateId,
                         sequence_number = event.sequenceNumber,
                         timestamp = event.timestamp.toString(),
@@ -70,10 +70,15 @@ class PasskeyEventStoreRepositoryImpl(
             val timestampLimit = upTo?.toString() ?: "9999-12-31T23:59:59Z"
 
             val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
-            database.fido2DatabaseQueries.getEvents(aggregateId, timestampLimit).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-            }
+            database.fido2DatabaseQueries
+                .get_events(
+                    aggregate_id = aggregateId,
+                    timestamp = timestampLimit,
+                ).executeAsList()
+                .map { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                }
         }
 
     override suspend fun getEventsFrom(
@@ -85,9 +90,14 @@ class PasskeyEventStoreRepositoryImpl(
             if (kind != EventKind.PASSKEY) return@runCatching emptyList()
 
             val key = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
-            database.fido2DatabaseQueries.getEventsFrom(aggregateId, fromSequence).executeAsList().map { row ->
-                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
-                json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-            }
+            database.fido2DatabaseQueries
+                .get_events_from(
+                    aggregate_id = aggregateId,
+                    sequence_number = fromSequence,
+                ).executeAsList()
+                .map { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                    json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
+                }
         }
 }

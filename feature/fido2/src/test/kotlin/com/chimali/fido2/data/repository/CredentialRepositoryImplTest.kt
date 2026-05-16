@@ -49,7 +49,7 @@ class CredentialRepositoryImplTest {
     private lateinit var testRp: RelyingParty
     private lateinit var testConsent: UserConsentRecord
     private lateinit var testPublicKey: java.security.PublicKey
-    private lateinit var testEntity: com.chimali.fido2.data.database.PasskeyCredential
+    private lateinit var testEntity: com.chimali.fido2.data.database.Passkey_credential
 
     private companion object {
         private const val KEY_SIZE_256 = 256
@@ -100,29 +100,29 @@ class CredentialRepositoryImplTest {
                 )
 
             testEntity =
-                com.chimali.fido2.data.database.PasskeyCredential(
+                com.chimali.fido2.data.database.Passkey_credential(
                     id = "dGVzdF9jcmVkZW50aWFsX2lk",
-                    createdAt = testCredential.createdAt.toEpochMilliseconds(),
-                    lastUsedAt = testCredential.lastUsedAt.toEpochMilliseconds(),
+                    created_at = testCredential.createdAt.toEpochMilliseconds(),
+                    last_used_at = testCredential.lastUsedAt.toEpochMilliseconds(),
                     aaguid =
                         java.util.Base64
                             .getEncoder()
                             .encodeToString(testCredential.aaguid),
-                    coseAlgorithm = PasskeyCredential.COSE_ES256.toLong(),
-                    credentialId = testCredential.id.encoded,
-                    credProtectPolicy = testCredential.credProtectPolicy.toLong(),
+                    cose_algorithm = PasskeyCredential.COSE_ES256.toLong(),
+                    credential_id = testCredential.id.encoded,
+                    cred_protect_policy = testCredential.credProtectPolicy.toLong(),
                     label = null,
-                    privateKeyAlias = "test_private_key_alias",
-                    publicKey =
+                    private_key_alias = "test_private_key_alias",
+                    public_key =
                         java.util.Base64
                             .getEncoder()
                             .encodeToString(testPublicKey.encoded),
-                    rpId = "https://example.com",
-                    rpName = "example",
-                    signCount = 0L,
-                    userDisplayName = "Test User",
-                    userId = "user123",
-                    userName = "testuser",
+                    rp_id = "https://example.com",
+                    rp_name = "example",
+                    sign_count = 0L,
+                    user_display_name = "Test User",
+                    user_id = "user123",
+                    user_name = "testuser",
                 )
 
             testRp =

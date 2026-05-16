@@ -1,99 +1,132 @@
 insert:
-INSERT INTO UserConsentRecord (id, timestamp, isBiometricUsed, credentialId, deviceId, ipAddress, operationType, isPinUsed, rpId, userAgent)
+INSERT INTO user_consent_record (id, timestamp, biometric_used, credential_id, device_id, ip_address, operation_type, pin_used, rp_id, user_agent)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-selectById:
-SELECT * FROM UserConsentRecord WHERE id = ?;
+select_by_id:
+SELECT * FROM user_consent_record WHERE id = ?;
 
-selectByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = ? ORDER BY timestamp DESC LIMIT :limit;
+select_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = ? ORDER BY timestamp DESC LIMIT :limit;
 
-selectByOperationType:
-SELECT * FROM UserConsentRecord WHERE operationType = ? ORDER BY timestamp DESC LIMIT :limit;
+select_by_operation_type:
+SELECT * FROM user_consent_record WHERE operation_type = ? ORDER BY timestamp DESC LIMIT :limit;
 
-selectAll:
-SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
+select_all:
+SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
 
-getSummaryByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = ?;
+get_summary_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = ?;
 
-deleteById:
-DELETE FROM UserConsentRecord WHERE id = ?;
+delete_by_id:
+DELETE FROM user_consent_record WHERE id = ?;
 
-deleteByRpId:
-DELETE FROM UserConsentRecord WHERE rpId = ?;
+delete_by_rp_id:
+DELETE FROM user_consent_record WHERE rp_id = ?;
 
-deleteOlderThan:
-DELETE FROM UserConsentRecord WHERE timestamp < ?;
+delete_older_than:
+DELETE FROM user_consent_record WHERE timestamp < ?;
 
-selectRecentByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId ORDER BY timestamp DESC LIMIT :limit;
-selectRecent:
-SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
-selectByCredentialId:
-SELECT * FROM UserConsentRecord WHERE credentialId = :credentialId ORDER BY timestamp DESC LIMIT :limit;
-selectByOperationAndRpId:
-SELECT * FROM UserConsentRecord WHERE operationType = :operationType AND rpId = :rpId ORDER BY timestamp DESC LIMIT :limit;
-selectByDateRangeAndRpId:
-SELECT * FROM UserConsentRecord WHERE timestamp >= :start AND timestamp <= :end AND rpId = :rpId;
-selectByDateRange:
-SELECT * FROM UserConsentRecord WHERE timestamp >= :start AND timestamp <= :end;
-selectByDeviceId:
-SELECT * FROM UserConsentRecord WHERE rpId = :deviceId LIMIT :limit;
-selectByIpAddress:
-SELECT * FROM UserConsentRecord WHERE rpId = :ipAddress LIMIT :limit;
-selectBiometricByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 LIMIT :limit;
-selectBiometric:
-SELECT * FROM UserConsentRecord WHERE isBiometricUsed > 0 LIMIT :limit;
-selectPinByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isPinUsed > 0 LIMIT :limit;
-selectPin:
-SELECT * FROM UserConsentRecord WHERE isPinUsed > 0 LIMIT :limit;
-selectCombinedByRpId:
-SELECT * FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 AND isPinUsed > 0 LIMIT :limit;
-selectCombined:
-SELECT * FROM UserConsentRecord WHERE isBiometricUsed > 0 AND isPinUsed > 0 LIMIT :limit;
-selectByTimestamp:
-SELECT * FROM UserConsentRecord ORDER BY timestamp DESC LIMIT :limit;
+select_recent_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = :rp_id ORDER BY timestamp DESC LIMIT :limit;
+
+select_recent:
+SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
+
+select_by_credential_id:
+SELECT * FROM user_consent_record WHERE credential_id = :credential_id ORDER BY timestamp DESC LIMIT :limit;
+
+select_by_operation_and_rp_id:
+SELECT * FROM user_consent_record WHERE operation_type = :operation_type AND rp_id = :rp_id ORDER BY timestamp DESC LIMIT :limit;
+
+select_by_date_range_and_rp_id:
+SELECT * FROM user_consent_record WHERE timestamp >= :start AND timestamp <= :end AND rp_id = :rp_id;
+
+select_by_date_range:
+SELECT * FROM user_consent_record WHERE timestamp >= :start AND timestamp <= :end;
+
+select_by_device_id:
+SELECT * FROM user_consent_record WHERE rp_id = :device_id LIMIT :limit;
+
+select_by_ip_address:
+SELECT * FROM user_consent_record WHERE rp_id = :ip_address LIMIT :limit;
+
+select_biometric_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 LIMIT :limit;
+
+select_biometric:
+SELECT * FROM user_consent_record WHERE biometric_used > 0 LIMIT :limit;
+
+select_pin_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND pin_used > 0 LIMIT :limit;
+
+select_pin:
+SELECT * FROM user_consent_record WHERE pin_used > 0 LIMIT :limit;
+
+select_combined_by_rp_id:
+SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 AND pin_used > 0 LIMIT :limit;
+
+select_combined:
+SELECT * FROM user_consent_record WHERE biometric_used > 0 AND pin_used > 0 LIMIT :limit;
+
+select_by_timestamp:
+SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
+
 search:
-SELECT * FROM UserConsentRecord WHERE rpId LIKE :query LIMIT :limit;
-selectOldConsent:
-SELECT * FROM UserConsentRecord WHERE timestamp < :before;
-deleteOldConsent:
-DELETE FROM UserConsentRecord WHERE timestamp < :before;
-deleteByCredentialId:
-DELETE FROM UserConsentRecord WHERE credentialId = :credentialId;
-deleteByDeviceId:
-DELETE FROM UserConsentRecord WHERE rpId = :deviceId;
-countAll:
-SELECT count(*) FROM UserConsentRecord;
-countByOperationType:
-SELECT count(*) FROM UserConsentRecord WHERE operationType = :operationType;
-countByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId;
-countByCredentialId:
-SELECT count(*) FROM UserConsentRecord WHERE credentialId = :credentialId;
-countBiometricByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0;
-countBiometric:
-SELECT count(*) FROM UserConsentRecord WHERE isBiometricUsed > 0;
-countPinByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isPinUsed > 0;
-countPin:
-SELECT count(*) FROM UserConsentRecord WHERE isPinUsed > 0;
-countCombinedByRpId:
-SELECT count(*) FROM UserConsentRecord WHERE rpId = :rpId AND isBiometricUsed > 0 AND isPinUsed > 0;
-countCombined:
-SELECT count(*) FROM UserConsentRecord WHERE isBiometricUsed > 0 AND isPinUsed > 0;
-existsById:
-SELECT count(*) > 0 FROM UserConsentRecord WHERE id = :id;
-getStatisticsByOperation:
-SELECT operationType, count(*) FROM UserConsentRecord GROUP BY operationType;
-getStatisticsByRpId:
-SELECT rpId, count(*) FROM UserConsentRecord GROUP BY rpId LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id LIKE :query LIMIT :limit;
+
+select_old_consent:
+SELECT * FROM user_consent_record WHERE timestamp < :before;
+
+delete_old_consent:
+DELETE FROM user_consent_record WHERE timestamp < :before;
+
+delete_by_credential_id:
+DELETE FROM user_consent_record WHERE credential_id = :credential_id;
+
+delete_by_device_id:
+DELETE FROM user_consent_record WHERE rp_id = :device_id;
+
+count_all:
+SELECT count(*) FROM user_consent_record;
+
+count_by_operation_type:
+SELECT count(*) FROM user_consent_record WHERE operation_type = :operation_type;
+
+count_by_rp_id:
+SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id;
+
+count_by_credential_id:
+SELECT count(*) FROM user_consent_record WHERE credential_id = :credential_id;
+
+count_biometric_by_rp_id:
+SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0;
+
+count_biometric:
+SELECT count(*) FROM user_consent_record WHERE biometric_used > 0;
+
+count_pin_by_rp_id:
+SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND pin_used > 0;
+
+count_pin:
+SELECT count(*) FROM user_consent_record WHERE pin_used > 0;
+
+count_combined_by_rp_id:
+SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 AND pin_used > 0;
+
+count_combined:
+SELECT count(*) FROM user_consent_record WHERE biometric_used > 0 AND pin_used > 0;
+
+exists_by_id:
+SELECT count(*) > 0 FROM user_consent_record WHERE id = :id;
+
+get_statistics_by_operation:
+SELECT operation_type, count(*) FROM user_consent_record GROUP BY operation_type;
+
+get_statistics_by_rp_id:
+SELECT rp_id, count(*) FROM user_consent_record GROUP BY rp_id LIMIT :limit;
+
 changes:
 SELECT changes();
 
-countByOperationAndRpId:
-SELECT count(*) FROM UserConsentRecord WHERE operationType = :operationType AND rpId = :rpId;
+count_by_operation_and_rp_id:
+SELECT count(*) FROM user_consent_record WHERE operation_type = :operation_type AND rp_id = :rp_id;

@@ -35,7 +35,7 @@ class CorruptedKeyRepairWorkerImpl(
                     val publicKey =
                         fido2CryptoService.getPublicKey(
                             id,
-                            entity.coseAlgorithm.toInt(),
+                            entity.cose_algorithm.toInt(),
                         ) ?: error("Failed to derive public key for credential: ${id.encoded}")
 
                     val base64PubKey = Base64.getEncoder().encodeToString(publicKey.encoded)

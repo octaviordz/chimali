@@ -1,86 +1,107 @@
 insert:
-INSERT INTO RelyingParty (id, createdAt, lastUsedAt, credentialCount, iconUrl, isBlocked, name)
+INSERT INTO relying_party (id, created_at, last_used_at, credential_count, icon_url, is_blocked, name)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
-  lastUsedAt = excluded.lastUsedAt,
-  credentialCount = excluded.credentialCount,
-  iconUrl = excluded.iconUrl,
-  isBlocked = excluded.isBlocked,
+  last_used_at = excluded.last_used_at,
+  credential_count = excluded.credential_count,
+  icon_url = excluded.icon_url,
+  is_blocked = excluded.is_blocked,
   name = excluded.name;
 
 update:
-UPDATE RelyingParty
-SET lastUsedAt = ?, credentialCount = ?, iconUrl = ?, isBlocked = ?, name = ?
+UPDATE relying_party
+SET last_used_at = ?, credential_count = ?, icon_url = ?, is_blocked = ?, name = ?
 WHERE id = ?;
 
-selectById:
-SELECT * FROM RelyingParty WHERE id = ?;
+select_by_id:
+SELECT * FROM relying_party WHERE id = ?;
 
-selectAll:
-SELECT * FROM RelyingParty;
+select_all:
+SELECT * FROM relying_party;
 
-searchByName:
-SELECT * FROM RelyingParty WHERE name LIKE :query;
+search_by_name:
+SELECT * FROM relying_party WHERE name LIKE :query;
 
-deleteById:
-DELETE FROM RelyingParty WHERE id = ?;
+delete_by_id:
+DELETE FROM relying_party WHERE id = ?;
 
-deleteStats:
-DELETE FROM RelyingPartyStats WHERE id = ?;
+delete_stats:
+DELETE FROM relying_party_stats WHERE id = ?;
 
-getStats:
-SELECT * FROM RelyingPartyStats WHERE id = ?;
+get_stats:
+SELECT * FROM relying_party_stats WHERE id = ?;
 
-getAllStats:
-SELECT * FROM RelyingPartyStats;
+get_all_stats:
+SELECT * FROM relying_party_stats;
 
-updateCredentialCount:
-UPDATE RelyingParty SET credentialCount = :credentialCount, lastUsedAt = :lastUsedAt WHERE id = :id;
+update_credential_count:
+UPDATE relying_party SET credential_count = :credential_count, last_used_at = :last_used_at WHERE id = :id;
 
-isBlocked:
-SELECT isBlocked FROM RelyingParty WHERE id = :id; 
+is_blocked:
+SELECT is_blocked FROM relying_party WHERE id = :id; 
 
-selectWithCredentials:
-SELECT * FROM RelyingParty WHERE credentialCount > 0;
-selectWithoutCredentials:
-SELECT * FROM RelyingParty WHERE credentialCount = 0;
-selectBlocked:
-SELECT * FROM RelyingParty WHERE 1=0;
-selectUnblocked:
-SELECT * FROM RelyingParty;
-selectByCredentialCount:
-SELECT * FROM RelyingParty ORDER BY credentialCount DESC LIMIT :limit;
-selectByLastUsed:
-SELECT * FROM RelyingParty LIMIT :limit;
-selectByCreationDate:
-SELECT * FROM RelyingParty ORDER BY createdAt DESC LIMIT :limit;
-selectByDateRange:
-SELECT * FROM RelyingParty WHERE createdAt >= :start AND createdAt <= :end;
-selectUnused:
-SELECT * FROM RelyingParty WHERE createdAt < :cutoffDate;
-countAll:
-SELECT count(*) FROM RelyingParty;
-countWithCredentials:
-SELECT count(*) FROM RelyingParty WHERE credentialCount > 0;
-countBlocked:
+select_with_credentials:
+SELECT * FROM relying_party WHERE credential_count > 0;
+
+select_without_credentials:
+SELECT * FROM relying_party WHERE credential_count = 0;
+
+select_blocked:
+SELECT * FROM relying_party WHERE 1=0;
+
+select_unblocked:
+SELECT * FROM relying_party;
+
+select_by_credential_count:
+SELECT * FROM relying_party ORDER BY credential_count DESC LIMIT :limit;
+
+select_by_last_used:
+SELECT * FROM relying_party LIMIT :limit;
+
+select_by_creation_date:
+SELECT * FROM relying_party ORDER BY created_at DESC LIMIT :limit;
+
+select_by_date_range:
+SELECT * FROM relying_party WHERE created_at >= :start AND created_at <= :end;
+
+select_unused:
+SELECT * FROM relying_party WHERE created_at < :cutoff_date;
+
+count_all:
+SELECT count(*) FROM relying_party;
+
+count_with_credentials:
+SELECT count(*) FROM relying_party WHERE credential_count > 0;
+
+count_blocked:
 SELECT 0;
-existsById:
-SELECT count(*) > 0 FROM RelyingParty WHERE id = :id;
-selectByDomain:
-SELECT * FROM RelyingParty WHERE id LIKE :domain;
-selectByCredentialCountRange:
-SELECT * FROM RelyingParty WHERE credentialCount >= :min AND credentialCount <= :max;
-deleteEmptyRelyingParties:
-DELETE FROM RelyingParty WHERE credentialCount = 0;
+
+exists_by_id:
+SELECT count(*) > 0 FROM relying_party WHERE id = :id;
+
+select_by_domain:
+SELECT * FROM relying_party WHERE id LIKE :domain;
+
+select_by_credential_count_range:
+SELECT * FROM relying_party WHERE credential_count >= :min AND credential_count <= :max;
+
+delete_empty_relying_parties:
+DELETE FROM relying_party WHERE credential_count = 0;
+
 changes:
 SELECT changes();
-getTopRelyingParties:
-SELECT * FROM RelyingParty ORDER BY credentialCount DESC LIMIT :limit;
-incrementCredentialCount:
-UPDATE RelyingParty SET credentialCount = credentialCount + 1, lastUsedAt = :lastUsedAt WHERE id = :id;
-decrementCredentialCount:
-UPDATE RelyingParty SET credentialCount = credentialCount - 1, lastUsedAt = :lastUsedAt WHERE id = :id;
-updateLastUsedAt:
-UPDATE RelyingParty SET lastUsedAt = :lastUsedAt WHERE id = :id;
-updateBlockedStatus:
-UPDATE RelyingParty SET isBlocked = :isBlocked WHERE id = :id;
+
+get_top_relying_parties:
+SELECT * FROM relying_party ORDER BY credential_count DESC LIMIT :limit;
+
+increment_credential_count:
+UPDATE relying_party SET credential_count = credential_count + 1, last_used_at = :last_used_at WHERE id = :id;
+
+decrement_credential_count:
+UPDATE relying_party SET credential_count = credential_count - 1, last_used_at = :last_used_at WHERE id = :id;
+
+update_last_used_at:
+UPDATE relying_party SET last_used_at = :last_used_at WHERE id = :id;
+
+update_blocked_status:
+UPDATE relying_party SET is_blocked = :is_blocked WHERE id = :id;
