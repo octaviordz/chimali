@@ -28,9 +28,9 @@
 
 **Purpose**: Move the resource file and create the platform-abstraction contract
 
-- [ ] T001 Move `bip39_english.txt` from `core/security/src/androidMain/resources/bip39_english.txt` to `core/security/src/commonMain/resources/bip39_english.txt`
-- [ ] T002 Delete the original file at `core/security/src/androidMain/resources/bip39_english.txt` to satisfy FR-006 (no duplication)
-- [ ] T003 Create `expect fun loadResourceLines(name: String): List<String>` in `core/security/src/commonMain/kotlin/com/chimali/core/security/platform/ResourceLoader.kt` — must throw on missing resource (FR-004), filter blank lines, explicitly trim/normalize line endings (FR-003), use UTF-8 encoding (FR-005)
+- [x] T001 Move `bip39_english.txt` from `core/security/src/androidMain/resources/bip39_english.txt` to `core/security/src/commonMain/resources/bip39_english.txt`
+- [x] T002 Delete the original file at `core/security/src/androidMain/resources/bip39_english.txt` to satisfy FR-006 (no duplication)
+- [x] T003 Create `expect fun loadResourceLines(name: String): List<String>` in `core/security/src/commonMain/kotlin/com/chimali/core/security/platform/ResourceLoader.kt` — must throw on missing resource (FR-004), filter blank lines, explicitly trim/normalize line endings (FR-003), use UTF-8 encoding (FR-005)
 
 **Checkpoint**: Resource relocated; `expect` declaration compiles in `commonMain`
 
@@ -42,9 +42,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/androidMain/kotlin/com/chimali/core/security/platform/ResourceLoader.android.kt` — use `Thread.currentThread().contextClassLoader?.getResourceAsStream(name)` explicitly with `Charsets.UTF_8` and `BufferedReader.readLines()`, map each line to `trim()` to normalize line endings, filter blank lines, throw `IllegalStateException` if resource is missing
-- [ ] T005 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/iosMain/kotlin/com/chimali/core/security/platform/ResourceLoader.ios.kt` — stub implementation: `TODO("iOS resource loading not yet implemented")`
-- [ ] T006 Verify project compiles for all targets by running `.\gradlew :core:security:compileKotlinAndroid` and `.\gradlew :core:security:compileKotlinIosArm64`
+- [x] T004 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/androidMain/kotlin/com/chimali/core/security/platform/ResourceLoader.android.kt` — use `Thread.currentThread().contextClassLoader?.getResourceAsStream(name)` explicitly with `Charsets.UTF_8` and `BufferedReader.readLines()`, map each line to `trim()` to normalize line endings, filter blank lines, throw `IllegalStateException` if resource is missing
+- [x] T005 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/iosMain/kotlin/com/chimali/core/security/platform/ResourceLoader.ios.kt` — stub implementation: `TODO("iOS resource loading not yet implemented")`
+- [x] T006 Verify project compiles for all targets by running `.\gradlew :core:security:compileKotlinAndroid` and `.\gradlew :core:security:compileKotlinIosArm64`
 
 **Checkpoint**: Foundation ready — all targets compile; `expect`/`actual` contract satisfied
 
@@ -58,13 +58,13 @@
 
 ### Tests for User Story 1
 
-- [ ] T007 [US1] Write test `loadResourceLines returns exactly 2048 words for bip39_english` in `core/security/src/androidHostTest/kotlin/com/chimali/core/security/platform/ResourceLoaderTest.kt` — call `loadResourceLines("bip39_english.txt")` and assert result size is 2048, no blank entries, first word is "abandon", last word is "zoo"
+- [x] T007 [US1] Write test `loadResourceLines returns exactly 2048 words for bip39_english` in `core/security/src/androidHostTest/kotlin/com/chimali/core/security/platform/ResourceLoaderTest.kt` — call `loadResourceLines("bip39_english.txt")` and assert result size is 2048, no blank entries, first word is "abandon", last word is "zoo"
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Modify `Bip39MasterSeedGenerator` in `core/security/src/androidMain/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGenerator.kt` — replace `javaClass.classLoader?.getResourceAsStream("bip39_english.txt")` with `loadResourceLines("bip39_english.txt")` in the `wordList` lazy initializer; remove direct stream reading, keep the `require(it.size == 2048)` validation (FR-003)
-- [ ] T009 [US1] Run `.\gradlew :core:security:androidHostTest` to verify `ResourceLoaderTest` passes and the generator still functions correctly
-- [ ] T010 [US1] Run `.\gradlew assembleDebug` to verify the APK bundles `bip39_english.txt` from the `commonMain/resources/` classpath (SC-002)
+- [x] T008 [US1] Modify `Bip39MasterSeedGenerator` in `core/security/src/androidMain/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGenerator.kt` — replace `javaClass.classLoader?.getResourceAsStream("bip39_english.txt")` with `loadResourceLines("bip39_english.txt")` in the `wordList` lazy initializer; remove direct stream reading, keep the `require(it.size == 2048)` validation (FR-003)
+- [x] T009 [US1] Run `.\gradlew :core:security:androidHostTest` to verify `ResourceLoaderTest` passes and the generator still functions correctly
+- [x] T010 [US1] Run `.\gradlew assembleDebug` to verify the APK bundles `bip39_english.txt` from the `commonMain/resources/` classpath (SC-002)
 
 **Checkpoint**: User Story 1 complete — `Bip39MasterSeedGenerator` loads the wordlist from the shared KMP resource directory via the platform-abstracted contract
 
@@ -78,13 +78,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T011 [US2] Refactor and move `Bip39MasterSeedGeneratorTest` from `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` to `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` — remove `android.content.Context` import, remove `AssetManager` import, remove `mockk<Context>()` and `mockk<AssetManager>()` setup, instantiate `Bip39MasterSeedGenerator()` directly (no constructor args), replace synthetic wordlist with real wordlist assertions (use known BIP39 test vectors from the official Trezor/BIP39 specification for deterministic tests), update `entropyToMnemonic` tests to assert against real BIP39 English words
+- [x] T011 [US2] Refactor and move `Bip39MasterSeedGeneratorTest` from `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` to `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` — remove `android.content.Context` import, remove `AssetManager` import, remove `mockk<Context>()` and `mockk<AssetManager>()` setup, instantiate `Bip39MasterSeedGenerator()` directly (no constructor args), replace synthetic wordlist with real wordlist assertions (use known BIP39 test vectors from the official Trezor/BIP39 specification for deterministic tests), update `entropyToMnemonic` tests to assert against real BIP39 English words
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Delete the legacy test file at `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt`
-- [ ] T013 [US2] Verify the `test/` source set directory can be removed if empty, or confirm other tests remain in it; clean up empty directories under `core/security/src/test/` if no other files exist
-- [ ] T014 [US2] Run `.\gradlew :core:security:androidHostTest` to verify all migrated tests pass at 100% without platform-specific mocking (SC-001)
+- [x] T012 [US2] Delete the legacy test file at `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt`
+- [x] T013 [US2] Verify the `test/` source set directory can be removed if empty, or confirm other tests remain in it; clean up empty directories under `core/security/src/test/` if no other files exist
+- [x] T014 [US2] Run `.\gradlew :core:security:androidHostTest` to verify all migrated tests pass at 100% without platform-specific mocking (SC-001)
 
 **Checkpoint**: User Story 2 complete — all seed generation tests run on standard JVM without `Context`/`AssetManager` mocking
 
@@ -94,9 +94,9 @@
 
 **Purpose**: Final validation and documentation
 
-- [ ] T015 Run full local CI pipeline `.\tools\local-ci.ps1` to verify no regressions across the entire project (SC-004)
-- [ ] T016 Verify no duplicate copies of `bip39_english.txt` exist in any platform-specific resource directory (SC-005) — run `Get-ChildItem -Path "core/security/src" -Recurse -Filter "bip39_english.txt" | Select-Object FullName` and confirm only `commonMain/resources/bip39_english.txt` appears
-- [ ] T017 Update `CHANGELOG.md` with entry for the KMP resource migration under the current release section
+- [x] T015 Run full local CI pipeline `.\tools\local-ci.ps1` to verify no regressions across the entire project (SC-004)
+- [x] T016 Verify no duplicate copies of `bip39_english.txt` exist in any platform-specific resource directory (SC-005) — run `Get-ChildItem -Path "core/security/src" -Recurse -Filter "bip39_english.txt" | Select-Object FullName` and confirm only `commonMain/resources/bip39_english.txt` appears
+- [x] T017 Update `CHANGELOG.md` with entry for the KMP resource migration under the current release section
 
 ---
 

@@ -14,6 +14,7 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **Linting Baseline Remediation**: Finalized the comprehensive code quality audit, achieving a ~90% reduction in inline suppressions.
     - Refactored all generic exception handlers in the FIDO2 and Vault modules to use specific, constitutional error types.
     - Purged redundant Compose suppressions and modernized the technical debt tracking format to `DEFERRED(040)`.
+- **KMP Resource Migration (BIP39 Wordlist)**: Refactored the `Bip39MasterSeedGenerator` to use an `expect/actual` abstraction for loading the BIP39 wordlist from `commonMain/resources/`. This removes Android-specific `Context` and `AssetManager` dependencies from the core cryptography layer, allowing `Bip39MasterSeedGeneratorTest` to run as a pure `androidHostTest` without `MockK` infrastructure.
 - **Compose BOM Upgrade & CI Stabilization**: Upgraded the Compose BOM to version `2026.05.00` to resolve instrumented testing noise. Fixed KMP resource parsing issues during UI testing and restored missing `createAndroidComposeRule` imports that caused FIDO2 module compilation failures.
 - **Detailed changes**: [2026-05-15-compose-bom-update-and-test-fixes.md](docs/changelogs/2026-05-15-compose-bom-update-and-test-fixes.md), [2026-05-15-linting-remediation-and-encoding-fixes.md](docs/changelogs/2026-05-15-linting-remediation-and-encoding-fixes.md), [2026-05-15-fido2-getassertion-performance-telemetry-fix.md](docs/changelogs/2026-05-15-fido2-getassertion-performance-telemetry-fix.md)
 

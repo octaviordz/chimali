@@ -1,6 +1,7 @@
 package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.platform.loadResourceLines
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
@@ -23,14 +24,7 @@ import org.koin.core.annotation.Single
 @Single
 class Bip39MasterSeedGenerator : MasterSeedGenerator {
     private val wordList: List<String> by lazy {
-        val stream =
-            javaClass.classLoader?.getResourceAsStream("bip39_english.txt")
-                ?: error("Missing bip39_english.txt resource")
-
-        stream
-            .bufferedReader()
-            .readLines()
-            .filter { it.isNotBlank() }
+        loadResourceLines("bip39_english.txt")
             .also { require(it.size == 2048) { "BIP39 wordlist must contain exactly 2048 words, found ${it.size}" } }
     }
 

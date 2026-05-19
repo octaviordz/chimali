@@ -1,27 +1,19 @@
 package com.chimali.core.security.impl
 
-import android.content.Context
-import android.content.res.AssetManager
-import io.mockk.every
-import io.mockk.mockk
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 
 /**
  * Unit tests for [Bip39MasterSeedGenerator].
  *
  * Verifies the core BIP39 algorithm: entropy→mnemonic→seed derivation.
- * Uses MockK to provide a fake [Context] backed by a predictable sequential word list
- * (word0000..word2047) so that index calculations are deterministic.
- *
- * Test vectors sourced from trezor/python-mnemonic (English, see vectors.json).
+ * Uses real BIP39 wordlist through KMP abstraction, enabling execution without Context/AssetManager mocking.
+ * Test vectors sourced from official Trezor/BIP39 specification (vectors.json).
  */
 class Bip39MasterSeedGeneratorTest {
     private companion object {
@@ -32,24 +24,13 @@ class Bip39MasterSeedGeneratorTest {
         private const val ENTROPY_256_BITS_BYTES = 32
         private const val ENTROPY_INVALID_BYTES = 15
         private const val BIP39_SEED_SIZE = 64
-        private const val BIP39_WORDLIST_SIZE = 2048
-        private const val WORD_PADDING_WIDTH = 4
     }
 
-
     private lateinit var generator: Bip39MasterSeedGenerator
-    private lateinit var mockContext: Context
 
     @BeforeTest
     fun setUp() {
-        val wordListText = generateSequentialWordList()
-        mockContext = mockk()
-        val assetManager = mockk<AssetManager>()
-        every { mockContext.assets } returns assetManager
-        every { assetManager.open("bip39_english.txt") } answers {
-            wordListText.byteInputStream()
-        }
-        generator = Bip39MasterSeedGenerator(mockContext)
+        generator = Bip39MasterSeedGenerator()
     }
 
     @Test
@@ -72,23 +53,23 @@ class Bip39MasterSeedGeneratorTest {
     }
 
     @Test
-    fun `entropyToMnemonic with all-zero 128-bit entropy produces 12 words with first 11 at index 0`() {
+    fun `entropyToMnemonic with all-zero 128-bit entropy produces correct BIP39 test vector`() {
         val zeroEntropy = ByteArray(ENTROPY_128_BITS_BYTES) { 0 }
         val mnemonic = generator.entropyToMnemonic(zeroEntropy)
         assertEquals(WORD_COUNT_12, mnemonic.size)
-        // First 11 words: bits 0..120 come entirely from all-zero entropy → index 0
-        val leadingWords = WORD_COUNT_12 - 1
-        assertTrue(mnemonic.take(leadingWords).all { it == "word0000" })
-        // 12th word: bits 121..131 = last 7 entropy bits (all zero) + 4 checksum bits
-        // from SHA-256(all-zeros). The checksum is non-zero so the 12th word is NOT word0000.
-        assertNotNull(mnemonic[leadingWords]) // Just assert it's a valid word
+        // From official BIP39 test vectors: all 0 entropy gives "abandon" 11 times, and "about" as checksum word.
+        val expected = List(11) { "abandon" } + "about"
+        assertContentEquals(expected, mnemonic)
     }
 
     @Test
-    fun `entropyToMnemonic with all-zero 256-bit entropy produces 24 words`() {
+    fun `entropyToMnemonic with all-zero 256-bit entropy produces correct BIP39 test vector`() {
         val zeroEntropy = ByteArray(ENTROPY_256_BITS_BYTES) { 0 }
         val mnemonic = generator.entropyToMnemonic(zeroEntropy)
         assertEquals(WORD_COUNT_24, mnemonic.size)
+        // From official BIP39 test vectors: all 0 entropy gives "abandon" 23 times, and "art" as checksum word.
+        val expected = List(23) { "abandon" } + "art"
+        assertContentEquals(expected, mnemonic)
     }
 
     @Test
@@ -107,7 +88,7 @@ class Bip39MasterSeedGeneratorTest {
 
     @Test
     fun `deriveSeed is deterministic for same mnemonic and passphrase`() {
-        val mnemonic = (0 until WORD_COUNT_12).map { "word${it.toString().padStart(WORD_PADDING_WIDTH, '0')}" }
+        val mnemonic = List(11) { "abandon" } + "about"
         val seed1 = generator.deriveSeed(mnemonic, "")
         val seed2 = generator.deriveSeed(mnemonic, "")
         assertContentEquals(seed1, seed2)
@@ -127,8 +108,4 @@ class Bip39MasterSeedGeneratorTest {
             generator.generateMnemonic(WORD_COUNT_INVALID)
         }
     }
-
-    /** Generates a predictable 2048-word list for testing (word0000..word2047). */
-    private fun generateSequentialWordList(): String =
-        (0 until BIP39_WORDLIST_SIZE).joinToString("\n") { "word${it.toString().padStart(WORD_PADDING_WIDTH, '0')}" }
 }
