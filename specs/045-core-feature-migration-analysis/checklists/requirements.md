@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-18
-**Feature**: [spec.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-analysis/spec.md)
+**Feature**: [spec.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-migration-analysis/spec.md)
 
 ## Content Quality
 

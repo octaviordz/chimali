@@ -1,7 +1,7 @@
 # Implementation Plan: Core Feature Migration
 
-**Branch**: `045-core-feature-analysis` | **Date**: 2026-05-18 | **Spec**: [spec.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-analysis/spec.md)
-**Input**: Feature specification from `specs/045-core-feature-analysis/spec.md`
+**Branch**: `045-core-feature-migration-analysis` | **Date**: 2026-05-18 | **Spec**: [spec.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-migration-analysis/spec.md)
+**Input**: Feature specification from `specs/045-core-feature-migration-analysis/spec.md`
 
 ## Summary
 
@@ -41,7 +41,7 @@ Migrate four cross-cutting concerns from feature modules to their correct core m
 ### Documentation (this feature)
 
 ```text
-specs/045-core-feature-analysis/
+specs/045-core-feature-migration-analysis/
 ├── analysis.md          # Original architectural analysis
 ├── critique.md          # Expert review of analysis proposals
 ├── spec.md              # Feature specification (/speckit-specify)

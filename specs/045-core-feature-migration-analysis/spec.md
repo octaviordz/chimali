@@ -1,6 +1,6 @@
 # Feature Specification: Core Feature Migration
 
-**Feature Branch**: `045-core-feature-analysis`
+**Feature Branch**: `045-core-feature-migration-analysis`
 **Created**: 2026-05-18
 **Status**: Draft
 **Input**: Migrate agreed-upon cross-cutting concerns from feature modules to their correct core module homes, based on the architectural critique in `critique.md`.

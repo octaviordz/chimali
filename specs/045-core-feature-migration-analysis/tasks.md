@@ -4,7 +4,7 @@ description: "Task list for Core Feature Migration"
 
 # Tasks: Core Feature Migration
 
-**Input**: Design documents from `specs/045-core-feature-analysis/`
+**Input**: Design documents from `specs/045-core-feature-migration-analysis/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each migration.

@@ -1,6 +1,6 @@
 # Expert Critique: Core vs. Feature Module Analysis (045)
 
-**Document Under Review**: [analysis.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-analysis/analysis.md)
+**Document Under Review**: [analysis.md](file:///d:/octav/source/repos/Chimali/specs/045-core-feature-migration-analysis/analysis.md)
 **Date**: 2026-05-18
 **Reviewer Role**: Android / KMP Architecture Expert
 

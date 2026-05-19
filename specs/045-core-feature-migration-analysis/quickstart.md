@@ -2,13 +2,13 @@
 
 **Feature**: Core Feature Migration
 **Date**: 2026-05-18
-**Branch**: `045-core-feature-analysis`
+**Branch**: `045-core-feature-migration-analysis`
 
 ## Prerequisites
 
 - Android Studio with Kotlin 2.x and AGP
 - Local CI passes: `.\tools\local-ci.ps1`
-- On branch `045-core-feature-analysis`
+- On branch `045-core-feature-migration-analysis`
 
 ## Migration Order
 

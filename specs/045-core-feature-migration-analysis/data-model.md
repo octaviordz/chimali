@@ -2,7 +2,7 @@
 
 **Feature**: Core Feature Migration
 **Date**: 2026-05-18
-**Branch**: `045-core-feature-analysis`
+**Branch**: `045-core-feature-migration-analysis`
 
 ## Entities
 
