@@ -5,15 +5,14 @@ import android.content.Context
 import android.content.pm.PackageManager
 
 /**
- * T191 — Android `actual` implementation of [PlatformBluetoothHid].
+ * T191 — Android implementation of [PlatformBluetoothHid].
  *
  * Checks whether the device supports the Bluetooth HID Device profile using
  * PackageManager feature flags (no permissions required for capability checks).
  */
-@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-actual class PlatformBluetoothHid(
+class AndroidPlatformBluetoothHid(
     private val context: Context,
-) {
+) : PlatformBluetoothHid {
     private val bluetoothManager: BluetoothManager? by lazy {
         context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     }
@@ -22,7 +21,7 @@ actual class PlatformBluetoothHid(
      * True if the device hardware supports the Bluetooth HID Device profile.
      * BluetoothHidDeviceWrapper requires this to be true before calling initialize().
      */
-    actual fun isSupported(): Boolean =
+    override fun isSupported(): Boolean =
         android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
             context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) &&
             bluetoothManager?.adapter != null
@@ -31,7 +30,7 @@ actual class PlatformBluetoothHid(
      * True if the Bluetooth adapter is currently powered on.
      * Callers should check this before attempting to register the HID app.
      */
-    actual fun isAdapterEnabled(): Boolean =
+    override fun isAdapterEnabled(): Boolean =
         runCatching {
             bluetoothManager?.adapter?.isEnabled == true
         }.getOrDefault(false)

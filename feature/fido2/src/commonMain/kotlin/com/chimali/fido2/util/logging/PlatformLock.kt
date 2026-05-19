@@ -1,6 +1,6 @@
 package com.chimali.fido2.util.logging
 
-expect class PlatformLock() {
+interface PlatformLock {
     fun lock()
 
     fun unlock()

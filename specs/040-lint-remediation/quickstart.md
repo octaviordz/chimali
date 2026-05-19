@@ -122,7 +122,7 @@ This executes Detekt, Ktlint, and all unit tests. All must pass with zero violat
 | File | Suppression | Reason |
 |------|------------|--------|
 | `FunctionalCatching.kt` | `TooGenericExceptionCaught` | Architectural boundary — documented in-file |
-| `PlatformBluetoothHid.kt` | `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING` | Valid KMP suppression |
-| `PlatformUserVerification.kt` | `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING` | Valid KMP suppression |
+| ~~`PlatformBluetoothHid.kt`~~ | ~~`EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`~~ | **Superseded** by spec 046 |
+| ~~`PlatformUserVerification.kt`~~ | ~~`EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`~~ | **Removed** — spec 045 migration |
 | `Ctap2AttestationStatementTest.kt` | `UNCHECKED_CAST` | Valid test scope |
 | `Ctap2Fido21FlagsTest.kt` | `UNCHECKED_CAST` | Valid test scope |

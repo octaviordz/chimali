@@ -2,14 +2,14 @@ package com.chimali.fido2.util.logging
 
 import platform.Foundation.NSRecursiveLock
 
-actual class PlatformLock actual constructor() {
+class IosPlatformLock : PlatformLock {
     private val nsLock = NSRecursiveLock()
 
-    actual fun lock() {
+    override fun lock() {
         nsLock.lock()
     }
 
-    actual fun unlock() {
+    override fun unlock() {
         nsLock.unlock()
     }
 }

@@ -1,7 +1,7 @@
 package com.chimali.fido2.platform
 
 /**
- * T191/T192 — iOS placeholder `actual` for [PlatformBluetoothHid].
+ * T191/T192 — iOS placeholder implementation of [PlatformBluetoothHid].
  *
  * Bluetooth HID peripheral mode on iOS requires CoreBluetooth and explicit
  * entitlements not yet configured. Returns false for all queries as a safe
@@ -9,16 +9,15 @@ package com.chimali.fido2.platform
  *
  * @see <a href="https://developer.apple.com/documentation/corebluetooth">CoreBluetooth</a>
  */
-@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-actual class PlatformBluetoothHid {
+class IosPlatformBluetoothHid : PlatformBluetoothHid {
     /**
      * iOS: placeholder — Bluetooth HID peripheral mode requires CoreBluetooth
      * entitlements and is not yet configured for this iOS target.
      */
-    actual fun isSupported(): Boolean = false
+    override fun isSupported(): Boolean = false
 
     /**
      * iOS: placeholder — returns false until CBCentralManager state is integrated.
      */
-    actual fun isAdapterEnabled(): Boolean = false
+    override fun isAdapterEnabled(): Boolean = false
 }

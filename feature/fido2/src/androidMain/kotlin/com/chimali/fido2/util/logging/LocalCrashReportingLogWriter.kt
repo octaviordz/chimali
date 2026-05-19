@@ -26,7 +26,7 @@ class LocalCrashReportingLogWriter(
     private val currentLogFile: Path
         get() = logDir.resolve("fido2_crash_log.txt")
 
-    private val platformLock = PlatformLock()
+    private val platformLock = AndroidPlatformLock()
 
     init {
         try {

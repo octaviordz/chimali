@@ -3,17 +3,15 @@ package com.chimali.fido2.platform
 /**
  * T191 — Platform-specific Bluetooth HID transport capability check.
  *
- * `expect class` boundary: declared in commonMain, `actual` in each platform source set.
- *
- * ## Why `expect class` for BT HID?
+ * Platform interface boundary: declared in commonMain, implemented in each platform source set.
  *
  * On Android, `BluetoothHidDevice` is an Android-system Bluetooth profile proxy that
- * requires `android.bluetooth.*` APIs unavailable in iOS or desktop targets. This `expect
- * class` wraps the capability query so that domain logic in commonMain can check whether
+ * requires `android.bluetooth.*` APIs unavailable in iOS or desktop targets. This interface
+ * wraps the capability query so that domain logic in commonMain can check whether
  * the transport is available without importing Android-specific types.
  *
  * The full `BluetoothHidDeviceWrapper` (which manages the connection lifecycle) remains in
- * `androidMain`. This boundary class only answers "is this device capable?".
+ * `androidMain`. This boundary only answers "is this device capable?".
  *
  * ## Behavioural contract
  *
@@ -22,8 +20,7 @@ package com.chimali.fido2.platform
  *   until a CoreBluetooth-based implementation is provided.
  * - [isAdapterEnabled] — `true` iff Bluetooth is currently powered on.
  */
-@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-expect class PlatformBluetoothHid {
+interface PlatformBluetoothHid {
     /** Returns true if BT HID Device profile is supported by this device. */
     fun isSupported(): Boolean
 

@@ -231,8 +231,8 @@ Task: "Convert TODOs in Fido2RepositoryImpl.kt"
 | File | Suppression | Reason |
 |------|------------|--------|
 | `core/common/.../FunctionalCatching.kt` | `TooGenericExceptionCaught` | Architectural boundary (FR-006) |
-| `feature/fido2/.../PlatformBluetoothHid.kt` | `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING` | Valid KMP suppression (FR-006) |
-| `feature/fido2/.../PlatformUserVerification.kt` | `EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING` | Valid KMP suppression (FR-006) |
+| ~~`feature/fido2/.../PlatformBluetoothHid.kt`~~ | ~~`EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`~~ | **Superseded** by spec 046 — migrated to interface pattern |
+| ~~`feature/fido2/.../PlatformUserVerification.kt`~~ | ~~`EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING`~~ | **Removed** — migrated to `:core:security` interface (spec 045) |
 | `feature/fido2/.../Ctap2AttestationStatementTest.kt` | `UNCHECKED_CAST` | Valid test scope (FR-006) |
 | `feature/fido2/.../Ctap2Fido21FlagsTest.kt` | `UNCHECKED_CAST` | Valid test scope (FR-006) |
 
