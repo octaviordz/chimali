@@ -114,13 +114,13 @@ class SecurityStorageIntegrityTest {
 
         val expectedTables =
             listOf(
-                "PasskeyCredential",
-                "RelyingParty",
-                "UserConsentRecord",
-                "BluetoothHidSession",
+                "passkey_credential",
+                "relying_party",
+                "user_consent_record",
+                "bluetooth_hid_session",
             )
 
-        val connection = (driver as JdbcSqliteDriver).getConnection()
+        val connection = driver.getConnection()
         val meta = connection.metaData
         val actualTables = mutableListOf<String>()
         val rs = meta.getTables(null, null, "%", arrayOf("TABLE"))

@@ -140,7 +140,6 @@ kotlin {
 
         // androidUnitTest: JVM-hosted Android unit tests (JUnit5 + MockK + SQLDelight)
         val androidHostTest by getting {
-            kotlin.srcDir("src/test/kotlin")
             dependencies {
                 implementation(libs.junit.jupiter)
                 implementation(libs.junit.jupiter.api)
@@ -157,7 +156,6 @@ kotlin {
 
         // androidDeviceTest: on-device instrumented tests
         val androidDeviceTest by getting {
-            kotlin.srcDir("src/androidTest/kotlin")
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.espresso.core)

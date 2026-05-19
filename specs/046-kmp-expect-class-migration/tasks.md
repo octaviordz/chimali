@@ -60,30 +60,30 @@
 
 ### Compile — `:feature:fido2` host tests
 
-- [ ] T012 [US3] Fix `:feature:fido2:compileAndroidHostTest` — remove overriding `kotlin.srcDir("src/test/kotlin")` from `androidHostTest` in [feature/fido2/build.gradle.kts](../../feature/fido2/build.gradle.kts) to enable automatic KMP compilation against `androidMain`.
-- [ ] T013 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/bluetooth/HidReportParserTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/bluetooth/HidReportParserTest.kt) — **only if still failing after T012** (references [HidReportParser.kt](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt))
-- [ ] T014 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/ctap2/Ctap2ProtocolTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/ctap2/Ctap2ProtocolTest.kt) — **only if still failing after T012**
-- [ ] T015 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/CryptoUtilsTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/CryptoUtilsTest.kt) — **only if still failing after T012**
-- [ ] T016 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt) — **only if still failing after T012**
-- [ ] T017 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/error/Fido2ErrorHandlerTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/error/Fido2ErrorHandlerTest.kt) — **only if still failing after T012**
-- [ ] T018 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt) — **only if still failing after T012**
+- [x] T012 [US3] Fix `:feature:fido2:compileAndroidHostTest` — remove overriding `kotlin.srcDir("src/test/kotlin")` from `androidHostTest` in [feature/fido2/build.gradle.kts](../../feature/fido2/build.gradle.kts) to enable automatic KMP compilation against `androidMain`.
+- [x] T013 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/bluetooth/HidReportParserTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/bluetooth/HidReportParserTest.kt) — **only if still failing after T012** (references [HidReportParser.kt](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt))
+- [x] T014 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/ctap2/Ctap2ProtocolTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/ctap2/Ctap2ProtocolTest.kt) — **only if still failing after T012**
+- [x] T015 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/CryptoUtilsTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/data/crypto/CryptoUtilsTest.kt) — **only if still failing after T012**
+- [x] T016 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt) — **only if still failing after T012**
+- [x] T017 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/error/Fido2ErrorHandlerTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/error/Fido2ErrorHandlerTest.kt) — **only if still failing after T012**
+- [x] T018 [P] [US3] Fix compile errors in [feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModelTest.kt) — **only if still failing after T012**
 
 ### Compile — `:app` and full compile phase
 
-- [ ] T019 [US3] Verify FIDO2 wiring in [app/src/main/kotlin/com/chimali/ChimaliApplication.kt](../../app/src/main/kotlin/com/chimali/ChimaliApplication.kt) (`Fido2Initializer`, `Fido2Module`) compiles
-- [ ] T020 [US3] Verify [app/src/main/kotlin/com/chimali/MainActivity.kt](../../app/src/main/kotlin/com/chimali/MainActivity.kt) resolves [Fido2RegistrationNavGraph.kt](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/navigation/Fido2RegistrationNavGraph.kt)
-- [ ] T021 [US3] Run local-ci compile phase: `.\gradlew compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue` — all pass
+- [x] T019 [US3] Verify FIDO2 wiring in [app/src/main/kotlin/com/chimali/ChimaliApplication.kt](../../app/src/main/kotlin/com/chimali/ChimaliApplication.kt) (`Fido2Initializer`, `Fido2Module`) compiles
+- [x] T020 [US3] Verify [app/src/main/kotlin/com/chimali/MainActivity.kt](../../app/src/main/kotlin/com/chimali/MainActivity.kt) resolves [Fido2RegistrationNavGraph.kt](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/navigation/Fido2RegistrationNavGraph.kt)
+- [x] T021 [US3] Run local-ci compile phase: `.\gradlew compileDebugSources compileAndroidMain compileDebugUnitTestSources compileAndroidHostTest compileDebugAndroidTestSources compileAndroidDeviceTest --continue` — all pass
 
 ### Static analysis (source fixes only — FR-009)
 
-- [ ] T022 [P] [US3] Fix all ktlintCheck failures in Kotlin source (any module); no editorconfig changes
-- [ ] T023 [P] [US3] Fix all detekt failures in Kotlin source (any module); no edits to `config/detekt/detekt-baseline.xml` or `feature/fido2/detekt-baseline.xml`; preserve existing `@Suppress("UNCHECKED_CAST")` in tests unless removal is part of a substantive code fix (FR-010)
-- [ ] T024 [US3] Fix `lintRelease` issues in any failing module
+- [x] T022 [P] [US3] Fix all ktlintCheck failures in Kotlin source (any module); no editorconfig changes
+- [x] T023 [P] [US3] Fix all detekt failures in Kotlin source (any module); no edits to `config/detekt/detekt-baseline.xml` or `feature/fido2/detekt-baseline.xml`; preserve existing `@Suppress("UNCHECKED_CAST")` in tests unless removal is part of a substantive code fix (FR-010)
+- [x] T024 [US3] Fix `lintRelease` issues in any failing module
 
 ### Tests and full gate
 
-- [ ] T025 [US3] Run `.\gradlew test` — update assertions or remove obsolete tests only; no `@Ignore` / `@Disabled` (FR-008, SC-002)
-- [ ] T026 [US3] Run `.\tools\local-ci.ps1` — must exit 0 (FR-007, SC-003, SC-005)
+- [x] T025 [US3] Run `.\gradlew test` — update assertions or remove obsolete tests only; no `@Ignore` / `@Disabled` (FR-008, SC-002)
+- [x] T026 [US3] Run `.\tools\local-ci.ps1` — must exit 0 (FR-007, SC-003, SC-005)
 
 **Checkpoint**: US3 done — branch merge-ready per Constitution §IX.
 
@@ -95,8 +95,8 @@
 
 **Independent Test**: Host tests for log writer pass; capability behavior matches pre-migration contract.
 
-- [ ] T027 [US2] Run `.\gradlew :feature:fido2:testAndroidHostTest` — [LocalCrashReportingLogWriterTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriterTest.kt) passes
-- [ ] T028 [US2] Review `AndroidPlatformBluetoothHid` vs deleted `actual class` — same `isSupported` / `isAdapterEnabled` logic; confirm `IosPlatformBluetoothHid` / `IosPlatformLock` placeholders unchanged (SC-004)
+- [x] T027 [US2] Run `.\gradlew :feature:fido2:testAndroidHostTest` — [LocalCrashReportingLogWriterTest.kt](../../feature/fido2/src/test/kotlin/com/chimali/fido2/util/logging/LocalCrashReportingLogWriterTest.kt) passes
+- [x] T028 [US2] Review `AndroidPlatformBluetoothHid` vs deleted `actual class` — same `isSupported` / `isAdapterEnabled` logic; confirm `IosPlatformBluetoothHid` / `IosPlatformLock` placeholders unchanged (SC-004)
 
 **Checkpoint**: US2 validated after US3 compile/test green.
 
@@ -105,7 +105,7 @@
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [x] T029 [P] Mark spec 040 KMP exclusion rows superseded in [specs/040-lint-remediation/tasks.md](../040-lint-remediation/tasks.md) and [quickstart.md](../040-lint-remediation/quickstart.md)
-- [ ] T030 Add changelog entry under `docs/changelogs/` when T026 passes
+- [x] T030 Add changelog entry under `docs/changelogs/` when T026 passes
 
 ---
 
