@@ -41,7 +41,8 @@ description: "Task list for Core Feature Migration"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [P] [US1] Create `EncryptedDriverFactory` using SQLCipher `SupportFactory` in `core/database/src/main/java/com/chimali/core/database/EncryptedDriverFactory.kt`
+- [ ] T002 [P] [US1] Create `EncryptedDriverFactory` using SQLCipher `SupportFactory` in `core/database/src/main/java/com/chimali/core/database/EncryptedDriverFactory.kt`, enforcing `try/finally` zeroing of key material (Constitution §X.5)
+- [ ] T002b [P] [US1] Create unit/integration tests in `:core:database` to verify driver creation, database encryption, key derivation (PBKDF2-SHA512), and file integrity check
 - [ ] T003 [US1] Update `DatabaseModule` Koin DSL to use `EncryptedDriverFactory` instead of raw `AndroidSqliteDriver` in `core/database/src/main/java/com/chimali/core/database/di/DatabaseModule.kt`
 - [ ] T004 [P] [US1] Delete the non-functional `SqlCipherWrapper` stub from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/storage/SqlCipherWrapper.kt`
 - [ ] T005 [US1] Remove any FIDO2 DI references to `SqlCipherWrapper` in `:feature:fido2` (e.g., in `Fido2Module` if explicitly declared)
@@ -94,7 +95,8 @@ description: "Task list for Core Feature Migration"
 - [ ] T013 [P] [US4] Copy `PlatformUserVerification.kt` (expect class) to `core/security/src/commonMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
 - [ ] T014 [P] [US4] Copy Android `actual` to `core/security/src/androidMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
 - [ ] T015 [P] [US4] Copy iOS `actual` to `core/security/src/iosMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
-- [ ] T016 [US4] Update all import statements in `:feature:fido2` to use the new `com.chimali.core.security.biometrics` package
+- [ ] T015b [P] [US4] Create KMP unit test in `:core:security` (androidHostTest) to verify `PlatformUserVerification` is callable using only core dependencies per SC-004
+- [ ] T016 [US4] Update all import statements in `:feature:fido2` (including main and test source sets) to use the new `com.chimali.core.security.biometrics` package
 - [ ] T017 [US4] Delete the old `PlatformUserVerification.kt` files from `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/platform/`, `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/platform/`, and `feature/fido2/src/iosMain/kotlin/com/chimali/fido2/platform/`
 
 **Checkpoint**: All user stories should now be independently functional.
