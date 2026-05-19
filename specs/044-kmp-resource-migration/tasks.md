@@ -30,7 +30,7 @@
 
 - [ ] T001 Move `bip39_english.txt` from `core/security/src/androidMain/resources/bip39_english.txt` to `core/security/src/commonMain/resources/bip39_english.txt`
 - [ ] T002 Delete the original file at `core/security/src/androidMain/resources/bip39_english.txt` to satisfy FR-006 (no duplication)
-- [ ] T003 Create `expect fun loadResourceLines(name: String): List<String>` in `core/security/src/commonMain/kotlin/com/chimali/core/security/platform/ResourceLoader.kt` — must throw on missing resource (FR-004), filter blank lines, use UTF-8 encoding (FR-005)
+- [ ] T003 Create `expect fun loadResourceLines(name: String): List<String>` in `core/security/src/commonMain/kotlin/com/chimali/core/security/platform/ResourceLoader.kt` — must throw on missing resource (FR-004), filter blank lines, explicitly trim/normalize line endings (FR-003), use UTF-8 encoding (FR-005)
 
 **Checkpoint**: Resource relocated; `expect` declaration compiles in `commonMain`
 
@@ -42,7 +42,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/androidMain/kotlin/com/chimali/core/security/platform/ResourceLoader.android.kt` — use `Thread.currentThread().contextClassLoader?.getResourceAsStream(name)` with `BufferedReader.readLines()`, filter blank lines, throw `IllegalStateException` if resource is missing
+- [ ] T004 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/androidMain/kotlin/com/chimali/core/security/platform/ResourceLoader.android.kt` — use `Thread.currentThread().contextClassLoader?.getResourceAsStream(name)` explicitly with `Charsets.UTF_8` and `BufferedReader.readLines()`, map each line to `trim()` to normalize line endings, filter blank lines, throw `IllegalStateException` if resource is missing
 - [ ] T005 [P] Create `actual fun loadResourceLines(name: String): List<String>` in `core/security/src/iosMain/kotlin/com/chimali/core/security/platform/ResourceLoader.ios.kt` — stub implementation: `TODO("iOS resource loading not yet implemented")`
 - [ ] T006 Verify project compiles for all targets by running `.\gradlew :core:security:compileKotlinAndroid` and `.\gradlew :core:security:compileKotlinIosArm64`
 
@@ -78,7 +78,7 @@
 
 ### Tests for User Story 2
 
-- [ ] T011 [US2] Refactor and move `Bip39MasterSeedGeneratorTest` from `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` to `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` — remove `android.content.Context` import, remove `AssetManager` import, remove `mockk<Context>()` and `mockk<AssetManager>()` setup, instantiate `Bip39MasterSeedGenerator()` directly (no constructor args), replace synthetic wordlist with real wordlist assertions (use known BIP39 test vectors for deterministic tests), update `entropyToMnemonic` tests to assert against real BIP39 English words
+- [ ] T011 [US2] Refactor and move `Bip39MasterSeedGeneratorTest` from `core/security/src/test/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` to `core/security/src/androidHostTest/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGeneratorTest.kt` — remove `android.content.Context` import, remove `AssetManager` import, remove `mockk<Context>()` and `mockk<AssetManager>()` setup, instantiate `Bip39MasterSeedGenerator()` directly (no constructor args), replace synthetic wordlist with real wordlist assertions (use known BIP39 test vectors from the official Trezor/BIP39 specification for deterministic tests), update `entropyToMnemonic` tests to assert against real BIP39 English words
 
 ### Implementation for User Story 2
 
