@@ -31,6 +31,7 @@ sqldelight {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:security"))
     api(libs.sqldelight.android)
     api(libs.sqldelight.coroutines)
     implementation(libs.sqlcipher)
@@ -38,4 +39,15 @@ dependencies {
     // Koin (replaces Hilt)
     implementation(libs.koin.core)
     implementation(libs.koin.android)
+
+    // Testing
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.mockk)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

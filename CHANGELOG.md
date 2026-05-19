@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-19
+
+### Changed
+- **Centralized SQLCipher Encrypted Database**: Migrated `VaultDatabase` creation to a unified, centralized `EncryptedDriverFactory` in `:core:database` using modern `SupportOpenHelperFactory`. Enforces secure PBKDF2-HMAC-SHA512 key derivation from high-entropy master seed, physical `PRAGMA integrity_check` verification, and strict memory safety via immediate zeroing of key materials (`ByteArray.fill(0)`) per Constitution §X.5. Developed comprehensive JVM host tests in `:core:database`.
+- **Shared Biometric Capability Check**: Extracted the platform capability check (`PlatformUserVerification`) from `:feature:fido2` into `:core:security` to establish a shared, platform-agnostic biometric boundary. Implemented full `expect`/`actual` definitions for Android (wrapping `BiometricManager`) and iOS, and added a JVM unit test suite to verify isolated core-only execution.
+- **Clean Architecture Obsolete Cleanup**: Purged deprecated, non-functional wrappers (`SqlCipherWrapper.kt` in `:feature:fido2` and `ClipboardManagerWrapper.kt` in `:feature:vault`) to clean up public API surfaces and enforce strict layer separation between `:core` and `:feature` layers.
+- **Detailed changes**: [2026-05-19-core-feature-migration.md](docs/changelogs/2026-05-19-core-feature-migration.md)
+
 ## [Unreleased] - 2026-05-15
 
 ### Fixed

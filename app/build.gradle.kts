@@ -95,6 +95,9 @@ dependencies {
     implementation(libs.koin.compose.viewmodel)
     implementation(libs.koin.annotations)
 
+    // BouncyCastle provider for global startup registration (US3)
+    implementation(libs.bouncycastle.provider)
+
     testImplementation(libs.junit.jupiter)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)

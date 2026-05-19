@@ -128,11 +128,9 @@ object WarmUpHelper {
             val mark = TimeSource.Monotonic.markNow()
             Logger.d("BouncyCastle warm-up START")
 
-            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-                Security.addProvider(BouncyCastleProvider())
-            }
-
-            val bcProvider = BouncyCastleProvider()
+            val bcProvider =
+                Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)
+                    ?: BouncyCastleProvider()
             val kpg = KeyPairGenerator.getInstance("EC", bcProvider)
             kpg.initialize(ECGenParameterSpec("secp256r1"))
             val ephemeralKeyPair = kpg.generateKeyPair()

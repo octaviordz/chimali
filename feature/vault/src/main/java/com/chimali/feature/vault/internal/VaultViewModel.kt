@@ -2,6 +2,7 @@ package com.chimali.feature.vault.internal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.common.result.Outcome
 import com.chimali.feature.vault.api.VaultIntent
 import com.chimali.feature.vault.api.VaultService
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class VaultViewModel(
     private val vaultService: VaultService,
-    private val clipboardManager: ClipboardManagerWrapper,
+    private val clipboardManager: ClipboardManagerService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(VaultState())
     val state: StateFlow<VaultState> = _state.asStateFlow()
@@ -100,6 +101,8 @@ class VaultViewModel(
     }
 
     private fun clearClipboard() {
-        clipboardManager.clear()
+        viewModelScope.launch {
+            clipboardManager.clearClipboard()
+        }
     }
 }

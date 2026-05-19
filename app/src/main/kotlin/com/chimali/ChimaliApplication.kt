@@ -10,6 +10,8 @@ import com.chimali.core.security.di.SecurityModule
 import com.chimali.feature.vault.internal.vaultModule
 import com.chimali.fido2.Fido2Initializer
 import com.chimali.fido2.di.Fido2Module
+import java.security.Security
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -18,6 +20,9 @@ import org.koin.ksp.generated.module
 class ChimaliApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+
+        // Register BouncyCastle globally once at application startup (US3 / FR-006).
+        Security.addProvider(BouncyCastleProvider())
 
         // Initialize Koin dependency injection using Koin Annotations compile-time modules (T189).
         // Each XxxModule().module references the KSP-generated wiring for that annotation module.

@@ -21,7 +21,7 @@ description: "Task list for Core Feature Migration"
 
 **Purpose**: Project initialization and validation
 
-- [ ] T001 Verify project structure and baseline local CI via `.\tools\local-ci.ps1`
+- [x] T001 Verify project structure and baseline local CI via `.\tools\local-ci.ps1`
 
 ---
 
@@ -41,11 +41,11 @@ description: "Task list for Core Feature Migration"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [P] [US1] Create `EncryptedDriverFactory` using SQLCipher `SupportFactory` in `core/database/src/main/java/com/chimali/core/database/EncryptedDriverFactory.kt`, enforcing `try/finally` zeroing of key material (Constitution §X.5)
-- [ ] T002b [P] [US1] Create unit/integration tests in `:core:database` to verify driver creation, database encryption, key derivation (PBKDF2-SHA512), and file integrity check
-- [ ] T003 [US1] Update `DatabaseModule` Koin DSL to use `EncryptedDriverFactory` instead of raw `AndroidSqliteDriver` in `core/database/src/main/java/com/chimali/core/database/di/DatabaseModule.kt`
-- [ ] T004 [P] [US1] Delete the non-functional `SqlCipherWrapper` stub from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/storage/SqlCipherWrapper.kt`
-- [ ] T005 [US1] Remove any FIDO2 DI references to `SqlCipherWrapper` in `:feature:fido2` (e.g., in `Fido2Module` if explicitly declared)
+- [x] T002 [P] [US1] Create `EncryptedDriverFactory` using SQLCipher `SupportFactory` in `core/database/src/main/java/com/chimali/core/database/EncryptedDriverFactory.kt`, enforcing `try/finally` zeroing of key material (Constitution §X.5)
+- [x] T002b [P] [US1] Create unit/integration tests in `:core:database` to verify driver creation, database encryption, key derivation (PBKDF2-SHA512), and file integrity check
+- [x] T003 [US1] Update `DatabaseModule` Koin DSL to use `EncryptedDriverFactory` instead of raw `AndroidSqliteDriver` in `core/database/src/main/java/com/chimali/core/database/di/DatabaseModule.kt`
+- [x] T004 [P] [US1] Delete the non-functional `SqlCipherWrapper` stub from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/storage/SqlCipherWrapper.kt`
+- [x] T005 [US1] Remove any FIDO2 DI references to `SqlCipherWrapper` in `:feature:fido2` (e.g., in `Fido2Module` if explicitly declared)
 
 **Checkpoint**: At this point, User Story 1 (SQLCipher migration) should be fully functional and testable independently.
 
@@ -59,9 +59,9 @@ description: "Task list for Core Feature Migration"
 
 ### Implementation for User Story 2
 
-- [ ] T006 [P] [US2] Delete the obsolete `ClipboardManagerWrapper` stub in `feature/vault/src/main/java/com/chimali/feature/vault/internal/ClipboardManagerWrapper.kt`
-- [ ] T007 [US2] Update `VaultViewModel` to use core `ClipboardManagerService` instead of the old wrapper in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt`
-- [ ] T008 [US2] Update `vaultModule` Koin DSL to remove `ClipboardManagerWrapper` binding (if explicitly bound) in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultModule.kt`
+- [x] T006 [P] [US2] Delete the obsolete `ClipboardManagerWrapper` stub in `feature/vault/src/main/java/com/chimali/feature/vault/internal/ClipboardManagerWrapper.kt`
+- [x] T007 [US2] Update `VaultViewModel` to use core `ClipboardManagerService` instead of the old wrapper in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultViewModel.kt`
+- [x] T008 [US2] Update `vaultModule` Koin DSL to remove `ClipboardManagerWrapper` binding (if explicitly bound) in `feature/vault/src/main/java/com/chimali/feature/vault/internal/VaultModule.kt`
 
 **Checkpoint**: At this point, User Story 2 (Clipboard migration cleanup) should be fully functional and testable independently.
 
@@ -75,9 +75,9 @@ description: "Task list for Core Feature Migration"
 
 ### Implementation for User Story 3
 
-- [ ] T009 [P] [US3] Add `Security.addProvider(BouncyCastleProvider())` to `onCreate` in `app/src/main/kotlin/com/chimali/ChimaliApplication.kt` before Koin initialization
-- [ ] T010 [P] [US3] Remove redundant `Security.addProvider()` call from `WarmUpHelper.warmUpBouncyCastle()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/performance/WarmUpHelper.kt`
-- [ ] T011 [P] [US3] Remove redundant `Security.addProvider()` call from `Fido2CryptoService` `init` block in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`
+- [x] T009 [P] [US3] Add `Security.addProvider(BouncyCastleProvider())` to `onCreate` in `app/src/main/kotlin/com/chimali/ChimaliApplication.kt` before Koin initialization
+- [x] T010 [P] [US3] Remove redundant `Security.addProvider()` call from `WarmUpHelper.warmUpBouncyCastle()` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/performance/WarmUpHelper.kt`
+- [x] T011 [P] [US3] Remove redundant `Security.addProvider()` call from `Fido2CryptoService` `init` block in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt`
 
 **Checkpoint**: At this point, User Story 3 (BouncyCastle provider registration) should be fully functional and testable independently.
 
@@ -91,13 +91,13 @@ description: "Task list for Core Feature Migration"
 
 ### Implementation for User Story 4
 
-- [ ] T012 [P] [US4] Add `implementation(libs.androidx.biometric)` to `:core:security` androidMain dependencies in `core/security/build.gradle.kts`
-- [ ] T013 [P] [US4] Copy `PlatformUserVerification.kt` (expect class) to `core/security/src/commonMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
-- [ ] T014 [P] [US4] Copy Android `actual` to `core/security/src/androidMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
-- [ ] T015 [P] [US4] Copy iOS `actual` to `core/security/src/iosMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
-- [ ] T015b [P] [US4] Create KMP unit test in `:core:security` (androidHostTest) to verify `PlatformUserVerification` is callable using only core dependencies per SC-004
-- [ ] T016 [US4] Update all import statements in `:feature:fido2` (including main and test source sets) to use the new `com.chimali.core.security.biometrics` package
-- [ ] T017 [US4] Delete the old `PlatformUserVerification.kt` files from `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/platform/`, `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/platform/`, and `feature/fido2/src/iosMain/kotlin/com/chimali/fido2/platform/`
+- [x] T012 [P] [US4] Add `implementation(libs.androidx.biometric)` to `:core:security` androidMain dependencies in `core/security/build.gradle.kts`
+- [x] T013 [P] [US4] Copy `PlatformUserVerification.kt` (expect class) to `core/security/src/commonMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
+- [x] T014 [P] [US4] Copy Android `actual` to `core/security/src/androidMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
+- [x] T015 [P] [US4] Copy iOS `actual` to `core/security/src/iosMain/kotlin/com/chimali/core/security/biometrics/PlatformUserVerification.kt` and update its package
+- [x] T015b [P] [US4] Create KMP unit test in `:core:security` (androidHostTest) to verify `PlatformUserVerification` is callable using only core dependencies per SC-004
+- [x] T016 [US4] Update all import statements in `:feature:fido2` (including main and test source sets) to use the new `com.chimali.core.security.biometrics` package
+- [x] T017 [US4] Delete the old `PlatformUserVerification.kt` files from `feature/fido2/src/commonMain/kotlin/com/chimali/fido2/platform/`, `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/platform/`, and `feature/fido2/src/iosMain/kotlin/com/chimali/fido2/platform/`
 
 **Checkpoint**: All user stories should now be independently functional.
 
@@ -107,8 +107,8 @@ description: "Task list for Core Feature Migration"
 
 **Purpose**: Improvements that affect multiple user stories and validation of the migration
 
-- [ ] T018 Run `.\tools\local-ci.ps1` to validate all changes
-- [ ] T019 Update project changelog with migration details
+- [x] T018 Run `.\tools\local-ci.ps1` to validate all changes
+- [x] T019 Update project changelog with migration details
 
 ---
 

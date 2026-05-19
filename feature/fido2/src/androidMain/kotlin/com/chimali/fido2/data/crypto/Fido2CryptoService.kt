@@ -14,7 +14,6 @@ import com.chimali.fido2.util.performance.WarmUpHelper
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
-import java.security.Security
 import java.security.Signature
 import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
@@ -71,13 +70,6 @@ class Fido2CryptoService(
     private val timeProvider: com.chimali.core.domain.time.TimeProvider,
     @Named("DefaultDispatcher") private val defaultDispatcher: CoroutineDispatcher,
 ) {
-    init {
-        // Ensure BouncyCastle is registered for Signature operations
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(BouncyCastleProvider())
-        }
-    }
-
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**

@@ -1,16 +1,7 @@
-package com.chimali.fido2.platform
+package com.chimali.core.security.biometrics
 
 /**
- * T191 — Platform-specific user verification availability check.
- *
- * `expect class` boundary: declared in commonMain, implemented as `actual class` in each
- * platform source set.
- *
- * ## Why `expect class` instead of `expect interface`?
- *
- * Koin inject sites need a concrete type to resolve. An `expect class` with a consistent
- * constructor signature allows Koin Annotations to wire the `actual` implementation
- * without DSL overrides. It also avoids double-dispatch that an interface adapter would add.
+ * Platform-specific user verification availability check.
  *
  * ## Behavioural contract
  *
@@ -21,8 +12,7 @@ package com.chimali.fido2.platform
  *
  * Implementations MUST be side-effect free (no UI, no coroutines, no blocking I/O).
  */
-@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-expect class PlatformUserVerification {
+interface PlatformUserVerification {
     /** Returns true if any enrolled biometric/credential is present and hardware is ready. */
     fun isAvailable(): Boolean
 
