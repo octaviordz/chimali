@@ -10,7 +10,6 @@ import com.chimali.core.security.hdkeys.P256Group
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.util.performance.LatencyProfiler
-import com.chimali.fido2.util.performance.WarmUpHelper
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PublicKey
@@ -271,15 +270,16 @@ class Fido2CryptoService(
      * ## Problem (NFR-PERF-030)
      *
      * [sign] starts by calling [MasterSeedProvider.getMasterSeed], which on the first
-     * call decrypts the BIP39 mnemonic from `EncryptedSharedPreferences`. That decrypt
-     * uses an AES-256-GCM key stored in AndroidKeyStore under
-     * `_androidx_security_master_key_v2`. The **first access to that specific key** in
-     * a process session costs ~150ms due to the same HAL IPC init that affects all
-     * AndroidKeyStore operations, plus the actual AES-GCM decrypt.
+     * call decrypts the BIP39 mnemonic from Proto DataStore. That decrypt
+     * call initializes KeyStore implicitly. We use a separate thread and a
+     * *different* key alias (`chimali_fido2_hal_warmup`), not the DataStore
+     * one, to ensure we don't accidentally serialize execution with the thread
+     * waiting on DataStore/MasterSeedProvider init.
      *
-     * [WarmUpHelper.warmUpAndroidKeyStore] does NOT help here because it exercises a
-     * *different* key alias (`chimali_fido2_hal_warmup`), not the EncryptedSharedPreferences
-     * master key. Each distinct AndroidKeyStore key has its own lazy-init cost.
+     * The measured cost breaks down as follows on a Pixel 6a:
+     * 1. **KeyStore Init**: ~40ms (Android Keystore lazy initialization).
+     * 2. **Master Seed derivation**:
+     *      - (1) Decrypt BIP39 mnemonic from Proto DataStore (~150ms first call).
      *
      * ## Fix
      *

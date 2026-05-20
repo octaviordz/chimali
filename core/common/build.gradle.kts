@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -16,6 +17,7 @@ kotlin {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
         withHostTest {}
+        withDeviceTest {}
     }
 
     iosArm64()
@@ -28,6 +30,9 @@ kotlin {
                 api(libs.kermit)
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
+
+                api(libs.datastore.core.okio)
+                implementation(libs.kotlinx.serialization.protobuf)
             }
         }
         val commonTest by getting {
@@ -51,7 +56,14 @@ kotlin {
                 implementation(libs.koin.android)
             }
         }
+        val androidDeviceTest by getting {
+            dependencies {
+                implementation(libs.androidx.test.ext.junit)
+                implementation(libs.kotlin.test)
+            }
+        }
         val iosMain by creating
+
         val iosArm64Main by getting
         val iosSimulatorArm64Main by getting
     }

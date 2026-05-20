@@ -2,8 +2,11 @@ package com.chimali.fido2.data.crypto
 
 import android.content.Context
 import androidx.core.content.edit
+import androidx.datastore.core.DataStore
 import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.datastore.EncryptionWrapper
+import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.ImportMnemonicResult
@@ -13,25 +16,34 @@ import com.chimali.core.security.hdkeys.P256Group
 import java.math.BigInteger
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okio.ByteString.Companion.decodeBase64
+import okio.ByteString.Companion.toByteString
 import org.koin.core.annotation.Single
 
 private const val PREFS_FILE_NAME = "chimali_wallet_seed"
 private const val KEY_MNEMONIC = "bip39_mnemonic"
 
 /**
- * T145c — Persistent [MasterSeedProvider] backed by BIP39 and [EncryptedSharedPreferences].
+ * T145c / T047 — Persistent [MasterSeedProvider] backed by BIP39 and Proto DataStore.
  *
  * On the first launch, a fresh 24-word BIP39 mnemonic is generated with [MasterSeedGenerator],
- * stored encrypted on-device via [EncryptedSharedPreferences], and the corresponding 64-byte
- * PBKDF2 seed is derived and returned.
+ * encrypted via [EncryptionWrapper] (AES-256-GCM with Android KeyStore), stored in
+ * Proto DataStore, and the corresponding 64-byte PBKDF2 seed is derived and returned.
  *
- * On subsequent launches, the persisted mnemonic is read from encrypted storage and the same
- * deterministic seed is re-derived, ensuring FIDO2 credentials remain valid across restarts.
+ * On subsequent launches, the persisted mnemonic is read from DataStore, decrypted,
+ * and the same deterministic seed is re-derived, ensuring FIDO2 credentials remain
+ * valid across restarts.
  *
- * **AES note**: The mnemonic string is stored as a SharedPreferences *value*, which
- * [EncryptedSharedPreferences] protects with AES-256-GCM, satisfying Constitution §I.
+ * **Migration**: On first launch after upgrade, any mnemonic stored in legacy
+ * [EncryptedSharedPreferences] is automatically migrated to Proto DataStore.
+ * The `migrationCompleted` flag acts as a transaction guard — the DataStore write
+ * completes before the legacy key is deleted, ensuring crash-safe migration (T017).
+ *
+ * **AES note**: The mnemonic is encrypted with AES-256-GCM via Android KeyStore,
+ * satisfying Constitution §I.
  *
  * **Device key pair**: Derived once from the seed and cached in memory for the
  * lifetime of the process. The private scalar must never appear in plaintext logs.
@@ -44,6 +56,8 @@ class WalletMasterSeedProvider(
     private val context: Context,
     private val masterSeedGenerator: MasterSeedGenerator,
     private val hdkManager: HdkManager,
+    private val dataStore: DataStore<UserPreferences>,
+    private val encryptionWrapper: EncryptionWrapper,
 ) : MasterSeedProvider {
     @Volatile
     private var cachedSeed: ByteArray? = null
@@ -95,19 +109,72 @@ class WalletMasterSeedProvider(
     /**
      * Returns the persisted mnemonic, or generates and persists a new one on first call.
      */
-    private fun getOrCreateMnemonic(): List<String> {
-        val prefs = openEncryptedPrefs()
-        val existing = prefs.getString(KEY_MNEMONIC, null)
-        if (!existing.isNullOrBlank()) {
-            Logger.d { "Loaded existing BIP39 mnemonic from secure storage" }
-            return existing.split(" ")
+    private suspend fun getOrCreateMnemonic(): List<String> {
+        // ── 1. Check DataStore (primary storage) ────────────────────────────
+        val prefs = dataStore.data.first()
+        if (prefs.migrationCompleted && prefs.encryptedWalletSeed.isNotEmpty()) {
+            Logger.d { "Loaded existing BIP39 mnemonic from Proto DataStore" }
+            val encryptedBytes = prefs.encryptedWalletSeed.decodeBase64()?.toByteArray()
+            requireNotNull(encryptedBytes) { "Failed to decode encrypted wallet seed from Base64" }
+            val decryptedBytes = encryptionWrapper.decrypt(encryptedBytes)
+            val mnemonicStr = String(decryptedBytes)
+            decryptedBytes.fill(0)
+            return mnemonicStr.split(" ")
         }
 
+        // ── 2. Attempt legacy migration (T016/T017/T018/T022) ───────────────
+        try {
+            val legacyPrefs = openEncryptedPrefs()
+            val legacyMnemonic = legacyPrefs.getString(KEY_MNEMONIC, null)
+            if (!legacyMnemonic.isNullOrBlank()) {
+                Logger.i { "Migrating BIP39 mnemonic from legacy EncryptedSharedPreferences to Proto DataStore" }
+                val mnemonicBytes = legacyMnemonic.toByteArray(Charsets.UTF_8)
+                val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
+                val base64Encrypted = encryptedBytes.toByteString().base64()
+
+                // T017: Write DataStore FIRST (transaction flag).
+                // migrationCompleted=true acts as a durable commit marker.
+                // If the app crashes after this write but before legacy deletion,
+                // the next launch sees migrationCompleted=true and skips legacy.
+                dataStore.updateData { currentPrefs ->
+                    currentPrefs.copy(
+                        migrationVersion = 1,
+                        migrationCompleted = true,
+                        encryptedWalletSeed = base64Encrypted,
+                    )
+                }
+
+                // T023: Delete legacy key only after DataStore write succeeds.
+                legacyPrefs.edit(commit = true) {
+                    remove(KEY_MNEMONIC)
+                }
+                Logger.i { "Migration completed successfully, legacy key cleared" }
+                return legacyMnemonic.split(" ")
+            }
+        } catch (e: java.security.GeneralSecurityException) {
+            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
+        } catch (e: java.io.IOException) {
+            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
+        } catch (e: SecurityException) {
+            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
+        }
+
+        // ── 3. First launch — generate new mnemonic (T019) ──────────────────
         Logger.i { "Generating new BIP39 mnemonic (first launch)" }
         val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = MNEMONIC_WORD_COUNT)
-        prefs.edit {
-            putString(KEY_MNEMONIC, newMnemonic.joinToString(" "))
+        val mnemonicStr = newMnemonic.joinToString(" ")
+        val mnemonicBytes = mnemonicStr.toByteArray(Charsets.UTF_8)
+        val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
+        val base64Encrypted = encryptedBytes.toByteString().base64()
+
+        dataStore.updateData { currentPrefs ->
+            currentPrefs.copy(
+                migrationVersion = 1,
+                migrationCompleted = true,
+                encryptedWalletSeed = base64Encrypted,
+            )
         }
+        Logger.i { "New BIP39 mnemonic generated and stored in Proto DataStore" }
         return newMnemonic
     }
 
@@ -127,14 +194,36 @@ class WalletMasterSeedProvider(
 
     /**
      * T146g — Returns the raw BIP39 mnemonic for Dev Tools (debug only).
-     * Reads back the persisted mnemonic from [EncryptedSharedPreferences] and splits
+     * Reads back the persisted mnemonic from [DataStore] (or legacy fallback) and splits
      * on spaces. Returns null if no mnemonic has been persisted yet.
      *
      * ⚠️ Caller must zero backing structures immediately after use.
      */
     override suspend fun getMnemonic(): List<String>? {
-        val raw = openEncryptedPrefs().getString(KEY_MNEMONIC, null)
-        return if (raw.isNullOrBlank()) null else raw.split(" ")
+        val prefs = dataStore.data.first()
+        if (prefs.encryptedWalletSeed.isNotEmpty()) {
+            val encryptedBytes = prefs.encryptedWalletSeed.decodeBase64()?.toByteArray()
+            if (encryptedBytes != null) {
+                val decryptedBytes = encryptionWrapper.decrypt(encryptedBytes)
+                val mnemonicStr = String(decryptedBytes)
+                decryptedBytes.fill(0)
+                return mnemonicStr.split(" ")
+            }
+        }
+        // Legacy fallback — only reachable if migration hasn't occurred yet
+        return try {
+            val raw = openEncryptedPrefs().getString(KEY_MNEMONIC, null)
+            if (raw.isNullOrBlank()) null else raw.split(" ")
+        } catch (e: java.security.GeneralSecurityException) {
+            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
+            null
+        } catch (e: java.io.IOException) {
+            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
+            null
+        } catch (e: SecurityException) {
+            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
+            null
+        }
     }
 
     /**
@@ -154,11 +243,32 @@ class WalletMasterSeedProvider(
                 "Invalid mnemonic: expected $MNEMONIC_WORD_COUNT words, got ${words.size}."
             }
 
-            val prefs = openEncryptedPrefs()
-            val alreadyExisted = !prefs.getString(KEY_MNEMONIC, null).isNullOrBlank()
+            val currentPrefs = dataStore.data.first()
+            val alreadyExisted = currentPrefs.encryptedWalletSeed.isNotEmpty()
 
-            prefs.edit(commit = true) {
-                putString(KEY_MNEMONIC, mnemonicString)
+            val mnemonicBytes = mnemonicString.toByteArray(Charsets.UTF_8)
+            val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
+            val base64Encrypted = encryptedBytes.toByteString().base64()
+
+            dataStore.updateData { p ->
+                p.copy(
+                    migrationVersion = 1,
+                    migrationCompleted = true,
+                    encryptedWalletSeed = base64Encrypted,
+                )
+            }
+
+            // Clean up any legacy entry that may exist
+            try {
+                openEncryptedPrefs().edit(commit = true) {
+                    remove(KEY_MNEMONIC)
+                }
+            } catch (e: java.security.GeneralSecurityException) {
+                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
+            } catch (e: java.io.IOException) {
+                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
+            } catch (e: SecurityException) {
+                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
             }
 
             invalidateCache()

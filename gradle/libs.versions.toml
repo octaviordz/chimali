@@ -41,6 +41,9 @@ kotlinx-datetime = "0.6.1"
 slf4j = "2.0.16"
 kmpworkmanager = "2.3.9"
 guava = "31.1-android"
+datastore = "1.1.1"
+protobuf = "3.25.3"
+protobuf-plugin = "0.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-ktx" }
@@ -128,6 +131,8 @@ androidx-tracing = { group = "androidx.tracing", name = "tracing", version = "1.
 # Compose-specific Detekt rules plugin — loaded via detektPlugins (no separate Gradle plugin needed)
 detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "compose-rules" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
+datastore-core-okio = { group = "androidx.datastore", name = "datastore-core-okio", version.ref = "datastore" }
+kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization-json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -142,3 +147,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+

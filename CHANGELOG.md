@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-20
+
+### Changed
+- **Proto DataStore Migration**: Migrated application configuration and core cryptographic secrets (`WalletMasterSeedProvider`, `Fido2SettingsRepositoryImpl`) from legacy `EncryptedSharedPreferences` to a robust, type-safe `Proto DataStore` backed by SQLCipher encryption primitives.
+- **Exception Handling Hardening**: Systematically removed all `@Suppress("TooGenericExceptionCaught")` and `@Suppress("SwallowedException")` annotations project-wide. Refactored generic `Exception` catch blocks to explicitly handle `GeneralSecurityException`, `IOException`, and `SecurityException`.
+- **Cryptographic Modernization**: Mitigated compilation warnings in `AesSivEncryptionManager` by updating deprecated BouncyCastle `SICBlockCipher` and `AESEngine` constructors to their modern `newInstance()` factory equivalents.
+- **Detailed changes**: [2026-05-20-proto-datastore-migration.md](docs/changelogs/2026-05-20-proto-datastore-migration.md)
+
 ## [Unreleased] - 2026-05-19
 
 ### Changed

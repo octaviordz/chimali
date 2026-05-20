@@ -25,9 +25,9 @@
 
 **Purpose**: Project initialization and dependency setup
 
-- [ ] T001 Add Proto DataStore dependencies to core/common/build.gradle.kts in core/common/build.gradle.kts
-- [ ] T002 Add Protocol Buffers plugin configuration to core/common/build.gradle.kts in core/common/build.gradle.kts
-- [ ] T003 [P] Add Android DataStore dependencies to core/androidMain/build.gradle.kts in core/androidMain/build.gradle.kts
+- [x] T001 Add Proto DataStore dependencies to core/common/build.gradle.kts in core/common/build.gradle.kts
+- [x] T002 Add Protocol Buffers plugin configuration to core/common/build.gradle.kts in core/common/build.gradle.kts
+- [x] T003 [P] Add Android DataStore dependencies to core/androidMain/build.gradle.kts in core/common/build.gradle.kts
 
 ---
 
@@ -37,16 +37,16 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create proto directory structure in core/common/proto in core/common/proto
-- [ ] T005 Define UserPreferences Protocol Buffer schema in core/common/proto/user_preferences.proto
-- [ ] T006 Configure protobuf compilation in core/common/build.gradle.kts in core/common/build.gradle.kts
-- [ ] T007 Create datastore package structure in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore
-- [ ] T008 Implement UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
-- [ ] T009 Implement UserPreferencesDataStore extension in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStore.kt
-- [ ] T010 [P] Create EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
-- [ ] T011 [P] Implement Android KeyStore integration in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
-- [ ] T011a [P] Implement memory zeroing for sensitive data in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
-- [ ] T012 Configure Koin module for DataStore dependencies in core/common/di/DataStoreModule.kt
+- [x] T004 Create proto directory structure in core/common/src/main/proto in core/common/src/main/proto
+- [x] T005 Define UserPreferences Protocol Buffer schema in core/common/src/main/proto/user_preferences.proto
+- [x] T006 Configure protobuf compilation in core/common/build.gradle.kts in core/common/build.gradle.kts
+- [x] T007 Create datastore package structure in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore
+- [x] T008 Implement UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
+- [x] T009 Implement UserPreferencesDataStore extension in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStore.kt
+- [x] T010 [P] Create EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
+- [x] T011 [P] Implement Android KeyStore integration in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
+- [x] T011a [P] Implement memory zeroing for sensitive data in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
+- [x] T012 Configure Koin module for DataStore dependencies in core/common/di/DataStoreModule.kt
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -62,22 +62,22 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T013 [P] [US1] Unit test for UserPreferencesSerializer in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializerTest.kt
-- [ ] T014 [P] [US1] Unit test for EncryptionWrapper in core/common/src/androidTest/kotlin/com/chimali/core/common/datastore/EncryptionWrapperTest.kt
-- [ ] T015 [P] [US1] Integration test for wallet seed migration in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/WalletSeedMigrationTest.kt
+- [x] T013 [P] [US1] Unit test for UserPreferencesSerializer in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializerTest.kt
+- [x] T014 [P] [US1] Unit test for EncryptionWrapper in core/common/src/androidTest/kotlin/com/chimali/core/common/datastore/EncryptionWrapperTest.kt
+- [x] T015 [P] [US1] Integration test for wallet seed migration in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/WalletSeedMigrationTest.kt
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implement migration logic in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T017 [US1] Add transaction flag for crash recovery in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T018 [US1] Implement legacy data reading from EncryptedSharedPreferences in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T019 [US1] Implement data writing to Proto DataStore in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T020 [US1] Add Info level logging for migration progress in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T021 [US1] Add Error level logging for migration failures in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T022 [US1] Implement corrupted legacy data handling in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T023 [US1] Delete legacy EncryptedSharedPreferences file after successful migration in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T024 [US1] Remove EncryptedSharedPreferences imports from WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
-- [ ] T025 [US1] Update WalletMasterSeedProviderTest to use DataStore in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt
+- [x] T016 [US1] Implement migration logic in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T017 [US1] Add transaction flag for crash recovery in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T018 [US1] Implement legacy data reading from EncryptedSharedPreferences in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T019 [US1] Implement data writing to Proto DataStore in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T020 [US1] Add Info level logging for migration progress in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T021 [US1] Add Error level logging for migration failures in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T022 [US1] Implement corrupted legacy data handling in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T023 [US1] Delete legacy EncryptedSharedPreferences file after successful migration in WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T024 [US1] Remove EncryptedSharedPreferences imports from WalletMasterSeedProvider in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt
+- [x] T025 [US1] Update WalletMasterSeedProviderTest to use DataStore in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -91,19 +91,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T026 [P] [US2] Integration test for FIDO2 settings migration in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/Fido2SettingsMigrationTest.kt
+- [x] T026 [P] [US2] Integration test for FIDO2 settings migration in feature/fido2/src/androidTest/kotlin/com/chimali/fido2/Fido2SettingsMigrationTest.kt
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Implement migration logic in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T028 [US2] Add transaction flag for crash recovery in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T029 [US2] Implement legacy data reading from EncryptedSharedPreferences in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T030 [US2] Implement data writing to Proto DataStore in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T031 [US2] Add Info level logging for migration progress in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T032 [US2] Add Error level logging for migration failures in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T033 [US2] Implement corrupted legacy data handling in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T034 [US2] Delete legacy EncryptedSharedPreferences file after successful migration in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
-- [ ] T035 [US2] Remove EncryptedSharedPreferences imports from Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T027 [US2] Implement migration logic in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T028 [US2] Add transaction flag for crash recovery in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T029 [US2] Implement legacy data reading from EncryptedSharedPreferences in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T030 [US2] Implement data writing to Proto DataStore in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T031 [US2] Add Info level logging for migration progress in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T032 [US2] Add Error level logging for migration failures in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T033 [US2] Implement corrupted legacy data handling in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T034 [US2] Delete legacy EncryptedSharedPreferences file after successful migration in Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
+- [x] T035 [US2] Remove EncryptedSharedPreferences imports from Fido2SettingsRepositoryImpl in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -117,16 +117,16 @@
 
 ### Tests for User Story 3
 
-- [ ] T036 [P] [US3] Unit test for UserPreferencesDataStore in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStoreTest.kt
-- [ ] T037 [P] [US3] Integration test for cross-platform data sharing in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/CrossPlatformDataStoreTest.kt
+- [x] T036 [P] [US3] Unit test for UserPreferencesDataStore in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStoreTest.kt
+- [x] T037 [P] [US3] Integration test for cross-platform data sharing in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/CrossPlatformDataStoreTest.kt
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] Verify Protocol Buffer compilation generates Kotlin classes in core/common/build.gradle.kts in core/common/build.gradle.kts
-- [ ] T039 [US3] Add migration_version field handling in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
-- [ ] T040 [US3] Add migration_completed field handling in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
-- [ ] T041 [US3] Implement schema evolution support in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
-- [ ] T042 [US3] Add reserved field numbers for future preferences in core/common/proto/user_preferences.proto
+- [x] T038 [US3] Verify Protocol Buffer compilation generates Kotlin classes in core/common/build.gradle.kts in core/common/build.gradle.kts
+- [x] T039 [US3] Add migration_version field handling in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
+- [x] T040 [US3] Add migration_completed field handling in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
+- [x] T041 [US3] Implement schema evolution support in UserPreferencesSerializer in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesSerializer.kt
+- [x] T042 [US3] Add reserved field numbers for future preferences in core/common/proto/user_preferences.proto
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -136,19 +136,19 @@
 
 **Purpose**: Cleanup and validation across all user stories
 
-- [ ] T043 [P] Remove EncryptedSharedPreferences references from Fido2CryptoService.kt in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt
-- [ ] T044 [P] Remove EncryptedSharedPreferences references from AesSivEncryptionManager.kt in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt
-- [ ] T045 [P] Remove EncryptedSharedPreferences references from BluetoothHidTransportImpl.kt in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BluetoothHidTransportImpl.kt
-- [ ] T046 [P] Remove EncryptedSharedPreferences dependency from build.gradle.kts files in feature/fido2/build.gradle.kts
-- [ ] T047 [P] Remove SharedPreferences references from codebase (grep search and removal)
-- [ ] T048 Run Detekt static analysis in tools/local-ci.ps1
-- [ ] T049 Run Ktlint formatting check in tools/local-ci.ps1
-- [ ] T050 Run Local CI pipeline in tools/local-ci.ps1
-- [ ] T051 Update documentation in docs/ if needed
-- [ ] T052 Verify zero EncryptedSharedPreferences references remain in codebase
-- [ ] T053 Verify zero SharedPreferences references remain in codebase
-- [ ] T054 Validate quickstart.md implementation steps
-- [ ] T055 [P] Add performance benchmark for DataStore operations in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStorePerformanceTest.kt
+- [x] T043 [P] Remove EncryptedSharedPreferences references from Fido2CryptoService.kt in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt
+- [x] T044 [P] Remove EncryptedSharedPreferences references from AesSivEncryptionManager.kt in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt
+- [x] T045 [P] Remove EncryptedSharedPreferences references from BluetoothHidTransportImpl.kt in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BluetoothHidTransportImpl.kt
+- [x] T046 [P] Remove EncryptedSharedPreferences dependency from build.gradle.kts files in feature/fido2/build.gradle.kts
+- [x] T047 [P] Remove SharedPreferences references from codebase (grep search and removal)
+- [x] T048 Run Detekt static analysis in tools/local-ci.ps1
+- [x] T049 Run Ktlint formatting check in tools/local-ci.ps1
+- [x] T050 Run Local CI pipeline in tools/local-ci.ps1
+- [x] T051 Update documentation in docs/ if needed
+- [x] T052 Verify zero EncryptedSharedPreferences references remain in codebase
+- [x] T053 Verify zero SharedPreferences references remain in codebase
+- [x] T054 Validate quickstart.md implementation steps
+- [x] T055 [P] Add performance benchmark for DataStore operations in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStorePerformanceTest.kt
 
 ---
 

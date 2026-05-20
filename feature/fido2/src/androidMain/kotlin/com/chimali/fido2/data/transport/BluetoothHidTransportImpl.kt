@@ -269,7 +269,7 @@ class BluetoothHidTransportImpl(
                                 //     (the key already exists; it's just a 5ms lookup + sign).
                                 WarmUpHelper.warmUpAndroidKeyStore()
 
-                                // (3) Master seed (EncryptedSharedPreferences) — the dominant
+                                // (3) Master seed (Proto DataStore) - the dominant
                                 //     cold-start cost in Crypto.sign(). On the first call per session,
                                 //     getMasterSeed() decrypts the BIP39 mnemonic using the
                                 //     'androidx_security_master_key_v2' AndroidKeyStore key. That

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package com.chimali.core.common.datastore;
+
+option java_package = "com.chimali.core.common.datastore";
+option java_multiple_files = true;
+
+// User preferences and settings
+message UserPreferences {
+  // Version for schema evolution
+  int32 migration_version = 1;
+  
+  // Flag indicating if the migration from EncryptedSharedPreferences is completed
+  bool migration_completed = 2;
+
+  // The wallet master seed (BIP39 mnemonic).
+  // This is stored as an encrypted string/bytes.
+  string encrypted_wallet_seed = 3;
+
+  // FIDO2 settings
+  int32 max_credential_count = 4;
+
+  // Reserved for future use
+  reserved 5 to 10;
+}

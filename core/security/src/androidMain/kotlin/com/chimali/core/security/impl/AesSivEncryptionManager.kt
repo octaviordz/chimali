@@ -16,7 +16,7 @@ import org.koin.core.annotation.Single
  * The Chimali Constitution mandates **AES-256-SIV** for:
  * 1. **Searchable encrypted metadata** — category names, RP ID lookup tags, credential
  *    aliases — where deterministic ciphertext is required for exact-match queries.
- * 2. **Key wrapping** — master key boundaries (e.g., within EncryptedSharedPreferences)
+ * 2. **Key wrapping** - master key boundaries (e.g., within Proto DataStore)
  *    where nonce-misuse resistance is paramount.
  *
  * Unlike AES-256-GCM, SIV produces identical ciphertext for identical plaintext+key.
@@ -178,7 +178,7 @@ class AesSivEncryptionManager : SivEncryptionManager {
         key: ByteArray,
         data: ByteArray,
     ): ByteArray {
-        val mac = CMac(AESEngine())
+        val mac = CMac(AESEngine.newInstance())
         mac.init(KeyParameter(key))
         mac.update(data, 0, data.size)
         val out = ByteArray(mac.macSize)
@@ -204,7 +204,7 @@ class AesSivEncryptionManager : SivEncryptionManager {
         iv: ByteArray,
         data: ByteArray,
     ): ByteArray {
-        val engine = SICBlockCipher(AESEngine())
+        val engine = SICBlockCipher.newInstance(AESEngine.newInstance())
         engine.init(true, ParametersWithIV(KeyParameter(key), iv))
         val output = ByteArray(data.size)
         var offset = 0
