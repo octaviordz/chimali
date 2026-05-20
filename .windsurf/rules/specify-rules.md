@@ -33,5 +33,6 @@ Kotlin 1.9+ (Android Native): Follow standard conventions
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+shell commands, and other important information, read the current plan:
+[specs/047-proto-datastore-migration/plan.md](specs/047-proto-datastore-migration/plan.md) (Proto DataStore Migration)
 <!-- SPECKIT END -->
