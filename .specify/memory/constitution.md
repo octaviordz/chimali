@@ -1,9 +1,10 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.13.0 → 0.14.0
+- Version change: 0.14.0 → 0.14.1
 - List of modified principles:
-  - X.3 SQL & Database Guidelines — added mandatory column ordering
-    convention (PK → audit/temporal → alphabetized remaining)
+  - I. Security First (Zero-Trust Local-First) — generalized encrypted preferences, removed deprecated EncryptedSharedPreferences
+  - II. Master Seed Architecture — generalized encrypted preferences
+  - X.7 Anti-Patterns & Prohibited Practices — generalized encrypted preferences
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
@@ -23,7 +24,7 @@ SYNC IMPACT REPORT
 ### I. Security First (Zero-Trust Local-First)
 All sensitive data must be encrypted. The application adheres to a **Multi-Mode Symmetric Encryption Strategy** based on modern Android best practices:
 1. **AES-256-GCM** MUST be used for general payload encryption (files, credential blobs, value storage). This enables Hardware Keystore offloading and safe streaming without memory exhaustion.
-2. **AES-256-SIV** (Synthetic IV) MUST be used for **Searchable Encrypted Metadata** (e.g., database lookup tags, category names) where deterministic ciphertext is required, and for **Key Wrapping** where nonce-misuse resistance is paramount (e.g., within `EncryptedSharedPreferences` or master key boundaries).
+2. **AES-256-SIV** (Synthetic IV) MUST be used for **Searchable Encrypted Metadata** (e.g., database lookup tags, category names) where deterministic ciphertext is required, and for **Key Wrapping** where nonce-misuse resistance is paramount (e.g., within secure key-value stores or master key boundaries).
 3. **SQLCipher (AES-256-CBC)** is explicitly permitted for **SQLite database file-level encryption**. This is a pragmatic exemption: SQLCipher's AES-256-CBC file encryption provides strong data-at-rest protection for Android's encrypted storage layer, which operates at a different abstraction boundary than individual in-flight payload encryption. SQLCipher is configured with a key derived via `PBKDF2-SHA512` from the device's master key. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
 
 4. **Memory Security (Non-Negotiable)**: Plain-text storage of credentials in persistent or long-lived memory is strictly prohibited. Sensitive data MUST only exist in decrypted form within volatile memory using mutable structures (e.g., `ByteArray`, `CharArray`) and MUST be explicitly zeroed out immediately after use (refer to Principle X.5 for mandatory `try/finally` zeroing patterns).
@@ -40,7 +41,7 @@ The root of trust is established via a **Master Seed (Master Key)** architecture
 **Key derivation rules** (per §2.5 of the draft):
 - A unit **MUST NOT** persist a blinded private key. Blinded private key bytes must be zeroed immediately after the signing operation completes.
 - Salt values (including the seed) **MUST NOT** be reused outside of HDK derivation calls.
-- The seed is generated with 32 bytes of entropy (`SecureRandom`) and stored encrypted via `EncryptedSharedPreferences` (AES-256-GCM).
+- The seed is generated with 32 bytes of entropy (`SecureRandom`) and stored encrypted via an encrypted preference store (AES-256-GCM).
 
 **PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses **HDK DeriveSalt** (§2.4) with the context `"PQ_ML-DSA_Branch"`, followed by HMAC-SHA512 expansion, to produce a child seed that is cryptographically isolated from the ECDSA HDK branch. This ensures full compliance with `draft-dijkhuis-cfrg-hdkeys-06` without any legacy BIP-32/85 dependencies. The ECDSA branch uses `HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
 
@@ -201,7 +202,7 @@ The following patterns are explicitly prohibited across the codebase:
 - **Wildcard Catch**: `catch (e: Exception)` or `catch (e: Throwable)` is prohibited in production code. Catch specific exception types. Broad catches are permitted only at coroutine boundary supervisors with mandatory logging.
 - **Mutable Shared State**: Shared mutable state between coroutines MUST use `Mutex`, `StateFlow`, or `Channel`. Direct mutable variable access from multiple coroutines is prohibited.
 - **String Concatenation in Loops**: Use `StringBuilder` or `buildString` for string construction in loops.
-- **Hardcoded Secrets**: API keys, encryption keys, or credentials MUST NOT appear as string literals in source code. Use `BuildConfig`, `EncryptedSharedPreferences`, or the Android Keystore.
+- **Hardcoded Secrets**: API keys, encryption keys, or credentials MUST NOT appear as string literals in source code. Use `BuildConfig`, an encrypted preference store, or the Android Keystore.
 
 ### XI. Risk Management & Pragmatism
 
@@ -222,4 +223,4 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 - **Performance Targets**: Performance targets defined in Principle IV represent upper bounds. Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient; optimizing for all edge-case devices is explicitly out of scope for initial delivery.
 - **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive but unfinished one. Ship the smallest valuable slice, then iterate.
 
-**Version**: 0.14.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-16
+**Version**: 0.14.1 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-19
