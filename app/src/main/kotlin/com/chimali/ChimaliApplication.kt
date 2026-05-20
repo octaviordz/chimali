@@ -4,6 +4,7 @@ import android.app.Application
 import com.chimali.core.bluetooth.di.bluetoothModule
 import com.chimali.core.clipboard.di.ClipboardModule
 import com.chimali.core.common.di.DispatchersModule
+import com.chimali.core.common.di.dataStoreModule
 import com.chimali.core.database.di.databaseModule
 import com.chimali.core.domain.di.DomainModule
 import com.chimali.core.security.di.SecurityModule
@@ -35,6 +36,7 @@ class ChimaliApplication : Application() {
                 DispatchersModule().module,
                 SecurityModule().module,
                 // Core modules (DSL — migrated in subsequent phases)
+                dataStoreModule,
                 ClipboardModule().module,
                 databaseModule,
                 bluetoothModule,
