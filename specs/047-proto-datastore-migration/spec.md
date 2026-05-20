@@ -58,15 +58,22 @@ The system establishes a shared User Preferences schema in a common KMP location
 
 ---
 
-### Edge Cases
+### Edge Cases & Failure Scenarios
 
-- What happens when the EncryptedSharedPreferences file is corrupted or unreadable during migration?
-- How does the system handle a partial migration where some data has been migrated but not all?
-- What happens if the app crashes during the migration process?
-- How does the system handle concurrent access to both old and new storage during the migration window?
-- What happens if the Proto DataStore file already exists (e.g., from a previous migration attempt)?
-- How does the system handle encryption key rotation or changes?
-- What happens when the device is low on storage during migration?
+**EC-001**: Corrupted EncryptedSharedPreferences file during migration
+- **Given** the EncryptedSharedPreferences file is corrupted or unreadable, **When** migration is attempted, **Then** the system logs an error, skips migration, and uses default values
+
+**EC-002**: Partial migration (crash during migration)
+- **Given** the app crashes during migration, **When** the app restarts, **Then** migration resumes from where it left off using a transaction flag
+
+**EC-003**: Proto DataStore file already exists
+- **Given** a Proto DataStore file exists from a previous migration attempt, **When** the app launches, **Then** the system checks the migration completion flag and skips re-migration if complete
+
+**EC-004**: Device low on storage during migration
+- **Given** the device is low on storage, **When** migration is attempted, **Then** the system logs an error and continues with default values
+
+**EC-005**: Encryption key rotation
+- **Given** Android KeyStore keys are rotated, **When** the app accesses encrypted data, **Then** the system uses the current active key for encryption/decryption
 
 ## Requirements *(mandatory)*
 

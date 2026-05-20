@@ -45,6 +45,7 @@
 - [ ] T009 Implement UserPreferencesDataStore extension in core/common/src/commonMain/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStore.kt
 - [ ] T010 [P] Create EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
 - [ ] T011 [P] Implement Android KeyStore integration in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
+- [ ] T011a [P] Implement memory zeroing for sensitive data in EncryptionWrapper in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt
 - [ ] T012 Configure Koin module for DataStore dependencies in core/common/di/DataStoreModule.kt
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
@@ -147,6 +148,7 @@
 - [ ] T052 Verify zero EncryptedSharedPreferences references remain in codebase
 - [ ] T053 Verify zero SharedPreferences references remain in codebase
 - [ ] T054 Validate quickstart.md implementation steps
+- [ ] T055 [P] Add performance benchmark for DataStore operations in core/common/src/commonTest/kotlin/com/chimali/core/common/datastore/UserPreferencesDataStorePerformanceTest.kt
 
 ---
 
