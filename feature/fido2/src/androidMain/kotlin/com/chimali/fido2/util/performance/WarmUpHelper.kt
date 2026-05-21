@@ -114,7 +114,7 @@ object WarmUpHelper {
 
     /**
      * Warms up the BouncyCastle security provider and JIT-compiles the in-process
-     * ECDSA signing path (used for key derivation math, not for TEE signing).
+     * ECDSA signing path (used for non-SIV key derivation math and PQC, not for TEE signing).
      *
      * The first call to `SHA256withECDSA` via BouncyCastle incurs two one-time costs:
      *   1. `Security.addProvider` — registers the BC `JCE` implementation (~20ms).

@@ -1,0 +1,11 @@
+ALTER TABLE passkey_credential ADD COLUMN rp_id_index BLOB;
+ALTER TABLE passkey_credential ADD COLUMN user_id_index BLOB;
+ALTER TABLE passkey_credential ADD COLUMN encrypted_metadata BLOB;
+
+ALTER TABLE relying_party ADD COLUMN encrypted_metadata BLOB;
+
+ALTER TABLE user_consent_record ADD COLUMN rp_id_index BLOB;
+
+CREATE INDEX idx_passkey_credential_rp_id_index ON passkey_credential(rp_id_index);
+CREATE INDEX idx_passkey_credential_user_id_index ON passkey_credential(user_id_index);
+CREATE INDEX idx_user_consent_record_rp_id_index ON user_consent_record(rp_id_index);

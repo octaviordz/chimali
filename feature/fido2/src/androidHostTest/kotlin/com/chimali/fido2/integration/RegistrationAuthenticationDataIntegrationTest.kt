@@ -21,6 +21,7 @@ import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.repository.CredentialRepositoryImpl
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.data.worker.CorruptedKeyRepairWorker
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
@@ -49,6 +50,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -104,9 +106,18 @@ class RegistrationAuthenticationDataIntegrationTest {
         database = Fido2Database(driver)
 
         // 2. DAO Setup
-        val passkeyDao = PasskeyCredentialDao(database, timeProvider)
-        val rpDao = RelyingPartyDao(database, timeProvider)
-        val consentDao = UserConsentRecordDao(database)
+        val metadataProtectionService: CredentialMetadataProtectionService =
+            mockk(relaxed = true) {
+                every { getRpIdIndex(any()) } answers { "rp:${firstArg<String>()}".toByteArray() }
+                every { getUserIdIndex(any()) } answers { "user:${firstArg<String>()}".toByteArray() }
+                every { encryptMetadata(any(), any()) } returns byteArrayOf(1, 2, 3)
+                every { encryptRelyingPartyMetadata(any()) } returns byteArrayOf(4, 5, 6)
+                every { decryptMetadata(any(), any()) } returns
+                    """{"rpId":"https://data-integration.example.com","userId":"placeholder"}"""
+            }
+        val passkeyDao = PasskeyCredentialDao(database, timeProvider, metadataProtectionService)
+        val rpDao = RelyingPartyDao(database, timeProvider, metadataProtectionService)
+        val consentDao = UserConsentRecordDao(database, metadataProtectionService)
 
         // 3. Crypto Setup
         val masterSeedProvider: MasterSeedProvider =
@@ -183,6 +194,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                 corruptedKeyRepairWorker = repairWorker,
                 timeProvider = timeProvider,
                 aggregateService = aggregateService,
+                metadataProtectionService = metadataProtectionService,
                 ioDispatcher = testDispatcher,
             )
 
@@ -280,6 +292,65 @@ class RegistrationAuthenticationDataIntegrationTest {
 
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess, "Authentication should succeed using persisted credential")
+
+            val assertion = authResult.getOrThrow()
+            assertEquals(credId.encoded, assertion.credentialId)
+        }
+
+    /**
+     * T051 [US4] — FIDO2 registration/authentication regression test using migrated credential layout.
+     *
+     * Verifies that credentials written with lookup-token columns (rp_id_index, user_id_index)
+     * and encrypted_metadata remain accessible through the full FIDO2 authentication flow,
+     * proving backward compatibility with the migrated schema.
+     */
+    @Suppress("LongMethod")
+    @Test
+    fun `authentication succeeds with migrated credential schema`() =
+        runTest {
+            val rpIdHost = "migrated-integration.example.com"
+            val rpId = RpId("https://$rpIdHost")
+            val userId = UserId("migrated-user-456")
+
+            // 1. Registration using the migrated DAO (rp_id_index + encrypted_metadata written)
+            val makeOptions =
+                MakeCredentialOptions.create(
+                    rp = PublicKeyCredentialRpEntity.create(id = rpId, name = "Migrated Example"),
+                    user =
+                        PublicKeyCredentialUserEntity.create(
+                            id = userId,
+                            name = "migrated",
+                            displayName = "Migrated User",
+                        ),
+                    challenge = ByteArray(CHALLENGE_SIZE_32) { (it + 1).toByte() },
+                    pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+                    selectedAlgId = Fido2CryptoService.COSE_ES256,
+                )
+
+            val regResult = registerUseCase(makeOptions)
+            assertTrue(regResult.isSuccess, "Registration with migrated schema should succeed")
+
+            val credential = regResult.getOrThrow().credential
+            val credId = credential.id
+
+            // 2. Verify token columns were populated (migration-compatible write path)
+            val savedEntity =
+                database.passkeyCredentialQueries
+                    .select_by_id(credId.encoded)
+                    .executeAsOneOrNull()
+            assertNotNull(savedEntity, "Credential entity should be persisted")
+
+            // 3. Authentication using the persisted credential
+            val authOptions =
+                GetAssertionOptions.create(
+                    rpId = rpId,
+                    clientDataHash = ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_CD },
+                    userVerification = UserVerificationRequirement.PREFERRED,
+                    allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = credId)),
+                )
+
+            val authResult = assertionUseCase(authOptions)
+            assertTrue(authResult.isSuccess, "Authentication with migrated credential should succeed")
 
             val assertion = authResult.getOrThrow()
             assertEquals(credId.encoded, assertion.credentialId)

@@ -7,6 +7,7 @@ import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.Relying_party as RelyingPartyEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -21,11 +22,15 @@ import org.koin.core.annotation.Single
 class RelyingPartyDao(
     private val database: Fido2Database,
     private val timeProvider: TimeProvider,
+    private val metadataProtectionService: CredentialMetadataProtectionService,
 ) {
     /**
      * Inserts or updates a relying party in the database (Upsert).
      */
     suspend fun insertOrUpdateRelyingParty(rp: RelyingParty) {
+        val metadataJson = """{"id":"${rp.id.value}"}"""
+        val encryptedMetadata = metadataProtectionService.encryptRelyingPartyMetadata(metadataJson)
+
         database.relyingPartyQueries.insert(
             id = rp.id.value,
             created_at = rp.createdAt.toEpochMilliseconds(),
@@ -34,6 +39,7 @@ class RelyingPartyDao(
             icon_url = rp.iconUrl,
             is_blocked = if (rp.isBlocked) 1L else 0L,
             name = rp.name,
+            encrypted_metadata = encryptedMetadata,
         )
     }
 
@@ -58,12 +64,16 @@ class RelyingPartyDao(
      * Updates an existing relying party.
      */
     suspend fun updateRelyingParty(rp: RelyingParty) {
+        val metadataJson = """{"id":"${rp.id.value}"}"""
+        val encryptedMetadata = metadataProtectionService.encryptRelyingPartyMetadata(metadataJson)
+
         database.relyingPartyQueries.update(
             last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),
             credential_count = rp.credentialCount.toLong(),
             icon_url = rp.iconUrl,
             is_blocked = if (rp.isBlocked) 1L else 0L,
             name = rp.name,
+            encrypted_metadata = encryptedMetadata,
             id = rp.id.value,
         )
     }
@@ -300,6 +310,9 @@ class RelyingPartyDao(
     suspend fun updateRelyingParties(rps: List<RelyingParty>) {
         database.transaction {
             rps.forEach { rp ->
+                val metadataJson = """{"id":"${rp.id.value}"}"""
+                val encryptedMetadata = metadataProtectionService.encryptRelyingPartyMetadata(metadataJson)
+
                 database.relyingPartyQueries.update(
                     id = rp.id.value,
                     name = rp.name,
@@ -307,6 +320,7 @@ class RelyingPartyDao(
                     credential_count = rp.credentialCount.toLong(),
                     last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),
                     is_blocked = if (rp.isBlocked) 1L else 0L,
+                    encrypted_metadata = encryptedMetadata,
                 )
             }
         }

@@ -7,6 +7,7 @@ import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,11 +21,17 @@ import org.koin.core.annotation.Single
 class PasskeyCredentialDao(
     private val database: Fido2Database,
     private val timeProvider: TimeProvider,
+    private val metadataProtectionService: CredentialMetadataProtectionService,
 ) {
     /**
      * Inserts a new credential into the database.
      */
     fun insertCredential(credential: PasskeyCredential) {
+        val rpIdIndex = metadataProtectionService.getRpIdIndex(credential.rpId.value)
+        val userIdIndex = metadataProtectionService.getUserIdIndex(credential.userId.value)
+        val metadataJson = """{"rpId":"${credential.rpId.value}","userId":"${credential.userId.value}"}"""
+        val encryptedMetadata = metadataProtectionService.encryptMetadata(metadataJson, credential.rpId.value)
+
         database.passkeyCredentialQueries.insert(
             id = credential.id.encoded,
             created_at = credential.createdAt.toEpochMilliseconds(),
@@ -49,6 +56,9 @@ class PasskeyCredentialDao(
             user_display_name = credential.userDisplayName,
             user_id = credential.userId.value,
             user_name = credential.userName,
+            rp_id_index = rpIdIndex,
+            user_id_index = userIdIndex,
+            encrypted_metadata = encryptedMetadata,
         )
     }
 
@@ -63,11 +73,13 @@ class PasskeyCredentialDao(
     /**
      * Retrieves all credentials for a specific relying party.
      */
-    fun getCredentialsByRpId(rpId: RpId): Flow<List<PasskeyCredentialEntity>> =
-        database.passkeyCredentialQueries
-            .select_by_rp_id(rp_id = rpId.value)
+    fun getCredentialsByRpId(rpId: RpId): Flow<List<PasskeyCredentialEntity>> {
+        val rpIdIndex = metadataProtectionService.getRpIdIndex(rpId.value)
+        return database.passkeyCredentialQueries
+            .select_by_rp_id(rp_id_index = rpIdIndex)
             .asFlow()
             .map { query -> query.executeAsList() }
+    }
 
     /**
      * Retrieves a paginated list of credentials for a specific relying party.
@@ -76,13 +88,15 @@ class PasskeyCredentialDao(
         rpId: RpId,
         limit: Long,
         offset: Long,
-    ): List<PasskeyCredentialEntity> =
-        database.passkeyCredentialQueries
+    ): List<PasskeyCredentialEntity> {
+        val rpIdIndex = metadataProtectionService.getRpIdIndex(rpId.value)
+        return database.passkeyCredentialQueries
             .get_paged_credentials_by_rp_id(
-                rp_id = rpId.value,
+                rp_id_index = rpIdIndex,
                 limit = limit,
                 offset = offset,
             ).executeAsList()
+    }
 
     /**
      * Retrieves a paginated list of all credentials.
@@ -99,19 +113,24 @@ class PasskeyCredentialDao(
     fun getCredentialsByRpIdAndUserId(
         rpId: RpId,
         userId: UserId,
-    ): List<PasskeyCredentialEntity> =
-        database.passkeyCredentialQueries
-            .select_by_rp_id_and_user_id(rp_id = rpId.value, user_id = userId.value)
+    ): List<PasskeyCredentialEntity> {
+        val rpIdIndex = metadataProtectionService.getRpIdIndex(rpId.value)
+        val userIdIndex = metadataProtectionService.getUserIdIndex(userId.value)
+        return database.passkeyCredentialQueries
+            .select_by_rp_id_and_user_id(rp_id_index = rpIdIndex, user_id_index = userIdIndex)
             .executeAsList()
+    }
 
     /**
      * Retrieves all credentials for a specific user.
      */
-    fun getCredentialsByUserId(userId: UserId): Flow<List<PasskeyCredentialEntity>> =
-        database.passkeyCredentialQueries
-            .select_by_user_id(user_id = userId.value)
+    fun getCredentialsByUserId(userId: UserId): Flow<List<PasskeyCredentialEntity>> {
+        val userIdIndex = metadataProtectionService.getUserIdIndex(userId.value)
+        return database.passkeyCredentialQueries
+            .select_by_user_id(user_id_index = userIdIndex)
             .asFlow()
             .map { query -> query.executeAsList() }
+    }
 
     /**
      * Retrieves all credentials from the database.

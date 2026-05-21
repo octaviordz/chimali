@@ -15,6 +15,9 @@ CREATE TABLE passkey_credential (
     user_display_name TEXT NOT NULL,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
+    rp_id_index BLOB,
+    user_id_index BLOB,
+    encrypted_metadata BLOB,
     UNIQUE(rp_id, user_id)
 );
 
@@ -25,7 +28,8 @@ CREATE TABLE relying_party (
     credential_count INTEGER NOT NULL DEFAULT 0,
     icon_url TEXT,
     is_blocked INTEGER NOT NULL DEFAULT 0,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    encrypted_metadata BLOB
 );
 
 CREATE TABLE user_consent_record (
@@ -39,6 +43,7 @@ CREATE TABLE user_consent_record (
     pin_used INTEGER NOT NULL DEFAULT 0,
     rp_id TEXT NOT NULL,
     user_agent TEXT,
+    rp_id_index BLOB,
     FOREIGN KEY(rp_id) REFERENCES relying_party(id) ON DELETE CASCADE
 );
 
@@ -56,7 +61,10 @@ CREATE TABLE bluetooth_hid_session (
 -- Indexes for performance
 CREATE INDEX idx_passkey_credential_rp_id ON passkey_credential(rp_id);
 CREATE INDEX idx_passkey_credential_user_id ON passkey_credential(user_id);
+CREATE INDEX idx_passkey_credential_rp_id_index ON passkey_credential(rp_id_index);
+CREATE INDEX idx_passkey_credential_user_id_index ON passkey_credential(user_id_index);
 CREATE INDEX idx_user_consent_record_rp_id ON user_consent_record(rp_id);
+CREATE INDEX idx_user_consent_record_rp_id_index ON user_consent_record(rp_id_index);
 CREATE INDEX idx_user_consent_record_timestamp ON user_consent_record(timestamp);
 CREATE INDEX idx_bluetooth_hid_session_is_active ON bluetooth_hid_session(is_active);
 

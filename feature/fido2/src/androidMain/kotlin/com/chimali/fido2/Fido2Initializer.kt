@@ -10,11 +10,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * Handles module-specific initialization for the FIDO2 feature.
  */
-object Fido2Initializer {
+object Fido2Initializer : KoinComponent {
     private val featureScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     fun init(context: Context) {
@@ -41,6 +43,17 @@ object Fido2Initializer {
         featureScope.launch {
             WarmUpHelper.warmUpBouncyCastle()
             WarmUpHelper.warmUpAndroidKeyStore()
+
+            // Trigger the searchable metadata migration once keys are provisioned
+            val masterSeedProvider: com.chimali.core.security.api.MasterSeedProvider by inject()
+            val database: com.chimali.fido2.data.database.Fido2Database by inject()
+            val protectionService: com.chimali.fido2.data.service.CredentialMetadataProtectionService by inject()
+
+            // Ensuring the master seed is initialized provisions the searchable metadata symmetric keys
+            if (masterSeedProvider.getMasterSeed() != null) {
+                com.chimali.fido2.data.database.SearchableMetadataMigrationState
+                    .migrate(database, protectionService)
+            }
         }
     }
 }

@@ -12,10 +12,10 @@
 
 **Purpose**: Establish the working inventory and target files before touching policy or crypto code.
 
-- [ ] T001 Review the active feature artifacts in specs/048-remove-aes-siv/spec.md, specs/048-remove-aes-siv/plan.md, specs/048-remove-aes-siv/research.md, specs/048-remove-aes-siv/data-model.md, specs/048-remove-aes-siv/contracts/security-policy-contract.md, and specs/048-remove-aes-siv/contracts/metadata-lookup-contract.md
-- [ ] T002 Inventory current AES-SIV policy and production references in .specify/memory/constitution.md, docs/brd.md, docs/trd.md, core/security/src/commonMain/kotlin/com/chimali/core/security/api/SivEncryptionManager.kt, core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt, and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/EncryptedMetadataIndexService.kt
-- [ ] T003 [P] Inventory exact-match and partial-search fields in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq, feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/PasskeyCredential.sq, feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/UserConsentRecord.sq, and feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/RelyingParty.sq
-- [ ] T004 [P] Inventory AES-GCM and key-boundary implementations in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt, feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt, feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt, and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialEncryptionService.kt
+- [x] T001 Review the active feature artifacts in specs/048-remove-aes-siv/spec.md, specs/048-remove-aes-siv/plan.md, specs/048-remove-aes-siv/research.md, specs/048-remove-aes-siv/data-model.md, specs/048-remove-aes-siv/contracts/security-policy-contract.md, and specs/048-remove-aes-siv/contracts/metadata-lookup-contract.md
+- [x] T002 Inventory current AES-SIV policy and production references in .specify/memory/constitution.md, docs/brd.md, docs/trd.md, core/security/src/commonMain/kotlin/com/chimali/core/security/api/SivEncryptionManager.kt, core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt, and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/EncryptedMetadataIndexService.kt
+- [x] T003 [P] Inventory exact-match and partial-search fields in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq, feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/PasskeyCredential.sq, feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/UserConsentRecord.sq, and feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/RelyingParty.sq
+- [x] T004 [P] Inventory AES-GCM and key-boundary implementations in core/common/src/androidMain/kotlin/com/chimali/core/common/datastore/EncryptionWrapper.kt, feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt, feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2SettingsRepositoryImpl.kt, and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CredentialEncryptionService.kt
 
 ---
 
@@ -25,12 +25,12 @@
 
 **Critical**: No user story implementation should begin until these tasks are complete.
 
-- [ ] T005 Create the searchable metadata field classification table in docs/research/aes-siv-removal-analysis.md covering exact-match lookup tokens, encrypted metadata values, SQLCipher-only display fields, and deprecated plaintext columns
-- [ ] T006 Create the AES-SIV removal changelog stub in docs/changelogs/2026-05-20-aes-siv-removal.md with sections for constitution, storage migration, cleanup, and verification
-- [ ] T007 [P] Define lookup-token naming, versioning, and domain-separation constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/MetadataLookupTokenService.kt
-- [ ] T008 [P] Define encrypted metadata envelope naming, associated-data rules, and format version constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/EncryptedMetadataService.kt
-- [ ] T009 [P] Define key-wrapping review terms and platform-backed AEAD requirements in core/security/src/commonMain/kotlin/com/chimali/core/security/api/KeyWrappingPolicy.kt
-- [ ] T010 Validate that foundational docs and APIs do not leave unresolved AES-SIV policy conflicts in .specify/memory/constitution.md, docs/brd.md, docs/trd.md, and core/security/src/commonMain/kotlin/com/chimali/core/security/api/KeyWrappingPolicy.kt
+- [x] T005 Create the searchable metadata field classification table in docs/research/aes-siv-removal-analysis.md covering exact-match lookup tokens, encrypted metadata values, SQLCipher-only display fields, and deprecated plaintext columns
+- [x] T006 Create the AES-SIV removal changelog stub in docs/changelogs/2026-05-20-aes-siv-removal.md with sections for constitution, storage migration, cleanup, and verification
+- [x] T007 [P] Define lookup-token naming, versioning, and domain-separation constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/MetadataLookupTokenService.kt
+- [x] T008 [P] Define encrypted metadata envelope naming, associated-data rules, and format version constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/EncryptedMetadataService.kt
+- [x] T009 [P] Define key-wrapping review terms and platform-backed AEAD requirements in core/security/src/commonMain/kotlin/com/chimali/core/security/api/KeyWrappingPolicy.kt
+- [x] T010 Validate that foundational docs and APIs do not leave unresolved AES-SIV policy conflicts in .specify/memory/constitution.md, docs/brd.md, docs/trd.md, and core/security/src/commonMain/kotlin/com/chimali/core/security/api/KeyWrappingPolicy.kt
 
 **Checkpoint**: Foundation ready - policy, token, envelope, and key-wrapping terminology are stable enough for user story work.
 
@@ -44,18 +44,18 @@
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Add a policy review checklist for zero mandatory AES-SIV, lookup-token replacement, SQLCipher display exceptions, and AEAD key wrapping in specs/048-remove-aes-siv/checklists/security-policy.md
-- [ ] T012 [P] [US1] Add grep-based policy validation commands for AES-SIV, deterministic GCM nonce misuse, key wrapping, and Bouncy Castle scope in specs/048-remove-aes-siv/quickstart.md
+- [x] T011 [P] [US1] Add a policy review checklist for zero mandatory AES-SIV, lookup-token replacement, SQLCipher display exceptions, and AEAD key wrapping in specs/048-remove-aes-siv/checklists/security-policy.md
+- [x] T012 [P] [US1] Add grep-based policy validation commands for AES-SIV, deterministic GCM nonce misuse, key wrapping, and Bouncy Castle scope in specs/048-remove-aes-siv/quickstart.md
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Amend Principle I in .specify/memory/constitution.md to remove mandatory AES-256-SIV and require deterministic keyed lookup tokens plus authenticated encrypted values for searchable metadata
-- [ ] T014 [US1] Amend key-wrapping language in .specify/memory/constitution.md to require platform-backed AES-GCM/AEAD with unique nonces and associated data instead of AES-SIV
-- [ ] T015 [US1] Amend SQL indexing guidance in .specify/memory/constitution.md to replace deterministic ciphertext guidance with keyed lookup-token and SQLCipher display-field guidance
-- [ ] T016 [US1] Update NFR-SEC-010 in docs/brd.md to describe AES-GCM/AEAD value encryption, keyed lookup tokens, SQLCipher display exceptions, and non-SIV Bouncy Castle scope
-- [ ] T017 [US1] Update the security technology section in docs/trd.md to replace AES-SIV searchable metadata with keyed lookup tokens and platform-backed AEAD key wrapping
-- [ ] T018 [US1] Update docs/research/AES_SIV_vs_GCM_Evaluation.md so current guidance no longer recommends AES-SIV as the mandatory searchable-metadata or key-wrapping primitive
-- [ ] T019 [US1] Complete the policy-change entry in docs/changelogs/2026-05-20-aes-siv-removal.md with constitution, BRD/TRD, and research-reference changes
+- [x] T013 [US1] Amend Principle I in .specify/memory/constitution.md to remove mandatory AES-256-SIV and require deterministic keyed lookup tokens plus authenticated encrypted values for searchable metadata
+- [x] T014 [US1] Amend key-wrapping language in .specify/memory/constitution.md to require platform-backed AES-GCM/AEAD with unique nonces and associated data instead of AES-SIV
+- [x] T015 [US1] Amend SQL indexing guidance in .specify/memory/constitution.md to replace deterministic ciphertext guidance with keyed lookup-token and SQLCipher display-field guidance
+- [x] T016 [US1] Update NFR-SEC-010 in docs/brd.md to describe AES-GCM/AEAD value encryption, keyed lookup tokens, SQLCipher display exceptions, and non-SIV Bouncy Castle scope
+- [x] T017 [US1] Update the security technology section in docs/trd.md to replace AES-SIV searchable metadata with keyed lookup tokens and platform-backed AEAD key wrapping
+- [x] T018 [US1] Update docs/research/AES_SIV_vs_GCM_Evaluation.md so current guidance no longer recommends AES-SIV as the mandatory searchable-metadata or key-wrapping primitive
+- [x] T019 [US1] Complete the policy-change entry in docs/changelogs/2026-05-20-aes-siv-removal.md with constitution, BRD/TRD, and research-reference changes
 
 **Checkpoint**: User Story 1 is independently reviewable and unblocks code removal by resolving the constitution conflict.
 
@@ -69,29 +69,29 @@
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Add deterministic lookup-token tests for same input, different domain, versioning, and non-reversibility in core/security/src/test/kotlin/com/chimali/core/security/impl/HmacMetadataLookupTokenServiceTest.kt
-- [ ] T021 [P] [US2] Add encrypted metadata tamper and associated-data tests in core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt
-- [ ] T021a [US2] Implement tamper detection and rejection logic in AesGcmEncryptedMetadataService with constant-time MAC verification and explicit error propagation for failed authentication
-- [ ] T022 [P] [US2] Add FIDO2 SQLDelight migration tests for legacy credential and consent rows in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationTest.kt
-- [ ] T023 [P] [US2] Add credential repository lookup and partial-search regression tests in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositorySearchableMetadataTest.kt
-- [ ] T024 [P] [US2] Add DAO exact-match token query tests in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/dao/SearchableMetadataDaoTest.kt
+- [x] T020 [P] [US2] Add deterministic lookup-token tests for same input, different domain, versioning, and non-reversibility in core/security/src/test/kotlin/com/chimali/core/security/impl/HmacMetadataLookupTokenServiceTest.kt
+- [x] T021 [P] [US2] Add encrypted metadata tamper and associated-data tests in core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt
+- [x] T021a [US2] Implement tamper detection and rejection logic in AesGcmEncryptedMetadataService with constant-time MAC verification and explicit error propagation for failed authentication
+- [x] T022 [P] [US2] Add FIDO2 SQLDelight migration tests for legacy credential and consent rows in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationTest.kt
+- [x] T023 [P] [US2] Add credential repository lookup and partial-search regression tests in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositorySearchableMetadataTest.kt
+- [x] T024 [P] [US2] Add DAO exact-match token query tests in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/dao/SearchableMetadataDaoTest.kt
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Implement HMAC-based lookup-token derivation in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/HmacMetadataLookupTokenService.kt
-- [ ] T026 [US2] Implement AES-GCM encrypted metadata envelopes with associated data in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataService.kt
-- [ ] T027 [US2] Register lookup-token and encrypted-metadata services in core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt
-- [ ] T028 [US2] Add lookup-token and encrypted-metadata columns plus indexes to feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq
-- [ ] T029 [US2] Add the resumable SQLDelight migration for lookup tokens, encrypted metadata, and display-field retention in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database/12.sqm
-- [ ] T030 [US2] Update credential exact-match queries to use lookup-token columns while keeping partial display search on classified SQLCipher fields in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/PasskeyCredential.sq
-- [ ] T031 [US2] Update user consent RP exact-match queries to use lookup-token columns in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/UserConsentRecord.sq
-- [ ] T032 [US2] Update relying-party search/query behavior and display-field classification in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/RelyingParty.sq
-- [ ] T033 [US2] Create FIDO2 metadata protection orchestration in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/CredentialMetadataProtectionService.kt
-- [ ] T034 [US2] Update PasskeyCredentialDao writes and exact-match reads to persist and query lookup-token fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDao.kt
-- [ ] T035 [US2] Update UserConsentRecordDao writes and exact-match reads to persist and query RP lookup-token fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/UserConsentRecordDao.kt
-- [ ] T036 [US2] Update EntityMappers to hydrate domain models from encrypted metadata while preserving SQLCipher-only display fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/mapper/EntityMappers.kt
-- [ ] T037 [US2] Update CredentialRepositoryImpl search, duplicate-check, and credential-selection paths to use lookup-token services for exact matches in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt
-- [ ] T038 [US2] Update RelyingPartyRepositoryImpl and RelyingPartyDao integration for display-field partial search and lookup-token exact matching in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/RelyingPartyRepositoryImpl.kt and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/RelyingPartyDao.kt
+- [x] T025 [US2] Implement HMAC-based lookup-token derivation in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/HmacMetadataLookupTokenService.kt
+- [x] T026 [US2] Implement AES-GCM encrypted metadata envelopes with associated data in core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataService.kt
+- [x] T027 [US2] Register lookup-token and encrypted-metadata services in core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt
+- [x] T028 [US2] Add lookup-token and encrypted-metadata columns plus indexes to feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database.sq
+- [x] T029 [US2] Add the resumable SQLDelight migration for lookup tokens, encrypted metadata, and display-field retention in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/Fido2Database/12.sqm
+- [x] T030 [US2] Update credential exact-match queries to use lookup-token columns while keeping partial display search on classified SQLCipher fields in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/PasskeyCredential.sq
+- [x] T031 [US2] Update user consent RP exact-match queries to use lookup-token columns in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/UserConsentRecord.sq
+- [x] T032 [US2] Update relying-party search/query behavior and display-field classification in feature/fido2/src/commonMain/sqldelight/com/chimali/fido2/data/database/RelyingParty.sq
+- [x] T033 [US2] Create FIDO2 metadata protection orchestration in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/CredentialMetadataProtectionService.kt
+- [x] T034 [US2] Update PasskeyCredentialDao writes and exact-match reads to persist and query lookup-token fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/PasskeyCredentialDao.kt
+- [x] T035 [US2] Update UserConsentRecordDao writes and exact-match reads to persist and query RP lookup-token fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/UserConsentRecordDao.kt
+- [x] T036 [US2] Update EntityMappers to hydrate domain models from encrypted metadata while preserving SQLCipher-only display fields in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/mapper/EntityMappers.kt
+- [x] T037 [US2] Update CredentialRepositoryImpl search, duplicate-check, and credential-selection paths to use lookup-token services for exact matches in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt
+- [x] T038 [US2] Update RelyingPartyRepositoryImpl and RelyingPartyDao integration for display-field partial search and lookup-token exact matching in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/RelyingPartyRepositoryImpl.kt and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/RelyingPartyDao.kt
 
 **Checkpoint**: User Story 2 preserves supported lookup/search behavior without AES-SIV.
 
@@ -105,18 +105,18 @@
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] Add or update security DI tests proving no SivEncryptionManager binding remains in core/security/src/androidHostTest/kotlin/com/chimali/core/security/di/SecurityModuleTest.kt
-- [ ] T040 [P] [US3] Add repository/service regression coverage proving EncryptedMetadataIndexService is not required in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImplTest.kt
+- [x] T039 [P] [US3] Add or update security DI tests proving no SivEncryptionManager binding remains in core/security/src/androidHostTest/kotlin/com/chimali/core/security/di/SecurityModuleTest.kt
+- [x] T040 [P] [US3] Add repository/service regression coverage proving EncryptedMetadataIndexService is not required in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImplTest.kt
 
 ### Implementation for User Story 3
 
-- [ ] T041 [US3] Remove the AES-SIV public API file core/security/src/commonMain/kotlin/com/chimali/core/security/api/SivEncryptionManager.kt after callers are migrated
-- [ ] T042 [US3] Remove the AES-SIV implementation file core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt after callers are migrated
-- [ ] T043 [US3] Remove AES-SIV DI comments and bindings from core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt
-- [ ] T044 [US3] Remove the unused AES-SIV metadata index service file feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/EncryptedMetadataIndexService.kt after lookup-token service is active
-- [ ] T045 [US3] Update core/security/build.gradle.kts so Bouncy Castle comments no longer claim the dependency is retained only for AES-SIV
-- [ ] T046 [US3] Update app/src/main/kotlin/com/chimali/ChimaliApplication.kt and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/performance/WarmUpHelper.kt comments to classify remaining Bouncy Castle usage as non-SIV
-- [ ] T047 [US3] Update historical-reference notes in docs/changelogs/2026-04-03-fido2-cryptographic-and-transport-hardening.md and docs/changelogs/2026-05-20-proto-datastore-migration.md so they are clearly historical, not current policy
+- [x] T041 [US3] Remove the AES-SIV public API file core/security/src/commonMain/kotlin/com/chimali/core/security/api/SivEncryptionManager.kt after callers are migrated
+- [x] T042 [US3] Remove the AES-SIV implementation file core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesSivEncryptionManager.kt after callers are migrated
+- [x] T043 [US3] Remove AES-SIV DI comments and bindings from core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt
+- [x] T044 [US3] Remove the unused AES-SIV metadata index service file feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/EncryptedMetadataIndexService.kt after lookup-token service is active
+- [x] T045 [US3] Update core/security/build.gradle.kts so Bouncy Castle comments no longer claim the dependency is retained only for AES-SIV
+- [x] T046 [US3] Update app/src/main/kotlin/com/chimali/ChimaliApplication.kt and feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/performance/WarmUpHelper.kt comments to classify remaining Bouncy Castle usage as non-SIV
+- [x] T047 [US3] Update historical-reference notes in docs/changelogs/2026-04-03-fido2-cryptographic-and-transport-hardening.md and docs/changelogs/2026-05-20-proto-datastore-migration.md so they are clearly historical, not current policy
 
 **Checkpoint**: User Story 3 leaves no active AES-SIV production surface while preserving non-SIV Bouncy Castle paths.
 
@@ -130,17 +130,17 @@
 
 ### Tests for User Story 4
 
-- [ ] T048 [P] [US4] Add seeded legacy migration coverage for interrupted and re-run migration paths in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationTest.kt
-- [ ] T049 [P] [US4] Add tampered encrypted metadata rejection coverage for repository hydration in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositorySearchableMetadataTest.kt
-- [ ] T050 [P] [US4] Add 10,000-record exact-match lookup performance coverage in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/integration/SearchableMetadataPerformanceTest.kt
-- [ ] T051 [P] [US4] Add FIDO2 registration/authentication regression coverage using migrated records in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt
+- [x] T048 [P] [US4] Add seeded legacy migration coverage for interrupted and re-run migration paths in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationTest.kt
+- [x] T049 [P] [US4] Add tampered encrypted metadata rejection coverage for repository hydration in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositorySearchableMetadataTest.kt
+- [x] T050 [P] [US4] Add 10,000-record exact-match lookup performance coverage in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/integration/SearchableMetadataPerformanceTest.kt
+- [x] T051 [P] [US4] Add FIDO2 registration/authentication regression coverage using migrated records in feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/integration/RegistrationAuthenticationDataIntegrationTest.kt
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] Add migration state reporting and retry handling for searchable metadata migration in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationState.kt
-- [ ] T053 [US4] Add security-review evidence commands and expected outputs to specs/048-remove-aes-siv/quickstart.md
-- [ ] T054 [US4] Run focused host tests for security, DAO, repository, migration, and integration coverage using feature/fido2/build.gradle.kts
-- [ ] T055 [US4] Run the final local quality gate using tools/local-ci.ps1
+- [x] T052 [US4] Add migration state reporting and retry handling for searchable metadata migration in feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/database/SearchableMetadataMigrationState.kt
+- [x] T053 [US4] Add security-review evidence commands and expected outputs to specs/048-remove-aes-siv/quickstart.md
+- [x] T054 [US4] Run focused host tests for security, DAO, repository, migration, and integration coverage using feature/fido2/build.gradle.kts
+- [x] T055 [US4] Run the final local quality gate using tools/local-ci.ps1
 
 **Checkpoint**: User Story 4 provides the final evidence required by the feature success criteria.
 
@@ -150,10 +150,10 @@
 
 **Purpose**: Finish consistency, traceability, and cleanup after the user stories are implemented.
 
-- [ ] T056 [P] Update specs/048-remove-aes-siv/quickstart.md with final command results and any renamed validation commands
-- [ ] T057 [P] Update specs/048-remove-aes-siv/contracts/security-policy-contract.md and specs/048-remove-aes-siv/contracts/metadata-lookup-contract.md if implementation names differ from design names
-- [ ] T058 Run final AES-SIV and deterministic-GCM search validation across .specify/memory/constitution.md, docs/brd.md, docs/trd.md, core/security, feature/fido2, app, and specs/048-remove-aes-siv
-- [ ] T059 Complete docs/changelogs/2026-05-20-aes-siv-removal.md with test evidence, remaining non-SIV Bouncy Castle scope, and local CI status
+- [x] T056 [P] Update specs/048-remove-aes-siv/quickstart.md with final command results and any renamed validation commands
+- [x] T057 [P] Update specs/048-remove-aes-siv/contracts/security-policy-contract.md and specs/048-remove-aes-siv/contracts/metadata-lookup-contract.md if implementation names differ from design names
+- [x] T058 Run final AES-SIV and deterministic-GCM search validation across .specify/memory/constitution.md, docs/brd.md, docs/trd.md, core/security, feature/fido2, app, and specs/048-remove-aes-siv
+- [x] T059 Complete docs/changelogs/2026-05-20-aes-siv-removal.md with test evidence, remaining non-SIV Bouncy Castle scope, and local CI status
 
 ---
 

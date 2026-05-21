@@ -34,9 +34,8 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.biometric)
-            // BouncyCastle — retained in androidMain ONLY for AES-SIV
-            // and legacy key wrapping requirements (Constitution §I.2)
-            // (no KMP-native AES-SIV alternative available in Signum 3.20.0)
+            // BouncyCastle — retained for non-SIV usages (HDK, PQC, etc.)
+            // as its removal is out of scope for this specific feature.
             implementation(libs.bouncycastle.provider)
             implementation(libs.androidx.security.crypto)
         }

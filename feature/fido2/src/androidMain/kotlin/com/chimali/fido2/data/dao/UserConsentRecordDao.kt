@@ -5,6 +5,7 @@ import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.User_consent_record as UserConsentRecordEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
@@ -16,11 +17,13 @@ import org.koin.core.annotation.Single
 @Single
 class UserConsentRecordDao(
     private val database: Fido2Database,
+    private val metadataProtectionService: CredentialMetadataProtectionService,
 ) {
     /**
      * Inserts a new consent record into the database.
      */
     fun insertConsent(consent: UserConsentRecord) {
+        val rpIdIndex = metadataProtectionService.getRpIdIndex(consent.rpId.value)
         database.userConsentRecordQueries.insert(
             id = consent.id,
             timestamp = consent.timestamp.toEpochMilliseconds(),
@@ -32,6 +35,7 @@ class UserConsentRecordDao(
             pin_used = if (consent.isPinUsed) 1L else 0L,
             rp_id = consent.rpId.value,
             user_agent = consent.userAgent,
+            rp_id_index = rpIdIndex,
         )
     }
 
@@ -43,9 +47,10 @@ class UserConsentRecordDao(
         limit: Int,
     ): Flow<List<UserConsentRecordEntity>> =
         if (rpId != null) {
+            val rpIdIndex = metadataProtectionService.getRpIdIndex(rpId.value)
             database.userConsentRecordQueries
                 .select_recent_by_rp_id(
-                    rp_id = rpId.value,
+                    rp_id_index = rpIdIndex,
                     limit = limit.toLong(),
                 ).asFlow()
                 .map { query -> query.executeAsList() }

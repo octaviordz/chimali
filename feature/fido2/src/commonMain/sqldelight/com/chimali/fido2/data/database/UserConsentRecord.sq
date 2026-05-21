@@ -1,12 +1,15 @@
 insert:
-INSERT INTO user_consent_record (id, timestamp, biometric_used, credential_id, device_id, ip_address, operation_type, pin_used, rp_id, user_agent)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO user_consent_record (id, timestamp, biometric_used, credential_id, device_id, ip_address, operation_type, pin_used, rp_id, user_agent, rp_id_index)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+update_rp_id_index:
+UPDATE user_consent_record SET rp_id_index = ? WHERE id = ?;
 
 select_by_id:
 SELECT * FROM user_consent_record WHERE id = ?;
 
 select_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = ? ORDER BY timestamp DESC LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id_index = ? ORDER BY timestamp DESC LIMIT :limit;
 
 select_by_operation_type:
 SELECT * FROM user_consent_record WHERE operation_type = ? ORDER BY timestamp DESC LIMIT :limit;
@@ -15,19 +18,19 @@ select_all:
 SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
 
 get_summary_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = ?;
+SELECT * FROM user_consent_record WHERE rp_id_index = ?;
 
 delete_by_id:
 DELETE FROM user_consent_record WHERE id = ?;
 
 delete_by_rp_id:
-DELETE FROM user_consent_record WHERE rp_id = ?;
+DELETE FROM user_consent_record WHERE rp_id_index = ?;
 
 delete_older_than:
 DELETE FROM user_consent_record WHERE timestamp < ?;
 
 select_recent_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = :rp_id ORDER BY timestamp DESC LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id_index = :rp_id_index ORDER BY timestamp DESC LIMIT :limit;
 
 select_recent:
 SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
@@ -36,34 +39,34 @@ select_by_credential_id:
 SELECT * FROM user_consent_record WHERE credential_id = :credential_id ORDER BY timestamp DESC LIMIT :limit;
 
 select_by_operation_and_rp_id:
-SELECT * FROM user_consent_record WHERE operation_type = :operation_type AND rp_id = :rp_id ORDER BY timestamp DESC LIMIT :limit;
+SELECT * FROM user_consent_record WHERE operation_type = :operation_type AND rp_id_index = :rp_id_index ORDER BY timestamp DESC LIMIT :limit;
 
 select_by_date_range_and_rp_id:
-SELECT * FROM user_consent_record WHERE timestamp >= :start AND timestamp <= :end AND rp_id = :rp_id;
+SELECT * FROM user_consent_record WHERE timestamp >= :start AND timestamp <= :end AND rp_id_index = :rp_id_index;
 
 select_by_date_range:
 SELECT * FROM user_consent_record WHERE timestamp >= :start AND timestamp <= :end;
 
 select_by_device_id:
-SELECT * FROM user_consent_record WHERE rp_id = :device_id LIMIT :limit;
+SELECT * FROM user_consent_record WHERE device_id = :device_id LIMIT :limit;
 
 select_by_ip_address:
-SELECT * FROM user_consent_record WHERE rp_id = :ip_address LIMIT :limit;
+SELECT * FROM user_consent_record WHERE ip_address = :ip_address LIMIT :limit;
 
 select_biometric_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id_index = :rp_id_index AND biometric_used > 0 LIMIT :limit;
 
 select_biometric:
 SELECT * FROM user_consent_record WHERE biometric_used > 0 LIMIT :limit;
 
 select_pin_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND pin_used > 0 LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id_index = :rp_id_index AND pin_used > 0 LIMIT :limit;
 
 select_pin:
 SELECT * FROM user_consent_record WHERE pin_used > 0 LIMIT :limit;
 
 select_combined_by_rp_id:
-SELECT * FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 AND pin_used > 0 LIMIT :limit;
+SELECT * FROM user_consent_record WHERE rp_id_index = :rp_id_index AND biometric_used > 0 AND pin_used > 0 LIMIT :limit;
 
 select_combined:
 SELECT * FROM user_consent_record WHERE biometric_used > 0 AND pin_used > 0 LIMIT :limit;
@@ -84,7 +87,7 @@ delete_by_credential_id:
 DELETE FROM user_consent_record WHERE credential_id = :credential_id;
 
 delete_by_device_id:
-DELETE FROM user_consent_record WHERE rp_id = :device_id;
+DELETE FROM user_consent_record WHERE device_id = :device_id;
 
 count_all:
 SELECT count(*) FROM user_consent_record;
@@ -93,25 +96,25 @@ count_by_operation_type:
 SELECT count(*) FROM user_consent_record WHERE operation_type = :operation_type;
 
 count_by_rp_id:
-SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id;
+SELECT count(*) FROM user_consent_record WHERE rp_id_index = :rp_id_index;
 
 count_by_credential_id:
 SELECT count(*) FROM user_consent_record WHERE credential_id = :credential_id;
 
 count_biometric_by_rp_id:
-SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0;
+SELECT count(*) FROM user_consent_record WHERE rp_id_index = :rp_id_index AND biometric_used > 0;
 
 count_biometric:
 SELECT count(*) FROM user_consent_record WHERE biometric_used > 0;
 
 count_pin_by_rp_id:
-SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND pin_used > 0;
+SELECT count(*) FROM user_consent_record WHERE rp_id_index = :rp_id_index AND pin_used > 0;
 
 count_pin:
 SELECT count(*) FROM user_consent_record WHERE pin_used > 0;
 
 count_combined_by_rp_id:
-SELECT count(*) FROM user_consent_record WHERE rp_id = :rp_id AND biometric_used > 0 AND pin_used > 0;
+SELECT count(*) FROM user_consent_record WHERE rp_id_index = :rp_id_index AND biometric_used > 0 AND pin_used > 0;
 
 count_combined:
 SELECT count(*) FROM user_consent_record WHERE biometric_used > 0 AND pin_used > 0;
@@ -123,10 +126,10 @@ get_statistics_by_operation:
 SELECT operation_type, count(*) FROM user_consent_record GROUP BY operation_type;
 
 get_statistics_by_rp_id:
-SELECT rp_id, count(*) FROM user_consent_record GROUP BY rp_id LIMIT :limit;
+SELECT rp_id_index, count(*) FROM user_consent_record GROUP BY rp_id_index LIMIT :limit;
 
 changes:
 SELECT changes();
 
 count_by_operation_and_rp_id:
-SELECT count(*) FROM user_consent_record WHERE operation_type = :operation_type AND rp_id = :rp_id;
+SELECT count(*) FROM user_consent_record WHERE operation_type = :operation_type AND rp_id_index = :rp_id_index;

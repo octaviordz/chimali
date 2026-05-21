@@ -59,8 +59,9 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 
 ## 5. Non-Functional Requirements (Technical Standards)
 ### 5.1 Encryption Standards (NFR-SEC-010)
-- **Classical**: AES-256-GCM (Hardware accelerated) for large blobs.
-- **Searchable Metadata**: AES-256-SIV (nonce-misuse resistant).
+- **Classical**: AES-256-GCM (Hardware accelerated) for payloads and encrypted metadata values.
+- **Searchable Metadata**: HMAC-SHA-256 blind indexes for deterministic exact-match lookup tokens.
+- **Key Wrapping**: Platform-backed AES-GCM/AEAD with unique nonces and associated data.
 - **Post-Quantum KEM**: ML-KEM-768 reserved for future remote key provisioning (via BouncyCastle 1.80+). Not used for data encryption.
 
 ### 5.2 Signature Schemes (NFR-SEC-040)

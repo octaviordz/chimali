@@ -159,6 +159,15 @@ Where:
 - `rp_id_index`, `user_id_index`, and `label_index` are HMAC outputs using a dedicated index key.
 - The index key is derived separately from the master seed using HKDF or HMAC with clear domain separation. Do not reuse the AES-GCM key as an HMAC index key.
 
+### Searchable Metadata Field Classification
+
+| Field Type | Protection Mechanism | Example Fields | Search Capability | Retention |
+|---|---|---|---|---|
+| **Lookup Token** | HMAC blind index | `rp_id_index`, `user_id_index`, `consent_rp_id_index` | Exact-match only (`=`) | Persistent |
+| **Encrypted Value** | AES-256-GCM (random IV) | `encrypted_metadata` blob (JSON or CBOR) | None (must decrypt first) | Persistent |
+| **Display Field** | SQLCipher (file-level) | `user_name`, `user_display_name`, `label` | Partial text search (`LIKE`) | Staged for future UX review |
+| **Plaintext Column** | None (Deprecated) | `rp_id`, `user_id` | Full SQL queries | Dropped in migration |
+
 ### Query model
 
 For exact lookup:

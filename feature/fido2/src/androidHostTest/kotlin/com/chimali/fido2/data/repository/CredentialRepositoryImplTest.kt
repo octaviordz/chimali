@@ -19,6 +19,7 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import java.security.KeyPairGenerator
@@ -70,6 +71,11 @@ class CredentialRepositoryImplTest {
                 mockk {
                     coEvery { execute(any(), any()) } returns Result.success(mockk(relaxed = true))
                 }
+            val metadataProtectionService: com.chimali.fido2.data.service.CredentialMetadataProtectionService =
+                mockk(relaxed = true) {
+                    every { decryptMetadata(any<ByteArray>(), any<String>()) } returns
+                        """{"rpId":"https://example.com","userId":"user123"}"""
+                }
             repository =
                 CredentialRepositoryImpl(
                     passkeyCredentialDao,
@@ -80,6 +86,7 @@ class CredentialRepositoryImplTest {
                     corruptedKeyRepairWorker,
                     timeProvider,
                     aggregateService,
+                    metadataProtectionService,
                     UnconfinedTestDispatcher(),
                 )
 
@@ -123,6 +130,9 @@ class CredentialRepositoryImplTest {
                     user_display_name = "Test User",
                     user_id = "user123",
                     user_name = "testuser",
+                    rp_id_index = "rp:https://example.com".toByteArray(),
+                    user_id_index = "user:user123".toByteArray(),
+                    encrypted_metadata = byteArrayOf(1, 2, 3),
                 )
 
             testRp =

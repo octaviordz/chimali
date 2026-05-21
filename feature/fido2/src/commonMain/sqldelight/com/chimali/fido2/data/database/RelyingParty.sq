@@ -1,16 +1,17 @@
 insert:
-INSERT INTO relying_party (id, created_at, last_used_at, credential_count, icon_url, is_blocked, name)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO relying_party (id, created_at, last_used_at, credential_count, icon_url, is_blocked, name, encrypted_metadata)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   last_used_at = excluded.last_used_at,
   credential_count = excluded.credential_count,
   icon_url = excluded.icon_url,
   is_blocked = excluded.is_blocked,
-  name = excluded.name;
+  name = excluded.name,
+  encrypted_metadata = excluded.encrypted_metadata;
 
 update:
 UPDATE relying_party
-SET last_used_at = ?, credential_count = ?, icon_url = ?, is_blocked = ?, name = ?
+SET last_used_at = ?, credential_count = ?, icon_url = ?, is_blocked = ?, name = ?, encrypted_metadata = ?
 WHERE id = ?;
 
 select_by_id:

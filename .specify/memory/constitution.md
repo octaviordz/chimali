@@ -1,10 +1,9 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.14.0 → 0.14.1
+- Version change: 0.14.1 → 0.15.0
 - List of modified principles:
-  - I. Security First (Zero-Trust Local-First) — generalized encrypted preferences, removed deprecated EncryptedSharedPreferences
-  - II. Master Seed Architecture — generalized encrypted preferences
-  - X.7 Anti-Patterns & Prohibited Practices — generalized encrypted preferences
+  - I. Security First (Zero-Trust Local-First) — Replaced AES-SIV mandate with deterministic lookup tokens and platform-backed AEAD key wrapping.
+  - X.3 SQL & Database Guidelines — Updated indexing guidance to reference lookup tokens.
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
@@ -24,8 +23,9 @@ SYNC IMPACT REPORT
 ### I. Security First (Zero-Trust Local-First)
 All sensitive data must be encrypted. The application adheres to a **Multi-Mode Symmetric Encryption Strategy** based on modern Android best practices:
 1. **AES-256-GCM** MUST be used for general payload encryption (files, credential blobs, value storage). This enables Hardware Keystore offloading and safe streaming without memory exhaustion.
-2. **AES-256-SIV** (Synthetic IV) MUST be used for **Searchable Encrypted Metadata** (e.g., database lookup tags, category names) where deterministic ciphertext is required, and for **Key Wrapping** where nonce-misuse resistance is paramount (e.g., within secure key-value stores or master key boundaries).
-3. **SQLCipher (AES-256-CBC)** is explicitly permitted for **SQLite database file-level encryption**. This is a pragmatic exemption: SQLCipher's AES-256-CBC file encryption provides strong data-at-rest protection for Android's encrypted storage layer, which operates at a different abstraction boundary than individual in-flight payload encryption. SQLCipher is configured with a key derived via `PBKDF2-SHA512` from the device's master key. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
+2. **Searchable Encrypted Metadata** MUST NOT be stored as plaintext. Exact-match lookup columns MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes) with explicit domain separation. The underlying metadata value MUST be encrypted with AES-256-GCM or protected by SQLCipher according to the data classification. The misuse of AES-GCM with fixed or reused nonces for deterministic encryption is explicitly prohibited.
+3. **Key Wrapping** MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data.
+4. **SQLCipher (AES-256-CBC)** is explicitly permitted for **SQLite database file-level encryption**. This is a pragmatic exemption: SQLCipher's AES-256-CBC file encryption provides strong data-at-rest protection for Android's encrypted storage layer, which operates at a different abstraction boundary than individual in-flight payload encryption. Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields, not through lookup tokens. SQLCipher is configured with a key derived via `PBKDF2-SHA512` from the device's master key. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
 
 4. **Memory Security (Non-Negotiable)**: Plain-text storage of credentials in persistent or long-lived memory is strictly prohibited. Sensitive data MUST only exist in decrypted form within volatile memory using mutable structures (e.g., `ByteArray`, `CharArray`) and MUST be explicitly zeroed out immediately after use (refer to Principle X.5 for mandatory `try/finally` zeroing patterns).
 
@@ -169,7 +169,7 @@ To ensure a highly maintainable, readable, and performant codebase, the followin
   - Schema changes MUST be backwards-compatible or accompanied by a data migration script. Column drops MUST be staged across two releases (deprecate → drop).
   - All tables MUST include `created_at` and `updated_at` `INTEGER` timestamp columns (Unix epoch milliseconds).
 - **Performance Guidelines**:
-  - Index frequently queried columns and foreign keys. *Note*: Due to SQLCipher encryption, indexing searchable data requires deterministic ciphertext (e.g., AES-256-SIV as defined in Principle I).
+  - Index frequently queried columns and foreign keys. *Note*: Due to SQLCipher encryption, indexing exact-match searchable data requires deterministic keyed lookup tokens (e.g., HMAC blind indexes as defined in Principle I). Partial text search relies on classified SQLCipher-protected display fields.
   - Avoid `SELECT *`. Explicitly select only the required columns to minimize I/O overhead.
   - Run database operations on a dedicated background dispatcher (`Dispatchers.IO`).
   - For bulk inserts or Event Sourcing log appends, ensure they are wrapped in a single transaction to drastically reduce disk I/O and SQLCipher encryption overhead.
@@ -223,4 +223,4 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 - **Performance Targets**: Performance targets defined in Principle IV represent upper bounds. Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient; optimizing for all edge-case devices is explicitly out of scope for initial delivery.
 - **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive but unfinished one. Ship the smallest valuable slice, then iterate.
 
-**Version**: 0.14.1 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-19
+**Version**: 0.15.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-20

@@ -13,18 +13,48 @@ import com.chimali.fido2.data.crypto.PublicKeyDecoder
 import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
 import com.chimali.fido2.data.database.Relying_party as RelyingPartyEntity
 import com.chimali.fido2.data.database.User_consent_record as UserConsentRecordEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.PasskeyCredential
 import java.util.Base64
 import kotlinx.datetime.Instant
 
 fun PasskeyCredentialEntity.toDomainModel(
     decoder: PublicKeyDecoder,
-): Outcome<PasskeyCredential, DomainError.CryptoError> =
-    decoder.decodePublicKey(this.public_key, this.cose_algorithm.toInt()).map { decodedKey ->
+    metadataProtectionService: CredentialMetadataProtectionService,
+): Outcome<PasskeyCredential, DomainError.CryptoError> {
+    val decryptedRpId =
+        if (this.encrypted_metadata != null) {
+            try {
+                val json = metadataProtectionService.decryptMetadata(this.encrypted_metadata, this.rp_id)
+                json.substringAfter("\"rpId\":\"").substringBefore("\"")
+            } catch (
+                @Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception,
+            ) {
+                this.rp_id
+            }
+        } else {
+            this.rp_id
+        }
+
+    val decryptedUserId =
+        if (this.encrypted_metadata != null) {
+            try {
+                val json = metadataProtectionService.decryptMetadata(this.encrypted_metadata, this.rp_id)
+                json.substringAfter("\"userId\":\"").substringBefore("\"")
+            } catch (
+                @Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception,
+            ) {
+                this.user_id
+            }
+        } else {
+            this.user_id
+        }
+
+    return decoder.decodePublicKey(this.public_key, this.cose_algorithm.toInt()).map { decodedKey ->
         PasskeyCredential(
             id = CredentialId.fromEncoded(this.id),
-            rpId = RpId(this.rp_id),
-            userId = UserId(this.user_id),
+            rpId = RpId(decryptedRpId),
+            userId = UserId(decryptedUserId),
             userName = this.user_name,
             userDisplayName = this.user_display_name,
             publicKey = decodedKey,
@@ -41,6 +71,7 @@ fun PasskeyCredentialEntity.toDomainModel(
             label = this.label,
         )
     }
+}
 
 fun RelyingPartyEntity.toDomainModel(): RelyingParty =
     RelyingParty(

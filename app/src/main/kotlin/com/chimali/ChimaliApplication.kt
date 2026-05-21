@@ -22,7 +22,8 @@ class ChimaliApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Register BouncyCastle globally once at application startup (US3 / FR-006).
+        // Register BouncyCastle globally once at application startup for non-SIV
+        // cryptographic capabilities (HDK, PQC, etc.).
         Security.addProvider(BouncyCastleProvider())
 
         // Initialize Koin dependency injection using Koin Annotations compile-time modules (T189).

@@ -20,6 +20,7 @@ import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.mapper.toDomainModel
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -51,6 +52,7 @@ class CredentialRepositoryImpl(
     private val corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker,
     private val timeProvider: TimeProvider,
     private val aggregateService: AggregateService<PasskeyCommand, PasskeyState>,
+    private val metadataProtectionService: CredentialMetadataProtectionService,
     @Named("IoDispatcher") private val ioDispatcher: CoroutineDispatcher,
 ) : CredentialRepository {
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
@@ -121,7 +123,7 @@ class CredentialRepositoryImpl(
     override suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? {
         return try {
             val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-            entity.toDomainModel(publicKeyDecoder).getOrNull()
+            entity.toDomainModel(publicKeyDecoder, metadataProtectionService).getOrNull()
         } catch (e: android.database.SQLException) {
             Logger.e(e) { "CredentialRepository: Failed to get credential by ID: ${credentialId.encoded}" }
             null
@@ -133,7 +135,7 @@ class CredentialRepositoryImpl(
         flow {
             try {
                 passkeyCredentialDao.getCredentialsByRpId(rpId).first().forEach { entity ->
-                    entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                    entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                 }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials by RP ID: ${rpId.value}" }
@@ -144,7 +146,7 @@ class CredentialRepositoryImpl(
         flow {
             try {
                 passkeyCredentialDao.getCredentialsByUserId(userId).first().forEach { entity ->
-                    entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                    entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                 }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials by User ID: ${userId.value}" }
@@ -155,7 +157,7 @@ class CredentialRepositoryImpl(
         flow {
             try {
                 passkeyCredentialDao.getAllCredentials().first().forEach { entity ->
-                    entity.toDomainModel(publicKeyDecoder).onSuccess {
+                    entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess {
                         emit(it)
                     }
                 }
@@ -175,7 +177,7 @@ class CredentialRepositoryImpl(
 
             for (entity in entities) {
                 entity
-                    .toDomainModel(publicKeyDecoder)
+                    .toDomainModel(publicKeyDecoder, metadataProtectionService)
                     .onSuccess { validCredentials.add(it) }
                     .onFailure { corruptedIds.add(CredentialId.fromEncoded(entity.id)) }
             }
@@ -204,7 +206,7 @@ class CredentialRepositoryImpl(
 
             for (entity in entities) {
                 entity
-                    .toDomainModel(publicKeyDecoder)
+                    .toDomainModel(publicKeyDecoder, metadataProtectionService)
                     .onSuccess { validCredentials.add(it) }
                     .onFailure { corruptedIds.add(CredentialId.fromEncoded(entity.id)) }
             }
@@ -328,7 +330,7 @@ class CredentialRepositoryImpl(
             // failing the entire query.
             val credentials =
                 entities.mapNotNull { entity ->
-                    entity.toDomainModel(publicKeyDecoder).getOrNull()
+                    entity.toDomainModel(publicKeyDecoder, metadataProtectionService).getOrNull()
                 }
             Outcome.Success(credentials)
         } catch (e: android.database.SQLException) {
@@ -395,7 +397,7 @@ class CredentialRepositoryImpl(
                     .first()
                     .filter { it.user_name.lowercase().contains(lq) || it.user_display_name.lowercase().contains(lq) }
                     .forEach { entity ->
-                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                        entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                     }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Search failed for query: $query" }
@@ -415,7 +417,7 @@ class CredentialRepositoryImpl(
                                 ?: Instant.fromEpochMilliseconds(entity.created_at)
                         lastUsed < cutoff
                     }.forEach { entity ->
-                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                        entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                     }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get recently unused credentials" }
@@ -430,7 +432,7 @@ class CredentialRepositoryImpl(
                     .first()
                     .filter { false } // Not implemented in current schema
                     .forEach { entity ->
-                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                        entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                     }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get credentials requiring UV" }
@@ -446,7 +448,7 @@ class CredentialRepositoryImpl(
                     .first()
                     .filter { Instant.fromEpochMilliseconds(it.created_at) < cutoff }
                     .forEach { entity ->
-                        entity.toDomainModel(publicKeyDecoder).onSuccess { emit(it) }
+                        entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                     }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "CredentialRepository: Failed to get expired credentials" }

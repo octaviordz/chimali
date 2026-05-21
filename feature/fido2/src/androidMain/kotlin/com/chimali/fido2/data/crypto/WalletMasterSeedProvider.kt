@@ -7,11 +7,13 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.datastore.EncryptionWrapper
 import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.core.security.api.EncryptedMetadataService
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.core.security.api.MetadataLookupTokenService
 import com.chimali.core.security.hdkeys.P256Group
 import java.math.BigInteger
 import javax.crypto.Mac
@@ -58,6 +60,8 @@ class WalletMasterSeedProvider(
     private val hdkManager: HdkManager,
     private val dataStore: DataStore<UserPreferences>,
     private val encryptionWrapper: EncryptionWrapper,
+    private val lookupTokenService: MetadataLookupTokenService,
+    private val encryptedMetadataService: EncryptedMetadataService,
 ) : MasterSeedProvider {
     @Volatile
     private var cachedSeed: ByteArray? = null
@@ -98,6 +102,9 @@ class WalletMasterSeedProvider(
             // is identical across app restarts. A random key pair here was the cause of
             // "Could not verify authentication signature" errors after restart.
             cachedDeviceKeyPair = deriveDeviceKeyPair(bip39Seed)
+
+            // Provision keys for synchronous searchable metadata services
+            provisionSearchableMetadataKeys(bip39Seed)
 
             bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
 
@@ -289,6 +296,9 @@ class WalletMasterSeedProvider(
         cachedDeviceKeyPair = null
         cachedPqChildSeed?.fill(0)
         cachedPqChildSeed = null
+
+        (lookupTokenService as? com.chimali.core.security.impl.HmacMetadataLookupTokenService)?.clearKey()
+        (encryptedMetadataService as? com.chimali.core.security.impl.AesGcmEncryptedMetadataService)?.clearKey()
     }
 
     /**
@@ -369,11 +379,29 @@ class WalletMasterSeedProvider(
         return mac.doFinal(data)
     }
 
+    private fun provisionSearchableMetadataKeys(masterSeed: ByteArray) {
+        val metadataKey = hmacSha512(SEARCHABLE_METADATA_EXPANSION_KEY.toByteArray(Charsets.UTF_8), masterSeed)
+        val symmetricKey = metadataKey.copyOf(METADATA_KEY_SIZE_BYTES)
+
+        // Use reflection or cast to provision the key to the internal services
+        (lookupTokenService as? com.chimali.core.security.impl.HmacMetadataLookupTokenService)?.provisionKey(
+            symmetricKey,
+        )
+        (encryptedMetadataService as? com.chimali.core.security.impl.AesGcmEncryptedMetadataService)?.provisionKey(
+            symmetricKey,
+        )
+
+        metadataKey.fill(0)
+        symmetricKey.fill(0)
+    }
+
     companion object {
         private const val MNEMONIC_WORD_COUNT = 24
         private const val HDK_SEED_SIZE_32 = 32
         private const val P256_SCALAR_SIZE_32 = 32
         private const val PQ_CONTEXT_STRING = "PQ_ML-DSA_Branch"
         private const val PQ_EXPANSION_KEY = "chimali_pq_seed_v1"
+        private const val SEARCHABLE_METADATA_EXPANSION_KEY = "chimali_searchable_metadata_v1"
+        private const val METADATA_KEY_SIZE_BYTES = 32
     }
 }

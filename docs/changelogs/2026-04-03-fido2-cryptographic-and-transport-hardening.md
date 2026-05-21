@@ -10,6 +10,8 @@ This update implements critical security, cryptography, and transport stability 
 ## Changes
 
 ### 1. Cryptography: AES-256-SIV & Searchable Metadata
+> [!NOTE]
+> **Historical Reference**: The AES-256-SIV and `EncryptedMetadataIndexService` implementation described below has been decommissioned as of 2026-05-20. Exact-match searchable metadata has been migrated to keyed HMAC-based lookup tokens (blind indexes), and metadata storage is now protected via AES-GCM envelope encryption.
 - Implemented `AesSivEncryptionManager` to provide AES-256-SIV (Synthetic IV) deterministic authenticated encryption (RFC 5297).
 - Extracted cryptographic constraints indicating AES-256-SIV usage specifically for exact-match database indexing and key wrapping without the risk of nonce-reuse prevalent in high-frequency GCM contexts (T019a).
 - Created `EncryptedMetadataIndexService` (T113a) to encrypt Relying Party (RP) lookup tags and credential aliases. This ensures all database lookup parameters are stored via deterministic ciphertext instead of plaintext, fulfilling **Constitution §I.2**.

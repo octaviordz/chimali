@@ -21,6 +21,7 @@ class PasskeyCredentialDaoTest {
     private lateinit var queries: PasskeyCredentialQueries
     private lateinit var dao: PasskeyCredentialDao
     private lateinit var timeProvider: com.chimali.core.domain.time.TimeProvider
+    private lateinit var metadataProtectionService: com.chimali.fido2.data.service.CredentialMetadataProtectionService
     private lateinit var testCredential: com.chimali.fido2.domain.model.PasskeyCredential
     private lateinit var testEntity: Passkey_credential
     private lateinit var publicKey: java.security.PublicKey
@@ -36,7 +37,15 @@ class PasskeyCredentialDaoTest {
         database = mockk(relaxed = true)
         queries = mockk(relaxed = true)
         timeProvider = mockk(relaxed = true)
-        dao = PasskeyCredentialDao(database, timeProvider)
+        metadataProtectionService =
+            mockk(relaxed = true) {
+                every { getRpIdIndex(any()) } answers { "rp:${firstArg<String>()}".toByteArray() }
+                every { getUserIdIndex(any()) } answers { "user:${firstArg<String>()}".toByteArray() }
+                every { encryptMetadata(any(), any()) } returns byteArrayOf(1, 2, 3)
+                every { encryptRelyingPartyMetadata(any()) } returns byteArrayOf(4, 5, 6)
+                every { decryptMetadata(any(), any()) } returns """{"rpId":"placeholder","userId":"placeholder"}"""
+            }
+        dao = PasskeyCredentialDao(database, timeProvider, metadataProtectionService)
         every { database.passkeyCredentialQueries } returns queries
 
         val keyPairGenerator = KeyPairGenerator.getInstance("EC").apply { initialize(KEY_SIZE_256) }
@@ -82,6 +91,9 @@ class PasskeyCredentialDaoTest {
                 user_display_name = "Test User",
                 user_id = "user123",
                 user_name = "testuser",
+                rp_id_index = "rp:example.com".toByteArray(),
+                user_id_index = "user:user123".toByteArray(),
+                encrypted_metadata = byteArrayOf(1, 2, 3),
             )
     }
 
@@ -116,6 +128,9 @@ class PasskeyCredentialDaoTest {
                         user_display_name = testCredential.userDisplayName,
                         user_id = testCredential.userId.value,
                         user_name = testCredential.userName,
+                        rp_id_index = "rp:example.com".toByteArray(),
+                        user_id_index = "user:user123".toByteArray(),
+                        encrypted_metadata = byteArrayOf(1, 2, 3),
                     )
                 }
             }

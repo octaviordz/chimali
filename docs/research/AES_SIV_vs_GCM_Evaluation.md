@@ -43,12 +43,13 @@ Even on pure cryptographic and architectural merits, an exclusive SIV approach i
 
 ---
 
-## 3. Recommended Best Practices (Hybrid Architecture)
+## 3. Recommended Best Practices (Revised Architecture)
 
-Reflecting broader industry best practices (including the design of Google's Tink and Jetpack Security), the most robust approach avoids a "one-size-fits-all" algorithm and instead uses both for their specific strengths:
+Reflecting broader industry best practices (including the design of Google's Tink and Jetpack Security), the most robust approach avoids a "one-size-fits-all" algorithm but does not require custom cryptographic implementations when platform primitives suffice:
 
-1. **Use AES-256-GCM for General Payloads & Streaming**: File attachments, large blobs, database exports, and general value storage. Ensure strict nonce management using `SecureRandom` 96-bit IVs. This allows for Hardware Keystore offloading and fast streaming.
-2. **Use AES-256-SIV for Searchable Metadata & Key Wrapping**: Encrypting indexing tags, lookup keys in NoSQL/SQLite, or wrapping smaller key material where misuse resistance and determinism are required.
+1. **Use AES-256-GCM for General Payloads, Encrypted Values & Streaming**: File attachments, large blobs, database exports, and encrypted metadata values. Ensure strict nonce management using `SecureRandom` 96-bit IVs. This allows for Hardware Keystore offloading and fast streaming.
+2. **Use HMAC-SHA-256/512 for Searchable Metadata**: Replace deterministic AES-SIV with keyed HMAC blind indexes for exact-match database lookups. This achieves determinism without unsafe AES-GCM nonce reuse or requiring an external SIV implementation.
+3. **Use Platform-Backed AES-GCM/AEAD for Key Wrapping**: Wrapping smaller key material should utilize Android Keystore-backed AES-GCM with unique nonces and associated data, rather than requiring AES-SIV.
 
 > [!NOTE]
-> This evaluation confirms that even without rigid mandates, the current hybrid cryptographic strategy in Chimali aligns with optimal Android security and performance best practices.
+> This evaluation has been updated. The previous recommendation mandated AES-SIV for searchable metadata and key wrapping. The current strategy deprecates AES-SIV in favor of HMAC blind indexes and platform-backed AES-GCM to reduce custom cryptographic surface area and leverage hardware-backed primitives more fully.

@@ -44,29 +44,116 @@
 
 ## Focused Validation Commands
 
+### 1. Verify no AES-SIV production APIs remain in Kotlin sources
+
 ```powershell
-rg -n "AES-256-SIV|AES256_SIV|AesSiv|SivEncryptionManager|EncryptedMetadataIndexService" .specify docs core feature app specs
+rg -n "AesSivEncryptionManager|SivEncryptionManager|EncryptedMetadataIndexService" --type kotlin .specify docs core feature app
+```
+
+**Expected**: No results (all files removed in this feature).
+
+### 2. Verify no deterministic GCM nonce misuse in Kotlin sources
+
+```powershell
+rg -n "fixed nonce|reused nonce|plaintext-derived nonce|deterministic GCM" --type kotlin .specify docs core feature app
+```
+
+**Expected**: No results.
+
+### 3. Verify AES-SIV references in docs are marked historical
+
+```powershell
+rg -n "AES-256-SIV|AES_SIV|AesSiv" docs specs
+```
+
+**Expected**: Only in historical sections of `2026-04-03-fido2-cryptographic-and-transport-hardening.md`, `2026-05-20-proto-datastore-migration.md`, and `specs/048-remove-aes-siv/` documents.
+
+### 4. Verify Bouncy Castle references are classified as non-SIV
+
+```powershell
+rg -n "BouncyCastle|bouncycastle|bouncy.castle" --type kotlin .specify docs core feature app
+```
+
+**Expected**: Any remaining BC references are in HDK/PQC contexts, not AES-SIV contexts.
+
+### 5. Verify lookup-token service is registered in DI
+
+```powershell
+rg -n "MetadataLookupTokenService|EncryptedMetadataService|CredentialMetadataProtectionService" --type kotlin core feature
+```
+
+**Expected**: Services defined in `core/security/src/androidMain/kotlin/com/chimali/core/security/di/SecurityModule.kt` and consumed by `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/service/CredentialMetadataProtectionService.kt`.
+
+### 6. Verify lookup-token columns are present in schema
+
+```powershell
+rg -n "rp_id_index|user_id_index|encrypted_metadata" feature/fido2/src/commonMain/sqldelight
+```
+
+**Expected**: Column definitions in `Fido2Database.sq`, migration in `Fido2Database/12.sqm`, and queries in `PasskeyCredential.sq`, `UserConsentRecord.sq`, `RelyingParty.sq`.
+
+### 7. Run security and migration host tests
+
+```powershell
+.\gradlew :feature:fido2:androidHostTest --tests "com.chimali.fido2.data.database.SearchableMetadataMigrationTest" --no-daemon
 ```
 
 ```powershell
-rg -n "fixed nonce|reused nonce|plaintext-derived nonce|deterministic GCM" .specify docs core feature app specs
+.\gradlew :feature:fido2:androidHostTest --tests "com.chimali.fido2.data.dao.SearchableMetadataDaoTest" --no-daemon
 ```
 
 ```powershell
-rg -n "key wrapping|key-wrapping|master key|master-key|associated data|AAD" .specify docs core feature app specs
+.\gradlew :feature:fido2:androidHostTest --tests "com.chimali.fido2.data.repository.CredentialRepositorySearchableMetadataTest" --no-daemon
 ```
+
+```powershell
+.\gradlew :core:security:test --no-daemon
+```
+
+### 8. Run local CI gate
 
 ```powershell
 .\tools\local-ci.ps1
 ```
 
+**Expected**: All checks pass, exit code 0.
+
+## Final Implementation State
+
+### Services Implemented
+
+| Service | File | Role |
+|---------|------|------|
+| `MetadataLookupTokenService` | `core/security/api/MetadataLookupTokenService.kt` | Lookup token contract |
+| `HmacMetadataLookupTokenService` | `core/security/impl/HmacMetadataLookupTokenService.kt` | HMAC-SHA256 blind index |
+| `EncryptedMetadataService` | `core/security/api/EncryptedMetadataService.kt` | Encrypted metadata contract |
+| `AesGcmEncryptedMetadataService` | `core/security/impl/AesGcmEncryptedMetadataService.kt` | AES-256-GCM envelope |
+| `CredentialMetadataProtectionService` | `feature/fido2/data/service/CredentialMetadataProtectionService.kt` | FIDO2 orchestration |
+| `SearchableMetadataMigrationState` | `feature/fido2/data/database/SearchableMetadataMigrationState.kt` | Backfill migration engine |
+
+### AES-SIV Surface Removed
+
+| File | Action |
+|------|--------|
+| `core/security/api/SivEncryptionManager.kt` | **Deleted** |
+| `core/security/impl/AesSivEncryptionManager.kt` | **Deleted** |
+| `feature/fido2/data/service/EncryptedMetadataIndexService.kt` | **Deleted** |
+
+### Database Schema Changes (Migration 12)
+
+| Table | New Columns | New Indexes |
+|-------|-------------|-------------|
+| `passkey_credential` | `rp_id_index BLOB`, `user_id_index BLOB`, `encrypted_metadata BLOB` | `idx_passkey_credential_rp_id_index`, `idx_passkey_credential_user_id_index` |
+| `relying_party` | `encrypted_metadata BLOB` | — |
+| `user_consent_record` | `rp_id_index BLOB` | `idx_user_consent_record_rp_id_index` |
+
 ## Expected Final State
 
 - The constitution no longer mandates AES-SIV.
-- Exact-match lookup uses deterministic keyed lookup tokens.
-- Partial text search remains on explicitly classified SQLCipher-only display fields.
-- Recoverable metadata values use authenticated encryption with unique nonces.
+- Exact-match lookup uses deterministic keyed HMAC lookup tokens.
+- Partial text search remains on explicitly classified SQLCipher-only display fields (`user_name`, `user_display_name`, `name`).
+- Recoverable metadata values use authenticated AES-256-GCM with unique nonces and associated data.
 - Key wrapping uses platform-backed AES-GCM/AEAD with unique nonces and associated data.
-- AES-SIV production APIs and services are removed or deprecated as compatibility-only.
-- Bouncy Castle remains only for non-SIV paths unless another feature removes it.
+- AES-SIV production APIs and services are removed.
+- Bouncy Castle remains only for non-SIV paths (HDK, PQC).
 - Local CI passes.
