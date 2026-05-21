@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
@@ -41,10 +42,7 @@ const val COSE_ML_DSA_65 = -49
 @Single
 class PostQuantumCrypto {
     init {
-        // On Android, the system provides a crippled "BC" provider that lacks PQC.
-        // We must ensure our BouncyCastle 1.80 provider is used.
-        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
-        Security.insertProviderAt(BouncyCastleProvider(), 1)
+        BouncyCastleLoader.ensureRegistered()
 
         Logger.d {
             val version = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0

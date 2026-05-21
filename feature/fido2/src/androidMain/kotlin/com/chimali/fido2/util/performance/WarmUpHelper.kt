@@ -3,13 +3,12 @@ package com.chimali.fido2.util.performance
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import co.touchlab.kermit.Logger
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyPairGenerator
 import java.security.KeyStore
-import java.security.Security
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 import kotlin.time.TimeSource
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 /**
  * One-shot warm-up utilities run at module initialization to eliminate JIT and
@@ -128,9 +127,9 @@ object WarmUpHelper {
             val mark = TimeSource.Monotonic.markNow()
             Logger.d("BouncyCastle warm-up START")
 
-            val bcProvider =
-                Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)
-                    ?: BouncyCastleProvider()
+            // Ensure our bundled BouncyCastle is registered and takes precedence.
+            val bcProvider = BouncyCastleLoader.ensureRegistered()
+
             val kpg = KeyPairGenerator.getInstance("EC", bcProvider)
             kpg.initialize(ECGenParameterSpec("secp256r1"))
             val ephemeralKeyPair = kpg.generateKeyPair()

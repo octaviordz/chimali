@@ -3,8 +3,8 @@ package com.chimali.fido2.data.crypto
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyPairGenerator
-import java.security.Security
 import java.util.Base64
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -17,8 +17,7 @@ class PublicKeyDecoderTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
-            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
-            Security.insertProviderAt(BouncyCastleProvider(), 1)
+            BouncyCastleLoader.ensureRegistered()
         }
 
         private const val COSE_ALG_ML_DSA_65 = -49

@@ -1,7 +1,7 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyFactory
-import java.security.Security
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import kotlin.test.Test
@@ -25,8 +25,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
  */
 class CborCodecTest {
     init {
-        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
-        Security.insertProviderAt(BouncyCastleProvider(), 1)
+        BouncyCastleLoader.ensureRegistered()
     }
 
     private val codec = CborCodec()
