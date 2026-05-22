@@ -3,6 +3,14 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-21
+
+### Fixed
+- **Domain Quality Improvements**: Removed redundant `toInt()` calls in `PasskeyCommand.Register.hashCode()`.
+- **FIDO2 Build Script & Quality Polish**: Resolved a series of IDE warnings and detekt issues in `:feature:fido2/build.gradle.kts`, including KDoc syntax errors, unused property delegates, and unstable API usage.
+- **Dependency Modernization**: Migrated from deprecated `compose.runtime` to a stable, version-catalog-managed `libs.compose.runtime` dependency.
+- **Detailed changes**: [2026-05-21-fido2-gradle-and-quality-fixes.md](docs/changelogs/2026-05-21-fido2-gradle-and-quality-fixes.md)
+
 ## [Unreleased] - 2026-05-20
 
 ### Changed

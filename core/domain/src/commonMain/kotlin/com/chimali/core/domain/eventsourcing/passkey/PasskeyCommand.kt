@@ -42,7 +42,7 @@ sealed interface PasskeyCommand {
             result = 31 * result + credentialId.contentHashCode()
             result = 31 * result + publicKey.hashCode()
             result = 31 * result + aaguid.hashCode()
-            result = 31 * result + signCount.hashCode().toInt()
+            result = 31 * result + signCount.hashCode()
             return result
         }
     }

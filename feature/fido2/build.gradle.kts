@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+private val androidMainImplementationName = "androidMainImplementation"
+
 sqldelight {
     databases {
         create("Fido2Database") {
@@ -20,14 +22,14 @@ sqldelight {
 // Debug-only devtools: QR scanning + CameraX preview (Android variant only)
 // These use debugImplementation which is unambiguous even in KMP library modules.
 dependencies {
-    add("androidMainImplementation", libs.compose.ui.tooling)
-    add("androidMainImplementation", libs.compose.ui.test.manifest)
-    add("androidMainImplementation", libs.qrose)
-    add("androidMainImplementation", libs.camera.core)
-    add("androidMainImplementation", libs.camera.camera2)
-    add("androidMainImplementation", libs.camera.lifecycle)
-    add("androidMainImplementation", libs.camera.view)
-    add("androidMainImplementation", libs.mlkit.barcode.scanning)
+    add(androidMainImplementationName, libs.compose.ui.tooling)
+    add(androidMainImplementationName, libs.compose.ui.test.manifest)
+    add(androidMainImplementationName, libs.qrose)
+    add(androidMainImplementationName, libs.camera.core)
+    add(androidMainImplementationName, libs.camera.camera2)
+    add(androidMainImplementationName, libs.camera.lifecycle)
+    add(androidMainImplementationName, libs.camera.view)
+    add(androidMainImplementationName, libs.mlkit.barcode.scanning)
 }
 
 kotlin {
@@ -52,6 +54,7 @@ kotlin {
         withHostTest {}
         withDeviceTest {}
 
+        @Suppress("UnstableApiUsage")
         optimization {
             consumerKeepRules.publish = true
             consumerKeepRules.files.add(project.file("proguard-rules.pro"))
@@ -63,7 +66,7 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
-        /**
+        /*
          * commonMain: Platform-agnostic domain layer.
          *
          * Contains:
@@ -79,7 +82,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(project(":core:security"))
-            implementation(compose.runtime)
+            implementation(libs.compose.runtime)
             implementation(libs.koin.core)
             implementation(libs.koin.annotations)
             implementation(libs.kotlinx.coroutines.core)
@@ -96,7 +99,7 @@ kotlin {
             implementation(libs.kmpworkmanager)
         }
 
-        /**
+        /*
          * androidMain: Android platform implementations.
          *
          * Contains all existing src/main code:
@@ -136,16 +139,16 @@ kotlin {
         }
 
         // iosMain: Placeholder — no functional code (T192). actual implementations added in T191+.
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
+        getByName("iosArm64Main")
+        getByName("iosSimulatorArm64Main")
 
-        // commonTest: runs on all targets — uses kotlin-test (not JUnit5 which is JVM-only)
+        // commonTest: runs on all targets — uses kotlin-test (not JUnit5 which is JUnit5-only)
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
 
         // androidUnitTest: JVM-hosted Android unit tests (JUnit5 + MockK + SQLDelight)
-        val androidHostTest by getting {
+        getByName("androidHostTest") {
             dependencies {
                 implementation(libs.junit.jupiter)
                 implementation(libs.junit.jupiter.api)
@@ -161,7 +164,7 @@ kotlin {
         }
 
         // androidDeviceTest: on-device instrumented tests
-        val androidDeviceTest by getting {
+        getByName("androidDeviceTest") {
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.espresso.core)
@@ -181,7 +184,7 @@ dependencies {
     add("kspIosSimulatorArm64", libs.koin.ksp.compiler)
     // Compose BOM: applied here (not inside KMP sourceSets) because
     // platform() inside KMP sourceSets{} is deprecated in Kotlin 2.3 (KT-58759)
-    add("androidMainImplementation", platform(libs.compose.bom))
+    add(androidMainImplementationName, platform(libs.compose.bom))
 }
 
 tasks.withType<Test> {
