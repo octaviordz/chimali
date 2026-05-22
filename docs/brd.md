@@ -138,4 +138,4 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ## 9. Development & Testing Methodology
 - **Test-Driven Development (TDD)**: Implementation should follow TDD principles where feasible to ensure high code quality and reliability.
 - **Integration Testing**: Comprehensive integration tests must be implemented to verify the interaction between components (e.g., Bluetooth HID emulation, Credential Manager, and Encryption layers).
-- **Unit Testing**: 100% coverage of core business logic (encryption, validation).
+- **Unit Testing**: 100% coverage of core business logic (encryption, validation). Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.

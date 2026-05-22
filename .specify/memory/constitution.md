@@ -1,18 +1,15 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.14.1 → 0.15.0
+- Version change: 0.15.0 → 0.16.0
 - List of modified principles:
-  - I. Security First (Zero-Trust Local-First) — Replaced AES-SIV mandate with deterministic lookup tokens and platform-backed AEAD key wrapping.
-  - X.3 SQL & Database Guidelines — Updated indexing guidance to reference lookup tokens.
+  - Development Workflow & Testing — Added KMP-first test placement and Fake test double preference.
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ `.specify/templates/plan-template.md` — No updates needed
-    (Constitution Check section references principles generically)
+  - ✅ `.specify/templates/plan-template.md` — Updated testing example to reference KMP-compatible common tests and Fake test doubles.
   - ✅ `.specify/templates/spec-template.md` — No updates needed
     (scope/requirements sections are technology-agnostic templates)
-  - ✅ `.specify/templates/tasks-template.md` — No updates needed
-    (task categorisation remains compatible)
+  - ✅ `.specify/templates/tasks-template.md` — Updated test task guidance and path conventions.
 - Follow-up TODOs: None
 -->
 
@@ -27,7 +24,7 @@ All sensitive data must be encrypted. The application adheres to a **Multi-Mode 
 3. **Key Wrapping** MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data.
 4. **SQLCipher (AES-256-CBC)** is explicitly permitted for **SQLite database file-level encryption**. This is a pragmatic exemption: SQLCipher's AES-256-CBC file encryption provides strong data-at-rest protection for Android's encrypted storage layer, which operates at a different abstraction boundary than individual in-flight payload encryption. Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields, not through lookup tokens. SQLCipher is configured with a key derived via `PBKDF2-SHA512` from the device's master key. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
 
-4. **Memory Security (Non-Negotiable)**: Plain-text storage of credentials in persistent or long-lived memory is strictly prohibited. Sensitive data MUST only exist in decrypted form within volatile memory using mutable structures (e.g., `ByteArray`, `CharArray`) and MUST be explicitly zeroed out immediately after use (refer to Principle X.5 for mandatory `try/finally` zeroing patterns).
+5. **Memory Security (Non-Negotiable)**: Plain-text storage of credentials in persistent or long-lived memory is strictly prohibited. Sensitive data MUST only exist in decrypted form within volatile memory using mutable structures (e.g., `ByteArray`, `CharArray`) and MUST be explicitly zeroed out immediately after use (refer to Principle X.5 for mandatory `try/finally` zeroing patterns).
 
 ### II. Master Seed Architecture
 The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys are derived using the **Hierarchical Deterministic Key (HDK) function** following **IETF draft-dijkhuis-cfrg-hdkeys-06**. This standardises privacy-preserving elliptic curve key management by eliminating legacy BIP-32 style components (such as separate chain codes) in favour of standard Key Derivation Functions mapping directly to the curve group. The architecture ensures deterministic derivation of classical (ECDSA/Ed25519) and Post-Quantum signature schemes from the single root seed, aligning with modern cryptography guidelines without reliance on mixed BIP-44/BIP-32 patterns.
@@ -82,7 +79,10 @@ All project documentation must be kept up to date and aligned with the codebase 
 
 ## Development Workflow & Testing
 
-- **Development Methodology**: Test-Driven Development (TDD) **MUST** be enforced as the standard engineering methodology. All commits must pass the Local CI pipeline (`tools/local-ci.ps1`). Exemptions are permitted only when a test-first approach is demonstrably unfeasible. 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **kotlin.test** (for KMP common logic), **JUnit 5**, and **MockK**.
+- **Development Methodology**: Test-Driven Development (TDD) **MUST** be enforced as the standard engineering methodology. All commits must pass the Local CI pipeline (`tools/local-ci.ps1`). Exemptions are permitted only when a test-first approach is demonstrably unfeasible.
+- **KMP-Compatible Test Placement**: Platform-neutral business logic, validation, cryptography contracts, and presentation/domain behavior MUST be tested in `commonTest` with **kotlin.test** whenever the production API is available to common source sets. Android/JVM host tests, instrumented tests, and UI tests MAY be used only for platform APIs, SQLCipher/SQLDelight integration, Android framework behavior, hardware boundaries, or source sets that cannot run in `commonTest`.
+- **Test Doubles**: Fake implementations with working test-specific behavior SHOULD be the default test double for repositories, services, data sources, clocks, dispatchers, and platform boundaries because they keep tests lightweight, deterministic, and independent of mocking framework behavior. MockK mocks, stubs, and spies MAY be used when interaction verification is the purpose of the test, when a platform/final type cannot be replaced by a Fake, or when building a Fake would add more complexity than the behavior under test.
+- **Core Coverage**: 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **kotlin.test** for KMP common logic, with **JUnit 5** and **MockK** reserved for justified platform-specific or interaction-focused tests.
 - **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components must be verified using **Compose UI Testing**.
 
 ## Governance
@@ -223,4 +223,4 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 - **Performance Targets**: Performance targets defined in Principle IV represent upper bounds. Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient; optimizing for all edge-case devices is explicitly out of scope for initial delivery.
 - **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive but unfinished one. Ship the smallest valuable slice, then iterate.
 
-**Version**: 0.15.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-20
+**Version**: 0.16.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-22

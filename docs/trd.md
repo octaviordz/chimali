@@ -97,7 +97,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **COSE Algorithms**: [IANA Registry](https://www.iana.org/assignments/cose/cose.xhtml#algorithms)
 
 ## 9. Development & Verification Methodology
-- **TDD Flow**: Use `JUnit 5` and `MockK` for unit tests; `AndroidX Test` for Bluetooth instrumentation.
+- **TDD Flow**: Prefer `commonTest` with `kotlin.test` for platform-neutral Kotlin behavior and Fake test doubles for repositories, services, and platform boundaries. Use `JUnit 5`, `MockK`, and `AndroidX Test` only when platform APIs, interaction verification, or instrumentation are the behavior under test.
 - **Static Analysis**: `Detekt` for architectural rules and `Ktlint` for formatting.
 
 ---
