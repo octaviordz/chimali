@@ -64,6 +64,7 @@ description: "Task list for Onboarding Flow feature implementation"
 - [ ] T014 [US1] Implement OnboardingNavGraph in `feature/onboarding/src/main/kotlin/com/chimali/feature/onboarding/presentation/navigation/OnboardingNavGraph.kt`
 - [ ] T015 [US1] Implement AppDestinations in `app/src/main/kotlin/com/chimali/navigation/AppDestinations.kt`
 - [ ] T016 [US1] Implement AppNavGraph in `app/src/main/kotlin/com/chimali/navigation/AppNavGraph.kt` to route based on `isOnboardingCompleted`
+- [ ] T016b [US1] Handle DataStore `CorruptionException` gracefully in app routing to fallback to first-run onboarding state
 - [ ] T017 [US1] Update `MainActivity.kt` to setContent to `AppNavGraph` instead of Fido2RegistrationNavGraph
 
 **Checkpoint**: At this point, User Story 1 should be fully functional.
@@ -83,7 +84,7 @@ description: "Task list for Onboarding Flow feature implementation"
 ### Implementation for User Story 2
 
 - [ ] T019 [US2] Implement Feature Selection Screen in `feature/onboarding/src/main/kotlin/com/chimali/feature/onboarding/presentation/ui/FeatureSelectionScreen.kt`
-- [ ] T020 [US2] Update `OnboardingViewModel.kt` to save user feature selections to DataStore
+- [ ] T020 [US2] Update `OnboardingViewModel.kt` to save user feature selections to DataStore (ensure last-visited screen state is cleared if downgrading to single-feature)
 - [ ] T021 [US2] Update `AppNavGraph.kt` routing logic to use `vaultEnabled` and `passkeyEnabled` for setting start destination
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
@@ -135,6 +136,7 @@ description: "Task list for Onboarding Flow feature implementation"
 - [ ] T030 Add loading/splash screen logic in `AppNavGraph` while reading DataStore to prevent brief flash of incorrect route
 - [ ] T031 Run static analysis and formatting (`./gradlew detekt ktlintFormat`)
 - [ ] T032 Verify all tests pass (`./gradlew testDebugUnitTest connectedDebugAndroidTest`)
+- [ ] T033 Verify UI accessibility (TalkBack compatibility, dynamic text scaling) across all onboarding screens
 
 ---
 
