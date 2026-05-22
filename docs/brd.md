@@ -79,6 +79,20 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.9 HDK Extended Features
 - **FR-HID-024: Remote Key Derivation Primitives**: The system must implement the cryptographic decapsulation logic (KEM) prescribed by the HDK specification to support future remote key provisioning flows.
 
+### 4.10 Onboarding Flow
+- **FR-OB-010: First-Run Onboarding**: The application MUST display an onboarding flow on first launch when no prior onboarding completion is recorded, before presenting any main application content.
+- **FR-OB-020: Vision & Feature Introduction**: The onboarding flow MUST present informational screens covering Chimali's vision (bridging traditional credential management with modern passwordless authentication) and core features.
+- **FR-OB-030: Feature Selection**: The onboarding flow MUST include a feature selection step allowing the user to choose one or both core features: Vault (Password Manager) and Passkey Authenticator. The user MUST select at least one feature.
+- **FR-OB-040: Default Screen — Vault Only**: When the user selects only Vault (Password Manager), the Vault screen MUST become the default landing screen.
+- **FR-OB-050: Default Screen — Passkey Only**: When the user selects only Passkey Authenticator, the Passkey Authenticator screen MUST become the default landing screen.
+- **FR-OB-060: Default Screen — Both Features**: When the user selects both core features, the Passkey Authenticator screen MUST be the initial default landing screen.
+- **FR-OB-070: Cross-Feature Navigation**: When the user has selected both core features, the application MUST provide a navigation mechanism to move between the Vault and Passkey Authenticator main screens.
+- **FR-OB-080: Last-Visited Persistence**: When the user has selected both core features, the application MUST persist the last-visited main screen and restore it as the default on the next application launch.
+- **FR-OB-090: Onboarding Completion Persistence**: Upon onboarding completion, the application MUST persist the onboarding-completed state so the onboarding is not shown on subsequent launches.
+- **FR-OB-100: Re-take Onboarding from Settings**: The application settings MUST include an option to re-take the onboarding flow, presenting the same full experience as the first-run onboarding.
+- **FR-OB-110: Re-take Applies Immediately**: Upon completing a re-taken onboarding, the new feature selection MUST take effect immediately, replacing any previous selection.
+- **FR-OB-120: Cancel Re-take Preserves State**: If the user cancels or exits the re-taken onboarding without completing it, the previous feature selection and onboarding-completed state MUST remain unchanged.
+
 ## 5. Non-Functional Requirements
 ### 5.1 Security
 - **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) and encrypted metadata values to enable hardware offloading. Exact-match searchable metadata MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes). Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields. Key wrapping MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data. (Note: Bouncy Castle is retained for non-SIV cryptographic features like HDK and PQC, but AES-SIV is explicitly removed as a requirement). The application SHOULD support Post-Quantum digital signature schemes (e.g., ML-DSA-65) for FIDO2 attestation and assertion signing, as defined in NFR-SEC-040.
