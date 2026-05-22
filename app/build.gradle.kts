@@ -6,12 +6,21 @@ plugins {
 
 android {
     namespace = "com.chimali"
-    compileSdk = 35
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
 
     defaultConfig {
         applicationId = "com.chimali"
-        minSdk = 28
-        targetSdk = 35
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        targetSdk =
+            libs.versions.android.targetSdk
+                .get()
+                .toInt()
         versionCode = 1
         versionName = "0.1.0"
 

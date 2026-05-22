@@ -6,8 +6,16 @@ plugins {
 
 android {
     namespace = "com.chimali.feature.authenticator"
-    compileSdk = 35
-    defaultConfig { minSdk = 28 }
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
+    defaultConfig {
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -10,8 +10,14 @@ plugins {
 kotlin {
     android {
         namespace = "com.chimali.core.common"
-        compileSdk = 35
-        minSdk = 28
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
 
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
