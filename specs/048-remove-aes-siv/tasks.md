@@ -25,7 +25,7 @@
 
 **Critical**: No user story implementation should begin until these tasks are complete.
 
-- [x] T005 Create the searchable metadata field classification table in docs/research/aes-siv-removal-analysis.md covering exact-match lookup tokens, encrypted metadata values, SQLCipher-only display fields, and deprecated plaintext columns
+- [x] T005 Create the searchable metadata field classification table in specs/048-remove-aes-siv/aes-siv-removal-analysis.md covering exact-match lookup tokens, encrypted metadata values, SQLCipher-only display fields, and deprecated plaintext columns
 - [x] T006 Create the AES-SIV removal changelog stub in docs/changelogs/2026-05-20-aes-siv-removal.md with sections for constitution, storage migration, cleanup, and verification
 - [x] T007 [P] Define lookup-token naming, versioning, and domain-separation constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/MetadataLookupTokenService.kt
 - [x] T008 [P] Define encrypted metadata envelope naming, associated-data rules, and format version constants in core/security/src/commonMain/kotlin/com/chimali/core/security/api/EncryptedMetadataService.kt

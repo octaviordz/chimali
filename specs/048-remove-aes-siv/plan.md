@@ -56,6 +56,7 @@ specs/048-remove-aes-siv/
 ├── spec.md
 ├── plan.md
 ├── research.md
+├── aes-siv-removal-analysis.md
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
@@ -75,8 +76,7 @@ docs/
 ├── brd.md
 ├── trd.md
 ├── research/
-│   ├── AES_SIV_vs_GCM_Evaluation.md
-│   └── aes-siv-removal-analysis.md
+│   └── AES_SIV_vs_GCM_Evaluation.md
 └── changelogs/
 
 core/
