@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -46,6 +47,7 @@ fun VaultListScreen(
     onLabelFilterClick: (UUID?) -> Unit,
     onManageLabelsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier = modifier,
@@ -54,7 +56,12 @@ fun VaultListScreen(
                 title = { Text("Credentials Vault", modifier = Modifier.semantics { heading() }) },
                 actions = {
                     IconButton(onClick = onManageLabelsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Manage Labels")
+                        Icon(Icons.Default.Label, contentDescription = "Manage Labels")
+                    }
+                    if (onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
                     }
                 },
             )
@@ -181,5 +188,6 @@ private fun VaultListScreenPreview() {
         onAddClick = {},
         onLabelFilterClick = {},
         onManageLabelsClick = {},
+        onOpenSettings = {},
     )
 }

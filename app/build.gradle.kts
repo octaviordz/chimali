@@ -83,6 +83,8 @@ dependencies {
     implementation(project(":feature:vault"))
     implementation(project(":feature:authenticator"))
     implementation(project(":feature:fido2"))
+    implementation(project(":feature:onboarding"))
+    implementation(project(":feature:settings"))
 
     implementation(libs.kotlinx.datetime)
 
@@ -95,6 +97,7 @@ dependencies {
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
+    implementation(libs.compose.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
     // Koin (replaces Hilt)
@@ -108,6 +111,7 @@ dependencies {
     implementation(libs.bouncycastle.provider)
 
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.tracing)
@@ -116,4 +120,8 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

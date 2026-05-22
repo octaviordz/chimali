@@ -2,55 +2,20 @@ package com.chimali.fido2.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.chimali.core.common.result.map
 import com.chimali.fido2.presentation.ui.AuthenticationPromptScreen
 import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
 import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 // Routes defined in Fido2Destinations.kt
-
-private sealed class BottomNavItem(
-    val route: String,
-    val label: String,
-    val icon: ImageVector,
-) {
-    object Authenticator : BottomNavItem(
-        route = Fido2Destinations.HOME_ROUTE,
-        label = "Authenticator",
-        icon = Icons.Default.Security,
-    )
-
-    object DevTools : BottomNavItem(
-        route = Fido2Destinations.DEVELOPMENT_ROUTE,
-        label = "Dev Tools",
-        icon = Icons.Default.BugReport,
-    )
-}
-
-private val bottomNavItems =
-    listOf(
-        BottomNavItem.Authenticator,
-        BottomNavItem.DevTools,
-    )
 
 @Suppress(
     // Past-tense lambda names match the existing public API contract
@@ -67,45 +32,12 @@ fun Fido2RegistrationNavGraph(
     onRegistrationCancelled: () -> Unit,
     onAuthenticationComplete: (credentialId: String) -> Unit = {},
     onAuthenticationCancelled: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
     startDestination: String = Fido2Destinations.HOME_ROUTE,
     modifier: Modifier = Modifier,
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    // The bottom bar is only visible on the top-level routes
-    val showBottomBar = currentRoute in bottomNavItems.map { it.route }
-
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        // Pop up to HOME so back-stack doesn't grow indefinitely
-                                        popUpTo(Fido2Destinations.HOME_ROUTE) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = {
-                                Icon(imageVector = item.icon, contentDescription = item.label)
-                            },
-                            label = { Text(item.label) },
-                        )
-                    }
-                }
-            }
-        },
-    ) { innerPadding ->
+    Scaffold { innerPadding ->
         Box(modifier = modifier.padding(innerPadding)) {
             NavHost(
                 navController = navController,
@@ -128,6 +60,7 @@ fun Fido2RegistrationNavGraph(
                         onEditDevice = { macAddress ->
                             navController.navigate("${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress")
                         },
+                        onOpenSettings = onOpenSettings,
                         pairedDevicesViewModel = pairedViewModel,
                     )
                 }

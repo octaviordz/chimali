@@ -21,6 +21,10 @@ class UserPreferencesDataStoreTest {
             val defaultPrefs = dataStore.data.first()
             assertEquals(0, defaultPrefs.migrationVersion)
             assertEquals(false, defaultPrefs.migrationCompleted)
+            assertEquals(false, defaultPrefs.onboardingCompleted)
+            assertEquals(false, defaultPrefs.vaultFeatureEnabled)
+            assertEquals(false, defaultPrefs.passkeyAuthenticatorFeatureEnabled)
+            assertEquals("", defaultPrefs.lastVisitedMainScreen)
 
             // Update value
             dataStore.updateData { prefs ->
@@ -28,6 +32,10 @@ class UserPreferencesDataStoreTest {
                     migrationVersion = 1,
                     migrationCompleted = true,
                     maxCredentialCount = 42,
+                    onboardingCompleted = true,
+                    vaultFeatureEnabled = true,
+                    passkeyAuthenticatorFeatureEnabled = false,
+                    lastVisitedMainScreen = "vault/home",
                 )
             }
 
@@ -35,5 +43,9 @@ class UserPreferencesDataStoreTest {
             assertEquals(1, updatedPrefs.migrationVersion)
             assertTrue(updatedPrefs.migrationCompleted)
             assertEquals(42, updatedPrefs.maxCredentialCount)
+            assertTrue(updatedPrefs.onboardingCompleted)
+            assertTrue(updatedPrefs.vaultFeatureEnabled)
+            assertEquals(false, updatedPrefs.passkeyAuthenticatorFeatureEnabled)
+            assertEquals("vault/home", updatedPrefs.lastVisitedMainScreen)
         }
 }

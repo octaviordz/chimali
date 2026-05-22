@@ -15,4 +15,12 @@ data class UserPreferences(
     val encryptedWalletSeed: String = "",
     @ProtoNumber(4)
     val maxCredentialCount: Int = 0,
+    @ProtoNumber(5)
+    val onboardingCompleted: Boolean = false,
+    @ProtoNumber(6)
+    val vaultFeatureEnabled: Boolean = false,
+    @ProtoNumber(7)
+    val passkeyAuthenticatorFeatureEnabled: Boolean = false,
+    @ProtoNumber(8)
+    val lastVisitedMainScreen: String = "",
 )

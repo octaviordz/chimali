@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.BluetoothAudio
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -102,6 +103,7 @@ fun Fido2HomeScreen(
     onAuthenticateRequest: () -> Unit,
     onEditDevice: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: (() -> Unit)? = null,
     viewModel: Fido2HomeViewModel = koinViewModel(),
     pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
@@ -332,6 +334,13 @@ fun Fido2HomeScreen(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                     ),
+                actions = {
+                    if (onOpenSettings != null) {
+                        androidx.compose.material3.IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    }
+                },
             )
         },
     ) { padding ->

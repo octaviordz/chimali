@@ -10,8 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
-import androidx.navigation.compose.rememberNavController
-import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
+import com.chimali.navigation.AppNavGraph
 
 class MainActivity : FragmentActivity() {
     companion object {
@@ -72,12 +71,7 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    val navController = rememberNavController()
-                    Fido2RegistrationNavGraph(
-                        navController = navController,
-                        onRegistrationComplete = { /* Handle global success */ },
-                        onRegistrationCancelled = { /* Handle global cancel */ },
-                    )
+                    AppNavGraph(modifier = Modifier.fillMaxSize())
                 }
             }
         }

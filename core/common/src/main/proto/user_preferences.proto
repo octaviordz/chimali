@@ -20,6 +20,9 @@ message UserPreferences {
   // FIDO2 settings
   int32 max_credential_count = 4;
 
-  // Reserved for future use
-  reserved 5 to 10;
+  // Onboarding state
+  bool onboarding_completed = 5;
+  bool vault_feature_enabled = 6;
+  bool passkey_authenticator_feature_enabled = 7;
+  string last_visited_main_screen = 8;
 }

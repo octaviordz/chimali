@@ -3,6 +3,15 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-22
+
+### Added
+- **First-Run Onboarding Flow**: Implemented a new `:feature:onboarding` module that introduces the app's vision and allows new users to selectively enable the Vault, the Passkey Authenticator, or both.
+- **Unified App Shell**: Built a dynamic `AppNavGraph` that replaces the hardcoded startup flow. It routes new users to the onboarding screens and existing users to their selected features. A bottom navigation bar is dynamically shown only if multiple features are enabled.
+- **Settings Module**: Added a `:feature:settings` module that allows users to review and retake the onboarding flow to modify their feature preferences.
+- **Debug Tools Accessibility**: Re-introduced the "Dev Tools" tab, dynamically mapping it to the bottom navigation bar specifically for debug builds.
+- **Detailed changes**: [2026-05-22-onboarding-flow.md](docs/changelogs/2026-05-22-onboarding-flow.md)
+
 ## [Unreleased] - 2026-05-21
 
 ### Fixed
