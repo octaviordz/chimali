@@ -8,7 +8,6 @@ import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.security.api.EncryptionManager
 import com.chimali.core.security.api.EventStoreKeyProvider
 import kotlinx.datetime.Instant
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
