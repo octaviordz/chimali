@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package app.chimali
 
 import platform.UIKit.UIDevice

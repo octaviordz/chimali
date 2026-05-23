@@ -20,6 +20,7 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 @Preview
+@Suppress("PreviewPublic")
 fun App() {
     MaterialTheme {
         var showContent by remember { mutableStateOf(false) }
