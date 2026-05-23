@@ -17,3 +17,54 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Built artifacts
+bin/
+gen/
+out/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/assetWizardSettings.xml
+.idea/navEditor.xml
+.idea/caches/
+.idea/dataSources/
+.idea/indexLayout.xml
+.idea/vcs.xml
+.idea/deploymentTargetDropDown.xml
+.idea/render.experimental.xml
+
+# Android Studio / IntelliJ specific
+*.iws
+*.ipr
+
+# Signing files
+*.jks
+*.keystore
+*.pk8
+*.p12
+google-services.json
+
+# Kotlin
+*.kotlin_module
+
+# OS specific
+Thumbs.db
+Desktop.ini
+
+# Crashlytics / Firebase logic
+com_google_firebase_crashlytics_*.properties
+
+# Secret files
+secrets.properties
+.agent/tmp/
+
+# Kotlin KMP local caches
+*.klib
+
+# Additions by speckit-implement
+*.class
+*.jar
+*.log
+.env*
