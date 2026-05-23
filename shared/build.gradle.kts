@@ -20,7 +20,7 @@ kotlin {
 
     jvm()
 
-    androidLibrary {
+    android {
         namespace = "app.chimali.shared"
         compileSdk =
             libs.versions.android.compileSdk
