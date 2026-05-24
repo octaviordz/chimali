@@ -73,9 +73,9 @@ if (-not $SkipAndroidLint) {
 # We run this BEFORE unit tests to fail fast if any module is broken.
 # Note: compileDebugSources covers Android, compileAndroidMain covers KMP.
 if ($TargetMoniker -eq "AndroidMinimumBuild") {
-    Run-Task "Compile ($TargetMoniker)" "$Gradle :androidApp:compileDebugSources, :androidApp:compileDebugUnitTestSources, :androidApp:compileDebugAndroidTestSources, :shared:compileAndroidMain, :shared:compileAndroidHostTest --continue"
+    Run-Task "Compile ($TargetMoniker)" "$Gradle :androidApp:compileDebugSources :androidApp:compileDebugUnitTestSources :androidApp:compileDebugAndroidTestSources :shared:compileAndroidMain :shared:compileAndroidHostTest --continue"
 } else {
-    Run-Task "Compile All" "$Gradle :androidApp:compileDebugSources, :androidApp:compileDebugUnitTestSources, :androidApp:compileDebugAndroidTestSources, :desktopApp:compileDevJava, :desktopApp:compileJava, :desktopApp:compileTestJava, :shared:compileAndroidMain, :shared:compileAndroidHostTest --continue"
+    Run-Task "Compile All" "$Gradle :androidApp:compileDebugSources :androidApp:compileDebugUnitTestSources :androidApp:compileDebugAndroidTestSources :desktopApp:compileDevJava :desktopApp:compileJava :desktopApp:compileTestJava :shared:compileAndroidMain :shared:compileAndroidHostTest --continue"
 }
 
 # 4. Unit Tests Phase
