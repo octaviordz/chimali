@@ -42,6 +42,18 @@ subprojects {
         autoCorrect = project.hasProperty("detekt.autoCorrect")
     }
 
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.3.1")
+        ignoreFailures.set(false)
+        android.set(project.path == ":androidApp")
+        outputToConsole.set(true)
+        coloredOutput.set(true)
+        filter {
+            exclude("**/generated/**")
+            exclude("**/build/**")
+        }
+    }
+
     tasks.withType<Detekt>().configureEach {
         reports {
             html.outputLocation.set(layout.buildDirectory.file("reports/detekt/${project.name}.html"))
