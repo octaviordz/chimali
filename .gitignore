@@ -1,21 +1,84 @@
-*.iml
-.gradle
-/local.properties
+# Gradle files (Android Studio rebuilds these automatically)
+.gradle/
+build/
+
+# Ignore the entire .idea folder EXCEPT for shared configuration files
 .idea/
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.idea/deploymentTargetSelector.xml
-!.idea/codeStyleSettings.xml
+!.idea/codeStyles/
 !.idea/inspectionProfiles/
-!.idea/runConfigurations/
-!.idea/dictionaries/
+# Specific user files inside .idea that MUST be ignored
+# Ignore the entire .idea folder EXCEPT for shared configuration files
+# Specific user files inside .idea that MUST be ignored
+.idea/
+.idea/assetWizardSettings.xml
+.idea/caches/
+.idea/dataSources/
+.idea/deploymentTargetDropDown.xml
+.idea/indexLayout.xml
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/render.experimental.xml
+.idea/tasks.xml
+.idea/vcs.xml
+.idea/workspace.xml
+
+
+*.iml
+.kotlin
+.gradle
+**/build/
+xcuserdata
+!src/**/build/
+local.properties
+.idea
 .DS_Store
-/build
-/captures
+captures
 .externalNativeBuild
 .cxx
-local.properties
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+node_modules/
+
+# Built artifacts
+bin/
+gen/
+out/
+
+# Android Studio / IntelliJ specific
+*.iws
+*.ipr
+
+# Signing files
+*.jks
+*.keystore
+*.pk8
+*.p12
+google-services.json
+
+# Kotlin
+*.kotlin_module
+
+# OS specific
+Thumbs.db
+Desktop.ini
+
+# Crashlytics / Firebase logic
+com_google_firebase_crashlytics_*.properties
+
+# Secret files
+secrets.properties
+.agent/tmp/
+
+# Kotlin KMP local caches
+*.klib
+
+# Additions by speckit-implement
+*.class
+*.jar
+*.log
+.env*
