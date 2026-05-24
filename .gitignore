@@ -1,36 +1,57 @@
-# Built artifacts
+# Gradle files (Android Studio rebuilds these automatically)
+.gradle/
 build/
+
+# Ignore the entire .idea folder EXCEPT for shared configuration files
+.idea/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+# Specific user files inside .idea that MUST be ignored
+# Ignore the entire .idea folder EXCEPT for shared configuration files
+# Specific user files inside .idea that MUST be ignored
+.idea/
+.idea/assetWizardSettings.xml
+.idea/caches/
+.idea/dataSources/
+.idea/deploymentTargetDropDown.xml
+.idea/indexLayout.xml
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/render.experimental.xml
+.idea/tasks.xml
+.idea/vcs.xml
+.idea/workspace.xml
+
+
+*.iml
+.kotlin
+.gradle
+**/build/
+xcuserdata
+!src/**/build/
+local.properties
+.idea
+.DS_Store
+captures
+.externalNativeBuild
+.cxx
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+node_modules/
+
+# Built artifacts
 bin/
 gen/
 out/
-.gradle/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/assetWizardSettings.xml
-.idea/navEditor.xml
-.idea/caches/
-.idea/dataSources/
-.idea/indexLayout.xml
-.idea/vcs.xml
-.idea/deploymentTargetDropDown.xml
-.idea/render.experimental.xml
 
 # Android Studio / IntelliJ specific
-*.iml
 *.iws
 *.ipr
-.idea/
-
-# Local configuration
-local.properties
-.DS_Store
-
-# Gradle
-.gradle/
-build/
-captures/
 
 # Signing files
 *.jks
@@ -38,9 +59,6 @@ captures/
 *.pk8
 *.p12
 google-services.json
-
-# Specialized ignores for multi-module
-**/build/
 
 # Kotlin
 *.kotlin_module
@@ -57,7 +75,6 @@ secrets.properties
 .agent/tmp/
 
 # Kotlin KMP local caches
-.kotlin/
 *.klib
 
 # Additions by speckit-implement
