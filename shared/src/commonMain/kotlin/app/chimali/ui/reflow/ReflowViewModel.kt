@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class ReflowViewModel : ViewModel() {
-
-    private val _text = MutableStateFlow(
-        value = "This is reflow Fragment"
-    )
+    private val _text =
+        MutableStateFlow(
+            value = "This is reflow Fragment",
+        )
 
     val text: StateFlow<String> = _text.asStateFlow()
 }

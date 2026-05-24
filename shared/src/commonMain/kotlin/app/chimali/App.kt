@@ -15,10 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import app.chimali.ui.reflow.ReflowScreen
 import app.chimali.ui.settings.SettingsScreen
@@ -32,7 +32,7 @@ import kotlinx.serialization.modules.polymorphic
 data class DestinationMeta(
     val route: AppRoute,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 )
 
 @Composable
@@ -46,18 +46,20 @@ fun App() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScaffold() {
-    val navConfig = remember {
-        SavedStateConfiguration {
-            serializersModule = SerializersModule {
-                polymorphic(NavKey::class) {
-                    subclass(AppRoute.Transform::class, AppRoute.Transform.serializer())
-                    subclass(AppRoute.Reflow::class, AppRoute.Reflow.serializer())
-                    subclass(AppRoute.Slideshow::class, AppRoute.Slideshow.serializer())
-                    subclass(AppRoute.Settings::class, AppRoute.Settings.serializer())
-                }
+    val navConfig =
+        remember {
+            SavedStateConfiguration {
+                serializersModule =
+                    SerializersModule {
+                        polymorphic(NavKey::class) {
+                            subclass(AppRoute.Transform::class, AppRoute.Transform.serializer())
+                            subclass(AppRoute.Reflow::class, AppRoute.Reflow.serializer())
+                            subclass(AppRoute.Slideshow::class, AppRoute.Slideshow.serializer())
+                            subclass(AppRoute.Settings::class, AppRoute.Settings.serializer())
+                        }
+                    }
             }
         }
-    }
 
     val backStack = rememberNavBackStack(navConfig, AppRoute.Transform)
 
@@ -66,11 +68,12 @@ fun MainScaffold() {
     val dimensions = LocalAppDimensions.current
     var showOverflowMenu by remember { mutableStateOf(false) }
 
-    val baseDestinations = listOf(
-        DestinationMeta(AppRoute.Transform, "Transform", Icons.Default.Home),
-        DestinationMeta(AppRoute.Reflow, "Reflow", Icons.Default.Build),
-        DestinationMeta(AppRoute.Slideshow, "Slideshow", Icons.Default.ViewCarousel)
-    )
+    val baseDestinations =
+        listOf(
+            DestinationMeta(AppRoute.Transform, "Transform", Icons.Default.Home),
+            DestinationMeta(AppRoute.Reflow, "Reflow", Icons.Default.Build),
+            DestinationMeta(AppRoute.Slideshow, "Slideshow", Icons.Default.ViewCarousel),
+        )
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -85,7 +88,7 @@ fun MainScaffold() {
                         }
                     },
                     icon = { Icon(destination.icon, null) },
-                    label = { Text(destination.label) }
+                    label = { Text(destination.label) },
                 )
             }
 
@@ -98,10 +101,10 @@ fun MainScaffold() {
                         }
                     },
                     icon = { Icon(Icons.Default.Settings, null) },
-                    label = { Text("Settings") }
+                    label = { Text("Settings") },
                 )
             }
-        }
+        },
     ) {
         Scaffold(
             topBar = {
@@ -115,7 +118,7 @@ fun MainScaffold() {
 
                             DropdownMenu(
                                 expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
+                                onDismissRequest = { showOverflowMenu = false },
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Settings") },
@@ -124,28 +127,29 @@ fun MainScaffold() {
                                         if (currentRoute != AppRoute.Settings) {
                                             backStack.add(AppRoute.Settings)
                                         }
-                                    }
+                                    },
                                 )
                             }
                         }
-                    }
+                    },
                 )
             },
             floatingActionButton = {
                 FloatingActionButton(onClick = { /* FAB Action */ }) {
                     Icon(Icons.Default.Add, null)
                 }
-            }
+            },
         ) { innerPadding ->
             NavDisplay(
                 backStack = backStack,
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
-                entryProvider = entryProvider {
-                    entry<AppRoute.Transform> { TransformScreen() }
-                    entry<AppRoute.Reflow> { ReflowScreen() }
-                    entry<AppRoute.Slideshow> { SlideshowScreen() }
-                    entry<AppRoute.Settings> { SettingsScreen() }
-                }
+                entryProvider =
+                    entryProvider {
+                        entry<AppRoute.Transform> { TransformScreen() }
+                        entry<AppRoute.Reflow> { ReflowScreen() }
+                        entry<AppRoute.Slideshow> { SlideshowScreen() }
+                        entry<AppRoute.Settings> { SettingsScreen() }
+                    },
             )
         }
     }

@@ -30,20 +30,32 @@ import incubatorchimali.shared.generated.resources.avatar_6
 import incubatorchimali.shared.generated.resources.avatar_7
 import incubatorchimali.shared.generated.resources.avatar_8
 import incubatorchimali.shared.generated.resources.avatar_9
-import org.jetbrains.compose.resources.DrawableResource
 
 // 1. Statically map your CMP drawable resources into a list
-private val DrawablesList = listOf(
-    Res.drawable.avatar_1, Res.drawable.avatar_2, Res.drawable.avatar_3, Res.drawable.avatar_4,
-    Res.drawable.avatar_5, Res.drawable.avatar_6, Res.drawable.avatar_7, Res.drawable.avatar_8,
-    Res.drawable.avatar_9, Res.drawable.avatar_10, Res.drawable.avatar_11, Res.drawable.avatar_12,
-    Res.drawable.avatar_13, Res.drawable.avatar_14, Res.drawable.avatar_15, Res.drawable.avatar_16
-)
+private val DrawablesList =
+    listOf(
+        Res.drawable.avatar_1,
+        Res.drawable.avatar_2,
+        Res.drawable.avatar_3,
+        Res.drawable.avatar_4,
+        Res.drawable.avatar_5,
+        Res.drawable.avatar_6,
+        Res.drawable.avatar_7,
+        Res.drawable.avatar_8,
+        Res.drawable.avatar_9,
+        Res.drawable.avatar_10,
+        Res.drawable.avatar_11,
+        Res.drawable.avatar_12,
+        Res.drawable.avatar_13,
+        Res.drawable.avatar_14,
+        Res.drawable.avatar_15,
+        Res.drawable.avatar_16,
+    )
 
 @Composable
 fun TransformScreen(
     // 2. Obtain your KMP ViewModel instance cleanly
-    viewModel: TransformViewModel = viewModel { TransformViewModel() }
+    viewModel: TransformViewModel = viewModel { TransformViewModel() },
 ) {
     // 3. Observe your business logic state safely across platforms
     val items by viewModel.texts.collectAsState(initial = emptyList())
@@ -51,18 +63,19 @@ fun TransformScreen(
 
     // 4. Set column layout count dynamically using your theme flags
     // 1 column for Compact layout (List), Adaptive min size for Medium/Expanded (Grid)
-    val columns = if (dimensions.isCompactLayout) {
-        GridCells.Fixed(1)
-    } else {
-        GridCells.Adaptive(minSize = 160.dp)
-    }
+    val columns =
+        if (dimensions.isCompactLayout) {
+            GridCells.Fixed(1)
+        } else {
+            GridCells.Adaptive(minSize = 160.dp)
+        }
 
     LazyVerticalGrid(
         columns = columns,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         itemsIndexed(items) { index, text ->
             // Prevent out-of-bounds errors by wrapping your static assets list size
@@ -71,7 +84,7 @@ fun TransformScreen(
             // 5. Render your previously optimized cross-platform item
             TransformItem(
                 text = text,
-                imageRes = drawableRes
+                imageRes = drawableRes,
             )
         }
     }

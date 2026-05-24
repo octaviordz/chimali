@@ -15,20 +15,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun ReflowScreen(
-    viewModel: ReflowViewModel = viewModel { ReflowViewModel() }
-) {
+fun ReflowScreen(viewModel: ReflowViewModel = viewModel { ReflowViewModel() }) {
     val text by viewModel.text.collectAsState()
 
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp)
+            modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp),
         )
     }
 }

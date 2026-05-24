@@ -32,8 +32,11 @@ sealed class AppDestination(
     val icon: ImageVector,
 ) {
     data object Transform : AppDestination("transform", "Transform", Icons.Default.Home)
+
     data object Reflow : AppDestination("reflow", "Reflow", Icons.Default.Build)
+
     data object Slideshow : AppDestination("slideshow", "Slideshow", Icons.Default.ViewCarousel)
+
     data object Settings : AppDestination("settings", "Settings", Icons.Default.Settings)
 }
 
@@ -61,11 +64,12 @@ fun LegacyScaffold() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: AppDestination.Transform.route
 
-    val baseDestinations = listOf(
-        AppDestination.Transform,
-        AppDestination.Reflow,
-        AppDestination.Slideshow,
-    )
+    val baseDestinations =
+        listOf(
+            AppDestination.Transform,
+            AppDestination.Reflow,
+            AppDestination.Slideshow,
+        )
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -83,7 +87,7 @@ fun LegacyScaffold() {
                         }
                     },
                     icon = { Icon(destination.icon, null) },
-                    label = { Text(destination.label) }
+                    label = { Text(destination.label) },
                 )
             }
 
@@ -101,10 +105,10 @@ fun LegacyScaffold() {
                         }
                     },
                     icon = { Icon(AppDestination.Settings.icon, null) },
-                    label = { Text(AppDestination.Settings.label) }
+                    label = { Text(AppDestination.Settings.label) },
                 )
             }
-        }
+        },
     ) {
         Scaffold(
             topBar = {
@@ -119,7 +123,7 @@ fun LegacyScaffold() {
 
                             DropdownMenu(
                                 expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
+                                onDismissRequest = { showOverflowMenu = false },
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Settings") },
@@ -128,11 +132,11 @@ fun LegacyScaffold() {
                                         navController.navigate(AppDestination.Settings.route) {
                                             launchSingleTop = true
                                         }
-                                    }
+                                    },
                                 )
                             }
                         }
-                    }
+                    },
                 )
             },
             floatingActionButton = {
@@ -142,12 +146,12 @@ fun LegacyScaffold() {
                     Icon(Icons.Default.Add, null)
                 }
             },
-            floatingActionButtonPosition = FabPosition.End
+            floatingActionButtonPosition = FabPosition.End,
         ) { innerPadding ->
             NavHost(
                 navController = navController,
                 startDestination = AppDestination.Transform.route,
-                modifier = Modifier.fillMaxSize().padding(innerPadding)
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
             ) {
                 composable(AppDestination.Transform.route) { TransformScreen() }
                 composable(AppDestination.Reflow.route) { ReflowScreen() }

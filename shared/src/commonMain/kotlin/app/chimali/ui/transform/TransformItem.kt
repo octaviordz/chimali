@@ -35,37 +35,45 @@ fun TransformItem(
     if (dimensions.isCompactLayout) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(0.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
                 painter = painterResource(resource = imageRes),
-                contentDescription = stringResource(resource = Res.string.image_view_item_transform_content_description),
-                modifier = Modifier
-                    .size(imageSize)
-                    .padding(8.dp)
+                contentDescription =
+                    stringResource(
+                        resource = Res.string.image_view_item_transform_content_description,
+                    ),
+                modifier =
+                    Modifier
+                        .size(imageSize)
+                        .padding(8.dp),
             )
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(8.dp),
             )
         }
     } else {
         Column(
             modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
                 painter = painterResource(resource = imageRes),
-                contentDescription = stringResource(resource = Res.string.image_view_item_transform_content_description),
-                modifier = Modifier
-                    .size(imageSize)
-                    .padding(8.dp)
+                contentDescription =
+                    stringResource(
+                        resource = Res.string.image_view_item_transform_content_description,
+                    ),
+                modifier =
+                    Modifier
+                        .size(imageSize)
+                        .padding(8.dp),
             )
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
@@ -77,7 +85,7 @@ fun TransformItemPreview() {
     ChimaliTheme {
         TransformItem(
             text = "This is item # xx",
-            imageRes = Res.drawable.avatar_1
+            imageRes = Res.drawable.avatar_1,
         )
     }
 }
