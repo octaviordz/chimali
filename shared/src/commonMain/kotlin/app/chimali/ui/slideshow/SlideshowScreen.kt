@@ -15,11 +15,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun SlideshowScreen(viewModel: SlideshowViewModel = viewModel { SlideshowViewModel() }) {
+fun SlideshowScreen(
+    modifier: Modifier = Modifier,
+    viewModel: SlideshowViewModel = viewModel { SlideshowViewModel() },
+) {
     val text by viewModel.text.collectAsState()
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         Text(

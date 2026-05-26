@@ -26,6 +26,7 @@ import org.jetbrains.compose.resources.stringResource
 fun TransformItem(
     text: String,
     imageRes: DrawableResource,
+    modifier: Modifier = Modifier,
 ) {
     // 1. Pull the pre-calculated dimension tokens from the current environment context
     val dimensions = LocalAppDimensions.current
@@ -34,7 +35,7 @@ fun TransformItem(
     // 2. Use the semantic layout flag directly instead of comparing numeric dp bounds
     if (dimensions.isCompactLayout) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(0.dp),
+            modifier = modifier.fillMaxWidth().padding(0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
@@ -81,7 +82,7 @@ fun TransformItem(
 
 @Composable
 @Preview
-fun TransformItemPreview() {
+private fun TransformItemPreview() {
     ChimaliTheme {
         TransformItem(
             text = "This is item # xx",

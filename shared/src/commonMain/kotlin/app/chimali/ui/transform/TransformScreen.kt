@@ -7,10 +7,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.chimali.ui.theme.LocalAppDimensions
 import incubatorchimali.shared.generated.resources.Res
@@ -54,15 +54,17 @@ private val DrawablesList =
 
 @Composable
 fun TransformScreen(
-    // 2. Obtain your KMP ViewModel instance cleanly
+    modifier: Modifier = Modifier,
+// 2. Obtain your KMP ViewModel instance cleanly
     viewModel: TransformViewModel = viewModel { TransformViewModel() },
 ) {
-    // 3. Observe your business logic state safely across platforms
-    val items by viewModel.texts.collectAsState(initial = emptyList())
+// 3. Observe your business logic state safely across platforms.
+// Pauses flow collection on Android background, iOS view changes, and Desktop window changes
+    val items by viewModel.texts.collectAsStateWithLifecycle(initialValue = emptyList())
     val dimensions = LocalAppDimensions.current
 
-    // 4. Set column layout count dynamically using your theme flags
-    // 1 column for Compact layout (List), Adaptive min size for Medium/Expanded (Grid)
+// 4. Set column layout count dynamically using your theme flags
+// 1 column for Compact layout (List), Adaptive min size for Medium/Expanded (Grid)
     val columns =
         if (dimensions.isCompactLayout) {
             GridCells.Fixed(1)
@@ -72,16 +74,16 @@ fun TransformScreen(
 
     LazyVerticalGrid(
         columns = columns,
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         itemsIndexed(items) { index, text ->
-            // Prevent out-of-bounds errors by wrapping your static assets list size
+// Prevent out-of-bounds errors by wrapping your static assets list size
             val drawableRes = DrawablesList[index % DrawablesList.size]
 
-            // 5. Render your previously optimized cross-platform item
+// 5. Render your previously optimized cross-platform item
             TransformItem(
                 text = text,
                 imageRes = drawableRes,
