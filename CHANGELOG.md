@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-26
+
+### Refactored
+- **FIDO2 HomeScreen Refactoring & Lint Remediation**: Significant architectural refactor of the `Fido2HomeScreen` to resolve high cyclomatic complexity and Detekt/Compose quality violations.
+    - Extracted `Fido2EventObserver` and `BluetoothErrorDialog` into standalone Composables.
+    - Implemented **State Hoisting** in `Fido2EventObserver` to eliminate "ViewModel forwarding" violations.
+    - Hardened **Effect Handling** using `rememberUpdatedState` for all lambda parameters in `LaunchedEffect` to resolve `LambdaParameterInRestartableEffect` issues.
+    - Resolved persistent "assigned value never read" lint warnings by transitioning to explicit `MutableState` value access.
+    - Simplified Android Bluetooth permission logic and discoverability workflows.
+- **Detailed changes**: [2026-05-26-fido2-homescreen-lint-remediation.md](docs/changelogs/2026-05-26-fido2-homescreen-lint-remediation.md)
+
 ## [Unreleased] - 2026-05-22
 
 ### Added
@@ -787,4 +798,4 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 - **BIP-32**: Legacy BIP-32/BIP-44 implementation removed in favor of HDKeys.
 
 ---
-*Last Updated: 2026-05-06*
+*Last Updated: 2026-05-26*

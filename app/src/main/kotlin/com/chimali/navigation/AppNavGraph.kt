@@ -74,8 +74,11 @@ fun AppNavGraph(
         }
 
     when (targetScreen) {
-        AppScreen.Loading -> LoadingScreen(modifier = modifier)
-        AppScreen.Onboarding ->
+        AppScreen.Loading -> {
+            LoadingScreen(modifier = modifier)
+        }
+
+        AppScreen.Onboarding -> {
             OnboardingNavGraph(
                 onFinish = {
                     screenOverride = null
@@ -87,8 +90,9 @@ fun AppNavGraph(
                 },
                 modifier = modifier,
             )
+        }
 
-        AppScreen.Shell ->
+        AppScreen.Shell -> {
             MainShell(
                 routingState = routingState ?: AppRoutingState(false, false, false, ""),
                 dataStore = dataStore,
@@ -98,8 +102,9 @@ fun AppNavGraph(
                 },
                 modifier = modifier,
             )
+        }
 
-        AppScreen.Settings ->
+        AppScreen.Settings -> {
             SettingsScreen(
                 vaultEnabled = routingState?.vaultEnabled ?: false,
                 passkeyEnabled = routingState?.passkeyEnabled ?: false,
@@ -112,6 +117,7 @@ fun AppNavGraph(
                 },
                 modifier = modifier,
             )
+        }
     }
 }
 
@@ -189,18 +195,22 @@ private fun MainShell(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (selectedRoute) {
-                AppDestinations.VAULT_ROUTE ->
+                AppDestinations.VAULT_ROUTE -> {
                     VaultFeatureScreen(onOpenSettings = onOpenSettings)
+                }
 
-                Fido2Destinations.HOME_ROUTE ->
+                Fido2Destinations.HOME_ROUTE -> {
                     AuthenticatorFeatureScreen(onOpenSettings = onOpenSettings)
+                }
 
-                Fido2Destinations.DEVELOPMENT_ROUTE ->
+                Fido2Destinations.DEVELOPMENT_ROUTE -> {
                     com.chimali.fido2.presentation.ui
                         .DevelopmentToolsScreen()
+                }
 
-                else ->
+                else -> {
                     AuthenticatorFeatureScreen(onOpenSettings = onOpenSettings)
+                }
             }
         }
     }

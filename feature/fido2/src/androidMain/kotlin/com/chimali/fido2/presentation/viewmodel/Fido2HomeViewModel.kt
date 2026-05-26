@@ -55,10 +55,14 @@ class Fido2HomeViewModel(
                     val match = devices.find { it.macAddress == state.device.address }
                     match?.alias ?: state.device.name ?: "Unknown PC"
                 }
+
                 is HidConnectionState.Connecting -> {
                     state.device.name ?: "Connecting..."
                 }
-                else -> null
+
+                else -> {
+                    null
+                }
             }
         }.stateIn(
             scope = viewModelScope,

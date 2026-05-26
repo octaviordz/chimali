@@ -1,8 +1,16 @@
 package com.chimali.fido2.presentation.ui
 
+import android.Manifest
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -42,6 +50,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -55,7 +64,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,63 +119,25 @@ fun Fido2HomeScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
 
-    val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)
-    val updatedOnAuthenticateRequest by rememberUpdatedState(onAuthenticateRequest)
+    Fido2EventObserver(
+        uiEvents = viewModel.uiEvents,
+        getPendingRegistration = { viewModel.getPendingRegistration() },
+        getPendingAuthentication = { viewModel.getPendingAuthentication() },
+        onRegisterRequest = onRegisterRequest,
+        onAuthenticateRequest = onAuthenticateRequest,
+    )
 
-    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth).
-    // Single LaunchedEffect so both live collectors share the same composable lifecycle.
-    LaunchedEffect(Unit) {
-        // One-time startup check: events that arrived before this screen entered composition.
-        if (viewModel.getPendingRegistration() != null) {
-            updatedOnRegisterRequest()
-        } else if (viewModel.getPendingAuthentication() != null) {
-            // Only check auth if there is no pending registration (registration takes priority
-            // when both arrive simultaneously, which shouldn't happen in practice).
-            updatedOnAuthenticateRequest()
-        }
-
-        // Launch both live collectors in parallel inside this scope so they are both
-        // cancelled together when the composable leaves composition.
-        coroutineScope {
-            launch {
-                viewModel.uiEvents
-                    .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
-                    .collect { updatedOnRegisterRequest() }
-            }
-            launch {
-                viewModel.uiEvents
-                    .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
-                    .collect {
-                        // Fix D — Guard against navigating to auth while registration is active.
-                        // webauthn.io and some other RPs send a concurrent GetAssertion on a
-                        // second CTAP2 channel while MakeCredential is still in progress.
-                        // Registration takes priority: if a registration is already pending,
-                        // skip the auth navigation entirely (the CTAP2 handler will time out
-                        // or return CHANNEL_BUSY via the Mutex guard in Fix A).
-                        if (viewModel.getPendingRegistration() == null) {
-                            updatedOnAuthenticateRequest()
-                        } else {
-                            Logger.w { "Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active" }
-                        }
-                    }
-            }
-        }
-    }
-
-    var showBluetoothError by remember { mutableStateOf(false) }
+    val showBluetoothError = remember { mutableStateOf(false) }
 
     val bluetoothDiscoverableLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult(),
         ) { result ->
-            // For ACTION_REQUEST_DISCOVERABLE, result.resultCode is the duration of discoverability in seconds,
-            // or Activity.RESULT_CANCELED (0) if the user denied it.
-            if (result.resultCode != android.app.Activity.RESULT_CANCELED) {
-                // User enabled Bluetooth and/or discoverability, proceed with starting the transport
+            if (result.resultCode != Activity.RESULT_CANCELED) {
                 viewModel.toggleTransport()
             } else {
                 // User denied or failed to enable Bluetooth/Discoverable
-                showBluetoothError = true
+                showBluetoothError.value = true
             }
         }
 
@@ -175,146 +145,33 @@ fun Fido2HomeScreen(
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
-            val allGranted = permissions.entries.all { it.value }
-            if (allGranted) {
-                try {
-                    val discoverableIntent =
-                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
-                        }
-                    bluetoothDiscoverableLauncher.launch(discoverableIntent)
-                } catch (e: SecurityException) {
-                    Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability (permission request)" }
-                    showBluetoothError = true
-                }
+            if (permissions.values.all { it }) {
+                launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
             } else {
-                showBluetoothError = true
+                showBluetoothError.value = true
             }
         }
 
-    fun startBluetoothDiscoverability() {
-        try {
-            val discoverableIntent =
-                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
-                }
-            bluetoothDiscoverableLauncher.launch(discoverableIntent)
-        } catch (e: SecurityException) {
-            Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability" }
-            showBluetoothError = true
-        }
-    }
-
     val handleToggle = {
-        val isRunning = connectionState !is HidConnectionState.Idle && connectionState !is HidConnectionState.Error
+        val isRunning =
+            connectionState !is HidConnectionState.Idle &&
+                connectionState !is HidConnectionState.Error
         if (isRunning) {
             viewModel.toggleTransport()
         } else {
-            // Permission logic varies by Android version:
-            // - Android 13+ (TIRAMISU, API 33): Requires Nearby Devices (BT) + POST_NOTIFICATIONS
-            //   for foreground services.
-            // - Android 12 (S, API 31): Requires Nearby Devices (BT) only.
-            // - Legacy: Permissions are handled during installation or simplified.
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
-                val connectGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                    ) == granted
-                val advertiseGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                    ) == granted
-                val scanGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_SCAN,
-                    ) == granted
-                val notificationsGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.POST_NOTIFICATIONS,
-                    ) == granted
-
-                if (!connectGranted || !advertiseGranted || !scanGranted || !notificationsGranted) {
-                    bluetoothPermissionLauncher.launch(
-                        arrayOf(
-                            android.Manifest.permission.BLUETOOTH_CONNECT,
-                            android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                            android.Manifest.permission.BLUETOOTH_SCAN,
-                            android.Manifest.permission.POST_NOTIFICATIONS,
-                        ),
-                    )
-                } else {
-                    startBluetoothDiscoverability()
-                }
-            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                val granted = android.content.pm.PackageManager.PERMISSION_GRANTED
-                val connectGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                    ) == granted
-                val advertiseGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                    ) == granted
-                val scanGranted =
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.BLUETOOTH_SCAN,
-                    ) == granted
-                if (!connectGranted || !advertiseGranted || !scanGranted) {
-                    bluetoothPermissionLauncher.launch(
-                        arrayOf(
-                            android.Manifest.permission.BLUETOOTH_CONNECT,
-                            android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                            android.Manifest.permission.BLUETOOTH_SCAN,
-                        ),
-                    )
-                } else {
-                    startBluetoothDiscoverability()
-                }
+            val required = getRequiredPermissions()
+            if (required.isNotEmpty() && !hasPermissions(context, required)) {
+                bluetoothPermissionLauncher.launch(required)
             } else {
-                startBluetoothDiscoverability()
+                launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
             }
         }
     }
 
-    if (showBluetoothError) {
-        AlertDialog(
-            onDismissRequest = { showBluetoothError = false },
-            title = { Text("Bluetooth Required") },
-            text = {
-                Text(
-                    "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions " +
-                        "to act as a security key. " +
-                        "Please allow discoverability and permissions to continue.",
-                )
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    val intent =
-                        Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = android.net.Uri.fromParts("package", context.packageName, null)
-                        }
-                    context.startActivity(intent)
-                    showBluetoothError = false
-                }) {
-                    Text("Settings")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBluetoothError = false
-                    handleToggle()
-                }) {
-                    Text("Retry")
-                }
-            },
+    if (showBluetoothError.value) {
+        BluetoothErrorDialog(
+            onDismiss = { showBluetoothError.value = false },
+            onRetry = handleToggle,
         )
     }
 
@@ -336,7 +193,7 @@ fun Fido2HomeScreen(
                     ),
                 actions = {
                     if (onOpenSettings != null) {
-                        androidx.compose.material3.IconButton(onClick = onOpenSettings) {
+                        IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
                     }
@@ -358,25 +215,17 @@ fun Fido2HomeScreen(
                 displayName = connectedDisplayName,
             )
 
-            // Paired Devices List — takes all remaining vertical space
             val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
             PairedDevicesSection(
                 modifier = Modifier.weight(1f),
                 onEditDevice = onEditDevice,
                 devices = pairedDevices,
-                onPendingRemove = { device ->
-                    pairedDevicesViewModel.pendingRemove(device)
-                },
-                onUndoRemove = { macAddress ->
-                    pairedDevicesViewModel.undoRemove(macAddress)
-                },
-                onCommitRemove = { macAddress ->
-                    pairedDevicesViewModel.commitRemove(macAddress)
-                },
+                onPendingRemove = { device -> pairedDevicesViewModel.pendingRemove(device) },
+                onUndoRemove = { macAddress -> pairedDevicesViewModel.undoRemove(macAddress) },
+                onCommitRemove = { macAddress -> pairedDevicesViewModel.commitRemove(macAddress) },
                 removalEvents = pairedDevicesViewModel.removalEvents,
             )
 
-            // Primary Action
             TransportToggleButton(
                 connectionState = connectionState,
                 onToggle = handleToggle,
@@ -400,6 +249,9 @@ fun Fido2HomeScreen(
     }
 }
 
+/**
+ * Displays the current Bluetooth HID connection status and any error messages.
+ */
 @Composable
 fun StatusIndicator(
     state: HidConnectionState,
@@ -408,26 +260,25 @@ fun StatusIndicator(
 ) {
     val (statusText, color, icon) =
         when (state) {
-            is HidConnectionState.Idle ->
-                Triple(
-                    "Ready to Start",
-                    MaterialTheme.colorScheme.outline,
-                    Icons.Default.Bluetooth,
-                )
-            is HidConnectionState.Advertising ->
-                Triple(
-                    "Advertising...",
-                    COLOR_ADVERTISING,
-                    Icons.AutoMirrored.Filled.BluetoothSearching,
-                )
-            is HidConnectionState.Connecting -> Triple("Connecting...", COLOR_CONNECTING, Icons.Default.BluetoothAudio)
-            is HidConnectionState.Connected -> Triple("Connected to PC", COLOR_CONNECTED, Icons.Default.Devices)
-            is HidConnectionState.Error ->
-                Triple(
-                    "Error Occurred",
-                    MaterialTheme.colorScheme.error,
-                    Icons.Default.Error,
-                )
+            is HidConnectionState.Idle -> {
+                Triple("Ready to Start", MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
+            }
+
+            is HidConnectionState.Advertising -> {
+                Triple("Advertising...", COLOR_ADVERTISING, Icons.AutoMirrored.Filled.BluetoothSearching)
+            }
+
+            is HidConnectionState.Connecting -> {
+                Triple("Connecting...", COLOR_CONNECTING, Icons.Default.BluetoothAudio)
+            }
+
+            is HidConnectionState.Connected -> {
+                Triple("Connected to PC", COLOR_CONNECTED, Icons.Default.Devices)
+            }
+
+            is HidConnectionState.Error -> {
+                Triple("Error Occurred", MaterialTheme.colorScheme.error, Icons.Default.Error)
+            }
         }
 
     Card(
@@ -491,6 +342,162 @@ fun StatusIndicator(
     }
 }
 
+/**
+ * Observes FIDO2 UI events from the ViewModel and triggers navigation requests.
+ *
+ * This component consolidates event observation into a single collector to prevent
+ * race conditions (Fix D) that occurred when multiple LaunchedEffects were used.
+ */
+@Composable
+private fun Fido2EventObserver(
+    uiEvents: kotlinx.coroutines.flow.Flow<Fido2UiEvent>,
+    getPendingRegistration: () -> Fido2UiEvent.RegistrationRequested?,
+    getPendingAuthentication: () -> Fido2UiEvent.AuthenticationRequested?,
+    onRegisterRequest: () -> Unit,
+    onAuthenticateRequest: () -> Unit,
+) {
+    val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)
+    val updatedOnAuthenticateRequest by rememberUpdatedState(onAuthenticateRequest)
+    val updatedGetPendingRegistration by rememberUpdatedState(getPendingRegistration)
+    val updatedGetPendingAuthentication by rememberUpdatedState(getPendingAuthentication)
+
+    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth).
+    // Single LaunchedEffect so both live collectors share the same composable lifecycle.
+    LaunchedEffect(uiEvents) {
+        // Initial check for any pending operations upon entering the screen
+        // One-time startup check: events that arrived before this screen entered composition.
+        if (updatedGetPendingRegistration() != null) {
+            updatedOnRegisterRequest()
+        } else if (updatedGetPendingAuthentication() != null) {
+            // Only check auth if there is no pending registration (registration takes priority
+            // when both arrive simultaneously, which shouldn't happen in practice).
+            updatedOnAuthenticateRequest()
+        }
+
+        coroutineScope {
+            // Launch both live collectors in parallel inside this scope so they are both
+            // cancelled together when the composable leaves composition.
+            launch {
+                uiEvents
+                    .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
+                    .collect { updatedOnRegisterRequest() }
+            }
+            launch {
+                uiEvents
+                    .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
+                    .collect {
+                        // Guard against concurrent registration/authentication requests.
+                        // If registration is currently active, we ignore inbound auth requests
+                        // to prevent the "Sign in" prompt from interrupting the registration flow.
+                        // Fix D — Guard against navigating to auth while registration is active.
+                        // webauthn.io and some other RPs send a concurrent GetAssertion on a
+                        // second CTAP2 channel while MakeCredential is still in progress.
+                        // Registration takes priority: if a registration is already pending,
+                        // skip the auth navigation entirely (the CTAP2 handler will time out
+                        // or return CHANNEL_BUSY via the Mutex guard in Fix A).
+                        if (updatedGetPendingRegistration() == null) {
+                            updatedOnAuthenticateRequest()
+                        } else {
+                            Logger.w { "Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active" }
+                        }
+                    }
+            }
+        }
+    }
+}
+
+/**
+ * A dialog that explains why Bluetooth and Nearby Devices permissions are required.
+ */
+@Composable
+private fun BluetoothErrorDialog(
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Bluetooth Required") },
+        text = {
+            Text(
+                "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions " +
+                    "to act as a security key. Please allow discoverability and permissions to continue.",
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                val intent =
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                context.startActivity(intent)
+                onDismiss()
+            }) {
+                Text("Settings")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                onRetry()
+            }) {
+                Text("Retry")
+            }
+        },
+    )
+}
+
+private fun getRequiredPermissions(): Array<String> =
+    when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.POST_NOTIFICATIONS,
+            )
+        }
+
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.BLUETOOTH_SCAN,
+            )
+        }
+
+        else -> {
+            emptyArray()
+        }
+    }
+
+private fun hasPermissions(
+    context: Context,
+    permissions: Array<String>,
+): Boolean =
+    permissions.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+private fun launchDiscoverability(
+    launcher: ActivityResultLauncher<Intent>,
+    onError: () -> Unit,
+) {
+    try {
+        val intent =
+            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
+            }
+        launcher.launch(intent)
+    } catch (e: SecurityException) {
+        Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability" }
+        onError()
+    }
+}
+
+/**
+ * A button that starts or stops the Bluetooth HID transport service.
+ */
 @Composable
 fun TransportToggleButton(
     connectionState: HidConnectionState,
@@ -512,20 +519,21 @@ fun TransportToggleButton(
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
-                contentColor = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary,
+                contentColor =
+                    if (isRunning) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
             ),
     ) {
         AnimatedContent(
             targetState = isRunning,
-            transitionSpec = {
-                fadeIn() togetherWith fadeOut()
-            },
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "TransportToggle",
         ) { running ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (running) Icons.Default.Stop else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                )
+                Icon(if (running) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (running) "Stop Authenticator" else "Start Authenticator",
@@ -536,6 +544,9 @@ fun TransportToggleButton(
     }
 }
 
+/**
+ * An animated pulse effect shown when the authenticator is advertising or connecting.
+ */
 @Composable
 fun PulseAnimation(
     color: Color,
