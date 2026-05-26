@@ -1,4 +1,4 @@
-package app.chimali.ui.transform
+package app.chimali.ui.authenticator
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

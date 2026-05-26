@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
@@ -22,12 +22,12 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import app.chimali.ui.reflow.ReflowScreen
+import app.chimali.ui.authenticator.TransformScreen
+import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
-import app.chimali.ui.slideshow.SlideshowScreen
 import app.chimali.ui.theme.ChimaliTheme
 import app.chimali.ui.theme.LocalAppDimensions
-import app.chimali.ui.transform.TransformScreen
+import app.chimali.ui.vault.ReflowScreen
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
@@ -41,22 +41,28 @@ fun App() {
 data class DestinationMeta(
     val route: NavKey,
     val label: String,
+    val contentDescription: String,
     val icon: ImageVector,
 )
 
 @Composable
 fun MainScaffold(modifier: Modifier = Modifier) {
     val navConfig = rememberNavConfig()
-    val backStack = rememberNavBackStack(navConfig, AppRoute.Transform)
-    val currentRoute = backStack.lastOrNull() ?: AppRoute.Transform
+    val backStack = rememberNavBackStack(navConfig, AppRoute.Authenticator)
+    val currentRoute = backStack.lastOrNull() ?: AppRoute.Authenticator
     val dimensions = LocalAppDimensions.current
 
     val baseDestinations =
         remember {
             listOf(
-                DestinationMeta(AppRoute.Transform, "Authenticator", Icons.Default.Home),
-                DestinationMeta(AppRoute.Reflow, "Vault", Icons.Default.Build),
-                DestinationMeta(AppRoute.Slideshow, "Slideshow", Icons.Default.ViewCarousel),
+                DestinationMeta(
+                    AppRoute.Authenticator,
+                    "Authenticator",
+                    "Passkey Authenticator",
+                    Icons.Filled.Security,
+                ),
+                DestinationMeta(AppRoute.Vault, "Vault", "Vault", Icons.Filled.Folder),
+                DestinationMeta(AppRoute.DevTools, "Dev Tools", "Dev Tools", Icons.Filled.BugReport),
             )
         }
 
@@ -104,9 +110,9 @@ private fun rememberNavConfig(): SavedStateConfiguration =
             serializersModule =
                 SerializersModule {
                     polymorphic(NavKey::class) {
-                        subclass(AppRoute.Transform::class, AppRoute.Transform.serializer())
-                        subclass(AppRoute.Reflow::class, AppRoute.Reflow.serializer())
-                        subclass(AppRoute.Slideshow::class, AppRoute.Slideshow.serializer())
+                        subclass(AppRoute.Authenticator::class, AppRoute.Authenticator.serializer())
+                        subclass(AppRoute.Vault::class, AppRoute.Vault.serializer())
+                        subclass(AppRoute.DevTools::class, AppRoute.DevTools.serializer())
                         subclass(AppRoute.Settings::class, AppRoute.Settings.serializer())
                     }
                 }
@@ -128,7 +134,7 @@ private fun NavigationSuiteScope.appNavigationItems(
                     onNavigate(destination.route, true)
                 }
             },
-            icon = { Icon(destination.icon, null) },
+            icon = { Icon(destination.icon, destination.contentDescription) },
             label = { Text(destination.label) },
         )
     }
@@ -184,9 +190,9 @@ private fun MainTopAppBar(
 }
 
 private fun EntryProviderScope<NavKey>.appEntries() {
-    entry<AppRoute.Transform> { TransformScreen() }
-    entry<AppRoute.Reflow> { ReflowScreen() }
-    entry<AppRoute.Slideshow> { SlideshowScreen() }
+    entry<AppRoute.Authenticator> { TransformScreen() }
+    entry<AppRoute.Vault> { ReflowScreen() }
+    entry<AppRoute.DevTools> { SlideshowScreen() }
     entry<AppRoute.Settings> { SettingsScreen() }
 }
 

@@ -1,4 +1,4 @@
-package app.chimali.ui.transform
+package app.chimali.ui.authenticator
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues

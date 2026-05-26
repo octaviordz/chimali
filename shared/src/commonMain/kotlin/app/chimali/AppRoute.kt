@@ -5,11 +5,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 sealed interface AppRoute : NavKey {
-    @Serializable data object Transform : AppRoute
+    @Serializable data object Authenticator : AppRoute
 
-    @Serializable data object Reflow : AppRoute
+    @Serializable data object Vault : AppRoute
 
-    @Serializable data object Slideshow : AppRoute
+    @Serializable data object DevTools : AppRoute
 
     @Serializable data object Settings : AppRoute
 }

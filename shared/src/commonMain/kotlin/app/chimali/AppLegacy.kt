@@ -21,12 +21,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import app.chimali.ui.reflow.ReflowScreen
+import app.chimali.ui.authenticator.TransformScreen
+import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
-import app.chimali.ui.slideshow.SlideshowScreen
 import app.chimali.ui.theme.ChimaliTheme
 import app.chimali.ui.theme.LocalAppDimensions
-import app.chimali.ui.transform.TransformScreen
+import app.chimali.ui.vault.ReflowScreen
 
 @Composable
 fun AppLegacy() {
