@@ -41,11 +41,11 @@
 
 ### Tests for User Story 1
 
-- [ ] T001 [US1] Write unit test for `AuthenticateCredentialUseCase` in `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCaseTest.kt` — verify it delegates to `Fido2Repository.authenticateCredential(rpId)` and returns the outcome unchanged for both success and error cases
+- [x] T001 [US1] Write unit test for `AuthenticateCredentialUseCase` in `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCaseTest.kt` — verify it delegates to `Fido2Repository.authenticateCredential(rpId)` and returns the outcome unchanged for both success and error cases
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Create `AuthenticateCredentialUseCase` class in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCase.kt` — annotated with `@Factory`, injecting `Fido2Repository`, with `suspend operator fun invoke(rpId: RpId): Outcome<CredentialId, DomainError>` delegating to `fido2Repository.authenticateCredential(rpId)`
+- [x] T002 [US1] Create `AuthenticateCredentialUseCase` class in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCase.kt` — annotated with `@Factory`, injecting `Fido2Repository`, with `suspend operator fun invoke(rpId: RpId): Outcome<CredentialId, DomainError>` delegating to `fido2Repository.authenticateCredential(rpId)`
 
 **Checkpoint**: `AuthenticateCredentialUseCase` exists and passes its unit test. The existing code continues to work unchanged.
 
@@ -61,7 +61,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T003 [US2] Modify `Fido2ServiceImpl` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2ServiceImpl.kt` — add `AuthenticateCredentialUseCase` constructor parameter, update `authenticateWithCredential` to delegate to `authenticateCredentialUseCase(rpId)` instead of `fido2Repository.authenticateCredential(rpId)`, update KDoc to reference the new use case
+- [x] T003 [US2] Modify `Fido2ServiceImpl` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2ServiceImpl.kt` — add `AuthenticateCredentialUseCase` constructor parameter, update `authenticateWithCredential` to delegate to `authenticateCredentialUseCase(rpId)` instead of `fido2Repository.authenticateCredential(rpId)`, update KDoc to reference the new use case
 
 **Checkpoint**: `Fido2ServiceImpl.authenticateWithCredential` now delegates through the use case. All existing behavior is preserved.
 
@@ -71,9 +71,9 @@
 
 **Purpose**: Verification and lint compliance.
 
-- [ ] T004 Compile the project: `.\gradlew :feature:fido2:compileDebugKotlin`
-- [ ] T005 [P] Run existing test suite: `.\gradlew :feature:fido2:testDebugUnitTest`
-- [ ] T006 [P] Run Detekt and Ktlint: `.\gradlew :feature:fido2:detekt :feature:fido2:ktlintCheck`
+- [x] T004 Compile the project: `.\gradlew :feature:fido2:compileDebugKotlin`
+- [x] T005 [P] Run existing test suite: `.\gradlew :feature:fido2:testDebugUnitTest`
+- [x] T006 [P] Run Detekt and Ktlint: `.\gradlew :feature:fido2:detekt :feature:fido2:ktlintCheck`
 
 ---
 

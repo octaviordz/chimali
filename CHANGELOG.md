@@ -6,6 +6,8 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
 ## [Unreleased] - 2026-05-26
 
 ### Refactored
+- **Authenticate Credential Use Case Refactoring**: Extracted the existing `authenticateCredential` delegation from `Fido2ServiceImpl` into a dedicated `AuthenticateCredentialUseCase` class following Clean Architecture use case patterns.
+- **Detailed changes**: [2026-05-26-authenticate-credential-usecase-refactoring.md](docs/changelogs/2026-05-26-authenticate-credential-usecase-refactoring.md)
 - **FIDO2 HomeScreen Refactoring & Lint Remediation**: Significant architectural refactor of the `Fido2HomeScreen` to resolve high cyclomatic complexity and Detekt/Compose quality violations.
     - Extracted `Fido2EventObserver` and `BluetoothErrorDialog` into standalone Composables.
     - Implemented **State Hoisting** in `Fido2EventObserver` to eliminate "ViewModel forwarding" violations.
