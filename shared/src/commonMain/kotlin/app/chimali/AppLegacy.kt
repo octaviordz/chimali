@@ -21,12 +21,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import app.chimali.ui.authenticator.TransformScreen
+import app.chimali.ui.authenticator.AuthenticatorScreen
 import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
 import app.chimali.ui.theme.ChimaliTheme
 import app.chimali.ui.theme.LocalAppDimensions
-import app.chimali.ui.vault.ReflowScreen
+import app.chimali.ui.vault.VaultScreen
 
 @Composable
 fun AppLegacy() {
@@ -189,8 +189,8 @@ private fun LegacyNavHost(
         startDestination = AppDestination.Transform.route,
         modifier = modifier,
     ) {
-        composable(AppDestination.Transform.route) { TransformScreen() }
-        composable(AppDestination.Reflow.route) { ReflowScreen() }
+        composable(AppDestination.Transform.route) { AuthenticatorScreen() }
+        composable(AppDestination.Reflow.route) { VaultScreen() }
         composable(AppDestination.Slideshow.route) { SlideshowScreen() }
         composable(AppDestination.Settings.route) { SettingsScreen() }
     }

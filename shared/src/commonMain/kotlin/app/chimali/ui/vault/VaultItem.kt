@@ -1,4 +1,4 @@
-package app.chimali.ui.authenticator
+package app.chimali.ui.vault
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
@@ -23,16 +23,16 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun TransformItem(
+fun VaultItem(
     text: String,
     imageRes: DrawableResource,
     modifier: Modifier = Modifier,
 ) {
-    // 1. Pull the pre-calculated dimension tokens from the current environment context
+// 1. Pull the pre-calculated dimension tokens from the current environment context
     val dimensions = LocalAppDimensions.current
     val imageSize = dimensions.transformImageSize
 
-    // 2. Use the semantic layout flag directly instead of comparing numeric dp bounds
+// 2. Use the semantic layout flag directly instead of comparing numeric dp bounds
     if (dimensions.isCompactLayout) {
         Row(
             modifier = modifier.fillMaxWidth().padding(0.dp),
@@ -84,7 +84,7 @@ fun TransformItem(
 @Preview
 private fun TransformItemPreview() {
     ChimaliTheme {
-        TransformItem(
+        VaultItem(
             text = "This is item # xx",
             imageRes = Res.drawable.avatar_1,
         )

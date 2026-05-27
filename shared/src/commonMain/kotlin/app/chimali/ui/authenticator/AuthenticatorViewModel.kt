@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class TransformViewModel : ViewModel() {
+class AuthenticatorViewModel : ViewModel() {
     // 1. Initialize data safely using a multiplatform MutableStateFlow
     private val _texts =
         MutableStateFlow<List<String>>(

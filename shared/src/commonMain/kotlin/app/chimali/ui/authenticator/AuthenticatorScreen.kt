@@ -53,10 +53,10 @@ private val DrawablesList =
     )
 
 @Composable
-fun TransformScreen(
+fun AuthenticatorScreen(
     modifier: Modifier = Modifier,
 // 2. Obtain your KMP ViewModel instance cleanly
-    viewModel: TransformViewModel = viewModel { TransformViewModel() },
+    viewModel: AuthenticatorViewModel = viewModel { AuthenticatorViewModel() },
 ) {
 // 3. Observe your business logic state safely across platforms.
 // Pauses flow collection on Android background, iOS view changes, and Desktop window changes
@@ -84,7 +84,7 @@ fun TransformScreen(
             val drawableRes = DrawablesList[index % DrawablesList.size]
 
 // 5. Render your previously optimized cross-platform item
-            TransformItem(
+            AuthenticatorItem(
                 text = text,
                 imageRes = drawableRes,
             )

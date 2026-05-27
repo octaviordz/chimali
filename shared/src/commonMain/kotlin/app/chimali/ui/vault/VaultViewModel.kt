@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class VaultViewModel : ViewModel() {
-    private val _text =
-        MutableStateFlow(
-            value = "This is reflow Fragment",
+    private val _texts =
+        MutableStateFlow<List<String>>(
+            (1..16).map { i -> "This is item # $i" },
         )
 
-    val text: StateFlow<String> = _text.asStateFlow()
+    val texts: StateFlow<List<String>> = _texts.asStateFlow()
 }

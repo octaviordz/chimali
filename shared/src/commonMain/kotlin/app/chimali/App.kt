@@ -22,12 +22,12 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import app.chimali.ui.authenticator.TransformScreen
+import app.chimali.ui.authenticator.AuthenticatorScreen
 import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
 import app.chimali.ui.theme.ChimaliTheme
 import app.chimali.ui.theme.LocalAppDimensions
-import app.chimali.ui.vault.ReflowScreen
+import app.chimali.ui.vault.VaultScreen
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
@@ -190,8 +190,8 @@ private fun MainTopAppBar(
 }
 
 private fun EntryProviderScope<NavKey>.appEntries() {
-    entry<AppRoute.Authenticator> { TransformScreen() }
-    entry<AppRoute.Vault> { ReflowScreen() }
+    entry<AppRoute.Authenticator> { AuthenticatorScreen() }
+    entry<AppRoute.Vault> { VaultScreen() }
     entry<AppRoute.DevTools> { SlideshowScreen() }
     entry<AppRoute.Settings> { SettingsScreen() }
 }
