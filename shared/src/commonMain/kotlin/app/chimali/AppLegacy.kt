@@ -21,11 +21,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import app.chimali.designsystem.theme.ChimaliTheme
+import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.ui.authenticator.AuthenticatorScreen
 import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
-import app.chimali.ui.theme.ChimaliTheme
-import app.chimali.ui.theme.LocalAppDimensions
 import app.chimali.ui.vault.VaultScreen
 
 @Composable

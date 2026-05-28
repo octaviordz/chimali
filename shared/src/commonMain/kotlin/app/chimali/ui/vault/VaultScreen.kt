@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.chimali.ui.theme.LocalAppDimensions
+import app.chimali.designsystem.theme.LocalAppDimensions
 import incubatorchimali.shared.generated.resources.Res
 import incubatorchimali.shared.generated.resources.avatar_1
 import incubatorchimali.shared.generated.resources.avatar_10

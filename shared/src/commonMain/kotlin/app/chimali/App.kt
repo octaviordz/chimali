@@ -22,11 +22,11 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
+import app.chimali.designsystem.theme.ChimaliTheme
+import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.ui.authenticator.AuthenticatorScreen
 import app.chimali.ui.devTools.SlideshowScreen
 import app.chimali.ui.settings.SettingsScreen
-import app.chimali.ui.theme.ChimaliTheme
-import app.chimali.ui.theme.LocalAppDimensions
 import app.chimali.ui.vault.VaultScreen
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic

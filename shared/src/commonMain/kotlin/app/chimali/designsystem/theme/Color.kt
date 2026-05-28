@@ -1,4 +1,4 @@
-package app.chimali.ui.theme
+package app.chimali.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 

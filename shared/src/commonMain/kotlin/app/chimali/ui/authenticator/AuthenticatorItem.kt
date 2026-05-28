@@ -13,8 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import app.chimali.ui.theme.ChimaliTheme
-import app.chimali.ui.theme.LocalAppDimensions
+import app.chimali.designsystem.theme.ChimaliTheme
+import app.chimali.designsystem.theme.LocalAppDimensions
 import incubatorchimali.shared.generated.resources.Res
 import incubatorchimali.shared.generated.resources.avatar_1
 import incubatorchimali.shared.generated.resources.image_view_item_transform_content_description

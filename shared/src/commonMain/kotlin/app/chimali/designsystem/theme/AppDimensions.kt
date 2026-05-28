@@ -1,6 +1,6 @@
 @file:Suppress("CompositionLocalAllowlist")
 
-package app.chimali.ui.theme
+package app.chimali.designsystem.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp

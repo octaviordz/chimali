@@ -1,4 +1,4 @@
-package app.chimali.ui.theme
+package app.chimali.designsystem.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -7,9 +7,17 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.unit.dp
 
-// Explicitly define your cross-platform dark mode color choices
+// Custom theme object for cleaner global access
+object ChimaliTheme {
+    val dimensions: AppDimensions
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppDimensions.current
+}
+
 private val DarkColorScheme =
     darkColorScheme(
         primary = Purple80,
@@ -33,23 +41,21 @@ fun ChimaliTheme(
     // Select the scheme directly based on the theme boolean
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography, // Ensure your 'Typography' definition lives in commonMain
-        content = content,
-    )
-
+    // 1. Wrap the calculation at the top level using constraints
     BoxWithConstraints {
-        // Evaluate the active Material 3 Window Size Class standard
         val dimensions =
             when {
-                maxWidth >= 840.dp -> ExpandedDimensions // Tablet landscape
-                maxWidth >= 600.dp -> MediumDimensions // Foldable / Tablet portrait
-                else -> CompactDimensions // Default values / Phones
+                maxWidth >= 840.dp -> ExpandedDimensions
+                maxWidth >= 600.dp -> MediumDimensions
+                else -> CompactDimensions
             }
 
+        // 2. Provide your custom dimensions first
         CompositionLocalProvider(LocalAppDimensions provides dimensions) {
+            // 3. Nest the single MaterialTheme instance inside the provider
             MaterialTheme(
+                colorScheme = colorScheme,
+                typography = Typography,
                 content = content,
             )
         }
