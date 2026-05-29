@@ -1,6 +1,6 @@
 package app.chimali.ui.authenticator
 
-import app.chimali.model.data.SelectableFeature
+import app.chimali.core.model.data.SelectableFeature
 
 /**
  * A sealed hierarchy describing the onboarding state for the for you screen.

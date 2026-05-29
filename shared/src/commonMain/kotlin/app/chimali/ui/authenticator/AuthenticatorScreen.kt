@@ -302,14 +302,10 @@ internal fun AuthenticatorScreen(
     viewModel: AuthenticatorViewModel = viewModel { AuthenticatorViewModel() },
 ) {
     val onboardingUiState by viewModel.onboardingUiState.collectAsStateWithLifecycle()
-    val feedState by viewModel.feedState.collectAsStateWithLifecycle()
-    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val deepLinkedUserNewsResource by viewModel.deepLinkedNewsResource.collectAsStateWithLifecycle()
 
     AuthenticatorScreen(
-        isSyncing = isSyncing,
         onboardingUiState = onboardingUiState,
-        feedState = feedState,
         deepLinkedUserNewsResource = deepLinkedUserNewsResource,
         onTopicCheckedChanged = viewModel::updateTopicSelection,
         onDeepLinkOpened = viewModel::onDeepLinkOpened,
@@ -323,9 +319,7 @@ internal fun AuthenticatorScreen(
 
 @Composable
 internal fun AuthenticatorScreen(
-    isSyncing: Boolean,
     onboardingUiState: OnboardingUiState,
-    feedState: NewsFeedUiState,
     deepLinkedUserNewsResource: UserNewsResource?,
     onTopicCheckedChanged: (String, Boolean) -> Unit,
     onTopicClick: (String) -> Unit,
