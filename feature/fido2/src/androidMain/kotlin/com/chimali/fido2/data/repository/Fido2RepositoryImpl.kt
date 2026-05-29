@@ -23,11 +23,6 @@ class Fido2RepositoryImpl(
         return Outcome.Success(CredentialId.fromEncoded("mock-credential-id"))
     }
 
-    override suspend fun authenticateCredential(rpId: RpId): Outcome<CredentialId, DomainError> {
-        // DEFERRED(040): FIDO2 authentication — pending CTAP2 ceremony implementation
-        return Outcome.Success(CredentialId.fromEncoded("mock-authentication-id"))
-    }
-
     override fun getAllCredentials(): Flow<PasskeyCredential> = credentialRepository.getAllCredentials()
 
     override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =

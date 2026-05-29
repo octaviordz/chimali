@@ -9,7 +9,6 @@ import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.repository.Fido2Repository
 import com.chimali.fido2.domain.service.Fido2Service
-import com.chimali.fido2.domain.usecase.AuthenticateCredentialUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Single
@@ -22,7 +21,6 @@ import org.koin.core.annotation.Single
 class Fido2ServiceImpl(
     private val fido2Repository: Fido2Repository,
     private val registerCredentialUseCase: RegisterCredentialUseCase,
-    private val authenticateCredentialUseCase: AuthenticateCredentialUseCase,
 ) : Fido2Service {
     /**
      * T070 — Full FIDO2 registration via CTAP2 MakeCredential.
@@ -43,14 +41,6 @@ class Fido2ServiceImpl(
         userName: String,
         userDisplayName: String,
     ): Outcome<CredentialId, DomainError> = fido2Repository.registerCredential(rpId, userName, userDisplayName)
-
-    /**
-     * T110 — Authenticates a credential with the relying party ID (rpId).
-     *
-     * Delegates to [AuthenticateCredentialUseCase] to match the clean architecture pattern.
-     */
-    override suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError> =
-        authenticateCredentialUseCase(rpId)
 
     override fun getAllCredentials(): Flow<PasskeyCredential> = fido2Repository.getAllCredentials()
 

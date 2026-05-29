@@ -19,8 +19,6 @@ interface Fido2Service {
         userDisplayName: String,
     ): Outcome<CredentialId, DomainError>
 
-    suspend fun authenticateWithCredential(rpId: RpId): Outcome<CredentialId, DomainError>
-
     fun getAllCredentials(): Flow<PasskeyCredential>
 
     suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError>

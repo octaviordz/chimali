@@ -3,6 +3,16 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-05-28
+
+### Refactored
+- **Remove AuthenticateCredentialUseCase Stub & Consolidate Authentication Architecture**: Eliminated the dead-code `AuthenticateCredentialUseCase` introduced in branch 050, which wrapped a mock stub returning a hardcoded `mock-authentication-id` with no real FIDO2 logic.
+    - Deleted `AuthenticateCredentialUseCase` and its companion test class.
+    - Removed the placeholder `authenticateCredential()` stub from `Fido2Repository` (interface + implementation) and `authenticateWithCredential()` from `Fido2Service` (interface + implementation).
+    - Refactored `RegistrationPromptViewModel` to inject `RegisterCredentialUseCase` directly, removing the `Fido2Service` indirection and aligning it with the NowInKMP architecture pattern (`ViewModel → UseCase`) already used by `AuthenticationPromptViewModel`.
+    - Both ceremony ViewModels now symmetrically use their respective use cases as sole application-logic interactors with no service-layer pass-through.
+- **Detailed changes**: [2026-05-28-remove-auth-credential-stub.md](docs/changelogs/2026-05-28-remove-auth-credential-stub.md)
+
 ## [Unreleased] - 2026-05-26
 
 ### Refactored

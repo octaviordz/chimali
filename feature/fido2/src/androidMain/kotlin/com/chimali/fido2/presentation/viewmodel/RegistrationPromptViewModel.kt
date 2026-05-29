@@ -8,9 +8,9 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.service.Fido2Service
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
+import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
@@ -129,7 +129,7 @@ sealed interface RegistrationEffect {
  */
 @KoinViewModel
 class RegistrationPromptViewModel(
-    private val fido2Service: Fido2Service,
+    private val registerCredentialUseCase: RegisterCredentialUseCase,
     private val userVerificationService: UserVerificationService,
     private val uiEventBus: Fido2UiEventBus,
 ) : ViewModel() {
@@ -269,7 +269,7 @@ class RegistrationPromptViewModel(
     private fun performRegistration(options: MakeCredentialOptions) {
         _state.value = RegistrationState.Processing
         viewModelScope.launch {
-            val result = fido2Service.makeCredential(options)
+            val result = registerCredentialUseCase(options)
 
             if (result is Outcome.Success) {
                 val makeResult = result.data
