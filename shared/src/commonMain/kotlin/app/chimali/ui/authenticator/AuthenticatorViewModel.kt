@@ -40,9 +40,9 @@ class AuthenticatorViewModel(
         combine(
             shouldShowOnboarding,
             getFollowableTopics(),
-        ) { shouldShowOnboarding, topics ->
+        ) { shouldShowOnboarding, features ->
             if (shouldShowOnboarding) {
-                OnboardingUiState.Shown(topics = topics)
+                OnboardingUiState.Shown(features = features)
             } else {
                 OnboardingUiState.NotShown
             }
@@ -57,7 +57,7 @@ class AuthenticatorViewModel(
         isChecked: Boolean,
     ) {
         viewModelScope.launch {
-            userDataRepository.setTopicIdFollowed(topicId, isChecked)
+            userDataRepository.setSelectableFeature(topicId, isChecked)
         }
     }
 

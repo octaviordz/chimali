@@ -16,38 +16,17 @@ interface UserDataRepository {
     suspend fun setFollowedTopicIds(followedTopicIds: Set<String>)
 
     /**
-     * Sets the user's newly followed/unfollowed topic
+     * Sets the user's newly selected/unselected feature
      */
-    suspend fun setTopicIdFollowed(
-        followedTopicId: String,
-        followed: Boolean,
-    )
-
-    /**
-     * Updates the bookmarked status for a news resource
-     */
-    suspend fun setNewsResourceBookmarked(
-        newsResourceId: String,
-        bookmarked: Boolean,
-    )
-
-    /**
-     * Updates the viewed status for a news resource
-     */
-    suspend fun setNewsResourceViewed(
-        newsResourceId: String,
-        viewed: Boolean,
+    suspend fun setSelectableFeature(
+        name: String,
+        selected: Boolean,
     )
 
     /**
      * Sets the desired dark theme config.
      */
     suspend fun setDarkThemeConfig(darkThemeConfig: DarkThemeConfig)
-
-    /**
-     * Sets the preferred dynamic color config.
-     */
-    suspend fun setDynamicColorPreference(useDynamicColor: Boolean)
 
     /**
      * Sets whether the user has completed the onboarding process.
