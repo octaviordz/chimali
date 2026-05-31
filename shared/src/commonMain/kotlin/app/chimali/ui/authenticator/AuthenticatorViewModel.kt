@@ -1,37 +1,24 @@
 package app.chimali.ui.authenticator
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.chimali.core.data.repository.UserDataRepository
 import app.chimali.core.domain.GetSelectableFeatureUseCase
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.koin.android.annotation.KoinViewModel
 
-// class AuthenticatorViewModel : ViewModel() {
-//    // 1. Initialize data safely using a multiplatform MutableStateFlow
-//    private val _texts =
-//        MutableStateFlow<List<String>>(
-//            (1..16).map { i -> "This is item # $i" },
-//        )
-//
-//    // 2. Expose an immutable StateFlow for your UI layer to observe safely
-//    val texts: StateFlow<List<String>> = _texts.asStateFlow()
-// }
-
+@OptIn(FlowPreview::class)
+@KoinViewModel
 class AuthenticatorViewModel(
     private val userDataRepository: UserDataRepository,
-    getFollowableTopics: GetSelectableFeatureUseCase,
+    getSelectableFeature: GetSelectableFeatureUseCase,
 ) : ViewModel() {
     private val shouldShowOnboarding: Flow<Boolean> =
         userDataRepository.userData.map { !it.shouldHideOnboarding }
@@ -39,7 +26,7 @@ class AuthenticatorViewModel(
     val onboardingUiState: StateFlow<OnboardingUiState> =
         combine(
             shouldShowOnboarding,
-            getFollowableTopics(),
+            getSelectableFeature(),
         ) { shouldShowOnboarding, features ->
             if (shouldShowOnboarding) {
                 OnboardingUiState.Shown(features = features)
@@ -61,18 +48,9 @@ class AuthenticatorViewModel(
         }
     }
 
-    fun updateNewsResourceSaved(
-        newsResourceId: String,
-        isChecked: Boolean,
-    ) {
-        viewModelScope.launch {
-            userDataRepository.setNewsResourceBookmarked(newsResourceId, isChecked)
-        }
-    }
-
     fun dismissOnboarding() {
         viewModelScope.launch {
-            userDataRepository.setShouldHideOnboarding(true)
+            userDataRepository.setShouldHideOnboarding(shouldHideOnboarding = true)
         }
     }
 }

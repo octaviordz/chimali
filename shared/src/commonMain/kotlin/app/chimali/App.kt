@@ -31,10 +31,16 @@ import app.chimali.ui.vault.VaultScreen
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
+import org.koin.compose.KoinApplication
+
 @Composable
 fun App() {
-    ChimaliTheme {
-        MainScaffold()
+    KoinApplication(application = {
+        modules(sharedAppModule, platformDiModule())
+    }) {
+        ChimaliTheme {
+            MainScaffold()
+        }
     }
 }
 
@@ -97,7 +103,17 @@ fun MainScaffold(modifier: Modifier = Modifier) {
             NavDisplay(
                 backStack = backStack,
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
-                entryProvider = entryProvider { appEntries() },
+                entryProvider =
+                    entryProvider {
+                        appEntries(
+                            onManagePasskeysClicked = { _ ->
+                                if (currentRoute != AppRoute.Vault) {
+                                    backStack.clear()
+                                    backStack.add(AppRoute.Vault)
+                                }
+                            },
+                        )
+                    },
             )
         }
     }
@@ -189,8 +205,10 @@ private fun MainTopAppBar(
     )
 }
 
-private fun EntryProviderScope<NavKey>.appEntries() {
-    entry<AppRoute.Authenticator> { AuthenticatorScreen() }
+private fun EntryProviderScope<NavKey>.appEntries(onManagePasskeysClicked: (String) -> Unit) {
+    entry<AppRoute.Authenticator> {
+        AuthenticatorScreen(onManagePasskeysClicked = onManagePasskeysClicked)
+    }
     entry<AppRoute.Vault> { VaultScreen() }
     entry<AppRoute.DevTools> { SlideshowScreen() }
     entry<AppRoute.Settings> { SettingsScreen() }

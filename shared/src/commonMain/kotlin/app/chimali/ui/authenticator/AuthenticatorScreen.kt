@@ -60,7 +60,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.chimali.designsystem.component.ChimaliButton
+import app.chimali.designsystem.component.ChimaliOverlayLoadingWheel
 import app.chimali.designsystem.component.NiaIconToggleButton
+import app.chimali.designsystem.component.scrollbar.DraggableScrollbar
+import app.chimali.designsystem.component.scrollbar.rememberDraggableScroller
+import app.chimali.designsystem.component.scrollbar.scrollbarState
 import app.chimali.designsystem.theme.DeviceSizePreviews
 import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.designsystem.theme.PreviewDimensionWrapper
@@ -85,6 +89,7 @@ import incubatorchimali.shared.generated.resources.image_view_item_transform_con
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 // 1. Statically map your CMP drawable resources into a list
 private val DrawablesList =
@@ -215,7 +220,7 @@ private fun TopicSelection(
             ) {
                 SingleFeatureButton(
                     name = it.name,
-                    imageRes = it.imageRes,
+                    imageRes = Res.drawable.avatar_1,
                     isSelected = it.isSelected,
                     onClick = onFeatureCheckedChanged,
                 )
@@ -294,25 +299,47 @@ private fun LazyStaggeredGridScope.onboarding(
     }
 }
 
+private fun LazyStaggeredGridScope.authenticator(
+    onManagePasskeysClicked: (String) -> Unit,
+) {
+    item(span = StaggeredGridItemSpan.FullLine, contentType = "managePasskeys") {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ChimaliButton(
+                onClick = { onManagePasskeysClicked("all") },
+                modifier =
+                    Modifier
+                        .widthIn(364.dp)
+                        .fillMaxWidth(),
+            ) {
+                Text(text = "Manage Passkeys")
+            }
+        }
+    }
+}
+
 @Composable
 internal fun AuthenticatorScreen(
-    onTopicClick: (String) -> Unit,
+    onManagePasskeysClicked: (String) -> Unit,
     modifier: Modifier = Modifier,
 // 2. Obtain your KMP ViewModel instance cleanly
-    viewModel: AuthenticatorViewModel = viewModel { AuthenticatorViewModel() },
+    viewModel: AuthenticatorViewModel = koinViewModel<AuthenticatorViewModel>(),
+// viewModel: AuthenticatorViewModel = viewModel { AuthenticatorViewModel() },
 ) {
+// 3. Observe your business logic state safely across platforms.
+// Pauses flow collection on Android background, iOS view changes, and Desktop window changes
     val onboardingUiState by viewModel.onboardingUiState.collectAsStateWithLifecycle()
-    val deepLinkedUserNewsResource by viewModel.deepLinkedNewsResource.collectAsStateWithLifecycle()
 
     AuthenticatorScreen(
         onboardingUiState = onboardingUiState,
-        deepLinkedUserNewsResource = deepLinkedUserNewsResource,
         onTopicCheckedChanged = viewModel::updateTopicSelection,
-        onDeepLinkOpened = viewModel::onDeepLinkOpened,
-        onTopicClick = onTopicClick,
+        onManagePasskeysClicked = onManagePasskeysClicked,
         saveFollowedTopics = viewModel::dismissOnboarding,
-        onNewsResourcesCheckedChanged = viewModel::updateNewsResourceSaved,
-        onNewsResourceViewed = { viewModel.setNewsResourceViewed(it, true) },
         modifier = modifier,
     )
 }
@@ -320,43 +347,21 @@ internal fun AuthenticatorScreen(
 @Composable
 internal fun AuthenticatorScreen(
     onboardingUiState: OnboardingUiState,
-    deepLinkedUserNewsResource: UserNewsResource?,
     onTopicCheckedChanged: (String, Boolean) -> Unit,
-    onTopicClick: (String) -> Unit,
-    onDeepLinkOpened: (String) -> Unit,
+    onManagePasskeysClicked: (String) -> Unit,
     saveFollowedTopics: () -> Unit,
-    onNewsResourcesCheckedChanged: (String, Boolean) -> Unit,
-    onNewsResourceViewed: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isOnboardingLoading = onboardingUiState is OnboardingUiState.Loading
-    val isFeedLoading = feedState is NewsFeedUiState.Loading
 
-//    // This code should be called when the UI is ready for use and relates to Time To Full Display.
-//    ReportDrawnWhen { !isSyncing && !isOnboardingLoading && !isFeedLoading }
-
-    val itemsAvailable = feedItemsSize(feedState, onboardingUiState)
+    val itemsAvailable = 2
 
     val state = rememberLazyStaggeredGridState()
+
     val scrollbarState =
         state.scrollbarState(
             itemsAvailable = itemsAvailable,
         )
-
-// 3. Observe your business logic state safely across platforms.
-// Pauses flow collection on Android background, iOS view changes, and Desktop window changes
-    val items by viewModel.texts.collectAsStateWithLifecycle(initialValue = emptyList())
-    val dimensions = LocalAppDimensions.current
-
-// 4. Set column layout count dynamically using your theme flags
-// 1 column for Compact layout (List), Adaptive min size for Medium/Expanded (Grid)
-    val columns =
-        if (dimensions.isCompactLayout) {
-            GridCells.Fixed(1)
-        } else {
-            GridCells.Adaptive(minSize = 160.dp)
-        }
-
     Box(
         modifier =
             modifier
@@ -369,7 +374,7 @@ internal fun AuthenticatorScreen(
             verticalItemSpacing = 24.dp,
             modifier =
                 Modifier
-                    .testTag("forYou:feed"),
+                    .testTag("authenticator:authenticator"),
             state = state,
         ) {
             onboarding(
@@ -392,25 +397,19 @@ internal fun AuthenticatorScreen(
                     },
             )
 
-            newsFeed(
-                feedState = feedState,
-                onNewsResourcesCheckedChanged = onNewsResourcesCheckedChanged,
-                onNewsResourceViewed = onNewsResourceViewed,
-                onTopicClick = onTopicClick,
+            authenticator(
+                onManagePasskeysClicked = onManagePasskeysClicked,
             )
 
             item(span = StaggeredGridItemSpan.FullLine, contentType = "bottomSpacing") {
                 Column {
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Add space for the content to clear the "offline" snackbar.
-                    // TODO: Check that the Scaffold handles this correctly in NiaApp
-                    // if (isOffline) Spacer(modifier = Modifier.height(48.dp))
                     Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing))
                 }
             }
         }
         AnimatedVisibility(
-            visible = isSyncing || isFeedLoading || isOnboardingLoading,
+            visible = isOnboardingLoading,
             enter =
                 slideInVertically(
                     initialOffsetY = { fullHeight -> -fullHeight },
@@ -420,14 +419,14 @@ internal fun AuthenticatorScreen(
                     targetOffsetY = { fullHeight -> -fullHeight },
                 ) + fadeOut(),
         ) {
-            val loadingContentDescription = stringResource(Res.string.feature_foryou_loading)
+            val loadingContentDescription = "Loading..."
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
             ) {
-                NiaOverlayLoadingWheel(
+                ChimaliOverlayLoadingWheel(
                     modifier =
                         Modifier
                             .align(Alignment.Center),
@@ -481,6 +480,11 @@ internal fun AuthenticatorScreen(
 fun CompactPreview() {
     // You can also use standard layout wrappers if the custom spec annotation struggles in CMP common code
     PreviewDimensionWrapper {
-        AuthenticatorScreen()
+        AuthenticatorScreen(
+            onboardingUiState = OnboardingUiState.Loading,
+            onTopicCheckedChanged = { _, _ -> },
+            onManagePasskeysClicked = {},
+            saveFollowedTopics = {},
+        )
     }
 }

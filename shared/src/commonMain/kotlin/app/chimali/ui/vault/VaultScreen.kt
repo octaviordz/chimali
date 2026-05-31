@@ -11,7 +11,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.chimali.designsystem.theme.LocalAppDimensions
 import incubatorchimali.shared.generated.resources.Res
 import incubatorchimali.shared.generated.resources.avatar_1
@@ -30,6 +29,7 @@ import incubatorchimali.shared.generated.resources.avatar_6
 import incubatorchimali.shared.generated.resources.avatar_7
 import incubatorchimali.shared.generated.resources.avatar_8
 import incubatorchimali.shared.generated.resources.avatar_9
+import org.koin.compose.viewmodel.koinViewModel
 
 // 1. Statically map your CMP drawable resources into a list
 private val DrawablesList =
@@ -56,7 +56,7 @@ private val DrawablesList =
 fun VaultScreen(
     modifier: Modifier = Modifier,
 // 2. Obtain your KMP ViewModel instance cleanly
-    viewModel: VaultViewModel = viewModel { VaultViewModel() },
+    viewModel: VaultViewModel = koinViewModel(),
 ) {
 // 3. Observe your business logic state safely across platforms.
 // Pauses flow collection on Android background, iOS view changes, and Desktop window changes

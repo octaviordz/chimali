@@ -32,6 +32,8 @@ compose-multiplatform-lifecycle = "2.10.0"
 kotlinStdlib = "2.3.21"
 runner = "1.5.2"
 core = "1.5.0"
+koin = "4.2.1"
+koin-compiler = "2.3.1"
 
 [libraries]
 jetbrains-navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
@@ -69,6 +71,17 @@ jetbrains-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.li
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlinStdlib" }
 androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
+
+# Koin
+koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
+koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
+koin-compose = { group = "io.insert-koin", name = "koin-compose", version.ref = "koin" }
+koin-compose-viewmodel = { group = "io.insert-koin", name = "koin-compose-viewmodel", version.ref = "koin" }
+# Koin Annotations: @Single, @Factory, @KoinViewModel, @Module, @ComponentScan
+koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koin-compiler" }
+# KSP code generator for Koin Annotations (produces compile-time-safe module wiring)
+koin-ksp-compiler = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref = "koin-compiler" }
+koin-test = { group = "io.insert-koin", name = "koin-test", version.ref = "koin" }
 
 
 [plugins]
