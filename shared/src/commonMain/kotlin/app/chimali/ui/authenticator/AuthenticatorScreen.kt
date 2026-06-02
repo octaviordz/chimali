@@ -58,7 +58,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.chimali.designsystem.component.ChimaliButton
 import app.chimali.designsystem.component.ChimaliOverlayLoadingWheel
 import app.chimali.designsystem.component.NiaIconToggleButton
@@ -299,9 +298,7 @@ private fun LazyStaggeredGridScope.onboarding(
     }
 }
 
-private fun LazyStaggeredGridScope.authenticator(
-    onManagePasskeysClicked: (String) -> Unit,
-) {
+private fun LazyStaggeredGridScope.authenticator(onManagePasskeysClicked: (String) -> Unit) {
     item(span = StaggeredGridItemSpan.FullLine, contentType = "managePasskeys") {
         Column(
             modifier =
@@ -337,7 +334,7 @@ internal fun AuthenticatorScreen(
 
     AuthenticatorScreen(
         onboardingUiState = onboardingUiState,
-        onTopicCheckedChanged = viewModel::updateTopicSelection,
+        onSelectableFeatureCheckedChanged = viewModel::updateSelectableFeature,
         onManagePasskeysClicked = onManagePasskeysClicked,
         saveFollowedTopics = viewModel::dismissOnboarding,
         modifier = modifier,
@@ -347,7 +344,7 @@ internal fun AuthenticatorScreen(
 @Composable
 internal fun AuthenticatorScreen(
     onboardingUiState: OnboardingUiState,
-    onTopicCheckedChanged: (String, Boolean) -> Unit,
+    onSelectableFeatureCheckedChanged: (String, Boolean) -> Unit,
     onManagePasskeysClicked: (String) -> Unit,
     saveFollowedTopics: () -> Unit,
     modifier: Modifier = Modifier,
@@ -379,7 +376,7 @@ internal fun AuthenticatorScreen(
         ) {
             onboarding(
                 onboardingUiState = onboardingUiState,
-                onTopicCheckedChanged = onTopicCheckedChanged,
+                onTopicCheckedChanged = onSelectableFeatureCheckedChanged,
                 saveFollowedTopics = saveFollowedTopics,
                 // Custom LayoutModifier to remove the enforced parent 16.dp contentPadding
                 // from the LazyVerticalGrid and enable edge-to-edge scrolling for this section
@@ -482,7 +479,7 @@ fun CompactPreview() {
     PreviewDimensionWrapper {
         AuthenticatorScreen(
             onboardingUiState = OnboardingUiState.Loading,
-            onTopicCheckedChanged = { _, _ -> },
+            onSelectableFeatureCheckedChanged = { _, _ -> },
             onManagePasskeysClicked = {},
             saveFollowedTopics = {},
         )

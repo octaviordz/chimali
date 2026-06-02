@@ -34,6 +34,8 @@ plugins {
 
 include(":androidApp")
 include(":core:data")
+include(":core:datastore")
+include(":core:datastore-proto")
 include(":core:domain")
 include(":core:model")
 include(":desktopApp")

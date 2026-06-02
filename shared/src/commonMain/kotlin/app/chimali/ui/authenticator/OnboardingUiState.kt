@@ -1,6 +1,6 @@
 package app.chimali.ui.authenticator
 
-import app.chimali.core.model.data.SelectableFeature
+import app.chimali.core.model.data.SelectableAppFeature
 
 /**
  * A sealed hierarchy describing the onboarding state for the for you screen.
@@ -22,10 +22,10 @@ sealed interface OnboardingUiState {
     data object NotShown : OnboardingUiState
 
     /**
-     * There is a onboarding state, with the given lists of features.
+     * There is an onboarding state, with the given lists of features.
      */
     data class Shown(
-        val features: List<SelectableFeature>,
+        val features: List<SelectableAppFeature>,
     ) : OnboardingUiState {
         val isDismissable: Boolean get() = features.any { it.isSelected }
     }

@@ -1,6 +1,6 @@
 package app.chimali.core.model.data
 
-data class SelectableFeature(
+data class SelectableAppFeature(
     val name: String,
     val isSelected: Boolean,
 )

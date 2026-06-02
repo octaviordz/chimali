@@ -12,7 +12,7 @@ kotlin {
     iosSimulatorArm64()
     jvm()
     android {
-        namespace = "app.chimali.core.data"
+        namespace = "app.chimali.core.datastore"
         compileSdk =
             libs.versions.android.compileSdk
                 .get()
@@ -24,17 +24,10 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
-            api(projects.core.datastore)
-
-            implementation(projects.core.model)
             implementation(libs.kotlinx.coroutines.core)
-
-            implementation(libs.koin.core)
-            implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
-            implementation(libs.koin.annotations)
-
-            api(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.core)
+            implementation(projects.core.model)
+            implementation(projects.core.datastoreProto)
         }
     }
 }

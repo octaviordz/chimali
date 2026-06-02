@@ -11,14 +11,14 @@ interface UserDataRepository {
     val userData: Flow<UserData>
 
     /**
-     * Sets the user's currently followed topics
+     * Sets the user's currently selected app features
      */
-    suspend fun setFollowedTopicIds(followedTopicIds: Set<String>)
+    suspend fun setSelectedAppFeatureNames(selectedAppFeatureNames: Set<String>)
 
     /**
      * Sets the user's newly selected/unselected feature
      */
-    suspend fun setSelectableFeature(
+    suspend fun setSelectableAppFeature(
         name: String,
         selected: Boolean,
     )

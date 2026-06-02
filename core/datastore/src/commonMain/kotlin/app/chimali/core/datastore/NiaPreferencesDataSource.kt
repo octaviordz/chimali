@@ -1,0 +1,245 @@
+package app.chimali.core.datastore
+
+import androidx.datastore.core.DataStore
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
+
+private const val USER_DATA_KEY = "userData"
+
+@OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
+class NiaPreferencesDataSource(
+    @param:Dispatcher(IO) private val dispatcher: CoroutineDispatcher,
+) : DataStore<UserPreferences> {
+    private val _userData =
+        MutableStateFlow(
+            settings.decodeValue(
+                key = USER_DATA_KEY,
+                serializer = UserPreferences.serializer(),
+                defaultValue =
+                    settings.decodeValueOrNull(
+                        key = USER_DATA_KEY,
+                        serializer = UserPreferences.serializer(),
+                    ) ?: UserPreferences.DEFAULT,
+            ),
+        )
+
+    val userData: Flow<UserData> =
+        _userData.map {
+            UserData(
+                bookmarkedNewsResources = it.bookmarkedNewsResourceIds,
+                viewedNewsResources = it.viewedNewsResourceIds,
+                followedTopics = it.followedTopicIds,
+                themeBrand = it.themeBrand.toThemeBrand(),
+                darkThemeConfig = it.darkThemeConfig.toDarkThemeConfig(),
+                useDynamicColor = it.useDynamicColor,
+                shouldHideOnboarding = it.shouldHideOnboarding,
+            )
+        }
+
+    suspend fun setFollowedTopicIds(topicIds: Set<String>) =
+        withContext(dispatcher) {
+            val preference =
+                settings
+                    .getUserPreference()
+                    .copy(followedTopicIds = topicIds)
+                    .updateShouldHideOnboardingIfNecessary()
+            settings.putUserPreference(preference)
+            _userData.value = preference
+        }
+
+    suspend fun setTopicIdFollowed(
+        topicId: String,
+        followed: Boolean,
+    ) = withContext(dispatcher) {
+        val preference = settings.getUserPreference()
+        val newPreference =
+            preference
+                .copy(
+                    followedTopicIds =
+                        if (followed) {
+                            preference.followedTopicIds + topicId
+                        } else {
+                            preference.followedTopicIds - topicId
+                        },
+                ).updateShouldHideOnboardingIfNecessary()
+        settings.putUserPreference(newPreference)
+        _userData.value = newPreference
+    }
+
+    suspend fun setThemeBrand(themeBrand: ThemeBrand) =
+        withContext(dispatcher) {
+            val newPreference =
+                settings
+                    .getUserPreference()
+                    .copy(themeBrand = themeBrand.toThemeBrandProto())
+            settings.putUserPreference(newPreference)
+            _userData.value = newPreference
+        }
+
+    suspend fun setDynamicColorPreference(useDynamicColor: Boolean) =
+        withContext(dispatcher) {
+            val newPreference =
+                settings
+                    .getUserPreference()
+                    .copy(useDynamicColor = useDynamicColor)
+            settings.putUserPreference(newPreference)
+            _userData.value = newPreference
+        }
+
+    suspend fun setDarkThemeConfig(darkThemeConfig: DarkThemeConfig) =
+        withContext(dispatcher) {
+            val newPreference =
+                settings
+                    .getUserPreference()
+                    .copy(darkThemeConfig = darkThemeConfig.toDarkThemeConfigProto())
+            settings.putUserPreference(newPreference)
+            _userData.value = newPreference
+        }
+
+    suspend fun setNewsResourceBookmarked(
+        newsResourceId: String,
+        bookmarked: Boolean,
+    ) = withContext(dispatcher) {
+        val preference = settings.getUserPreference()
+        val newPreferences =
+            preference
+                .copy(
+                    bookmarkedNewsResourceIds =
+                        if (bookmarked) {
+                            preference.bookmarkedNewsResourceIds + newsResourceId
+                        } else {
+                            preference.bookmarkedNewsResourceIds - newsResourceId
+                        },
+                )
+        settings.putUserPreference(newPreferences)
+        _userData.value = newPreferences
+    }
+
+    suspend fun setNewsResourceViewed(
+        newsResourceId: String,
+        viewed: Boolean,
+    ) {
+        setNewsResourcesViewed(listOf(newsResourceId), viewed)
+    }
+
+    suspend fun setNewsResourcesViewed(
+        newsResourceIds: List<String>,
+        viewed: Boolean,
+    ) = withContext(dispatcher) {
+        val preference = settings.getUserPreference()
+        val newPreferences =
+            preference
+                .copy(
+                    viewedNewsResourceIds =
+                        if (viewed) {
+                            preference.viewedNewsResourceIds + newsResourceIds
+                        } else {
+                            preference.viewedNewsResourceIds - newsResourceIds.toSet()
+                        },
+                )
+        settings.putUserPreference(newPreferences)
+        _userData.value = newPreferences
+    }
+
+    suspend fun getChangeListVersions(): ChangeListVersions =
+        withContext(dispatcher) {
+            val preferences = settings.getUserPreference()
+            return@withContext ChangeListVersions(
+                topicVersion = preferences.topicChangeListVersion,
+                newsResourceVersion = preferences.newsResourceChangeListVersion,
+            )
+        }
+
+    /**
+     * Update the [ChangeListVersions] using [update].
+     */
+    suspend fun updateChangeListVersion(update: ChangeListVersions.() -> ChangeListVersions) =
+        withContext(dispatcher) {
+            val currentPreferences = settings.getUserPreference()
+            val updatedChangeListVersions =
+                update(
+                    ChangeListVersions(
+                        topicVersion = currentPreferences.topicChangeListVersion,
+                        newsResourceVersion = currentPreferences.newsResourceChangeListVersion,
+                    ),
+                )
+            val updatedPreference =
+                currentPreferences.copy(
+                    topicChangeListVersion = updatedChangeListVersions.topicVersion,
+                    newsResourceChangeListVersion = updatedChangeListVersions.newsResourceVersion,
+                )
+            settings.putUserPreference(updatedPreference)
+            _userData.value = updatedPreference
+        }
+
+    suspend fun setShouldHideOnboarding(shouldHideOnboarding: Boolean) =
+        withContext(dispatcher) {
+            val newPreference =
+                settings
+                    .getUserPreference()
+                    .copy(shouldHideOnboarding = shouldHideOnboarding)
+            settings.putUserPreference(newPreference)
+            _userData.value = newPreference
+        }
+}
+
+private fun UserPreferences.updateShouldHideOnboardingIfNecessary(): UserPreferences =
+    if (followedTopicIds.isEmpty() && followedAuthorIds.isEmpty()) {
+        this.copy(shouldHideOnboarding = false)
+    } else {
+        this
+    }
+
+@OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
+private fun Settings.putUserPreference(preference: UserPreferences) {
+    encodeValue(
+        key = USER_DATA_KEY,
+        serializer = UserPreferences.serializer(),
+        value = preference,
+    )
+}
+
+@OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
+private fun Settings.getUserPreference(): UserPreferences =
+    decodeValue(
+        key = USER_DATA_KEY,
+        serializer = UserPreferences.serializer(),
+        defaultValue = UserPreferences.DEFAULT,
+    )
+
+fun ThemeBrandProto.toThemeBrand(): ThemeBrand =
+    when (this) {
+        ThemeBrandProto.THEME_BRAND_UNSPECIFIED,
+        ThemeBrandProto.THEME_BRAND_DEFAULT,
+        -> ThemeBrand.DEFAULT
+
+        ThemeBrandProto.THEME_BRAND_ANDROID -> ThemeBrand.ANDROID
+    }
+
+private fun ThemeBrand.toThemeBrandProto(): ThemeBrandProto =
+    when (this) {
+        ThemeBrand.DEFAULT -> ThemeBrandProto.THEME_BRAND_DEFAULT
+        ThemeBrand.ANDROID -> ThemeBrandProto.THEME_BRAND_ANDROID
+    }
+
+private fun DarkThemeConfig.toDarkThemeConfigProto(): DarkThemeConfigProto =
+    when (this) {
+        DarkThemeConfig.FOLLOW_SYSTEM -> DarkThemeConfigProto.DARK_THEME_CONFIG_FOLLOW_SYSTEM
+        DarkThemeConfig.DARK -> DarkThemeConfigProto.DARK_THEME_CONFIG_DARK
+        DarkThemeConfig.LIGHT -> DarkThemeConfigProto.DARK_THEME_CONFIG_LIGHT
+    }
+
+private fun DarkThemeConfigProto.toDarkThemeConfig(): DarkThemeConfig =
+    when (this) {
+        DarkThemeConfigProto.DARK_THEME_CONFIG_UNSPECIFIED,
+        DarkThemeConfigProto.DARK_THEME_CONFIG_FOLLOW_SYSTEM,
+        -> DarkThemeConfig.FOLLOW_SYSTEM
+
+        DarkThemeConfigProto.DARK_THEME_CONFIG_DARK -> DarkThemeConfig.DARK
+
+        DarkThemeConfigProto.DARK_THEME_CONFIG_LIGHT -> DarkThemeConfig.LIGHT
+    }

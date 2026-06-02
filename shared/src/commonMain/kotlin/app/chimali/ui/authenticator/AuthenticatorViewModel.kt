@@ -3,7 +3,7 @@ package app.chimali.ui.authenticator
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.chimali.core.data.repository.UserDataRepository
-import app.chimali.core.domain.GetSelectableFeatureUseCase
+import app.chimali.core.domain.GetSelectableAppFeatureUseCase
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +18,7 @@ import org.koin.android.annotation.KoinViewModel
 @KoinViewModel
 class AuthenticatorViewModel(
     private val userDataRepository: UserDataRepository,
-    getSelectableFeature: GetSelectableFeatureUseCase,
+    getSelectableFeature: GetSelectableAppFeatureUseCase,
 ) : ViewModel() {
     private val shouldShowOnboarding: Flow<Boolean> =
         userDataRepository.userData.map { !it.shouldHideOnboarding }
@@ -39,12 +39,12 @@ class AuthenticatorViewModel(
             initialValue = OnboardingUiState.Loading,
         )
 
-    fun updateTopicSelection(
-        topicId: String,
+    fun updateSelectableFeature(
+        featureName: String,
         isChecked: Boolean,
     ) {
         viewModelScope.launch {
-            userDataRepository.setSelectableFeature(topicId, isChecked)
+            userDataRepository.setSelectableAppFeature(featureName, isChecked)
         }
     }
 
