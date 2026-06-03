@@ -24,17 +24,16 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
-            api(projects.core.datastore)
+            api(libs.kotlinx.datetime)
 
-            implementation(projects.core.model)
-            implementation(libs.kotlinx.coroutines.core)
-
-            implementation(libs.koin.core)
+            implementation(libs.koin.annotations)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
-            implementation(libs.koin.annotations)
+            implementation(libs.koin.core)
+            implementation(libs.kotlinx.coroutines.core)
 
-            api(libs.kotlinx.datetime)
+            implementation(projects.core.datastore)
+            implementation(projects.core.model)
         }
     }
 }

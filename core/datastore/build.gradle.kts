@@ -24,10 +24,18 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
+            api(projects.core.datastoreProto)
+
+            implementation(libs.androidx.datastore)
+            implementation(libs.androidx.datastore.core.okio)
+            implementation(libs.koin.annotations)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.koin.core)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.core)
+
             implementation(projects.core.model)
-            implementation(projects.core.datastoreProto)
         }
     }
 }

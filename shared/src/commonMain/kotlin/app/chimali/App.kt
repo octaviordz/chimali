@@ -22,7 +22,6 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import app.chimali.core.data.repository.platformDiModule
 import app.chimali.designsystem.theme.ChimaliTheme
 import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.ui.authenticator.AuthenticatorScreen
