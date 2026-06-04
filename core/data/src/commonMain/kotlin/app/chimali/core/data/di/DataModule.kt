@@ -5,14 +5,14 @@ import app.chimali.core.data.repository.OfflineFirstAppFeatureRepository
 import app.chimali.core.data.repository.OfflineFirstUserDataRepository
 import app.chimali.core.data.repository.UserDataRepository
 import org.koin.core.module.Module
-import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.*
 
 internal val repositoryModule =
     module {
-        singleOf(::OfflineFirstAppFeatureRepository) bind AppFeatureRepository::class
-        singleOf(::OfflineFirstUserDataRepository) bind UserDataRepository::class
+        single<OfflineFirstAppFeatureRepository>() bind AppFeatureRepository::class
+        single<OfflineFirstUserDataRepository>() bind UserDataRepository::class
     }
 
 val dataModule: Module get() =

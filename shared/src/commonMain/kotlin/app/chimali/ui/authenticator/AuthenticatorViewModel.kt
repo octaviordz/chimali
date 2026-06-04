@@ -12,10 +12,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import org.koin.core.annotation.KoinViewModel
 
 @OptIn(FlowPreview::class)
-@KoinViewModel
 class AuthenticatorViewModel(
     private val userDataRepository: UserDataRepository,
     getSelectableFeature: GetSelectableAppFeatureUseCase,

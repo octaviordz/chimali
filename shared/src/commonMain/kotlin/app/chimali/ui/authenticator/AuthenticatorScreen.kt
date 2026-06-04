@@ -326,7 +326,6 @@ internal fun AuthenticatorScreen(
     modifier: Modifier = Modifier,
 // 2. Obtain your KMP ViewModel instance cleanly
     viewModel: AuthenticatorViewModel = koinViewModel<AuthenticatorViewModel>(),
-// viewModel: AuthenticatorViewModel = viewModel { AuthenticatorViewModel() },
 ) {
 // 3. Observe your business logic state safely across platforms.
 // Pauses flow collection on Android background, iOS view changes, and Desktop window changes

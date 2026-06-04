@@ -1,7 +1,10 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+// Android & Kotlin Platform Plugins
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.androidLint)
+    alias(libs.plugins.kotlinMultiplatform)
+// Dependency Injection & Serialization Plugins
+    alias(libs.plugins.koin.compiler)
 }
 
 kotlin {

@@ -36,7 +36,7 @@ import org.koin.dsl.koinConfiguration
 @Composable
 fun App() {
     KoinApplication(
-        configuration = koinConfiguration(declaration = { modules(sharedAppModule, platformDiModule()) }),
+        configuration = koinConfiguration(declaration = { modules(sharedAppModule) }),
         content = {
             ChimaliTheme {
                 MainScaffold()

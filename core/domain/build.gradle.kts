@@ -1,7 +1,10 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+// Android & Kotlin Platform Plugins
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.androidLint)
+    alias(libs.plugins.kotlinMultiplatform)
+// Dependency Injection & Serialization Plugins
+    alias(libs.plugins.koin.compiler)
 }
 
 kotlin {
@@ -24,13 +27,18 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.data)
-            implementation(projects.core.model)
-
+// KotlinX & Core Libraries
+            api(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.core)
-
-            api(libs.kotlinx.datetime)
+// Koin Dependency Injection
+            implementation(libs.koin.annotations)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.koin.core)
+// Project Modules
+            implementation(projects.core.data)
+            implementation(projects.core.model)
         }
     }
 }
