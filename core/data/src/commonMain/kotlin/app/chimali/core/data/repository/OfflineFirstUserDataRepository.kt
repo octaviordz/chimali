@@ -1,32 +1,29 @@
 package app.chimali.core.data.repository
 
 import app.chimali.core.datastore.PreferencesDataSource
+import app.chimali.core.model.data.AppFeatureId
 import app.chimali.core.model.data.DarkThemeConfig
 import app.chimali.core.model.data.UserData
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import org.koin.core.module.Module
-import org.koin.core.module.dsl.viewModel
-import org.koin.dsl.module
 
 class OfflineFirstUserDataRepository(
-    private val niaPreferencesDataSource: PreferencesDataSource,
+    private val preferencesDataSource: PreferencesDataSource,
 ) : UserDataRepository {
     override val userData: Flow<UserData> =
-        niaPreferencesDataSource.userData
+        preferencesDataSource.userData
 
     override suspend fun setSelectableAppFeature(
-        featureId: String,
+        appFeatureId: AppFeatureId,
         selected: Boolean,
     ) {
-        niaPreferencesDataSource.setAppFeatureIdSelected(featureId, selected)
+        preferencesDataSource.setAppFeatureIdSelected(appFeatureId, selected)
     }
 
     override suspend fun setDarkThemeConfig(darkThemeConfig: DarkThemeConfig) {
-        niaPreferencesDataSource.setDarkThemeConfig(darkThemeConfig)
+        preferencesDataSource.setDarkThemeConfig(darkThemeConfig)
     }
 
     override suspend fun setShouldHideOnboarding(shouldHideOnboarding: Boolean) {
-        niaPreferencesDataSource.setShouldHideOnboarding(shouldHideOnboarding)
+        preferencesDataSource.setShouldHideOnboarding(shouldHideOnboarding)
     }
 }

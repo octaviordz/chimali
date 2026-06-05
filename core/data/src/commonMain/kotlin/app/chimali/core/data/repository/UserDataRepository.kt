@@ -1,5 +1,6 @@
 package app.chimali.core.data.repository
 
+import app.chimali.core.model.data.AppFeatureId
 import app.chimali.core.model.data.DarkThemeConfig
 import app.chimali.core.model.data.UserData
 import kotlinx.coroutines.flow.Flow
@@ -11,10 +12,10 @@ interface UserDataRepository {
     val userData: Flow<UserData>
 
     /**
-     * Sets the user's newly selected/unselected feature
+     * Sets the user's newly selected/unselected app feature
      */
     suspend fun setSelectableAppFeature(
-        featureId: String,
+        appFeatureId: AppFeatureId,
         selected: Boolean,
     )
 

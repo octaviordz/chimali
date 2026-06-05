@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -40,6 +39,8 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
@@ -50,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -58,9 +60,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.chimali.designsystem.component.ChimaliButton
+import app.chimali.core.model.data.AppFeatureId
 import app.chimali.designsystem.component.ChimaliOverlayLoadingWheel
-import app.chimali.designsystem.component.NiaIconToggleButton
+import app.chimali.designsystem.component.IconToggleButton
+import app.chimali.designsystem.component.OwnButton
 import app.chimali.designsystem.component.scrollbar.DraggableScrollbar
 import app.chimali.designsystem.component.scrollbar.rememberDraggableScroller
 import app.chimali.designsystem.component.scrollbar.scrollbarState
@@ -68,55 +71,17 @@ import app.chimali.designsystem.theme.DeviceSizePreviews
 import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.designsystem.theme.PreviewDimensionWrapper
 import incubatorchimali.shared.generated.resources.Res
-import incubatorchimali.shared.generated.resources.avatar_1
-import incubatorchimali.shared.generated.resources.avatar_10
-import incubatorchimali.shared.generated.resources.avatar_11
-import incubatorchimali.shared.generated.resources.avatar_12
-import incubatorchimali.shared.generated.resources.avatar_13
-import incubatorchimali.shared.generated.resources.avatar_14
-import incubatorchimali.shared.generated.resources.avatar_15
-import incubatorchimali.shared.generated.resources.avatar_16
-import incubatorchimali.shared.generated.resources.avatar_2
-import incubatorchimali.shared.generated.resources.avatar_3
-import incubatorchimali.shared.generated.resources.avatar_4
-import incubatorchimali.shared.generated.resources.avatar_5
-import incubatorchimali.shared.generated.resources.avatar_6
-import incubatorchimali.shared.generated.resources.avatar_7
-import incubatorchimali.shared.generated.resources.avatar_8
-import incubatorchimali.shared.generated.resources.avatar_9
 import incubatorchimali.shared.generated.resources.image_view_item_transform_content_description
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
-// 1. Statically map your CMP drawable resources into a list
-private val DrawablesList =
-    listOf(
-        Res.drawable.avatar_1,
-        Res.drawable.avatar_2,
-        Res.drawable.avatar_3,
-        Res.drawable.avatar_4,
-        Res.drawable.avatar_5,
-        Res.drawable.avatar_6,
-        Res.drawable.avatar_7,
-        Res.drawable.avatar_8,
-        Res.drawable.avatar_9,
-        Res.drawable.avatar_10,
-        Res.drawable.avatar_11,
-        Res.drawable.avatar_12,
-        Res.drawable.avatar_13,
-        Res.drawable.avatar_14,
-        Res.drawable.avatar_15,
-        Res.drawable.avatar_16,
-    )
-
 @Composable
 private fun SingleFeatureButton(
+    id: AppFeatureId,
     name: String,
-    imageRes: DrawableResource,
+    icon: ImageVector,
     isSelected: Boolean,
-    onClick: (String, Boolean) -> Unit,
+    onClick: (AppFeatureId, Boolean) -> Unit,
 ) {
 // 1. Pull the pre-calculated dimension tokens from the current environment context
     val dimensions = LocalAppDimensions.current
@@ -131,15 +96,15 @@ private fun SingleFeatureButton(
         color = MaterialTheme.colorScheme.surface,
         selected = isSelected,
         onClick = {
-            onClick(name, !isSelected)
+            onClick(id, !isSelected)
         },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 12.dp, end = 8.dp),
         ) {
-            Image(
-                painter = painterResource(resource = imageRes),
+            Icon(
+                imageVector = icon,
                 contentDescription =
                     stringResource(
                         resource = Res.string.image_view_item_transform_content_description,
@@ -158,9 +123,9 @@ private fun SingleFeatureButton(
                         .weight(1f),
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            NiaIconToggleButton(
+            IconToggleButton(
                 checked = isSelected,
-                onCheckedChange = { checked -> onClick(name, checked) },
+                onCheckedChange = { checked -> onClick(id, checked) },
                 icon = {
                     Icon(
                         imageVector = Icons.Rounded.Add,
@@ -179,13 +144,13 @@ private fun SingleFeatureButton(
 }
 
 @Composable
-private fun TopicSelection(
+private fun AppFeaturesSelection(
     onboardingUiState: OnboardingUiState.Shown,
-    onFeatureCheckedChanged: (String, Boolean) -> Unit,
+    onAppFeatureCheckedChanged: (AppFeatureId, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val lazyGridState = rememberLazyGridState()
-    val topicSelectionTestTag = "forYou:topicSelection"
+    val appFeatureSelectionTestTag = "onboarding:AppFeatureSelection"
 
     Box(
         modifier =
@@ -200,28 +165,26 @@ private fun TopicSelection(
             contentPadding = PaddingValues(24.dp),
             modifier =
                 Modifier
-                    // LazyHorizontalGrid has to be constrained in height.
-                    // However, we can't set a fixed height because the horizontal grid contains
-                    // vertical text that can be rescaled.
-                    // When the fontScale is at most 1, we know that the horizontal grid will be at most
-                    // 240dp tall, so this is an upper bound for when the font scale is at most 1.
-                    // When the fontScale is greater than 1, the height required by the text inside the
-                    // horizontal grid will increase by at most the same factor, so 240sp is a valid
-                    // upper bound for how much space we need in that case.
-                    // The maximum of these two bounds is therefore a valid upper bound in all cases.
                     .heightIn(max = max(240.dp, with(LocalDensity.current) { 240.sp.toDp() }))
                     .fillMaxWidth()
-                    .testTag(topicSelectionTestTag),
+                    .testTag(appFeatureSelectionTestTag),
         ) {
-            items(
+            itemsIndexed(
                 items = onboardingUiState.features,
-                key = { it.name },
-            ) {
+                key = { _, it -> it.appFeature.name },
+            ) { index, it ->
+                val icon =
+                    when (index) {
+                        0 -> Icons.Filled.Security
+                        1 -> Icons.Filled.Folder
+                        else -> Icons.Filled.Folder
+                    }
                 SingleFeatureButton(
-                    name = it.name,
-                    imageRes = Res.drawable.avatar_1,
+                    id = it.appFeature.id,
+                    name = it.appFeature.name,
+                    icon = icon,
                     isSelected = it.isSelected,
-                    onClick = onFeatureCheckedChanged,
+                    onClick = onAppFeatureCheckedChanged,
                 )
             }
         }
@@ -235,8 +198,8 @@ private fun TopicSelection(
  */
 private fun LazyStaggeredGridScope.onboarding(
     onboardingUiState: OnboardingUiState,
-    onTopicCheckedChanged: (String, Boolean) -> Unit,
-    saveFollowedTopics: () -> Unit,
+    onAppFeatureCheckedChanged: (AppFeatureId, Boolean) -> Unit,
+    saveSelectedAppFeatures: () -> Unit,
     interestsItemModifier: Modifier = Modifier,
 ) {
     when (onboardingUiState) {
@@ -268,9 +231,9 @@ private fun LazyStaggeredGridScope.onboarding(
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TopicSelection(
+                    AppFeaturesSelection(
                         onboardingUiState,
-                        onTopicCheckedChanged,
+                        onAppFeatureCheckedChanged,
                         Modifier.padding(bottom = 8.dp),
                     )
                     // Done button
@@ -278,8 +241,8 @@ private fun LazyStaggeredGridScope.onboarding(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        ChimaliButton(
-                            onClick = saveFollowedTopics,
+                        OwnButton(
+                            onClick = saveSelectedAppFeatures,
                             enabled = onboardingUiState.isDismissable,
                             modifier =
                                 Modifier
@@ -307,7 +270,7 @@ private fun LazyStaggeredGridScope.authenticator(onManagePasskeysClicked: (Strin
                     .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ChimaliButton(
+            OwnButton(
                 onClick = { onManagePasskeysClicked("all") },
                 modifier =
                     Modifier
@@ -333,9 +296,9 @@ internal fun AuthenticatorScreen(
 
     AuthenticatorScreen(
         onboardingUiState = onboardingUiState,
-        onSelectableFeatureCheckedChanged = viewModel::updateSelectableFeature,
+        onSelectableAppFeatureCheckedChanged = viewModel::updateSelectableAppFeature,
         onManagePasskeysClicked = onManagePasskeysClicked,
-        saveFollowedTopics = viewModel::dismissOnboarding,
+        saveSelectedAppFeatures = viewModel::dismissOnboarding,
         modifier = modifier,
     )
 }
@@ -343,9 +306,9 @@ internal fun AuthenticatorScreen(
 @Composable
 internal fun AuthenticatorScreen(
     onboardingUiState: OnboardingUiState,
-    onSelectableFeatureCheckedChanged: (String, Boolean) -> Unit,
+    onSelectableAppFeatureCheckedChanged: (AppFeatureId, Boolean) -> Unit,
     onManagePasskeysClicked: (String) -> Unit,
-    saveFollowedTopics: () -> Unit,
+    saveSelectedAppFeatures: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isOnboardingLoading = onboardingUiState is OnboardingUiState.Loading
@@ -375,8 +338,8 @@ internal fun AuthenticatorScreen(
         ) {
             onboarding(
                 onboardingUiState = onboardingUiState,
-                onTopicCheckedChanged = onSelectableFeatureCheckedChanged,
-                saveFollowedTopics = saveFollowedTopics,
+                onAppFeatureCheckedChanged = onSelectableAppFeatureCheckedChanged,
+                saveSelectedAppFeatures = saveSelectedAppFeatures,
                 // Custom LayoutModifier to remove the enforced parent 16.dp contentPadding
                 // from the LazyVerticalGrid and enable edge-to-edge scrolling for this section
                 interestsItemModifier =
@@ -478,9 +441,9 @@ fun CompactPreview() {
     PreviewDimensionWrapper {
         AuthenticatorScreen(
             onboardingUiState = OnboardingUiState.Loading,
-            onSelectableFeatureCheckedChanged = { _, _ -> },
+            onSelectableAppFeatureCheckedChanged = { _, _ -> },
             onManagePasskeysClicked = {},
-            saveFollowedTopics = {},
+            saveSelectedAppFeatures = {},
         )
     }
 }

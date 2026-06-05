@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import app.chimali.designsystem.theme.ChimaliTheme
 
 /**
- * Now in Android filled button with generic content slot. Wraps Material 3 [Button].
+ * Filled button with generic content slot. Wraps Material 3 [Button].
  *
  * @param onClick Will be called when the user clicks the button.
  * @param modifier Modifier to be applied to the button.
@@ -49,7 +49,7 @@ import app.chimali.designsystem.theme.ChimaliTheme
  * @param content The button content.
  */
 @Composable
-fun ChimaliButton(
+fun OwnButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -70,7 +70,7 @@ fun ChimaliButton(
 }
 
 /**
- * Now in Android filled button with text and icon content slots.
+ * Filled button with text and icon content slots.
  *
  * @param onClick Will be called when the user clicks the button.
  * @param modifier Modifier to be applied to the button.
@@ -80,14 +80,14 @@ fun ChimaliButton(
  * @param leadingIcon The button leading icon content. Pass `null` here for no leading icon.
  */
 @Composable
-fun ChimaliButton(
+fun OwnButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     text: @Composable () -> Unit,
     leadingIcon: @Composable (() -> Unit)? = null,
 ) {
-    ChimaliButton(
+    OwnButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
@@ -98,7 +98,7 @@ fun ChimaliButton(
                 ButtonDefaults.ContentPadding
             },
     ) {
-        NiaButtonContent(
+        OwnButtonContent(
             text = text,
             leadingIcon = leadingIcon,
         )
@@ -106,7 +106,7 @@ fun ChimaliButton(
 }
 
 /**
- * Now in Android outlined button with generic content slot. Wraps Material 3 [OutlinedButton].
+ * Outlined button with generic content slot. Wraps Material 3 [OutlinedButton].
  *
  * @param onClick Will be called when the user clicks the button.
  * @param modifier Modifier to be applied to the button.
@@ -117,7 +117,7 @@ fun ChimaliButton(
  * @param content The button content.
  */
 @Composable
-fun NiaOutlinedButton(
+fun OwnOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -150,7 +150,7 @@ fun NiaOutlinedButton(
 }
 
 /**
- * Now in Android outlined button with text and icon content slots.
+ * Outlined button with text and icon content slots.
  *
  * @param onClick Will be called when the user clicks the button.
  * @param modifier Modifier to be applied to the button.
@@ -160,14 +160,14 @@ fun NiaOutlinedButton(
  * @param leadingIcon The button leading icon content. Pass `null` here for no leading icon.
  */
 @Composable
-fun NiaOutlinedButton(
+fun OwnOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     text: @Composable () -> Unit,
     leadingIcon: @Composable (() -> Unit)? = null,
 ) {
-    NiaOutlinedButton(
+    OwnOutlinedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
@@ -178,7 +178,7 @@ fun NiaOutlinedButton(
                 ButtonDefaults.ContentPadding
             },
     ) {
-        NiaButtonContent(
+        OwnButtonContent(
             text = text,
             leadingIcon = leadingIcon,
         )
@@ -186,7 +186,7 @@ fun NiaOutlinedButton(
 }
 
 /**
- * Now in Android text button with generic content slot. Wraps Material 3 [TextButton].
+ * Text button with generic content slot. Wraps Material 3 [TextButton].
  *
  * @param onClick Will be called when the user clicks the button.
  * @param modifier Modifier to be applied to the button.
@@ -195,7 +195,7 @@ fun NiaOutlinedButton(
  * @param content The button content.
  */
 @Composable
-fun NiaTextButton(
+fun OwnTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -224,19 +224,19 @@ fun NiaTextButton(
  * @param leadingIcon The button leading icon content. Pass `null` here for no leading icon.
  */
 @Composable
-fun NiaTextButton(
+fun OwnTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     text: @Composable () -> Unit,
     leadingIcon: @Composable (() -> Unit)? = null,
 ) {
-    NiaTextButton(
+    OwnTextButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
     ) {
-        NiaButtonContent(
+        OwnButtonContent(
             text = text,
             leadingIcon = leadingIcon,
         )
@@ -250,7 +250,7 @@ fun NiaTextButton(
  * @param leadingIcon The button leading icon content. Default is `null` for no leading icon.Ï
  */
 @Composable
-private fun NiaButtonContent(
+private fun OwnButtonContent(
     text: @Composable () -> Unit,
     leadingIcon: @Composable (() -> Unit)? = null,
 ) {
@@ -279,7 +279,7 @@ private fun NiaButtonContent(
 fun ChimaliButtonPreview() {
     ChimaliTheme {
         ChimaliBackground(modifier = Modifier.size(150.dp, 50.dp)) {
-            ChimaliButton(onClick = {}, text = { Text("Test button") })
+            OwnButton(onClick = {}, text = { Text("Test button") })
         }
     }
 }
@@ -289,7 +289,7 @@ fun ChimaliButtonPreview() {
 fun NiaOutlinedButtonPreview() {
     ChimaliTheme {
         ChimaliBackground(modifier = Modifier.size(150.dp, 50.dp)) {
-            NiaOutlinedButton(onClick = {}, text = { Text("Test button") })
+            OwnOutlinedButton(onClick = {}, text = { Text("Test button") })
         }
     }
 }
@@ -299,7 +299,7 @@ fun NiaOutlinedButtonPreview() {
 fun ChimaliButtonLeadingIconPreview() {
     ChimaliTheme {
         ChimaliBackground(modifier = Modifier.size(150.dp, 50.dp)) {
-            ChimaliButton(
+            OwnButton(
                 onClick = {},
                 text = { Text("Test button") },
                 leadingIcon = { Icon(imageVector = Icons.Rounded.Add, contentDescription = null) },

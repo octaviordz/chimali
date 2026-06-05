@@ -1,6 +1,7 @@
 package app.chimali.core.datastore
 
 import androidx.datastore.core.DataStore
+import app.chimali.core.model.data.AppFeatureId
 import app.chimali.core.model.data.DarkThemeConfig
 import app.chimali.core.model.data.UserData
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,7 +18,7 @@ class PreferencesDataSource(
         dataStore.data.map { prefs ->
             UserData(
                 // Wire maps your set to a Map<String, Boolean> (using key set to extract IDs)
-                selectedAppFeatureIds = prefs.selected_app_feature_ids.keys,
+                selectedAppFeatureIds = prefs.selected_app_feature_ids.toAppFeatureIdSet(),
                 darkThemeConfig = prefs.dark_theme_config.toDarkThemeConfig(),
                 useDynamicColor = prefs.use_dynamic_color,
                 shouldHideOnboarding = prefs.should_hide_onboarding,
@@ -37,24 +38,22 @@ class PreferencesDataSource(
             dataStore.updateData { currentPrefs ->
                 // Convert Set back to a Proto3 Map representation (true flags)
                 val newMap = featureIds.associateWith { true }
-                val updatedPrefs = currentPrefs.copy(selected_app_feature_ids = newMap)
-                updatedPrefs.updateShouldHideOnboardingIfNecessary()
+                currentPrefs.copy(selected_app_feature_ids = newMap)
             }
         }
 
     suspend fun setAppFeatureIdSelected(
-        featureId: String,
+        appFeatureId: AppFeatureId,
         isSelected: Boolean,
     ) = withContext(dispatcher) {
         dataStore.updateData { currentPrefs ->
             val currentMap = currentPrefs.selected_app_feature_ids.toMutableMap()
             if (isSelected) {
-                currentMap[featureId] = true
+                currentMap[appFeatureId.id] = true
             } else {
-                currentMap.remove(featureId)
+                currentMap.remove(appFeatureId.id)
             }
-            val updatedPrefs = currentPrefs.copy(selected_app_feature_ids = currentMap)
-            updatedPrefs.updateShouldHideOnboardingIfNecessary()
+            currentPrefs.copy(selected_app_feature_ids = currentMap)
         }
     }
 
@@ -71,14 +70,10 @@ class PreferencesDataSource(
                 currentPrefs.copy(use_dynamic_color = useDynamicColor)
             }
         }
-
-    // Helper logic placeholder if you need to evaluate state dynamically on changes
-    private fun UserPreferences.updateShouldHideOnboardingIfNecessary(): UserPreferences {
-        // Example logic: if features are selected, onboarding should be hidden
-        val shouldHide = this.selected_app_feature_ids.isNotEmpty()
-        return this.copy(should_hide_onboarding = shouldHide)
-    }
 }
+
+private fun Map<String, Boolean>.toAppFeatureIdSet(): Set<AppFeatureId> =
+    this.keys.mapTo(HashSet(this.size)) { AppFeatureId(it) }
 
 private fun DarkThemeConfig.toDarkThemeConfigProto(): DarkThemeConfigProto =
     when (this) {

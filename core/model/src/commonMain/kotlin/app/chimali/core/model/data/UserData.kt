@@ -7,7 +7,7 @@ import app.chimali.core.model.data.DarkThemeConfig
  */
 data class UserData(
     val lastVisitedMainScreen: String,
-    val selectedAppFeatureIds: Set<String>,
+    val selectedAppFeatureIds: Set<AppFeatureId>,
     val darkThemeConfig: DarkThemeConfig,
     val useDynamicColor: Boolean,
     val shouldHideOnboarding: Boolean,

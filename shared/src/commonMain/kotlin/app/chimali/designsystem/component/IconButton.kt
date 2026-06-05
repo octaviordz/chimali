@@ -1,19 +1,3 @@
-/*
- * Copyright 2022 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package app.chimali.designsystem.component
 
 import androidx.compose.material.icons.Icons
@@ -42,7 +26,7 @@ import app.chimali.designsystem.theme.ChimaliTheme
  * @param checkedIcon The icon content to show when checked.
  */
 @Composable
-fun NiaIconToggleButton(
+fun IconToggleButton(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -50,7 +34,6 @@ fun NiaIconToggleButton(
     icon: @Composable () -> Unit,
     checkedIcon: @Composable () -> Unit = icon,
 ) {
-    // TODO: File bug
     // Can't use regular IconToggleButton as it doesn't include a shape (appears square)
     FilledIconToggleButton(
         checked = checked,
@@ -64,7 +47,7 @@ fun NiaIconToggleButton(
                 disabledContainerColor =
                     if (checked) {
                         MaterialTheme.colorScheme.onBackground.copy(
-                            alpha = NiaIconButtonDefaults.DISABLED_ICON_BUTTON_CONTAINER_ALPHA,
+                            alpha = OwnIconButtonDefaults.DISABLED_ICON_BUTTON_CONTAINER_ALPHA,
                         )
                     } else {
                         Color.Transparent
@@ -79,7 +62,7 @@ fun NiaIconToggleButton(
 @Composable
 fun IconButtonPreview() {
     ChimaliTheme {
-        NiaIconToggleButton(
+        IconToggleButton(
             checked = true,
             onCheckedChange = { },
             icon = {
@@ -102,7 +85,7 @@ fun IconButtonPreview() {
 @Composable
 fun IconButtonPreviewUnchecked() {
     ChimaliTheme {
-        NiaIconToggleButton(
+        IconToggleButton(
             checked = false,
             onCheckedChange = { },
             icon = {
@@ -124,8 +107,7 @@ fun IconButtonPreviewUnchecked() {
 /**
  * Now in Android icon button default values.
  */
-object NiaIconButtonDefaults {
-    // TODO: File bug
+object OwnIconButtonDefaults {
     // IconToggleButton disabled container alpha not exposed by IconButtonDefaults
     const val DISABLED_ICON_BUTTON_CONTAINER_ALPHA = 0.12f
 }
