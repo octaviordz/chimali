@@ -7,6 +7,7 @@ fun main() =
     application {
         Window(
             onCloseRequest = ::exitApplication,
+            alwaysOnTop = true,
             title = "Incubatorchimali",
         ) {
             App()

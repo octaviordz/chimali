@@ -13,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -26,11 +28,15 @@ import app.chimali.designsystem.theme.ChimaliTheme
 import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.ui.authenticator.AuthenticatorScreen
 import app.chimali.ui.devTools.SlideshowScreen
+import app.chimali.ui.onboarding.OnboardingScreen
+import app.chimali.ui.onboarding.OnboardingUiState
+import app.chimali.ui.onboarding.OnboardingViewModel
 import app.chimali.ui.settings.SettingsScreen
 import app.chimali.ui.vault.VaultScreen
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import org.koin.compose.KoinApplication
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.dsl.koinConfiguration
 
 @Composable
@@ -53,12 +59,43 @@ data class DestinationMeta(
 )
 
 @Composable
-fun MainScaffold(modifier: Modifier = Modifier) {
+fun OnboardingScaffold(modifier: Modifier = Modifier) {
+    val navConfig = rememberNavConfig()
+    val backStack = rememberNavBackStack(navConfig, AppRoute.Onboarding)
+    val currentRoute = backStack.lastOrNull() ?: AppRoute.Onboarding
+
+    Scaffold(
+        modifier = modifier,
+    ) { innerPadding ->
+        NavDisplay(
+            backStack = backStack,
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            entryProvider =
+                entryProvider {
+                    appEntries(
+                        onManagePasskeysClicked = { _ ->
+                            if (currentRoute != AppRoute.Vault) {
+                                backStack.clear()
+                                backStack.add(AppRoute.Vault)
+                            }
+                        },
+                    )
+                },
+        )
+    }
+}
+
+@Composable
+fun MainScaffold(
+    modifier: Modifier = Modifier,
+    viewModel: OnboardingViewModel = koinViewModel(),
+) {
     val navConfig = rememberNavConfig()
     val backStack = rememberNavBackStack(navConfig, AppRoute.Authenticator)
     val currentRoute = backStack.lastOrNull() ?: AppRoute.Authenticator
     val dimensions = LocalAppDimensions.current
-
+    val onboardingUiState by viewModel.onboardingUiState.collectAsStateWithLifecycle()
+    val shouldShowOnboarding = onboardingUiState != OnboardingUiState.NotShown
     val baseDestinations =
         remember {
             listOf(
@@ -68,54 +105,68 @@ fun MainScaffold(modifier: Modifier = Modifier) {
                     "Passkey Authenticator",
                     Icons.Filled.Security,
                 ),
-                DestinationMeta(AppRoute.Vault, "Vault", "Vault", Icons.Filled.Folder),
-                DestinationMeta(AppRoute.DevTools, "Dev Tools", "Dev Tools", Icons.Filled.BugReport),
+                DestinationMeta(
+                    AppRoute.Vault,
+                    "Vault",
+                    "Vault",
+                    Icons.Filled.Folder,
+                ),
+                DestinationMeta(
+                    AppRoute.DevTools,
+                    "Dev Tools",
+                    "Dev Tools",
+                    Icons.Filled.BugReport,
+                ),
             )
         }
 
-    NavigationSuiteScaffold(
-        modifier = modifier,
-        navigationSuiteItems = {
-            appNavigationItems(
-                destinations = baseDestinations,
-                currentRoute = currentRoute,
-                isCompact = dimensions.isCompactLayout,
-                onNavigate = { route, clearStack ->
-                    if (clearStack) backStack.clear()
-                    backStack.add(route)
-                },
-            )
-        },
-    ) {
-        Scaffold(
-            topBar = {
-                MainTopAppBar(
+    if (shouldShowOnboarding) {
+        OnboardingScaffold()
+    } else {
+        NavigationSuiteScaffold(
+            modifier = modifier,
+            navigationSuiteItems = {
+                appNavigationItems(
+                    destinations = baseDestinations,
                     currentRoute = currentRoute,
                     isCompact = dimensions.isCompactLayout,
-                    onNavigateToSettings = { backStack.add(AppRoute.Settings) },
+                    onNavigate = { route, clearStack ->
+                        if (clearStack) backStack.clear()
+                        backStack.add(route)
+                    },
                 )
             },
-            floatingActionButton = {
-                FloatingActionButton(onClick = { /* FAB Action */ }) {
-                    Icon(Icons.Default.Add, null)
-                }
-            },
-        ) { innerPadding ->
-            NavDisplay(
-                backStack = backStack,
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                entryProvider =
-                    entryProvider {
-                        appEntries(
-                            onManagePasskeysClicked = { _ ->
-                                if (currentRoute != AppRoute.Vault) {
-                                    backStack.clear()
-                                    backStack.add(AppRoute.Vault)
-                                }
-                            },
-                        )
-                    },
-            )
+        ) {
+            Scaffold(
+                topBar = {
+                    MainTopAppBar(
+                        currentRoute = currentRoute,
+                        isCompact = dimensions.isCompactLayout,
+                        onNavigateToSettings = { backStack.add(AppRoute.Settings) },
+                    )
+                },
+                floatingActionButton = {
+                    FloatingActionButton(onClick = { /* FAB Action */ }) {
+                        Icon(Icons.Default.Add, null)
+                    }
+                },
+            ) { innerPadding ->
+                NavDisplay(
+                    backStack = backStack,
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    entryProvider =
+                        entryProvider {
+                            appEntries(
+                                onManagePasskeysClicked = { _ ->
+                                    if (currentRoute != AppRoute.Vault) {
+                                        backStack.clear()
+                                        backStack.add(AppRoute.Vault)
+                                    }
+                                },
+                            )
+                        },
+                )
+            }
         }
     }
 }
@@ -127,6 +178,7 @@ private fun rememberNavConfig(): SavedStateConfiguration =
             serializersModule =
                 SerializersModule {
                     polymorphic(NavKey::class) {
+                        subclass(AppRoute.Onboarding::class, AppRoute.Onboarding.serializer())
                         subclass(AppRoute.Authenticator::class, AppRoute.Authenticator.serializer())
                         subclass(AppRoute.Vault::class, AppRoute.Vault.serializer())
                         subclass(AppRoute.DevTools::class, AppRoute.DevTools.serializer())
@@ -207,6 +259,9 @@ private fun MainTopAppBar(
 }
 
 private fun EntryProviderScope<NavKey>.appEntries(onManagePasskeysClicked: (String) -> Unit) {
+    entry<AppRoute.Onboarding> {
+        OnboardingScreen()
+    }
     entry<AppRoute.Authenticator> {
         AuthenticatorScreen(onManagePasskeysClicked = onManagePasskeysClicked)
     }

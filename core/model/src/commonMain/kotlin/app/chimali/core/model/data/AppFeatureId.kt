@@ -4,9 +4,9 @@ import kotlin.jvm.JvmInline
 
 @JvmInline
 value class AppFeatureId(
-    val id: String,
+    val value: String,
 ) {
     init {
-        require(id.isNotBlank()) { "AppFeatureId cannot be empty" }
+        require(value.isNotBlank()) { "AppFeatureId cannot be empty" }
     }
 }

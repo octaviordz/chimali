@@ -49,9 +49,9 @@ class PreferencesDataSource(
         dataStore.updateData { currentPrefs ->
             val currentMap = currentPrefs.selected_app_feature_ids.toMutableMap()
             if (isSelected) {
-                currentMap[appFeatureId.id] = true
+                currentMap[appFeatureId.value] = true
             } else {
-                currentMap.remove(appFeatureId.id)
+                currentMap.remove(appFeatureId.value)
             }
             currentPrefs.copy(selected_app_feature_ids = currentMap)
         }

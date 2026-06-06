@@ -16,40 +16,15 @@ import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
 class AuthenticatorViewModel(
-    private val userDataRepository: UserDataRepository,
     getSelectableFeature: GetSelectableAppFeatureUseCase,
 ) : ViewModel() {
-    private val shouldShowOnboarding: Flow<Boolean> =
-        userDataRepository.userData.map { !it.shouldHideOnboarding }
-
-    val onboardingUiState: StateFlow<OnboardingUiState> =
-        combine(
-            shouldShowOnboarding,
-            getSelectableFeature(),
-        ) { shouldShowOnboarding, features ->
-            if (shouldShowOnboarding) {
-                OnboardingUiState.Shown(features = features)
-            } else {
-                OnboardingUiState.NotShown
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = OnboardingUiState.Loading,
-        )
-
-    fun updateSelectableAppFeature(
-        appFeatureId: AppFeatureId,
-        isChecked: Boolean,
-    ) {
-        viewModelScope.launch {
-            userDataRepository.setSelectableAppFeature(appFeatureId, isChecked)
-        }
-    }
-
-    fun dismissOnboarding() {
-        viewModelScope.launch {
-            userDataRepository.setShouldHideOnboarding(shouldHideOnboarding = true)
-        }
-    }
+    val onboardingUiState: StateFlow<AuthenticateUiState> =
+        getSelectableFeature()
+            .map { features ->
+                AuthenticateUiState.Shown(features = features)
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = AuthenticateUiState.Loading,
+            )
 }

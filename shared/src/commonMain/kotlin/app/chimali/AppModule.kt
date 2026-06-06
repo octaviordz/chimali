@@ -5,6 +5,7 @@ import app.chimali.core.datastore.di.dataStoreModule
 import app.chimali.core.domain.di.domainModule
 import app.chimali.ui.authenticator.AuthenticatorViewModel
 import app.chimali.ui.devTools.DevToolsViewModel
+import app.chimali.ui.onboarding.OnboardingViewModel
 import app.chimali.ui.settings.SettingsViewModel
 import app.chimali.ui.vault.VaultViewModel
 import org.koin.core.module.Module
@@ -24,6 +25,7 @@ val sharedAppModule: Module =
             domainModule,
         )
 
+        viewModel<OnboardingViewModel>()
         viewModel<DevToolsViewModel>()
         viewModel<SettingsViewModel>()
         viewModel<VaultViewModel>()

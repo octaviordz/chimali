@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.flowOf
  * Disk storage backed implementation of the [AppFeatureRepository].
  * Reads are exclusively from local storage to support offline access.
  */
-class OfflineFirstAppFeatureRepository : AppFeatureRepository {
+class StaticAppFeatureRepository : AppFeatureRepository {
     private val appFeatureList =
         listOf(
             AppFeature(

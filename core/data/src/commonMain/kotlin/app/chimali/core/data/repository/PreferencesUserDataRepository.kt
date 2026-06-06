@@ -6,7 +6,7 @@ import app.chimali.core.model.data.DarkThemeConfig
 import app.chimali.core.model.data.UserData
 import kotlinx.coroutines.flow.Flow
 
-class OfflineFirstUserDataRepository(
+class PreferencesUserDataRepository(
     private val preferencesDataSource: PreferencesDataSource,
 ) : UserDataRepository {
     override val userData: Flow<UserData> =
