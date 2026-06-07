@@ -70,6 +70,8 @@ import app.chimali.designsystem.component.scrollbar.scrollbarState
 import app.chimali.designsystem.theme.DeviceSizePreviews
 import app.chimali.designsystem.theme.LocalAppDimensions
 import app.chimali.designsystem.theme.PreviewDimensionWrapper
+import app.chimali.core.model.data.AppFeature
+import app.chimali.core.model.data.SelectableAppFeature
 import incubatorchimali.shared.generated.resources.Res
 import incubatorchimali.shared.generated.resources.image_view_item_transform_content_description
 import org.jetbrains.compose.resources.stringResource
@@ -310,7 +312,14 @@ internal fun OnboardingScreen(
 ) {
     val isOnboardingLoading = onboardingUiState is OnboardingUiState.Loading
 
-    val itemsAvailable = 2
+    val itemsAvailable =
+        when (onboardingUiState) {
+            OnboardingUiState.Loading,
+            OnboardingUiState.LoadFailed,
+            OnboardingUiState.NotShown,
+            -> 0
+            is OnboardingUiState.Shown -> onboardingUiState.features.size
+        }
 
     val state = rememberLazyStaggeredGridState()
 
@@ -434,7 +443,37 @@ fun CompactPreview() {
     // You can also use standard layout wrappers if the custom spec annotation struggles in CMP common code
     PreviewDimensionWrapper {
         OnboardingScreen(
-            onboardingUiState = OnboardingUiState.Loading,
+            onboardingUiState = OnboardingUiState.Shown(
+                features = listOf(
+                    SelectableAppFeature(
+                        appFeature = AppFeature(
+                            id = AppFeatureId("1"),
+                            name = "Authenticator",
+                            shortDescription = "Authenticator",
+                            longDescription = "Authenticator"
+                        ),
+                        isSelected = true
+                    ),
+                    SelectableAppFeature(
+                        appFeature = AppFeature(
+                            id = AppFeatureId("2"),
+                            name = "Vault",
+                            shortDescription = "Security Vault",
+                            longDescription = "Encrypted storage for secrets",
+                        ),
+                        isSelected = false
+                    ),
+                    SelectableAppFeature(
+                        appFeature = AppFeature(
+                            id = AppFeatureId("3"),
+                            name = "Audit Logs",
+                            shortDescription = "Audit Logs",
+                            longDescription = "Audit Logs",
+                        ),
+                        isSelected = false
+                    ),
+                )
+            ),
             onSelectableAppFeatureCheckedChanged = { _, _ -> },
             saveSelectedAppFeatures = {},
         )
