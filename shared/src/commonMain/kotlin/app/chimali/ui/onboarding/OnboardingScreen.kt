@@ -138,7 +138,6 @@ private fun SingleFeatureButton(
                     Text(
                         text = name,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
                         modifier =
                             Modifier
                                 .weight(1f)
@@ -164,7 +163,6 @@ private fun SingleFeatureButton(
                 Text(
                     text = shortDescription,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(start = 8.dp, bottom = 4.dp),
@@ -199,12 +197,10 @@ private fun SingleFeatureButton(
                     Text(
                         text = name,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = shortDescription,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 2.dp),
@@ -212,7 +208,6 @@ private fun SingleFeatureButton(
                     Text(
                         text = longDescription,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 4.dp),
