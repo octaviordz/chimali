@@ -31,14 +31,14 @@ class StaticAppFeatureRepository : AppFeatureRepository {
             AppFeature(
                 id = AppFeatureId("9AEA6052-A7F5-40CD-BC58-067E1517D283"),
                 name = "Authenticator",
-                shortDescription = "Sed vero stet",
-                longDescription = "Ut lorem duo laoreet amet tempor diam nonummy dolor clita labore magna amet feugiat sanctus elitr labore stet ea.",
+                shortDescription = "FIDO2 / WebAuthn authenticator",
+                longDescription = "Transform your device into a FIDO2 / WebAuthn authenticator. Verify your identity securely and access supported services without relying on traditional passwords.",
             ),
             AppFeature(
                 id = AppFeatureId("73CFE645-2737-4C0C-A4F0-664E9C8EE6F9"),
                 name = "Vault",
-                shortDescription = "Sed erat dolor",
-                longDescription = "Clita et stet exerci est augue gubergren luptatum tempor amet imperdiet lobortis duo justo no diam sit.",
+                shortDescription = "Protect your important information",
+                longDescription = "Keep passwords, payment card details, and personal notes securely organized and readily available whenever you need them.",
             ),
         )
 

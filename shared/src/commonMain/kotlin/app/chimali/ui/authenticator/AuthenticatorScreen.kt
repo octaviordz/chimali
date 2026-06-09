@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.chimali.designsystem.component.ChimaliOverlayLoadingWheel
+import app.chimali.designsystem.component.OwnOverlayLoadingWheel
 import app.chimali.designsystem.component.OwnButton
 import app.chimali.designsystem.theme.DeviceSizePreviews
 import app.chimali.designsystem.theme.PreviewDimensionWrapper
@@ -130,7 +130,7 @@ internal fun AuthenticatorScreen(
                         .fillMaxWidth()
                         .padding(top = 8.dp),
             ) {
-                ChimaliOverlayLoadingWheel(
+                OwnOverlayLoadingWheel(
                     modifier =
                         Modifier
                             .align(Alignment.Center),
