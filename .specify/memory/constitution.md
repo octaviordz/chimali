@@ -1,15 +1,15 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 0.15.0 → 0.16.0
+- Version change: 0.16.0 → 0.17.0
 - List of modified principles:
-  - Development Workflow & Testing — Added KMP-first test placement and Fake test double preference.
-- Added sections: None
+  - Governance — Expanded quality gates to include DO-178B critical code compliance; codified formal amendment procedure and semantic versioning policy.
+- Added sections:
+  - ### XII. Pragmatic DO-178B Principles for Critical Code (Non-Negotiable for New Code)
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ `.specify/templates/plan-template.md` — Updated testing example to reference KMP-compatible common tests and Fake test doubles.
-  - ✅ `.specify/templates/spec-template.md` — No updates needed
-    (scope/requirements sections are technology-agnostic templates)
-  - ✅ `.specify/templates/tasks-template.md` — Updated test task guidance and path conventions.
+  - ✅ `.specify/templates/plan-template.md` — Compatible with DO-178B partitioning and traceability requirements.
+  - ✅ `.specify/templates/spec-template.md` — No updates needed (requirement traceability format already supported).
+  - ✅ `.specify/templates/tasks-template.md` — Compatible with test independence and bounded loop requirements.
 - Follow-up TODOs: None
 -->
 
@@ -88,8 +88,13 @@ All project documentation must be kept up to date and aligned with the codebase 
 ## Governance
 
 - **Constitution Supremacy**: The principles defined in this Constitution supersede all other development practices.
-- **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing) and pass all static analysis checks (Detekt/Ktlint).
+- **Quality Gates**: All Pull Requests must verify compliance with security guidelines (especially memory zeroing), DO-178B critical code principles (traceability, zero-allocation hot paths, fail-safe degradation), and pass all static analysis checks (Detekt/Ktlint).
 - **Performance Budget**: Any feature that degrades startup time or rendering smoothness beyond the defined limits will be rejected.
+- **Amendment Procedure**: Amendments to this Constitution require documented technical justification, impact analysis across dependent templates and specs, a semantic version bump, and formal engineering approval.
+- **Versioning Policy**: This Constitution follows Semantic Versioning (MAJOR.MINOR.PATCH):
+  - **MAJOR**: Backward-incompatible governance changes, principle removals, or fundamental architectural redefinitions.
+  - **MINOR**: New principles, added sections, or materially expanded architectural/safety guidance.
+  - **PATCH**: Wording clarifications, typo fixes, and non-semantic refinements.
 
 ### VIII. Event Sourcing Architecture
 The application MUST implement an Event Sourcing architecture as its primary persistence and audit mechanism for core aggregates (VaultEntry, PasskeyCredential).
@@ -223,4 +228,33 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 - **Performance Targets**: Performance targets defined in Principle IV represent upper bounds. Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient; optimizing for all edge-case devices is explicitly out of scope for initial delivery.
 - **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive but unfinished one. Ship the smallest valuable slice, then iterate.
 
-**Version**: 0.16.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-05-22
+### XII. Pragmatic DO-178B Principles for Critical Code (Non-Negotiable for New Code)
+
+To ensure the reliability, determinism, and verifiability of safety/operationally-critical components (such as Biometric, Master Seed derivation, and Cryptographic Operations), all new code MUST adhere to the following principles inspired by civil avionics software safety standards (DO-178B):
+
+#### 1. Rigorous Traceability
+- **Requirement-to-Code Mapping**: Every line of code in critical domain logic MUST trace back directly to a specific, documented requirement identifier (e.g., `FR-AUTH-010`).
+- **Forbidden Dead Code**: Dead code, deactivated code, unreferenced helper methods, and hidden features are strictly FORBIDDEN. Any code path that cannot be traced to an approved requirement MUST be excised.
+- **Bi-Directional Verification Traceability**: Tests verifying critical logic MUST explicitly reference the requirement ID and implementation units they validate to ensure full auditability.
+
+#### 2. Determinism & Predictable Execution
+- **Zero Allocation in Hot Paths**: Dynamic memory allocation in execution-critical hot paths (e.g., biometric frame processing loops, cryptographic stream operations, low-level HID interrupt dispatching) MUST be avoided to prevent unpredictable Garbage Collection (GC) pauses and latency spikes. Buffers and mutable structures MUST be pre-allocated and reused.
+- **Deterministic Loop Termination**: All loops, polling loops, and retry mechanisms MUST have deterministic, statically bounded exit conditions or explicit timeout thresholds (`withTimeoutOrNull` / deadline constraints). Unbounded loops and open-ended recursion are strictly prohibited.
+- **Predictable State Transitions**: Critical state machines MUST have fully defined, deterministic state progressions with exhaustive handling of all valid and invalid inputs.
+
+#### 3. High-Coverage Testing & Independence
+- **Strict Coverage Gates**: Critical domain logic MUST enforce strict test coverage (100% statement and branch coverage). Complex decision logic MUST be tested with a Modified Condition/Decision Coverage (MC/DC) mindset.
+- **Independent Test Execution**: Verification tests MUST be executed independently of the implementation units, operating without shared mutable state to eliminate verification bias and order dependency.
+- **"Test What You Fly, Fly What You Test"**: The test environment, test doubles, and execution harness MUST precisely mirror production execution conditions, hardware constraints, and threading characteristics. Simulated test harnesses MUST NOT mask production concurrency, latency, or lifecycle failure modes.
+
+#### 4. Separation of Concerns (Partitioning)
+- **Hardware & Driver Isolation**: Hardware-interfacing code (e.g., CameraX, biometric sensors, Bluetooth HID L2CAP sockets) MUST be strictly isolated behind dedicated abstraction boundaries, partitioned away from business logic and UI layers.
+- **Fault Containment (Failure Propagation Guard)**: Failures, exceptions, or resource exhaustion in lower-criticality components (e.g., UI animations, telemetry, non-critical settings) MUST NOT compromise or crash higher-criticality components (authentication engine, cryptographic key zeroing, secure storage).
+- **Resource Partitioning**: Long-running background jobs and I/O tasks MUST NOT starve critical execution paths of CPU cycles, memory, or thread pool dispatchers.
+
+#### 5. Fail-Safe Error Handling & Graceful Degradation
+- **Component Boundary Encapsulation**: Exceptions MUST be caught and handled at component boundaries. Uncaught exceptions MUST NOT escape hardware-interfacing or service boundaries into higher layers.
+- **Fail-Secure State**: Upon any hardware failure, sensor disconnection, timeout, or unrecoverable error, the system MUST degrade gracefully into a safe, secure state (e.g., abort authentication, zero out sensitive volatile keys, and lock secure storage).
+- **Peripheral Resilience**: The application MUST NOT crash due to external device failures, disconnected peripherals, Bluetooth stack resets, USB unplug events, or camera driver stalls.
+
+**Version**: 0.17.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-05
