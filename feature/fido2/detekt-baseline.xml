@@ -4,7 +4,6 @@
   <CurrentIssues>
     <ID>SwallowedException:Ctap2GetAssertionHandlerPrfTest.kt$Ctap2GetAssertionHandlerPrfTest$e: IllegalArgumentException</ID>
     <ID>UnusedParameter:Ctap2ResetAuthenticatorHandler.kt$Ctap2ResetAuthenticatorHandler$requestBytes: ByteArray</ID>
-    <ID>UnusedParameter:SqlCipherWrapper.kt$SqlCipherWrapper$password: String</ID>
     <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandlerAlgorithmTest.kt$Ctap2MakeCredentialHandlerAlgorithmTest$/** All COSE IDs that the handler must accept. */ private val acceptedAlgorithms = listOf(COSE_ES256, COSE_EDSA, COSE_RS256, COSE_ML_DSA_65)</ID>
     <ID>UnusedPrivateProperty:Ctap2MakeCredentialHandlerAlgorithmTest.kt$Ctap2MakeCredentialHandlerAlgorithmTest$/** All COSE IDs that the handler must reject with CTAP2_ERR_UNSUPPORTED_ALGORITHM. */ private val rejectedAlgorithms = listOf( DEPRECATED_COSE_ED25519_OLD, DEPRECATED_COSE_9, DEPRECATED_COSE_51, DEPRECATED_COSE_52, )</ID>
     <ID>VariableNaming:Ctap2MakeCredentialHandlerAlgorithmTest.kt$Ctap2MakeCredentialHandlerAlgorithmTest$// COSE algorithm IDs under test private val COSE_ES256 = -7</ID>

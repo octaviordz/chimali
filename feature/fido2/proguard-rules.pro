@@ -27,7 +27,7 @@
 # Security & Crypto (Hardening)
 # -------------------------------------------------------------------------------------------------
 
-# Note: Bouncy Castle and SQLCipher rules are now handled by library consumer rules.
+# Note: Bouncy Castle and SQLite3MultipleCiphers rules are now handled by library consumer rules.
 # We only add project-specific security keeps here if necessary.
 
 # -------------------------------------------------------------------------------------------------

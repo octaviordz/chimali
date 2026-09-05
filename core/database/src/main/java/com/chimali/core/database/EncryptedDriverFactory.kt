@@ -5,33 +5,27 @@ import android.database.sqlite.SQLiteException
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import co.touchlab.kermit.Logger
 import com.chimali.core.security.api.MasterSeedProvider
+import io.toxicity.sqlite.mc.driver.SQLiteMCDriver
+import io.toxicity.sqlite.mc.driver.config.databasesDir
+import io.toxicity.sqlite.mc.driver.config.encryption.Key
+import java.io.File
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import kotlinx.coroutines.runBlocking
-import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
- * Centrally manages SQLCipher database encryption for all feature databases (Constitution §I.3).
+ * Centrally manages SQLite3MultipleCiphers database encryption for all feature databases (Constitution §I.3).
+ * Uses ChaCha20-Poly1305 as the preferred default cipher.
  * Enforces key zeroing in finally blocks (Constitution §X.5).
  */
 class EncryptedDriverFactory(
     private val context: Context,
     private val masterSeedProvider: MasterSeedProvider,
 ) {
-    init {
-        try {
-            // Initialize SQLCipher native libraries
-            System.loadLibrary("sqlcipher")
-        } catch (e: UnsatisfiedLinkError) {
-            Logger.d(e) { "SQLCipher native library not loaded (expected during host unit tests)" }
-        }
-    }
-
     /**
-     * Derives a stable 256-bit AES database encryption key from the high-entropy master seed
+     * Derives a stable 256-bit database encryption key from the high-entropy master seed
      * using PBKDF2-HMAC-SHA512 with 2048 iterations (Constitution §I.3).
      *
      * Enforces try/finally zeroing of key material (Constitution §X.5).
@@ -49,7 +43,7 @@ class EncryptedDriverFactory(
         }
 
         val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8)
-        val spec = PBEKeySpec(hexPassword, salt, PBKDF2_ITERATIONS, SQLCIPHER_KEY_LENGTH_BITS)
+        val spec = PBEKeySpec(hexPassword, salt, PBKDF2_ITERATIONS, DB_KEY_LENGTH_BITS)
         try {
             val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
             val secretKey = factory.generateSecret(spec)
@@ -63,8 +57,12 @@ class EncryptedDriverFactory(
     }
 
     /**
-     * Creates an encrypted SqlDriver using SQLCipher and SupportOpenHelperFactory (Constitution §I.3).
+     * Creates an encrypted SqlDriver using SQLite3MultipleCiphers with ChaCha20-Poly1305 (Constitution §I.3).
      * The derived key material is zeroed immediately after driver construction.
+     *
+     * If opening fails because an existing database file is in an incompatible legacy format
+     * (e.g. previous SQLCipher or plain SQLite), the incompatible file is deleted and recreated
+     * fresh with ChaCha20-Poly1305 per specification.
      */
     fun createDriver(
         schema: SqlSchema<QueryResult.Value<Unit>>,
@@ -74,18 +72,44 @@ class EncryptedDriverFactory(
             runBlocking { masterSeedProvider.getMasterSeed() }
                 ?: error("Master seed not initialized. Database cannot be opened.")
 
-        val derivedKey = deriveDatabaseKey(seed)
+        fun openDriver(): SqlDriver {
+            val derivedKey = deriveDatabaseKey(seed)
+            try {
+                val rawKey = Key.raw(key = derivedKey, salt = DB_SALT_BYTES, fillKey = true)
+                return SQLiteMCDriver
+                    .Factory(dbName = name, schema = schema) {
+                        filesystem(context.databasesDir())
+                    }.createBlocking(rawKey)
+            } finally {
+                derivedKey.fill(0)
+            }
+        }
+
+        return try {
+            openDriver()
+        } catch (e: IllegalStateException) {
+            Logger.w(e) { "Failed to open database $name (incompatible/legacy format). Recreating fresh database." }
+            deleteIncompatibleDatabase(name)
+            openDriver()
+        } catch (e: SQLiteException) {
+            Logger.w(e) { "Failed to open database $name due to SQLiteException. Recreating fresh database." }
+            deleteIncompatibleDatabase(name)
+            openDriver()
+        }
+    }
+
+    private fun deleteIncompatibleDatabase(name: String) {
         try {
-            val supportFactory = SupportOpenHelperFactory(derivedKey)
-            return AndroidSqliteDriver(
-                schema = schema,
-                context = context,
-                name = name,
-                factory = supportFactory,
-                cacheSize = 1,
-            )
-        } finally {
-            derivedKey.fill(0)
+            context.deleteDatabase(name)
+        } catch (ignored: SecurityException) {
+        }
+        try {
+            val dir = context.databasesDir().path
+            File(dir, name).delete()
+            File(dir, "$name-journal").delete()
+            File(dir, "$name-wal").delete()
+            File(dir, "$name-shm").delete()
+        } catch (ignored: SecurityException) {
         }
     }
 
@@ -118,11 +142,15 @@ class EncryptedDriverFactory(
         } catch (e: IllegalStateException) {
             Logger.w(e) { "Database integrity check failed due to uninitialized state" }
             return false
+        } catch (e: IllegalArgumentException) {
+            Logger.w(e) { "Database integrity check failed due to invalid argument" }
+            return false
         } finally {
             try {
                 driver?.close()
             } catch (ignored: SQLiteException) {
             } catch (ignored: IllegalStateException) {
+            } catch (ignored: IllegalArgumentException) {
             }
         }
     }
@@ -133,6 +161,7 @@ class EncryptedDriverFactory(
         private const val HEX_CHAR_MASK = 0x0F
         private const val HEX_CHARS_PER_BYTE = 2
         private const val PBKDF2_ITERATIONS = 2048
-        private const val SQLCIPHER_KEY_LENGTH_BITS = 256
+        private const val DB_KEY_LENGTH_BITS = 256
+        private val DB_SALT_BYTES = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
     }
 }

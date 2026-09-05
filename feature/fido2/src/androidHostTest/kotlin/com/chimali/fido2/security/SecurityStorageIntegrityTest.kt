@@ -20,9 +20,9 @@ import kotlin.test.assertTrue
  *  2. A plain SQLite file has the magic header "SQLite format 3".
  *
  * These tests also serve as a **regression baseline**: if a future code change accidentally
- * removes SQLCipher and replaces it with plain SQLite, the plain-file header check will
+ * removes SQLite3MultipleCiphers and replaces it with plain SQLite, the plain-file header check will
  * still pass — but the paired Android instrumentation test (T148d-instrumented) will fail
- * because it exercises the actual SQLCipher-encrypted file. Together they form a two-layer
+ * because it exercises the actual SQLite3MultipleCiphers-encrypted file. Together they form a two-layer
  * assertion on storage integrity.
  *
  * **Why this matters**: Constitution §I requires AES-256-GCM encryption for all credential
@@ -68,37 +68,37 @@ class SecurityStorageIntegrityTest {
 
     /**
      * T148d-2: Encryption contract assertion — documents the property that production
-     * SQLCipher-encrypted files do NOT start with the SQLite magic header.
+     * SQLite3MultipleCiphers-encrypted files do NOT start with the SQLite magic header.
      *
      * This test documents the invariant as a comment/assertion pair. The actual runtime
-     * assertion for the production SQLCipher file is enforced by the Android instrumentation
+     * assertion for the production SQLite3MultipleCiphers file is enforced by the Android instrumentation
      * test suite (requires a device/emulator), which is out of scope for JVM unit tests.
      *
      * The test passes to ensure this file compiles and runs cleanly in CI, while the KDoc
-     * blocks any future developer from accidentally removing SQLCipher without noticing.
+     * blocks any future developer from accidentally removing SQLite3MultipleCiphers without noticing.
      */
     @Test
-    fun `T148d production SQLCipher database must NOT have plain SQLite magic header (self-documenting contract)`() {
-        // This test intentionally asserts a *contract* rather than calling SQLCipher directly,
-        // because SQLCipher requires a real Android device/robolectric with native libs.
+    fun `T148d production SQLite3MC DB must NOT have plain SQLite magic header (contract)`() {
+        // This test intentionally asserts a *contract* rather than calling SQLite3MultipleCiphers directly,
+        // because native SQLite3MultipleCiphers encryption verification on device is tested by instrumentation tests.
         //
         // The equivalent Android instrumentation test (run separately) opens the production
-        // Fido2Database via SQLCipher, reads the first 16 bytes of the .db file from
+        // Fido2Database via SQLite3MultipleCiphers, reads the first 16 bytes of the .db file from
         // getFilesDir(), and asserts:
         //
         //   val header = file.readBytes().take(16)
         //   val sqliteMagic = "SQLite format 3\u0000".toByteArray()
         //   assertFalse(header.toByteArray().contentEquals(sqliteMagic),
-        //       "SQLCipher file must NOT be readable as plain SQLite (FR-HID-015)")
+        //       "SQLite3MultipleCiphers file must NOT be readable as plain SQLite (FR-HID-015)")
         //
         // For this unit test, we assert the self-evident truth that the strings differ,
         // confirming the contract is correctly expressed.
         val sqliteMagic = "SQLite format 3\u0000"
-        val sqlcipherHeader = "some encrypted non-magic bytes" // Simulated — actual varies by key
+        val encryptedHeader = "some encrypted non-magic bytes" // Simulated — actual varies by key
         assertNotEquals(
             sqliteMagic,
-            sqlcipherHeader,
-            "Contract: SQLCipher-encrypted DB header must differ from plain SQLite magic",
+            encryptedHeader,
+            "Contract: SQLite3MultipleCiphers-encrypted DB header must differ from plain SQLite magic",
         )
     }
 

@@ -1,3 +1,1 @@
-{
-  "feature_directory": "specs/051-remove-auth-credential-stub"
-}
+{"feature_directory":"specs/052-migrate-sqlite3mc"}

@@ -3,7 +3,7 @@ package com.chimali.fido2.di
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.biometric.BiometricManager
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.chimali.core.database.EncryptedDriverFactory
 import com.chimali.core.domain.eventsourcing.AggregateService
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
@@ -52,12 +52,12 @@ class Fido2Module {
     fun biometricManager(context: Context): BiometricManager = BiometricManager.from(context)
 
     /**
-     * Provides the SQLDelight [Fido2Database] instance backed by SQLCipher.
-     * The database is a singleton; the driver is created once per process.
+     * Provides the SQLDelight [Fido2Database] instance backed by SQLite3MultipleCiphers (ChaCha20-Poly1305).
+     * The database is a singleton; the driver is created once per process via [EncryptedDriverFactory].
      */
     @Single
-    fun fido2Database(context: Context): Fido2Database {
-        val driver = AndroidSqliteDriver(Fido2Database.Schema, context, "fido2.db")
+    fun fido2Database(encryptedDriverFactory: EncryptedDriverFactory): Fido2Database {
+        val driver = encryptedDriverFactory.createDriver(Fido2Database.Schema, "fido2.db")
         return Fido2Database(driver)
     }
 

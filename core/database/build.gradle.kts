@@ -42,13 +42,14 @@ dependencies {
     implementation(project(":core:security"))
     api(libs.sqldelight.android)
     api(libs.sqldelight.coroutines)
-    implementation(libs.sqlcipher)
+    implementation(libs.sqlite.mc.driver)
 
     // Koin (replaces Hilt)
     implementation(libs.koin.core)
     implementation(libs.koin.android)
 
     // Testing
+    testImplementation(libs.sqlite.mc.android.unit.test)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit.jupiter.api)
