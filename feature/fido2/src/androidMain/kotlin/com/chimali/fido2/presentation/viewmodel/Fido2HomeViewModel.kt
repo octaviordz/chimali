@@ -14,8 +14,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.annotation.KoinViewModel
 
 /**
@@ -28,7 +30,7 @@ import org.koin.android.annotation.KoinViewModel
 @KoinViewModel
 class Fido2HomeViewModel(
     private val context: Context,
-    fido2Transport: com.chimali.fido2.data.transport.Fido2Transport,
+    private val fido2Transport: Fido2Transport,
     private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
     private val uiEventBus: Fido2UiEventBus,
     private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService,
@@ -84,6 +86,24 @@ class Fido2HomeViewModel(
         }
     }
 
+    /**
+     * Proactively initiates an outbound Bluetooth HID connection to a paired host.
+     * Ensures the transport service is running first if currently idle.
+     */
+    fun connectDevice(macAddress: String) {
+        val currentState = connectionState.value
+        viewModelScope.launch {
+            if (currentState is HidConnectionState.Idle || currentState is HidConnectionState.Error) {
+                context.startForegroundService(Fido2TransportService.startIntent(context))
+                // Wait for the transport service to initialize and start advertising
+                withTimeoutOrNull(SERVICE_STARTUP_TIMEOUT_MS) {
+                    connectionState.first { it is HidConnectionState.Advertising }
+                }
+            }
+            fido2Transport.connectDevice(macAddress)
+        }
+    }
+
     fun testRegistration(options: MakeCredentialOptions) {
         // Mock a registration request as if it came from Bluetooth
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(options, CompletableDeferred()))
@@ -95,5 +115,6 @@ class Fido2HomeViewModel(
 
     companion object {
         private const val SUBSCRIBED_STOP_TIMEOUT_MS = 5000L
+        private const val SERVICE_STARTUP_TIMEOUT_MS = 10_000L
     }
 }

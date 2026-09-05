@@ -3,8 +3,10 @@ package com.chimali.fido2.presentation.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -62,6 +64,7 @@ fun PairedDevicesSection(
     onCommitRemove: (String) -> Unit,
     removalEvents: Flow<PairedDevice>,
     modifier: Modifier = Modifier,
+    onDeviceClick: ((PairedDevice) -> Unit)? = null,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -123,6 +126,7 @@ fun PairedDevicesSection(
                                         onPendingRemove(device)
                                     },
                                     onEditClick = { onEditDevice(device.macAddress) },
+                                    onDeviceClick = onDeviceClick,
                                 )
                             }
                         }
@@ -145,6 +149,7 @@ private fun PairedDeviceItem(
     device: PairedDevice,
     onSwipedAway: () -> Unit,
     onEditClick: () -> Unit,
+    onDeviceClick: ((PairedDevice) -> Unit)? = null,
 ) {
     val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
     val lastUsed = dateFormat.format(Date(device.lastUsedAt))
@@ -209,6 +214,12 @@ private fun PairedDeviceItem(
         val iconInfo = getDeviceIcon(device.deviceClass)
 
         ListItem(
+            modifier =
+                if (onDeviceClick != null) {
+                    Modifier.clickable { onDeviceClick(device) }
+                } else {
+                    Modifier
+                },
             headlineContent = {
                 Text(
                     text = device.alias ?: device.name ?: "Unknown Device",
@@ -235,12 +246,23 @@ private fun PairedDeviceItem(
                 )
             },
             trailingContent = {
-                IconButton(onClick = onEditClick) {
-                    Icon(
-                        imageVector = if (device.alias != null) Icons.Default.Label else Icons.Default.Edit,
-                        contentDescription = "Edit name",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    )
+                Row {
+                    if (onDeviceClick != null) {
+                        IconButton(onClick = { onDeviceClick(device) }) {
+                            Icon(
+                                imageVector = Icons.Default.Bluetooth,
+                                contentDescription = "Connect device",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    IconButton(onClick = onEditClick) {
+                        Icon(
+                            imageVector = if (device.alias != null) Icons.Default.Label else Icons.Default.Edit,
+                            contentDescription = "Edit name",
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        )
+                    }
                 }
             },
             colors =

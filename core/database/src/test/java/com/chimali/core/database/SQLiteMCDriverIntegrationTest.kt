@@ -11,7 +11,27 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
+/**
+ * Integration tests for [SQLiteMCDriver] verifying database encryption, integrity check,
+ * key verification, and recovery mechanisms.
+ *
+ * DO-178B Traceability (§XII.1, §XII.3):
+ * @see FR-MC-010 Migrate SQLCipher to SQLite3MultipleCiphers
+ * @see FR-MC-020 ChaCha20-Poly1305 default cipher
+ * @see FR-MC-040 SQLiteMCDriver configuration
+ * @see FR-MC-070 JVM host tests pass without native library setup
+ * @see Constitution §XII.1 Rigorous Traceability
+ * @see Constitution §XII.3 High-Coverage Testing & Independence
+ */
 class SQLiteMCDriverIntegrationTest {
+    /**
+     * Verifies in-memory SQLiteMCDriver executes PRAGMA integrity_check successfully on JVM host.
+     *
+     * Traceability:
+     * @see FR-MC-040
+     * @see FR-MC-070
+     * @see US2/AC3
+     */
     @Test
     fun `in-memory SQLiteMCDriver returns ok for PRAGMA integrity_check without native library workaround`() {
         val factory =
@@ -41,6 +61,16 @@ class SQLiteMCDriverIntegrationTest {
         }
     }
 
+    /**
+     * Verifies that a file database encrypted with ChaCha20-Poly1305 is created and can be reopened
+     * with the same key, passing PRAGMA integrity_check.
+     *
+     * Traceability:
+     * @see FR-MC-020
+     * @see FR-MC-040
+     * @see US1/AC1
+     * @see US1/AC2
+     */
     @Test
     fun `encrypted SQLiteMCDriver with ChaCha20 creates and reopens database with correct key`(
         @TempDir tempDir: File,
@@ -97,6 +127,55 @@ class SQLiteMCDriverIntegrationTest {
         driver2.close()
     }
 
+    /**
+     * Verifies that opening an encrypted database with an incorrect key fails fast with an exception
+     * rather than silent corruption (fail-secure state per Constitution §XII.5).
+     *
+     * Traceability:
+     * @see FR-MC-020
+     * @see FR-MC-040
+     * @see US1/AC3
+     * @see Constitution §XII.5
+     */
+    @Test
+    fun `encrypted SQLiteMCDriver fails to open when supplied mismatched key`(
+        @TempDir tempDir: File,
+    ) {
+        val dbName = "mismatched_key_vault.db"
+        val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
+        val correctKey = ByteArray(32) { (it + 1).toByte() }
+        val wrongKey = ByteArray(32) { (it + 99).toByte() }
+
+        val factory =
+            SQLiteMCDriver.Factory(
+                dbName = dbName,
+                schema = VaultDatabase.Schema,
+            ) {
+                filesystem(DatabasesDir(tempDir))
+            }
+
+        // Create with correct key
+        val rawKey = Key.raw(key = correctKey.copyOf(), salt = salt, fillKey = true)
+        val driver = factory.createBlocking(rawKey)
+        driver.close()
+
+        // Attempting to open with mismatched key must throw
+        org.junit.jupiter.api.assertThrows<IllegalStateException> {
+            val wrongRawKey = Key.raw(key = wrongKey.copyOf(), salt = salt, fillKey = true)
+            factory.createBlocking(wrongRawKey)
+        }
+    }
+
+    /**
+     * Verifies deterministic recovery from incompatible legacy database format by deleting the corrupt
+     * file and recreating a fresh database.
+     *
+     * Traceability:
+     * @see FR-MC-020
+     * @see FR-MC-040
+     * @see Constitution §XII.2 Determinism & Predictable Execution
+     * @see Constitution §XII.5 Fail-Safe Error Handling
+     */
     @Test
     fun `recovering from incompatible legacy database deletes corrupted file and recreates fresh DB`(
         @TempDir tempDir: File,

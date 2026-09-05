@@ -8,6 +8,8 @@ interface Fido2Transport {
 
     suspend fun connect(): Result<Unit>
 
+    suspend fun connectDevice(macAddress: String): Result<Unit>
+
     suspend fun disconnect(): Result<Unit>
 
     suspend fun sendCommand(command: ByteArray): Result<ByteArray>

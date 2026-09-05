@@ -18,7 +18,17 @@ import kotlinx.coroutines.runBlocking
 /**
  * Centrally manages SQLite3MultipleCiphers database encryption for all feature databases (Constitution §I.3).
  * Uses ChaCha20-Poly1305 as the preferred default cipher.
- * Enforces key zeroing in finally blocks (Constitution §X.5).
+ * Enforces key zeroing in finally blocks (Constitution §X.5, §XII.5).
+ *
+ * Traceability:
+ * @see FR-MC-010 Migrate SQLCipher to SQLite3MultipleCiphers
+ * @see FR-MC-020 ChaCha20-Poly1305 default cipher
+ * @see FR-MC-030 PBKDF2-HMAC-SHA512 key derivation
+ * @see FR-MC-040 SQLiteMCDriver configuration
+ * @see Constitution §XII.1 Rigorous Traceability
+ * @see Constitution §XII.2 Determinism & Predictable Execution
+ * @see Constitution §XII.4 Separation of Concerns (Partitioning)
+ * @see Constitution §XII.5 Fail-Safe Error Handling & Graceful Degradation
  */
 class EncryptedDriverFactory(
     private val context: Context,
@@ -26,24 +36,26 @@ class EncryptedDriverFactory(
 ) {
     /**
      * Derives a stable 256-bit database encryption key from the high-entropy master seed
-     * using PBKDF2-HMAC-SHA512 with 2048 iterations (Constitution §I.3).
+     * using PBKDF2-HMAC-SHA512 with 2048 iterations (Constitution §I.3, §XII.1).
      *
-     * Enforces try/finally zeroing of key material (Constitution §X.5).
+     * Adheres to DO-178B §XII.2: static constant reuse for salt and hex characters to avoid
+     * dynamic allocation in hot paths; deterministic bounded iteration over seed length.
+     * Enforces try/finally zeroing of key material (Constitution §X.5, §XII.5).
+     *
+     * @see FR-MC-030
      */
     fun deriveDatabaseKey(seed: ByteArray): ByteArray {
         require(seed.isNotEmpty()) { "Master seed cannot be empty" }
 
-        val hexChars = "0123456789abcdef".toCharArray()
         val hexPassword = CharArray(seed.size * HEX_CHARS_PER_BYTE)
         for (i in seed.indices) {
             val v = seed[i].toInt() and HEX_RADIX_MASK
             val baseIdx = i * HEX_CHARS_PER_BYTE
-            hexPassword[baseIdx] = hexChars[v ushr HEX_SHIFT_BITS]
-            hexPassword[baseIdx + 1] = hexChars[v and HEX_CHAR_MASK]
+            hexPassword[baseIdx] = HEX_CHARS[v ushr HEX_SHIFT_BITS]
+            hexPassword[baseIdx + 1] = HEX_CHARS[v and HEX_CHAR_MASK]
         }
 
-        val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8)
-        val spec = PBEKeySpec(hexPassword, salt, PBKDF2_ITERATIONS, DB_KEY_LENGTH_BITS)
+        val spec = PBEKeySpec(hexPassword, DB_PBE_SALT_BYTES, PBKDF2_ITERATIONS, DB_KEY_LENGTH_BITS)
         try {
             val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
             val secretKey = factory.generateSecret(spec)
@@ -58,11 +70,16 @@ class EncryptedDriverFactory(
 
     /**
      * Creates an encrypted SqlDriver using SQLite3MultipleCiphers with ChaCha20-Poly1305 (Constitution §I.3).
-     * The derived key material is zeroed immediately after driver construction.
+     * The derived key material is zeroed immediately after driver construction (Constitution §X.5, §XII.5).
      *
+     * Deterministic Recovery (Constitution §XII.2):
      * If opening fails because an existing database file is in an incompatible legacy format
      * (e.g. previous SQLCipher or plain SQLite), the incompatible file is deleted and recreated
-     * fresh with ChaCha20-Poly1305 per specification.
+     * fresh with ChaCha20-Poly1305 per specification. Recovery is strictly bounded to at most
+     * [MAX_RECOVERY_ATTEMPTS] attempt to prevent open-ended retry loops.
+     *
+     * @see FR-MC-020
+     * @see FR-MC-040
      */
     fun createDriver(
         schema: SqlSchema<QueryResult.Value<Unit>>,
@@ -85,17 +102,28 @@ class EncryptedDriverFactory(
             }
         }
 
-        return try {
-            openDriver()
-        } catch (e: IllegalStateException) {
-            Logger.w(e) { "Failed to open database $name (incompatible/legacy format). Recreating fresh database." }
-            deleteIncompatibleDatabase(name)
-            openDriver()
-        } catch (e: SQLiteException) {
-            Logger.w(e) { "Failed to open database $name due to SQLiteException. Recreating fresh database." }
-            deleteIncompatibleDatabase(name)
-            openDriver()
+        var attempts = 0
+        while (attempts <= MAX_RECOVERY_ATTEMPTS) {
+            try {
+                return openDriver()
+            } catch (e: IllegalStateException) {
+                if (attempts >= MAX_RECOVERY_ATTEMPTS) throw e
+                Logger.w(e) {
+                    "Failed to open database $name (attempt ${attempts + 1}). Recreating fresh database."
+                }
+                deleteIncompatibleDatabase(name)
+                attempts++
+            } catch (e: SQLiteException) {
+                if (attempts >= MAX_RECOVERY_ATTEMPTS) throw e
+                Logger.w(e) {
+                    "Failed to open database $name due to SQLiteException " +
+                        "(attempt ${attempts + 1}). Recreating fresh database."
+                }
+                deleteIncompatibleDatabase(name)
+                attempts++
+            }
         }
+        error("Failed to open or recreate database $name after $MAX_RECOVERY_ATTEMPTS recovery attempts.")
     }
 
     private fun deleteIncompatibleDatabase(name: String) {
@@ -116,6 +144,12 @@ class EncryptedDriverFactory(
     /**
      * Performs a physical PRAGMA integrity_check on the encrypted database file to ensure
      * encryption is sound and data is uncorrupted.
+     *
+     * Adheres to DO-178B §XII.5 (Component Boundary Encapsulation & Fail-Secure):
+     * All database exceptions are trapped and logged, returning false safely without leaking
+     * driver resources.
+     *
+     * @see FR-MC-080
      */
     fun verifyIntegrity(name: String): Boolean {
         val dbFile = context.getDatabasePath(name)
@@ -162,6 +196,9 @@ class EncryptedDriverFactory(
         private const val HEX_CHARS_PER_BYTE = 2
         private const val PBKDF2_ITERATIONS = 2048
         private const val DB_KEY_LENGTH_BITS = 256
+        private const val MAX_RECOVERY_ATTEMPTS = 1
+        private val HEX_CHARS = "0123456789abcdef".toCharArray()
+        private val DB_PBE_SALT_BYTES = "chimali_db_salt".toByteArray(Charsets.UTF_8)
         private val DB_SALT_BYTES = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
     }
 }

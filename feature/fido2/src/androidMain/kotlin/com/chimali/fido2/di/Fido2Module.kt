@@ -54,6 +54,11 @@ class Fido2Module {
     /**
      * Provides the SQLDelight [Fido2Database] instance backed by SQLite3MultipleCiphers (ChaCha20-Poly1305).
      * The database is a singleton; the driver is created once per process via [EncryptedDriverFactory].
+     *
+     * Traceability & Partitioning:
+     * @see FR-MC-050 SQLite3MultipleCiphers encrypted driver for fido2.db
+     * @see Constitution §XII.1 Rigorous Traceability
+     * @see Constitution §XII.4 Separation of Concerns (Partitioning)
      */
     @Single
     fun fido2Database(encryptedDriverFactory: EncryptedDriverFactory): Fido2Database {

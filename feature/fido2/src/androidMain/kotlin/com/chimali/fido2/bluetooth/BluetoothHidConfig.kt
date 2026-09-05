@@ -51,4 +51,15 @@ data class BluetoothHidConfig(
      * the code path only triggers when a non-null `pluggedDevice` is reported.
      */
     val isPhantomDisconnectRequired: Boolean = true,
+    /**
+     * Delay after [android.bluetooth.BluetoothDevice.ACTION_BOND_STATE_CHANGED] confirms
+     * [android.bluetooth.BluetoothDevice.BOND_BONDED] before initiating a proactive HID connection.
+     * Allows baseband role-switch and concurrent HFP/A2DP profile connection attempts to settle.
+     */
+    val bondConnectDelay: Duration = 1.seconds,
+    /**
+     * Delay after [android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED] before initiating a
+     * proactive HID connection to an already-bonded host.
+     */
+    val aclConnectDelay: Duration = 500.milliseconds,
 )

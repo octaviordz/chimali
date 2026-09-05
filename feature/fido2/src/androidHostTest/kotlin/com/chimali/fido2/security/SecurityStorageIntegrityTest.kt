@@ -9,7 +9,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * T148d — Storage Integrity Tests (FR-HID-015, Constitution §I).
+ * T148d — Storage Integrity Tests (FR-HID-015, FR-MC-080, Constitution §I, §XII.1, §XII.3).
  *
  * Verifies that the on-disk credential database is not accessible as plain-text SQLite.
  *
@@ -28,6 +28,12 @@ import kotlin.test.assertTrue
  * **Why this matters**: Constitution §I requires AES-256-GCM encryption for all credential
  * data. A plain SQLite file would expose all credential metadata (RP IDs, user handles,
  * public key bytes) in clear-text on a rooted device.
+ *
+ * Traceability:
+ * @see FR-HID-015 Storage encryption guarantee
+ * @see FR-MC-080 SQLite3MultipleCiphers storage contract preservation
+ * @see Constitution §XII.1 Rigorous Traceability
+ * @see Constitution §XII.3 High-Coverage Testing & Independence
  */
 class SecurityStorageIntegrityTest {
     private companion object {

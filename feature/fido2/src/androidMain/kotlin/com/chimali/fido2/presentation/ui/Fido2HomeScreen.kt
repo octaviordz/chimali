@@ -210,12 +210,13 @@ fun Fido2HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
             StatusIndicator(
                 state = connectionState,
                 displayName = connectedDisplayName,
+                hasPairedDevices = pairedDevices.isNotEmpty(),
             )
 
-            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
             PairedDevicesSection(
                 modifier = Modifier.weight(1f),
                 onEditDevice = onEditDevice,
@@ -224,6 +225,7 @@ fun Fido2HomeScreen(
                 onUndoRemove = { macAddress -> pairedDevicesViewModel.undoRemove(macAddress) },
                 onCommitRemove = { macAddress -> pairedDevicesViewModel.commitRemove(macAddress) },
                 removalEvents = pairedDevicesViewModel.removalEvents,
+                onDeviceClick = { device -> viewModel.connectDevice(device.macAddress) },
             )
 
             TransportToggleButton(
@@ -257,29 +259,54 @@ fun StatusIndicator(
     state: HidConnectionState,
     displayName: String?,
     modifier: Modifier = Modifier,
+    hasPairedDevices: Boolean = false,
 ) {
-    val (statusText, color, icon) =
-        when (state) {
-            is HidConnectionState.Idle -> {
-                Triple("Ready to Start", MaterialTheme.colorScheme.outline, Icons.Default.Bluetooth)
-            }
+    val title: String
+    val subtitle: String
+    val color: androidx.compose.ui.graphics.Color
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
 
-            is HidConnectionState.Advertising -> {
-                Triple("Advertising...", COLOR_ADVERTISING, Icons.AutoMirrored.Filled.BluetoothSearching)
-            }
-
-            is HidConnectionState.Connecting -> {
-                Triple("Connecting...", COLOR_CONNECTING, Icons.Default.BluetoothAudio)
-            }
-
-            is HidConnectionState.Connected -> {
-                Triple("Connected to PC", COLOR_CONNECTED, Icons.Default.Devices)
-            }
-
-            is HidConnectionState.Error -> {
-                Triple("Error Occurred", MaterialTheme.colorScheme.error, Icons.Default.Error)
-            }
+    when (state) {
+        is HidConnectionState.Idle -> {
+            title = "Ready to Start"
+            subtitle = "Tap 'Start Authenticator' to begin"
+            color = MaterialTheme.colorScheme.outline
+            icon = Icons.Default.Bluetooth
         }
+
+        is HidConnectionState.Advertising -> {
+            if (hasPairedDevices) {
+                title = "Ready for Authentication"
+                subtitle = "Waiting for request from PC"
+            } else {
+                title = "Advertising..."
+                subtitle = "Ready to pair with a new host PC"
+            }
+            color = COLOR_ADVERTISING
+            icon = Icons.AutoMirrored.Filled.BluetoothSearching
+        }
+
+        is HidConnectionState.Connecting -> {
+            title = "Connecting..."
+            subtitle = "Establishing Bluetooth HID connection"
+            color = COLOR_CONNECTING
+            icon = Icons.Default.BluetoothAudio
+        }
+
+        is HidConnectionState.Connected -> {
+            title = displayName ?: "Connected"
+            subtitle = "Connected to PC"
+            color = COLOR_CONNECTED
+            icon = Icons.Default.Devices
+        }
+
+        is HidConnectionState.Error -> {
+            title = "Error Occurred"
+            subtitle = state.message
+            color = MaterialTheme.colorScheme.error
+            icon = Icons.Default.Error
+        }
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -310,33 +337,22 @@ fun StatusIndicator(
                 )
             }
             Column {
-                if (state is HidConnectionState.Connected) {
-                    Text(
-                        text = displayName ?: "Connected",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = color,
-                    )
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = color.copy(alpha = 0.8f),
-                    )
-                } else {
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = color,
-                    )
-                    if (state is HidConnectionState.Error) {
-                        Text(
-                            text = state.message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = color,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color =
+                        if (state is HidConnectionState.Error) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            color.copy(alpha = 0.8f)
+                        },
+                )
             }
         }
     }

@@ -3,6 +3,32 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-09-05
+
+### Changed
+- **Migrate Encrypted Database Layer from SQLCipher to SQLite3MultipleCiphers**: Replaced SQLCipher (`net.zetetic:sqlcipher-android`) across `:core:database` and `:feature:fido2` with SQLite3MultipleCiphers (`io.toxicity.sqlite-mc`), adopting **ChaCha20-Poly1305** as the preferred default cipher.
+    - Updated `EncryptedDriverFactory` to configure `SQLiteMCDriver` with PBKDF2-HMAC-SHA512 256-bit key derivation.
+    - Resolved encryption omission in `Fido2Module` by routing `fido2.db` creation through `EncryptedDriverFactory`.
+    - Removed legacy `System.loadLibrary("sqlcipher")` initialization workarounds.
+    - Handled legacy database recovery gracefully by detecting incompatible formats (plain SQLite / SQLCipher v4), deleting them, and recreating fresh ChaCha20-Poly1305 databases.
+- **DO-178B Critical Code Alignment (Constitution v0.17.0 §XII)**:
+    - **Rigorous Traceability (§XII.1)**: Bound all critical database factory and configuration methods to requirements `FR-MC-010`–`FR-MC-080` with bidirectional verification links in tests.
+    - **Determinism & Zero Allocations (§XII.2)**: Pre-allocated static buffers (`HEX_CHARS`, `DB_PBE_SALT_BYTES`) to prevent heap allocation in cryptographic paths. Statically bounded database recovery to `MAX_RECOVERY_ATTEMPTS = 1`.
+    - **High-Coverage Testing & Independence (§XII.3)**: Added isolated integration tests in `SQLiteMCDriverIntegrationTest` for in-memory checks, file persistence, legacy format recovery, and mismatched-key rejection (fail-secure).
+    - **Separation of Concerns / Partitioning (§XII.4)**: Encapsulated native driver interfaces entirely within `:core:database`.
+    - **Fail-Safe Degradation & Key Zeroing (§XII.5)**: Enforced strict try/finally zeroing of all intermediate passphrase and key buffers.
+- **Detailed changes**: [2026-09-05-migrate-sqlite3mc.md](docs/changelogs/2026-09-05-migrate-sqlite3mc.md)
+
+### Fixed
+- **Bluetooth HID Auto-Connect When Devices Are Pre-Connected / Bonded**: Fixed an issue where the app remained stuck in the "Advertising..." state if a bonded host (e.g., PC) was already ACL-connected prior to the HID profile registration.
+    - Added proactive connection checks upon entering the `Advertising` state (`checkExistingConnectionsWhileAdvertising`) using reflection to verify existing baseband/ACL link state (`BluetoothDevice.isConnected()`).
+    - Filtered out audio/video (`AUDIO_VIDEO`) and wearable (`WEARABLE`) Bluetooth classes to ensure outbound connections only target compatible host machines.
+    - Synchronized `proactiveConnectJob` to prevent duplicate or conflicting connection attempts.
+    - Fixed a concurrency race in `Fido2HomeViewModel.connectDevice` when calling `connectDevice` while the transport service is initializing, ensuring it waits for the `Advertising` state before issuing the connection.
+    - Added an explicit Connect action button to each paired device item in `PairedDevicesSection`.
+    - Enhanced `StatusIndicator` to provide clear, contextual state ("Ready for Authentication" vs "Advertising...") and subtitles so users understand when the authenticator is waiting for on-demand ceremonies from their PC.
+- **Detailed changes**: [2026-09-05-fido2-bluetooth-hid-autoconnect-and-ux.md](docs/changelogs/2026-09-05-fido2-bluetooth-hid-autoconnect-and-ux.md)
+
 ## [Unreleased] - 2026-05-28
 
 ### Refactored

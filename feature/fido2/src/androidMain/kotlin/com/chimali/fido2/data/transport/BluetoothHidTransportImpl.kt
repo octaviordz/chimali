@@ -197,6 +197,30 @@ class BluetoothHidTransportImpl(
             Result.failure(Fido2Exception.TransportException(msg))
         }
 
+    override suspend fun connectDevice(macAddress: String): Result<Unit> =
+        try {
+            Logger.i { "connectDevice($macAddress) called" }
+            if (hidWrapper.connectionState.value is HidConnectionState.Idle) {
+                Logger.i { "Transport is Idle; starting transport before connecting to device $macAddress" }
+                connect().getOrThrow()
+            }
+            val initiated = hidWrapper.connect(macAddress)
+            if (initiated) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Fido2Exception.BluetoothException("Failed to initiate connection to $macAddress"))
+            }
+        } catch (e: Fido2Exception) {
+            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Result.failure(e)
+        } catch (e: IllegalStateException) {
+            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Result.failure(e)
+        } catch (e: IllegalArgumentException) {
+            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Result.failure(e)
+        }
+
     override suspend fun disconnect(): Result<Unit> =
         try {
             Logger.d { "disconnect() starting..." }
