@@ -1,5 +1,5 @@
 [versions]
-agp = "9.2.1"
+agp = "9.4.0"
 bouncycastle = "1.80"
 kotlin = "2.3.21"
 android-compileSdk = "37"
