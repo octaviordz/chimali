@@ -1,5 +1,6 @@
 package com.chimali.feature.vault.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,8 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -33,21 +37,42 @@ fun PasswordEntryScreen(
     onSave: (PasswordPayload) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    initialPayload: PasswordPayload? = null,
 ) {
-    var title by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var uri by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(initialPayload?.title ?: "") }
+    var username by remember { mutableStateOf(initialPayload?.let { String(it.username) } ?: "") }
+    var password by remember { mutableStateOf(initialPayload?.let { String(it.password) } ?: "") }
+    var uri by remember { mutableStateOf(initialPayload?.uri ?: "") }
+    var notes by remember { mutableStateOf(initialPayload?.notes?.let { String(it) } ?: "") }
 
-    // Dynamic Custom Fields State
-    val customFields = remember { mutableStateListOf<CustomField>() }
+    val customFields =
+        remember {
+            mutableStateListOf<CustomField>().apply {
+                initialPayload?.customFields?.let { addAll(it) }
+            }
+        }
+
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+
+    val hasUnsavedChanges = title.isNotBlank() || username.isNotBlank() || password.isNotBlank()
+
+    fun attemptCancel() {
+        if (hasUnsavedChanges) {
+            showDiscardConfirmDialog = true
+        } else {
+            onCancel()
+        }
+    }
+
+    BackHandler {
+        attemptCancel()
+    }
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("New Password") },
+                title = { Text(if (initialPayload != null) "Edit Password" else "New Password") },
             )
         },
     ) { padding ->
@@ -63,55 +88,79 @@ fun PasswordEntryScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text("Title *") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                 )
             }
+
             item {
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                 )
             }
+
             item {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text("Password *") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                 )
             }
+
             item {
                 OutlinedTextField(
                     value = uri,
                     onValueChange = { uri = it },
-                    label = { Text("Website / URI") },
+                    label = { Text("Website URL") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                 )
             }
+
             item {
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notes") },
                     modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
                 )
             }
 
-            // Render Dynamic Custom Fields
-            items(customFields.size) { index ->
-                val field = customFields[index]
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("${field.name}: *****")
-                    // Render concealed value mask or text based on isConcealed
+            // Dynamic Custom Fields
+            itemsIndexed(customFields) { index, field ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = field.name,
+                        onValueChange = { newName ->
+                            customFields[index] = field.copy(name = newName)
+                        },
+                        label = { Text("Field Name") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = String(field.value),
+                        onValueChange = { newValue ->
+                            customFields[index] = field.copy(value = newValue.toCharArray())
+                        },
+                        label = { Text("Value") },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
 
             item {
-                Button(onClick = {
-                    // This is placeholder logic to add a new custom field for demo purposes
+                TextButton(onClick = {
                     customFields.add(CustomField("New Field", charArrayOf(), false))
                 }) {
                     Text("Add Custom Field")
@@ -124,7 +173,7 @@ fun PasswordEntryScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    TextButton(onClick = onCancel) {
+                    TextButton(onClick = { attemptCancel() }) {
                         Text("Cancel")
                     }
                     Button(
@@ -147,6 +196,29 @@ fun PasswordEntryScreen(
                 }
             }
         }
+    }
+
+    if (showDiscardConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmDialog = false },
+            title = { Text("Discard Changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmDialog = false
+                        onCancel()
+                    },
+                ) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmDialog = false }) {
+                    Text("Keep Editing")
+                }
+            },
+        )
     }
 }
 

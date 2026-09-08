@@ -2,6 +2,7 @@ package com.chimali.feature.vault.api
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.feature.vault.ui.model.LabelUiModel
 import java.util.UUID
 
 enum class VaultType {
@@ -60,4 +61,13 @@ interface VaultService {
     suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError>
 
     suspend fun deleteItem(id: UUID): Outcome<Unit, DomainError>
+
+    suspend fun getLabels(): Outcome<List<LabelUiModel>, DomainError>
+
+    suspend fun createLabel(
+        name: String,
+        colorHex: String,
+    ): Outcome<LabelUiModel, DomainError>
+
+    suspend fun deleteLabel(id: UUID): Outcome<Unit, DomainError>
 }

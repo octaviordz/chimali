@@ -1,1 +1,3 @@
-{"feature_directory":"specs/052-migrate-sqlite3mc"}
+{
+  "feature_directory": "specs/053-vault-completion"
+}

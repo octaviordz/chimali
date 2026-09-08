@@ -1,5 +1,6 @@
 package com.chimali.feature.vault.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,22 +11,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +44,7 @@ import com.chimali.feature.vault.internal.payload.PasswordPayload
 import com.chimali.feature.vault.ui.components.LegibleSecretText
 import com.chimali.feature.vault.ui.model.LegibilityFont
 import com.chimali.feature.vault.ui.model.LegibilitySettings
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,8 +54,8 @@ fun PasswordDetailScreen(
     onDelete: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onCopyPassword: ((String) -> Unit)? = null,
 ) {
-    // Default legibility settings - in a real app, these would come from user preferences
     val legibilitySettings =
         LegibilitySettings(
             fontType = LegibilityFont.Atkinson,
@@ -55,8 +64,24 @@ fun PasswordDetailScreen(
             colorblindMode = false,
         )
 
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Clear memory on dispose/back
+    DisposableEffect(Unit) {
+        onDispose {
+            payload.clearMemory()
+        }
+    }
+
+    BackHandler {
+        onBack()
+    }
+
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(payload.title) },
@@ -64,7 +89,7 @@ fun PasswordDetailScreen(
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
                     }
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                     }
                 },
@@ -81,7 +106,19 @@ fun PasswordDetailScreen(
         ) {
             DetailRow(label = "Username", value = String(payload.username))
 
-            PasswordRow(password = payload.password, legibilitySettings = legibilitySettings)
+            PasswordRow(
+                password = payload.password,
+                legibilitySettings = legibilitySettings,
+                onCopy = {
+                    val pwd = String(payload.password)
+                    if (onCopyPassword != null) {
+                        onCopyPassword(pwd)
+                    }
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Password copied. Clipboard clears in 60s.")
+                    }
+                },
+            )
 
             DetailRow(label = "Website", value = payload.uri)
 
@@ -115,6 +152,29 @@ fun PasswordDetailScreen(
             }
         }
     }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("Delete Entry") },
+            text = { Text("Are you sure you want to delete '${payload.title}'? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDelete()
+                    },
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -133,6 +193,7 @@ fun DetailRow(
 private fun PasswordRow(
     password: CharArray,
     legibilitySettings: LegibilitySettings,
+    onCopy: () -> Unit,
 ) {
     var isPasswordRevealed by remember { mutableStateOf(false) }
     Column {
@@ -145,13 +206,21 @@ private fun PasswordRow(
                 text = "Password",
                 style = MaterialTheme.typography.labelMedium,
             )
-            IconButton(
-                onClick = { isPasswordRevealed = !isPasswordRevealed },
-            ) {
-                Icon(
-                    imageVector = if (isPasswordRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (isPasswordRevealed) "Hide password" else "Show password",
-                )
+            Row {
+                IconButton(onClick = onCopy) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Copy password",
+                    )
+                }
+                IconButton(
+                    onClick = { isPasswordRevealed = !isPasswordRevealed },
+                ) {
+                    Icon(
+                        imageVector = if (isPasswordRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (isPasswordRevealed) "Hide password" else "Show password",
+                    )
+                }
             }
         }
 

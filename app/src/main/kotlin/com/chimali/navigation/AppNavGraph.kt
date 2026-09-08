@@ -28,14 +28,12 @@ import androidx.datastore.core.DataStore
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.feature.onboarding.presentation.navigation.OnboardingNavGraph
 import com.chimali.feature.settings.ui.SettingsScreen
-import com.chimali.feature.vault.internal.VaultViewModel
-import com.chimali.feature.vault.ui.VaultListScreen
+import com.chimali.feature.vault.ui.navigation.VaultNavGraph
 import com.chimali.fido2.presentation.navigation.Fido2Destinations
 import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
 
 private enum class AppScreen {
     Loading,
@@ -218,26 +216,7 @@ private fun MainShell(
 
 @Composable
 private fun VaultFeatureScreen(onOpenSettings: () -> Unit) {
-    val viewModel: VaultViewModel = koinViewModel()
-    val state by viewModel.state.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.processIntent(
-            com.chimali.feature.vault.api.VaultIntent
-                .LoadItems(),
-        )
-    }
-
-    VaultListScreen(
-        items = state.items,
-        labels = emptyList(),
-        selectedLabelId = null,
-        onItemClick = { },
-        onAddClick = { },
-        onLabelFilterClick = { },
-        onManageLabelsClick = { },
-        onOpenSettings = onOpenSettings,
-    )
+    VaultNavGraph(onOpenSettings = onOpenSettings)
 }
 
 @Composable

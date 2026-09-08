@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
 
 @Single
+@Suppress("TooGenericExceptionCaught")
 class VaultRepositoryImpl(
     private val database: VaultDatabase,
     private val aggregateService: AggregateService<VaultCommand, VaultState>,
@@ -127,6 +128,53 @@ class VaultRepositoryImpl(
             } catch (e: IllegalStateException) {
                 Logger.e(e) { "VaultRepositoryImpl: State failure during delete id=$id" }
                 Outcome.Error(DomainError.StorageError(e.message ?: "Invalid state during delete", e))
+            }
+        }
+
+    override suspend fun getLabels(): Outcome<List<com.chimali.feature.vault.ui.model.LabelUiModel>, DomainError> =
+        withContext(Dispatchers.IO) {
+            try {
+                val labels =
+                    database.vaultQueries.get_labels().executeAsList().map {
+                        com.chimali.feature.vault.ui.model.LabelUiModel(
+                            id = UUID.fromString(it.id),
+                            name = it.name,
+                            colorHex = it.color_hex,
+                        )
+                    }
+                Outcome.Success(labels)
+            } catch (e: Exception) {
+                Logger.e(e) { "VaultRepositoryImpl: Failed to get labels" }
+                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to get labels", e))
+            }
+        }
+
+    override suspend fun createLabel(
+        name: String,
+        colorHex: String,
+    ): Outcome<com.chimali.feature.vault.ui.model.LabelUiModel, DomainError> =
+        withContext(Dispatchers.IO) {
+            try {
+                val id = UUID.randomUUID()
+                database.vaultQueries.insert_label(id.toString(), colorHex, name)
+                Outcome.Success(
+                    com.chimali.feature.vault.ui.model
+                        .LabelUiModel(id, name, colorHex),
+                )
+            } catch (e: Exception) {
+                Logger.e(e) { "VaultRepositoryImpl: Failed to create label" }
+                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to create label", e))
+            }
+        }
+
+    override suspend fun deleteLabel(id: UUID): Outcome<Unit, DomainError> =
+        withContext(Dispatchers.IO) {
+            try {
+                database.vaultQueries.delete_label(id.toString())
+                Outcome.Success(Unit)
+            } catch (e: Exception) {
+                Logger.e(e) { "VaultRepositoryImpl: Failed to delete label" }
+                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete label", e))
             }
         }
 }
