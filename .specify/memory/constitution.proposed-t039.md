@@ -1,13 +1,14 @@
 <!--
-SYNC IMPACT REPORT
-Version: 0.17.0 -> 1.0.0 (major redefinition of memory-security scope)
+ARCHIVED PROPOSAL — APPROVED 2026-09-08
+Version: 0.17.0 -> 1.0.0 (proposed major redefinition of memory-security scope)
 Modified principles: I.5 Memory Security; X.2 Memory Safety; X.5 Plaintext Ownership
 Added: narrow audited platform-text exception and explicit limits of the cleanup guarantee
 Removed: universal mutable-only guarantee across external platform/runtime copies
 Unchanged: cryptography, storage protection, secret field classification, coverage and runtime verification gates
-Approved explicitly by the user on 2026-09-08. Active requirements must follow this amendment.
+Effective only after explicit approval of this proposal; constitution.md remains authoritative.
 -->
 
+> Archived approved proposal. See constitution.md for the effective Constitution 1.0.0.
 
 
 # Chimali Constitution
@@ -261,4 +262,4 @@ To ensure the reliability, determinism, and verifiability of safety/operationall
 - **Fail-Secure State**: Upon any hardware failure, sensor disconnection, timeout, or unrecoverable error, the system MUST degrade gracefully into a safe, secure state (e.g., abort authentication, zero out sensitive volatile keys, and lock secure storage).
 - **Peripheral Resilience**: The application MUST NOT crash due to external device failures, disconnected peripherals, Bluetooth stack resets, USB unplug events, or camera driver stalls.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-08
+**Proposed Version**: 1.0.0 | **Original Ratification**: 2026-02-19 | **Proposal Date**: 2026-09-08 | **Status**: Approved and applied
