@@ -10,19 +10,33 @@ sealed interface VaultCommand {
     data class Create(
         val id: String,
         val type: String,
-        val title: String,
+        val title: CharArray,
         val payload: ByteArray,
         val identityId: String,
-    ) : VaultCommand
+    ) : VaultCommand {
+        constructor(
+            id: String,
+            type: String,
+            title: String,
+            payload: ByteArray,
+            identityId: String,
+        ) : this(id, type, title.toCharArray(), payload, identityId)
+    }
 
     /**
      * Request to update an existing vault entry.
      */
     data class Update(
         val id: String,
-        val title: String? = null,
+        val title: CharArray? = null,
         val payload: ByteArray? = null,
-    ) : VaultCommand
+    ) : VaultCommand {
+        constructor(
+            id: String,
+            title: String,
+            payload: ByteArray?,
+        ) : this(id, title.toCharArray(), payload)
+    }
 
     /**
      * Request to delete a vault entry.
@@ -30,4 +44,13 @@ sealed interface VaultCommand {
     data class Delete(
         val id: String,
     ) : VaultCommand
+}
+
+/** Clears command-owned sensitive text once command processing has finished. */
+fun VaultCommand.clearSensitiveMemory() {
+    when (this) {
+        is VaultCommand.Create -> title.fill('\u0000')
+        is VaultCommand.Update -> title?.fill('\u0000')
+        is VaultCommand.Delete -> Unit
+    }
 }

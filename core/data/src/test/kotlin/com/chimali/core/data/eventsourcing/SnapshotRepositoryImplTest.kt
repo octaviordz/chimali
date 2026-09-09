@@ -15,6 +15,7 @@ import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -99,7 +100,7 @@ class SnapshotRepositoryImplTest {
             val result = repository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId).getOrThrow()
 
             assertEquals(aggregateId, result?.aggregateId)
-            assertEquals("test", result?.state?.title)
+            assertTrue(result?.state?.title?.contentEquals("test".toCharArray()) == true)
             assertEquals(1L, result?.sequenceNumber)
         }
 

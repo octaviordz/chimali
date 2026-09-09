@@ -8,6 +8,7 @@ import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.internal.crypto.VaultCryptoService
 import com.chimali.feature.vault.internal.crypto.VaultCryptoServiceImpl
 import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val vaultModule =
@@ -17,7 +18,7 @@ val vaultModule =
         single<VaultService> {
             VaultRepositoryImpl(
                 database = get<VaultDatabase>(),
-                aggregateService = get<AggregateService<VaultCommand, VaultState>>(),
+                aggregateService = get<AggregateService<VaultCommand, VaultState>>(named("vault")),
             )
         }
     }

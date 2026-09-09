@@ -49,12 +49,12 @@ class AndroidClipboardManagerService(
                     ?: return Result.failure(ClipboardError.ClipboardUnavailable())
 
             // Android 13+ has built-in UI for clipboard that might show sensitive data.
-            // We set the "is_sensitive" extra on the ClipData to prevent it showing up in the UI.
+            // We set the Android sensitive-content extra on the ClipData to prevent it showing up in the UI.
             val clipData =
                 ClipData.newPlainText(label, text).apply {
                     description.extras =
                         android.os.PersistableBundle().apply {
-                            putBoolean("is_sensitive", true) // Maps to ClipDescription.EXTRA_IS_SENSITIVE on API 33+
+                            putBoolean("android.content.extra.IS_SENSITIVE", true) // ClipDescription.EXTRA_IS_SENSITIVE; compatible before API 33.
                         }
                 }
 

@@ -29,7 +29,7 @@ CREATE TABLE vault_entry (
     doc_id TEXT NOT NULL,
     encrypted_payload BLOB NOT NULL,
     identity_id TEXT NOT NULL,
-    title TEXT NOT NULL,
+    title BLOB NOT NULL,
     type TEXT NOT NULL,
     FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
 );
@@ -118,6 +118,12 @@ VALUES (?, ?);
 
 delete_vault_entry_labels:
 DELETE FROM vault_entry_label WHERE entry_id = ?;
+
+get_labels_for_entry:
+SELECT label.id, label.color_hex, label.name
+FROM label
+INNER JOIN vault_entry_label ON label.id = vault_entry_label.label_id
+WHERE vault_entry_label.entry_id = ?;
 
 get_vault_entries_by_label:
 SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type FROM vault_entry

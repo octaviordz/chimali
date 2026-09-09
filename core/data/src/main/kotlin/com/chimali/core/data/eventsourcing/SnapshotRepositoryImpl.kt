@@ -39,14 +39,17 @@ class SnapshotRepositoryImpl(
     ): Result<Unit> {
         if (kind != EventKind.VAULT_ENTRY) return Result.success(Unit)
 
+        var ownedKey: ByteArray? = null
+        var ownedPlaintext: ByteArray? = null
         return try {
-            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            val key = keyProvider.getEventStoreKey("chimali_vault_es_v1").also { ownedKey = it }
 
             database.transaction {
                 val stateSerializer = getSerializer<T>(kind)
                 val snapshotSerializer = Snapshot.serializer(stateSerializer)
                 val payloadJson = json.encodeToString(snapshotSerializer, snapshot)
-                val encryptedPayload = encryptionManager.encrypt(payloadJson.encodeToByteArray(), key)
+                val plaintext = payloadJson.encodeToByteArray().also { ownedPlaintext = it }
+                val encryptedPayload = encryptionManager.encrypt(plaintext, key)
 
                 database.vaultQueries.insert_snapshot(
                     aggregate_id = snapshot.aggregateId,
@@ -64,6 +67,9 @@ class SnapshotRepositoryImpl(
             Result.success(Unit)
         } catch (e: android.database.SQLException) {
             Result.failure(e)
+        } finally {
+            ownedPlaintext?.fill(0)
+            ownedKey?.fill(0)
         }
     }
 
@@ -73,13 +79,15 @@ class SnapshotRepositoryImpl(
     ): Result<Snapshot<T>?> {
         if (kind != EventKind.VAULT_ENTRY) return Result.success(null)
 
+        var ownedKey: ByteArray? = null
+        var ownedPlaintext: ByteArray? = null
         return try {
             val row = database.vaultQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()
             if (row == null) {
                 Result.success(null)
             } else {
-                val key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
-                val decryptedPayload = encryptionManager.decrypt(row.payload, key)
+                val key = keyProvider.getEventStoreKey("chimali_vault_es_v1").also { ownedKey = it }
+                val decryptedPayload = encryptionManager.decrypt(row.payload, key).also { ownedPlaintext = it }
                 val stateSerializer = getSerializer<T>(kind)
                 val snapshotSerializer = Snapshot.serializer(stateSerializer)
 
@@ -88,6 +96,9 @@ class SnapshotRepositoryImpl(
             }
         } catch (e: android.database.SQLException) {
             Result.failure(e)
+        } finally {
+            ownedPlaintext?.fill(0)
+            ownedKey?.fill(0)
         }
     }
 }

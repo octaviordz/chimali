@@ -42,6 +42,7 @@ fun LabelManagerScreen(
     onDeleteLabel: (UUID) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    errorMessage: String? = null,
 ) {
     var newLabelName by remember { mutableStateOf("") }
 
@@ -91,9 +92,13 @@ fun LabelManagerScreen(
 
             HorizontalDivider()
 
+            if (errorMessage != null) {
+                Text(errorMessage)
+            }
+
             // List of Existing Labels
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(labels) { label ->
+                items(labels, key = { it.id }) { label ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

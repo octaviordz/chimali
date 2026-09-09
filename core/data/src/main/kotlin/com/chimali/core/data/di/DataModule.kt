@@ -11,11 +11,13 @@ import com.chimali.core.domain.repository.SnapshotRepository
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
+private val vaultStorage = named("vault")
+
 val coreDataModule =
     module {
-        single<EventStoreRepository> { EventStoreRepositoryImpl(get(), get(), get()) }
-        single<SnapshotRepository>(named("vault")) { SnapshotRepositoryImpl(get(), get(), get()) }
-        single<AggregateService<VaultCommand, VaultState>> {
-            VaultAggregateServiceImpl(get(), get(named("vault")))
+        single<EventStoreRepository>(vaultStorage) { EventStoreRepositoryImpl(get(), get(), get()) }
+        single<SnapshotRepository>(vaultStorage) { SnapshotRepositoryImpl(get(), get(), get()) }
+        single<AggregateService<VaultCommand, VaultState>>(vaultStorage) {
+            VaultAggregateServiceImpl(get(vaultStorage), get(vaultStorage))
         }
     }

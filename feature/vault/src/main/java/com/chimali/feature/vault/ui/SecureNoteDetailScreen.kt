@@ -43,7 +43,7 @@ fun SecureNoteDetailScreen(
 ) {
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(payload) {
         onDispose {
             payload.clearMemory()
         }
@@ -57,7 +57,7 @@ fun SecureNoteDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(payload.title) },
+                title = { Text(String(payload.title)) },
                 actions = {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
@@ -81,7 +81,7 @@ fun SecureNoteDetailScreen(
 
             payload.customFields?.forEach { field ->
                 DetailRow(
-                    label = field.name,
+                    label = String(field.name),
                     value = if (field.isConcealed) "***" else String(field.value),
                 )
             }
@@ -102,7 +102,11 @@ fun SecureNoteDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
             title = { Text("Delete Secure Note") },
-            text = { Text("Are you sure you want to delete '${payload.title}'? This action cannot be undone.") },
+            text = {
+                Text(
+                    "Are you sure you want to delete '${String(payload.title)}'? This action cannot be undone.",
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {

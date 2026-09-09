@@ -1,0 +1,41 @@
+// T062 / Constitution XII.3: reproducible scoped measurement, without changing production dependencies.
+// Run with --no-configuration-cache -I tools/vault-memory-coverage.init.gradle :feature:vault:vaultMemoryCoverage
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
+gradle.beforeProject { project ->
+    if (project.path == ':feature:vault') {
+        project.pluginManager.apply('jacoco')
+    }
+}
+
+gradle.projectsEvaluated {
+    def vault = gradle.rootProject.project(':feature:vault')
+    def execution = vault.layout.buildDirectory.file('jacoco/vault-memory.exec')
+    vault.tasks.named('testDebugUnitTest', Test) {
+        jacoco.destinationFile = execution.get().asFile
+    }
+    vault.tasks.register('vaultMemoryCoverage', JacocoReport) {
+        dependsOn(vault.tasks.named('testDebugUnitTest'))
+        executionData.from(execution)
+        sourceDirectories.from(vault.file('src/main/java'))
+        classDirectories.from(vault.fileTree(
+            dir: vault.layout.buildDirectory.dir('intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes'),
+            includes: [
+                'com/chimali/feature/vault/internal/crypto/**',
+                'com/chimali/feature/vault/internal/payload/**',
+                'com/chimali/feature/vault/internal/VaultViewModel*',
+                'com/chimali/feature/vault/ui/DraftText*',
+                'com/chimali/feature/vault/ui/MutableDraftField*',
+                'com/chimali/feature/vault/ui/PasswordDraft*',
+                'com/chimali/feature/vault/ui/CreditCardDraft*',
+                'com/chimali/feature/vault/ui/SecureNoteDraft*',
+                'com/chimali/feature/vault/ui/SubmissionOwnership*'
+            ]
+        ))
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+}

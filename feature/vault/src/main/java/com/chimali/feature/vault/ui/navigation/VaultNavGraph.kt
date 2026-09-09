@@ -18,15 +18,21 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -57,6 +63,25 @@ fun VaultNavGraph(
     navController: NavHostController = rememberNavController(),
     viewModel: VaultViewModel = koinViewModel(),
 ) {
+    // Only this nonsecret marker is saved. Restored editors have no surviving draft/identity owner.
+    var previouslyComposed by rememberSaveable { mutableStateOf(false) }
+    val restoredSession = remember { previouslyComposed }
+    LaunchedEffect(Unit) {
+        previouslyComposed = true
+        if (restoredSession &&
+            navController.currentDestination?.route in
+            setOf(
+                VaultDestinations.ENTRY_PASSWORD_ROUTE,
+                VaultDestinations.ENTRY_CARD_ROUTE,
+                VaultDestinations.ENTRY_NOTE_ROUTE,
+            )
+        ) {
+            viewModel.processIntent(VaultIntent.AbandonMutation)
+            viewModel.processIntent(VaultIntent.ClearSelectedItem)
+            navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+        }
+    }
+
     val state by viewModel.state.collectAsState()
     var showAddTypeSheet by remember { mutableStateOf(false) }
 
@@ -64,9 +89,33 @@ fun VaultNavGraph(
     var editingCreditCardPayload by remember { mutableStateOf<Pair<UUID, CreditCardPayload>?>(null) }
     var editingSecureNotePayload by remember { mutableStateOf<Pair<UUID, SecureNotePayload>?>(null) }
 
+    DisposableEffect(viewModel) {
+        onDispose {
+            editingPasswordPayload?.second?.clearMemory()
+            editingCreditCardPayload?.second?.clearMemory()
+            editingSecureNotePayload?.second?.clearMemory()
+            viewModel.processIntent(VaultIntent.ClearSelectedItem)
+            viewModel.processIntent(VaultIntent.AbandonMutation)
+        }
+    }
+
+    var editingLabelIds by remember { mutableStateOf(emptySet<UUID>()) }
+
     LaunchedEffect(Unit) {
         viewModel.processIntent(VaultIntent.LoadItems())
         viewModel.processIntent(VaultIntent.LoadLabels)
+    }
+
+    LaunchedEffect(state.mutationState) {
+        if (state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED &&
+            navController.currentBackStackEntry?.destination?.route != VaultDestinations.LIST_ROUTE
+        ) {
+            navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+            editingPasswordPayload = null
+            editingCreditCardPayload = null
+            editingSecureNotePayload = null
+            viewModel.processIntent(VaultIntent.ResetMutation)
+        }
     }
 
     NavHost(
@@ -80,7 +129,6 @@ fun VaultNavGraph(
                 labels = state.labels,
                 selectedLabelId = state.selectedLabelId,
                 onItemClick = { item ->
-                    viewModel.processIntent(VaultIntent.DecryptItem(item.id))
                     navController.navigate(VaultDestinations.detailRoute(item.type, item.id))
                 },
                 onAddClick = { showAddTypeSheet = true },
@@ -91,6 +139,7 @@ fun VaultNavGraph(
                     navController.navigate(VaultDestinations.LABELS_ROUTE)
                 },
                 onOpenSettings = onOpenSettings,
+                errorMessage = state.errorMessage,
             )
 
             if (showAddTypeSheet) {
@@ -143,15 +192,26 @@ fun VaultNavGraph(
 
         // Add / Edit Password
         composable(VaultDestinations.ENTRY_PASSWORD_ROUTE) {
+            DisposableEffect(Unit) {
+                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+            }
             PasswordEntryScreen(
+                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
                 initialPayload = editingPasswordPayload?.second,
-                onSave = { payload ->
+                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,
+                errorMessage = state.errorMessage,
+                labels = state.labels,
+                initialLabelIds = if (editingPasswordPayload != null) editingLabelIds else emptySet(),
+                onSave = {},
+                onSaveWithLabels = { payload, labelIds ->
                     val editingId = editingPasswordPayload?.first
-                    viewModel.processIntent(VaultIntent.SavePassword(id = editingId, payload = payload))
-                    editingPasswordPayload = null
-                    navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+                    viewModel.processIntent(
+                        VaultIntent.SavePassword(id = editingId, payload = payload, labelIds = labelIds),
+                    )
                 },
                 onCancel = {
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                    editingPasswordPayload?.second?.clearMemory()
                     editingPasswordPayload = null
                     navController.popBackStack()
                 },
@@ -166,26 +226,46 @@ fun VaultNavGraph(
             val idString = backStackEntry.arguments?.getString("id")
             val itemId = idString?.let { UUID.fromString(it) }
 
+            RefreshDetailsOnResume(
+                itemId,
+                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },
+                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },
+            )
             val payload = state.selectedPasswordPayload
-            if (payload != null && itemId != null) {
+            if (payload != null && itemId != null && state.selectedItem?.id == itemId) {
                 PasswordDetailScreen(
                     payload = payload,
                     onEdit = {
-                        editingPasswordPayload = Pair(itemId, payload)
+                        editingLabelIds = state.selectedItemLabelIds
+                        editingPasswordPayload = Pair(itemId, payload.copyForEditing())
                         navController.navigate(VaultDestinations.ENTRY_PASSWORD_ROUTE)
                     },
                     onDelete = {
                         viewModel.processIntent(VaultIntent.DeleteItem(itemId))
-                        navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
                     },
                     onBack = {
                         viewModel.processIntent(VaultIntent.ClearSelectedItem)
                         navController.popBackStack()
                     },
                     onCopyPassword = {
-                        viewModel.processIntent(VaultIntent.ClearClipboard) // Trigger copy through clipboard service
+                        viewModel.processIntent(VaultIntent.CopyPassword(it))
                     },
+                    copyMessage = state.copyMessage,
+                    onCopyMessage = { viewModel.processIntent(VaultIntent.ClearCopyMessage) },
                 )
+            } else if (state.errorMessage != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(state.errorMessage ?: "Unable to open item")
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) }
+                            },
+                        ) {
+                            Text("Retry")
+                        }
+                    }
+                }
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -195,15 +275,26 @@ fun VaultNavGraph(
 
         // Add / Edit Credit Card
         composable(VaultDestinations.ENTRY_CARD_ROUTE) {
+            DisposableEffect(Unit) {
+                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+            }
             CreditCardEntryScreen(
+                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
                 initialPayload = editingCreditCardPayload?.second,
-                onSave = { payload ->
+                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,
+                errorMessage = state.errorMessage,
+                labels = state.labels,
+                initialLabelIds = if (editingCreditCardPayload != null) editingLabelIds else emptySet(),
+                onSave = {},
+                onSaveWithLabels = { payload, labelIds ->
                     val editingId = editingCreditCardPayload?.first
-                    viewModel.processIntent(VaultIntent.SaveCreditCard(id = editingId, payload = payload))
-                    editingCreditCardPayload = null
-                    navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+                    viewModel.processIntent(
+                        VaultIntent.SaveCreditCard(id = editingId, payload = payload, labelIds = labelIds),
+                    )
                 },
                 onCancel = {
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                    editingCreditCardPayload?.second?.clearMemory()
                     editingCreditCardPayload = null
                     navController.popBackStack()
                 },
@@ -218,22 +309,32 @@ fun VaultNavGraph(
             val idString = backStackEntry.arguments?.getString("id")
             val itemId = idString?.let { UUID.fromString(it) }
 
+            RefreshDetailsOnResume(
+                itemId,
+                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },
+                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },
+            )
             val payload = state.selectedCreditCardPayload
-            if (payload != null && itemId != null) {
+            if (payload != null && itemId != null && state.selectedItem?.id == itemId) {
                 CreditCardDetailScreen(
                     payload = payload,
                     onEdit = {
-                        editingCreditCardPayload = Pair(itemId, payload)
+                        editingLabelIds = state.selectedItemLabelIds
+                        editingCreditCardPayload = Pair(itemId, payload.copyForEditing())
                         navController.navigate(VaultDestinations.ENTRY_CARD_ROUTE)
                     },
                     onDelete = {
                         viewModel.processIntent(VaultIntent.DeleteItem(itemId))
-                        navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
                     },
                     onBack = {
                         viewModel.processIntent(VaultIntent.ClearSelectedItem)
                         navController.popBackStack()
                     },
+                )
+            } else if (state.errorMessage != null) {
+                DetailErrorState(
+                    message = state.errorMessage ?: "Unable to open item",
+                    onRetry = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -244,15 +345,26 @@ fun VaultNavGraph(
 
         // Add / Edit Secure Note
         composable(VaultDestinations.ENTRY_NOTE_ROUTE) {
+            DisposableEffect(Unit) {
+                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+            }
             SecureNoteEntryScreen(
+                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
                 initialPayload = editingSecureNotePayload?.second,
-                onSave = { payload ->
+                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,
+                errorMessage = state.errorMessage,
+                labels = state.labels,
+                initialLabelIds = if (editingSecureNotePayload != null) editingLabelIds else emptySet(),
+                onSave = {},
+                onSaveWithLabels = { payload, labelIds ->
                     val editingId = editingSecureNotePayload?.first
-                    viewModel.processIntent(VaultIntent.SaveSecureNote(id = editingId, payload = payload))
-                    editingSecureNotePayload = null
-                    navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+                    viewModel.processIntent(
+                        VaultIntent.SaveSecureNote(id = editingId, payload = payload, labelIds = labelIds),
+                    )
                 },
                 onCancel = {
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                    editingSecureNotePayload?.second?.clearMemory()
                     editingSecureNotePayload = null
                     navController.popBackStack()
                 },
@@ -267,22 +379,32 @@ fun VaultNavGraph(
             val idString = backStackEntry.arguments?.getString("id")
             val itemId = idString?.let { UUID.fromString(it) }
 
+            RefreshDetailsOnResume(
+                itemId,
+                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },
+                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },
+            )
             val payload = state.selectedSecureNotePayload
-            if (payload != null && itemId != null) {
+            if (payload != null && itemId != null && state.selectedItem?.id == itemId) {
                 SecureNoteDetailScreen(
                     payload = payload,
                     onEdit = {
-                        editingSecureNotePayload = Pair(itemId, payload)
+                        editingLabelIds = state.selectedItemLabelIds
+                        editingSecureNotePayload = Pair(itemId, payload.copyForEditing())
                         navController.navigate(VaultDestinations.ENTRY_NOTE_ROUTE)
                     },
                     onDelete = {
                         viewModel.processIntent(VaultIntent.DeleteItem(itemId))
-                        navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
                     },
                     onBack = {
                         viewModel.processIntent(VaultIntent.ClearSelectedItem)
                         navController.popBackStack()
                     },
+                )
+            } else if (state.errorMessage != null) {
+                DetailErrorState(
+                    message = state.errorMessage ?: "Unable to open item",
+                    onRetry = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -304,7 +426,47 @@ fun VaultNavGraph(
                 onBack = {
                     navController.popBackStack()
                 },
+                errorMessage = state.errorMessage,
             )
         }
+    }
+}
+
+@Composable
+private fun DetailErrorState(
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message)
+            androidx.compose.material3.TextButton(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
+
+/** FR-VAULT-026: a resumed detail session obtains fresh values, never a previously erased payload. */
+@Composable
+private fun RefreshDetailsOnResume(
+    itemId: UUID?,
+    onResume: () -> Unit,
+    onPause: () -> Unit,
+) {
+    val owner = LocalLifecycleOwner.current
+    val resume by rememberUpdatedState(onResume)
+    val pause by rememberUpdatedState(onPause)
+    DisposableEffect(owner, itemId) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    resume()
+                } else if (event == Lifecycle.Event.ON_PAUSE) {
+                    pause()
+                }
+            }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
     }
 }

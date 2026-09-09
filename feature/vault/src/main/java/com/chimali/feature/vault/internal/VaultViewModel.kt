@@ -3,12 +3,23 @@ package com.chimali.feature.vault.internal
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.core.clipboard.ClipboardManagerService
+import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.feature.vault.api.VaultIntent
+import com.chimali.feature.vault.api.VaultItem
+import com.chimali.feature.vault.api.VaultMutationState
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultState
 import com.chimali.feature.vault.api.VaultType
 import com.chimali.feature.vault.internal.crypto.VaultCryptoService
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.PasswordPayload
+import com.chimali.feature.vault.internal.payload.SecureNotePayload
+import com.chimali.feature.vault.internal.payload.SensitivePayload
+import java.util.UUID
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +34,11 @@ class VaultViewModel(
     private val _state = MutableStateFlow(VaultState())
     val state: StateFlow<VaultState> = _state.asStateFlow()
 
+    private var submissionJob: Job? = null
+    private var activeSubmission: SensitivePayload? = null
+    private var retryId: UUID? = null
+    private var detailGeneration = 0L
+
     fun processIntent(intent: VaultIntent) {
         when (intent) {
             is VaultIntent.LoadItems -> loadItems(intent)
@@ -36,7 +52,14 @@ class VaultViewModel(
             is VaultIntent.DeleteItem -> deleteItem(intent)
             is VaultIntent.DecryptItem -> decryptItem(intent)
             VaultIntent.ClearSelectedItem -> clearSelectedItem()
+            VaultIntent.ResetMutation -> {
+                retryId = null
+                _state.update { it.copy(mutationState = VaultMutationState.IDLE) }
+            }
+            VaultIntent.AbandonMutation -> abandonMutation()
             VaultIntent.ClearClipboard -> clearClipboard()
+            VaultIntent.ClearCopyMessage -> _state.update { it.copy(copyMessage = null) }
+            is VaultIntent.CopyPassword -> copyPassword(intent.password)
         }
     }
 
@@ -44,7 +67,7 @@ class VaultViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null, selectedLabelId = intent.filterLabelId) }
             when (val result = vaultService.getItems(intent.filterLabelId)) {
-                is Outcome.Success -> _state.update { it.copy(isLoading = false, items = result.data) }
+                is Outcome.Success -> replaceItems(result.data)
                 is Outcome.Error ->
                     _state.update {
                         it.copy(isLoading = false, errorMessage = result.error.message)
@@ -54,147 +77,211 @@ class VaultViewModel(
     }
 
     private fun saveItem(intent: VaultIntent.SaveItem) {
+        if (_state.value.mutationState == VaultMutationState.PENDING) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val saveResult = vaultService.saveItem(intent.item)) {
-                is Outcome.Success -> reloadItems()
-                is Outcome.Error ->
-                    _state.update {
-                        it.copy(isLoading = false, errorMessage = saveResult.error.message)
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    mutationState = VaultMutationState.PENDING,
+                )
+            }
+            try {
+                when (val saveResult = vaultService.saveItem(intent.item)) {
+                    is Outcome.Success -> {
+                        _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }
+                        reloadItems()
                     }
+                    is Outcome.Error ->
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = saveResult.error.message,
+                                mutationState = VaultMutationState.FAILED,
+                            )
+                        }
+                }
+            } finally {
+                intent.item.clearMemory()
             }
         }
     }
 
-    private fun savePassword(intent: VaultIntent.SavePassword) {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val encResult = vaultCryptoService.encryptPassword(intent.id, intent.payload, intent.identityId)) {
-                is Outcome.Success -> {
-                    when (val saveResult = vaultService.saveItem(encResult.data)) {
-                        is Outcome.Success -> reloadItems()
-                        is Outcome.Error ->
-                            _state.update {
-                                it.copy(isLoading = false, errorMessage = saveResult.error.message)
+    /** FR-VAULT-026: completion handlers also cover jobs cancelled before their body starts. */
+    private fun launchSubmission(
+        payload: SensitivePayload,
+        save: suspend () -> Unit,
+    ) {
+        if (_state.value.mutationState == VaultMutationState.PENDING) {
+            if (payload !== activeSubmission) payload.clearMemory()
+            return
+        }
+        activeSubmission = payload
+        _state.update { it.copy(isLoading = true, errorMessage = null, mutationState = VaultMutationState.PENDING) }
+        submissionJob =
+            viewModelScope.launch { save() }.also { job ->
+                job.invokeOnCompletion {
+                    payload.clearMemory()
+                    if (activeSubmission === payload) {
+                        activeSubmission = null
+                        if (job.isCancelled) {
+                            _state.update { state ->
+                                if (state.mutationState == VaultMutationState.PENDING) {
+                                    state.copy(isLoading = false, mutationState = VaultMutationState.IDLE)
+                                } else {
+                                    state
+                                }
                             }
+                        }
                     }
                 }
-                is Outcome.Error ->
-                    _state.update {
-                        it.copy(isLoading = false, errorMessage = encResult.error.message)
-                    }
+            }
+    }
+
+    override fun onCleared() {
+        clearSelectedItem()
+        super.onCleared()
+    }
+
+    private fun abandonMutation() {
+        submissionJob?.cancel()
+        submissionJob = null
+        retryId = null
+        _state.update { it.copy(isLoading = false, mutationState = VaultMutationState.IDLE) }
+    }
+
+    private fun savePassword(intent: VaultIntent.SavePassword) {
+        launchSubmission(intent.payload) {
+            savePayload(intent.id, intent.labelIds) { id ->
+                vaultCryptoService.encryptPassword(id, intent.payload, intent.identityId)
             }
         }
     }
 
     private fun saveCreditCard(intent: VaultIntent.SaveCreditCard) {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val encResult = vaultCryptoService.encryptCreditCard(intent.id, intent.payload, intent.identityId)) {
-                is Outcome.Success -> {
-                    when (val saveResult = vaultService.saveItem(encResult.data)) {
-                        is Outcome.Success -> reloadItems()
-                        is Outcome.Error ->
-                            _state.update {
-                                it.copy(isLoading = false, errorMessage = saveResult.error.message)
-                            }
-                    }
-                }
-                is Outcome.Error ->
-                    _state.update {
-                        it.copy(isLoading = false, errorMessage = encResult.error.message)
-                    }
+        launchSubmission(intent.payload) {
+            savePayload(intent.id, intent.labelIds) { id ->
+                vaultCryptoService.encryptCreditCard(id, intent.payload, intent.identityId)
             }
         }
     }
 
     private fun saveSecureNote(intent: VaultIntent.SaveSecureNote) {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            when (val encResult = vaultCryptoService.encryptSecureNote(intent.id, intent.payload, intent.identityId)) {
-                is Outcome.Success -> {
-                    when (val saveResult = vaultService.saveItem(encResult.data)) {
-                        is Outcome.Success -> reloadItems()
-                        is Outcome.Error ->
-                            _state.update {
-                                it.copy(isLoading = false, errorMessage = saveResult.error.message)
-                            }
-                    }
-                }
-                is Outcome.Error ->
-                    _state.update {
-                        it.copy(isLoading = false, errorMessage = encResult.error.message)
-                    }
+        launchSubmission(intent.payload) {
+            savePayload(intent.id, intent.labelIds) { id ->
+                vaultCryptoService.encryptSecureNote(id, intent.payload, intent.identityId)
             }
         }
     }
 
+    private suspend fun savePayload(
+        id: UUID?,
+        labelIds: List<UUID>,
+        encrypt: suspend (UUID) -> Outcome<VaultItem, DomainError>,
+    ) {
+        val stableId = id ?: retryId ?: UUID.randomUUID().also { retryId = it }
+        val encrypted = encrypt(stableId)
+        currentCoroutineContext().ensureActive()
+        val outcome =
+            when (encrypted) {
+                is Outcome.Error -> encrypted
+                is Outcome.Success -> {
+                    try {
+                        val saved = vaultService.saveItem(encrypted.data)
+                        currentCoroutineContext().ensureActive()
+                        when (saved) {
+                            is Outcome.Error -> saved
+                            is Outcome.Success -> vaultService.setItemLabels(encrypted.data.id, labelIds)
+                        }
+                    } finally {
+                        encrypted.data.clearMemory()
+                    }
+                }
+            }
+        currentCoroutineContext().ensureActive()
+        when (outcome) {
+            is Outcome.Success -> {
+                reloadItems()
+                currentCoroutineContext().ensureActive()
+                _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }
+            }
+            is Outcome.Error ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = outcome.error.message,
+                        mutationState = VaultMutationState.FAILED,
+                    )
+                }
+        }
+    }
+
     private fun deleteItem(intent: VaultIntent.DeleteItem) {
+        if (_state.value.mutationState == VaultMutationState.PENDING) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    mutationState = VaultMutationState.PENDING,
+                )
+            }
             when (val deleteResult = vaultService.deleteItem(intent.id)) {
                 is Outcome.Success -> {
+                    _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }
                     clearSelectedItem()
                     reloadItems()
                 }
                 is Outcome.Error ->
                     _state.update {
-                        it.copy(isLoading = false, errorMessage = deleteResult.error.message)
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = deleteResult.error.message,
+                            mutationState = VaultMutationState.FAILED,
+                        )
                     }
             }
         }
     }
 
     private fun decryptItem(intent: VaultIntent.DecryptItem) {
+        clearSelectedItem()
+        val generation = detailGeneration
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            val item = _state.value.items.find { it.id == intent.id }
+            val stored = vaultService.getItems(null)
+            if (generation != detailGeneration) return@launch
+            if (stored is Outcome.Error) {
+                _state.update { it.copy(isLoading = false, errorMessage = stored.error.message) }
+                return@launch
+            }
+            val item = (stored as Outcome.Success).data.find { it.id == intent.id }
             if (item != null) {
-                when (item.type) {
-                    VaultType.PASSWORD -> {
-                        when (val dec = vaultCryptoService.decryptPassword(item)) {
-                            is Outcome.Success ->
-                                _state.update {
-                                    it.copy(isLoading = false, selectedItem = item, selectedPasswordPayload = dec.data)
-                                }
-                            is Outcome.Error ->
-                                _state.update {
-                                    it.copy(isLoading = false, errorMessage = dec.error.message)
-                                }
-                        }
+                val labelIds = vaultService.getItemLabelIds(intent.id)
+                val selectedLabelIds = (labelIds as? Outcome.Success)?.data?.toSet() ?: emptySet()
+                val dec =
+                    when (item.type) {
+                        VaultType.PASSWORD -> vaultCryptoService.decryptPassword(item)
+                        VaultType.CREDIT_CARD -> vaultCryptoService.decryptCreditCard(item)
+                        VaultType.NOTE -> vaultCryptoService.decryptSecureNote(item)
                     }
-                    VaultType.CREDIT_CARD -> {
-                        when (val dec = vaultCryptoService.decryptCreditCard(item)) {
-                            is Outcome.Success ->
-                                _state.update {
-                                    it.copy(
-                                        isLoading = false,
-                                        selectedItem = item,
-                                        selectedCreditCardPayload = dec.data,
-                                    )
-                                }
-                            is Outcome.Error ->
-                                _state.update {
-                                    it.copy(isLoading = false, errorMessage = dec.error.message)
-                                }
+                if (generation != detailGeneration || !currentCoroutineContext()[Job]!!.isActive) {
+                    if (dec is Outcome.Success) dec.data.clearMemory()
+                    return@launch
+                }
+                when (dec) {
+                    is Outcome.Success ->
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                selectedItem = item,
+                                selectedPasswordPayload = dec.data as? PasswordPayload,
+                                selectedCreditCardPayload = dec.data as? CreditCardPayload,
+                                selectedSecureNotePayload = dec.data as? SecureNotePayload,
+                                selectedItemLabelIds = selectedLabelIds,
+                            )
                         }
-                    }
-                    VaultType.NOTE -> {
-                        when (val dec = vaultCryptoService.decryptSecureNote(item)) {
-                            is Outcome.Success ->
-                                _state.update {
-                                    it.copy(
-                                        isLoading = false,
-                                        selectedItem = item,
-                                        selectedSecureNotePayload = dec.data,
-                                    )
-                                }
-                            is Outcome.Error ->
-                                _state.update {
-                                    it.copy(isLoading = false, errorMessage = dec.error.message)
-                                }
-                        }
-                    }
+                    is Outcome.Error -> _state.update { it.copy(isLoading = false, errorMessage = dec.error.message) }
                 }
             } else {
                 _state.update { it.copy(isLoading = false, errorMessage = "Item not found") }
@@ -203,27 +290,38 @@ class VaultViewModel(
     }
 
     private fun clearSelectedItem() {
+        detailGeneration++
         _state.value.selectedPasswordPayload?.clearMemory()
         _state.value.selectedCreditCardPayload?.clearMemory()
         _state.value.selectedSecureNotePayload?.clearMemory()
+        _state.value.selectedItem?.clearMemory()
         _state.update {
             it.copy(
                 selectedItem = null,
                 selectedPasswordPayload = null,
                 selectedCreditCardPayload = null,
                 selectedSecureNotePayload = null,
+                selectedItemLabelIds = emptySet(),
             )
         }
     }
 
     private suspend fun reloadItems() {
-        when (val loadResult = vaultService.getItems(_state.value.selectedLabelId)) {
-            is Outcome.Success -> _state.update { it.copy(isLoading = false, items = loadResult.data) }
+        val loadResult = vaultService.getItems(_state.value.selectedLabelId)
+        currentCoroutineContext().ensureActive()
+        when (loadResult) {
+            is Outcome.Success -> replaceItems(loadResult.data)
             is Outcome.Error ->
                 _state.update {
                     it.copy(isLoading = false, errorMessage = loadResult.error.message)
                 }
         }
+    }
+
+    private fun replaceItems(items: List<VaultItem>) {
+        val oldItems = _state.value.items
+        _state.update { it.copy(isLoading = false, items = items) }
+        oldItems.forEach { it.clearMemory() }
     }
 
     private fun loadLabels() {
@@ -257,5 +355,24 @@ class VaultViewModel(
         viewModelScope.launch {
             clipboardManager.clearClipboard()
         }
+    }
+
+    private fun copyPassword(password: CharArray) {
+        viewModelScope
+            .launch {
+                try {
+                    // Approved I.5 platform adapter: no String is stored in an intent or application state.
+                    val result = clipboardManager.copySensitiveData("Password", String(password))
+                    val message =
+                        result.fold(
+                            onSuccess = { "Password copied. Clipboard clears in 60s." },
+                            onFailure = { "Unable to copy password to clipboard." },
+                        )
+                    currentCoroutineContext().ensureActive()
+                    _state.update { it.copy(copyMessage = message) }
+                } finally {
+                    password.fill('\u0000')
+                }
+            }.invokeOnCompletion { password.fill('\u0000') }
     }
 }

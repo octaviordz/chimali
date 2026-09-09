@@ -25,7 +25,7 @@ class SecureNoteCryptoTest {
         payload.clearMemory()
 
         // Verify arrays are zeroed out
-        assertArrayEquals(charArrayOf('0', '0', '0', '0', '0', '0', '0', '0', '0'), contentArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0'), customFieldValue)
+        assertArrayEquals(CharArray(9), contentArray)
+        assertArrayEquals(CharArray(4), customFieldValue)
     }
 }

@@ -1,11 +1,12 @@
 <!--
 SYNC IMPACT REPORT
-Version: 0.17.0 -> 1.0.0 (major redefinition of memory-security scope)
-Modified principles: I.5 Memory Security; X.2 Memory Safety; X.5 Plaintext Ownership
-Added: narrow audited platform-text exception and explicit limits of the cleanup guarantee
-Removed: universal mutable-only guarantee across external platform/runtime copies
-Unchanged: cryptography, storage protection, secret field classification, coverage and runtime verification gates
-Approved explicitly by the user on 2026-09-08. Active requirements must follow this amendment.
+Version: 1.0.0 -> 1.1.0 (minor expansion of coverage-evidence rules)
+Modified principles: XII.3 High-Coverage Testing & Independence
+Added: narrowly governed evidence for direct terminal exception branches that JaCoCo cannot probe
+Removed: none
+Unchanged: the 100% statement/branch rule for all measurable paths, cryptography, storage,
+memory security, secret classification, runtime verification, and platform-boundary controls
+Approved explicitly by the user on 2026-09-09. Active requirements must follow this amendment.
 -->
 
 
@@ -247,7 +248,7 @@ To ensure the reliability, determinism, and verifiability of safety/operationall
 - **Predictable State Transitions**: Critical state machines MUST have fully defined, deterministic state progressions with exhaustive handling of all valid and invalid inputs.
 
 #### 3. High-Coverage Testing & Independence
-- **Strict Coverage Gates**: Critical domain logic MUST enforce strict test coverage (100% statement and branch coverage). Complex decision logic MUST be tested with a Modified Condition/Decision Coverage (MC/DC) mindset.
+- **Strict Coverage Gates**: Critical domain logic MUST enforce strict test coverage (100% statement and branch coverage). Complex decision logic MUST be tested with a Modified Condition/Decision Coverage (MC/DC) mindset. A terminal exception branch that an instrumenter cannot credit because it exits directly through `throw` MAY be accepted only when every nonterminal executable line is covered, an independent test asserts the exact branch input and exception type, and that test verifies every cleanup invariant affected by the exit. The exception MUST record the report, source location, test name, and reason a normal successor probe would alter or obscure production behavior. It MUST NOT apply to recoverable, nonterminal, asynchronous, cancellation, or externally delegated paths.
 - **Independent Test Execution**: Verification tests MUST be executed independently of the implementation units, operating without shared mutable state to eliminate verification bias and order dependency.
 - **"Test What You Fly, Fly What You Test"**: The test environment, test doubles, and execution harness MUST precisely mirror production execution conditions, hardware constraints, and threading characteristics. Simulated test harnesses MUST NOT mask production concurrency, latency, or lifecycle failure modes.
 
@@ -261,4 +262,4 @@ To ensure the reliability, determinism, and verifiability of safety/operationall
 - **Fail-Secure State**: Upon any hardware failure, sensor disconnection, timeout, or unrecoverable error, the system MUST degrade gracefully into a safe, secure state (e.g., abort authentication, zero out sensitive volatile keys, and lock secure storage).
 - **Peripheral Resilience**: The application MUST NOT crash due to external device failures, disconnected peripherals, Bluetooth stack resets, USB unplug events, or camera driver stalls.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-08
+**Version**: 1.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-09

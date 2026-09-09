@@ -77,6 +77,7 @@ class Fido2Module {
      * T018 — Provides the Passkey Event Store Repository.
      */
     @Single
+    @Named("passkey")
     fun passkeyEventStoreRepository(
         database: Fido2Database,
         encryptionManager: EncryptionManager,
@@ -98,8 +99,9 @@ class Fido2Module {
      * T019 — Provides the Passkey Aggregate Service.
      */
     @Single
+    @Named("passkey")
     fun passkeyAggregateService(
-        eventStoreRepository: EventStoreRepository,
+        @Named("passkey") eventStoreRepository: EventStoreRepository,
         @Named("passkey") snapshotRepository: SnapshotRepository,
     ): AggregateService<PasskeyCommand, PasskeyState> =
         PasskeyAggregateServiceImpl(eventStoreRepository, snapshotRepository)

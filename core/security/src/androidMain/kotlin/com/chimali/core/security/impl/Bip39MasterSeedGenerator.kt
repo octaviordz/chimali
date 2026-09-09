@@ -4,8 +4,8 @@ import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.platform.loadResourceLines
 import java.security.MessageDigest
 import java.security.SecureRandom
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import org.koin.core.annotation.Single
 
 /**
@@ -45,17 +45,21 @@ class Bip39MasterSeedGenerator : MasterSeedGenerator {
         val mnemonicString = mnemonic.joinToString(" ")
         val salt = "mnemonic$passphrase"
 
-        val spec =
-            PBEKeySpec(
-                mnemonicString.toCharArray(),
-                salt.toByteArray(Charsets.UTF_8),
-                2048,
-                512,
-            )
-        return SecretKeyFactory
-            .getInstance("PBKDF2WithHmacSHA512")
-            .generateSecret(spec)
-            .encoded
+        val password = mnemonicString.toByteArray(Charsets.UTF_8)
+        val saltBytes = salt.toByteArray(Charsets.UTF_8)
+        val mac = Mac.getInstance("HmacSHA512")
+        mac.init(SecretKeySpec(password, "HmacSHA512"))
+        val output = ByteArray(64)
+        val block = ByteArray(saltBytes.size + 4)
+        saltBytes.copyInto(block)
+        block[block.lastIndex] = 1
+        var u = mac.doFinal(block)
+        u.copyInto(output)
+        repeat(2047) {
+            u = mac.doFinal(u)
+            for (i in output.indices) output[i] = (output[i].toInt() xor u[i].toInt()).toByte()
+        }
+        return output
     }
 
     /**

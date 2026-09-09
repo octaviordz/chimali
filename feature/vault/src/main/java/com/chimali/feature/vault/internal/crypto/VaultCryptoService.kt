@@ -11,6 +11,9 @@ import java.util.UUID
 /**
  * Service contract for encrypting and decrypting vault payloads with AES-256-GCM
  * and zeroing intermediate plaintext memory immediately upon completion.
+ * Encryption consumes an independently owned submission (including on failure or cancellation).
+ * Decryption transfers an independently owned payload only when it returns successfully;
+ * its receiver must clear it on replacement, departure, or disposal. Never submit an editor's arrays.
  */
 interface VaultCryptoService {
     suspend fun encryptPassword(

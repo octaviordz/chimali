@@ -10,6 +10,7 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -54,7 +55,7 @@ class VaultAggregateServiceImplTest {
 
             val state = service.getState(aggregateId).getOrThrow()
 
-            assertEquals("title updated", state.title)
+            assertTrue(state.title.contentEquals("title updated".toCharArray()))
             assertEquals(2L, state.sequenceNumber)
         }
 
@@ -78,10 +79,10 @@ class VaultAggregateServiceImplTest {
             val stateAtT1 = service.getState(aggregateId, t1).getOrThrow()
             val stateAtT2 = service.getState(aggregateId, t2).getOrThrow()
 
-            assertEquals("title 1", stateAtT1.title)
+            assertTrue(stateAtT1.title.contentEquals("title 1".toCharArray()))
             assertEquals(1L, stateAtT1.sequenceNumber)
 
-            assertEquals("title 2", stateAtT2.title)
+            assertTrue(stateAtT2.title.contentEquals("title 2".toCharArray()))
             assertEquals(2L, stateAtT2.sequenceNumber)
         }
 
@@ -101,7 +102,7 @@ class VaultAggregateServiceImplTest {
 
             val state = service.execute(aggregateId, command).getOrThrow()
 
-            assertEquals("title", state.title)
+            assertTrue(state.title.contentEquals("title".toCharArray()))
             assertEquals(1L, state.sequenceNumber)
         }
 }

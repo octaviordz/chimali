@@ -68,7 +68,7 @@ fun CreditCardDetailScreen(
             colorblindMode = false,
         )
 
-    DisposableEffect(Unit) {
+    DisposableEffect(payload) {
         onDispose {
             payload.clearMemory()
         }
@@ -82,7 +82,7 @@ fun CreditCardDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(payload.title) },
+                title = { Text(String(payload.title)) },
                 actions = {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
@@ -121,14 +121,21 @@ fun CreditCardDetailScreen(
                 }
                 if (isNumberRevealed) {
                     LegibleSecretText(
-                        secret = String(payload.cardNumber).chunked(CARD_NUMBER_CHUNK_SIZE).joinToString(" "),
+                        secret = payload.cardNumber,
+                        groupSize = CARD_NUMBER_CHUNK_SIZE,
                         isRevealed = true,
                         settings = legibilitySettings,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
                     Text(
-                        text = "•••• •••• •••• " + String(payload.cardNumber).takeLast(LAST_DIGITS_COUNT),
+                        text =
+                            "•••• •••• •••• " +
+                                String(
+                                    payload.cardNumber,
+                                    maxOf(0, payload.cardNumber.size - LAST_DIGITS_COUNT),
+                                    minOf(payload.cardNumber.size, LAST_DIGITS_COUNT),
+                                ),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -140,7 +147,7 @@ fun CreditCardDetailScreen(
             ) {
                 DetailRow(
                     label = "Expires",
-                    value = payload.expirationDate,
+                    value = String(payload.expirationDate),
                     modifier = Modifier.weight(1f),
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -171,7 +178,7 @@ fun CreditCardDetailScreen(
 
             payload.customFields?.forEach { field ->
                 DetailRow(
-                    label = field.name,
+                    label = String(field.name),
                     value = if (field.isConcealed) "***" else String(field.value),
                 )
             }
@@ -196,7 +203,11 @@ fun CreditCardDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
             title = { Text("Delete Credit Card") },
-            text = { Text("Are you sure you want to delete '${payload.title}'? This action cannot be undone.") },
+            text = {
+                Text(
+                    "Are you sure you want to delete '${String(payload.title)}'? This action cannot be undone.",
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {

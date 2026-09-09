@@ -18,10 +18,21 @@ sealed interface VaultEvent : DomainEvent {
         override val sequenceNumber: Long,
         override val timestamp: Instant,
         val type: String,
-        val title: String,
+        @Serializable(with = SensitiveCharArraySerializer::class)
+        val title: CharArray,
         val payload: ByteArray,
         val identityId: String,
-    ) : VaultEvent
+    ) : VaultEvent {
+        constructor(
+            aggregateId: String,
+            sequenceNumber: Long,
+            timestamp: Instant,
+            type: String,
+            title: String,
+            payload: ByteArray,
+            identityId: String,
+        ) : this(aggregateId, sequenceNumber, timestamp, type, title.toCharArray(), payload, identityId)
+    }
 
     /**
      * Emitted when an existing vault entry is updated.
@@ -31,9 +42,18 @@ sealed interface VaultEvent : DomainEvent {
         override val aggregateId: String,
         override val sequenceNumber: Long,
         override val timestamp: Instant,
-        val title: String?,
+        @Serializable(with = SensitiveCharArraySerializer::class)
+        val title: CharArray?,
         val payload: ByteArray?,
-    ) : VaultEvent
+    ) : VaultEvent {
+        constructor(
+            aggregateId: String,
+            sequenceNumber: Long,
+            timestamp: Instant,
+            title: String,
+            payload: ByteArray?,
+        ) : this(aggregateId, sequenceNumber, timestamp, title.toCharArray(), payload)
+    }
 
     /**
      * Emitted when a vault entry is marked as deleted.
@@ -44,4 +64,13 @@ sealed interface VaultEvent : DomainEvent {
         override val sequenceNumber: Long,
         override val timestamp: Instant,
     ) : VaultEvent
+}
+
+/** Clears event-owned sensitive text after the state has made its own copy. */
+fun VaultEvent.clearSensitiveMemory() {
+    when (this) {
+        is VaultEvent.Created -> title.fill('\u0000')
+        is VaultEvent.Updated -> title?.fill('\u0000')
+        is VaultEvent.Deleted -> Unit
+    }
 }

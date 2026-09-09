@@ -30,8 +30,8 @@
 
 **Purpose**: Core cleanup before any user story implementation can begin.
 
-- [ ] T002 Delete the unused use case test file `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCaseTest.kt`
-- [ ] T003 Delete the unused use case class `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCase.kt`
+- [X] T002 Delete the unused use case test file `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCaseTest.kt`
+- [X] T003 Delete the unused use case class `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/usecase/AuthenticateCredentialUseCase.kt`
 
 **Checkpoint**: Dead use case files removed.
 
@@ -45,10 +45,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [P] [US1] Remove `authenticateCredential` from repository interface in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/repository/Fido2Repository.kt`
-- [ ] T005 [P] [US1] Remove `authenticateCredential` from repository implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2RepositoryImpl.kt`
-- [ ] T006 [P] [US1] Remove `authenticateWithCredential` from service interface in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/Fido2Service.kt`
-- [ ] T007 [US1] Remove `authenticateWithCredential` and the `AuthenticateCredentialUseCase` injection from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2ServiceImpl.kt`
+- [X] T004 [P] [US1] Remove `authenticateCredential` from repository interface in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/repository/Fido2Repository.kt`
+- [X] T005 [P] [US1] Remove `authenticateCredential` from repository implementation in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/Fido2RepositoryImpl.kt`
+- [X] T006 [P] [US1] Remove `authenticateWithCredential` from service interface in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/Fido2Service.kt`
+- [X] T007 [US1] Remove `authenticateWithCredential` and the `AuthenticateCredentialUseCase` injection from `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/service/impl/Fido2ServiceImpl.kt`
 
 **Checkpoint**: AuthenticateCredentialUseCase stub is fully removed from all layers.
 
@@ -62,7 +62,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] Verify `AuthenticationPromptViewModel.kt` compile correctness and verify that `GetAssertionUseCase` handles the authentication ceremony in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/AuthenticationPromptViewModel.kt`
+- [X] T008 [US2] Verify `AuthenticationPromptViewModel.kt` compile correctness and verify that `GetAssertionUseCase` handles the authentication ceremony in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/AuthenticationPromptViewModel.kt`
 
 **Checkpoint**: Authentication prompt ViewModel verified.
 
@@ -76,7 +76,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Modify `RegistrationPromptViewModel.kt` to inject `RegisterCredentialUseCase` instead of `Fido2Service`, and update `performRegistration` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/RegistrationPromptViewModel.kt`
+- [X] T009 [US3] Modify `RegistrationPromptViewModel.kt` to inject `RegisterCredentialUseCase` instead of `Fido2Service`, and update `performRegistration` in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/viewmodel/RegistrationPromptViewModel.kt`
 
 **Checkpoint**: Registration ViewModel refactored.
 
@@ -86,9 +86,9 @@
 
 **Purpose**: Verification and validation.
 
-- [ ] T010 Run build verification: `.\gradlew :feature:fido2:compileDebugKotlin`
-- [ ] T011 Run test verification: `.\gradlew :feature:fido2:testDebugUnitTest`
-- [ ] T012 Run lint checks: `.\gradlew :feature:fido2:detekt :feature:fido2:ktlintCheck`
+- [X] T010 Run build verification: `.\gradlew :feature:fido2:compileDebugKotlin`
+- [X] T011 Run test verification: `.\gradlew :feature:fido2:testDebugUnitTest`
+- [X] T012 Run lint checks: `.\gradlew :feature:fido2:detekt :feature:fido2:ktlintCheck`
 
 ---
 

@@ -3,6 +3,35 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-09-09
+
+### Documentation
+- Corrected the Vault specification quality checklist by moving implementation details into the
+  plan while preserving security requirements and requirement identifiers.
+- Added a [Vault completion change record](docs/changelogs/2026-09-09-vault-completion-handoff.md)
+  and [current feature handoff](specs/053-vault-completion/handoff.md), recording completed
+  ownership remediation, previously recorded verification, and remaining T044/T046 acceptance work.
+
+### Security
+- **Vault Secret Ownership and Lifecycle Remediation (T039)**: Completed the application-owned
+  plaintext lifetime hardening for password, credit-card, and secure-note flows.
+  - Replaced retained editor and payload `String` owners with mutable drafts, payloads, codec
+    buffers, and title values that are explicitly erased on replacement, success, discard,
+    failure, cancellation, and disposal.
+  - Added bounded mutable payload serialization while preserving the encrypted v1 payload format,
+    legacy event/snapshot compatibility, and Vault title migration through UTF-8 BLOB storage.
+  - Hardened key, plaintext, codec, submission, clipboard, detail, and ViewModel ownership paths,
+    including key-provider failure before encryption and undeliverable cancellation results.
+  - Audited and controlled required platform text boundaries for IME behavior, autofill,
+    surrounding text, rendering, accessibility, undo/history, and clipboard disclosure. The app
+    does not claim erasure of platform or operating-system copies.
+  - Verified all three editor input-boundary cases and 15 Vault lifecycle/ownership navigation
+    cases on managed Android API 35, alongside host, migration, static-analysis, and build checks.
+- **Constitution 1.1.0 Coverage Evidence Rule**: Approved a narrow rule for independently tested,
+  direct terminal exception branches that JaCoCo cannot instrument. Full measurable coverage and
+  cleanup assertions remain mandatory.
+  - **Detailed changes**: [2026-09-09-vault-secret-ownership-remediation.md](docs/changelogs/2026-09-09-vault-secret-ownership-remediation.md)
+
 ## [Unreleased] - 2026-09-05
 
 ### Changed

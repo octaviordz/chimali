@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.chimali.feature.vault.internal.payload.CreditCardPayload
 import com.chimali.feature.vault.internal.payload.CustomField
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,29 +43,63 @@ fun CreditCardEntryScreen(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     initialPayload: CreditCardPayload? = null,
+    isSaving: Boolean = false,
+    saveSucceeded: Boolean = false,
+    errorMessage: String? = null,
+    labels: List<LabelUiModel> = emptyList(),
+    initialLabelIds: Set<UUID> = emptySet(),
+    onSaveWithLabels: ((CreditCardPayload, List<UUID>) -> Unit)? = null,
 ) {
-    var title by remember { mutableStateOf(initialPayload?.title ?: "") }
-    var cardholderName by remember { mutableStateOf(initialPayload?.let { String(it.cardholderName) } ?: "") }
-    var cardNumber by remember { mutableStateOf(initialPayload?.let { String(it.cardNumber) } ?: "") }
-    var expirationDate by remember { mutableStateOf(initialPayload?.expirationDate ?: "") }
-    var cvv by remember { mutableStateOf(initialPayload?.let { String(it.cvv) } ?: "") }
-    var notes by remember { mutableStateOf(initialPayload?.notes?.let { String(it) } ?: "") }
+    DisposableEffect(initialPayload) {
+        onDispose { initialPayload?.clearMemory() }
+    }
+
+    val editable = !isSaving && !saveSucceeded
+    val draft = remember(initialPayload) { CreditCardDraft(initialPayload) }
+    val title = draft.title
+    val cardholderName = draft.cardholderName
+    val cardNumber = draft.cardNumber
+    val expirationDate = draft.expirationDate
+    val cvv = draft.cvv
+    val notes = draft.notes
+    DisposableEffect(draft) {
+        onDispose { draft.clear() }
+    }
 
     val customFields =
         remember {
             mutableStateListOf<CustomField>().apply {
-                initialPayload?.customFields?.let { addAll(it) }
+                addAll(copyDraftFields(initialPayload?.customFields))
             }
         }
 
-    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    DisposableEffect(customFields) {
+        onDispose { customFields.forEach { it.clearMemory() } }
+    }
 
-    val hasUnsavedChanges = title.isNotBlank() || cardNumber.isNotBlank() || cardholderName.isNotBlank()
+    SideEffect {
+        if (saveSucceeded) {
+            draft.clear()
+            customFields.forEach { it.clearMemory() }
+            customFields.clear()
+            initialPayload?.clearMemory()
+        }
+    }
+
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    var selectedLabelIds by remember { mutableStateOf(initialLabelIds) }
+
+    val hasUnsavedChanges =
+        draft.hasTextChanges(initialPayload) || customFields != initialPayload?.customFields.orEmpty()
 
     fun attemptCancel() {
-        if (hasUnsavedChanges) {
+        if (draft.isClosed) return
+        if (hasUnsavedChanges || selectedLabelIds != initialLabelIds) {
             showDiscardConfirmDialog = true
         } else {
+            draft.clear()
+            customFields.forEach { it.clearMemory() }
+            initialPayload?.clearMemory()
             onCancel()
         }
     }
@@ -69,142 +108,185 @@ fun CreditCardEntryScreen(
         attemptCancel()
     }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(if (initialPayload != null) "Edit Credit Card" else "New Credit Card") },
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier =
-                Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Title *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+    VaultInputPolicy {
+        Scaffold(
+            modifier = modifier,
+            topBar = {
+                TopAppBar(
+                    title = { Text(if (initialPayload != null) "Edit Credit Card" else "New Credit Card") },
                 )
-            }
+            },
+        ) { padding ->
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                        .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item {
+                    EntrySaveError(errorMessage)
+                    LabelSelection(labels, selectedLabelIds, { id ->
+                        selectedLabelIds = if (id in selectedLabelIds) selectedLabelIds - id else selectedLabelIds + id
+                    }, enabled = editable)
+                }
 
-            item {
-                OutlinedTextField(
-                    value = cardholderName,
-                    onValueChange = { cardholderName = it },
-                    label = { Text("Cardholder Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-            }
-
-            item {
-                OutlinedTextField(
-                    value = cardNumber,
-                    onValueChange = { cardNumber = it },
-                    label = { Text("Card Number *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                item {
                     OutlinedTextField(
-                        value = expirationDate,
-                        onValueChange = { expirationDate = it },
-                        label = { Text("Expiration Date (MM/YY)") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = cvv,
-                        onValueChange = { cvv = it },
-                        label = { Text("CVV") },
-                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                        enabled = editable,
+                        value = title.displayText(),
+                        onValueChange = { title.replace(it) },
+                        label = { Text("Title *") },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
                 }
-            }
 
-            item {
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                )
-            }
-
-            itemsIndexed(customFields) { index, field ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                item {
                     OutlinedTextField(
-                        value = field.name,
-                        onValueChange = { newName ->
-                            customFields[index] = field.copy(name = newName)
-                        },
-                        label = { Text("Field Name") },
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = String(field.value),
-                        onValueChange = { newValue ->
-                            customFields[index] = field.copy(value = newValue.toCharArray())
-                        },
-                        label = { Text("Value") },
-                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                        enabled = editable,
+                        value = cardholderName.displayText(),
+                        onValueChange = { cardholderName.replace(it) },
+                        label = { Text("Cardholder Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                     )
                 }
-            }
 
-            item {
-                TextButton(onClick = {
-                    customFields.add(CustomField("New Field", charArrayOf(), false))
-                }) {
-                    Text("Add Custom Field")
+                item {
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                        enabled = editable,
+                        value = cardNumber.displayText(),
+                        onValueChange = { cardNumber.replace(it) },
+                        label = { Text("Card Number *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    TextButton(onClick = { attemptCancel() }) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            val payload =
-                                CreditCardPayload(
-                                    title = title,
-                                    cardholderName = cardholderName.toCharArray(),
-                                    cardNumber = cardNumber.toCharArray(),
-                                    expirationDate = expirationDate,
-                                    cvv = cvv.toCharArray(),
-                                    notes = if (notes.isNotBlank()) notes.toCharArray() else null,
-                                    customFields = customFields.toList(),
-                                )
-                            onSave(payload)
-                        },
-                        enabled = title.isNotBlank() && cardNumber.isNotBlank(),
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Save")
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                            enabled = editable,
+                            value = expirationDate.displayText(),
+                            onValueChange = { expirationDate.replace(it) },
+                            label = { Text("Expiration Date (MM/YY)") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                            enabled = editable,
+                            value = cvv.displayText(),
+                            onValueChange = { cvv.replace(it) },
+                            label = { Text("CVV") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                        )
+                    }
+                }
+
+                item {
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                        enabled = editable,
+                        value = notes.displayText(),
+                        onValueChange = { notes.replace(it) },
+                        label = { Text("Notes") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                    )
+                }
+
+                itemsIndexed(customFields) { index, field ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                            enabled = editable,
+                            value = String(field.name),
+                            onValueChange = { newName ->
+                                if (!draft.isClosed && index in customFields.indices) {
+                                    val current = customFields[index]
+                                    current.name.fill('\u0000')
+                                    customFields[index] = current.copy(name = newName.toCharArray())
+                                }
+                            },
+                            label = { Text("Field Name") },
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                            enabled = editable,
+                            value = String(field.value),
+                            onValueChange = { newValue ->
+                                if (!draft.isClosed && index in customFields.indices) {
+                                    val current = customFields[index]
+                                    current.value.fill('\u0000')
+                                    customFields[index] = current.copy(value = newValue.toCharArray())
+                                }
+                            },
+                            label = { Text("Value") },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+
+                item {
+                    TextButton(enabled = editable, onClick = {
+                        if (!draft.isClosed) customFields.add(CustomField("New Field", charArrayOf(), false))
+                    }) {
+                        Text("Add Custom Field")
+                    }
+                }
+
+                item {
+                    if (title.isBlank() || cardNumber.isBlank()) {
+                        Text(
+                            text = "Title and card number are required.",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(onClick = { attemptCancel() }) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = save@{
+                                if (draft.isClosed) return@save
+                                val payload =
+                                    CreditCardPayload(
+                                        title = title.copyChars(),
+                                        cardholderName = cardholderName.copyChars(),
+                                        cardNumber = cardNumber.copyChars(),
+                                        expirationDate = expirationDate.copyChars(),
+                                        cvv = cvv.copyChars(),
+                                        notes = if (notes.isNotBlank()) notes.copyChars() else null,
+                                        customFields = customFields.map { it.copyForEditing() },
+                                    )
+                                submitOwned(payload) { submission ->
+                                    onSaveWithLabels?.invoke(submission, selectedLabelIds.toList())
+                                        ?: onSave(submission)
+                                }
+                            },
+                            enabled = title.isNotBlank() && cardNumber.isNotBlank() && !isSaving,
+                        ) {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -218,8 +300,12 @@ fun CreditCardEntryScreen(
             text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
             confirmButton = {
                 TextButton(
-                    onClick = {
+                    onClick = discard@{
+                        if (draft.isClosed) return@discard
                         showDiscardConfirmDialog = false
+                        draft.clear()
+                        customFields.forEach { it.clearMemory() }
+                        initialPayload?.clearMemory()
                         onCancel()
                     },
                 ) {

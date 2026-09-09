@@ -48,6 +48,7 @@ fun VaultListScreen(
     onManageLabelsClick: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSettings: (() -> Unit)? = null,
+    errorMessage: String? = null,
 ) {
     Scaffold(
         modifier = modifier,
@@ -100,13 +101,17 @@ fun VaultListScreen(
                 }
             }
 
-            if (items.isEmpty()) {
+            if (errorMessage != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text(errorMessage)
+                }
+            } else if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("No items found.")
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(items) { item ->
+                    items(items, key = { it.id }) { item ->
                         VaultItemRow(item = item, onClick = { onItemClick(item) })
                         HorizontalDivider()
                     }
@@ -132,7 +137,7 @@ fun VaultItemRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
-            Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
+            Text(text = String(item.title), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = item.type.name,
                 style = MaterialTheme.typography.bodySmall,

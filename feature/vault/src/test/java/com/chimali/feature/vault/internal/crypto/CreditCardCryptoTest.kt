@@ -32,10 +32,10 @@ class CreditCardCryptoTest {
         payload.clearMemory()
 
         // Verify arrays are zeroed out
-        assertArrayEquals(charArrayOf('0', '0', '0', '0'), cardholderNameArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0'), cardNumberArray)
-        assertArrayEquals(charArrayOf('0', '0', '0'), cvvArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0', '0', '0'), notesArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0', '0'), customFieldValue)
+        assertArrayEquals(CharArray(4), cardholderNameArray)
+        assertArrayEquals(CharArray(4), cardNumberArray)
+        assertArrayEquals(CharArray(3), cvvArray)
+        assertArrayEquals(CharArray(6), notesArray)
+        assertArrayEquals(CharArray(5), customFieldValue)
     }
 }

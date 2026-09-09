@@ -30,10 +30,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +44,6 @@ import com.chimali.feature.vault.internal.payload.PasswordPayload
 import com.chimali.feature.vault.ui.components.LegibleSecretText
 import com.chimali.feature.vault.ui.model.LegibilityFont
 import com.chimali.feature.vault.ui.model.LegibilitySettings
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +53,9 @@ fun PasswordDetailScreen(
     onDelete: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    onCopyPassword: ((String) -> Unit)? = null,
+    onCopyPassword: ((CharArray) -> Unit)? = null,
+    copyMessage: String? = null,
+    onCopyMessage: () -> Unit = {},
 ) {
     val legibilitySettings =
         LegibilitySettings(
@@ -66,10 +67,15 @@ fun PasswordDetailScreen(
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(copyMessage, onCopyMessage) {
+        copyMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            onCopyMessage()
+        }
+    }
 
     // Clear memory on dispose/back
-    DisposableEffect(Unit) {
+    DisposableEffect(payload) {
         onDispose {
             payload.clearMemory()
         }
@@ -84,7 +90,7 @@ fun PasswordDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(payload.title) },
+                title = { Text(String(payload.title)) },
                 actions = {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
@@ -110,17 +116,20 @@ fun PasswordDetailScreen(
                 password = payload.password,
                 legibilitySettings = legibilitySettings,
                 onCopy = {
-                    val pwd = String(payload.password)
-                    if (onCopyPassword != null) {
-                        onCopyPassword(pwd)
-                    }
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Password copied. Clipboard clears in 60s.")
+                    onCopyPassword?.let { callback ->
+                        val copy = payload.password.copyOf()
+                        var handedOff = false
+                        try {
+                            callback(copy)
+                            handedOff = true
+                        } finally {
+                            if (!handedOff) copy.fill('\u0000')
+                        }
                     }
                 },
             )
 
-            DetailRow(label = "Website", value = payload.uri)
+            DetailRow(label = "Website", value = String(payload.uri))
 
             if (payload.notes != null) {
                 DetailRow(label = "Notes", value = String(payload.notes))
@@ -129,13 +138,13 @@ fun PasswordDetailScreen(
             payload.customFields?.forEach { field ->
                 if (field.isConcealed) {
                     ConcealedCustomFieldRow(
-                        name = field.name,
+                        name = String(field.name),
                         value = field.value,
                         legibilitySettings = legibilitySettings,
                     )
                 } else {
                     DetailRow(
-                        label = field.name,
+                        label = String(field.name),
                         value = String(field.value),
                     )
                 }
@@ -157,7 +166,11 @@ fun PasswordDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
             title = { Text("Delete Entry") },
-            text = { Text("Are you sure you want to delete '${payload.title}'? This action cannot be undone.") },
+            text = {
+                Text(
+                    "Are you sure you want to delete '${String(payload.title)}'? This action cannot be undone.",
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -226,7 +239,7 @@ private fun PasswordRow(
 
         if (isPasswordRevealed) {
             LegibleSecretText(
-                secret = String(password),
+                secret = password,
                 isRevealed = true,
                 settings = legibilitySettings,
                 modifier = Modifier.fillMaxWidth(),
@@ -272,7 +285,7 @@ private fun ConcealedCustomFieldRow(
 
         if (isFieldRevealed) {
             LegibleSecretText(
-                secret = String(value),
+                secret = value,
                 isRevealed = true,
                 settings = legibilitySettings,
                 modifier = Modifier.fillMaxWidth(),

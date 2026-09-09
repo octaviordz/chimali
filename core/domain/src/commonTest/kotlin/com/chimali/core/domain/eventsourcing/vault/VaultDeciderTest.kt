@@ -28,7 +28,7 @@ class VaultDeciderTest {
         assertEquals("test-id", event.aggregateId)
         assertEquals(1L, event.sequenceNumber)
         assertEquals("PASSWORD", event.type)
-        assertEquals("Test Entry", event.title)
+        assertTrue(event.title.contentEquals("Test Entry".toCharArray()))
         assertTrue(event.payload.contentEquals(byteArrayOf(1, 2, 3)))
     }
 
@@ -48,7 +48,7 @@ class VaultDeciderTest {
 
         assertEquals("test-id", state.id)
         assertEquals("PASSWORD", state.type)
-        assertEquals("Test Entry", state.title)
+        assertTrue(state.title.contentEquals("Test Entry".toCharArray()))
         assertTrue(state.payload.contentEquals(byteArrayOf(1, 2, 3)))
         assertEquals("identity-id", state.identityId)
         assertEquals(1L, state.sequenceNumber)
@@ -76,7 +76,7 @@ class VaultDeciderTest {
         val event = events[0] as VaultEvent.Updated
         assertEquals("test-id", event.aggregateId)
         assertEquals(2L, event.sequenceNumber)
-        assertEquals("New Title", event.title)
+        assertTrue(event.title.contentEquals("New Title".toCharArray()))
         assertTrue(event.payload!!.contentEquals(byteArrayOf(2)))
     }
 
@@ -100,7 +100,7 @@ class VaultDeciderTest {
             )
         val state = decider.evolve(initialState, event)
 
-        assertEquals("New Title", state.title)
+        assertTrue(state.title.contentEquals("New Title".toCharArray()))
         assertTrue(state.payload.contentEquals(byteArrayOf(2)))
         assertEquals(2L, state.sequenceNumber)
     }

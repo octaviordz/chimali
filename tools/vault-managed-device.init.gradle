@@ -1,0 +1,15 @@
+// T060/T062: opt-in local Android runtime for the actual Vault navigation suite.
+// Run with --no-configuration-cache -I tools/vault-managed-device.init.gradle.
+gradle.beforeProject { project ->
+    if (project.path == ':feature:vault') {
+        project.pluginManager.withPlugin('com.android.library') {
+            def android = project.extensions.getByName('android')
+            android.testOptions.managedDevices.localDevices.create('vaultApi35') {
+                device = 'Pixel 2'
+                apiLevel = 35
+                systemImageSource = 'aosp-atd'
+                testedAbi = 'x86_64'
+            }
+        }
+    }
+}

@@ -7,10 +7,12 @@ import com.chimali.core.database.VaultDatabase
 import com.chimali.core.domain.eventsourcing.AggregateService
 import com.chimali.core.domain.eventsourcing.vault.VaultCommand
 import com.chimali.core.domain.eventsourcing.vault.VaultState
+import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultType
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
@@ -36,7 +38,7 @@ class VaultRepositoryImpl(
                         VaultItem(
                             id = UUID.fromString(entry.id),
                             type = VaultType.valueOf(entry.type),
-                            title = entry.title,
+                            title = entry.title.decodeToString().toCharArray(),
                             payload = entry.encrypted_payload,
                             crdtState = entry.crdt_state,
                             dateCreated = entry.date_created,
@@ -66,40 +68,53 @@ class VaultRepositoryImpl(
                         VaultCommand.Create(
                             id = item.id.toString(),
                             type = item.type.name,
-                            title = item.title,
+                            title = item.title.copyOf(),
                             payload = item.payload,
                             identityId = item.identityId.toString(),
                         )
                     } else {
                         VaultCommand.Update(
                             id = item.id.toString(),
-                            title = item.title,
+                            title = item.title.copyOf(),
                             payload = item.payload,
                         )
                     }
 
-                val result = aggregateService.execute(item.id.toString(), command)
+                try {
+                    val result = aggregateService.execute(item.id.toString(), command)
 
-                if (result.isSuccess) {
-                    val state = result.getOrThrow()
-                    // Projection: Update the read model table
-                    database.vaultQueries.insert_vault_entry(
-                        id = state.id,
-                        doc_id = state.id,
-                        type = state.type,
-                        title = state.title,
-                        encrypted_payload = state.payload,
-                        crdt_state = item.crdtState,
-                        date_created = item.dateCreated,
-                        date_modified = item.dateModified,
-                        last_backed_up_at = item.lastBackedUpAt,
-                        identity_id = state.identityId.ifEmpty { item.identityId.toString() },
-                    )
-                    Outcome.Success(Unit)
-                } else {
-                    val error = result.exceptionOrNull()
-                    Logger.e(error) { "VaultRepositoryImpl: Aggregate execution failed for id=${item.id}" }
-                    Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to save vault item"))
+                    if (result.isSuccess) {
+                        val state = result.getOrThrow()
+                        try {
+                            var titleBytes: ByteArray? = null
+                            try {
+                                titleBytes = state.title.concatToString().encodeToByteArray()
+                                database.vaultQueries.insert_vault_entry(
+                                    id = state.id,
+                                    doc_id = state.id,
+                                    type = state.type,
+                                    title = titleBytes,
+                                    encrypted_payload = state.payload,
+                                    crdt_state = item.crdtState,
+                                    date_created = item.dateCreated,
+                                    date_modified = item.dateModified,
+                                    last_backed_up_at = item.lastBackedUpAt,
+                                    identity_id = state.identityId.ifEmpty { item.identityId.toString() },
+                                )
+                            } finally {
+                                titleBytes?.fill(0)
+                            }
+                        } finally {
+                            state.clearSensitiveMemory()
+                        }
+                        Outcome.Success(Unit)
+                    } else {
+                        val error = result.exceptionOrNull()
+                        Logger.e(error) { "VaultRepositoryImpl: Aggregate execution failed for id=${item.id}" }
+                        Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to save vault item"))
+                    }
+                } finally {
+                    command.clearSensitiveMemory()
                 }
             } catch (e: android.database.SQLException) {
                 Logger.e(e) { "VaultRepositoryImpl: Database failure during save id=${item.id}" }
@@ -131,6 +146,44 @@ class VaultRepositoryImpl(
             }
         }
 
+    override suspend fun setItemLabels(
+        itemId: UUID,
+        labelIds: List<UUID>,
+    ): Outcome<Unit, DomainError> =
+        withContext(Dispatchers.IO) {
+            try {
+                database.transaction {
+                    database.vaultQueries.delete_vault_entry_labels(itemId.toString())
+                    labelIds.forEach { labelId ->
+                        database.vaultQueries.insert_vault_entry_label(itemId.toString(), labelId.toString())
+                    }
+                }
+                Outcome.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: android.database.SQLException) {
+                Logger.e(e) { "VaultRepositoryImpl: Failed to set item labels" }
+                Outcome.Error(DomainError.DatabaseError("Failed to save item labels", e))
+            }
+        }
+
+    override suspend fun getItemLabelIds(itemId: UUID): Outcome<List<UUID>, DomainError> =
+        withContext(Dispatchers.IO) {
+            try {
+                Outcome.Success(
+                    database.vaultQueries.get_labels_for_entry(itemId.toString()).executeAsList().map {
+                        UUID.fromString(it.id)
+                    },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: android.database.SQLException) {
+                Outcome.Error(DomainError.DatabaseError("Failed to load item labels", e))
+            } catch (e: IllegalArgumentException) {
+                Outcome.Error(DomainError.StorageError("Invalid item label data", e))
+            }
+        }
+
     override suspend fun getLabels(): Outcome<List<com.chimali.feature.vault.ui.model.LabelUiModel>, DomainError> =
         withContext(Dispatchers.IO) {
             try {
@@ -143,9 +196,14 @@ class VaultRepositoryImpl(
                         )
                     }
                 Outcome.Success(labels)
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "VaultRepositoryImpl: Failed to get labels" }
                 Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to get labels", e))
+            } catch (e: IllegalArgumentException) {
+                Logger.e(e) { "VaultRepositoryImpl: Invalid label data" }
+                Outcome.Error(DomainError.StorageError("Invalid label data", e))
             }
         }
 
@@ -161,7 +219,9 @@ class VaultRepositoryImpl(
                     com.chimali.feature.vault.ui.model
                         .LabelUiModel(id, name, colorHex),
                 )
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "VaultRepositoryImpl: Failed to create label" }
                 Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to create label", e))
             }
@@ -172,7 +232,9 @@ class VaultRepositoryImpl(
             try {
                 database.vaultQueries.delete_label(id.toString())
                 Outcome.Success(Unit)
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: android.database.SQLException) {
                 Logger.e(e) { "VaultRepositoryImpl: Failed to delete label" }
                 Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete label", e))
             }

@@ -2,6 +2,8 @@
 
 # SLF4J
 -dontwarn org.slf4j.impl.StaticMDCBinder
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+-dontwarn org.slf4j.impl.StaticMarkerBinder
 
 # WorkManager
 -keep class androidx.work.impl.WorkDatabase { *; }
@@ -15,6 +17,14 @@
 
 # Koin (Keep internal components used by reflection)
 -keep class org.koin.core.module.** { *; }
+-keep class org.koin.core.qualifier.** { *; }
+-keep class org.koin.core.** { *; }
+-keep interface com.chimali.core.clipboard.ClipboardManagerService { *; }
+-keep interface com.chimali.core.domain.eventsourcing.AggregateService { *; }
+-keep interface com.chimali.core.domain.repository.EventStoreRepository { *; }
+-keep interface com.chimali.core.domain.repository.SnapshotRepository { *; }
+-keep class com.chimali.core.domain.eventsourcing.vault.** { *; }
+-keep class com.chimali.core.domain.eventsourcing.passkey.** { *; }
 -keep class org.koin.android.** { *; }
 
 # Tracing (required by AndroidJUnitRunner)
@@ -62,3 +72,9 @@
 
 # General Hardening Attributes
 -keepattributes Signature,AnnotationDefault,EnclosingMethod,InnerClasses,SourceFile,LineNumberTable,*Annotation*
+
+# SQLite JDBC references desktop-only JDBC types that are not present on Android.
+-dontwarn java.sql.JDBCType
+
+# SQLite JDBC's JNI_OnLoad resolves this field reflectively/native-side.
+-keep class org.sqlite.** { *; }

@@ -21,7 +21,7 @@ import com.chimali.feature.vault.ui.theme.getFontFamily
  * This component applies specialized fonts and semantic highlighting to make passwords
  * and other secrets easier to read while maintaining security.
  *
- * @param secret The raw secret string to display
+ * @param secret Borrowed mutable contents; the caller owns terminal cleanup
  * @param isRevealed Whether the secret should be shown or masked
  * @param settings Configuration for font and highlighting preferences
  * @param modifier Standard Compose modifier
@@ -29,18 +29,14 @@ import com.chimali.feature.vault.ui.theme.getFontFamily
  */
 @Composable
 fun LegibleSecretText(
-    secret: String,
+    secret: CharArray,
     isRevealed: Boolean,
     settings: LegibilitySettings,
     modifier: Modifier = Modifier,
     maxLines: Int = 3,
+    groupSize: Int = 0,
 ) {
-    val displayText =
-        if (isRevealed) {
-            buildLegibilityAnnotatedString(secret, settings)
-        } else {
-            AnnotatedString("•".repeat(secret.length))
-        }
+    val displayText = secretDisplayText(secret, isRevealed, settings, groupSize)
 
     val fontFamily = getFontFamily(settings.fontType)
 
@@ -60,30 +56,34 @@ fun LegibleSecretText(
     )
 }
 
-/**
- * Builds an AnnotatedString with semantic highlighting based on character types.
- *
- * This function processes each character in the secret and applies appropriate
- * styling based on the user's legibility settings, including Unicode symbol handling.
- */
-private fun buildLegibilityAnnotatedString(
-    secret: String,
+/** I.5 rendering adapter: masked values never become plaintext Strings. */
+internal fun secretDisplayText(
+    secret: CharArray,
+    isRevealed: Boolean,
     settings: LegibilitySettings,
-): AnnotatedString {
-    if (!settings.useSemanticHighlighting) {
-        return AnnotatedString(secret)
+    groupSize: Int = 0,
+): AnnotatedString =
+    if (isRevealed) {
+        buildLegibilityAnnotatedString(secret, settings, groupSize)
+    } else {
+        AnnotatedString("•".repeat(secret.size))
     }
 
-    return buildAnnotatedString {
-        secret.forEach { char ->
-            val processedChar = handleUnicodeSymbol(char)
-            val style = getLegibilityCharStyle(char, settings)
-            withStyle(style.toSpanStyle()) {
-                append(processedChar)
+internal fun buildLegibilityAnnotatedString(
+    secret: CharArray,
+    settings: LegibilitySettings,
+    groupSize: Int = 0,
+): AnnotatedString =
+    buildAnnotatedString {
+        secret.forEachIndexed { index, char ->
+            if (groupSize > 0 && index > 0 && index % groupSize == 0) append(' ')
+            if (settings.useSemanticHighlighting) {
+                withStyle(getLegibilityCharStyle(char, settings).toSpanStyle()) { append(char) }
+            } else {
+                append(char)
             }
         }
     }
-}
 
 private fun getLegibilityCharStyle(
     char: Char,
@@ -137,7 +137,7 @@ private fun getLegibilityCharStyle(
  */
 @Composable
 fun LegibleSecretTextColorblind(
-    secret: String,
+    secret: CharArray,
     isRevealed: Boolean,
     settings: LegibilitySettings,
     modifier: Modifier = Modifier,
@@ -152,7 +152,7 @@ fun LegibleSecretTextColorblind(
         if (isRevealed) {
             buildColorblindAnnotatedString(secret, settings)
         } else {
-            AnnotatedString("•".repeat(secret.length))
+            AnnotatedString("•".repeat(secret.size))
         }
 
     val fontFamily = getFontFamily(settings.fontType)
@@ -174,32 +174,22 @@ fun LegibleSecretTextColorblind(
 }
 
 /**
- * Handles Unicode symbol fallback for obscure characters.
- * Ensures that even unusual Unicode symbols are displayed with proper legibility.
- */
-private fun handleUnicodeSymbol(char: Char): String {
-    // This can be extended with specific Unicode symbol mappings for legibility if needed.
-    return char.toString()
-}
-
-/**
  * Builds AnnotatedString with both text color and background highlighting
  * for enhanced colorblind accessibility, including Unicode symbol handling.
  */
 private fun buildColorblindAnnotatedString(
-    secret: String,
+    secret: CharArray,
     settings: LegibilitySettings,
 ): AnnotatedString =
     buildAnnotatedString {
         secret.forEach { char ->
-            val processedChar = handleUnicodeSymbol(char)
             val style = getColorblindCharStyle(char, settings)
             if (style != null) {
                 withStyle(style.toSpanStyle()) {
-                    append(processedChar)
+                    append(char)
                 }
             } else {
-                append(processedChar)
+                append(char)
             }
         }
     }

@@ -75,6 +75,15 @@ class AndroidClipboardManagerServiceTest {
     }
 
     @Test
+    fun `sensitive copy requests Android clipboard preview suppression`() =
+        runTest(testDispatcher) {
+            service.copySensitiveData(TEST_LABEL, TEST_SENSITIVE_DATA, 60_000L)
+            verify(exactly = 1) {
+                anyConstructed<PersistableBundle>().putBoolean("android.content.extra.IS_SENSITIVE", true)
+            }
+        }
+
+    @Test
     fun `copySensitiveData sets clip data and clears exactly after delay`() =
         runTest(testDispatcher) {
             val clipDataSlot = slot<ClipData>()

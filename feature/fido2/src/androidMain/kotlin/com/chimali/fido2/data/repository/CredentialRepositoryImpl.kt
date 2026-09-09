@@ -51,7 +51,7 @@ class CredentialRepositoryImpl(
     private val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder,
     private val corruptedKeyRepairWorker: com.chimali.fido2.data.worker.CorruptedKeyRepairWorker,
     private val timeProvider: TimeProvider,
-    private val aggregateService: AggregateService<PasskeyCommand, PasskeyState>,
+    @Named("passkey") private val aggregateService: AggregateService<PasskeyCommand, PasskeyState>,
     private val metadataProtectionService: CredentialMetadataProtectionService,
     @Named("IoDispatcher") private val ioDispatcher: CoroutineDispatcher,
 ) : CredentialRepository {

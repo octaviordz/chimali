@@ -11,8 +11,8 @@ import io.toxicity.sqlite.mc.driver.SQLiteMCDriver
 import io.toxicity.sqlite.mc.driver.config.databasesDir
 import io.toxicity.sqlite.mc.driver.config.encryption.Key
 import java.io.File
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -55,16 +55,21 @@ class EncryptedDriverFactory(
             hexPassword[baseIdx + 1] = HEX_CHARS[v and HEX_CHAR_MASK]
         }
 
-        val spec = PBEKeySpec(hexPassword, DB_PBE_SALT_BYTES, PBKDF2_ITERATIONS, DB_KEY_LENGTH_BITS)
         try {
-            val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
-            val secretKey = factory.generateSecret(spec)
-            val derived = secretKey.encoded
-            require(derived != null && derived.isNotEmpty()) { "Derived database key cannot be empty" }
+            val mac = Mac.getInstance("HmacSHA512")
+            mac.init(SecretKeySpec(hexPassword.concatToString().toByteArray(Charsets.UTF_8), "HmacSHA512"))
+            val block = ByteArray(DB_PBE_SALT_BYTES.size + 4)
+            DB_PBE_SALT_BYTES.copyInto(block)
+            block[block.lastIndex] = 1
+            var u = mac.doFinal(block)
+            val derived = u.copyOf(DB_KEY_LENGTH_BITS / 8)
+            repeat(PBKDF2_ITERATIONS - 1) {
+                u = mac.doFinal(u)
+                for (i in derived.indices) derived[i] = (derived[i].toInt() xor u[i].toInt()).toByte()
+            }
             return derived
         } finally {
             hexPassword.fill('\u0000')
-            spec.clearPassword()
         }
     }
 

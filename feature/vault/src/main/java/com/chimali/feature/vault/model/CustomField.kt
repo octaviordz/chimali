@@ -6,7 +6,7 @@ data class CustomField(
     val isConcealed: Boolean,
 ) {
     fun clearMemory() {
-        value.fill('0')
+        value.fill('\u0000')
     }
 
     override fun equals(other: Any?): Boolean {

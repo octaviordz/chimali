@@ -1,0 +1,20 @@
+-- T039: store vault titles as UTF-8 bytes so SQLDelight does not materialize plaintext titles
+-- as immutable JVM Strings while projecting the entry list.
+ALTER TABLE vault_entry RENAME TO vault_entry_t039_old;
+CREATE TABLE vault_entry (
+    id TEXT NOT NULL PRIMARY KEY,
+    date_created TEXT NOT NULL,
+    date_modified TEXT NOT NULL,
+    last_backed_up_at TEXT,
+    crdt_state BLOB NOT NULL,
+    doc_id TEXT NOT NULL,
+    encrypted_payload BLOB NOT NULL,
+    identity_id TEXT NOT NULL,
+    title BLOB NOT NULL,
+    type TEXT NOT NULL,
+    FOREIGN KEY(identity_id) REFERENCES identity(id) ON DELETE CASCADE
+);
+INSERT INTO vault_entry (id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, title, type)
+SELECT id, date_created, date_modified, last_backed_up_at, crdt_state, doc_id, encrypted_payload, identity_id, CAST(title AS BLOB), type
+FROM vault_entry_t039_old;
+DROP TABLE vault_entry_t039_old;

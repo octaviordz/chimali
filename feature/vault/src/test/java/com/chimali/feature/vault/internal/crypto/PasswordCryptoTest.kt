@@ -30,9 +30,9 @@ class PasswordCryptoTest {
         payload.clearMemory()
 
         // Verify arrays are zeroed out
-        assertArrayEquals(charArrayOf('0', '0', '0', '0'), usernameArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0'), passwordArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0', '0', '0'), notesArray)
-        assertArrayEquals(charArrayOf('0', '0', '0', '0', '0', '0'), customFieldValue)
+        assertArrayEquals(CharArray(4), usernameArray)
+        assertArrayEquals(CharArray(4), passwordArray)
+        assertArrayEquals(CharArray(6), notesArray)
+        assertArrayEquals(CharArray(6), customFieldValue)
     }
 }

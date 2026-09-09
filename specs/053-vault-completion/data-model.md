@@ -1,8 +1,12 @@
+> **Approved scope update (2026-09-08):** Constitution 1.0.0 and the approved T039 scope proposal now govern this document. Earlier universal framework-erasure gate statements are historical. App-owned sensitive storage must remain mutable and explicitly cleaned; app references must be released. Only necessary, audited platform text adapters may use immutable copies, with configured controls and documented residual risk. Existing widgets and retained application String models are not automatically compliant. Cryptographic/serialization cleanup, compatibility, critical coverage and actual runtime verification remain mandatory.
+
 # Data Model: Vault Feature Completion
 
 **Feature**: `053-vault-completion`  
 **Date**: 2026-09-07  
-**Status**: Complete
+**Status**: Mutable payload implementation; unresolved UI/projection memory gate
+
+**2026-09-08 implementation amendment**: The internal payload snippets below now use `CharArray` for **all** text properties, including title, URI, expiration date, and custom-field names. They implement `SensitivePayload.clearMemory()`, zero with `\u0000`, deep-copy every array through `copyForEditing()`, and redact diagnostic output. String-taking constructors only bridge the unresolved current UI; they do not make a caller's String erasable. `VaultItem.title` still has the shown String representation and remains part of the unmet T055/T059 gate.
 
 ## 1. Domain Entities & Payload Models
 
@@ -32,38 +36,48 @@ data class VaultItem(
 #### `PasswordPayload`
 ```kotlin
 data class PasswordPayload(
-    val title: String,
+    val title: CharArray,
     val username: CharArray,
     val password: CharArray,
-    val uri: String,
+    val uri: CharArray,
     val notes: CharArray? = null,
     val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
-        username.fill('0')
-        password.fill('0')
-        notes?.fill('0')
+        title.fill('\u0000')
+        uri.fill('\u0000')
+        username.fill('\u0000')
+        password.fill('\u0000')
+        notes?.fill('\u0000')
         customFields?.forEach { it.clearMemory() }
     }
 }
 ```
 
+## 5. Memory-security field policy and rendering boundary
+
+All fields named by FR-VAULT-026 are sensitive application data: username, password, URI/website, cardholder name, card number, expiration date, CVV, notes, titles, and custom-field names and values. Application-owned drafts, decrypted payloads, operation copies, comparison baselines, navigation references, and clipboard handoffs must be independently wiped. An active editor may retain its retry draft only for that editing session; process recreation must not restore plaintext drafts.
+
+The current Material3 `OutlinedTextField` API is String-based in Compose BOM `2026.05.00`, so the current screens do not establish a compliant mutable input/rendering boundary. Framework buffers remain an unmet feasibility condition until verified by the synthetic-secret probe. CharArray adapters and logical UI clearing alone are not proof of erasure.
+
 #### `CreditCardPayload`
 ```kotlin
 data class CreditCardPayload(
-    val title: String,
+    val title: CharArray,
     val cardholderName: CharArray,
     val cardNumber: CharArray,
-    val expirationDate: String, // MM/YY
+    val expirationDate: CharArray, // MM/YY
     val cvv: CharArray,
     val notes: CharArray? = null,
     val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
-        cardholderName.fill('0')
-        cardNumber.fill('0')
-        cvv.fill('0')
-        notes?.fill('0')
+        title.fill('\u0000')
+        expirationDate.fill('\u0000')
+        cardholderName.fill('\u0000')
+        cardNumber.fill('\u0000')
+        cvv.fill('\u0000')
+        notes?.fill('\u0000')
         customFields?.forEach { it.clearMemory() }
     }
 }
@@ -72,12 +86,13 @@ data class CreditCardPayload(
 #### `SecureNotePayload`
 ```kotlin
 data class SecureNotePayload(
-    val title: String,
+    val title: CharArray,
     val content: CharArray,
     val customFields: List<CustomField>? = null,
 ) {
     fun clearMemory() {
-        content.fill('0')
+        title.fill('\u0000')
+        content.fill('\u0000')
         customFields?.forEach { it.clearMemory() }
     }
 }
@@ -86,12 +101,13 @@ data class SecureNotePayload(
 #### `CustomField`
 ```kotlin
 data class CustomField(
-    val name: String,
+    val name: CharArray,
     val value: CharArray,
     val isConcealed: Boolean,
 ) {
     fun clearMemory() {
-        value.fill('0')
+        name.fill('\u0000')
+        value.fill('\u0000')
     }
 }
 ```
@@ -100,7 +116,9 @@ data class CustomField(
 
 ## 2. Serialization Binary Schema (Payload Format)
 
-When encrypting a payload with AES-256-GCM, the plaintext bytes before encryption are structured via a versioned binary or canonical UTF-8 JSON format:
+The implemented compatible v1 plaintext is a flat UTF-8 JSON object. Password keys are `title`, `username`, `password`, `uri`, `notes`, `customFields`; card keys are `title`, `cardholderName`, `cardNumber`, `expirationDate`, `cvv`, `notes`, `customFields`; note keys are `title`, `content`, `customFields`. Text remains JSON strings on the wire; internal values are mutable arrays. Optional fields preserve absent/null/default behavior; unknown fields are parsed and skipped. The AES-GCM envelope and `chimali_vault_payload_v1` domain are unchanged.
+
+The following **historical design example was never the implemented payload contract**: the actual v1 codec has no `version`, `type`, or `fields` wrapper. Do not use it to change stored records. Frozen, executable compatibility fixtures are in `feature/vault/src/test/resources/vault-legacy-v1/`.
 
 ### JSON Payload Schema (Versioned)
 ```json
@@ -134,7 +152,7 @@ When encrypting a payload with AES-256-GCM, the plaintext bytes before encryptio
 |---|---|---|---|
 | `vault_entry` | `id` | `TEXT PRIMARY KEY` | UUID string |
 | `vault_entry` | `type` | `TEXT NOT NULL` | Enum: `PASSWORD`, `CREDIT_CARD`, `NOTE` |
-| `vault_entry` | `title` | `TEXT NOT NULL` | Item title (unencrypted search/display header) |
+| `vault_entry` | `title` | `TEXT NOT NULL` | Display header protected by database-file encryption; its String memory boundary remains open |
 | `vault_entry` | `encrypted_payload` | `BLOB NOT NULL` | AES-256-GCM encrypted payload (IV + ciphertext + tag) |
 | `vault_entry` | `crdt_state` | `BLOB NOT NULL` | Loro doc bytes |
 | `vault_entry` | `identity_id` | `TEXT NOT NULL` | Owning identity UUID |
