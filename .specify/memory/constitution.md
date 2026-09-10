@@ -1,12 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-Version: 1.0.0 -> 1.1.0 (minor expansion of coverage-evidence rules)
-Modified principles: XII.3 High-Coverage Testing & Independence
-Added: narrowly governed evidence for direct terminal exception branches that JaCoCo cannot probe
-Removed: none
-Unchanged: the 100% statement/branch rule for all measurable paths, cryptography, storage,
-memory security, secret classification, runtime verification, and platform-boundary controls
-Approved explicitly by the user on 2026-09-09. Active requirements must follow this amendment.
+Version: 1.1.1 -> 1.1.2 (patch removal of a database-cipher implementation detail)
+Modified principles: I. Security First (Zero-Trust Local-First) — retained the
+SQLite3MultipleCiphers authenticated-encryption requirement without naming a specific cipher
+Added sections: none
+Removed sections: none
+Follow-up TODOs: none
 -->
 
 
@@ -18,9 +17,9 @@ Approved explicitly by the user on 2026-09-09. Active requirements must follow t
 ### I. Security First (Zero-Trust Local-First)
 All sensitive data must be encrypted. The application adheres to a **Multi-Mode Symmetric Encryption Strategy** based on modern Android best practices:
 1. **AES-256-GCM** MUST be used for general payload encryption (files, credential blobs, value storage). This enables Hardware Keystore offloading and safe streaming without memory exhaustion.
-2. **Searchable Encrypted Metadata** MUST NOT be stored as plaintext. Exact-match lookup columns MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes) with explicit domain separation. The underlying metadata value MUST be encrypted with AES-256-GCM or protected by SQLCipher according to the data classification. The misuse of AES-GCM with fixed or reused nonces for deterministic encryption is explicitly prohibited.
+2. **Searchable Encrypted Metadata** MUST NOT be stored as plaintext. Exact-match lookup columns MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes) with explicit domain separation. The underlying metadata value MUST be encrypted with AES-256-GCM or protected by SQLite3MultipleCiphers according to the data classification. The misuse of AES-GCM with fixed or reused nonces for deterministic encryption is explicitly prohibited.
 3. **Key Wrapping** MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data.
-4. **SQLCipher (AES-256-CBC)** is explicitly permitted for **SQLite database file-level encryption**. This is a pragmatic exemption: SQLCipher's AES-256-CBC file encryption provides strong data-at-rest protection for Android's encrypted storage layer, which operates at a different abstraction boundary than individual in-flight payload encryption. Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields, not through lookup tokens. SQLCipher is configured with a key derived via `PBKDF2-SHA512` from the device's master key. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
+4. **SQLite3MultipleCiphers** MUST be used for **SQLite database file-level encryption**. It MUST be explicitly configured with an authenticated-encryption cipher that provides both confidentiality and integrity, and MUST NOT silently fall back to plaintext or unauthenticated encryption. This protects Android data at rest at a different abstraction boundary than individual in-flight payload encryption. Partial-text search is permitted ONLY via explicitly classified SQLite3MultipleCiphers-protected display fields, not through lookup tokens. SQLite3MultipleCiphers MUST use a 256-bit key derived via `PBKDF2-HMAC-SHA512` from the device's master key, and integration tests MUST verify that the approved encryption configuration is in effect. Individual credential blobs stored within the database MUST still be encrypted with AES-256-GCM before database insertion.
 
 5. **Memory Security (Non-Negotiable)**: Application-owned sensitive plaintext MUST remain in volatile, explicitly erasable mutable storage (`ByteArray`, `CharArray`, or an audited equivalent). Each owner MUST erase replaced storage and erase all owned plaintext at the end of its authorized operation or session, including failure and cancellation. Application models, drafts, comparison baselines, serialization intermediates, caches, saved state, logs, telemetry, and diagnostic messages MUST NOT retain sensitive immutable Strings. Persistent plaintext credential storage remains prohibited.
 
@@ -76,7 +75,7 @@ All project documentation must be kept up to date and aligned with the codebase 
 - **Platform**: Android Native Application (Minimum SDK 28).
 - **Language**: Primary language is Kotlin (100% for UI/Android layers). Languages that produce native code (e.g., Rust) are allowed under special cases (e.g., core cryptography, shared low-level logic, Loro.dev CRDT integration via UniFFI).
 - **Architecture**: Kotlin Multiplatform (KMP) ready module structure must be maintained to facilitate future expansion.
-- **Storage**: Standardized encrypted persistence using **SQLCipher** and **SQLDelight**.
+- **Storage**: Standardized encrypted persistence using **SQLite3MultipleCiphers** and **SQLDelight**.
 - **UI Framework**: Jetpack Compose (Material Design 3).
 - **Hardware Integration**: Mandatory support for Bluetooth HID Device Profile for virtual authenticator features.
 - **Privacy Focus**: On-device AI only (e.g., ML Kit, Gemini Nano) for credential categorization; no cloud processing of plain-text data.
@@ -84,7 +83,7 @@ All project documentation must be kept up to date and aligned with the codebase 
 ## Development Workflow & Testing
 
 - **Development Methodology**: Test-Driven Development (TDD) **MUST** be enforced as the standard engineering methodology. All commits must pass the Local CI pipeline (`tools/local-ci.ps1`). Exemptions are permitted only when a test-first approach is demonstrably unfeasible.
-- **KMP-Compatible Test Placement**: Platform-neutral business logic, validation, cryptography contracts, and presentation/domain behavior MUST be tested in `commonTest` with **kotlin.test** whenever the production API is available to common source sets. Android/JVM host tests, instrumented tests, and UI tests MAY be used only for platform APIs, SQLCipher/SQLDelight integration, Android framework behavior, hardware boundaries, or source sets that cannot run in `commonTest`.
+- **KMP-Compatible Test Placement**: Platform-neutral business logic, validation, cryptography contracts, and presentation/domain behavior MUST be tested in `commonTest` with **kotlin.test** whenever the production API is available to common source sets. Android/JVM host tests, instrumented tests, and UI tests MAY be used only for platform APIs, SQLite3MultipleCiphers/SQLDelight integration, Android framework behavior, hardware boundaries, or source sets that cannot run in `commonTest`.
 - **Test Doubles**: Fake implementations with working test-specific behavior SHOULD be the default test double for repositories, services, data sources, clocks, dispatchers, and platform boundaries because they keep tests lightweight, deterministic, and independent of mocking framework behavior. MockK mocks, stubs, and spies MAY be used when interaction verification is the purpose of the test, when a platform/final type cannot be replaced by a Fake, or when building a Fake would add more complexity than the behavior under test.
 - **Core Coverage**: 100% unit test coverage for core business logic (encryption, validation) is non-negotiable using **kotlin.test** for KMP common logic, with **JUnit 5** and **MockK** reserved for justified platform-specific or interaction-focused tests.
 - **Integration**: Comprehensive integration tests must verify the interaction between Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components must be verified using **Compose UI Testing**.
@@ -157,7 +156,7 @@ To ensure a highly maintainable, readable, and performant codebase, the followin
   - Prefer `buildList`, `buildMap`, `buildString` over mutable-collection-plus-loop patterns for constructing collections.
   - Use `@JvmStatic` on companion-object functions that are called from Java or through reflection to avoid synthetic accessor methods.
 
-#### 3. SQL & Database Guidelines (SQLDelight & SQLCipher)
+#### 3. SQL & Database Guidelines (SQLDelight & SQLite3MultipleCiphers)
 - **Naming Conventions**:
   - Tables: `snake_case`, **singular** (e.g., `vault_item`, `credential`). This deviates from the pluralized convention common in some frameworks; the singular form is chosen for consistency with domain entity naming and SQLDelight generated code clarity.
   - Columns: `snake_case` (e.g., `created_at`, `master_seed`).
@@ -178,10 +177,10 @@ To ensure a highly maintainable, readable, and performant codebase, the followin
   - Schema changes MUST be backwards-compatible or accompanied by a data migration script. Column drops MUST be staged across two releases (deprecate → drop).
   - All tables MUST include `created_at` and `updated_at` `INTEGER` timestamp columns (Unix epoch milliseconds).
 - **Performance Guidelines**:
-  - Index frequently queried columns and foreign keys. *Note*: Due to SQLCipher encryption, indexing exact-match searchable data requires deterministic keyed lookup tokens (e.g., HMAC blind indexes as defined in Principle I). Partial text search relies on classified SQLCipher-protected display fields.
+  - Index frequently queried columns and foreign keys. *Note*: Due to SQLite3MultipleCiphers encryption, indexing exact-match searchable data requires deterministic keyed lookup tokens (e.g., HMAC blind indexes as defined in Principle I). Partial text search relies on classified SQLite3MultipleCiphers-protected display fields.
   - Avoid `SELECT *`. Explicitly select only the required columns to minimize I/O overhead.
   - Run database operations on a dedicated background dispatcher (`Dispatchers.IO`).
-  - For bulk inserts or Event Sourcing log appends, ensure they are wrapped in a single transaction to drastically reduce disk I/O and SQLCipher encryption overhead.
+  - For bulk inserts or Event Sourcing log appends, ensure they are wrapped in a single transaction to drastically reduce disk I/O and SQLite3MultipleCiphers encryption overhead.
   - Prefer `INSERT OR REPLACE` over `SELECT-then-INSERT/UPDATE` patterns to reduce round-trips.
 
 #### 4. Compose & UI Performance Guidelines
@@ -262,4 +261,4 @@ To ensure the reliability, determinism, and verifiability of safety/operationall
 - **Fail-Secure State**: Upon any hardware failure, sensor disconnection, timeout, or unrecoverable error, the system MUST degrade gracefully into a safe, secure state (e.g., abort authentication, zero out sensitive volatile keys, and lock secure storage).
 - **Peripheral Resilience**: The application MUST NOT crash due to external device failures, disconnected peripherals, Bluetooth stack resets, USB unplug events, or camera driver stalls.
 
-**Version**: 1.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-09
+**Version**: 1.1.2 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-10

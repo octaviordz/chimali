@@ -3,6 +3,17 @@
 All notable changes to the Chimali project will be documented in this file.
 Detailed change summaries for major features are stored in the `docs/changelogs/` directory.
 
+## [Unreleased] - 2026-09-10
+
+### Documentation
+- **Generalized encrypted-database cipher policy**: Updated Constitution v1.1.2 to remove
+  obsolete SQLCipher/AES-256-CBC terminology and avoid prescribing a specific
+  SQLite3MultipleCiphers cipher.
+  - Retained mandatory authenticated encryption with confidentiality and integrity.
+  - Retained 256-bit PBKDF2-HMAC-SHA512-derived database keys.
+  - Prohibited silent plaintext or unauthenticated fallback and required integration verification.
+  - **Detailed changes**: [2026-09-10-constitution-encrypted-database-policy.md](docs/changelogs/2026-09-10-constitution-encrypted-database-policy.md)
+
 ## [Unreleased] - 2026-09-09
 
 ### Documentation
