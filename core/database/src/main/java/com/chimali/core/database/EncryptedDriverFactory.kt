@@ -15,6 +15,9 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.runBlocking
 
+private const val PBKDF2_BLOCK_COUNTER_BYTES = 4
+private const val KEY_LENGTH_BYTES_PER_BIT = 8
+
 /**
  * Centrally manages SQLite3MultipleCiphers database encryption for all feature databases (Constitution §I.3).
  * Uses ChaCha20-Poly1305 as the preferred default cipher.
@@ -58,11 +61,11 @@ class EncryptedDriverFactory(
         try {
             val mac = Mac.getInstance("HmacSHA512")
             mac.init(SecretKeySpec(hexPassword.concatToString().toByteArray(Charsets.UTF_8), "HmacSHA512"))
-            val block = ByteArray(DB_PBE_SALT_BYTES.size + 4)
+            val block = ByteArray(DB_PBE_SALT_BYTES.size + PBKDF2_BLOCK_COUNTER_BYTES)
             DB_PBE_SALT_BYTES.copyInto(block)
             block[block.lastIndex] = 1
             var u = mac.doFinal(block)
-            val derived = u.copyOf(DB_KEY_LENGTH_BITS / 8)
+            val derived = u.copyOf(DB_KEY_LENGTH_BITS / KEY_LENGTH_BYTES_PER_BIT)
             repeat(PBKDF2_ITERATIONS - 1) {
                 u = mac.doFinal(u)
                 for (i in derived.indices) derived[i] = (derived[i].toInt() xor u[i].toInt()).toByte()

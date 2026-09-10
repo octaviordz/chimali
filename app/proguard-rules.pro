@@ -19,6 +19,12 @@
 -keep class org.koin.core.module.** { *; }
 -keep class org.koin.core.qualifier.** { *; }
 -keep class org.koin.core.** { *; }
+-keep class org.koin.dsl.** { *; }
+# Feature composition creates Koin modules dynamically. Keep their annotated
+# module classes in shrunk builds as well as the generated registration code.
+-keep class com.chimali.**.di.** { *; }
+-keep class com.chimali.**ModuleKt { *; }
+-keep class org.koin.ksp.generated.** { *; }
 -keep interface com.chimali.core.clipboard.ClipboardManagerService { *; }
 -keep interface com.chimali.core.domain.eventsourcing.AggregateService { *; }
 -keep interface com.chimali.core.domain.repository.EventStoreRepository { *; }

@@ -54,7 +54,8 @@ class AndroidClipboardManagerService(
                 ClipData.newPlainText(label, text).apply {
                     description.extras =
                         android.os.PersistableBundle().apply {
-                            putBoolean("android.content.extra.IS_SENSITIVE", true) // ClipDescription.EXTRA_IS_SENSITIVE; compatible before API 33.
+                            // Use the string key for compatibility before API 33.
+                            putBoolean("android.content.extra.IS_SENSITIVE", true)
                         }
                 }
 
