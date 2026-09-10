@@ -31,6 +31,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
@@ -55,6 +56,7 @@ class CredentialRepositoryImplTest {
     private companion object {
         private const val KEY_SIZE_256 = 256
         private const val AAGUID_SIZE_16 = 16
+        private const val CRED_PROTECT_UV_REQUIRED = 3L
     }
 
     @BeforeTest
@@ -277,6 +279,30 @@ class CredentialRepositoryImplTest {
 
                 assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
+            }
+
+        @Test
+        fun `FR-005 returns only credentials whose policy requires user verification`() =
+            runTest {
+                val uvRequired = testEntity.copy(cred_protect_policy = CRED_PROTECT_UV_REQUIRED)
+                coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(testEntity, uvRequired))
+
+                val credentials = repository.getCredentialsRequiringUserVerification().toList()
+
+                assertEquals(1, credentials.size)
+                assertEquals(uvRequired.id, credentials.single().id.encoded)
+            }
+
+        @Test
+        fun `FR-005 statistics count credentials whose policy requires user verification`() =
+            runTest {
+                val uvRequired = testEntity.copy(cred_protect_policy = CRED_PROTECT_UV_REQUIRED)
+                every { timeProvider.now() } returns testCredential.createdAt
+                coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(testEntity, uvRequired))
+
+                val statistics = repository.getCredentialStatistics()
+
+                assertEquals(1, statistics.credentialsRequiringUserVerification)
             }
     }
 }

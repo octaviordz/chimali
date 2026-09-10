@@ -61,6 +61,9 @@ class CredentialRepositoryImpl(
         private const val MAX_USER_CREDENTIALS_PER_RP = 10
         private const val RECENT_USAGE_CUTOFF_DAYS = 90L
         private const val EXPIRY_DAYS_THRESHOLD = 730L
+
+        /** CTAP2 credProtect policy 3 requires user verification before use. */
+        private const val CRED_PROTECT_UV_REQUIRED = 3L
         private const val UNKNOWN_ERROR = "Unknown error"
     }
 
@@ -424,13 +427,14 @@ class CredentialRepositoryImpl(
             }
         }
 
+    /** FR-005 — Projects only credentials whose persisted credProtect policy requires UV. */
     override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> =
         flow {
             try {
                 passkeyCredentialDao
                     .getAllCredentials()
                     .first()
-                    .filter { false } // Not implemented in current schema
+                    .filter { it.cred_protect_policy == CRED_PROTECT_UV_REQUIRED }
                     .forEach { entity ->
                         entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess { emit(it) }
                     }
@@ -569,6 +573,7 @@ class CredentialRepositoryImpl(
 
     // ── Statistics ────────────────────────────────────────────────────────────
 
+    /** FR-005 — Includes the persisted-policy-derived user-verification count. */
     override suspend fun getCredentialStatistics(): CredentialStatistics =
         try {
             val allCredentials = mutableListOf<PasskeyCredential>()
@@ -579,7 +584,7 @@ class CredentialRepositoryImpl(
             val cutoff = now - RECENT_USAGE_CUTOFF_DAYS.days
             val expired = allCredentials.count { (now - it.createdAt).inWholeDays > EXPIRY_DAYS_THRESHOLD }
             val recentlyUsed = allCredentials.count { it.lastUsedAt > cutoff }
-            val needsUV = 0 // Not implemented in current schema
+            val needsUV = allCredentials.count { it.credProtectPolicy.toLong() == CRED_PROTECT_UV_REQUIRED }
             val avgAge =
                 if (allCredentials.isNotEmpty()) {
                     allCredentials.asSequence().map { (now - it.createdAt).inWholeDays }.average()

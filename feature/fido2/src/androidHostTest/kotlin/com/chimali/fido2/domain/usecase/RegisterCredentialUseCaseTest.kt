@@ -28,7 +28,6 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
-import com.chimali.fido2.domain.service.Fido2Authenticator
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
 import io.mockk.coEvery
@@ -48,7 +47,6 @@ import org.junit.jupiter.api.assertThrows
 class RegisterCredentialUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
-    private lateinit var fido2Authenticator: Fido2Authenticator
     private lateinit var cborCodec: CborCodec
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var fido2SettingsRepository: Fido2SettingsRepository
@@ -83,7 +81,6 @@ class RegisterCredentialUseCaseTest {
         runTest {
             credentialRepository = mockk()
             userVerificationService = mockk()
-            fido2Authenticator = mockk()
             cborCodec = mockk()
             cryptoService = mockk()
             fido2SettingsRepository = mockk()

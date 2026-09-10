@@ -25,7 +25,7 @@ import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
 import com.chimali.fido2.domain.exception.Fido2Exception
-import com.chimali.fido2.domain.service.Fido2Authenticator
+import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
@@ -68,7 +68,7 @@ class BluetoothHidTransportImpl(
     private val makeCredentialHandler: Ctap2MakeCredentialHandler,
     private val getAssertionHandler: Ctap2GetAssertionHandler,
     private val responseBuilder: Ctap2ResponseBuilder,
-    private val fido2Authenticator: Fido2Authenticator,
+    private val authenticatorInfoProvider: AuthenticatorInfoProvider,
     private val fido2EventBus: Fido2EventBus,
     // Injected to trigger background event observation
     @Suppress("unused") private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator,
@@ -676,9 +676,10 @@ class BluetoothHidTransportImpl(
 
     // ── authenticatorGetInfo ──────────────────────────────────────────────────
 
+    /** FR-006 — Builds get-info from the focused authoritative capability provider. */
     private suspend fun handleGetInfo(cid: ByteArray): List<ByteArray> =
         try {
-            val info = fido2Authenticator.getAuthenticatorInfo()
+            val info = authenticatorInfoProvider.getAuthenticatorInfo()
             val packets = responseBuilder.getInfoResponse(cid, info)
             // Debug: log the first packet hex so we can diagnose Windows rejection
             if (packets.isNotEmpty()) {

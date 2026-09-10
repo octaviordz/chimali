@@ -14,6 +14,15 @@ Detailed change summaries for major features are stored in the `docs/changelogs/
   - Prohibited silent plaintext or unauthenticated fallback and required integration verification.
   - **Detailed changes**: [2026-09-10-constitution-encrypted-database-policy.md](docs/changelogs/2026-09-10-constitution-encrypted-database-policy.md)
 
+### Refactored
+- **FIDO2 authenticator remediation**: Removed the nonfunctional `Fido2Authenticator` facade and
+  replaced its capability-reporting responsibility with `AuthenticatorInfoProvider`, keeping live
+  CTAP ceremony handlers as the authoritative implementation.
+  - Updated Bluetooth HID `getInfo` handling to use the capability provider.
+  - Restored `credProtect` user-verification filtering and accurate `needsUV` statistics.
+  - Added host-test coverage for authenticator capabilities and repository behavior.
+  - **Detailed changes**: [2026-09-10-fido2-authenticator-remediation.md](docs/changelogs/2026-09-10-fido2-authenticator-remediation.md)
+
 ## [Unreleased] - 2026-09-09
 
 ### Documentation
