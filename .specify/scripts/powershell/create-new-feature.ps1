@@ -145,11 +145,13 @@ function Get-BranchName {
         # Keep words that are length >= 3 OR appear as uppercase in original (likely acronyms)
         if ($word.Length -ge 3) {
             $meaningfulWords += $word
-        } elseif ($Description -cmatch "\b$($word.ToUpper())\b") {
+        } elseif ($Description -cmatch "(?<![0-9A-Za-z_])$($word.ToUpper())(?![0-9A-Za-z_])") {
             # Keep short words only if they appear as uppercase in original (likely
             # acronyms). Use -cmatch so the comparison is case-sensitive, matching the
             # bash script's case-sensitive grep; -match would be case-insensitive and
-            # would keep every short word.
+            # would keep every short word. The boundaries are spelled out as ASCII
+            # because .NET's \b is Unicode-aware, so an accented letter next to the
+            # acronym would suppress the match that bash's LC_ALL=C grep still makes.
             $meaningfulWords += $word
         }
     }
@@ -181,6 +183,10 @@ if ($ShortName) {
 } else {
     # Generate from description with smart filtering
     $branchSuffix = Get-BranchName -Description $featureDesc
+}
+
+if (-not $branchSuffix) {
+    [Console]::Error.WriteLine("[specify] Warning: Feature name is empty after removing unsupported characters. Use -ShortName with ASCII letters or digits (for example, user-auth).")
 }
 
 # Treat an explicit empty string as omitted, matching the bash and Python twins.
