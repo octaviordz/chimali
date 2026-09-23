@@ -9,10 +9,17 @@ Modified principles:
   - X. Coding Conventions & Best Practices → moved into Engineering Standards section
   - XI. Risk Management & Pragmatism → moved into Engineering Standards section
   - XII. Pragmatic DO-178B Principles → moved into Engineering Standards section
-  - Added "Code Documentation" requirement to ES-V.1
-  - Added strict "Input Validation" requirement to ES-V.2
+  - Added "Code Documentation" requirement to ES-V.1 (without version bump per pending release)
+  - Added strict "Input Validation" requirement to ES-V.2 (without version bump per pending release)
+  - Added App Binary Budget, tiered Memory Budgets, Predictable Lifecycles, and Memory Pressure
+    Response to Principle III (sourced from general Android Architecture Constitution review)
+  - Added LeakCanary requirement to ES-I Development Methodology & Testing
+  - Added R8/Build Optimization and App Size Watchdog items to ES-II Local CI/CD
+  - Added Uncompressed Raster Assets, Large Heap Flag, and Unbound In-Memory Singletons to
+    ES-V.7 Anti-Patterns (sourced from general Android Architecture Constitution review)
 Added sections:
   - "Architecture" as a dedicated top-level section consolidating all structural concerns
+  - "A-III. Module Criticality Classification (Tier 1 & Tier 2)" establishing the canonical definition of module criticality tiers
   - "Engineering Standards" as a dedicated top-level section for conventions, testing, CI/CD, risk, and DO-178B
 Removed sections:
   - None (all content preserved; only placement and hierarchy corrected)
@@ -139,8 +146,38 @@ The application MUST adhere to strict Android Vitals targets:
 - **Resources**: Zero memory leaks and minimal battery impact (< 0.1% excessive wake locks).
 - **Clipboard**: Sensitive data must be explicitly cleared from the system clipboard within
   60 seconds of copy action.
-- **Scalability**: The system MUST be designed to handle 10,000+ vault items with negligible
-  performance degradation.
+- **Scalability**: The system MUST be designed to handle 10,000+ vault items with < 2% latency regression compared to the baseline, measured via Jetpack Macrobenchmark.
+
+**App Binary Budget**: The release AAB base module MUST NOT exceed **50 MB**. Any feature branch that
+increases the AAB size by more than **+500 KB** requires explicit architecture approval before
+integration. Build pipelines MUST fail on unreviewed size regressions. R8 minification
+(`isMinifyEnabled`) and resource shrinking (`isShrinkResources`) MUST be enabled and verified for
+every release and staging build variant.
+
+**Memory Budgets**: Memory usage MUST be dynamically adapted based on device RAM tier using
+`ActivityManager.isLowRamDevice()` and `ActivityManager.MemoryInfo`:
+- **Standard devices (4–6 GB RAM)**: Baseline < 150 MB | Hard peak limit 250 MB.
+- **High-end devices (≥ 8 GB RAM)**: Baseline < 250 MB | Hard peak limit 400 MB.
+
+**Predictable Lifecycles**: Components MUST gracefully survive configuration changes, system
+process death, and resource trimming without leaking memory or dropping user state.
+- **Configuration Changes**: ViewModels MUST survive rotation and all configuration changes.
+  UI state that must persist across process death MUST be preserved via `SavedStateHandle`. No
+  UI state MUST be held in Activity or Fragment fields that are not lifecycle-aware.
+- **Process Death**: The application MUST restore to a consistent, secure state after process
+  death. Sensitive in-memory keys and seeds MUST NOT be persisted to `SavedStateHandle` or
+  `onSaveInstanceState`; they MUST be re-derived or re-prompted upon restoration.
+
+**Memory Pressure Response**: All custom caches, image loaders, and in-memory managers MUST
+implement `ComponentCallbacks2.onTrimMemory()` to release volatile caches and pre-fetched data
+when the OS signals memory pressure (at minimum for `TRIM_MEMORY_RUNNING_CRITICAL`,
+`TRIM_MEMORY_BACKGROUND`, and `TRIM_MEMORY_MODERATE` levels). Upon receiving these levels,
+components MUST clear 100% of non-essential in-memory caches and trigger `System.gc()` as a release
+hint (noting Principle I.5 regarding non-forensic JVM memory guarantees).
+
+Each individual manager, repository cache, or image loader implementing `ComponentCallbacks2` MUST
+provide a dedicated test verifying that invoking `onTrimMemory` at critical, background, or moderate
+levels completely empties its internal storage and drops retained objects.
 
 ### IV. Cross-Platform Authenticator & Modern UX
 
@@ -148,8 +185,7 @@ The app MUST seamlessly emulate a FIDO2 Virtual Authenticator via `BluetoothHidD
 cross-platform authentication (Windows, macOS, Linux). Protocol implementation MUST strictly adhere
 to CTAP2 CBOR encoding standards (e.g., proper integer keys, correct negative integer major types,
 and AT flags) and provide defensive legacy U2F fallback probing to ensure strict OS compatibility
-(e.g., Windows 11). The UI MUST follow Material Design 3 (M3) with dynamic coloring, ensuring a
-premium user experience.
+(e.g., Windows 11). The UI MUST follow Material Design 3 (M3) with dynamic coloring.
 
 ### V. Inclusion & Universal Accessibility
 
@@ -169,6 +205,12 @@ close to the code). Requirement identifiers use a **stable mnemonic path format*
 (`[TYPE]-[CATEGORY]-[NNN]`, e.g., `FR-VAULT-010`, `NFR-SEC-020`) to prevent re-indexing cascades
 when requirements are added, moved, or removed. Once assigned, a requirement ID is never reused;
 deprecated requirements are marked as `[DEPRECATED]` rather than deleted.
+
+**Documentation Staleness (NON-NEGOTIABLE)**: Documentation MUST be reviewed and updated within
+the same feature branch that changes the behaviour it describes. A spec, BRD, or TRD document that
+references a module, API, or behaviour that no longer exists or has changed is a **blocking
+defect** — equivalent in severity to a failing test. Agents MUST flag stale documentation
+discovered during any speckit workflow step.
 
 ---
 
@@ -262,7 +304,27 @@ The Composition Root (`:app`) is the ONLY layer permitted to bind concrete imple
 abstractions via Koin. Circular references and consumer-to-storage direct dependencies are
 strictly forbidden.
 
-### A-III. Event Sourcing Architecture (NON-NEGOTIABLE)
+### A-III. Module Criticality Classification (Tier 1 & Tier 2) (NON-NEGOTIABLE)
+
+Modules across the project are categorized into two architectural criticality tiers to establish
+proportional rigor for DO-178B traceability, test coverage gates, and verification standards:
+
+- **Tier 1 (Critical Modules)**: Modules where a defect can directly compromise security, cryptographic
+  operations, data integrity, or authentication correctness. The canonical Tier 1 modules are:
+  - `:core:security` — cryptographic operations, key derivation, memory zeroing
+  - `:core:domain` — aggregates, domain services, Event Sourcing `Decider` mechanisms
+  - `:core:data` — repository contracts and data integrity rules
+  - `:feature:fido2` — CTAP2 protocol implementation and passkey flows
+  - `:feature:authenticator` — Bluetooth HID authentication orchestration
+  *Amendment Guardrail*: Any new module introducing security, authentication, or data-integrity logic
+  MUST be added to Tier 1 via a constitutional amendment before integration.
+
+- **Tier 2 (Feature & Infrastructure Modules)**: All modules not designated as Tier 1 (e.g.,
+  `:core:bluetooth`, `:core:crdt`, `:core:database`, `:core:common`, `:core:ui`, `:feature:vault`,
+  `:feature:editor`, `:feature:settings`, `:feature:onboarding`, and `:app`). These modules focus on UI
+  presentation, platform wrappers, background synchronization, and composition roots.
+
+### A-IV. Event Sourcing Architecture (NON-NEGOTIABLE)
 
 The application MUST implement Event Sourcing as its primary persistence and audit mechanism for
 core aggregates (`VaultEntry`, `PasskeyCredential`).
@@ -326,11 +388,16 @@ exists.
   boundaries. MockK mocks, stubs, and spies MAY be used when interaction verification is the
   purpose of the test, when a platform/final type cannot be replaced by a Fake, or when building a
   Fake would add more complexity than the behavior under test.
-- **Core Coverage**: 100% unit test coverage for core business logic (encryption, validation) is
-  non-negotiable using **kotlin.test** for KMP common logic.
+- **Tiered Test Coverage Targets**:
+  - **Tier 1 Modules**: MUST meet an initial baseline target of **≥ 40%** statement and branch coverage using **kotlin.test** for KMP common logic, with coverage ratcheted upward over time based on empirical codebase data.
+  - **Tier 2 Modules**: MUST maintain a baseline target of **≥ 20%** test coverage focusing on ViewModels, business adapters, and state flows.
+  - **Global Repository Floor**: Cumulative codebase coverage across all modules combined MUST NOT drop below a minimum threshold of **20%** in automated CI pipelines.
 - **Integration Tests**: Comprehensive integration tests MUST verify the interaction between
   Bluetooth HID emulation, Credential Manager, and Encryption layers. UI components MUST be
   verified using **Compose UI Testing**.
+- **Memory Leak Detection**: Debug builds MUST include **LeakCanary**. No feature branch will be integrated if a
+  reproducible memory leak trail is identified during automated instrumented test runs. Leak
+  reports MUST be treated as blocking defects equivalent to test failures.
 
 ### ES-II. Local CI/CD & Enforcement
 
@@ -341,6 +408,12 @@ exists.
    broken or untested code. The hook is installed via `tools/setup-hooks.ps1`.
 3. **Bypass Justification**: Any change that bypasses the Local CI gate (e.g., via `--no-verify`)
    MUST be documented with a valid justification in the commit message.
+4. **R8 / Build Optimization**: `isMinifyEnabled` and `isShrinkResources` MUST be evaluated on
+   every feature branch using a production-matching `release` or `staging` build variant. Branches that disable
+   minification or resource shrinking without documented justification MUST be rejected.
+5. **App Size Watchdog**: Release CI pipelines MUST measure the AAB base module size against the
+   current baseline. Any feature branch that exceeds the **+500 KB** delta threshold defined in Principle III
+   MUST be blocked until architecture approval is granted and recorded in the commit message.
 
 ### ES-III. DO-178B Principles for Critical Code (NON-NEGOTIABLE FOR NEW CODE)
 
@@ -350,13 +423,29 @@ Operations), all new code MUST adhere to the following principles inspired by ci
 software safety standards (DO-178B):
 
 #### ES-III.1. Rigorous Traceability
-- **Requirement-to-Code Mapping**: Every line of code in critical domain logic MUST trace back
-  directly to a specific, documented requirement identifier (e.g., `FR-AUTH-010`).
+
+Traceability operates at the two tiers defined in Principle [A-III. Module Criticality Classification](#a-iii-module-criticality-classification-tier-1--tier-2-non-negotiable).
+
+**Tier 1 — DO-178B Critical Traceability**:
+- **Requirement-to-Code Mapping**: Every `public` and `internal` function in Tier 1 modules MUST
+  carry a `@Req` annotation whose value references one or more stable requirement identifiers from
+  `docs/brd.md` (`FR-*`) or `docs/trd.md` (`NFR-*`) (e.g., `@Req("FR-AUTH-010", "NFR-SEC-020")`).
 - **Forbidden Dead Code**: Dead code, deactivated code, unreferenced helper methods, and hidden
   features are strictly FORBIDDEN. Any code path that cannot be traced to an approved requirement
   MUST be excised.
-- **Bi-Directional Verification Traceability**: Tests verifying critical logic MUST explicitly
-  reference the requirement ID and implementation units they validate to ensure full auditability.
+- **Bi-Directional Verification Traceability**: Tests verifying Tier 1 logic MUST explicitly
+  reference the same requirement ID — either in the KDoc `@see` tag or in the test function name
+  (e.g., `` `FR-AUTH-010 deriveDeviceKeyPair returns deterministic output` ``).
+
+**Tier 2 — Feature-Level Traceability**:
+- Each Tier 2 module MUST maintain a `README.md` at its root that identifies which functional
+  requirements from `docs/brd.md` and technical requirements from `docs/trd.md` it satisfies,
+  referenced by their stable identifiers (e.g., `FR-VAULT-010`, `NFR-PERF-010`). The `README.md`
+  MUST contain at least one `FR-` or `NFR-` reference.
+- Public functions MUST have KDoc describing their purpose and constraints per ES-V.1. Requirement
+  ID annotations are not required.
+- Tests MUST use descriptive backtick names that identify the behaviour under test per ES-V.2,
+  providing implicit traceability through the test suite.
 
 #### ES-III.2. Determinism & Predictable Execution
 - **Zero Allocation in Hot Paths**: Dynamic memory allocation in execution-critical hot paths
@@ -371,15 +460,15 @@ software safety standards (DO-178B):
   state progressions with exhaustive handling of all valid and invalid inputs.
 
 #### ES-III.3. High-Coverage Testing & Independence
-- **Strict Coverage Gates**: Critical domain logic MUST enforce strict test coverage (100%
-  statement and branch coverage). Complex decision logic MUST be tested with a Modified
-  Condition/Decision Coverage (MC/DC) mindset. A terminal exception branch that an instrumenter
-  cannot credit because it exits directly through `throw` MAY be accepted only when every
-  nonterminal executable line is covered, an independent test asserts the exact branch input and
-  exception type, and that test verifies every cleanup invariant affected by the exit. The
-  exception MUST record the report, source location, test name, and reason a normal successor
-  probe would alter or obscure production behavior. It MUST NOT apply to recoverable, nonterminal,
-  asynchronous, cancellation, or externally delegated paths.
+- **Coverage Enforcement & MC/DC Mindset**: Tier 1 modules MUST enforce the coverage gates
+  defined in [ES-I. Development Methodology & Testing](#es-i-development-methodology--testing).
+  Complex decision logic MUST be evaluated with a Modified Condition/Decision Coverage (MC/DC)
+  mindset. A terminal exception branch that an instrumenter cannot credit because it exits directly
+  through `throw` MAY be accepted only when every nonterminal executable line is covered, an
+  independent test asserts the exact branch input and exception type, and that test verifies every
+  cleanup invariant affected by the exit. The exception MUST record the report, source location,
+  test name, and reason a normal successor probe would alter or obscure production behavior. It MUST
+  NOT apply to recoverable, nonterminal, asynchronous, cancellation, or externally delegated paths.
 - **Independent Test Execution**: Verification tests MUST be executed independently of the
   implementation units, operating without shared mutable state to eliminate verification bias and
   order dependency.
@@ -414,19 +503,20 @@ To guard against overspecification, over-engineering, and unrealistic goals, the
 risk-mitigation principles MUST be applied during planning and implementation.
 
 #### ES-IV.1. Overspecification Guard
-- **YAGNI First**: Do not implement features, abstractions, or infrastructure components that do
-  not serve an immediate, documented requirement. Speculative future-proofing is debt, not
-  investment.
+- **YAGNI First** *(design intent — validated through spec/plan review, not automated tooling)*:
+  Do not implement features, abstractions, or infrastructure components that do not serve an
+  immediate, documented requirement. Speculative future-proofing is debt, not investment.
 - **Three-Use Rule**: An abstraction (interface, wrapper, utility) MUST be justified by at least
   three concrete usage sites or an explicit architectural mandate in this constitution.
-  Single-use abstractions require documented justification.
+  Single-use abstractions MUST be documented with justification in the spec that introduces them.
 - **Specification Depth**: Specifications MUST document *what* and *why*, not *how*.
   Implementation details belong in code and code comments, not in spec documents.
 
 #### ES-IV.2. Over-Engineering Guard
-- **Simplest Sufficient Solution**: For any design decision, the simplest implementation that
-  satisfies all hard requirements and known constraints MUST be preferred. Complexity is justified
-  only when a simpler approach demonstrably fails a constitutional principle.
+- **Simplest Sufficient Solution** *(design intent — validated through spec/plan review, not automated tooling)*:
+  For any design decision, prefer the simplest implementation that satisfies all hard requirements
+  and known constraints. Complexity is introduced only when a simpler approach demonstrably fails
+  a constitutional principle.
 - **Module Count**: New Gradle modules MUST be justified by a concrete isolation or
   build-performance benefit. Moving code into a separate module solely for "clean architecture
   purity" without measurable gain is prohibited.
@@ -441,8 +531,9 @@ risk-mitigation principles MUST be applied during planning and implementation.
 - **Performance Targets**: Performance targets defined in Principle III represent upper bounds.
   Achieving targets on reference hardware (Pixel 6a or equivalent mid-range) is sufficient;
   optimizing for all edge-case devices is explicitly out of scope for initial delivery.
-- **Incremental Delivery**: Prefer a working, tested, minimal implementation over a comprehensive
-  but unfinished one. Ship the smallest valuable slice, then iterate.
+- **Incremental Delivery** *(design intent — validated through spec/plan review, not automated tooling)*:
+  Prefer a working, tested, minimal implementation over a comprehensive but unfinished one.
+  Ship the smallest valuable slice, then iterate.
 
 ### ES-V. Coding Conventions & Best Practices
 
@@ -455,7 +546,7 @@ MUST be strictly adhered to across all technologies.
 - **File Encoding**: UTF-8 without BOM.
 - **Trailing Commas**: MUST be used in Kotlin multi-line parameter lists, collection literals, and
   `when` entries to minimize diff noise.
-- **Code Documentation**: Code MUST be fully documented. All public APIs, classes, interfaces, and complex internal logic MUST include comprehensive KDoc comments explaining the purpose, constraints, and expected behavior.
+- **Code Documentation**: All `public` and `internal` declarations (classes, interfaces, functions, properties) MUST have a KDoc comment explaining their purpose, parameters (`@param`), return values (`@return`), and potential error states (`@throws`). Enforced via Detekt rules (`UndocumentedPublicClass`, `UndocumentedPublicFunction`).
 - **Static Analysis**: All code must pass Detekt and Ktlint without warnings. Magic numbers are
   strictly prohibited; all numeric literals with domain significance MUST be extracted into named
   constants or enums.
@@ -573,6 +664,15 @@ The following patterns are explicitly prohibited:
 - **String Concatenation in Loops**: Use `StringBuilder` or `buildString`.
 - **Hardcoded Secrets**: API keys, encryption keys, or credentials MUST NOT appear as string
   literals in source code.
+- **Uncompressed Raster Assets**: All static images MUST use Vector Drawables (`.xml`) or
+  compressed **WebP** format. Raw `.png` or `.jpeg` drawable files are prohibited. Exceptions
+  require documented justification (e.g., an asset that cannot be represented as a vector).
+- **Large Heap Flag**: `android:largeHeap="true"` in the Android manifest is strictly prohibited.
+  Memory optimization through bounded caches and lifecycle-aware resource management is mandatory
+  instead of requesting OS-level heap exemptions.
+- **Unbound In-Memory Singletons**: Singleton patterns holding dynamic data collections MUST
+  implement bounded cache eviction (e.g., `LruCache`) sized relative to
+  `Runtime.getRuntime().maxMemory()`. Global unbounded in-memory collections are prohibited.
 
 ---
 
@@ -590,7 +690,7 @@ This constitution supersedes all informal conventions. Amendments MUST:
    - **PATCH**: Wording clarifications, typo fixes, and non-semantic refinements.
 4. Update `LAST_AMENDED_DATE` and `CONSTITUTION_VERSION` in this file.
 
-**Quality Gates**: All Pull Requests MUST verify compliance with security guidelines (especially
+**Quality Gates**: All feature integrations MUST verify compliance with security guidelines (especially
 memory zeroing), DO-178B critical code principles, and pass all static analysis checks
 (Detekt/Ktlint).
 
