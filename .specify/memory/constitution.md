@@ -1,8 +1,7 @@
 <!--
 SYNC IMPACT REPORT
-Version: 1.1.1 -> 1.1.2 (patch removal of a database-cipher implementation detail)
-Modified principles: I. Security First (Zero-Trust Local-First) — retained the
-SQLite3MultipleCiphers authenticated-encryption requirement without naming a specific cipher
+Version: 1.2.0 -> 1.2.1 (patch: tailored feature module architecture guidelines with specific layer definitions)
+Modified principles: XIII. Feature Module Architecture (expanded to include CORP-style module definitions adapted for Kotlin Multiplatform/Android)
 Added sections: none
 Removed sections: none
 Follow-up TODOs: none
@@ -261,4 +260,56 @@ To ensure the reliability, determinism, and verifiability of safety/operationall
 - **Fail-Secure State**: Upon any hardware failure, sensor disconnection, timeout, or unrecoverable error, the system MUST degrade gracefully into a safe, secure state (e.g., abort authentication, zero out sensitive volatile keys, and lock secure storage).
 - **Peripheral Resilience**: The application MUST NOT crash due to external device failures, disconnected peripherals, Bluetooth stack resets, USB unplug events, or camera driver stalls.
 
-**Version**: 1.1.2 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-10
+### XIII. Feature Module Architecture
+
+All feature modules MUST be structured with strict ownership boundaries, layered separation of concerns, and unidirectional data flow principles inspired by modern Android architecture guidelines (e.g., Now in Android).
+
+- **Separation of Concerns**: Each feature MUST be split into distinct layers. The UI layer handles display and input (Jetpack Compose), the Domain layer encapsulates complex business logic (Aggregates, Services), and the Data layer manages application data, persistence (SQLDelight/Event Sourcing), and external sources.
+- **Unidirectional Data Flow (UDF)**: Data and state MUST flow UP from the Data layer, through the Domain layer, to the UI layer as immutable streams (`Flow` / `StateFlow`). Events, intents (MVI), and user actions MUST flow DOWN from the UI layer to the Domain and Data layers.
+- **Single Source of Truth (SSOT)**: The Data layer MUST be the authoritative source for the feature's data. The UI and Domain layers MUST NOT duplicate or independently mutate state; instead, they must trigger updates (Events/Commands) in the Data layer and react to changes.
+
+Each Gradle project/module within a feature or core library has a specific responsibility and strict dependency constraints:
+
+- **Models** (e.g., `:core:model` or `:feature:{name}:model`):
+  Immutable Kotlin data classes, value classes, events, and domain primitives.
+  *Responsibilities*: define public data structures, contracts, and schema primitives.
+  *Permitted dependencies*: Kotlin Standard Library.
+  *Prohibited dependencies*: MUST NOT reference Data, Database, Domain, App/DI, UI, or framework-specific SDKs (e.g., Android SDK).
+- **Common** (e.g., `:core:common` or `:feature:{name}:common`):
+  Platform-neutral technical utilities, algorithms, and helpers (e.g., hashing, canonicalization, mathematical primitives).
+  *Responsibilities*: reusable, stateless algorithmic logic and low-level cross-cutting tools.
+  *Permitted dependencies*: MAY depend on Models.
+  *Prohibited dependencies*: MUST NOT reference Data, Database, Domain, App/DI, or UI.
+- **Data** (e.g., `:core:data` or `:feature:{name}:data`):
+  Data source and repository abstractions, persistence interfaces, and query contracts.
+  *Responsibilities*: define abstractions for reading and writing feature data (including Event Sourcing append/read contracts) without binding to concrete storage mechanisms.
+  *Permitted dependencies*: MAY depend on Models and Common.
+  *Prohibited dependencies*: MUST NOT reference concrete storage implementations (`Database`), Domain, App/DI, or UI. Data contracts MUST remain persistence-technology-agnostic.
+- **Database** (e.g., `:core:database` or `:feature:{name}:database`):
+  Concrete storage implementations of Data repository contracts (using SQLDelight and SQLite3MultipleCiphers).
+  *Responsibilities*: implement persistence mechanisms, execute Event Sourcing appends, manage transactions, and map storage entities to Models.
+  *Permitted dependencies*: MAY depend on Data, Models, and Common.
+  *Prohibited dependencies*: MUST NOT reference Domain, App/DI, or UI.
+- **Domain** (e.g., `:core:domain` or `:feature:{name}:domain`):
+  Core feature business logic, use cases, domain services, Event Sourcing `Decider` mechanisms, and validation rules.
+  *Responsibilities*: encapsulate domain algorithms, business invariants, and application workflows.
+  *Permitted dependencies*: MAY depend on Models, Common, and Data abstractions (interfaces only).
+  *Prohibited dependencies*: MUST NOT reference concrete storage (`Database`), App/DI, or UI. Domain logic MUST remain independent of persistence mechanisms and presentation frameworks.
+- **UI / Presentation** (e.g., `:feature:{name}:ui`):
+  Jetpack Compose views, MVI ViewModels, and interaction handling.
+  *Responsibilities*: user interaction, rendering state, handling intents, and delegating workflows to Domain.
+  *Permitted dependencies*: MUST consume the feature only via public contracts provided by Domain/Models. MAY depend on Data (abstractions only) if strictly necessary.
+  *Prohibited dependencies*: MUST NOT directly reference `Database` concrete storage or contain feature-internal business rules, persistence logic, or hardware synchronization workflows.
+- **App & DI (Hosting)** (e.g., `:app`):
+  The integration boundary, composition root, and Koin service registration layer.
+  *Responsibilities*: compose concrete storage implementations (`Database`) with Data interfaces and Domain services, register dependency injection, and adapt host platform lifecycle concerns.
+  *Permitted dependencies*: MAY depend on Domain, Data, Database, Common, Models, and UI.
+  *Prohibited dependencies*: MUST NOT be referenced by Models, Common, Data, Database, Domain, or UI.
+
+Dependencies MUST point toward stable contracts:
+`UI → Domain → Data → Models`, while
+`Database → Data → Models` and `Common → Models`.
+The App (Composition Root) is the only layer permitted to bind concrete storage implementations to Data abstractions via Koin.
+Circular references and direct consumer-to-feature storage dependencies are strictly forbidden.
+
+**Version**: 1.2.1 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-22
