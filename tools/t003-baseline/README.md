@@ -75,4 +75,23 @@ The optimized APK retains the `ChimaliT003` and `reports_accepted=` strings in `
 Instrumented APK: 62,676,295 bytes; SHA-256
 `8C94FA4DAE3130AC919B9F331BBB0F02BA620D5B01172872E9D265FF8697CCB1`.
 Build log: `D:\temp\chimali-t003-baseline-instrumentation-build.log`.
-This validates build and packaging; fresh on-device timing capture is still required.
+The ASUS capture and fresh baseline host coverage are summarized in
+[results-2026-10-15.md](results-2026-10-15.md). Raw captures, build logs, coverage exports,
+and test-run artifacts remain local under the dated `evidence-*` directories and are
+excluded from version control. A 2026-10-16 follow-up added Compose fully-drawn reporting
+and captured ten release cold starts: TTFD median 480.5 ms (445–562 ms). All 630 host
+tests passed after isolating the DataStore test file; measured coverage floors remain
+unmet in domain, FIDO2, database and app.
+
+## Reproduce baseline coverage
+
+With the Android SDK configured, run from the repository root:
+
+```powershell
+.\gradlew.bat --no-configuration-cache -Pt003FreshHostCoverage=true -I tools/t003-baseline/evidence-2026-10-15/coverage/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify
+```
+
+The capture option forces fresh host test execution and excludes earlier device coverage
+files. The verification command exits nonzero for the documented baseline coverage
+deficits. `UserPreferencesDataStoreTest` uses a unique temporary directory and cleans it
+up in `finally`; it no longer reads or writes the old root-level `test_prefs.pb`.

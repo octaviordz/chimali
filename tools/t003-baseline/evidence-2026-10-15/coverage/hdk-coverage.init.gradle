@@ -1,0 +1,226 @@
+// Scoped and whole-repository JaCoCo coverage for Spec 055.
+// T003: add -Pt003FreshHostCoverage=true to rerun host tests and exclude older device data.
+// Run: .\gradlew.bat --no-configuration-cache -I tools/t003-baseline/evidence-2026-10-15/coverage/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
+gradle.beforeProject { project ->
+    project.pluginManager.apply('jacoco')
+    project.extensions.configure(org.gradle.testing.jacoco.plugins.JacocoPluginExtension) { jacocoExtension ->
+        jacocoExtension.toolVersion = '0.8.15'
+    }
+    project.tasks.withType(Test).configureEach { testTask ->
+        if (gradle.startParameter.projectProperties['t003FreshHostCoverage'] == 'true') {
+            testTask.outputs.upToDateWhen { false }
+        }
+        def safeTaskName = testTask.name.replaceAll('[^A-Za-z0-9_.-]', '_')
+        testTask.extensions.configure(org.gradle.testing.jacoco.plugins.JacocoTaskExtension) { jacocoTaskExtension ->
+            jacocoTaskExtension.destinationFile = project.layout.buildDirectory.file("jacoco/hdk/${safeTaskName}.exec").get().asFile
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    def selectedPaths = [
+        ':core:security', ':core:domain', ':feature:fido2',
+        ':core:database', ':core:common', ':app'
+    ]
+    def selectedProjects = selectedPaths.collect { path ->
+        def candidate = root.findProject(path)
+        if (candidate == null) {
+            throw new GradleException("Required coverage module is missing: ${path}")
+        }
+        candidate
+    }
+    def allProductionProjects = root.allprojects.findAll { project ->
+        project != root && project.tasks.findAll { task ->
+            task.name ==~ /compile[A-Za-z0-9]*(AndroidMain|MainKotlin|DebugKotlin|DebugJavaWithJavac)/
+        }
+    }
+    def reportTasks = []
+    def moduleData = []
+
+    def registerReport = { project, String reportName, boolean scoped ->
+        def allTestTasks = project.tasks.withType(Test).findAll { task ->
+            task.name.toLowerCase().contains('test') && !task.name.toLowerCase().contains('compile')
+        }
+        def preferredTests = allTestTasks.findAll { it.name == 'testAndroidHostTest' || it.name == 'testDebugUnitTest' }
+        def testTasks = preferredTests.isEmpty() ? allTestTasks : preferredTests
+        if (testTasks.isEmpty()) {
+            throw new GradleException("No configured JVM test tasks discovered for ${project.path}; coverage cannot silently omit this module")
+        }
+        def compilerTasks = project.tasks.findAll { task ->
+            task.name ==~ /compile[A-Za-z0-9]*AndroidMain/ ||
+                task.name in ['compileDebugKotlin', 'compileDebugJavaWithJavac', 'compileMainKotlin']
+        }
+        if (compilerTasks.isEmpty()) {
+            throw new GradleException("No production compilation outputs discovered for ${project.path}")
+        }
+        def executionFiles = testTasks.collect { task ->
+            task.extensions.getByType(org.gradle.testing.jacoco.plugins.JacocoTaskExtension).destinationFile
+        }
+        // Android instrumentation writes JaCoCo .ec files rather than Gradle Test .exec files.
+        // Include them when a configured device suite has produced them; class directories stay
+        // on one production variant so merging does not add duplicate denominator classes.
+        // Instrumentation may cover production classes owned by another selected module. Feed
+        // each module report the connected-test execution files from the whole build, then let
+        // JaCoCo match probes to that report's single production class variant.
+        def deviceExecutionFiles = gradle.startParameter.projectProperties['t003FreshHostCoverage'] == 'true' ? [] : root.allprojects.collect { ownerProject ->
+            ownerProject.fileTree(dir: ownerProject.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec'])
+        }
+        // Only one production variant per source set is counted; Android release/flavor outputs
+        // would duplicate the same source classes in the coverage denominator.
+        def classDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
+        def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
+            .collect { project.file(it) }.findAll { it.exists() }
+        def task = project.tasks.register(reportName, JacocoReport) {
+            dependsOn(compilerTasks)
+            mustRunAfter(testTasks)
+            executionData.from(executionFiles, deviceExecutionFiles)
+            sourceDirectories.from(sourceRoots)
+            classDirectories.from(classDirs)
+            if (scoped) {
+                classDirectories.setFrom(classDirs.collect { dir ->
+                    project.fileTree(dir: dir, includes: ['com/chimali/core/security/hdkeys/**'])
+                })
+            }
+            reports {
+                xml.required = true
+                html.required = true
+                csv.required = true
+                xml.outputLocation = project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.xml")
+                html.outputLocation = project.layout.buildDirectory.dir("reports/hdk-coverage/${reportName}")
+                csv.outputLocation = project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.csv")
+            }
+        }
+        reportTasks.add(task)
+        moduleData.add([project: project, tests: testTasks, report: task, reportFile: project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.xml"), scoped: scoped])
+        task
+    }
+
+    selectedProjects.each { project ->
+        registerReport(project, 'hdkModuleCoverage', false)
+    }
+    def securityProject = root.project(':core:security')
+    registerReport(securityProject, 'hdkScopedCoverage', true)
+
+    def repositoryTestTasks = []
+    def repositoryCompilerTasks = []
+    def repositoryExecFiles = []
+    def repositoryClassDirs = []
+    def repositorySourceRoots = []
+    allProductionProjects.each { project ->
+        def tests = project.tasks.withType(Test).findAll { task ->
+            task.name.toLowerCase().contains('test') && !task.name.toLowerCase().contains('compile')
+        }
+        def preferredTests = tests.findAll { it.name == 'testAndroidHostTest' || it.name == 'testDebugUnitTest' }
+        tests = preferredTests.isEmpty() ? tests : preferredTests
+        def compilers = project.tasks.findAll { task ->
+            task.name ==~ /compile[A-Za-z0-9]*AndroidMain/ ||
+                task.name in ['compileDebugKotlin', 'compileDebugJavaWithJavac', 'compileMainKotlin']
+        }
+        if (tests.isEmpty() || compilers.isEmpty()) {
+            throw new GradleException("Repository aggregate cannot omit ${project.path}: tests=${tests.size()}, production compilations=${compilers.size()}")
+        }
+        repositoryTestTasks.addAll(tests)
+        repositoryCompilerTasks.addAll(compilers)
+        repositoryExecFiles.addAll(tests.collect { it.extensions.getByType(org.gradle.testing.jacoco.plugins.JacocoTaskExtension).destinationFile })
+        if (gradle.startParameter.projectProperties['t003FreshHostCoverage'] != 'true') {
+            repositoryExecFiles.add(project.fileTree(dir: project.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec']))
+        }
+        repositoryClassDirs.addAll(compilers.collectMany { it.outputs.files.files.toList() })
+        ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java'].each { path ->
+            def sourceRoot = project.file(path)
+            if (sourceRoot.exists()) repositorySourceRoots.add(sourceRoot)
+        }
+    }
+    def repositoryReport = root.tasks.register('hdkRepositoryCoverage', JacocoReport) {
+        dependsOn(repositoryCompilerTasks)
+        mustRunAfter(repositoryTestTasks)
+        executionData.from(repositoryExecFiles.unique())
+        sourceDirectories.from(repositorySourceRoots.unique())
+        classDirectories.from(repositoryClassDirs.unique())
+        reports {
+            xml.required = true
+            html.required = true
+            csv.required = true
+            xml.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml')
+            html.outputLocation = root.layout.buildDirectory.dir('reports/hdk-coverage/repository')
+            csv.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.csv')
+        }
+    }
+
+    root.tasks.register('hdkHostCoverage') {
+        group = 'verification'
+        description = 'Runs configured host/unit tests and produces scoped HDK, affected-module, and repository JaCoCo reports.'
+        dependsOn(repositoryTestTasks)
+        dependsOn(reportTasks)
+        dependsOn(repositoryReport)
+    }
+
+    root.tasks.register('hdkCoverageVerify') {
+        group = 'verification'
+        description = 'Enforces Spec 055 module and repository coverage floors and rejects missing or empty test data.'
+        dependsOn(root.tasks.named('hdkHostCoverage'))
+        doLast {
+            def failures = []
+            def summarize = { File reportFile ->
+                if (!reportFile.isFile()) throw new GradleException("Missing JaCoCo XML report: ${reportFile}")
+                // JaCoCo emits a DOCTYPE in its XML. Read only the generated local report
+                // as text so verification does not enable DTD or external-entity parsing.
+                def xml = reportFile.getText('UTF-8')
+                def counts = [:]
+                ['INSTRUCTION', 'LINE', 'BRANCH'].each { type ->
+                    def pattern = java.util.regex.Pattern.compile('<counter\\b(?=[^>]*\\btype="' + type + '")(?=[^>]*\\bmissed="(\\d+)")(?=[^>]*\\bcovered="(\\d+)")[^>]*/>')
+                    def matcher = pattern.matcher(xml)
+                    def missed = null
+                    def covered = null
+                    while (matcher.find()) {
+                        // JaCoCo's final matching counter is the report-wide aggregate.
+                        missed = matcher.group(1).toLong()
+                        covered = matcher.group(2).toLong()
+                    }
+                    if (missed == null) {
+                        counts[type] = null
+                    } else {
+                        counts[type] = (missed + covered) == 0 ? 0.0 : (100.0 * covered / (missed + covered))
+                    }
+                }
+                counts
+            }
+            moduleData.each { entry ->
+                // The security-scoped report is an additional view of the security module,
+                // not a second module to which the Tier 1 floor should be applied.
+                if (entry.scoped) return
+                def testsRun = entry.tests.sum { testTask ->
+                    def resultDir = testTask.reports.junitXml.outputLocation.get().asFile
+                    if (!resultDir.isDirectory()) return 0
+                    testTask.project.fileTree(resultDir).matching { include '**/*.xml' }.files.sum { xmlFile ->
+                        def xml = xmlFile.getText('UTF-8')
+                        def matcher = java.util.regex.Pattern.compile('<testcase(?:\\s|>)').matcher(xml)
+                        def count = 0
+                        while (matcher.find()) count++
+                        count
+                    } ?: 0
+                } ?: 0
+                if (testsRun <= 0) failures.add("${entry.project.path}: discovered tests produced zero executions")
+                def coverage = summarize(entry.reportFile.get().asFile)
+                if (entry.project.path in [':core:security', ':core:domain', ':feature:fido2']) {
+                    if (coverage.INSTRUCTION == null || coverage.INSTRUCTION < 40.0) failures.add("${entry.project.path}: instruction/statement coverage ${coverage.INSTRUCTION}% is below 40%")
+                    if (coverage.BRANCH == null || coverage.BRANCH < 40.0) failures.add("${entry.project.path}: branch coverage ${coverage.BRANCH}% is below 40%")
+                } else if (entry.project.path in [':core:database', ':core:common', ':app']) {
+                    if (coverage.INSTRUCTION == null || coverage.INSTRUCTION < 20.0) failures.add("${entry.project.path}: instruction/statement coverage ${coverage.INSTRUCTION}% is below 20%")
+                    root.logger.lifecycle("${entry.project.path}: Tier 2 branches ${coverage.BRANCH}% (reported; no branch floor)")
+                }
+                root.logger.lifecycle("${entry.project.path}: instruction/statement ${coverage.INSTRUCTION}%, lines ${coverage.LINE}%, branches ${coverage.BRANCH}%, tests ${testsRun}")
+            }
+            def scopedCoverage = summarize(securityProject.layout.buildDirectory.file('reports/hdk-coverage/hdkScopedCoverage.xml').get().asFile)
+            root.logger.lifecycle("${securityProject.path} HDK scope: instruction/statement ${scopedCoverage.INSTRUCTION}%, lines ${scopedCoverage.LINE}%, branches ${scopedCoverage.BRANCH}%")
+            def repositoryCoverage = summarize(root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml').get().asFile)
+            if (repositoryCoverage.INSTRUCTION == null || repositoryCoverage.INSTRUCTION < 20.0) failures.add("repository instruction/statement coverage ${repositoryCoverage.INSTRUCTION}% is below 20%")
+            root.logger.lifecycle("repository: instruction/statement ${repositoryCoverage.INSTRUCTION}%, lines ${repositoryCoverage.LINE}%, branches ${repositoryCoverage.BRANCH}%")
+            if (!failures.isEmpty()) throw new GradleException('HDK coverage gates failed:\n - ' + failures.join('\n - '))
+        }
+    }
+}

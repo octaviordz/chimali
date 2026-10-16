@@ -1,5 +1,6 @@
 package com.chimali.navigation
 
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -70,6 +71,9 @@ fun AppNavGraph(
             !routingState!!.onboardingCompleted -> AppScreen.Onboarding
             else -> AppScreen.Shell
         }
+
+    // Mark startup complete only after persisted routing state resolves and the initial route is ready to draw.
+    ReportDrawnWhen { targetScreen != AppScreen.Loading }
 
     when (targetScreen) {
         AppScreen.Loading -> {
