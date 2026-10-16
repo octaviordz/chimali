@@ -586,6 +586,8 @@ style:
     allowedPatterns: ''
   ForbiddenImport:
     active: true
+    # T003 measurement branch only: numeric records must survive disabled release Kermit output.
+    excludes: ['**/util/performance/BaselineMeasurements.kt']
     imports:
       - value: 'kotlin.io.println'
         reason: 'Use a logger instead.'

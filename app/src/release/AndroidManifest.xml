@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- T003 measurement branch: allow shell tracing while retaining release optimization. -->
+        <profileable android:shell="true" />
+    </application>
+</manifest>

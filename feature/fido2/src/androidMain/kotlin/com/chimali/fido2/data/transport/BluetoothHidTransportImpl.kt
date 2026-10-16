@@ -27,6 +27,7 @@ import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
 import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.util.performance.BaselineMeasurements
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.WarmUpHelper
 import java.security.SecureRandom
@@ -234,6 +235,7 @@ class BluetoothHidTransportImpl(
             stateObserverJob = null
             sendQueueJob?.cancel() // T053a: stop FIFO sender
             sendQueueJob = null
+            BaselineMeasurements.disconnect()
             hidWrapper.unregisterApp()
             channelRegistry.clear()
             hidReportParser.reset()
@@ -471,6 +473,7 @@ class BluetoothHidTransportImpl(
                 LatencyProfiler.end(operationLabel)
             }
 
+        BaselineMeasurements.trackResponse(operationLabel, responsePackets)
         sendPackets(responsePackets)
     }
 
@@ -706,6 +709,7 @@ class BluetoothHidTransportImpl(
         for (packet in packets) {
             val result = sendQueue.trySendBlocking(packet)
             if (result.isFailure) {
+                BaselineMeasurements.reportAccepted(packet, false)
                 Logger.w { "Send queue full — dropping HID packet (queue capacity exceeded)" }
             }
         }
@@ -726,7 +730,9 @@ class BluetoothHidTransportImpl(
         sendQueueJob =
             scope.launch(Dispatchers.IO) {
                 for (packet in sendQueue) {
-                    if (!hidWrapper.sendReport(packet)) {
+                    val accepted = hidWrapper.sendReport(packet)
+                    BaselineMeasurements.reportAccepted(packet, accepted)
+                    if (!accepted) {
                         Logger.w { "sendReport returned false — host may have disconnected" }
                     }
                     delay(REPORT_PACE_DELAY)

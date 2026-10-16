@@ -27,6 +27,7 @@ object LatencyProfiler {
      * Records the start time for an operation identified by [id].
      */
     fun start(id: String) {
+        BaselineMeasurements.start(id)
         startTimes[id] = System.nanoTime()
         userAccumulatedMs[id] = 0L
     }
@@ -36,6 +37,7 @@ object LatencyProfiler {
      * This time will be subtracted from the total in [end].
      */
     fun startUserInteraction(id: String) {
+        BaselineMeasurements.startUserInteraction(id)
         userInteractionStarts[id] = System.nanoTime()
     }
 
@@ -43,6 +45,7 @@ object LatencyProfiler {
      * Ends a user interaction window and accumulates the duration.
      */
     fun endUserInteraction(id: String) {
+        BaselineMeasurements.endUserInteraction(id)
         val startNs = userInteractionStarts.remove(id) ?: return
         val durationMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION
         val current = userAccumulatedMs[id] ?: 0L
@@ -56,6 +59,7 @@ object LatencyProfiler {
      * @return Pure system latency in milliseconds.
      */
     fun end(id: String): Long {
+        BaselineMeasurements.processingComplete(id)
         val startNs =
             startTimes.remove(id) ?: run {
                 Logger.w { "LatencyProfiler.end called without matching start for id='$id'" }
