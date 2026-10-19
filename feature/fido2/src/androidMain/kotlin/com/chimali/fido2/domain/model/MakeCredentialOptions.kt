@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.CredentialProtectionPolicy
 import java.util.Base64
 
 /**
@@ -71,6 +73,7 @@ data class MakeCredentialOptions(
                     key.length <= MAX_EXTENSION_KEY_LENGTH,
                 ) { "Extension key cannot exceed $MAX_EXTENSION_KEY_LENGTH characters" }
             }
+            CredentialProtectionPolicy.fromExtensions(ext)
         }
     }
 
@@ -125,6 +128,10 @@ data class MakeCredentialOptions(
         if (extensions != other.extensions) return false
         return selectedAlgId == other.selectedAlgId
     }
+
+    /** Returns a fixed diagnostic summary without relying-party or account request fields. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "MakeCredentialOptions([sensitive request fields redacted])"
 
     override fun hashCode(): Int {
         var result = rp.hashCode()

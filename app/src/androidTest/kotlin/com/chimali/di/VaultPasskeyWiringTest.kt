@@ -15,8 +15,10 @@ import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
 import com.chimali.core.domain.eventsourcing.vault.VaultCommand
 import com.chimali.core.domain.eventsourcing.vault.VaultState
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.security.di.SecurityModule
 import com.chimali.feature.onboarding.di.onboardingModule
 import com.chimali.feature.settings.di.settingsModule
@@ -136,10 +138,12 @@ class VaultPasskeyWiringTest {
                             userId = "user",
                             userName = "user@example.com",
                             userDisplayName = "User",
-                            credentialId = byteArrayOf(4, 5, 6),
+                            credentialId = ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { it.toByte() },
                             publicKey = "public-key",
                             aaguid = "aaguid",
                             signCount = 0,
+                            coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+                            derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
                         ),
                     ).getOrThrow()
                 passkey.execute(passkeyId, PasskeyCommand.Authenticate(passkeyId, 1)).getOrThrow()

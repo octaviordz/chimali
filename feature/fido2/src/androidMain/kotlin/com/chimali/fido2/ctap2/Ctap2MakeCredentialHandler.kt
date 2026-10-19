@@ -1,26 +1,27 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.isSuccess
-import com.chimali.core.domain.valueobject.RpId
-import com.chimali.core.domain.valueobject.UserId
+import com.chimali.core.domain.model.CredentialProtectionPolicy
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
-import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
+import com.chimali.fido2.domain.model.AuthenticatorSelectionCriteria
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
-import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
@@ -43,9 +44,12 @@ class Ctap2MakeCredentialHandler(
     private val cborCodec: CborCodec,
     private val hidReportParser: HidReportParser,
     private val uiEventBus: Fido2UiEventBus,
-    private val prfKeyDerivation: PrfKeyDerivation,
     private val ceremonyLock: CeremonyLock,
 ) {
+    /** Test-only observer for fallback text owners created during request parsing. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal var onTemporaryRequestOwnerCreatedForTest: ((SensitiveCredentialText) -> Unit)? = null
+
     companion object {
         // CTAPHID command codes
         private const val CTAPHID_CBOR: Byte = 0x10
@@ -66,8 +70,6 @@ class Ctap2MakeCredentialHandler(
 
         // COSE algorithm IDs (accepted)
         private const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
-        private const val COSE_EDSA = -8 // EdDSA / Ed25519, per WebAuthn L3 § 5.4
-        private const val COSE_RS256 = -257 // RSASSA-PKCS1-v1_5 with SHA-256
         private const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
         // COSE algorithm IDs (deprecated — NOT RECOMMENDED per WebAuthn L3, must be rejected)
@@ -86,7 +88,7 @@ class Ctap2MakeCredentialHandler(
         private const val REQ_USER = "3"
         private const val REQ_PUB_KEY_PARAMS = "4"
         private const val REQ_OPTIONS = "7"
-        private const val REQ_EXTENSIONS = "10"
+        private const val REQ_EXTENSIONS = "6"
 
         // Response Map Keys (§6.1)
         private const val RESP_FMT = "1"
@@ -108,8 +110,9 @@ class Ctap2MakeCredentialHandler(
      * [CMD_MAKE_CREDENTIAL] (0x01).
      *
      * @param message  The fully-reassembled CTAPHID message from the host.
-     * @return A list of 64-byte HID packets to send back to the host.
+     * @return A list of 62-byte HID packets to send back to the host.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun handle(message: CtapHidMessage): List<ByteArray> {
         val cid = message.channelId
         val payload = message.payload
@@ -125,17 +128,26 @@ class Ctap2MakeCredentialHandler(
             return errorPackets(cid, CTAP2_ERR_CHANNEL_BUSY)
         }
 
+        var cborData: ByteArray? = null
+        var params: MakeCredentialRequest? = null
+        var decodedFields: Map<String, Any>? = null
         return try {
-            val cborData = payload.drop(1).toByteArray()
-            val params = decodeMakeCredentialRequest(cborData)
-            handleMakeCredential(cid, params)
+            val requestBytes = payload.copyOfRange(1, payload.size)
+            cborData = requestBytes
+            decodedFields = cborCodec.decodeSensitiveRequest(requestBytes)
+            val request = decodeMakeCredentialRequest(decodedFields.orEmpty())
+            params = request
+            handleMakeCredential(cid, request)
         } catch (e: Fido2Exception) {
-            Logger.e(e) { "MakeCredential error: ${e.message}" }
+            Logger.e { "MakeCredential failed with a FIDO2 error" }
             errorPackets(cid, mapExceptionToStatus(e))
         } catch (e: IllegalArgumentException) {
-            Logger.e(e) { "Unexpected illegal argument in MakeCredential" }
+            Logger.e { "MakeCredential rejected an invalid argument" }
             errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
         } finally {
+            params?.eraseOwnedBuffers()
+            cborCodec.eraseDecodedRequestValues(decodedFields)
+            cborData?.fill(0)
             ceremonyLock.unlock()
         }
     }
@@ -143,140 +155,162 @@ class Ctap2MakeCredentialHandler(
     // ── Request decoding ──────────────────────────────────────────────────────
 
     @Suppress("ThrowsCount")
-    private fun decodeMakeCredentialRequest(cbor: ByteArray): MakeCredentialRequest {
-        val map =
-            cborCodec
-                .decodeFromFido2Format(cbor)
-                .takeIf { it.isNotEmpty() }
-                ?: throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    private fun decodeMakeCredentialRequest(map: Map<String, Any>): MakeCredentialRequest {
+        val temporaryOwners = mutableListOf<SensitiveCredentialText>()
 
-        // 0x01: clientDataHash (required)
-        val clientDataHash =
-            (map[REQ_CLIENT_DATA_HASH] ?: map["clientDataHash"]) as? ByteArray
-                ?: throw Fido2Exception.InvalidFormatException("Missing clientDataHash (key 0x01)")
-
-        // 0x02: rp (required)
-        @Suppress("UNCHECKED_CAST")
-        val rpMap =
-            (map[REQ_RP] ?: map["rp"]) as? Map<*, *>
-                ?: throw Fido2Exception.InvalidFormatException("Missing rp entity (key 0x02)")
-        val rpId =
-            rpMap["id"] as? String
-                ?: throw Fido2Exception.InvalidFormatException("Missing rp.id")
-        val rpName = rpMap["name"] as? String ?: rpId
-
-        // 0x03: user (required)
-        @Suppress("UNCHECKED_CAST")
-        val userMap =
-            (map[REQ_USER] ?: map["user"]) as? Map<*, *>
-                ?: throw Fido2Exception.InvalidFormatException("Missing user entity (key 0x03)")
-        val userId =
-            userMap["id"] as? ByteArray
-                ?: throw Fido2Exception.InvalidFormatException("Missing user.id")
-        val userName = userMap["name"] as? String ?: ""
-        val userDisplayName = userMap["displayName"] as? String ?: userName
-
-        // 0x04: pubKeyCredParams (required)
-        @Suppress("UNCHECKED_CAST")
-        val rawParams =
-            (map[REQ_PUB_KEY_PARAMS] ?: map["pubKeyCredParams"]) as? List<*>
-                ?: throw Fido2Exception.InvalidFormatException("Missing pubKeyCredParams (key 0x04)")
-        val algorithms =
-            rawParams.mapNotNull { entry ->
-                (entry as? Map<*, *>)?.let { m ->
-                    (m["alg"] as? Long)?.toInt() ?: (m["alg"] as? Int)
-                }
-            }
-        if (algorithms.isEmpty()) {
-            throw Fido2Exception.MissingParameterException("pubKeyCredParams contains no valid algorithms")
+        fun ownTemporary(owner: SensitiveCredentialText): SensitiveCredentialText {
+            temporaryOwners += owner
+            onTemporaryRequestOwnerCreatedForTest?.invoke(owner)
+            return owner
         }
 
-        // 0x07: options (optional)
-        @Suppress("UNCHECKED_CAST")
-        val options = (map[REQ_OPTIONS] ?: map["options"]) as? Map<*, *>
-        val isUvRequired = options?.get("uv") as? Boolean ?: false
-        val isRkRequired = options?.get("rk") as? Boolean ?: false
+        try {
+            if (map.isEmpty()) throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
 
-        // 0x0A / "extensions": optional FIDO2.1 extension map
-        // T045: Parse hmac-secret (PRF) extension — extract salt1 and optional salt2.
-        @Suppress("UNCHECKED_CAST")
-        val extensions = (map[REQ_EXTENSIONS] ?: map["extensions"]) as? Map<*, *>
-        val credProtectPolicy: Int? =
-            extensions?.let {
-                (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
-            }
+            // 0x01: clientDataHash (required)
+            val clientDataHash =
+                (map[REQ_CLIENT_DATA_HASH] ?: map["clientDataHash"]) as? ByteArray
+                    ?: throw Fido2Exception.InvalidFormatException("Missing clientDataHash (key 0x01)")
 
-        // T045: Parse hmac-secret salts from extensions["hmac-secret"].
-        // CTAP2 encodes these under integer keys 1 (salt1) and 2 (salt2, optional).
-        val prfInput: PrfExtensionInput? =
-            extensions?.let { ext ->
-                val hmacMap = ext["hmac-secret"] as? Map<*, *> ?: return@let null
-                val salt1 = (hmacMap[1] ?: hmacMap[1L]) as? ByteArray ?: return@let null
-                val salt2 = (hmacMap[2] ?: hmacMap[2L]) as? ByteArray
-                val salts = if (salt2 != null) listOf(salt1, salt2) else listOf(salt1)
-                try {
-                    PrfExtensionInput(salts)
-                } catch (e: IllegalArgumentException) {
-                    // T048: >2 salts or wrong size — propagate as null; handleMakeCredential will error.
-                    Logger.w { "hmac-secret: invalid salt input — ${e.message}" }
-                    null
+            // 0x02: rp (required)
+            @Suppress("UNCHECKED_CAST")
+            val rpMap =
+                (map[REQ_RP] ?: map["rp"]) as? Map<*, *>
+                    ?: throw Fido2Exception.InvalidFormatException("Missing rp entity (key 0x02)")
+            val rpId =
+                sensitiveText(rpMap["id"])
+                    ?: throw Fido2Exception.InvalidFormatException("Missing rp.id")
+            val rpName = sensitiveText(rpMap["name"]) ?: ownTemporary(rpId.copyOwner())
+
+            // 0x03: user (required)
+            @Suppress("UNCHECKED_CAST")
+            val userMap =
+                (map[REQ_USER] ?: map["user"]) as? Map<*, *>
+                    ?: throw Fido2Exception.InvalidFormatException("Missing user entity (key 0x03)")
+            val userId =
+                userMap["id"] as? ByteArray
+                    ?: throw Fido2Exception.InvalidFormatException("Missing user.id")
+            val userName = sensitiveText(userMap["name"]) ?: ownTemporary(SensitiveCredentialText.copyOf(""))
+            val userDisplayName = sensitiveText(userMap["displayName"]) ?: ownTemporary(userName.copyOwner())
+
+            // 0x04: pubKeyCredParams (required)
+            @Suppress("UNCHECKED_CAST")
+            val rawParams =
+                (map[REQ_PUB_KEY_PARAMS] ?: map["pubKeyCredParams"]) as? List<*>
+                    ?: throw Fido2Exception.InvalidFormatException("Missing pubKeyCredParams (key 0x04)")
+            val algorithms =
+                rawParams.mapNotNull { entry ->
+                    val parameters = entry as? Map<*, *> ?: return@mapNotNull null
+                    val algorithm = parameters["alg"] ?: return@mapNotNull null
+                    when (algorithm) {
+                        is Int -> algorithm
+                        is Long -> {
+                            if (algorithm !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+                                throw Fido2Exception.InvalidParameter("Invalid COSE algorithm value")
+                            }
+                            algorithm.toInt()
+                        }
+                        else -> throw Fido2Exception.InvalidParameter("Invalid COSE algorithm value")
+                    }
                 }
+            if (algorithms.isEmpty()) {
+                throw Fido2Exception.MissingParameterException("pubKeyCredParams contains no valid algorithms")
             }
 
-        return MakeCredentialRequest(
-            clientDataHash = clientDataHash,
-            rpId = rpId,
-            rpName = rpName,
-            userId = userId,
-            userName = userName,
-            userDisplayName = userDisplayName,
-            algorithms = algorithms,
-            isUvRequired = isUvRequired,
-            isRkRequired = isRkRequired,
-            credProtectPolicy = credProtectPolicy,
-            prfInput = prfInput,
-        )
+            // 0x07: options (optional). Presence with a malformed shape/value is not omission.
+            val (isUvRequired, isRkRequired) = decodeRegistrationOptions(map)
+
+            // 0x06 / "extensions": optional FIDO2.1 extension map. Key 0x0A is enterpriseAttestation.
+            val rawExtensions = map[REQ_EXTENSIONS] ?: map["extensions"]
+            if ((map.containsKey(REQ_EXTENSIONS) || map.containsKey("extensions")) && rawExtensions !is Map<*, *>) {
+                throw Fido2Exception.InvalidParameter("Invalid MakeCredential extensions")
+            }
+            val extensions = rawExtensions as? Map<*, *>
+            val credProtectPolicy =
+                try {
+                    CredentialProtectionPolicy.fromExtensions(extensions)
+                } catch (_: IllegalArgumentException) {
+                    throw Fido2Exception.InvalidParameter("Invalid credProtect policy")
+                }
+
+            val request =
+                MakeCredentialRequest(
+                    clientDataHash = clientDataHash,
+                    rpId = rpId,
+                    rpName = rpName,
+                    userId = userId,
+                    userName = userName,
+                    userDisplayName = userDisplayName,
+                    algorithms = algorithms,
+                    isUvRequired = isUvRequired,
+                    isRkRequired = isRkRequired,
+                    credProtectPolicy = credProtectPolicy,
+                )
+            temporaryOwners.clear()
+            return request
+        } finally {
+            temporaryOwners.forEach(SensitiveCredentialText::erase)
+        }
+    }
+
+    private fun sensitiveText(value: Any?): SensitiveCredentialText? =
+        when (value) {
+            is SensitiveCredentialText -> value
+            is String -> SensitiveCredentialText.copyOf(value)
+            else -> null
+        }
+
+    /** Parses the supported registration booleans while distinguishing absent from malformed options. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    private fun decodeRegistrationOptions(map: Map<String, Any>): Pair<Boolean, Boolean> {
+        val optionsPresent = map.containsKey(REQ_OPTIONS) || map.containsKey("options")
+        if (!optionsPresent) return false to false
+        val rawOptions = if (map.containsKey(REQ_OPTIONS)) map[REQ_OPTIONS] else map["options"]
+        val options =
+            rawOptions as? Map<*, *>
+                ?: throw Fido2Exception.InvalidFormatException("Invalid MakeCredential options")
+
+        fun flag(name: String): Boolean =
+            if (!options.containsKey(name)) {
+                false
+            } else {
+                options[name] as? Boolean
+                    ?: throw Fido2Exception.InvalidFormatException("Invalid MakeCredential $name option")
+            }
+        return flag("uv") to flag("rk")
     }
 
     // ── Core handler ──────────────────────────────────────────────────────────
 
+    /**
+     * Builds registration options from owned request fields. Registration consumes `credProtect`;
+     * hmac-secret salts have no registration result consumer and remain in the decoded request map,
+     * whose owner erases every byte-string value when this CTAP request terminates.
+     */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     private suspend fun handleMakeCredential(
         cid: ByteArray,
         req: MakeCredentialRequest,
     ): List<ByteArray> {
-        Logger.d { "handleMakeCredential START rpId=${req.rpId} user=${req.userName}" }
+        Logger.d { "MakeCredential request admitted" }
 
-        val rp = PublicKeyCredentialRpEntity.create(RpId(req.rpId), req.rpName)
+        val rp = PublicKeyCredentialRpEntity.fromSensitiveOwners(req.rpId, req.rpName)
         val user =
-            PublicKeyCredentialUserEntity.create(
-                UserId.fromByteArray(req.userId),
+            PublicKeyCredentialUserEntity.fromSensitiveOwners(
+                req.userId,
                 req.userName,
                 req.userDisplayName,
             )
 
-        // T019 Algorithm Negotiation: Pick the first algorithm requested that we support.
-        // Preference order: -7 (ES256/P-256) → -8 (EdDSA/Ed25519) → -257 (RS256) → -49 (ML-DSA-65)
-        // Deprecated identifiers -9, -19, -51, -52 are explicitly rejected with a log warning.
+        // Select the first RP-offered algorithm for which this build has a local derivation profile.
+        // Deprecated identifiers -9, -19, -51 and -52 remain unsupported.
+        val negotiatedAlgorithm = MakeCredentialAlgorithmNegotiator.select(req.algorithms)
         val (selectedAlgId, pubKeyCredParams) =
-            req.algorithms.firstNotNullOfOrNull { algId ->
-                when (algId) {
-                    COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
-                    COSE_EDSA -> COSE_EDSA to PublicKeyCredentialParameters.createEdDsa()
-                    COSE_RS256 -> COSE_RS256 to PublicKeyCredentialParameters.createRS256()
-                    COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
-                    COSE_DEPRECATED_9, COSE_DEPRECATED_19, COSE_DEPRECATED_51, COSE_DEPRECATED_52 -> {
-                        Logger.w {
-                            "Algorithm negotiation: ignoring deprecated COSE alg $algId " +
-                                "(NOT RECOMMENDED per WebAuthn L3 §5.4)"
-                        }
-                        null
-                    }
-                    else -> null
-                }
-            } ?: run {
+            negotiatedAlgorithm ?: run {
                 Logger.e {
                     "Algorithm negotiation failed: None of the requested algorithms " +
-                        "${req.algorithms} are supported"
+                        "${req.algorithms} have a supported local profile"
                 }
                 return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
             }
@@ -294,32 +328,9 @@ class Ctap2MakeCredentialHandler(
             }
         }
 
-        // T046: Derive PRF outputs if the RP included hmac-secret extension salts.
-        // T049: If derivation fails (missing seed), omit PRF without failing the ceremony.
-        val prfOutputMap: Map<String, Any>? =
-            req.prfInput?.let { prfIn ->
-                val credentialIdStr =
-                    java.util.Base64
-                        .getUrlEncoder()
-                        .withoutPadding()
-                        .encodeToString(req.clientDataHash) // use clientDataHash as credential ID proxy pre-storage
-                val prfOutput = prfKeyDerivation.deriveAll(prfIn, credentialIdStr)
-                if (prfOutput != null) {
-                    Logger.d { "PRF extension: derived output(s) for MakeCredential" }
-                    mapOf("hmac-secret" to prfOutput.toCborMap())
-                } else {
-                    Logger.w {
-                        "PRF extension: derivation returned null — " +
-                            "omitting from MakeCredential response (T049)"
-                    }
-                    null
-                }
-            }
-
         val extensionsMap =
             buildMap<String, Any> {
                 req.credProtectPolicy?.let { put("credProtect", it) }
-                prfOutputMap?.let { putAll(it) }
             }.ifEmpty { null }
 
         val makeCredentialOptions =
@@ -328,37 +339,53 @@ class Ctap2MakeCredentialHandler(
                 user = user,
                 challenge = req.clientDataHash,
                 pubKeyCredParams = pubKeyCredParams,
+                authenticatorSelection =
+                    if (req.isUvRequired) {
+                        AuthenticatorSelectionCriteria.create(
+                            userVerification = UserVerificationRequirement.REQUIRED,
+                        )
+                    } else {
+                        null
+                    },
                 extensions = extensionsMap,
                 selectedAlgId = selectedAlgId,
             )
 
         val deferred = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
+        val userInteractionCompleted = CompletableDeferred<Unit>()
         Logger.d("Dispatching RegistrationRequested event to UI")
-        uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred))
+        LatencyProfiler.startUserInteraction("MakeCredential")
+        uiEventBus.dispatch(
+            Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred, userInteractionCompleted),
+        )
         Logger.d("Event dispatched — awaiting user response via deferred")
 
-        // NFR-PERF-030: Exclude UI interaction time from system latency
-        LatencyProfiler.startUserInteraction("MakeCredential")
+        // NFR-PERF-030: close the user window at prompt confirmation, before application work resumes.
         val makeCredentialResult =
             try {
-                kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
-                    deferred.await()
+                LatencyProfiler.untilUserInteractionCompletes("MakeCredential", userInteractionCompleted) {
+                    kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
+                        deferred.await()
+                    }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 Logger.e { "MakeCredential timed out after ${makeCredentialOptions.getSafeTimeout()}ms" }
+                deferred.cancel(e)
                 return hidReportParser.encodeResponse(
                     CtapHidMessage(cid, CTAPHID_CBOR.toInt(), byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT)),
                 )
+            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                deferred.cancel(cancellation)
+                throw cancellation
             }
-        LatencyProfiler.endUserInteraction("MakeCredential")
         Logger.d {
             "Deferred resolved — success=${makeCredentialResult.isSuccess} " +
-                "error=${(makeCredentialResult as? Outcome.Error)?.error?.message}"
+                "failed=${makeCredentialResult is Outcome.Error}"
         }
 
         if (makeCredentialResult is Outcome.Error) {
             val err = makeCredentialResult.error
-            Logger.e(err.cause) { "Registration failed or cancelled: ${err.message}" }
+            Logger.e { "Registration failed or was cancelled" }
             return when (err) {
                 is DomainError.DatabaseError, is DomainError.StorageError ->
                     errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
@@ -368,14 +395,19 @@ class Ctap2MakeCredentialHandler(
             }
         }
 
-        val attestation = (makeCredentialResult as Outcome.Success).data.attestationObject
-        Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
-        val responseCbor = encodeAttestationResponse(attestation)
-        val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
-        // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
-        val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
-        Logger.d { "MakeCredential response ready payloadLen=${responsePayload.size}" }
-        return hidReportParser.encodeResponse(responseMsg)
+        val result = (makeCredentialResult as Outcome.Success).data
+        try {
+            val attestation = result.attestationObject
+            Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
+            val responseCbor = encodeAttestationResponse(attestation)
+            val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
+            // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
+            val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
+            Logger.d { "MakeCredential response ready payloadLen=${responsePayload.size}" }
+            return hidReportParser.encodeResponse(responseMsg)
+        } finally {
+            result.eraseSensitiveText()
+        }
     }
 
     // ── CBOR response encoding ────────────────────────────────────────────────
@@ -391,6 +423,7 @@ class Ctap2MakeCredentialHandler(
      * [AttestationStatement.authData] stores exactly those signed bytes; use them directly
      * instead of re-serializing from AuthenticatorData fields (which risks divergence).
      */
+
     private fun encodeAttestationResponse(attestation: AttestationObject): ByteArray {
         // Use the pre-built, pre-signed authData bytes when available (packed attestation).
         // Fall back to re-serialization only for none-attestation (where no sig exists).
@@ -418,6 +451,7 @@ class Ctap2MakeCredentialHandler(
      * Serialises [AuthenticatorData] per CTAP2 / WebAuthn spec:
      *   rpIdHash(32) + flags(1) + signCount(4 BE) + AAGUID(16) + credIdLen(2 BE) + credId + cose key
      */
+
     private fun buildAuthenticatorData(authData: AuthenticatorData): ByteArray {
         val result = mutableListOf<Byte>()
         result.addAll(authData.rpIdHash.toList()) // 32 bytes
@@ -484,28 +518,74 @@ class Ctap2MakeCredentialHandler(
         }
 }
 
+/** Negotiates in RP offer order and returns only algorithms with an implemented local key profile. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+internal object MakeCredentialAlgorithmNegotiator {
+    private const val COSE_ES256 = -7
+    private const val COSE_EDDSA = -8
+    private const val COSE_ML_DSA_65 = -49
+    private const val COSE_DEPRECATED_9 = -9
+    private const val COSE_DEPRECATED_19 = -19
+    private const val COSE_DEPRECATED_51 = -51
+    private const val COSE_DEPRECATED_52 = -52
+
+    /** Selects the first supported COSE algorithm in RP order; returns null when none is supported. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun select(algorithmsInRpOrder: List<Int>): Pair<Int, PublicKeyCredentialParameters>? =
+        algorithmsInRpOrder.firstNotNullOfOrNull { algorithm ->
+            when (algorithm) {
+                COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
+                COSE_EDDSA -> COSE_EDDSA to PublicKeyCredentialParameters.createEdDsa()
+                COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
+                COSE_DEPRECATED_9, COSE_DEPRECATED_19, COSE_DEPRECATED_51, COSE_DEPRECATED_52 -> {
+                    Logger.w {
+                        "Algorithm negotiation: ignoring deprecated COSE alg $algorithm " +
+                            "(NOT RECOMMENDED per WebAuthn L3 §5.4)"
+                    }
+                    null
+                }
+                else -> null
+            }
+        }
+}
+
 /** Internal parsed MakeCredential request. */
 private data class MakeCredentialRequest(
     val clientDataHash: ByteArray,
-    val rpId: String,
-    val rpName: String,
+    val rpId: SensitiveCredentialText,
+    val rpName: SensitiveCredentialText,
     val userId: ByteArray,
-    val userName: String,
-    val userDisplayName: String,
+    val userName: SensitiveCredentialText,
+    val userDisplayName: SensitiveCredentialText,
     val algorithms: List<Int>,
     val isUvRequired: Boolean,
     val isRkRequired: Boolean,
     /**
-     * T056a — FIDO2.1 credProtect policy from the client extensions map (key 0x0A).
+     * T056a — FIDO2.1 credProtect policy from the extensions map carried at MakeCredential key 0x06.
      *   1 = credProtectOptional (default if absent)
      *   2 = credProtectOptionalWithCredentialIdList
      *   3 = credProtectRequired — GetAssertion MUST fail without user verification
      * Null means the RP did not specify a policy.
      */
     val credProtectPolicy: Int? = null,
-    // T045: PRF extension — salts parsed from extensions["hmac-secret"]; null if absent.
-    val prfInput: PrfExtensionInput? = null,
 ) {
+    /** Erases the owned request byte buffers after the complete ceremony has consumed them. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseOwnedBuffers() {
+        clientDataHash.fill(0)
+        userId.fill(0)
+        rpId.erase()
+        rpName.erase()
+        userName.erase()
+        userDisplayName.erase()
+    }
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String =
+        "MakeCredentialRequest([sensitive request fields redacted], algorithms=$algorithms, " +
+            "isUvRequired=$isUvRequired, isRkRequired=$isRkRequired, credProtectPolicy=$credProtectPolicy)"
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MakeCredentialRequest) return false
@@ -524,6 +604,7 @@ private data class MakeCredentialRequest(
         return true
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun hashCode(): Int {
         var result = clientDataHash.contentHashCode()
         result = 31 * result + rpId.hashCode()

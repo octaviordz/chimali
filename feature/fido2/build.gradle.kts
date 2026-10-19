@@ -52,7 +52,9 @@ kotlin {
         }
 
         withHostTest {}
-        withDeviceTest {}
+        withDeviceTest {
+            enableCoverage = true
+        }
 
         @Suppress("UnstableApiUsage")
         optimization {
@@ -171,7 +173,6 @@ kotlin {
                 implementation(libs.androidx.test.espresso.core)
                 implementation(libs.compose.ui.test)
                 implementation(libs.compose.ui.test.junit4)
-                implementation(libs.mockk.android)
             }
         }
     }

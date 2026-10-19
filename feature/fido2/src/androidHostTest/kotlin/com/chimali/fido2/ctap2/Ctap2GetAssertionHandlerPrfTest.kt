@@ -1,5 +1,6 @@
 package com.chimali.fido2.ctap2
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PrfExtensionOutput
@@ -30,7 +31,12 @@ class Ctap2GetAssertionHandlerPrfTest {
 
     // ── One salt → CBOR map with key 1 only ──────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun singleSalt_cborMap_containsKey1Only() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -40,7 +46,12 @@ class Ctap2GetAssertionHandlerPrfTest {
         assertFalse(cborMap.containsKey(2), "Key 2 must not be present for single-salt output")
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun singleSalt_cborMap_output1_is32Bytes() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -54,7 +65,12 @@ class Ctap2GetAssertionHandlerPrfTest {
 
     // ── Two salts → CBOR map with keys 1 and 2 ───────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun dualSalt_cborMap_containsKeys1And2() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes, output2 = output2Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -64,7 +80,12 @@ class Ctap2GetAssertionHandlerPrfTest {
         assertTrue(cborMap.containsKey(2), "Key 2 must be present for output2")
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun dualSalt_cborMap_bothOutputs_are32Bytes() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes, output2 = output2Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -73,7 +94,12 @@ class Ctap2GetAssertionHandlerPrfTest {
         assertEquals(32, (cborMap[2] as ByteArray).size, "output2 must be 32 bytes")
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun dualSalt_cborMap_output1_and_output2_are_distinct() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes, output2 = output2Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -85,7 +111,12 @@ class Ctap2GetAssertionHandlerPrfTest {
 
     // ── Three salts → PrfExtensionInput throws → omit extension ──────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun threeSalts_prfExtensionInput_throws() {
         val salt = ByteArray(32) { 0x01 }
         var threw = false
@@ -102,7 +133,12 @@ class Ctap2GetAssertionHandlerPrfTest {
 
     // ── Edge cases ────────────────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun cborMap_integerKeys_not_string_keys() {
         val prfOutput = PrfExtensionOutput(output1 = output1Bytes, output2 = output2Bytes)
         val cborMap = prfOutput.toCborMap()
@@ -114,7 +150,12 @@ class Ctap2GetAssertionHandlerPrfTest {
         )
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun hmacSecretProcessor_extensionKey_is_hmac_secret_literal() {
         assertEquals(
             "hmac-secret",

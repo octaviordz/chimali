@@ -1,11 +1,14 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertFailsWith
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
  *  3. "Invalid data" — the packed attestation was signed with ES256 instead of ML-DSA.
  *  4. End-to-end sign/verify: the key derived for signing must match the key in authData.
  */
+@Req("NFR-SEC-041", "TR-AUTH-031")
 class CborCodecTest {
     init {
         BouncyCastleLoader.ensureRegistered()
@@ -31,13 +35,242 @@ class CborCodecTest {
     private val codec = CborCodec()
     private val pqCrypto = PostQuantumCrypto()
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `sensitive credential text encodes as the same CBOR text string without a String adapter`() {
+        val value = SensitiveCredentialText.copyOf("acct-\\\"雪-🗝")
+        try {
+            val sensitiveEncoded = codec.encodeToFido2Format(mapOf("6" to mapOf("name" to value)))
+            val compatibilityEncoded = codec.encodeToFido2Format(mapOf("6" to mapOf("name" to "acct-\\\"雪-🗝")))
+
+            assertContentEquals(compatibilityEncoded, sensitiveEncoded)
+        } finally {
+            value.erase()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `sensitive request decoding owns mutable text and clears it at request end`() {
+        val marker = "synthetic-account-marker"
+        val encoded = codec.encodeToFido2Format(mapOf("2" to mapOf("name" to marker)))
+        val decoded = codec.decodeSensitiveRequest(encoded)
+        val rp = decoded["2"] as Map<*, *>
+        val owner = rp["name"] as SensitiveCredentialText
+
+        assertEquals(marker, owner.toBoundaryString())
+
+        codec.eraseDecodedRequestValues(decoded)
+
+        assertContentEquals(CharArray(marker.length), owner.copyCharacters())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `sensitive decoding erases map key owners and ignores unknown nested text fields`() {
+        val owners = mutableListOf<SensitiveCredentialText>()
+        val observedCodec = CborCodec().apply { onDecodedTextOwnerForTest = owners::add }
+        val encoded =
+            observedCodec.encodeToFido2Format(
+                mapOf(
+                    "2" to
+                        mapOf(
+                            "name" to "retained-rp-name",
+                            "synthetic-unknown-secret-key" to
+                                mapOf("nested-unknown-key" to "nested-unknown-value"),
+                        ),
+                ),
+            )
+
+        val decoded = observedCodec.decodeSensitiveRequest(encoded)
+        val rp = decoded.getValue("2") as Map<*, *>
+        val retainedName = rp["name"] as SensitiveCredentialText
+
+        assertEquals("retained-rp-name", retainedName.toBoundaryString())
+        assertEquals(null, rp["synthetic-unknown-secret-key"])
+        assertTrue(
+            owners
+                .filterNot { it === retainedName }
+                .all { owner -> owner.copyCharacters().all { it == '\u0000' } },
+        )
+
+        observedCodec.eraseDecodedRequestValues(decoded)
+
+        assertTrue(owners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decoder rejects trailing truncated oversized deeply nested and malformed UTF-8 input`() {
+        val trailing = byteArrayOf(0xA0.toByte(), 0x00)
+        val truncatedByteString = byteArrayOf(0x58, 0x04, 0x01)
+        val oversizedArray = byteArrayOf(0x9A.toByte(), 0x7F, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
+        val tooDeep = ByteArray(66) { 0x81.toByte() } + byteArrayOf(0xF6.toByte())
+        val malformedUtf8 = byteArrayOf(0x61, 0x80.toByte())
+
+        listOf(trailing, truncatedByteString, oversizedArray, tooDeep, malformedUtf8).forEach { malformed ->
+            assertEquals(emptyMap<String, Any>(), codec.decodeFromFido2Format(malformed))
+        }
+        assertEquals(
+            emptyMap<String, Any>(),
+            codec.decodeFromFido2Format(byteArrayOf(0xA2.toByte(), 0x01, 0xF6.toByte(), 0x01, 0xF6.toByte())),
+        )
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decoder preserves explicit null and undefined map values`() {
+        val decoded = codec.decodeFromFido2Format(byteArrayOf(0xA2.toByte(), 0x01, 0xF6.toByte(), 0x02, 0xF7.toByte()))
+
+        assertEquals(CborCodec.SimpleValue.NULL, decoded["1"])
+        assertEquals(CborCodec.SimpleValue.UNDEFINED, decoded["2"])
+        assertEquals(
+            decoded,
+            codec.decodeFromFido2Format(codec.encodeToFido2Format(decoded)),
+        )
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR malformed trailing structure clears byte strings decoded before failure`() {
+        val retained = mutableListOf<ByteArray>()
+        val observedCodec = CborCodec().apply { onDecodedByteStringForTest = retained::add }
+        val malformed = byteArrayOf(0xA2.toByte(), 0x01, 0x42, 0x11, 0x22, 0x02)
+
+        assertEquals(emptyMap<String, Any>(), observedCodec.decodeFromFido2Format(malformed))
+        assertEquals(1, retained.size)
+        assertContentEquals(ByteArray(2), retained.single())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR map encoding is canonical and preserves negative integer key type`() {
+        val first = linkedMapOf("10" to "ten", "-1" to "negative", "1" to "one")
+        val second = linkedMapOf("1" to "one", "10" to "ten", "-1" to "negative")
+
+        val encoded = codec.encodeToFido2Format(first)
+
+        assertContentEquals(encoded, codec.encodeToFido2Format(second))
+        assertContentEquals(
+            byteArrayOf(
+                0xA3.toByte(),
+                0x01,
+                0x63,
+                0x6F,
+                0x6E,
+                0x65,
+                0x0A,
+                0x63,
+                0x74,
+                0x65,
+                0x6E,
+                0x20,
+                0x68,
+                0x6E,
+                0x65,
+                0x67,
+                0x61,
+                0x74,
+                0x69,
+                0x76,
+                0x65,
+            ),
+            encoded,
+        )
+        assertFailsWith<IllegalArgumentException> {
+            codec.encodeToFido2Format(linkedMapOf("1" to "one", "01" to "alias"))
+        }
+        val decoded = codec.decodeFromFido2Format(encoded)
+        assertEquals("negative", decoded["-1"])
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR text encoding erases temporary UTF-8 byte arrays`() {
+        val erasedTextBuffers = mutableListOf<ByteArray>()
+        val observedCodec = CborCodec().apply { onTemporaryTextBytesErasedForTest = erasedTextBuffers::add }
+
+        observedCodec.encodeToFido2Format(mapOf("synthetic-key" to "synthetic-sensitive-value-雪"))
+
+        assertEquals(2, erasedTextBuffers.size)
+        assertTrue(erasedTextBuffers.all { bytes -> bytes.all { it == 0.toByte() } })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR encoding erases every replaced plaintext buffer and preserves the returned response`() {
+        val erasedBuffers = mutableListOf<ByteArray>()
+        val observedCodec = CborCodec().apply { onIntermediateBufferErasedForTest = erasedBuffers::add }
+        val ascii = "account-".repeat(96)
+        val escaped = "escaped-\\\"-".repeat(96)
+        val unicode = "雪-🗝-".repeat(96)
+        val sensitive = SensitiveCredentialText.copyOf(unicode)
+
+        try {
+            val encoded =
+                observedCodec.encodeToFido2Format(
+                    linkedMapOf(
+                        "ascii" to ascii,
+                        "escaped" to escaped,
+                        "unicode" to sensitive,
+                    ),
+                )
+
+            assertTrue(erasedBuffers.size >= 2, "fixture must force multiple backing-buffer replacements")
+            assertTrue(erasedBuffers.all { buffer -> buffer.all { it == 0.toByte() } })
+            assertTrue(encoded.any { it != 0.toByte() }, "returned response is independently owned and remains intact")
+            val decoded = observedCodec.decodeFromFido2Format(encoded)
+            assertEquals(ascii, decoded["ascii"])
+            assertEquals(escaped, decoded["escaped"])
+            assertEquals(unicode, decoded["unicode"])
+        } finally {
+            sensitive.erase()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR encoding failure erases grown plaintext buffers before propagating`() {
+        val erasedBuffers = mutableListOf<ByteArray>()
+        val observedCodec = CborCodec().apply { onIntermediateBufferErasedForTest = erasedBuffers::add }
+        val value = SensitiveCredentialText.copyOf("敏感-account-🗝-".repeat(256))
+        val values =
+            object : AbstractList<Any>() {
+                override val size: Int = 2
+
+                override fun get(index: Int): Any =
+                    when (index) {
+                        0 -> value
+                        else -> error("synthetic later-value encoding failure")
+                    }
+            }
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                observedCodec.encodeToFido2Format(mapOf("account" to values))
+            }
+            assertTrue(erasedBuffers.size >= 2, "failure fixture must force multiple backing-buffer replacements")
+            assertTrue(erasedBuffers.all { buffer -> buffer.all { it == 0.toByte() } })
+        } finally {
+            value.erase()
+        }
+    }
+
     private companion object {
         private const val COSE_KTY_AKP = 7L
         private const val COSE_ALG_ML_DSA_65 = -49L
         private const val ML_DSA_RAW_KEY_SIZE = 1952
-        private const val SEED_SIZE_64 = 64
         private const val SEED_SIZE_32 = 32
-        private const val BUFFER_SIZE_128 = 128
         private const val DUMMY_DATA_SIZE = 32
         private const val DUMMY_BYTE_11 = 0x11.toByte()
         private const val DUMMY_BYTE_42 = 0x42.toByte()
@@ -48,11 +281,12 @@ class CborCodecTest {
         private const val DUMMY_BYTE_06 = 0x06.toByte()
         private const val DUMMY_CID_1 = 0x01.toByte()
         private const val DUMMY_CID_2 = 0x02.toByte()
-        private const val ENTROPY_999 = 999L
     }
 
     // ── kty / alg encoding ────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `encodeCoseMlDsaPublicKey produces kty=7 AKP and alg=-49`() {
         val dummyPubKey = ByteArray(DUMMY_DATA_SIZE) { DUMMY_BYTE_11 }
@@ -70,9 +304,11 @@ class CborCodecTest {
 
     // ── DER stripping ─────────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `encodeCosePublicKeyFromJavaKey strips DER header and returns raw 1952 bytes`() {
-        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_42 }
+        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_42 }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair, "ML-DSA key pair must be generated")
 
@@ -95,9 +331,11 @@ class CborCodecTest {
         )
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `encodeCosePublicKeyFromJavaKey pub matches raw bytes from SubjectPublicKeyInfo`() {
-        val seed = ByteArray(SEED_SIZE_64) { DUMMY_BYTE_55 }
+        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_55 }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)!!
 
         val spki = SubjectPublicKeyInfo.getInstance(keyPair.public.encoded)
@@ -115,60 +353,16 @@ class CborCodecTest {
         )
     }
 
-    // ── Determinism: same seed must always produce the same key ───────────────
-
-    /**
-     * Directly validates [DeterministicSecureRandom]: the same seed must always produce
-     * the same byte stream regardless of JVM vs Android runtime.
-     *
-     * This is the root fix for "Invalid data": Android's SHA1PRNG accumulated system entropy
-     * even after setSeed(), producing different key pairs between registration and signing.
-     */
-    @Test
-    fun `DeterministicSecureRandom produces identical bytes from same seed on any runtime`() {
-        val seed = ByteArray(SEED_SIZE_32) { 0xDE.toByte() }
-
-        val rng1 = DeterministicSecureRandom(seed)
-        val rng2 = DeterministicSecureRandom(seed)
-
-        val out1 = ByteArray(BUFFER_SIZE_128).also { rng1.nextBytes(it) }
-        val out2 = ByteArray(BUFFER_SIZE_128).also { rng2.nextBytes(it) }
-
-        assertContentEquals(
-            out1,
-            out2,
-            "DeterministicSecureRandom must produce identical bytes from the same seed " +
-                "on any JVM/Android runtime — no system entropy should be injected.",
-        )
-    }
-
-    @Test
-    fun `DeterministicSecureRandom rejects setSeed`() {
-        val seed = ByteArray(SEED_SIZE_32) { 0xAA.toByte() }
-        val rng = DeterministicSecureRandom(seed)
-        val before = ByteArray(SEED_SIZE_32).also { DeterministicSecureRandom(seed).nextBytes(it) }
-
-        // Calling setSeed with different data must NOT change output
-        rng.setSeed(ByteArray(SEED_SIZE_32) { 0xFF.toByte() })
-        rng.setSeed(ENTROPY_999)
-
-        val after = ByteArray(SEED_SIZE_32).also { rng.nextBytes(it) }
-        assertContentEquals(
-            before,
-            after,
-            "setSeed must be a no-op — external entropy must never alter the deterministic stream.",
-        )
-    }
-
     /**
      * CRITICAL regression for "Invalid data":
      * Registration stores the public key from derivation #1.
      * Signing re-derives the key pair (derivation #2) — they MUST be identical.
-     * With DeterministicSecureRandom replacing SHA1PRNG, this now holds on Android too.
+     * BC 1.80 imports the same 32-byte FIPS 204 xi directly for each key reconstruction.
+     * @see NFR-SEC-041 and TR-AUTH-031
      */
     @Test
     fun `generateMlDsaKeyPair is deterministic - same seed produces same key pair`() {
-        val seed = ByteArray(SEED_SIZE_64) { 0xAB.toByte() }
+        val seed = ByteArray(SEED_SIZE_32) { 0xAB.toByte() }
 
         val keyPair1 = pqCrypto.generateMlDsaKeyPair(seed)!!
         val keyPair2 = pqCrypto.generateMlDsaKeyPair(seed)!!
@@ -184,9 +378,11 @@ class CborCodecTest {
         )
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `ML-DSA sign with re-derived key verifies against original public key`() {
-        val seed = ByteArray(SEED_SIZE_64) { 0xAB.toByte() }
+        val seed = ByteArray(SEED_SIZE_32) { 0xAB.toByte() }
 
         // Registration: derive key pair, store public key
         val keyPair1 = pqCrypto.generateMlDsaKeyPair(seed)!!
@@ -225,10 +421,11 @@ class CborCodecTest {
      *
      * If this fails, "Invalid data" is caused by the server being unable to verify
      * our ML-DSA signature even after the COSE encoding is correct.
+     * @see NFR-SEC-041 and TR-AUTH-031
      */
     @Test
     fun `server side round-trip - reconstruct ML-DSA key from COSE pub and verify signature`() {
-        val seed = ByteArray(SEED_SIZE_64) { 0xCD.toByte() }
+        val seed = ByteArray(SEED_SIZE_32) { 0xCD.toByte() }
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)!!
 
         // 1. COSE-encode the public key (what we embed in authData)
@@ -273,7 +470,7 @@ class CborCodecTest {
         // Re-use BouncyCastle's own SPKI builder: parse the original SPKI to get the
         // AlgorithmIdentifier, then rebuild with the new key bytes.
         // The simplest approach: generate a fresh key pair and swap the public key bytes.
-        val tempSeed = ByteArray(SEED_SIZE_64) { 0x01 }
+        val tempSeed = ByteArray(SEED_SIZE_32) { 0x01 }
         val tempKeyPair = pqCrypto.generateMlDsaKeyPair(tempSeed)!!
         val tempSpki = SubjectPublicKeyInfo.getInstance(tempKeyPair.public.encoded)
 

@@ -4,6 +4,7 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -11,10 +12,9 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
-import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.api.MasterSeedProvider
-import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.core.security.hdkeys.HdkP256
+import com.chimali.core.security.hdkeys.P256ParentKeyDerivation
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
@@ -26,6 +26,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -43,8 +44,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import java.math.BigInteger
 import java.security.Security
+import java.security.Signature
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -54,6 +55,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -69,21 +71,18 @@ class MultiAlgorithmIntegrationTest {
 
     companion object {
         private const val SEED_SIZE_32 = 32
-        private const val SEED_SIZE_64 = 64
         private const val MAX_PIN_LENGTH = 8
         private const val MIN_PIN_LENGTH = 4
         private const val MAX_CREDENTIALS = 1000
         private const val MIN_ML_DSA_PUB_KEY_SIZE_1900 = 1900
         private const val MIN_ML_DSA_SIG_SIZE_3000 = 3000
         private const val DUMMY_BYTE_CD = 0xCD.toByte()
-        private const val PATH_ARG_INDEX_2 = 2
     }
 
     private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
-    private val realPqSeed = ByteArray(SEED_SIZE_64) { (it + 1).toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let {
-            HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
+        P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
+            HdkKeyPair(result.privateScalar.copyOf(), result.publicKey.copyOf()).also { result.erasePrivateScalar() }
         }
     }
 
@@ -102,45 +101,19 @@ class MultiAlgorithmIntegrationTest {
 
         val masterSeedProvider: MasterSeedProvider =
             mockk {
-                coEvery { getMasterSeed() } returns realSeed
-                coEvery { getDeviceKeyPair() } returns realDeviceKeyPair
-                coEvery { getPqChildSeed() } returns realPqSeed
+                every { sessionGeneration() } returns 1L
+                every { isSessionGenerationCurrent(any()) } returns true
+                coEvery { getMasterSeed() } answers { realSeed.copyOf() }
+                coEvery { getDeviceKeyPair() } answers {
+                    HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf())
+                }
             }
 
-        val hdkManager: HdkManager =
-            mockk {
-                every { deriveHdk(any(), any(), any()) } answers {
-                    val seed = arg<ByteArray>(1)
-                    val path = arg<List<UInt>>(PATH_ARG_INDEX_2)
-                    val digest = java.security.MessageDigest.getInstance("SHA-256")
-                    path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
-                    val childScalar =
-                        BigInteger(1, digest.digest(seed)).mod(P256Group.ORDER).let {
-                            if (it == BigInteger.ZERO) BigInteger.ONE else it
-                        }
-                    val childPubKey = P256Group.G.multiply(childScalar).normalize()
-                    HdkResult(
-                        publicKey = P256Group.serializeElement(childPubKey),
-                        salt = ByteArray(SEED_SIZE_32),
-                        blindingFactor = P256Group.serializeScalar(childScalar),
-                    )
-                }
-                every { blindPrivateKey(any(), any()) } answers {
-                    val devicePriv = BigInteger(1, arg<ByteArray>(0))
-                    val blindFactor = BigInteger(1, arg<ByteArray>(1))
-                    val blindedScalar = devicePriv.multiply(blindFactor).mod(P256Group.ORDER)
-                    P256Group.serializeScalar(blindedScalar)
-                }
-            }
         cryptoService =
             Fido2CryptoService(
-                hdkManager = hdkManager,
+                hdkManager = HdkP256,
                 masterSeedProvider = masterSeedProvider,
                 postQuantumCrypto = postQuantumCrypto,
-                timeProvider =
-                    mockk {
-                        every { epochMillis() } returns 0L
-                    },
                 defaultDispatcher = UnconfinedTestDispatcher(),
             )
 
@@ -159,7 +132,7 @@ class MultiAlgorithmIntegrationTest {
                         biometricStrength = BiometricStrength.STRONG,
                     )
                 coEvery {
-                    isUserVerificationRequired(any(), any(), any())
+                    isUserVerificationRequiredForText(any(), any(), any())
                 } returns ServiceVerificationRequirement.PREFERRED
                 coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
             }
@@ -197,30 +170,53 @@ class MultiAlgorithmIntegrationTest {
         unmockkStatic(android.util.Log::class)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `registration and authentication work for ECDSA`() =
         runTest {
-            val options = buildMakeCredentialOptions("user-ecdsa", "example.com", Fido2CryptoService.COSE_ES256)
+            val options = buildMakeCredentialOptions("user-ecdsa", "example.com", CredentialKeyDescriptor.COSE_ES256)
             val result = registerUseCase(options)
             assertTrue(result.isSuccess)
 
             val credential = result.getOrThrow().credential
-            assertEquals(Fido2CryptoService.COSE_ES256, credential.coseAlgorithm)
+            assertEquals(CredentialKeyDescriptor.COSE_ES256, credential.coseAlgorithm)
+            assertEquals(CredentialKeyDescriptor.P256_PROFILE, credential.derivationProfile)
 
             val authOptions = buildGetAssertionOptions("https://example.com", credential.id)
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess)
+            assertCeremonySignaturesVerify(result.getOrThrow(), authResult.getOrThrow(), authOptions)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `registration and authentication work for ML-DSA-65`() =
+    fun `registration and authentication work for Ed25519`() =
         runTest {
-            val options = buildMakeCredentialOptions("user-mldsa", "mldsa.com", Fido2CryptoService.COSE_ML_DSA_65)
+            val options = buildMakeCredentialOptions("user-ed25519", "ed25519.com", CredentialKeyDescriptor.COSE_EDDSA)
             val result = registerUseCase(options)
             assertTrue(result.isSuccess)
 
             val credential = result.getOrThrow().credential
-            assertEquals(Fido2CryptoService.COSE_ML_DSA_65, credential.coseAlgorithm)
+            assertEquals(CredentialKeyDescriptor.COSE_EDDSA, credential.coseAlgorithm)
+            assertEquals(CredentialKeyDescriptor.ED25519_PROFILE, credential.derivationProfile)
+
+            val authOptions = buildGetAssertionOptions("https://ed25519.com", credential.id)
+            val authResult = assertionUseCase(authOptions)
+            assertTrue(authResult.isSuccess)
+            assertCeremonySignaturesVerify(result.getOrThrow(), authResult.getOrThrow(), authOptions)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `registration and authentication work for ML-DSA-65`() =
+        runTest {
+            val options = buildMakeCredentialOptions("user-mldsa", "mldsa.com", CredentialKeyDescriptor.COSE_ML_DSA_65)
+            val result = registerUseCase(options)
+            assertTrue(result.isSuccess)
+
+            val credential = result.getOrThrow().credential
+            assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, credential.coseAlgorithm)
+            assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, credential.derivationProfile)
 
             // ML-DSA-65 public key should be quite large (>1900 bytes)
             assertTrue(credential.publicKey.encoded.size > MIN_ML_DSA_PUB_KEY_SIZE_1900)
@@ -232,7 +228,41 @@ class MultiAlgorithmIntegrationTest {
             // ML-DSA signature should be very large too (>3000 bytes)
             val assertionObject = authResult.getOrThrow()
             assertTrue(assertionObject.signature.size > MIN_ML_DSA_SIG_SIZE_3000)
+            assertCeremonySignaturesVerify(result.getOrThrow(), assertionObject, authOptions)
         }
+
+    private fun assertCeremonySignaturesVerify(
+        registration: com.chimali.fido2.domain.model.MakeCredentialResult,
+        assertion: com.chimali.fido2.domain.model.AssertionObject,
+        assertionOptions: GetAssertionOptions,
+    ) {
+        val credential = registration.credential
+        val signatureAlgorithm =
+            when (credential.coseAlgorithm) {
+                CredentialKeyDescriptor.COSE_ES256 -> "SHA256withECDSA"
+                CredentialKeyDescriptor.COSE_EDDSA -> "Ed25519"
+                CredentialKeyDescriptor.COSE_ML_DSA_65 -> "ML-DSA-65"
+                else -> error("Unexpected test algorithm ${credential.coseAlgorithm}")
+            }
+
+        fun verify(
+            message: ByteArray,
+            signature: ByteArray,
+        ) {
+            val verifier = Signature.getInstance(signatureAlgorithm, BouncyCastleProvider.PROVIDER_NAME)
+            verifier.initVerify(credential.publicKey)
+            verifier.update(message)
+            assertTrue(verifier.verify(signature), "The $signatureAlgorithm ceremony signature must verify")
+        }
+
+        val attestationStatement = registration.attestationObject.attStmt
+        assertEquals(credential.coseAlgorithm, (attestationStatement.alg as Number).toInt())
+        verify(
+            requireNotNull(attestationStatement.authData) + registration.attestationObject.clientData.challenge,
+            requireNotNull(attestationStatement.attCert),
+        )
+        verify(assertion.authData + assertionOptions.clientDataHash, assertion.signature)
+    }
 
     private fun buildMakeCredentialOptions(
         userId: String,
@@ -242,15 +272,15 @@ class MultiAlgorithmIntegrationTest {
         val rp = PublicKeyCredentialRpEntity.create(id = RpId("https://$rpIdHost"), name = rpIdHost)
         val user =
             PublicKeyCredentialUserEntity.create(
-                id = UserId(userId),
+                id = UserId.fromByteArray(userId.encodeToByteArray()),
                 name = userId,
                 displayName = userId,
             )
         val params =
-            if (algId == Fido2CryptoService.COSE_ML_DSA_65) {
-                PublicKeyCredentialParameters.createMlDsa65()
-            } else {
-                PublicKeyCredentialParameters.createES256P256()
+            when (algId) {
+                CredentialKeyDescriptor.COSE_ML_DSA_65 -> PublicKeyCredentialParameters.createMlDsa65()
+                CredentialKeyDescriptor.COSE_EDDSA -> PublicKeyCredentialParameters.createEdDsa()
+                else -> PublicKeyCredentialParameters.createES256P256()
             }
         return MakeCredentialOptions.create(
             rp = rp,
@@ -283,25 +313,52 @@ class MultiAlgorithmIntegrationTest {
  * Thread-safe in-memory implementation of [CredentialRepository] for use in tests.
  */
 private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
+    override suspend fun getCredentialSummariesForRpText(
+        rpId: CharSequence,
+    ): Outcome<List<CredentialSummary>, DomainError> =
+        Outcome.Success(
+            credentials.values.filter { it.rpId.contentEquals(rpId, ignoreCase = true) }.map {
+                CredentialSummary.fromText(
+                    it.id.encoded,
+                    it.rpId,
+                    it.id,
+                    it.lastUsedAt,
+                    it.coseAlgorithm,
+                    it.derivationProfile,
+                    it.storedPublicKeyEncoding,
+                    it.credProtectPolicy,
+                )
+            },
+        )
+
+    override suspend fun validateCredentialCreationForText(
+        rpId: CharSequence,
+        userId: CharSequence,
+    ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
+
+    override suspend fun getRelyingPartyForText(rpId: CharSequence): RelyingParty? = null
+
     private val credentials = ConcurrentHashMap<String, PasskeyCredential>()
     private val signCounts = ConcurrentHashMap<String, Long>()
 
     fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
             .asSequence()
-            .filter { it.rpId == rpId }
+            .filter { it.belongsToRelyingParty(rpId) }
             .map {
                 CredentialSummary(
                     id = it.id.encoded,
-                    rpId = it.rpId,
+                    rpId = it.rpId.toRpId(),
                     credentialId = it.id,
                     lastUsedAt = it.lastUsedAt,
                     coseAlgorithm = it.coseAlgorithm,
+                    derivationProfile = it.derivationProfile,
+                    storedPublicKeyEncoding = it.storedPublicKeyEncoding,
                 )
             }.toList()
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
-        credentials[credential.id.encoded] = credential
+        credentials[credential.id.encoded] = credential.copyWithIndependentSensitiveText()
         signCounts[credential.id.encoded] = 0L
         return Outcome.Success(Unit)
     }
@@ -313,7 +370,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         flowOf(
             *credentials.values
                 .filter {
-                    it.rpId == rpId
+                    it.belongsToRelyingParty(rpId)
                 }.toTypedArray(),
         )
 
@@ -321,7 +378,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         flowOf(
             *credentials.values
                 .filter {
-                    it.userId == userId
+                    it.belongsToUser(userId)
                 }.toTypedArray(),
         )
 
@@ -348,7 +405,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
         val list =
             credentials.values
                 .asSequence()
-                .filter { it.rpId == rpId }
+                .filter { it.belongsToRelyingParty(rpId) }
                 .drop(offset.toInt())
                 .take(limit.toInt())
                 .toList()
@@ -384,7 +441,7 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
 
     override fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
+    override fun searchCredentials(query: SensitiveCredentialText): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun validateCredentialCreation(
         rpId: RpId,
@@ -417,7 +474,6 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     override suspend fun getCredentialStatistics(): CredentialStatistics =
         CredentialStatistics(
             0,
-            emptyMap(),
             0,
             0,
             0,

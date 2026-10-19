@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.service
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.UserConsentRecord
@@ -11,6 +12,14 @@ import kotlinx.coroutines.flow.Flow
  * Provides methods for biometric and PIN-based authentication.
  */
 interface UserVerificationService {
+    /** Evaluates current policy using borrowed mutable RP text; implementations must not retain it. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun isUserVerificationRequiredForText(
+        rpId: CharSequence,
+        operationType: String,
+        context: VerificationContext? = null,
+    ): UserVerificationRequirement
+
     /**
      * Checks if user verification is available on the device.
      *
@@ -49,6 +58,7 @@ interface UserVerificationService {
     /**
      * Records a user consent for verification operations.
      *
+     * Borrows the record until completion; retain an independent owner if implementation work must outlive the call.
      * @param consent The consent record to save
      * @return Outcome indicating success or failure
      */

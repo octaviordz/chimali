@@ -1,407 +1,461 @@
 package com.chimali.fido2.data.crypto
 
-import android.content.Context
-import androidx.core.content.edit
 import androidx.datastore.core.DataStore
-import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.datastore.EncryptionWrapper
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.core.security.api.EncryptedMetadataService
 import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.api.MasterSeedOwnerKind
 import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.api.MetadataLookupTokenService
-import com.chimali.core.security.hdkeys.P256Group
-import java.math.BigInteger
+import com.chimali.core.security.hdkeys.HkdfSha256
+import com.chimali.core.security.hdkeys.P256ParentKeyDerivation
+import com.chimali.core.security.impl.AesGcmEncryptedMetadataService
+import com.chimali.core.security.impl.HmacMetadataLookupTokenService
+import com.chimali.fido2.util.performance.PerformanceTrace
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.StandardCharsets
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.toByteString
 import org.koin.core.annotation.Single
 
-private const val PREFS_FILE_NAME = "chimali_wallet_seed"
-private const val KEY_MNEMONIC = "bip39_mnemonic"
-
 /**
- * T145c / T047 — Persistent [MasterSeedProvider] backed by BIP39 and Proto DataStore.
+ * Current wallet root provider backed only by encrypted Proto DataStore recovery material.
  *
- * On the first launch, a fresh 24-word BIP39 mnemonic is generated with [MasterSeedGenerator],
- * encrypted via [EncryptionWrapper] (AES-256-GCM with Android KeyStore), stored in
- * Proto DataStore, and the corresponding 64-byte PBKDF2 seed is derived and returned.
- *
- * On subsequent launches, the persisted mnemonic is read from DataStore, decrypted,
- * and the same deterministic seed is re-derived, ensuring FIDO2 credentials remain
- * valid across restarts.
- *
- * **Migration**: On first launch after upgrade, any mnemonic stored in legacy
- * [EncryptedSharedPreferences] is automatically migrated to Proto DataStore.
- * The `migrationCompleted` flag acts as a transaction guard — the DataStore write
- * completes before the legacy key is deleted, ensuring crash-safe migration (T017).
- *
- * **AES note**: The mnemonic is encrypted with AES-256-GCM via Android KeyStore,
- * satisfying Constitution §I.
- *
- * **Device key pair**: Derived once from the seed and cached in memory for the
- * lifetime of the process. The private scalar must never appear in plaintext logs.
- *
- * ⚠️ **Migration note**: Any credentials registered with `EphemeralMasterSeedProvider`
- * (T145a era) are bound to a transient seed and will be orphaned. Users must re-register.
+ * It caches one 32-byte RFC 5869 PRK and one deterministic P-256 parent pair. Getter methods
+ * return operation-owned copies. Mnemonics, BIP39 seeds, parent inputs and temporary keys are
+ * erased in `finally`; per-credential Ed25519/ML-DSA seeds are derived by the crypto service and
+ * are never cached here.
  */
 @Single
 class WalletMasterSeedProvider(
-    private val context: Context,
     private val masterSeedGenerator: MasterSeedGenerator,
-    private val hdkManager: HdkManager,
     private val dataStore: DataStore<UserPreferences>,
     private val encryptionWrapper: EncryptionWrapper,
     private val lookupTokenService: MetadataLookupTokenService,
     private val encryptedMetadataService: EncryptedMetadataService,
 ) : MasterSeedProvider {
-    @Volatile
-    private var cachedSeed: ByteArray? = null
-
-    @Volatile
-    private var cachedDeviceKeyPair: HdkKeyPair? = null
-
-    @Volatile
-    private var cachedPqChildSeed: ByteArray? = null
-
     private val initializationMutex = Mutex()
+    private val cacheLock = Any()
 
-    override suspend fun getMasterSeed(): ByteArray? = ensureInitialized().first
+    private var cachedPrk: ByteArray? = null
+    private var cachedParent: HdkKeyPair? = null
+    private var generation: Long = 0
+    private var nextOwnerId: Long = 0
+    private val activeOwners = mutableMapOf<Long, ActiveOwner>()
 
-    override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInitialized().second
+    private data class ActiveOwner(
+        val generation: Long,
+        val job: Job,
+        val kind: MasterSeedOwnerKind,
+    )
 
-    private suspend fun ensureInitialized(): Pair<ByteArray?, HdkKeyPair?> {
-        if (cachedSeed != null) {
-            return Pair(cachedSeed, cachedDeviceKeyPair)
-        }
+    private class OwnerContext(
+        val ownerId: Long,
+    ) : AbstractCoroutineContextElement(Key) {
+        companion object Key : CoroutineContext.Key<OwnerContext>
+    }
 
-        return initializationMutex.withLock {
-            // Double-check after acquiring lock
-            if (cachedSeed != null) {
-                return@withLock Pair(cachedSeed, cachedDeviceKeyPair)
-            }
+    /** Returns the current wallet-session fence value used to reject stale operations. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun sessionGeneration(): Long = synchronized(cacheLock) { generation }
 
-            val mnemonic = getOrCreateMnemonic()
-            // BIP39 PBKDF2-SHA512 produces 64 bytes, but the HDK spec (§2.2) requires
-            // Ns = 32 bytes for the seed.  We take the first 32 bytes as the HDK seed
-            // and keep the full 64-byte material only for the device key pair derivation,
-            // which operates via HMAC-SHA512 anyway (deriveDeviceKeyPair).
-            val bip39Seed = masterSeedGenerator.deriveSeed(mnemonic)
-            val hdkSeed = bip39Seed.copyOf(HDK_SEED_SIZE_32) // first 32 bytes → HDK Ns bytes (§2.2)
+    /** Reports whether [generation] still identifies the active wallet session. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun isSessionGenerationCurrent(generation: Long): Boolean =
+        synchronized(cacheLock) { this.generation == generation }
 
-            cachedSeed = hdkSeed
-            // Derive the device key pair deterministically from the master seed so it
-            // is identical across app restarts. A random key pair here was the cause of
-            // "Could not verify authentication signature" errors after restart.
-            cachedDeviceKeyPair = deriveDeviceKeyPair(bip39Seed)
-
-            // Provision keys for synchronous searchable metadata services
-            provisionSearchableMetadataKeys(bip39Seed)
-
-            bip39Seed.fill(0) // zeroise full 64-byte material; hdkSeed (a copy) is kept in cachedSeed
-
-            Logger.d { "Master seed initialized from BIP39 mnemonic (word count: ${mnemonic.size})" }
-            Pair(cachedSeed, cachedDeviceKeyPair)
+    /** Fences bootstrap/operation copies and erases all cached root-derived material. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun clearSession() {
+        synchronized(cacheLock) {
+            generation += 1
+            val ownersToCancel = activeOwners.values.map { it.job }
+            activeOwners.clear()
+            eraseCacheLocked()
+            clearProvisionedMetadataKeys()
+            ownersToCancel.forEach { it.cancel(CancellationException("Wallet session was fenced")) }
         }
     }
 
-    /**
-     * Returns the persisted mnemonic, or generates and persists a new one on first call.
-     */
-    private suspend fun getOrCreateMnemonic(): List<String> {
-        // ── 1. Check DataStore (primary storage) ────────────────────────────
-        val prefs = dataStore.data.first()
-        if (prefs.migrationCompleted && prefs.encryptedWalletSeed.isNotEmpty()) {
-            Logger.d { "Loaded existing BIP39 mnemonic from Proto DataStore" }
-            val encryptedBytes = prefs.encryptedWalletSeed.decodeBase64()?.toByteArray()
-            requireNotNull(encryptedBytes) { "Failed to decode encrypted wallet seed from Base64" }
-            val decryptedBytes = encryptionWrapper.decrypt(encryptedBytes)
-            val mnemonicStr = String(decryptedBytes)
-            decryptedBytes.fill(0)
-            return mnemonicStr.split(" ")
+    /** Cancels owners of the requested kind in the current session without clearing other owners. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun cancelSessionOwners(ownerKind: MasterSeedOwnerKind) {
+        synchronized(cacheLock) {
+            activeOwners.values
+                .filter { it.generation == generation && it.kind == ownerKind }
+                .forEach { it.job.cancel(CancellationException("$ownerKind wallet operation ended")) }
         }
-
-        // ── 2. Attempt legacy migration (T016/T017/T018/T022) ───────────────
-        try {
-            val legacyPrefs = openEncryptedPrefs()
-            val legacyMnemonic = legacyPrefs.getString(KEY_MNEMONIC, null)
-            if (!legacyMnemonic.isNullOrBlank()) {
-                Logger.i { "Migrating BIP39 mnemonic from legacy EncryptedSharedPreferences to Proto DataStore" }
-                val mnemonicBytes = legacyMnemonic.toByteArray(Charsets.UTF_8)
-                val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
-                val base64Encrypted = encryptedBytes.toByteString().base64()
-
-                // T017: Write DataStore FIRST (transaction flag).
-                // migrationCompleted=true acts as a durable commit marker.
-                // If the app crashes after this write but before legacy deletion,
-                // the next launch sees migrationCompleted=true and skips legacy.
-                dataStore.updateData { currentPrefs ->
-                    currentPrefs.copy(
-                        migrationVersion = 1,
-                        migrationCompleted = true,
-                        encryptedWalletSeed = base64Encrypted,
-                    )
-                }
-
-                // T023: Delete legacy key only after DataStore write succeeds.
-                legacyPrefs.edit(commit = true) {
-                    remove(KEY_MNEMONIC)
-                }
-                Logger.i { "Migration completed successfully, legacy key cleared" }
-                return legacyMnemonic.split(" ")
-            }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
-        } catch (e: java.io.IOException) {
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
-        } catch (e: SecurityException) {
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences — treating as empty (corrupted data)" }
-        }
-
-        // ── 3. First launch — generate new mnemonic (T019) ──────────────────
-        Logger.i { "Generating new BIP39 mnemonic (first launch)" }
-        val newMnemonic = masterSeedGenerator.generateMnemonic(wordCount = MNEMONIC_WORD_COUNT)
-        val mnemonicStr = newMnemonic.joinToString(" ")
-        val mnemonicBytes = mnemonicStr.toByteArray(Charsets.UTF_8)
-        val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
-        val base64Encrypted = encryptedBytes.toByteString().base64()
-
-        dataStore.updateData { currentPrefs ->
-            currentPrefs.copy(
-                migrationVersion = 1,
-                migrationCompleted = true,
-                encryptedWalletSeed = base64Encrypted,
-            )
-        }
-        Logger.i { "New BIP39 mnemonic generated and stored in Proto DataStore" }
-        return newMnemonic
     }
 
-    private fun openEncryptedPrefs(): android.content.SharedPreferences {
-        val masterKeyAlias =
-            androidx.security.crypto.MasterKeys.getOrCreate(
-                androidx.security.crypto.MasterKeys.AES256_GCM_SPEC,
-            )
-        return EncryptedSharedPreferences.create(
-            PREFS_FILE_NAME,
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }
-
-    /**
-     * T146g — Returns the raw BIP39 mnemonic for Dev Tools (debug only).
-     * Reads back the persisted mnemonic from [DataStore] (or legacy fallback) and splits
-     * on spaces. Returns null if no mnemonic has been persisted yet.
-     *
-     * ⚠️ Caller must zero backing structures immediately after use.
-     */
-    override suspend fun getMnemonic(): List<String>? {
-        val prefs = dataStore.data.first()
-        if (prefs.encryptedWalletSeed.isNotEmpty()) {
-            val encryptedBytes = prefs.encryptedWalletSeed.decodeBase64()?.toByteArray()
-            if (encryptedBytes != null) {
-                val decryptedBytes = encryptionWrapper.decrypt(encryptedBytes)
-                val mnemonicStr = String(decryptedBytes)
-                decryptedBytes.fill(0)
-                return mnemonicStr.split(" ")
-            }
-        }
-        // Legacy fallback — only reachable if migration hasn't occurred yet
+    /** Owns cache material only for this operation; cancellation/replacement fences its child job. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun <T> withSessionOwner(
+        initialize: Boolean,
+        ownerKind: MasterSeedOwnerKind,
+        operation: suspend (generation: Long) -> T,
+    ): T {
+        val parentJob = currentCoroutineContext()[Job]
+        var registeredOwner: Pair<Long, ActiveOwner>? = null
         return try {
-            val raw = openEncryptedPrefs().getString(KEY_MNEMONIC, null)
-            if (raw.isNullOrBlank()) null else raw.split(" ")
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
-            null
-        } catch (e: java.io.IOException) {
-            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
-            null
-        } catch (e: SecurityException) {
-            Logger.e(e) { "Failed to read legacy prefs in getMnemonic — returning null" }
-            null
+            val (ownerId, owner) =
+                initializationMutex.withLock {
+                    currentCoroutineContext().ensureActive()
+                    val registered =
+                        synchronized(cacheLock) {
+                            nextOwnerId += 1
+                            ActiveOwner(generation, Job(parentJob), ownerKind)
+                                .also { activeOwners[nextOwnerId] = it }
+                                .let { nextOwnerId to it }
+                        }
+                    registeredOwner = registered
+                    registered
+                }
+            withContext(owner.job + OwnerContext(ownerId)) {
+                // Bootstrap must run in the same cancellable owner context as the operation.
+                // The mutex still serializes initialization and replacement, but cancellation
+                // of this owner can now release it while a suspending store read/write is pending.
+                initializationMutex.withLock {
+                    currentCoroutineContext().ensureActive()
+                    ensureOwnerCanPublish(ownerId, owner)
+                    if (initialize && !isInitialized()) initializeLocked()
+                    currentCoroutineContext().ensureActive()
+                    ensureOwnerCanPublish(ownerId, owner)
+                    if (initialize && !isInitialized()) {
+                        throw CancellationException("Wallet cache was not initialized for the admitted operation")
+                    }
+                }
+                operation(owner.generation)
+            }
+        } finally {
+            registeredOwner?.let { (ownerId, owner) ->
+                owner.job.cancel()
+                withContext(NonCancellable) {
+                    releaseSessionOwner(ownerId, owner)
+                }
+            }
         }
     }
 
-    /**
-     * T146g — Imports a BIP39 mnemonic, replacing any existing seed.
-     *
-     * The [mnemonic] [CharArray] is zeroed after use regardless of success or failure.
-     * Cache is invalidated on success so the next [getMasterSeed]/[getDeviceKeyPair] call
-     * re-derives from the new seed.
-     *
-     * @throws IllegalArgumentException if the word count is not exactly 24.
-     */
+    /** Returns an owned copy of the 32-byte wallet PRK inside an admitted owner operation. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun getMasterSeed(): ByteArray? {
+        requireOwnedOperation()
+        ensureInitialized()
+        return synchronized(cacheLock) { cachedPrk?.copyOf() }
+    }
+
+    /** Returns owned copies of the cached deterministic parent key pair inside an owner operation. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun getDeviceKeyPair(): HdkKeyPair? {
+        requireOwnedOperation()
+        ensureInitialized()
+        return synchronized(cacheLock) {
+            cachedParent?.let { parent -> HdkKeyPair(parent.privateKey.copyOf(), parent.publicKey.copyOf()) }
+        }
+    }
+
+    /** Decrypts the recovery phrase into a caller-owned mutable array; the caller must erase it. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun getMnemonic(): CharArray? {
+        requireOwnedOperation()
+        val prefs = dataStore.data.first()
+        if (prefs.encryptedWalletSeed.isEmpty()) return null
+        return decryptMnemonic(prefs.encryptedWalletSeed)
+    }
+
+    /** Validates and consumes [mnemonic], persists its encrypted form, and replaces session material. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
         try {
-            val mnemonicString = String(mnemonic)
-            val words = mnemonicString.split(" ")
-            require(words.size == MNEMONIC_WORD_COUNT) {
-                "Invalid mnemonic: expected $MNEMONIC_WORD_COUNT words, got ${words.size}."
-            }
-
-            val currentPrefs = dataStore.data.first()
-            val alreadyExisted = currentPrefs.encryptedWalletSeed.isNotEmpty()
-
-            val mnemonicBytes = mnemonicString.toByteArray(Charsets.UTF_8)
-            val encryptedBytes = encryptionWrapper.encrypt(mnemonicBytes)
-            val base64Encrypted = encryptedBytes.toByteString().base64()
-
-            dataStore.updateData { p ->
-                p.copy(
-                    migrationVersion = 1,
-                    migrationCompleted = true,
-                    encryptedWalletSeed = base64Encrypted,
-                )
-            }
-
-            // Clean up any legacy entry that may exist
-            try {
-                openEncryptedPrefs().edit(commit = true) {
-                    remove(KEY_MNEMONIC)
+            return initializationMutex.withLock {
+                val validationSeed = masterSeedGenerator.deriveSeed(mnemonic)
+                try {
+                    val alreadyExisted =
+                        dataStore.data
+                            .first()
+                            .encryptedWalletSeed
+                            .isNotEmpty()
+                    val encrypted = encryptMnemonic(mnemonic)
+                    clearSession()
+                    val (ownerId, owner) =
+                        registerSessionOwnerLocked(
+                            MasterSeedOwnerKind.FOREGROUND,
+                            currentCoroutineContext()[Job],
+                        )
+                    try {
+                        withContext(owner.job + OwnerContext(ownerId)) {
+                            dataStore.updateData { current -> current.copy(encryptedWalletSeed = encrypted) }
+                        }
+                        if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
+                    } finally {
+                        owner.job.cancel()
+                        releaseSessionOwnerLocked(ownerId, owner)
+                    }
+                } finally {
+                    validationSeed.fill(0)
                 }
-            } catch (e: java.security.GeneralSecurityException) {
-                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
-            } catch (e: java.io.IOException) {
-                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
-            } catch (e: SecurityException) {
-                Logger.e(e) { "Failed to clear legacy prefs during import — non-fatal" }
             }
-
-            invalidateCache()
-
-            // Re-derive immediately so the new seed is live for any in-flight FIDO2 operations.
-            ensureInitialized()
-
-            Logger.i { "Master seed imported (${if (alreadyExisted) "replaced existing" else "first import"})" }
-            return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
         } finally {
             mnemonic.fill('\u0000')
         }
     }
 
-    @Synchronized
-    private fun invalidateCache() {
-        cachedSeed = null
-        cachedDeviceKeyPair = null
-        cachedPqChildSeed?.fill(0)
-        cachedPqChildSeed = null
-
-        (lookupTokenService as? com.chimali.core.security.impl.HmacMetadataLookupTokenService)?.clearKey()
-        (encryptedMetadataService as? com.chimali.core.security.impl.AesGcmEncryptedMetadataService)?.clearKey()
-    }
-
-    /**
-     * Derives a stable P-256 device key pair deterministically from [masterSeed].
-     *
-     * Uses HMAC-SHA512("chimali_device_key_v1", masterSeed) and takes the first 32 bytes
-     * as the private scalar (reduced mod P-256 order). This ensures the device key pair
-     * is identical across app restarts, which is required because the signing formula
-     * is  sk_device × blindingFactor mod n — any change in sk_device produces an
-     * unverifiable signature.
-     *
-     * The key derivation is intentionally separate from the BIP-85 PQ branch so that
-     * ECDSA keys and ML-DSA keys remain cryptographically isolated.
-     */
-    private fun deriveDeviceKeyPair(masterSeed: ByteArray): HdkKeyPair {
-        val raw = hmacSha512("chimali_device_key_v1".toByteArray(Charsets.UTF_8), masterSeed)
-        // Take the first 32 bytes as the private scalar (big-endian), reduced mod order.
-        val skScalar = BigInteger(1, raw.copyOfRange(0, P256_SCALAR_SIZE_32)).mod(P256Group.ORDER)
-        val pkPoint = P256Group.scalarBaseMult(skScalar)
-        raw.fill(0) // zeroise immediately
-        Logger.d { "Device key pair derived deterministically from master seed" }
-        return HdkKeyPair(
-            privateKey = P256Group.serializeScalar(skScalar),
-            publicKey = P256Group.serializeElement(pkPoint),
-        )
-    }
-
-    override suspend fun getPqChildSeed(): ByteArray? {
-        cachedPqChildSeed?.let { return it }
-        val master = getMasterSeed() ?: return null
-        return synchronized(this) {
-            cachedPqChildSeed ?: derivePqChildSeed(master).also { cachedPqChildSeed = it }
+    private suspend fun ensureInitialized() {
+        if (isInitialized()) return
+        initializationMutex.withLock {
+            if (!isInitialized()) initializeLocked()
         }
     }
 
-    // ── HDK DeriveSalt-based PQ branch seed derivation ──────────────────────
+    private suspend fun initializeLocked() {
+        val initializingGeneration = sessionGeneration()
+        val initializingOwnerId =
+            currentCoroutineContext()[OwnerContext]?.ownerId
+                ?: throw CancellationException("Wallet bootstrap requires an active operation owner")
+        var mnemonic: CharArray? = null
+        var bip39Seed: ByteArray? = null
+        var prk: ByteArray? = null
+        var parentResult: P256ParentKeyDerivation.Result? = null
+        var pendingParent: HdkKeyPair? = null
+        try {
+            mnemonic = PerformanceTrace.section("Fido2.Wallet.ReadMnemonic") { getOrCreateMnemonic() }
+            bip39Seed =
+                PerformanceTrace.section("Fido2.Wallet.Bip39") {
+                    masterSeedGenerator.deriveSeed(mnemonic)
+                }
+            prk = HkdfSha256.deriveWalletPrk(bip39Seed)
+            parentResult =
+                PerformanceTrace.section("Fido2.Wallet.Parent") {
+                    P256ParentKeyDerivation.deriveFromPrk(prk)
+                }
+            pendingParent = HdkKeyPair(parentResult.privateScalar.copyOf(), parentResult.publicKey.copyOf())
 
-    /**
-     * Derives a 64-byte deterministic child seed for the ML-DSA (post-quantum) key branch
-     * using **HDK DeriveSalt** (§2.4 of `draft-dijkhuis-cfrg-hdkeys-06`) and HMAC-SHA512
-     * expansion.
-     *
-     * ## Process
-     *
-     * 1. Derive a 32-byte salt via `DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch")`.
-     * 2. Expand the salt to 64 bytes via `HMAC-SHA512("chimali_pq_seed_v1", pqSalt)`.
-     *
-     * ## Isolation from ECDSA branch
-     *
-     * The context string `"PQ_ML-DSA_Branch"` is unique and will never collide with
-     * HDK-ECDH-P256 contexts (which use `ID || I2OSP(index, 4)` format per §2.3).
-     * The output of this function is a raw seed for ML-DSA key generation — it is
-     * **never** fed into [HdkManager.deriveHdk] or any HDK function.
-     *
-     * ## Clean break
-     *
-     * This replaces the former BIP-85-style derivation (`m/83696968'/83286642'/2'`).
-     * The outputs are cryptographically incompatible — existing PQ keys derived via
-     * the legacy path are invalidated.
-     */
-    private fun derivePqChildSeed(masterSeed: ByteArray): ByteArray {
-        val hdkSeed = masterSeed.copyOf(HDK_SEED_SIZE_32)
-        val pqContext = PQ_CONTEXT_STRING.toByteArray(Charsets.UTF_8)
-        val pqSalt = hdkManager.deriveSalt(hdkSeed, pqContext)
+            // Provision external root consumers first. Publish the root and parent atomically only
+            // after all initialization work has succeeded.
+            synchronized(cacheLock) {
+                if (generation != initializingGeneration) {
+                    throw CancellationException("Wallet cache generation was fenced during initialization")
+                }
+                ensureCurrentOwnerCanPublishLocked(initializingGeneration, initializingOwnerId)
+                var metadataProvisioned = false
+                try {
+                    provisionSearchableMetadataKeys(prk)
+                    eraseCacheLocked()
+                    cachedPrk = prk.copyOf()
+                    cachedParent = pendingParent
+                    pendingParent = null
+                    metadataProvisioned = true
+                } finally {
+                    if (!metadataProvisioned) clearProvisionedMetadataKeys()
+                }
+            }
+            Logger.d { "Wallet root initialized" }
+        } finally {
+            mnemonic?.fill('\u0000')
+            bip39Seed?.fill(0)
+            prk?.fill(0)
+            parentResult?.erasePrivateScalar()
+            pendingParent?.erasePrivateKey()
+        }
+    }
 
-        val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
-        val childSeed = hmacSha512(expansionKey, pqSalt)
-        Logger.d { "PQ child seed derived via HDK DeriveSalt; seedLen=${childSeed.size}" }
-        return childSeed
+    /** Returns a decrypted persisted phrase or generates and persists a fresh 24-word phrase. */
+
+    private suspend fun getOrCreateMnemonic(): CharArray {
+        val prefs = dataStore.data.first()
+        if (prefs.encryptedWalletSeed.isNotEmpty()) return decryptMnemonic(prefs.encryptedWalletSeed)
+
+        val generated = masterSeedGenerator.generateMnemonic(MNEMONIC_WORD_COUNT)
+        var persisted = false
+        try {
+            val encrypted = encryptMnemonic(generated)
+            dataStore.updateData { current -> current.copy(encryptedWalletSeed = encrypted) }
+            persisted = true
+            return generated
+        } finally {
+            if (!persisted) generated.fill('\u0000')
+        }
+    }
+
+    private fun decryptMnemonic(encodedCiphertext: String): CharArray {
+        val ciphertext =
+            requireNotNull(encodedCiphertext.decodeBase64()) {
+                "Encrypted wallet mnemonic is not valid Base64"
+            }.toByteArray()
+        var plaintext: ByteArray? = null
+        var decoded: CharBuffer? = null
+        try {
+            plaintext = encryptionWrapper.decrypt(ciphertext)
+            require(plaintext.isNotEmpty()) { "Encrypted wallet mnemonic is empty" }
+            val charBuffer = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))
+            decoded = charBuffer
+            return CharArray(charBuffer.remaining()).also { charBuffer.get(it) }
+        } finally {
+            ciphertext.fill(0)
+            plaintext?.fill(0)
+            decoded?.let { chars -> if (chars.hasArray()) chars.array().fill('\u0000') }
+        }
+    }
+
+    /** Encrypts borrowed mnemonic characters without constructing an immutable plaintext String. */
+
+    private fun encryptMnemonic(mnemonic: CharArray): String {
+        require(mnemonic.isNotEmpty()) { "Mnemonic must not be empty" }
+        var encoded: ByteBuffer? = null
+        var plaintext: ByteArray? = null
+        var ciphertext: ByteArray? = null
+        try {
+            val byteBuffer = StandardCharsets.UTF_8.newEncoder().encode(CharBuffer.wrap(mnemonic))
+            encoded = byteBuffer
+            val plainBytes = ByteArray(byteBuffer.remaining()).also { byteBuffer.get(it) }
+            plaintext = plainBytes
+            ciphertext = encryptionWrapper.encrypt(plainBytes)
+            return ciphertext.toByteString().base64()
+        } finally {
+            plaintext?.fill(0)
+            encoded?.let { buffer -> if (buffer.hasArray()) buffer.array().fill(0) }
+            ciphertext?.fill(0)
+        }
+    }
+
+    private fun provisionSearchableMetadataKeys(prk: ByteArray) {
+        val label = SEARCHABLE_METADATA_EXPANSION_KEY.toByteArray(StandardCharsets.US_ASCII)
+        var derived: ByteArray? = null
+        var metadataKey: ByteArray? = null
+        try {
+            derived = hmacSha512(label, prk)
+            metadataKey = derived.copyOf(METADATA_KEY_SIZE_BYTES)
+            (lookupTokenService as? HmacMetadataLookupTokenService)?.provisionKey(metadataKey)
+            (encryptedMetadataService as? AesGcmEncryptedMetadataService)?.provisionKey(metadataKey)
+        } finally {
+            label.fill(0)
+            derived?.fill(0)
+            metadataKey?.fill(0)
+        }
     }
 
     private fun hmacSha512(
         key: ByteArray,
         data: ByteArray,
     ): ByteArray {
-        val mac = Mac.getInstance("HmacSHA512")
-        mac.init(SecretKeySpec(key, "HmacSHA512"))
+        val mac = Mac.getInstance(HMAC_SHA512)
+        mac.init(SecretKeySpec(key, HMAC_SHA512))
         return mac.doFinal(data)
     }
 
-    private fun provisionSearchableMetadataKeys(masterSeed: ByteArray) {
-        val metadataKey = hmacSha512(SEARCHABLE_METADATA_EXPANSION_KEY.toByteArray(Charsets.UTF_8), masterSeed)
-        val symmetricKey = metadataKey.copyOf(METADATA_KEY_SIZE_BYTES)
+    private fun isInitialized(): Boolean = synchronized(cacheLock) { cachedPrk != null && cachedParent != null }
 
-        // Use reflection or cast to provision the key to the internal services
-        (lookupTokenService as? com.chimali.core.security.impl.HmacMetadataLookupTokenService)?.provisionKey(
-            symmetricKey,
-        )
-        (encryptedMetadataService as? com.chimali.core.security.impl.AesGcmEncryptedMetadataService)?.provisionKey(
-            symmetricKey,
-        )
-
-        metadataKey.fill(0)
-        symmetricKey.fill(0)
+    private suspend fun requireOwnedOperation() {
+        val ownerId =
+            currentCoroutineContext()[OwnerContext]?.ownerId
+                ?: throw CancellationException("Wallet material requires an active operation owner")
+        synchronized(cacheLock) {
+            val owner = activeOwners[ownerId]
+            if (owner == null || owner.generation != generation || !owner.job.isActive) {
+                throw CancellationException("Wallet operation owner is no longer active")
+            }
+        }
     }
 
-    companion object {
-        private const val MNEMONIC_WORD_COUNT = 24
-        private const val HDK_SEED_SIZE_32 = 32
-        private const val P256_SCALAR_SIZE_32 = 32
-        private const val PQ_CONTEXT_STRING = "PQ_ML-DSA_Branch"
-        private const val PQ_EXPANSION_KEY = "chimali_pq_seed_v1"
-        private const val SEARCHABLE_METADATA_EXPANSION_KEY = "chimali_searchable_metadata_v1"
-        private const val METADATA_KEY_SIZE_BYTES = 32
+    private fun ensureOwnerCanPublish(
+        ownerId: Long,
+        expected: ActiveOwner,
+    ) {
+        synchronized(cacheLock) {
+            if (generation != expected.generation || activeOwners[ownerId] !== expected || !expected.job.isActive) {
+                throw CancellationException("Wallet operation owner is no longer active")
+            }
+        }
+    }
+
+    /** Called under [cacheLock] immediately before publishing any bootstrap cache material. */
+    private fun ensureCurrentOwnerCanPublishLocked(
+        initializingGeneration: Long,
+        ownerId: Long,
+    ) {
+        val owner = activeOwners[ownerId]
+        if (generation != initializingGeneration ||
+            owner == null ||
+            owner.generation != generation ||
+            !owner.job.isActive
+        ) {
+            throw CancellationException("Wallet operation owner was cancelled during bootstrap")
+        }
+    }
+
+    private suspend fun releaseSessionOwner(
+        ownerId: Long,
+        owner: ActiveOwner,
+    ) {
+        initializationMutex.withLock {
+            releaseSessionOwnerLocked(ownerId, owner)
+        }
+    }
+
+    /** Called while [initializationMutex] is held so wallet replacement remains serialized. */
+
+    private fun registerSessionOwnerLocked(
+        ownerKind: MasterSeedOwnerKind,
+        parentJob: Job?,
+    ): Pair<Long, ActiveOwner> =
+        synchronized(cacheLock) {
+            nextOwnerId += 1
+            val owner = ActiveOwner(generation, Job(parentJob), ownerKind)
+            activeOwners[nextOwnerId] = owner
+            nextOwnerId to owner
+        }
+
+    /** Called with [initializationMutex] held by either owner completion or replacement. */
+
+    private fun releaseSessionOwnerLocked(
+        ownerId: Long,
+        owner: ActiveOwner,
+    ) {
+        synchronized(cacheLock) {
+            if (generation != owner.generation || activeOwners.remove(ownerId) !== owner) return@synchronized
+            if (activeOwners.isEmpty()) {
+                generation += 1
+                eraseCacheLocked()
+                clearProvisionedMetadataKeys()
+            }
+        }
+    }
+
+    private fun eraseCacheLocked() {
+        cachedPrk?.fill(0)
+        cachedPrk = null
+        cachedParent?.erasePrivateKey()
+        cachedParent = null
+    }
+
+    private fun clearProvisionedMetadataKeys() {
+        (lookupTokenService as? HmacMetadataLookupTokenService)?.clearKey()
+        (encryptedMetadataService as? AesGcmEncryptedMetadataService)?.clearKey()
+    }
+
+    private companion object {
+        const val MNEMONIC_WORD_COUNT = 24
+        const val METADATA_KEY_SIZE_BYTES = 32
+        const val HMAC_SHA512 = "HmacSHA512"
+        const val SEARCHABLE_METADATA_EXPANSION_KEY = "chimali_searchable_metadata_v1"
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
@@ -37,6 +38,7 @@ class CredentialListScreenTest {
             null,
         )
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun screen_displaysEmptyState_whenNoCredentials() {
         coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(emptyList())
@@ -50,23 +52,24 @@ class CredentialListScreenTest {
         composeTestRule.onNodeWithText("No passkeys found.").assertIsDisplayed()
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun screen_displaysCredentials_whenAvailable() {
         val mockPublicKey = mockk<PublicKey>(relaxed = true)
         val mockCredential =
             PasskeyCredential(
-                id = CredentialId.fromEncoded("mock_id"),
+                id = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES)),
                 rpId = RpId("example.com"),
                 userId = UserId("test_user_id"),
                 userName = "testuser",
                 userDisplayName = "Test User",
                 publicKey = mockPublicKey,
-                privateKeyAlias = "test_alias",
                 signCount = 0L,
                 createdAt = TimeProvider().now(),
                 lastUsedAt = TimeProvider().now(),
                 aaguid = ByteArray(16),
                 credentialId = byteArrayOf(1, 2, 3),
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
             )
 
         coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(listOf(mockCredential))
@@ -84,23 +87,24 @@ class CredentialListScreenTest {
         composeTestRule.onNodeWithText("example.com").assertIsDisplayed()
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun screen_showsDeleteDialog_whenDeleteIconClicked() {
         val mockPublicKey = mockk<PublicKey>(relaxed = true)
         val mockCredential =
             PasskeyCredential(
-                id = CredentialId.fromEncoded("mock_id"),
+                id = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES)),
                 rpId = RpId("example.com"),
                 userId = UserId("test_user_id"),
                 userName = "testuser",
                 userDisplayName = "Test User",
                 publicKey = mockPublicKey,
-                privateKeyAlias = "test_alias",
                 signCount = 0L,
                 createdAt = TimeProvider().now(),
                 lastUsedAt = TimeProvider().now(),
                 aaguid = ByteArray(16),
                 credentialId = byteArrayOf(1, 2, 3),
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
             )
 
         coEvery { getAllCredentialsUseCase(any(), any()) } returns Outcome.Success(listOf(mockCredential))
@@ -120,3 +124,4 @@ class CredentialListScreenTest {
             ).assertIsDisplayed()
     }
 }
+

@@ -3,6 +3,7 @@ package com.chimali.fido2.presentation.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.bluetooth.HidConnectionState
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.domain.model.MakeCredentialOptions
@@ -33,16 +34,9 @@ class Fido2HomeViewModel(
     private val fido2Transport: Fido2Transport,
     private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
     private val uiEventBus: Fido2UiEventBus,
-    private val cryptoService: com.chimali.fido2.data.crypto.Fido2CryptoService,
 ) : ViewModel() {
     val connectionState: StateFlow<HidConnectionState> = fido2Transport.connectionState
     val uiEvents: SharedFlow<Fido2UiEvent> = uiEventBus.events
-
-    init {
-        viewModelScope.launch {
-            cryptoService.warmUpMasterSeed()
-        }
-    }
 
     /**
      * Resolves the display name for the connected host, prioritizing user-defined aliases.
@@ -77,6 +71,8 @@ class Fido2HomeViewModel(
      * it when connected/advertising. The service keeps the HID transport alive
      * even when the user navigates away from this screen.
      */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun toggleTransport() {
         val currentState = connectionState.value
         if (currentState is HidConnectionState.Idle || currentState is HidConnectionState.Error) {
@@ -90,6 +86,8 @@ class Fido2HomeViewModel(
      * Proactively initiates an outbound Bluetooth HID connection to a paired host.
      * Ensures the transport service is running first if currently idle.
      */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun connectDevice(macAddress: String) {
         val currentState = connectionState.value
         viewModelScope.launch {
@@ -104,13 +102,16 @@ class Fido2HomeViewModel(
         }
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun testRegistration(options: MakeCredentialOptions) {
         // Mock a registration request as if it came from Bluetooth
         uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(options, CompletableDeferred()))
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getPendingRegistration(): Fido2UiEvent.RegistrationRequested? = uiEventBus.currentRegistrationRequest
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getPendingAuthentication(): Fido2UiEvent.AuthenticationRequested? = uiEventBus.currentAuthenticationRequest
 
     companion object {

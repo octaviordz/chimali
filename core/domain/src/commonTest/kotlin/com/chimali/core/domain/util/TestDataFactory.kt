@@ -8,11 +8,11 @@ import kotlinx.datetime.Clock
 
 object TestDataFactory {
     fun createCredential(
-        id: String = "test-id",
+        id: CredentialId = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES)),
         title: String = "Test Credential",
         category: CredentialCategory = CredentialCategory.PERSONAL,
     ) = Credential(
-        id = CredentialId.fromEncoded(id),
+        id = id,
         title = title,
         username = "testuser",
         password = EncryptedString("encrypted-password"),

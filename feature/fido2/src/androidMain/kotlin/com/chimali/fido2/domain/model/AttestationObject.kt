@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.model.RelyingParty
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.datetime.Instant
@@ -434,28 +435,52 @@ data class AttestationStatement(
  * Domain model representing ClientData.
  * This contains the client data from the attestation object.
  */
-data class ClientData(
+class ClientData private constructor(
     val type: String,
     val challenge: ByteArray,
-    val origin: String,
+    private val originOwner: SensitiveCredentialText,
     val isCrossOrigin: Boolean,
     val timestamp: Instant,
 ) {
+    /** Copies a compatibility origin into a mutable owner; production uses createFromText. */
+    constructor(type: String, challenge: ByteArray, origin: String, isCrossOrigin: Boolean, timestamp: Instant) :
+        this(type, challenge, SensitiveCredentialText.copyOf(origin), isCrossOrigin, timestamp)
+
+    /** Creates the minimum compatibility/display origin; internal processing borrows originText. */
+    val origin: String get() = originOwner.toBoundaryString()
+
+    /** Borrows the live result-owned origin until the response owner is released. */
+    internal val originText: CharSequence get() = originOwner
+
     init {
-        validate()
+        try {
+            validate()
+        } catch (failure: IllegalArgumentException) {
+            originOwner.erase()
+            throw failure
+        }
     }
+
+    /** Erases the origin owned by this response sidecar; the challenge remains a public binding. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveText() = originOwner.erase()
+
+    /** Redacts the origin in diagnostic formatting. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "ClientData([origin redacted])"
 
     /**
      * Validates the ClientData according to FIDO2 specifications.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun validate() {
         // Validate required fields
         require(type.isNotBlank()) { "Type cannot be blank" }
         require(challenge.isNotEmpty()) { "Challenge cannot be empty" }
         require(challenge.size <= MAX_CHALLENGE_SIZE) { "Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes" }
-        require(origin.isNotBlank()) { "Origin cannot be blank" }
-        require(RelyingParty.isValidRpId(origin)) {
-            "Origin must be a valid domain or HTTPS origin: $origin"
+        require(originOwner.isNotBlank()) { "Origin cannot be blank" }
+        require(RelyingParty.isValidRpId(originOwner)) {
+            "Origin must be a valid domain or HTTPS origin"
         }
 
         // Validate timestamp
@@ -466,6 +491,8 @@ data class ClientData(
         }
     }
 
+    /** Compares the owned origin and public binding fields without plaintext String copies. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -474,15 +501,17 @@ data class ClientData(
 
         return (type == other.type) &&
             challenge.contentEquals(other.challenge) &&
-            (origin == other.origin) &&
+            (originOwner == other.originOwner) &&
             (isCrossOrigin == other.isCrossOrigin) &&
             (timestamp == other.timestamp)
     }
 
+    /** Hashes the same fields compared by equals without materializing origin text. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun hashCode(): Int {
         var result = type.hashCode()
         result = (31 * result) + challenge.contentHashCode()
-        result = (31 * result) + origin.hashCode()
+        result = (31 * result) + originOwner.hashCode()
         result = (31 * result) + isCrossOrigin.hashCode()
         result = (31 * result) + timestamp.hashCode()
         return result
@@ -494,9 +523,26 @@ data class ClientData(
         private val FUTURE_GRACE_PERIOD = FUTURE_GRACE_PERIOD_SECONDS.seconds
         private const val TYPE_CREATE = "webauthn.create"
 
+        /** Copies borrowed RP text into the result owner without constructing immutable application text. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun createFromText(
+            type: String = TYPE_CREATE,
+            challenge: ByteArray,
+            origin: CharSequence,
+            isCrossOrigin: Boolean = false,
+        ): ClientData =
+            ClientData(
+                type,
+                challenge,
+                SensitiveCredentialText.copyOf(origin),
+                isCrossOrigin,
+                Instant.fromEpochMilliseconds(System.currentTimeMillis()),
+            )
+
         /**
          * Creates a new ClientData with validation.
          */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
         fun create(
             type: String = TYPE_CREATE,
             challenge: ByteArray,

@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.service
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import java.security.KeyStore
@@ -13,11 +14,9 @@ import org.koin.core.annotation.Single
 /**
  * Provides symmetric AES-CBC encryption and decryption for local credential metadata.
  *
- * This service is intentionally narrow in scope after the T145b cleanup:
- * - Asymmetric (AndroidKeyStore EC/RSA) logic has been removed; FIDO2 private keys are now
- *   derived in-memory by [Fido2CryptoService] via HDK.
- * - Only the AES-GCM symmetric helpers remain so that [CredentialEncryptionService] can
- *   protect metadata at rest without any change to its public API.
+ * This legacy helper exposes AndroidKeyStore AES-CBC operations for callers that explicitly
+ * manage an alias. It is separate from the current searchable-metadata path, which uses
+ * [CredentialMetadataProtectionService], and it does not store FIDO2 signing private keys.
  */
 @Single
 class CredentialStorageService {
@@ -33,8 +32,9 @@ class CredentialStorageService {
 
     private val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
-    // ── Symmetric (AES) operations — used by CredentialEncryptionService ─────
+    // ── Symmetric AES-CBC operations ─────────────────────────────────────────
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun generateEncryptionKey(): Outcome<SecretKey, DomainError.CryptoError> =
         try {
             val keyGenerator = KeyGenerator.getInstance(KEY_ALGORITHM_AES)
@@ -49,6 +49,8 @@ class CredentialStorageService {
     /**
      * Checks if a key alias exists in Android KeyStore.
      */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun keyExists(alias: String): Boolean =
         try {
             keyStore.containsAlias(alias)
@@ -60,6 +62,8 @@ class CredentialStorageService {
     /**
      * Encrypts data using a symmetric AES key from Android KeyStore.
      */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun encryptData(
         data: ByteArray,
         keyAlias: String,
@@ -85,6 +89,8 @@ class CredentialStorageService {
     /**
      * Decrypts data using a symmetric AES key from Android KeyStore.
      */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun decryptData(encryptedData: EncryptedData): Outcome<ByteArray, DomainError.CryptoError> {
         return try {
             val key =
@@ -109,6 +115,7 @@ class CredentialStorageService {
         val iv: ByteArray,
         val keyAlias: String,
     ) {
+        @Req("NFR-SEC-041", "TR-AUTH-031")
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -119,6 +126,7 @@ class CredentialStorageService {
             return true
         }
 
+        @Req("NFR-SEC-041", "TR-AUTH-031")
         override fun hashCode(): Int {
             var result = data.contentHashCode()
             result = 31 * result + iv.contentHashCode()

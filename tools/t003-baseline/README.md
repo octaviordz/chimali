@@ -19,12 +19,13 @@ baseline instrumentation`.
   the return of the final response report's `BluetoothHidDeviceWrapper.sendReport` call.
 - Observe packet arrays by identity, retaining FIFO order, report pacing and existing enqueue
   and sender behavior. No extra wait is introduced in the transport.
-- Emit numeric timings and fixed operation names through `Log.println` with tag `ChimaliT003`.
+- Emit numeric timings, a process-local operation ID and fixed operation names through
+  `Log.println` with tag `ChimaliT003`.
   Existing release log suppression stays enabled. No credential, RP/user identifier, key,
   request/response content or Bluetooth address is emitted by this instrumentation.
   A class-specific Detekt `ForbiddenImport` exception permits this diagnostic output on the
   measurement branch; the ordinary Kermit logging policy continues to apply elsewhere.
-- Add async `T003.MakeCredential`, `T003.GetAssertion` and `T003.GetInfo` trace slices.
+- Add async `T003.<operation>` trace slices for each implemented FIDO/CTAP operation.
 - Enable shell profiling in the release manifest while retaining release optimization,
   resource shrinking, signing and package `com.chimali`.
 
@@ -43,11 +44,20 @@ Each log record contains nanoseconds:
 
 - `processing_ns`: dispatch through baseline handler completion and keepalive shutdown,
   including the recorded user interaction interval.
+- `internal_ns`: `processing_ns - user_ns`, from CTAP dispatch through response construction,
+  excluding measured user interaction and Bluetooth queue/report handoff. This is the strict
+  `<200ms` budget for every internal FIDO operation.
 - `total_ns`: dispatch through final local HID API acceptance, including user interaction.
 - `user_ns`: accumulated interval from the baseline's existing user-interaction hooks.
 - `system_ns`: `max(0, total_ns - user_ns)`. Divide by 1,000,000 for milliseconds.
 - `reports_accepted`: whether all response reports were accepted by the local API.
 - `user_window_open`: whether an interaction interval lacked its completion hook.
+
+`operation_id` lets the operator associate each app record with one RP ceremony. Record the RP's
+options-to-verified-response duration and subtract the matching operations' summed `user_ns`,
+converted from nanoseconds to milliseconds, to evaluate the `<1,000ms` end-to-end budget. The host
+RP provides independent verification; this subtraction uses only the app's explicitly measured
+user-verification interval.
 
 A failed enqueue/API call or open user window invalidates a successful latency sample.
 No automatic compliance claim is emitted. API acceptance is not proof of remote receipt;

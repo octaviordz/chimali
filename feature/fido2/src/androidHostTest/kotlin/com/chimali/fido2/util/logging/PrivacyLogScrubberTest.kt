@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 
 class PrivacyLogScrubberTest {
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `scrub completely masks 24 word mnemonics`() {
         // T148a & T151 — Verify log scrubber hides 24 word mnemonic
@@ -20,6 +21,7 @@ class PrivacyLogScrubberTest {
         assertFalse(scrubbed.contains("abandon"))
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `scrub completely masks 12 word mnemonics`() {
         val sensitiveMnemonic =
@@ -32,6 +34,7 @@ class PrivacyLogScrubberTest {
         assertEquals("Seed recovery failed: [REDACTED]", scrubbed)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `scrub completely masks hex key material`() {
         // A dummy 64-char hex string typical for a P-256 private key
@@ -44,6 +47,7 @@ class PrivacyLogScrubberTest {
         assertFalse(scrubbed.contains(privateKeyHex))
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `scrub redacts specific sensitive keywords`() {
         val message1 = "The password is mysecretpassword123!"
@@ -65,6 +69,55 @@ class PrivacyLogScrubberTest {
         assertEquals("User pin=[REDACTED] failed", scrubbed2)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `scrub redacts derivation secrets and private material labels with spaces`() {
+        val message =
+            "prk=synthetic-prk private key: synthetic-private-key " +
+                "root key=synthetic-root factor=synthetic-factor"
+
+        val scrubbed = PrivacyLogScrubber.scrub(message)
+
+        assertEquals(
+            "prk=[REDACTED] private key=[REDACTED] root key=[REDACTED] factor=[REDACTED]",
+            scrubbed,
+        )
+        assertFalse(scrubbed.contains("synthetic-"))
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `scrub redacts every sensitive keyword in one pass`() {
+        val keywords =
+            listOf(
+                "password",
+                "pin",
+                "prk",
+                "privateKey",
+                "private key",
+                "private_key",
+                "privateScalar",
+                "private scalar",
+                "private_scalar",
+                "seed",
+                "mnemonic",
+                "secret",
+                "secretKey",
+                "rootKey",
+                "root key",
+                "root_key",
+                "factor",
+            )
+        val message = keywords.joinToString(" ") { keyword -> "$keyword=synthetic-value" }
+
+        val scrubbed = PrivacyLogScrubber.scrub(message)
+
+        assertEquals(keywords.joinToString(" ") { keyword -> "$keyword=[REDACTED]" }, scrubbed)
+        assertFalse(scrubbed.contains("synthetic-value"))
+        assertEquals("SECRET=[REDACTED]", PrivacyLogScrubber.scrub("SECRET=synthetic-value"))
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `scrub ignores normal text`() {
         val message = "Connection lost during Bluetooth transmission"

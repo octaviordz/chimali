@@ -3,6 +3,7 @@ package com.chimali.core.domain.model
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.Json
 class DomainModelSerializationTest {
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun testRelyingPartySerialization() {
         val rp =
@@ -36,6 +38,7 @@ class DomainModelSerializationTest {
         assertEquals(rp.isBlocked, decoded.isBlocked)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun testCredentialSummarySerialization() {
         val summary =
@@ -45,6 +48,8 @@ class DomainModelSerializationTest {
                 credentialId = CredentialId.fromByteArray("test-id-12345678".encodeToByteArray()),
                 lastUsedAt = Clock.System.now(),
                 coseAlgorithm = -7,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                storedPublicKeyEncoding = byteArrayOf(1, 2, 3),
                 credProtectPolicy = 1,
             )
 
@@ -56,9 +61,12 @@ class DomainModelSerializationTest {
         assertEquals(summary.credentialId, decoded.credentialId)
         assertEquals(summary.lastUsedAt, decoded.lastUsedAt)
         assertEquals(summary.coseAlgorithm, decoded.coseAlgorithm)
+        assertEquals(summary.derivationProfile, decoded.derivationProfile)
+        assertContentEquals(summary.storedPublicKeyEncoding, decoded.storedPublicKeyEncoding)
         assertEquals(summary.credProtectPolicy, decoded.credProtectPolicy)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun testUserConsentRecordSerialization() {
         val record =

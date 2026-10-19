@@ -1,16 +1,20 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.model.PrfExtensionInput
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 
 /**
- * T040 — Unit tests for [PrfKeyDerivation].
+ * T040 — Unit tests for [PrfKeyDerivation]. @see NFR-SEC-041 and TR-AUTH-031.
  *
  * Verifies:
  * - [PrfKeyDerivation.derive] output is exactly 32 bytes
@@ -31,6 +35,11 @@ class PrfKeyDerivationTest {
 
     // ── derive() ─────────────────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun derive_outputIs32Bytes() =
         runTest {
@@ -42,6 +51,11 @@ class PrfKeyDerivationTest {
             assertEquals(32, result.size, "derive() output must be exactly 32 bytes")
         }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun derive_isDeterministic() =
         runTest {
@@ -59,6 +73,11 @@ class PrfKeyDerivationTest {
             )
         }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun derive_returnsNull_whenSeedUnavailable() =
         runTest {
@@ -71,6 +90,11 @@ class PrfKeyDerivationTest {
 
     // ── deriveAll() ─────────────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun deriveAll_singleSalt_returnsOutput1Only() =
         runTest {
@@ -84,6 +108,11 @@ class PrfKeyDerivationTest {
             assertNull(output.output2, "Single-salt input must not produce output2")
         }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun deriveAll_dualSalt_returnsBothOutputs() =
         runTest {
@@ -99,6 +128,11 @@ class PrfKeyDerivationTest {
             assertEquals(fakeOutput32b.toList(), output.output2.toList())
         }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun deriveAll_returnsNull_whenSeedUnavailable_T049() =
         runTest {
@@ -110,6 +144,30 @@ class PrfKeyDerivationTest {
             assertNull(output, "T049: deriveAll() must return null without failing ceremony when seed unavailable")
         }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
+    @Test
+    fun `deriveAll erases output one when deriving output two is cancelled`() =
+        runTest {
+            val firstOutput = ByteArray(32) { 0x35 }
+            coEvery { mockHmacProcessor.process(credentialId, salt1) } returns firstOutput
+            coEvery { mockHmacProcessor.process(credentialId, salt2) } throws CancellationException("synthetic cancel")
+
+            assertFailsWith<CancellationException> {
+                prfKeyDerivation.deriveAll(PrfExtensionInput.dual(salt1, salt2), credentialId)
+            }
+
+            assertTrue(firstOutput.all { it == 0.toByte() }, "Untransferred first output must be erased")
+        }
+
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
+    @Req("NFR-SEC-010", "FR-VAL-020")
     @Test
     fun deriveAll_toCborMap_hasIntegerKeys() =
         runTest {

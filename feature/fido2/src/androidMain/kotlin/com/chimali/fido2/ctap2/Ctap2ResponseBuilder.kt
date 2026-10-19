@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.bluetooth.CTAPHID_CBOR
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
@@ -12,27 +13,46 @@ import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import org.koin.core.annotation.Single
 
-// CTAP2 status codes
+/** CTAP2 success status byte. */
 internal const val CTAP2_OK: Byte = 0x00
+
+/** CTAP2 status byte for malformed CBOR. */
 internal const val CTAP2_ERR_INVALID_CBOR: Byte = 0x12.toByte()
+
+/** CTAP2 status byte for a missing request parameter. */
 internal const val CTAP2_ERR_MISSING_PARAMETER: Byte = 0x14.toByte()
+
+/** CTAP2 status byte when no credential matches. */
 internal const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E.toByte()
+
+/** CTAP2 status byte when the operation is not allowed. */
 internal const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
+
+/** CTAP2 status byte for an unsupported algorithm. */
 internal const val CTAP2_ERR_UNSUPPORTED_ALGO: Byte = 0x26.toByte()
+
+/** CTAP2 status byte when the user denies the operation. */
 internal const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x27.toByte()
+
+/** CTAP2 status byte when the credential store is full. */
 internal const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
+
+/** CTAP2 status byte when the PIN is blocked. */
 internal const val CTAP2_ERR_PIN_BLOCKED: Byte = 0x32.toByte()
+
+/** CTAP2 status byte for an invalid PIN. */
 internal const val CTAP2_ERR_PIN_INVALID: Byte = 0x31.toByte()
 
 private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F // 0x10
+private const val KEEPALIVE_STATUS_PROCESSING: Byte = 0x01
 
 /**
  * Builds properly encoded CTAP2 response [CtapHidMessage]s and their corresponding
- * 64-byte HID report sequences.
+ * 62-byte HID report sequences.
  *
  * Each CTAP2 response consists of:
  *   - 1-byte CTAP2 status code
- *   - (Optional) JSON-encoded response body (using the project's CborCodec)
+ *   - (Optional) CBOR-encoded response body (using the project's CborCodec)
  */
 @Single
 class Ctap2ResponseBuilder(
@@ -71,8 +91,13 @@ class Ctap2ResponseBuilder(
     // ── MakeCredential response ───────────────────────────────────────────────
 
     /**
-     * Encodes a successful `authenticatorMakeCredential` response.
+     * Encodes a successful `authenticatorMakeCredential` response for borrowed [cid] and
+     * [attestation]. Returns owned HID report arrays; encoding failures propagate.
+     * @param cid Borrowed channel identifier; caller retains ownership.
+     * @param attestation Borrowed attestation data to encode.
+     * @return Owned 62-byte HID reports containing CTAP2 success and CBOR data.
      */
+    @Req("FR-HID-010", "FR-VAL-020")
     fun makeCredentialResponse(
         cid: ByteArray,
         attestation: AttestationObject,
@@ -92,8 +117,13 @@ class Ctap2ResponseBuilder(
     // ── GetInfo response ──────────────────────────────────────────────────────
 
     /**
-     * Encodes a `authenticatorGetInfo` (0x04) response per CTAP2 §6.4.
+     * Encodes `authenticatorGetInfo` from borrowed [cid] and [info] per CTAP2 §6.4.
+     * Returns owned HID report arrays; encoding failures propagate.
+     * @param cid Borrowed channel identifier; caller retains ownership.
+     * @param info Borrowed authenticator capability data.
+     * @return Owned 62-byte HID reports containing CTAP2 success and CBOR data.
      */
+    @Req("FR-HID-020", "FR-VAL-020")
     fun getInfoResponse(
         cid: ByteArray,
         info: AuthenticatorInfo,
@@ -158,8 +188,13 @@ class Ctap2ResponseBuilder(
     // ── Error response ────────────────────────────────────────────────────────
 
     /**
-     * Encodes a CTAP2 error response (status byte only, no body).
+     * Encodes a CTAP2 error response from borrowed [cid] and [statusCode].
+     * Returns owned HID report arrays with a status byte and no body.
+     * @param cid Borrowed channel identifier; caller retains ownership.
+     * @param statusCode CTAP2 status byte to send.
+     * @return Owned 62-byte HID reports containing the error status.
      */
+    @Req("FR-HID-010", "FR-VAL-020")
     fun errorResponse(
         cid: ByteArray,
         statusCode: Byte,
@@ -170,8 +205,13 @@ class Ctap2ResponseBuilder(
     }
 
     /**
-     * Encodes a CTAPHID-level error using the HID ERROR command.
+     * Encodes a CTAPHID-level error using borrowed [cid] and [errorCode].
+     * Returns owned HID report arrays with the HID ERROR command.
+     * @param cid Borrowed channel identifier; caller retains ownership.
+     * @param errorCode CTAPHID transport error byte to send.
+     * @return Owned 62-byte HID reports containing the transport error.
      */
+    @Req("FR-HID-010", "FR-VAL-020")
     fun hidErrorResponse(
         cid: ByteArray,
         errorCode: Byte,
@@ -184,11 +224,15 @@ class Ctap2ResponseBuilder(
 
     /**
      * Sends a CTAPHID_KEEPALIVE packet to prevent host timeout.
+     * Borrows [cid] and returns owned HID report arrays.
+     * @param cid Borrowed channel identifier; caller retains ownership.
      * @param status 0x01 = processing, 0x02 = upneeded (waiting for user presence)
+     * @return Owned 62-byte HID reports containing the progress status.
      */
+    @Req("FR-HID-010", "FR-VAL-020")
     fun keepAliveResponse(
         cid: ByteArray,
-        status: Byte = 0x01,
+        status: Byte = KEEPALIVE_STATUS_PROCESSING,
     ): List<ByteArray> {
         val msg = hidReportParser.buildKeepAliveResponse(cid, status)
         return hidReportParser.encodeResponse(msg)
@@ -250,7 +294,12 @@ class Ctap2ResponseBuilder(
         return map
     }
 
-    /** Human-readable description of a CTAP2 status code (for logging only). */
+    /**
+     * Provides a human-readable CTAP2 status description for logging.
+     * @param code Status byte to describe.
+     * @return Known label or an unknown label retaining the hexadecimal value.
+     */
+    @Req("FR-HID-010", "FR-VAL-020")
     fun statusDescription(code: Byte): String =
         when (code) {
             CTAP2_OK -> "CTAP2_OK"

@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.model.PrfExtensionInput
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -12,7 +13,12 @@ class PrfKeyDerivationZeroingTest {
     private val hmacSecretProcessor = mockk<HmacSecretProcessor>()
     private val prfKeyDerivation = PrfKeyDerivation(hmacSecretProcessor)
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun `PrfExtensionOutput clear() zeros all output buffers`() =
         runTest {
             // Arrange

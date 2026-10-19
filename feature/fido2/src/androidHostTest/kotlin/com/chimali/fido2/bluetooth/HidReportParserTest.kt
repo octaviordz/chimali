@@ -1,10 +1,12 @@
 package com.chimali.fido2.bluetooth
 
+import com.chimali.core.common.annotation.Req
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -42,7 +44,12 @@ class HidReportParserTest {
         private const val INIT_RESPONSE_PAYLOAD_SIZE = 17
         private const val OFFSET_8 = 8
         private const val OFFSET_12 = 12
+        private const val OFFSET_13 = 13
+        private const val OFFSET_14 = 14
+        private const val OFFSET_15 = 15
         private const val PROTOCOL_VERSION_2 = 0x02.toByte()
+        private const val DEVICE_MAJOR_VERSION_1 = 0x01.toByte()
+        private const val DEVICE_MINOR_BUILD_VERSION_0 = 0x00.toByte()
         private const val INVALID_NONCE_SIZE_4 = 4
         private const val ERR_CODE_01 = 0x01.toByte()
         private const val KA_STATUS_01 = 0x01.toByte()
@@ -107,7 +114,12 @@ class HidReportParserTest {
 
     // ── Single-packet message ─────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `single packet message assembles immediately`() {
         val payload = ByteArray(TEST_PAYLOAD_SIZE_20) { it.toByte() }
         val packet = initPacket(testCid, CTAPHID_CBOR, payload)
@@ -122,7 +134,12 @@ class HidReportParserTest {
         assertContentEquals(payload, msg.payload)
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `single packet CTAPHID_PING assembles correctly`() {
         val payload = byteArrayOf(CID_DUMMY_1, CID_DUMMY_2, CID_DUMMY_3)
         val packet = initPacket(testCid, CTAPHID_PING, payload)
@@ -135,7 +152,12 @@ class HidReportParserTest {
         assertEquals(CTAPHID_PING, msg.command)
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `zero length payload is accepted`() {
         val packet = initPacket(testCid, CTAPHID_PING, ByteArray(0))
 
@@ -149,7 +171,12 @@ class HidReportParserTest {
 
     // ── Multi-packet message ──────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `multi packet message reassembles correctly`() {
         // Init packet data size + some overflow
         val fullPayload = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { it.toByte() }
@@ -168,7 +195,60 @@ class HidReportParserTest {
         assertContentEquals(fullPayload, msg.payload)
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    fun `reassembly staging is erased after successful completion`() {
+        val fullPayload = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { (it + 1).toByte() }
+        var staging: ByteArray? = null
+        parser.onReassemblyBufferCreatedForTest = { staging = it }
+
+        parser.processReport(initPacket(testCid, CTAPHID_CBOR, fullPayload))
+        val result = parser.processReport(contPacket(testCid, SEQ_0, fullPayload, INIT_DATA_SIZE))
+
+        assertContentEquals(fullPayload, assertNotNull(result.getOrThrow()).payload)
+        assertNotNull(staging)
+        assertTrue(requireNotNull(staging).all { it == 0.toByte() })
+    }
+
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    fun `replacement malformed sequence reset and expiry erase incomplete staging`() {
+        val first = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { 0x41 }
+        val second = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { 0x42 }
+        val buffers = mutableListOf<ByteArray>()
+        parser.onReassemblyBufferCreatedForTest = { buffers += it }
+
+        parser.processReport(initPacket(testCid, CTAPHID_CBOR, first))
+        parser.processReport(initPacket(testCid, CTAPHID_CBOR, second))
+        assertTrue(buffers[0].all { it == 0.toByte() }, "replaced request staging must be erased")
+
+        parser.processReport(contPacket(testCid, SEQ_1, second, INIT_DATA_SIZE))
+        assertTrue(buffers[1].all { it == 0.toByte() }, "malformed sequence staging must be erased")
+
+        parser.processReport(initPacket(testCid, CTAPHID_CBOR, first))
+        parser.reset()
+        assertTrue(buffers[2].all { it == 0.toByte() }, "reset staging must be erased")
+
+        parser.processReport(initPacket(testCid, CTAPHID_CBOR, second))
+        parser.expirePending(Long.MAX_VALUE)
+        assertTrue(buffers[3].all { it == 0.toByte() }, "expired staging must be erased")
+        assertFalse(parser.processReport(contPacket(testCid, SEQ_0, second, INIT_DATA_SIZE)).isSuccess)
+    }
+
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `two continuation packets reassemble correctly`() {
         // Init packet data size + full continuation + 1 byte
         val fullPayload = ByteArray(INIT_DATA_SIZE + CONT_DATA_SIZE + SIZE_1) { (it and BYTE_MASK_FF).toByte() }
@@ -187,7 +267,12 @@ class HidReportParserTest {
 
     // ── Sequence mismatch ─────────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `out of order continuation returns failure`() {
         val fullPayload = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { it.toByte() }
 
@@ -200,7 +285,12 @@ class HidReportParserTest {
         assertIs<Exception>(result.exceptionOrNull())
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `orphaned continuation returns failure`() {
         val packet = ByteArray(HID_PACKET_SIZE)
         testCid.copyInto(packet, 0)
@@ -212,16 +302,68 @@ class HidReportParserTest {
 
     // ── Short report ──────────────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `short report returns failure`() {
         val shortReport = ByteArray(SHORT_REPORT_SIZE_10)
         val result = parser.processReport(shortReport)
         assertTrue(result.isFailure)
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    fun `exact HID capacity is representable and next byte plus legacy limit are rejected`() {
+        assertEquals(7_351, MAX_HID_MESSAGE_SIZE)
+        val maxPayload = ByteArray(MAX_HID_MESSAGE_SIZE) { it.toByte() }
+        val encoded = parser.encodeResponse(CtapHidMessage(testCid, CTAPHID_CBOR, maxPayload))
+        assertEquals(129, encoded.size)
+        assertEquals(127.toByte(), encoded.last()[CONT_SEQ_OFFSET])
+        var decoded: CtapHidMessage? = null
+        encoded.forEach { packet ->
+            decoded = parser.processReport(packet).getOrThrow() ?: decoded
+        }
+        assertContentEquals(maxPayload, decoded?.payload)
+        decoded?.payload?.fill(0)
+        encoded.forEach { it.fill(0) }
+        maxPayload.fill(0)
+
+        assertFailsWith<IllegalArgumentException> {
+            parser.encodeResponse(CtapHidMessage(testCid, CTAPHID_CBOR, ByteArray(MAX_HID_MESSAGE_SIZE + 1)))
+        }
+        val legacyLengthPacket = ByteArray(HID_PACKET_SIZE)
+        testCid.copyInto(legacyLengthPacket)
+        legacyLengthPacket[INIT_CMD_OFFSET] = (CTAPHID_CBOR or BIT_MASK_80).toByte()
+        legacyLengthPacket[INIT_BCNTH_OFFSET] = (7_609 shr 8).toByte()
+        legacyLengthPacket[INIT_BCNTL_OFFSET] = 7_609.toByte()
+        assertTrue(parser.processReport(legacyLengthPacket).isFailure)
+    }
+
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    fun `oversized HID report is rejected instead of truncating`() {
+        assertTrue(parser.processReport(ByteArray(HID_PACKET_SIZE + 1)).isFailure)
+    }
+
     // ── encodeResponse round trip ─────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `encode and re-parse single packet round trip`() {
         val data = ByteArray(ROUND_TRIP_DATA_SIZE_10) { it.toByte() }
         val msg = CtapHidMessage(testCid, CTAPHID_CBOR, data)
@@ -239,7 +381,12 @@ class HidReportParserTest {
         assertEquals(data.size, packets[0][INIT_BCNTL_OFFSET].toInt()) // BCNTL
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `encode large payload produces multiple packets`() {
         val data = ByteArray(INIT_DATA_SIZE + CONT_DATA_SIZE + EXTRA_CHUNKS_18) { it.toByte() } // needs 3 packets
         val msg = CtapHidMessage(testCid, CTAPHID_CBOR, data)
@@ -255,7 +402,12 @@ class HidReportParserTest {
 
     // ── CTAPHID_INIT response ─────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `buildInitResponse produces correctly structured response`() {
         val nonce = ByteArray(NONCE_SIZE_8) { (it + OFFSET_1).toByte() }
         val newCid = byteArrayOf(CID_INIT_A, CID_INIT_B, CID_INIT_C, CID_INIT_D)
@@ -270,9 +422,17 @@ class HidReportParserTest {
         assertContentEquals(newCid, response.payload.copyOfRange(OFFSET_8, OFFSET_12))
         // Byte 12 = CTAPHID protocol version = 0x02
         assertEquals(PROTOCOL_VERSION_2, response.payload[OFFSET_12])
+        assertEquals(DEVICE_MAJOR_VERSION_1, response.payload[OFFSET_13])
+        assertEquals(DEVICE_MINOR_BUILD_VERSION_0, response.payload[OFFSET_14])
+        assertEquals(DEVICE_MINOR_BUILD_VERSION_0, response.payload[OFFSET_15])
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `buildInitResponse rejects wrong nonce size`() {
         assertFailsWith<IllegalArgumentException> {
             parser.buildInitResponse(
@@ -284,7 +444,12 @@ class HidReportParserTest {
 
     // ── Error/keepalive responses ─────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `buildErrorResponse has correct structure`() {
         val errorMsg = parser.buildErrorResponse(testCid, ERR_CODE_01)
         assertEquals(CTAPHID_ERROR, errorMsg.command)
@@ -292,7 +457,12 @@ class HidReportParserTest {
         assertEquals(ERR_CODE_01, errorMsg.payload[0])
     }
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `buildKeepAliveResponse has correct structure`() {
         val kaMsg = parser.buildKeepAliveResponse(testCid, KA_STATUS_01)
         assertEquals(CTAPHID_KEEPALIVE, kaMsg.command)
@@ -302,7 +472,12 @@ class HidReportParserTest {
 
     // ── reset() ───────────────────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("FR-HID-010", "FR-VAL-020")
     fun `reset clears pending state so continuation becomes orphan`() {
         val fullPayload = ByteArray(INIT_DATA_SIZE + OVERFLOW_SIZE_10) { it.toByte() }
         parser.processReport(initPacket(testCid, CTAPHID_CBOR, fullPayload))

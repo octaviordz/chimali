@@ -7,6 +7,7 @@ import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -33,6 +34,10 @@ class Ctap2GetAssertionLockTest {
             getAssertionUseCase = getAssertionUseCase,
             ceremonyLock = ceremonyLock,
         )
+
+    init {
+        cborCodec.stubSensitiveRequestCompatibility()
+    }
 
     @Test
     fun `handle returns CHANNEL_BUSY when lock is already held`() =

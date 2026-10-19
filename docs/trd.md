@@ -18,7 +18,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **Data Layer**: SQLDelight (Persistence), Android KeyStore (Security), Bluetooth HID API (Transport).
 
 ## 3. Business Goals & Objectives (Technical Translation)
-- **Security Leadership**: Integration of BouncyCastle 1.80+ for **ML-DSA** (Post-Quantum digital signatures for FIDO2 attestation). ML-KEM support is available for future remote key provisioning flows.
+- **Security Leadership**: Integration of Bouncy Castle 1.80+ for the current local credential profile and ML-DSA-65 signing. ML-KEM or remote key provisioning is not part of the current credential profile; any issuer workflow remains a separate research item.
 - **Cross-Platform Utility**: Custom HID descriptors to ensure compatibility across OS types via `BluetoothHidDevice`.
 - **Modern UX**: Use of `androidx.compose.animation` for micro-interactions and M3 dynamic color tokens.
 
@@ -51,18 +51,24 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 
 ### 4.4 Authentication & Security
 #### [FR-AUTH-030] Master Seed & Recovery
+
+#### [TR-AUTH-031] Current Local Credential Derivation Profile
+- Keep the exact byte and algorithm contract in `specs/055-migrate-hdk-draft/contracts/local-key-derivation.md` synchronized with code and independently checked fixtures.
+- Bind complete decoded credential IDs; carry algorithm/profile metadata through registration, event replay, snapshots, SQL projections and assertion reconstruction.
+- Preserve independent Ed25519 and ML-DSA seed paths. Reject unsupported combinations without fallback.
+- Scope compatibility to clean installations as authorized for feature 055; do not imply old-key conversion or issuer interoperability.
 - **Technical Detail**: 
   - **Mnemonic**: BIP39 (12/24 words).
   - **Entropy**: Derived from `SecureRandom`.
   - **Mnemonic-to-Seed Stretching**: BIP-39 PBKDF2(HMAC-SHA512, 2048 iterations).
-  - **Child Key Derivation**: HDK per IETF `draft-dijkhuis-cfrg-hdkeys-06`. Classical (P-256) keys use HDK blinding; PQ (ML-DSA) keys use `DeriveSalt`-based branch isolation.
+  - **Current derivation (TR-AUTH-031)**: Use the 64-byte BIP39 seed as HKDF-SHA256 input to the named local profile and retain its 32-byte PRK as the derivation root. The P-256 branch binds the complete decoded credential ID, derives the deterministic P-256 parent with RFC 9180 §7.1.3, and adapts the scalar mapping and child-key relation in Section 7 of `draft-dijkhuis-hdk-00` at local index zero, substituting a local RFC 5869 credential secret for the draft's per-issuance X25519 shared secret. This is custom local composition, not the draft's issuance flow or an interoperability claim. Ed25519 and ML-DSA use separate 32-byte HKDF seed labels. Persist the explicit supported profile with the credential's algorithm; reject unknown pairs. Store no derived private key or seed. Parent signing is software-based and requires the existing authorization policy; encrypted recovery storage does not make the parent non-exportable. Recovery requires the mnemonic and credential metadata.
 
 ## 5. Non-Functional Requirements (Technical Standards)
 ### 5.1 Encryption Standards (NFR-SEC-010)
 - **Classical**: AES-256-GCM (Hardware accelerated) for payloads and encrypted metadata values.
 - **Searchable Metadata**: HMAC-SHA-256 blind indexes for deterministic exact-match lookup tokens.
 - **Key Wrapping**: Platform-backed AES-GCM/AEAD with unique nonces and associated data.
-- **Post-Quantum KEM**: ML-KEM-768 reserved for future remote key provisioning (via BouncyCastle 1.80+). Not used for data encryption.
+- **Post-Quantum KEM**: No KEM-based remote provisioning capability is defined by the current local credential profile. Any future issuer or provisioning design remains subject to the separate [OpenID4VCI HDK issuance investigation](backlog/openid4vci-hdk-issuance-investigation.md); this document does not claim ML-KEM support or readiness.
 
 ### 5.2 Signature Schemes (NFR-SEC-040)
 - **ECC**: P-256 (COSE -7) for wide compatibility.
@@ -75,8 +81,8 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 - **TR-UI-050: Relying Party Icon Loading**: Prompts must support display of the RP icon/favicon. Implement using an asynchronous image loading library (e.g., **Coil**) with an automatic fallback to `https://{rpId}/favicon.ico` if the request doesn't provide a specific icon URL.
 - **TR-UI-060: Multi-Transport UI Context**: Prompt ViewModels must determine the transport (Local/Credential Manager vs. Remote/HID) to display the correct contextual header (e.g. "Create a passkey on another device" vs. "Create a passkey for this device").
 - **TR-UI-070: Standardized Button Styling Implementation**: All primary and secondary action buttons in the FIDO2 and Vault modules must be implemented using Material 3 `shape.large` (16dp rounded corners) and a minimum vertical `contentPadding` of 16dp. This ensures global visual consistency and high-density touch targets compliant with NFR-PERF-030 accessibility guidelines.
-- **TR-PERF-010: Performance Monitoring Reporting**: Integrate `LatencyProfiler` metrics into an automated report to verify compliance with NFR-PERF-030.
-- **TR-UI-080: HDK Remote Flow (KEM)**: The core security module must implement the decapsulation (KEM) flow as defined in §4.1 of the HDK specification to support future remote key provisioning.
+- **TR-PERF-010: Performance Monitoring Reporting**: Provide a local automated report for the RP-to-verified-response round trip (<1,000ms after subtracting measured user-verification wait) and all internal FIDO operation processing (<200ms each after subtracting measured user-verification wait and excluding Bluetooth response handoff), with accepted-report status and no credential secrets or identifying data.
+- **TR-UI-080 (superseded)**: The previous HDK remote-flow/KEM requirement is retired for the current local profile. No remote provisioning or issuer behavior is specified here.
 - **TR-DOC-010: Help System Architecture**: User guidance must be maintained as internal static Markdown files, rendered via a specialized `MarkdownText` Composable to provide a localized, on-device help experience.
 - **TR-DOC-020: Technical Documentation**: Full API documentation and cryptographic architectural notes (specifically for HDK derivation) must be maintained for developer reference.
 

@@ -25,6 +25,12 @@ Or, run the entire local CI pipeline which executes these checks sequentially:
 ./tools/local-ci.ps1
 ```
 
+The default local CI run does not require an attached Android device. To also refresh and verify Spec 055 host and connected-device coverage, run:
+```powershell
+./tools/local-ci.ps1 -RunCoverage
+```
+This optional coverage gate requires the configured Android device to be connected and available to ADB. It reports authored production code; SQLDelight-generated adapters and query wrappers are excluded from JaCoCo denominators and are exercised through database integration tests.
+
 ## Compose Modifier conventions
 
 To ensure consistency and compatibility with both `ModifierMissing` and `ComposableParamOrder` rules, all UI composables should follow these conventions:

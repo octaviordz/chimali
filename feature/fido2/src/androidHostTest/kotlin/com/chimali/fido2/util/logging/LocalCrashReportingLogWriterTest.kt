@@ -1,5 +1,6 @@
 package com.chimali.fido2.util.logging
 
+import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 import java.io.File
 import kotlin.test.assertEquals
@@ -60,6 +61,7 @@ class LocalCrashReportingLogWriterTest {
 
     @Nested
     inner class T012WriteContract {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `log directory and file are created on first write`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -72,6 +74,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(logFile.length() > 0, "Log file should not be empty")
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `each write appends to the file — size grows monotonically`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -95,6 +98,7 @@ class LocalCrashReportingLogWriterTest {
             )
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `log entry content is written in expected format`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -107,6 +111,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(content.endsWith("\n"), "Entry should end with newline")
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `severity below Info is filtered out and nothing is written`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -117,6 +122,7 @@ class LocalCrashReportingLogWriterTest {
             assertFalse(logFile.exists(), "No file should be created for filtered severities")
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `Info Warn Error and Assert severities are all written`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -133,6 +139,7 @@ class LocalCrashReportingLogWriterTest {
             assertTrue(content.contains("WTF/Tag:"), "Assert entry should be present")
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `throwable stack trace is appended after the message line`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -148,6 +155,55 @@ class LocalCrashReportingLogWriterTest {
             )
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `throwable message and cause are not written to the local log`() {
+            val writer = LocalCrashReportingLogWriter(mockProvider)
+            val marker = "synthetic-private-marker-should-not-persist"
+            val cause = IllegalStateException("private key=$marker", IllegalArgumentException("seed=$marker"))
+
+            writer.log(Severity.Error, "Operation failed", "CrashTag", cause)
+
+            val content = logFile.readText()
+            assertTrue(content.contains("Operation failed"))
+            assertTrue(content.contains("IllegalStateException"))
+            assertFalse(content.contains(marker), "Exception messages and causes must not be persisted")
+        }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `debug log forwarding redacts messages and removes throwable causes`() {
+            var forwardedMessage: String? = null
+            var forwardedThrowable: Throwable? = null
+            val delegate =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        forwardedMessage = message
+                        forwardedThrowable = throwable
+                    }
+                }
+            val marker = "synthetic-private-marker-should-not-forward"
+            val writer = PrivacyScrubbingLogWriter(delegate)
+
+            writer.log(
+                Severity.Error,
+                "private key=$marker",
+                "CrashTag",
+                IllegalStateException("seed=$marker", IllegalArgumentException("prk=$marker")),
+            )
+
+            assertEquals("private key=[REDACTED]", forwardedMessage)
+            assertEquals("java.lang.IllegalStateException", forwardedThrowable?.message)
+            assertEquals(null, forwardedThrowable?.cause)
+            assertFalse(forwardedThrowable?.stackTraceToString()?.contains(marker) == true)
+        }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `privacy scrubber is applied — mnemonic is redacted in written content`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
@@ -173,6 +229,7 @@ class LocalCrashReportingLogWriterTest {
          */
         private val smallCap = SMALL_LOG_CAP_BYTES
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `rotation renames active log to bak when size limit is exceeded`() {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
@@ -199,6 +256,7 @@ class LocalCrashReportingLogWriterTest {
             )
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `fresh log file is small after rotation`() {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
@@ -221,6 +279,7 @@ class LocalCrashReportingLogWriterTest {
             )
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `previous bak is deleted before promoting active log`() {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
@@ -247,6 +306,7 @@ class LocalCrashReportingLogWriterTest {
             assertEquals(1, bakFiles?.size, "There must be exactly one .bak file at all times")
         }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `no rotation occurs when log is below the size cap`() {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)

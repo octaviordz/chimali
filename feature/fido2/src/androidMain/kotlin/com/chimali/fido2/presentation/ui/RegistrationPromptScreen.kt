@@ -29,8 +29,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
@@ -74,8 +78,10 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  * @param onSuccess   Called with the new credential after successful registration.
  * @param onCancel    Called when user dismisses without registering.
  * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
+ * Also forwards biometric completion or cancellation to [viewModel].
  */
 @Composable
+@Req("FR-HID-030", "FR-AUTH-010")
 fun RegistrationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
@@ -89,13 +95,27 @@ fun RegistrationPromptScreen(
 
     val updatedOnSuccess by rememberUpdatedState(onSuccess)
     val updatedOnCancel by rememberUpdatedState(onCancel)
+    var activePrompt by remember { mutableStateOf<Pair<Long, BiometricPrompt>?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            activePrompt?.second?.cancelAuthentication()
+            activePrompt = null
+        }
+    }
 
     // Handle one-shot effects
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is RegistrationEffect.NavigateBack -> updatedOnCancel()
-                is RegistrationEffect.NavigateToSuccess -> updatedOnSuccess(effect.credential.id.encoded)
+                is RegistrationEffect.NavigateToSuccess -> updatedOnSuccess(effect.credentialId)
+                is RegistrationEffect.CancelSystemPrompt -> {
+                    if (activePrompt?.first == effect.promptId) {
+                        activePrompt?.second?.cancelAuthentication()
+                        activePrompt = null
+                    }
+                }
                 is RegistrationEffect.LaunchSystemPrompt -> {
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)
@@ -124,14 +144,20 @@ fun RegistrationPromptScreen(
                                             errorCode == BiometricPrompt.ERROR_CANCELED ||
                                                 errorCode == BiometricPrompt.ERROR_USER_CANCELED
                                         if (isCancel) {
+                                            if (activePrompt?.first == effect.promptId) activePrompt = null
                                             viewModel.handleIntent(
                                                 RegistrationIntent.UserVerificationFailed(
+                                                    effect.promptId,
                                                     "Verification cancelled by user",
                                                 ),
                                             )
                                         } else {
+                                            if (activePrompt?.first == effect.promptId) activePrompt = null
                                             viewModel.handleIntent(
-                                                RegistrationIntent.UserVerificationFailed(errString.toString()),
+                                                RegistrationIntent.UserVerificationFailed(
+                                                    effect.promptId,
+                                                    errString.toString(),
+                                                ),
                                             )
                                         }
                                     }
@@ -140,14 +166,19 @@ fun RegistrationPromptScreen(
                                         result: BiometricPrompt.AuthenticationResult,
                                     ) {
                                         super.onAuthenticationSucceeded(result)
-                                        viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess)
+                                        if (activePrompt?.first == effect.promptId) activePrompt = null
+                                        viewModel.handleIntent(
+                                            RegistrationIntent.UserVerificationSuccess(effect.promptId),
+                                        )
                                     }
                                 },
                             )
+                        activePrompt = effect.promptId to biometricPrompt
                         biometricPrompt.authenticate(promptInfo)
                     } ?: run {
                         viewModel.handleIntent(
                             RegistrationIntent.UserVerificationFailed(
+                                effect.promptId,
                                 "Activity context required for biometric prompt",
                             ),
                         )
@@ -167,7 +198,9 @@ fun RegistrationPromptScreen(
     )
 }
 
+/** Renders [state] and invokes the supplied registration action callbacks. */
 @Composable
+@Req("FR-HID-030", "FR-AUTH-010")
 internal fun RegistrationPromptContent(
     state: RegistrationState,
     onConfirm: () -> Unit,
@@ -349,12 +382,12 @@ private fun AwaitingConsentContent(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = state.rpName,
+                    text = state.rpName.toBoundaryString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = state.rpId,
+                    text = state.rpId.toBoundaryString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -381,13 +414,13 @@ private fun AwaitingConsentContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = state.userDisplayName,
+                    text = state.userDisplayName.toBoundaryString(),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                 )
-                if (state.userName != state.userDisplayName) {
+                if (!state.userName.contentEquals(state.userDisplayName)) {
                     Text(
-                        state.userName,
+                        state.userName.toBoundaryString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

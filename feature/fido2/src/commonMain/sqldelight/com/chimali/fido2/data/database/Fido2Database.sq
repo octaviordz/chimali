@@ -2,48 +2,53 @@ CREATE TABLE passkey_credential (
     id TEXT NOT NULL PRIMARY KEY,
     created_at INTEGER NOT NULL,
     last_used_at INTEGER,
+    updated_at INTEGER NOT NULL,
     aaguid TEXT NOT NULL,
-    cose_algorithm INTEGER NOT NULL DEFAULT -7,
+    cose_algorithm INTEGER NOT NULL,
     credential_id TEXT NOT NULL,
     cred_protect_policy INTEGER NOT NULL DEFAULT 1,
-    label TEXT,
-    private_key_alias TEXT NOT NULL,
-    public_key TEXT NOT NULL,
-    rp_id TEXT NOT NULL,
-    rp_name TEXT NOT NULL,
-    sign_count INTEGER NOT NULL DEFAULT 0,
-    user_display_name TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    rp_id_index BLOB,
-    user_id_index BLOB,
+    derivation_profile TEXT NOT NULL,
     encrypted_metadata BLOB,
+    label TEXT,
+    public_key TEXT NOT NULL,
+    rp_id BLOB NOT NULL,
+    rp_id_index BLOB,
+    rp_name BLOB NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    user_display_name BLOB NOT NULL,
+    user_id BLOB NOT NULL,
+    user_id_index BLOB,
+    user_name BLOB NOT NULL,
     UNIQUE(rp_id, user_id)
 );
 
 CREATE TABLE relying_party (
-    id TEXT NOT NULL PRIMARY KEY,
+    id BLOB NOT NULL PRIMARY KEY,
     created_at INTEGER NOT NULL,
     last_used_at INTEGER,
+    updated_at INTEGER NOT NULL,
     credential_count INTEGER NOT NULL DEFAULT 0,
+    encrypted_metadata BLOB,
     icon_url TEXT,
     is_blocked INTEGER NOT NULL DEFAULT 0,
-    name TEXT NOT NULL,
-    encrypted_metadata BLOB
+    name BLOB NOT NULL,
+    CHECK (last_used_at IS NULL OR last_used_at >= created_at)
 );
 
 CREATE TABLE user_consent_record (
     id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
     timestamp INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
     biometric_used INTEGER NOT NULL DEFAULT 0,
     credential_id TEXT,
     device_id TEXT,
     ip_address TEXT,
     operation_type TEXT NOT NULL,
     pin_used INTEGER NOT NULL DEFAULT 0,
-    rp_id TEXT NOT NULL,
-    user_agent TEXT,
+    rp_id BLOB NOT NULL,
     rp_id_index BLOB,
+    user_agent TEXT,
     FOREIGN KEY(rp_id) REFERENCES relying_party(id) ON DELETE CASCADE
 );
 
@@ -70,17 +75,16 @@ CREATE INDEX idx_bluetooth_hid_session_is_active ON bluetooth_hid_session(is_act
 
 -- Views for common queries
 CREATE VIEW credential_summary AS
-SELECT 
+SELECT
     pc.id,
     pc.rp_id,
-    rp.name AS rp_name,
+    pc.rp_name,
     pc.user_name,
     pc.user_display_name,
     pc.created_at,
     pc.last_used_at,
     pc.sign_count
-FROM passkey_credential pc
-JOIN relying_party rp ON pc.rp_id = rp.id;
+FROM passkey_credential pc;
 
 CREATE VIEW relying_party_stats AS
 SELECT 

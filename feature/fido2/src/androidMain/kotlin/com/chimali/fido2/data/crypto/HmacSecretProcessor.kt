@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.security.api.MasterSeedProvider
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -57,12 +58,15 @@ class HmacSecretProcessor(
      * @return CBOR-encodable extension result map entry, or null if processing failed
      *         and the extension should be silently omitted.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun process(
         credentialId: String,
         extensionData: Any?,
     ): ByteArray? {
         if (extensionData == null) return null
 
+        var sessionOutput: ByteArray? = null
+        var resultTransferred = false
         return try {
             // Parse extension input
             val saltEnc: ByteArray =
@@ -88,57 +92,60 @@ class HmacSecretProcessor(
                 return null
             }
 
-            // Derive per-credential HMAC secret
-            val credSecret =
-                deriveCredentialSecret(credentialId)
-                    ?: return null
-
-            // Compute output(s)
-            val output = ByteArray(saltEnc.size)
-            val salt1 = saltEnc.copyOfRange(0, SALT_SIZE)
-            val hmacOutput1 = hmacSha256(credSecret, salt1)
-            hmacOutput1.copyInto(output, 0)
-
-            if (saltEnc.size == (SALT_SIZE * 2)) {
-                val salt2 = saltEnc.copyOfRange(SALT_SIZE, SALT_SIZE * 2)
-                val hmacOutput2 = hmacSha256(credSecret, salt2)
-                hmacOutput2.copyInto(output, SALT_SIZE)
-            }
-
-            // Zeroise sensitive material
-            credSecret.fill(0)
-            salt1.fill(0)
-            if (saltEnc.size == SALT_SIZE * 2) {
-                // Zero the second half of the actual saltEnc or a copy if we made one
-                saltEnc.fill(0, SALT_SIZE, SALT_SIZE * 2)
-            }
-            // If we are in simplified mode (direct salt), we might want to avoid zeroing the caller's input
-            // unless the spec says so. But for security, we zero our local copies.
-
-            Logger.d { "hmac-secret: computed output (${output.size} bytes) for credentialId=$credentialId" }
-            output
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "hmac-secret processing failed: ${e.message}" }
+            val result =
+                masterSeedProvider.withSessionOwner { _ ->
+                    val rootPrk = masterSeedProvider.getMasterSeed() ?: return@withSessionOwner null
+                    try {
+                        val credentialBytes = credentialId.toByteArray(Charsets.UTF_8)
+                        val credentialInput = DOMAIN_SEPARATOR + credentialBytes
+                        credentialBytes.fill(0)
+                        var credentialSecret: ByteArray? = null
+                        try {
+                            val secret = hmacSha256(rootPrk, credentialInput)
+                            credentialSecret = secret
+                            val output = ByteArray(saltEnc.size)
+                            var completed = false
+                            try {
+                                for (offset in 0 until saltEnc.size step SALT_SIZE) {
+                                    val saltCopy = saltEnc.copyOfRange(offset, offset + SALT_SIZE)
+                                    var saltOutput: ByteArray? = null
+                                    try {
+                                        saltOutput = hmacSha256(secret, saltCopy)
+                                        saltOutput.copyInto(output, offset)
+                                    } finally {
+                                        saltCopy.fill(0)
+                                        saltOutput?.fill(0)
+                                    }
+                                }
+                                Logger.d { "hmac-secret: computed output (${output.size} bytes)" }
+                                completed = true
+                                // Keep an outer owner reference in case withSessionOwner's
+                                // cancellation check discards this completed callback result.
+                                sessionOutput = output
+                                output
+                            } finally {
+                                if (!completed) output.fill(0)
+                            }
+                        } finally {
+                            credentialInput.fill(0)
+                            credentialSecret?.fill(0)
+                        }
+                    } finally {
+                        rootPrk.fill(0)
+                    }
+                }
+            resultTransferred = true
+            result
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.e { "hmac-secret processing failed" }
             null
+        } finally {
+            if (!resultTransferred) sessionOutput?.fill(0)
         }
-    }
-
-    /**
-     * Derives a 32-byte per-credential secret: HMAC-SHA-256(masterSeed, "hmac-secret" || credentialId).
-     *
-     * The credential secret is deterministic and unique per credential — different credentials
-     * for the same RP produce different secrets, satisfying the FIDO2 isolation requirement.
-     */
-    private suspend fun deriveCredentialSecret(credentialId: String): ByteArray? {
-        val masterSeed = masterSeedProvider.getMasterSeed()
-        if (masterSeed == null) {
-            Logger.w("hmac-secret: master seed unavailable, cannot derive credential secret")
-            return null
-        }
-        return hmacSha256(masterSeed, DOMAIN_SEPARATOR + credentialId.toByteArray(Charsets.UTF_8))
     }
 
     /** Computes HMAC-SHA-256(key, data). */
+
     private fun hmacSha256(
         key: ByteArray,
         data: ByteArray,
@@ -156,6 +163,7 @@ class HmacSecretProcessor(
      *
      * @return CBOR-encodable extensions map `{"hmac-secret": <output_bytes>}`, or null.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun buildAuthDataExtensions(hmacSecretOutput: ByteArray?): Map<String, Any>? {
         if (hmacSecretOutput == null) return null
         return mapOf(EXTENSION_KEY to hmacSecretOutput)
@@ -164,5 +172,6 @@ class HmacSecretProcessor(
     /**
      * Returns true if [extensions] map contains a processable `hmac-secret` entry.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isPresent(extensions: Map<String, Any>?): Boolean = extensions?.containsKey(EXTENSION_KEY) == true
 }

@@ -1,2 +1,0 @@
-ALTER TABLE PairedDevice ADD COLUMN alias TEXT;
-ALTER TABLE PasskeyCredential ADD COLUMN label TEXT;

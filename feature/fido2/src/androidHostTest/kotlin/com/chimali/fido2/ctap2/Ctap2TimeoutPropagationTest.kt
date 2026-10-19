@@ -21,7 +21,12 @@ import kotlin.test.assertEquals
  */
 class Ctap2TimeoutPropagationTest {
     private val rp = PublicKeyCredentialRpEntity.create(RpId("example.com"), "Example")
-    private val user = PublicKeyCredentialUserEntity.create(UserId("user123"), "testuser", "Test User")
+    private val user =
+        PublicKeyCredentialUserEntity.create(
+            UserId.fromByteArray("user123".encodeToByteArray()),
+            "testuser",
+            "Test User",
+        )
     private val challenge = ByteArray(32) { it.toByte() }
 
     // ── MakeCredentialOptions ─────────────────────────────────────────────────

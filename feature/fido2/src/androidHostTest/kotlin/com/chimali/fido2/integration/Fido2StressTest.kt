@@ -4,6 +4,7 @@ import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.UserConsentRecord
@@ -12,10 +13,9 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
-import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.api.MasterSeedProvider
-import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.core.security.hdkeys.HdkP256
+import com.chimali.core.security.hdkeys.P256ParentKeyDerivation
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
@@ -27,6 +27,7 @@ import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
@@ -44,7 +45,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import java.math.BigInteger
 import java.security.Security
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
@@ -82,8 +82,8 @@ class Fido2StressTest {
 
     private val realSeed = ByteArray(SEED_SIZE) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let {
-            HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
+        P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
+            HdkKeyPair(result.privateScalar.copyOf(), result.publicKey.copyOf()).also { result.erasePrivateScalar() }
         }
     }
 
@@ -102,7 +102,6 @@ class Fido2StressTest {
         private const val EXPECTED_AUTH_SUCCESS_44 = 44
         private const val DUMMY_BYTE_CD = 0xCD.toByte()
         private const val DIVISOR_2 = 2
-        private const val PATH_ARG_INDEX_2 = 2
     }
 
     @BeforeTest
@@ -119,48 +118,19 @@ class Fido2StressTest {
 
         val masterSeedProvider: MasterSeedProvider =
             mockk {
-                coEvery { getMasterSeed() } returns realSeed
-                coEvery { getDeviceKeyPair() } returns realDeviceKeyPair
+                every { sessionGeneration() } returns 1L
+                every { isSessionGenerationCurrent(any()) } returns true
+                coEvery { getMasterSeed() } answers { realSeed.copyOf() }
+                coEvery { getDeviceKeyPair() } answers {
+                    HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf())
+                }
             }
 
-        // HdkManagerImpl is not on the test classpath. Wire a real-math mock instead:
-        // deriveHdk → derives a deterministic child key pair via P256Group HMAC-based step
-        // blindPrivateKey → computes sk' = sk * bf mod ORDER (standard EC scalar multiplication)
-        val hdkManager: HdkManager =
-            mockk {
-                every { deriveHdk(any(), any(), any()) } answers {
-                    val seed = arg<ByteArray>(1)
-                    val path = arg<List<UInt>>(PATH_ARG_INDEX_2)
-                    // Derive a deterministic child scalar from seed+path via SHA-256
-                    val digest = java.security.MessageDigest.getInstance("SHA-256")
-                    path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
-                    val childScalar =
-                        BigInteger(1, digest.digest(seed)).mod(P256Group.ORDER).let {
-                            if (it == BigInteger.ZERO) BigInteger.ONE else it
-                        }
-                    val childPubKey = P256Group.G.multiply(childScalar).normalize()
-                    HdkResult(
-                        publicKey = P256Group.serializeElement(childPubKey),
-                        salt = ByteArray(SEED_SIZE),
-                        blindingFactor = P256Group.serializeScalar(childScalar),
-                    )
-                }
-                every { blindPrivateKey(any(), any()) } answers {
-                    val devicePriv = BigInteger(1, arg<ByteArray>(0))
-                    val blindFactor = BigInteger(1, arg<ByteArray>(1))
-                    val blindedScalar = devicePriv.multiply(blindFactor).mod(P256Group.ORDER)
-                    P256Group.serializeScalar(blindedScalar)
-                }
-            }
         cryptoService =
             Fido2CryptoService(
-                hdkManager = hdkManager,
+                hdkManager = HdkP256,
                 masterSeedProvider = masterSeedProvider,
                 postQuantumCrypto = PostQuantumCrypto(),
-                timeProvider =
-                    mockk {
-                        every { epochMillis() } returns 0L
-                    },
                 defaultDispatcher = UnconfinedTestDispatcher(),
             )
 
@@ -179,7 +149,7 @@ class Fido2StressTest {
                         biometricStrength = BiometricStrength.STRONG,
                     )
                 coEvery {
-                    isUserVerificationRequired(any(), any(), any())
+                    isUserVerificationRequiredForText(any(), any(), any())
                 } returns ServiceVerificationRequirement.PREFERRED
                 coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
             }
@@ -219,6 +189,7 @@ class Fido2StressTest {
 
     // ── Stress Test ───────────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `100 consecutive registration operations succeed at a 95 percent rate`() =
         runTest {
@@ -238,6 +209,7 @@ class Fido2StressTest {
             )
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `100 consecutive authentication operations on registered credentials succeed at a 95 percent rate`() =
         runTest {
@@ -280,6 +252,7 @@ class Fido2StressTest {
             )
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `interleaved registration and authentication do not corrupt state`() =
         runTest {
@@ -334,7 +307,7 @@ class Fido2StressTest {
         val rp = PublicKeyCredentialRpEntity.create(id = RpId("https://$rpIdHost"), name = rpIdHost)
         val user =
             PublicKeyCredentialUserEntity.create(
-                id = UserId(userId),
+                id = UserId.fromByteArray(userId.encodeToByteArray()),
                 name = userId,
                 displayName = userId,
             )
@@ -343,7 +316,7 @@ class Fido2StressTest {
             user = user,
             challenge = ByteArray(SEED_SIZE) { (it + 1).toByte() },
             pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-            selectedAlgId = Fido2CryptoService.COSE_ES256,
+            selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
         )
     }
 }
@@ -354,6 +327,31 @@ class Fido2StressTest {
  * Thread-safe in-memory implementation of [CredentialRepository] for use in tests.
  */
 private class InMemoryCredentialRepository : CredentialRepository {
+    override suspend fun getCredentialSummariesForRpText(
+        rpId: CharSequence,
+    ): Outcome<List<CredentialSummary>, DomainError> =
+        Outcome.Success(
+            credentials.values.filter { it.rpId.contentEquals(rpId, ignoreCase = true) }.map {
+                CredentialSummary.fromText(
+                    it.id.encoded,
+                    it.rpId,
+                    it.id,
+                    it.lastUsedAt,
+                    it.coseAlgorithm,
+                    it.derivationProfile,
+                    it.storedPublicKeyEncoding,
+                    it.credProtectPolicy,
+                )
+            },
+        )
+
+    override suspend fun validateCredentialCreationForText(
+        rpId: CharSequence,
+        userId: CharSequence,
+    ): Outcome<Unit, DomainError> = Outcome.Success(Unit)
+
+    override suspend fun getRelyingPartyForText(rpId: CharSequence): RelyingParty? = null
+
     private val credentials = ConcurrentHashMap<String, PasskeyCredential>()
     private val signCounts = ConcurrentHashMap<CredentialId, Long>()
     private val relyingParties = ConcurrentHashMap<RpId, RelyingParty>()
@@ -361,19 +359,21 @@ private class InMemoryCredentialRepository : CredentialRepository {
     fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
             .asSequence()
-            .filter { it.rpId == rpId }
+            .filter { it.belongsToRelyingParty(rpId) }
             .map {
                 CredentialSummary(
                     id = it.id.encoded,
-                    rpId = it.rpId,
+                    rpId = it.rpId.toRpId(),
                     credentialId = it.id,
                     lastUsedAt = it.lastUsedAt,
                     coseAlgorithm = it.coseAlgorithm,
+                    derivationProfile = it.derivationProfile,
+                    storedPublicKeyEncoding = it.storedPublicKeyEncoding,
                 )
             }.toList()
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
-        credentials[credential.id.encoded] = credential
+        credentials[credential.id.encoded] = credential.copyWithIndependentSensitiveText()
         signCounts[credential.id] = 0L
         return Outcome.Success(Unit)
     }
@@ -382,10 +382,10 @@ private class InMemoryCredentialRepository : CredentialRepository {
         credentials.values.find { it.id == credentialId }
 
     override fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
-        flowOf(*credentials.values.filter { it.rpId == rpId }.toTypedArray())
+        flowOf(*credentials.values.filter { it.belongsToRelyingParty(rpId) }.toTypedArray())
 
     override fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
-        flowOf(*credentials.values.filter { it.userId == userId }.toTypedArray())
+        flowOf(*credentials.values.filter { it.belongsToUser(userId) }.toTypedArray())
 
     override fun getAllCredentials(): Flow<PasskeyCredential> = flowOf(*credentials.values.toTypedArray())
 
@@ -408,7 +408,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
     ): Outcome<List<PasskeyCredential>, DomainError> {
         val list =
             credentials.values
-                .filter { it.rpId == rpId }
+                .filter { it.belongsToRelyingParty(rpId) }
                 .drop(offset.toInt())
                 .take(limit.toInt())
         return Outcome.Success(list)
@@ -440,15 +440,16 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun credentialExists(
         rpId: RpId,
         userId: UserId,
-    ): Boolean = credentials.values.any { (it.rpId == rpId) && (it.userId == userId) }
+    ): Boolean = credentials.values.any { it.belongsToRelyingParty(rpId) && it.belongsToUser(userId) }
 
     override fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override suspend fun getCredentialCountByRpId(rpId: RpId): Int = credentials.values.count { it.rpId == rpId }
+    override suspend fun getCredentialCountByRpId(rpId: RpId): Int =
+        credentials.values.count { it.belongsToRelyingParty(rpId) }
 
     override fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> = emptyFlow()
 
-    override fun searchCredentials(query: String): Flow<PasskeyCredential> = emptyFlow()
+    override fun searchCredentials(query: SensitiveCredentialText): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun validateCredentialCreation(
         rpId: RpId,
@@ -458,7 +459,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
-        relyingParties[rp.id] = rp
+        relyingParties[rp.id] = rp.copy()
         return Outcome.Success(Unit)
     }
 
@@ -487,7 +488,6 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override suspend fun getCredentialStatistics(): CredentialStatistics =
         CredentialStatistics(
             totalCredentials = credentials.size,
-            credentialsByRp = emptyMap(),
             expiredCredentials = 0,
             recentlyUsedCredentials = 0,
             credentialsRequiringUserVerification = 0,
@@ -495,19 +495,21 @@ private class InMemoryCredentialRepository : CredentialRepository {
         )
 
     override suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError> =
-        Outcome.Success(credentials.values.filter { it.rpId == rpId })
+        Outcome.Success(credentials.values.filter { it.belongsToRelyingParty(rpId) })
 
     override suspend fun getCredentialSummariesForRp(rpId: RpId): Outcome<List<CredentialSummary>, DomainError> =
         Outcome.Success(
             credentials.values
-                .filter { it.rpId == rpId }
+                .filter { it.belongsToRelyingParty(rpId) }
                 .map {
                     CredentialSummary(
                         id = it.id.encoded,
-                        rpId = it.rpId,
+                        rpId = it.rpId.toRpId(),
                         credentialId = it.id,
                         lastUsedAt = it.lastUsedAt,
                         coseAlgorithm = it.coseAlgorithm,
+                        derivationProfile = it.derivationProfile,
+                        storedPublicKeyEncoding = it.storedPublicKeyEncoding,
                     )
                 },
         )
@@ -522,7 +524,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
         rpId: RpId?,
     ): Outcome<List<PasskeyCredential>, DomainError> {
         val filtered = credentials.values.filter { it.id in credentialIds }
-        return Outcome.Success(if (rpId != null) filtered.filter { it.rpId == rpId } else filtered)
+        return Outcome.Success(if (rpId != null) filtered.filter { it.belongsToRelyingParty(rpId) } else filtered)
     }
 
     override suspend fun cleanupExpiredCredentials(maxAgeDays: Long): Outcome<Int, DomainError> = Outcome.Success(0)
@@ -532,7 +534,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
             credentials.clear()
             signCounts.clear()
         } else {
-            val toRemove = credentials.entries.filter { it.value.rpId == rpId }.map { it.key }
+            val toRemove = credentials.entries.filter { it.value.belongsToRelyingParty(rpId) }.map { it.key }
             toRemove.forEach {
                 credentials.remove(it)
                 signCounts.remove(CredentialId.fromEncoded(it))

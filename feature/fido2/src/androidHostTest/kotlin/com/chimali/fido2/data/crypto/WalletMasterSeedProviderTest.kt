@@ -1,422 +1,705 @@
 package com.chimali.fido2.data.crypto
 
-import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
+import androidx.datastore.core.DataStore
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.datastore.EncryptionWrapper
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.core.security.api.EncryptedMetadataService
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
-import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MetadataLookupTokenService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlin.test.BeforeTest
+import java.util.Base64
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertSame
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
-/**
- * Unit tests for [WalletMasterSeedProvider].
- *
- * [WalletMasterSeedProvider] uses [EncryptedSharedPreferences] (Android instrumentation).
- * These unit tests use [TestableWalletMasterSeedProvider], a test subclass that replaces
- * encrypted storage with a simple in-memory variable, verifying business logic:
- *  - seed initialization from mnemonic
- *  - in-process caching (init runs only once)
- *  - reuse of a persisted mnemonic
- *  - device key pair derivation
- *  - T146g-p: importMnemonic coverage (Created, Replaced, cache invalidation, validation)
- */
+/** Production-provider boundary tests with only the encrypted store and crypto services faked. */
 class WalletMasterSeedProviderTest {
-    private val fakeMnemonic =
-        listOf(
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "abandon",
-            "about",
-        )
-    private val fakeSeed = ByteArray(SEED_SIZE_64) { it.toByte() }
-    private val fakeKeyPair = mockk<HdkKeyPair>(relaxed = true)
+    private val phrase =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon " +
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+    private val seed = ByteArray(64) { it.toByte() }
+    private val generator = mockk<MasterSeedGenerator>()
+    private val dataStore = InMemoryDataStore()
+    private val encryption = mockk<EncryptionWrapper>()
+    private val lookupTokens = mockk<MetadataLookupTokenService>()
+    private val encryptedMetadata = mockk<EncryptedMetadataService>()
+    private val provider = WalletMasterSeedProvider(generator, dataStore, encryption, lookupTokens, encryptedMetadata)
 
-    private companion object {
-        private const val SEED_SIZE_64 = 64
-        private const val PQ_SEED_SIZE_64 = 64
-        private const val MNEMONIC_WORDS_24 = 24
-        private const val MNEMONIC_WORDS_12 = 12
-        private const val OFFSET_10 = 10
-        private const val OFFSET_99 = 99
-        private const val HDK_SEED_SIZE_32 = 32
-        private const val PQ_CONTEXT_STRING = "PQ_ML-DSA_Branch"
-        private const val PQ_EXPANSION_KEY = "chimali_pq_seed_v1"
+    init {
+        every { generator.generateMnemonic(any()) } answers { phrase.toCharArray() }
+        every { generator.deriveSeed(any()) } answers { seed.copyOf() }
+        every { encryption.encrypt(any()) } answers {
+            val plaintext = firstArg<ByteArray>()
+            plaintext.copyOf().also { plaintext.fill(0) }
+        }
+        every { encryption.decrypt(any()) } answers { firstArg<ByteArray>().copyOf() }
     }
 
-    private lateinit var mockGenerator: MasterSeedGenerator
-    private lateinit var mockHdkManager: HdkManager
-    private lateinit var provider: TestableWalletMasterSeedProvider
-
-    @BeforeTest
-    fun setUp() {
-        mockGenerator = mockk()
-        mockHdkManager = mockk()
-
-        every { mockGenerator.generateMnemonic(MNEMONIC_WORDS_24) } returns fakeMnemonic
-        every { mockGenerator.deriveSeed(fakeMnemonic, "") } returns fakeSeed
-        every { mockHdkManager.generateDeviceKeyPair() } returns fakeKeyPair
-        // HDK DeriveSalt: SHA-256(salt || ctx) — mock with a real SHA-256 computation
-        every { mockHdkManager.deriveSalt(any(), any()) } answers {
-            val salt = firstArg<ByteArray>()
-            val ctx = secondArg<ByteArray>()
-            java.security.MessageDigest.getInstance("SHA-256").run {
-                update(salt)
-                update(ctx)
-                digest()
-            }
-        }
-
-        provider = TestableWalletMasterSeedProvider(mockGenerator, mockHdkManager)
-    }
-
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
     @Test
-    fun `getMasterSeed returns non-null seed on first call`() =
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `clean bootstrap stores encrypted mnemonic and returns owned root and parent copies`() =
         runTest {
-            val seed = provider.getMasterSeed()
-            assertNotNull(seed)
-            assertContentEquals(fakeSeed, seed)
-        }
-
-    @Test
-    fun `getMasterSeed returns same seed on subsequent calls (cached)`() =
-        runTest {
-            val seed1 = provider.getMasterSeed()
-            val seed2 = provider.getMasterSeed()
-            assertContentEquals(seed1, seed2)
-        }
-
-    @Test
-    fun `mnemonic is generated only once even across multiple getSeed calls`() =
-        runTest {
-            provider.getMasterSeed()
-            provider.getMasterSeed()
-            provider.getMasterSeed()
-
-            verify(exactly = 1) { mockGenerator.generateMnemonic(MNEMONIC_WORDS_24) }
-            verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
-        }
-
-    @Test
-    fun `getDeviceKeyPair returns non-null pair after initialization`() =
-        runTest {
-            val keyPair = provider.getDeviceKeyPair()
-            assertNotNull(keyPair)
-        }
-
-    @Test
-    fun `getDeviceKeyPair returns same instance across calls`() =
-        runTest {
-            val kp1 = provider.getDeviceKeyPair()
-            val kp2 = provider.getDeviceKeyPair()
-            assertSame(kp1, kp2)
-        }
-
-    @Test
-    fun `when persisted mnemonic exists it is reused without generating new one`() =
-        runTest {
-            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-
-            provider.getMasterSeed()
-
-            verify(exactly = 0) { mockGenerator.generateMnemonic(any()) }
-            verify(exactly = 1) { mockGenerator.deriveSeed(fakeMnemonic, "") }
-        }
-
-    @Test
-    fun `getMnemonic returns the persisted mnemonic as word list`() =
-        runTest {
-            // T146: programmatic persistence verification
-            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-            val words = provider.getMnemonic()
-            assertEquals(fakeMnemonic, words)
-        }
-
-    @Test
-    fun `getMnemonic returns null when no mnemonic is persisted`() =
-        runTest {
-            provider.persistedMnemonic = null
-            val words = provider.getMnemonic()
-            assertNull(words)
-        }
-
-    // -----------------------------------------------------------------------
-    // T146g-p: importMnemonic tests
-    // -----------------------------------------------------------------------
-
-    @Test
-    fun `importMnemonic returns Created when no mnemonic existed before`() =
-        runTest {
-            // No mnemonic persisted yet.
-            provider.persistedMnemonic = null
-
-            val twentyFourWords = List(MNEMONIC_WORDS_24) { "word${it + 1}" }
-            every { mockGenerator.deriveSeed(twentyFourWords, "") } returns ByteArray(SEED_SIZE_64)
-
-            val chars = twentyFourWords.joinToString(" ").toCharArray()
-            val result = provider.importMnemonic(chars)
-
-            assertEquals(ImportMnemonicResult.Created, result)
-            assertEquals(twentyFourWords.joinToString(" "), provider.persistedMnemonic)
-        }
-
-    @Test
-    fun `importMnemonic returns Replaced when a mnemonic already existed`() =
-        runTest {
-            // Pre-populate storage with an existing mnemonic.
-            provider.persistedMnemonic = fakeMnemonic.joinToString(" ")
-
-            val newWords = List(MNEMONIC_WORDS_24) { "new${it + 1}" }
-            every { mockGenerator.deriveSeed(newWords, "") } returns ByteArray(SEED_SIZE_64)
-
-            val chars = newWords.joinToString(" ").toCharArray()
-            val result = provider.importMnemonic(chars)
-
-            assertEquals(ImportMnemonicResult.Replaced, result)
-            assertEquals(newWords.joinToString(" "), provider.persistedMnemonic)
-        }
-
-    @Test
-    fun `importMnemonic invalidates cache so getMasterSeed re-derives from new mnemonic`() =
-        runTest {
-            // Warm the cache with the original mnemonic / seed.
-            val originalSeed = provider.getMasterSeed()
-
-            val newWords = List(MNEMONIC_WORDS_24) { "cache${it + 1}" }
-            val newSeed = ByteArray(SEED_SIZE_64) { (it + OFFSET_10).toByte() }
-            every { mockGenerator.deriveSeed(newWords, "") } returns newSeed
-
-            val chars = newWords.joinToString(" ").toCharArray()
-            provider.importMnemonic(chars)
-
-            // After import the cache must be refreshed; getMasterSeed must return the new seed.
-            val seedAfterImport = provider.getMasterSeed()
-            assertFalse(originalSeed.contentEquals(seedAfterImport!!))
-            assertContentEquals(newSeed, seedAfterImport)
-        }
-
-    @Test
-    fun `importMnemonic throws IllegalArgumentException for wrong word count`() =
-        runTest {
-            val shortWords =
-                listOf(
-                    "only",
-                    "twelve",
-                    "words",
-                    "here",
-                    "but",
-                    "need",
-                    "more",
-                    "this",
-                    "will",
-                    "fail",
-                    "validation",
-                    "check",
-                )
-            assertEquals(MNEMONIC_WORDS_12, shortWords.size)
-            val chars = shortWords.joinToString(" ").toCharArray()
-
-            assertFailsWith<IllegalArgumentException> {
-                kotlinx.coroutines.runBlocking { provider.importMnemonic(chars) }
-            }
-        }
-
-    @Test
-    fun `importMnemonic zeroes the CharArray after use`() =
-        runTest {
-            val words = List(MNEMONIC_WORDS_24) { "zero${it + 1}" }
-            every { mockGenerator.deriveSeed(words, "") } returns ByteArray(SEED_SIZE_64)
-
-            val chars = words.joinToString(" ").toCharArray()
-            provider.importMnemonic(chars)
-
-            // All chars must be null characters after importMnemonic returns.
-            assertTrue(chars.all { it == '\u0000' }, "CharArray must be zeroed after importMnemonic")
-        }
-
-    // -----------------------------------------------------------------------
-    // T001: HDK-based PQ child seed — KAT, determinism, clean break
-    // -----------------------------------------------------------------------
-
-    @Test
-    fun `getPqChildSeed returns deterministic 64-byte result via HDK DeriveSalt`() =
-        runTest {
-            val pq1 = provider.getPqChildSeed()
-            val pq2 = provider.getPqChildSeed()
-
-            assertNotNull(pq1)
-            assertEquals(PQ_SEED_SIZE_64, pq1.size, "PQ child seed must be 64 bytes")
-            assertContentEquals(pq1, pq2, "PQ child seed must be deterministic")
-        }
-
-    @Test
-    fun `getPqChildSeed produces different output from legacy BIP-85 derivation (clean break)`() =
-        runTest {
-            val pqChildSeed = provider.getPqChildSeed()
-            assertNotNull(pqChildSeed)
-
-            // Legacy BIP-85 stub returned ByteArray(64) { (it + 99).toByte() }
-            val legacyStub = ByteArray(PQ_SEED_SIZE_64) { (it + OFFSET_99).toByte() }
-            assertFalse(
-                pqChildSeed.contentEquals(legacyStub),
-                "HDK-derived PQ seed must differ from legacy BIP-85 output",
-            )
-        }
-
-    @Test
-    fun `getPqChildSeed enforces domain separation (T006)`() =
-        runTest {
-            val actualSeed = provider.getPqChildSeed()
-
-            // Compute what the seed would be with a DIFFERENT context string
-            val master = provider.getMasterSeed()!!
-            val hdkSeed = master.copyOf(HDK_SEED_SIZE_32)
-            val differentContext = "SOME_OTHER_Branch".toByteArray(Charsets.UTF_8)
-            val fakeSalt = mockHdkManager.deriveSalt(hdkSeed, differentContext)
-
-            val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
-            val mac = javax.crypto.Mac.getInstance("HmacSHA512")
-            mac.init(javax.crypto.spec.SecretKeySpec(expansionKey, "HmacSHA512"))
-            val differentSeed = mac.doFinal(fakeSalt)
-
-            assertFalse(
-                actualSeed!!.contentEquals(differentSeed),
-                "Different HDK contexts must yield different child seeds (domain separation)",
-            )
-        }
-
-    @Test
-    fun `getPqChildSeed returns null when master seed is not available`() =
-        runTest {
-            // Create a provider with no mnemonic and no generation capability
-            val emptyProvider = TestableWalletMasterSeedProvider(mockGenerator, mockHdkManager)
-            emptyProvider.persistedMnemonic = null
-
-            // Override to make getMasterSeed return null
-            val nullSeedProvider =
-                object : MasterSeedProvider {
-                    override suspend fun getMasterSeed(): ByteArray? = null
-
-                    override suspend fun getDeviceKeyPair(): HdkKeyPair? = null
-
-                    override suspend fun getMnemonic(): List<String>? = null
-
-                    override suspend fun getPqChildSeed(): ByteArray? = null
-
-                    override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult =
-                        ImportMnemonicResult.Created
+            provider.withSessionOwner { _ ->
+                val root1 = requireNotNull(provider.getMasterSeed())
+                val root2 = requireNotNull(provider.getMasterSeed())
+                val pair1 = requireNotNull(provider.getDeviceKeyPair())
+                val pair2 = requireNotNull(provider.getDeviceKeyPair())
+                try {
+                    assertEquals(32, root1.size)
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), root1)
+                    assertContentEquals(root1, root2)
+                    assertNotSame(root1, root2)
+                    assertNotSame(pair1.privateKey, pair2.privateKey)
+                    assertNotSame(pair1.publicKey, pair2.publicKey)
+                    root1.fill(0)
+                    pair1.erasePrivateKey()
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), root2)
+                    assertTrue(pair2.privateKey.any { it != 0.toByte() })
+                    assertTrue(
+                        dataStore.data
+                            .first()
+                            .encryptedWalletSeed
+                            .isNotEmpty(),
+                    )
+                    verify(exactly = 1) { generator.generateMnemonic(24) }
+                    verify(exactly = 1) { generator.deriveSeed(any()) }
+                } finally {
+                    root1.fill(0)
+                    root2.fill(0)
+                    pair1.erasePrivateKey()
+                    pair2.erasePrivateKey()
+                    seed.fill(0)
                 }
-            assertNull(nullSeedProvider.getPqChildSeed())
+            }
         }
 
     /**
-     * Test double that replaces [EncryptedSharedPreferences] with an in-memory string variable.
-     *
-     * The PQ child seed derivation uses the **real HDK DeriveSalt** path:
-     * 1. `DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch")` → 32-byte salt
-     * 2. `HMAC-SHA512("chimali_pq_seed_v1", pqSalt)` → 64-byte child seed
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
      */
-    private inner class TestableWalletMasterSeedProvider(
-        private val gen: MasterSeedGenerator,
-        private val hdkMgr: HdkManager,
-    ) : MasterSeedProvider {
-        var persistedMnemonic: String? = null
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `persisted encrypted mnemonic reconstructs the same root without generating another phrase`() =
+        runTest {
+            val encryptedPhrase = Base64.getEncoder().encodeToString(phrase.toByteArray(Charsets.US_ASCII))
+            dataStore.updateData { it.copy(encryptedWalletSeed = encryptedPhrase) }
 
-        @Volatile
-        private var cachedSeed: ByteArray? = null
-
-        @Volatile
-        private var cachedKeyPair: HdkKeyPair? = null
-
-        @Volatile
-        private var cachedPqChildSeed: ByteArray? = null
-
-        override suspend fun getMasterSeed(): ByteArray? = ensureInit().first
-
-        override suspend fun getDeviceKeyPair(): HdkKeyPair? = ensureInit().second
-
-        override suspend fun getMnemonic(): List<String>? = persistedMnemonic?.takeIf { it.isNotBlank() }?.split(" ")
-
-        /**
-         * HDK-based PQ child seed derivation (mirrors production logic):
-         * 1. DeriveSalt(masterSeed[0:32], "PQ_ML-DSA_Branch") → 32-byte salt
-         * 2. HMAC-SHA512("chimali_pq_seed_v1", pqSalt) → 64-byte child seed
-         */
-        override suspend fun getPqChildSeed(): ByteArray? {
-            cachedPqChildSeed?.let { return it }
-            val master = getMasterSeed() ?: return null
-            return synchronized(this) {
-                cachedPqChildSeed ?: run {
-                    val hdkSeed = master.copyOf(HDK_SEED_SIZE_32)
-                    val pqContext = PQ_CONTEXT_STRING.toByteArray(Charsets.UTF_8)
-                    val pqSalt = hdkMgr.deriveSalt(hdkSeed, pqContext)
-                    val expansionKey = PQ_EXPANSION_KEY.toByteArray(Charsets.UTF_8)
-                    val mac = javax.crypto.Mac.getInstance("HmacSHA512")
-                    mac.init(javax.crypto.spec.SecretKeySpec(expansionKey, "HmacSHA512"))
-                    mac.doFinal(pqSalt).also { cachedPqChildSeed = it }
+            provider.withSessionOwner { _ ->
+                val root = requireNotNull(provider.getMasterSeed())
+                val mnemonic = requireNotNull(provider.getMnemonic())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), root)
+                    assertContentEquals(phrase.toCharArray(), mnemonic)
+                    verify(exactly = 0) { generator.generateMnemonic(any()) }
+                } finally {
+                    root.fill(0)
+                    mnemonic.fill('\u0000')
+                    seed.fill(0)
                 }
             }
         }
 
-        override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {
-            try {
-                val mnemonicString = String(mnemonic)
-                val words = mnemonicString.split(" ")
-                require(words.size == MNEMONIC_WORDS_24) {
-                    "Invalid mnemonic: expected 24 words, got ${words.size}."
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `import consumes mutable phrase and replaces current derivation material`() =
+        runTest {
+            provider.withSessionOwner { _ -> requireNotNull(provider.getMasterSeed()).fill(0) }
+            val imported = phrase.toCharArray()
+
+            val result = provider.importMnemonic(imported)
+            provider.withSessionOwner { _ ->
+                val root = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertEquals(ImportMnemonicResult.Replaced, result)
+                    assertTrue(imported.all { it == '\u0000' })
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), root)
+                } finally {
+                    imported.fill('\u0000')
+                    root.fill(0)
+                    seed.fill(0)
                 }
-                val alreadyExisted = !persistedMnemonic.isNullOrBlank()
-                persistedMnemonic = mnemonicString
-                // Invalidate cache.
-                synchronized(this) {
-                    cachedSeed = null
-                    cachedKeyPair = null
-                    cachedPqChildSeed?.fill(0)
-                    cachedPqChildSeed = null
-                }
-                // Re-derive immediately.
-                ensureInit()
-                return if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created
-            } finally {
-                mnemonic.fill('\u0000')
             }
         }
 
-        @Synchronized
-        private fun ensureInit(): Pair<ByteArray?, HdkKeyPair?> {
-            if (cachedSeed != null) return Pair(cachedSeed, cachedKeyPair)
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `failed root derivation does not publish a partial cache`() =
+        runTest {
+            every { generator.deriveSeed(any()) } throws IllegalStateException("synthetic failure")
+            repeat(2) {
+                kotlin.test.assertFailsWith<IllegalStateException> {
+                    kotlinx.coroutines.runBlocking { provider.withSessionOwner { provider.getMasterSeed() } }
+                }
+                assertEquals(null, cachedValue("cachedPrk"))
+                assertEquals(null, cachedValue("cachedParent"))
+            }
+            verify(exactly = 2) { generator.deriveSeed(any()) }
+            seed.fill(0)
+        }
 
-            val mnemonic =
-                if (!persistedMnemonic.isNullOrBlank()) {
-                    persistedMnemonic!!.split(" ")
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `provider owns only one root and parent cache and no credential PQ cache`() {
+        val fields = provider.javaClass.declaredFields.map { it.name }
+        assertEquals(1, fields.count { it == "cachedPrk" })
+        assertEquals(1, fields.count { it == "cachedParent" })
+        assertTrue(
+            fields.none { field ->
+                val normalized = field.lowercase()
+                normalized.contains("pq") || normalized.contains("mldsa") || normalized.contains("credentialseed")
+            },
+        )
+    }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `session clearing fences an in-flight bootstrap and next request reconstructs lazily`() =
+        runTest {
+            val derivationEntered = CountDownLatch(1)
+            val allowDerivationToFinish = CountDownLatch(1)
+            every { generator.deriveSeed(any()) } answers {
+                derivationEntered.countDown()
+                check(allowDerivationToFinish.await(5, TimeUnit.SECONDS)) { "test release timed out" }
+                seed.copyOf()
+            }
+
+            val staleRequest =
+                async(Dispatchers.IO) {
+                    provider.withSessionOwner { provider.getMasterSeed() }
+                }
+            assertTrue(derivationEntered.await(5, TimeUnit.SECONDS), "bootstrap should enter seed derivation")
+            val oldGeneration = provider.sessionGeneration()
+
+            provider.clearSession()
+            assertTrue(provider.sessionGeneration() > oldGeneration)
+            allowDerivationToFinish.countDown()
+
+            assertFailsWith<CancellationException> { staleRequest.await() }
+            provider.withSessionOwner { _ ->
+                val reconstructed = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), reconstructed)
+                    verify(exactly = 2) { generator.deriveSeed(any()) }
+                } finally {
+                    reconstructed.fill(0)
+                    seed.fill(0)
+                }
+            }
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `parent cancellation during synchronous bootstrap leaves no unowned cache and reconstructs lazily`() =
+        runTest {
+            val derivationEntered = CountDownLatch(1)
+            val allowDerivationToFinish = CountDownLatch(1)
+            every { generator.deriveSeed(any()) } answers {
+                derivationEntered.countDown()
+                check(allowDerivationToFinish.await(5, TimeUnit.SECONDS)) { "test release timed out" }
+                seed.copyOf()
+            }
+
+            val request = async(Dispatchers.IO) { provider.withSessionOwner { provider.getMasterSeed() } }
+            assertTrue(derivationEntered.await(5, TimeUnit.SECONDS), "bootstrap should enter seed derivation")
+            request.cancel()
+            allowDerivationToFinish.countDown()
+            assertFailsWith<CancellationException> { request.await() }
+            assertEquals(0, activeOwnerCount())
+            assertEquals(null, cachedValue("cachedPrk"))
+            assertEquals(null, cachedValue("cachedParent"))
+
+            provider.withSessionOwner { _ ->
+                val reconstructed = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), reconstructed)
+                    verify(exactly = 2) { generator.deriveSeed(any()) }
+                } finally {
+                    reconstructed.fill(0)
+                    seed.fill(0)
+                }
+            }
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `clear and foreground cancellation release suspended bootstrap owners without parent cancellation`() =
+        runTest {
+            suspend fun verifyCancellation(
+                blockedStage: SuspendedFirstAccessDataStore.Stage,
+                clearGeneration: Boolean,
+            ) {
+                var generatedPhrase: CharArray? = null
+                every { generator.generateMnemonic(any()) } answers {
+                    phrase.toCharArray().also { generatedPhrase = it }
+                }
+                val blockedStore = SuspendedFirstAccessDataStore(blockedStage)
+                val testProvider =
+                    WalletMasterSeedProvider(
+                        generator,
+                        blockedStore,
+                        encryption,
+                        lookupTokens,
+                        encryptedMetadata,
+                    )
+                var operationEntered = false
+                val request =
+                    async(Dispatchers.IO) {
+                        testProvider.withSessionOwner(ownerKind = MasterSeedOwnerKind.FOREGROUND) {
+                            operationEntered = true
+                            testProvider.getMasterSeed()
+                        }
+                    }
+
+                withContext(Dispatchers.Default) { withTimeout(2_000) { blockedStore.blockedAccess.await() } }
+                if (clearGeneration) {
+                    testProvider.clearSession()
                 } else {
-                    val newMnemonic = gen.generateMnemonic(MNEMONIC_WORDS_24)
-                    persistedMnemonic = newMnemonic.joinToString(" ")
-                    newMnemonic
+                    testProvider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)
                 }
 
-            cachedSeed = gen.deriveSeed(mnemonic)
-            cachedKeyPair = hdkMgr.generateDeviceKeyPair()
-            return Pair(cachedSeed, cachedKeyPair)
+                assertFailsWith<CancellationException> {
+                    withContext(Dispatchers.Default) { withTimeout(2_000) { request.await() } }
+                }
+                assertTrue(!operationEntered, "cancelled bootstrap must not enter its operation")
+                if (blockedStage == SuspendedFirstAccessDataStore.Stage.UPDATE) {
+                    val phraseErased = requireNotNull(generatedPhrase).all { it == '\u0000' }
+                    assertTrue(phraseErased, "cancelled mnemonic must be erased")
+                }
+                val activeOwnersField =
+                    testProvider.javaClass.getDeclaredField("activeOwners").apply { isAccessible = true }
+                assertEquals(0, (activeOwnersField.get(testProvider) as Map<*, *>).size)
+                for (fieldName in listOf("cachedPrk", "cachedParent")) {
+                    val field = testProvider.javaClass.getDeclaredField(fieldName).apply { isAccessible = true }
+                    assertEquals(null, field.get(testProvider), "$fieldName must not publish for a cancelled owner")
+                }
+
+                testProvider.withSessionOwner { _ ->
+                    val recovered = requireNotNull(testProvider.getMasterSeed())
+                    try {
+                        assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), recovered)
+                    } finally {
+                        recovered.fill(0)
+                    }
+                }
+            }
+
+            verifyCancellation(SuspendedFirstAccessDataStore.Stage.READ, clearGeneration = true)
+            verifyCancellation(SuspendedFirstAccessDataStore.Stage.READ, clearGeneration = false)
+            verifyCancellation(SuspendedFirstAccessDataStore.Stage.UPDATE, clearGeneration = true)
+            verifyCancellation(SuspendedFirstAccessDataStore.Stage.UPDATE, clearGeneration = false)
+            seed.fill(0)
         }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `foreground cancellation discards completed synchronous bootstrap before cache publication`() =
+        runTest {
+            val derivationEntered = CountDownLatch(1)
+            val allowDerivationToFinish = CountDownLatch(1)
+            var derivationCount = 0
+            var staleDerivedSeed: ByteArray? = null
+            var staleGeneratedPhrase: CharArray? = null
+            every { generator.generateMnemonic(any()) } answers {
+                phrase.toCharArray().also { staleGeneratedPhrase = it }
+            }
+            every { generator.deriveSeed(any()) } answers {
+                derivationCount += 1
+                val derived = seed.copyOf()
+                if (derivationCount == 1) {
+                    staleDerivedSeed = derived
+                    derivationEntered.countDown()
+                    check(allowDerivationToFinish.await(5, TimeUnit.SECONDS)) { "test release timed out" }
+                }
+                derived
+            }
+
+            val staleRequest =
+                async(Dispatchers.IO) {
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.FOREGROUND) { provider.getMasterSeed() }
+                }
+            assertTrue(derivationEntered.await(5, TimeUnit.SECONDS), "bootstrap should enter seed derivation")
+            provider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)
+            allowDerivationToFinish.countDown()
+
+            assertFailsWith<CancellationException> { staleRequest.await() }
+            assertEquals(0, activeOwnerCount())
+            assertEquals(null, cachedValue("cachedPrk"))
+            assertEquals(null, cachedValue("cachedParent"))
+            val seedErased = requireNotNull(staleDerivedSeed).all { it == 0.toByte() }
+            val phraseErased = requireNotNull(staleGeneratedPhrase).all { it == '\u0000' }
+            assertTrue(seedErased, "cancelled seed must be erased")
+            assertTrue(phraseErased, "cancelled mnemonic must be erased")
+            provider.withSessionOwner { _ ->
+                val fresh = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), fresh)
+                } finally {
+                    fresh.fill(0)
+                }
+            }
+            seed.fill(0)
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `cancelled owner release waits for wallet replacement then erases without orphaning`() =
+        runTest {
+            val replacementDerivationEntered = CountDownLatch(1)
+            val allowReplacementToFinish = CountDownLatch(1)
+            var derivationCount = 0
+            every { generator.deriveSeed(any()) } answers {
+                derivationCount += 1
+                if (derivationCount == 2) {
+                    replacementDerivationEntered.countDown()
+                    check(allowReplacementToFinish.await(5, TimeUnit.SECONDS)) { "test release timed out" }
+                }
+                seed.copyOf()
+            }
+            val ownerEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val ownerOperation =
+                async(Dispatchers.IO) {
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
+                        ownerEntered.complete(Unit)
+                        awaitCancellation()
+                    }
+                }
+            ownerEntered.await()
+
+            val replacement = async(Dispatchers.IO) { provider.importMnemonic(phrase.toCharArray()) }
+            assertTrue(
+                replacementDerivationEntered.await(5, TimeUnit.SECONDS),
+                "replacement should hold initialization mutex",
+            )
+            ownerOperation.cancel()
+            allowReplacementToFinish.countDown()
+
+            assertEquals(ImportMnemonicResult.Replaced, replacement.await())
+            assertFailsWith<CancellationException> { ownerOperation.await() }
+            assertEquals(0, activeOwnerCount())
+            assertEquals(null, cachedValue("cachedPrk"))
+            assertEquals(null, cachedValue("cachedParent"))
+
+            provider.withSessionOwner { _ ->
+                val reconstructed = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), reconstructed)
+                } finally {
+                    reconstructed.fill(0)
+                    seed.fill(0)
+                }
+            }
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `overlapping owners keep one cache until the last owner releases then reconstruct lazily`() =
+        runTest {
+            val firstEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val secondEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val releaseFirst = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val releaseSecond = kotlinx.coroutines.CompletableDeferred<Unit>()
+            var firstRoot: ByteArray? = null
+            var secondRoot: ByteArray? = null
+            var firstGeneration = -1L
+            var secondGeneration = -1L
+
+            val first =
+                async {
+                    provider.withSessionOwner { generation ->
+                        firstGeneration = generation
+                        firstRoot = requireNotNull(provider.getMasterSeed())
+                        firstEntered.complete(Unit)
+                        releaseFirst.await()
+                    }
+                }
+            firstEntered.await()
+            val second =
+                async {
+                    provider.withSessionOwner { generation ->
+                        secondGeneration = generation
+                        secondRoot = requireNotNull(provider.getMasterSeed())
+                        secondEntered.complete(Unit)
+                        releaseSecond.await()
+                    }
+                }
+            secondEntered.await()
+
+            try {
+                assertEquals(firstGeneration, secondGeneration)
+                assertContentEquals(firstRoot, secondRoot)
+                verify(exactly = 1) { generator.deriveSeed(any()) }
+
+                releaseFirst.complete(Unit)
+                first.await()
+                assertTrue(provider.isSessionGenerationCurrent(secondGeneration))
+                assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), requireNotNull(secondRoot))
+
+                releaseSecond.complete(Unit)
+                second.await()
+                assertTrue(!provider.isSessionGenerationCurrent(secondGeneration))
+
+                provider.withSessionOwner { nextGeneration ->
+                    assertTrue(nextGeneration > secondGeneration)
+                    val reconstructed = requireNotNull(provider.getMasterSeed())
+                    try {
+                        assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), reconstructed)
+                        verify(exactly = 2) { generator.deriveSeed(any()) }
+                    } finally {
+                        reconstructed.fill(0)
+                    }
+                }
+            } finally {
+                releaseFirst.complete(Unit)
+                releaseSecond.complete(Unit)
+                firstRoot?.fill(0)
+                secondRoot?.fill(0)
+                seed.fill(0)
+            }
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `session fence cancels its active operation owner`() =
+        runTest {
+            val ownerEntered = kotlinx.coroutines.CompletableDeferred<Long>()
+            val operation =
+                async {
+                    provider.withSessionOwner { generation ->
+                        ownerEntered.complete(generation)
+                        awaitCancellation()
+                    }
+                }
+            val ownedGeneration = ownerEntered.await()
+
+            provider.clearSession()
+
+            assertTrue(!provider.isSessionGenerationCurrent(ownedGeneration))
+            assertFailsWith<CancellationException> { operation.await() }
+            provider.withSessionOwner { newGeneration ->
+                assertTrue(newGeneration > ownedGeneration)
+                val root = requireNotNull(provider.getMasterSeed())
+                try {
+                    assertContentEquals(EXPECTED_ROOT_PRK.hexToBytes(), root)
+                } finally {
+                    root.fill(0)
+                }
+            }
+            seed.fill(0)
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `foreground loss cancels foreground owner while admitted authenticator owner continues`() =
+        runTest {
+            val foregroundEntered = kotlinx.coroutines.CompletableDeferred<Long>()
+            val authenticatorEntered = kotlinx.coroutines.CompletableDeferred<Long>()
+            val foreground =
+                async {
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.FOREGROUND) { generation ->
+                        foregroundEntered.complete(generation)
+                        awaitCancellation()
+                    }
+                }
+            val foregroundGeneration = foregroundEntered.await()
+            val authenticator =
+                async {
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) { generation ->
+                        authenticatorEntered.complete(generation)
+                        awaitCancellation()
+                    }
+                }
+            val authenticatorGeneration = authenticatorEntered.await()
+
+            provider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)
+
+            assertFailsWith<CancellationException> { foreground.await() }
+            assertTrue(provider.isSessionGenerationCurrent(authenticatorGeneration))
+            assertTrue(!authenticator.isCompleted)
+            assertEquals(foregroundGeneration, authenticatorGeneration)
+
+            provider.cancelSessionOwners(MasterSeedOwnerKind.AUTHENTICATOR)
+
+            assertFailsWith<CancellationException> { authenticator.await() }
+            assertTrue(!provider.isSessionGenerationCurrent(authenticatorGeneration))
+            seed.fill(0)
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `wallet replacement cancels old owner and next owner derives from imported wallet`() =
+        runTest {
+            var replacementSeed: ByteArray? = null
+            every { generator.deriveSeed(any()) } answers {
+                (replacementSeed ?: seed).copyOf()
+            }
+            val ownerEntered = kotlinx.coroutines.CompletableDeferred<Long>()
+            var previousRoot: ByteArray? = null
+            val operation =
+                async {
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) { generation ->
+                        previousRoot = requireNotNull(provider.getMasterSeed())
+                        ownerEntered.complete(generation)
+                        awaitCancellation()
+                    }
+                }
+            val oldGeneration = ownerEntered.await()
+            replacementSeed = ByteArray(64) { (it + 1).toByte() }
+            val imported = phrase.toCharArray()
+
+            try {
+                assertEquals(ImportMnemonicResult.Replaced, provider.importMnemonic(imported))
+                assertTrue(imported.all { it == '\u0000' })
+                assertFailsWith<CancellationException> { operation.await() }
+                assertTrue(!provider.isSessionGenerationCurrent(oldGeneration))
+
+                provider.withSessionOwner { newGeneration ->
+                    assertTrue(newGeneration > oldGeneration)
+                    val root = requireNotNull(provider.getMasterSeed())
+                    try {
+                        assertTrue(!root.contentEquals(requireNotNull(previousRoot)))
+                    } finally {
+                        root.fill(0)
+                    }
+                }
+                verify(exactly = 3) { generator.deriveSeed(any()) }
+            } finally {
+                previousRoot?.fill(0)
+                replacementSeed?.fill(0)
+                imported.fill('\u0000')
+                seed.fill(0)
+            }
+        }
+
+    private class InMemoryDataStore : DataStore<UserPreferences> {
+        private val state = MutableStateFlow(UserPreferences())
+        private val mutex = Mutex()
+
+        override val data: Flow<UserPreferences> = state
+
+        override suspend fun updateData(transform: suspend (t: UserPreferences) -> UserPreferences): UserPreferences =
+            mutex.withLock {
+                transform(state.value).also { state.value = it }
+            }
+    }
+
+    private class SuspendedFirstAccessDataStore(
+        private val stage: Stage,
+    ) : DataStore<UserPreferences> {
+        enum class Stage { READ, UPDATE }
+
+        val blockedAccess = CompletableDeferred<Unit>()
+        private val state = MutableStateFlow(UserPreferences())
+        private val reads = AtomicInteger()
+        private val updates = AtomicInteger()
+        private val mutex = Mutex()
+
+        override val data: Flow<UserPreferences> =
+            flow {
+                if (stage == Stage.READ && reads.getAndIncrement() == 0) {
+                    blockedAccess.complete(Unit)
+                    awaitCancellation()
+                }
+                emit(state.value)
+            }
+
+        override suspend fun updateData(transform: suspend (t: UserPreferences) -> UserPreferences): UserPreferences =
+            mutex.withLock {
+                if (stage == Stage.UPDATE && updates.getAndIncrement() == 0) {
+                    blockedAccess.complete(Unit)
+                    awaitCancellation()
+                }
+                transform(state.value).also { state.value = it }
+            }
+    }
+
+    private fun cachedValue(fieldName: String): Any? =
+        provider.javaClass
+            .getDeclaredField(fieldName)
+            .apply { isAccessible = true }
+            .get(provider)
+
+    private fun activeOwnerCount(): Int = (cachedValue("activeOwners") as Map<*, *>).size
+
+    private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+
+    private companion object {
+        const val EXPECTED_ROOT_PRK = "aa6ff6f8d8e560bb6a8f8ff11f88b7684e184c480f30f17ac64a696730aacea2"
     }
 }

@@ -1,20 +1,26 @@
 package com.chimali.fido2.presentation.viewmodel
 
+import androidx.lifecycle.ViewModelStore
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedProvider
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -36,7 +42,9 @@ class DevToolsViewModelTest {
         private const val MNEMONIC_WORD_COUNT = 24
     }
 
-    private val fakeMnemonic = (1..MNEMONIC_WORD_COUNT).map { "word$it" }
+    private val fakeWords = (1..MNEMONIC_WORD_COUNT).map { "word$it" }
+    private val fakeMnemonic = fakeWords.joinToString(" ").toCharArray()
+    private val viewModelStore = ViewModelStore()
 
     private lateinit var viewModel: DevToolsViewModel
 
@@ -45,16 +53,24 @@ class DevToolsViewModelTest {
         Dispatchers.setMain(dispatcher)
         coEvery { mockProvider.getMasterSeed() } returns ByteArray(SEED_SIZE_64)
         coEvery { mockProvider.getDeviceKeyPair() } returns mockk<HdkKeyPair>(relaxed = true)
-        coEvery { mockProvider.getMnemonic() } returns fakeMnemonic
+        coEvery { mockProvider.getMnemonic() } answers { fakeMnemonic.copyOf() }
+        coEvery {
+            mockProvider.withSessionOwner(any(), any(), any<suspend (Long) -> Unit>())
+        } coAnswers {
+            thirdArg<suspend (Long) -> Unit>().invoke(1L)
+        }
         coEvery { mockProvider.importMnemonic(any()) } returns ImportMnemonicResult.Created
         viewModel = DevToolsViewModel(mockProvider, mockClipboard)
+        viewModelStore.put("dev-tools", viewModel)
     }
 
     @AfterEach
     fun tearDown() {
+        viewModelStore.clear()
         Dispatchers.resetMain()
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `LoadMnemonic returns word list when provider has mnemonic`() =
         runTest {
@@ -62,11 +78,37 @@ class DevToolsViewModelTest {
 
             val state = viewModel.state.value
             assertFalse(state.isLoading)
-            assertEquals(fakeMnemonic, state.mnemonicWords)
+            assertContentEquals(fakeMnemonic, state.mnemonicWords)
             assertTrue(state.isMnemonicVisible)
             assertNull(state.error)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `mnemonic reveal keeps its provider owner until it is hidden`() =
+        runTest {
+            var ownerReleased = false
+            coEvery {
+                mockProvider.withSessionOwner(any(), any(), any<suspend (Long) -> Unit>())
+            } coAnswers {
+                try {
+                    thirdArg<suspend (Long) -> Unit>().invoke(1L)
+                } finally {
+                    ownerReleased = true
+                }
+            }
+
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+
+            assertTrue(viewModel.state.value.isMnemonicVisible)
+            assertFalse(ownerReleased)
+
+            viewModel.onIntent(DevToolsIntent.ClearMnemonic)
+
+            assertTrue(ownerReleased)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `LoadMnemonic sets error when provider returns null`() =
         runTest {
@@ -79,6 +121,7 @@ class DevToolsViewModelTest {
             assertNotNull(state.error)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `ClearMnemonic zeroes words from state`() =
         runTest {
@@ -93,32 +136,151 @@ class DevToolsViewModelTest {
             assertNull(state.error)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `copy requires a revealed mnemonic and uses the sensitive clipboard policy`() =
+        runTest {
+            viewModel.onIntent(DevToolsIntent.CopyToClipboard)
+            coVerify(exactly = 0) { mockClipboard.copySensitiveData(any(), any(), any()) }
+
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+            val ownedWords = requireNotNull(viewModel.state.value.mnemonicWords)
+            viewModel.onIntent(DevToolsIntent.CopyToClipboard)
+
+            coVerify(exactly = 1) {
+                mockClipboard.copySensitiveData("Chimali Master Seed", fakeMnemonic.concatToString(), 60_000L)
+            }
+            assertContentEquals(fakeMnemonic, ownedWords)
+
+            viewModel.onIntent(DevToolsIntent.ClearMnemonic)
+
+            assertTrue(
+                ownedWords.all { it == '\u0000' },
+                "Hiding the mnemonic must erase the UI-owned character buffer",
+            )
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `reveal replacement erases the previous mutable mnemonic owner`() =
+        runTest {
+            val first = fakeMnemonic.copyOf()
+            val second =
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+                    .toCharArray()
+            coEvery { mockProvider.getMnemonic() } returnsMany listOf(first, second)
+
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+            assertContentEquals(first, viewModel.state.value.mnemonicWords)
+
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+
+            assertTrue(first.all { it == '\u0000' }, "Replacing a reveal must erase the previous owner")
+            assertContentEquals(second, viewModel.state.value.mnemonicWords)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `disposing view model erases revealed mnemonic owner`() =
+        runTest {
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+            val owned = requireNotNull(viewModel.state.value.mnemonicWords)
+
+            viewModelStore.clear()
+
+            assertTrue(owned.all { it == '\u0000' }, "ViewModel disposal must erase its mnemonic buffer")
+            assertNull(viewModel.state.value.mnemonicWords)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `cancelling import erases the in-flight mutable input`() =
+        runTest {
+            val captured = slot<CharArray>()
+            val importEntered = CompletableDeferred<Unit>()
+            coEvery { mockProvider.importMnemonic(capture(captured)) } coAnswers {
+                importEntered.complete(Unit)
+                awaitCancellation()
+            }
+
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(fakeMnemonic.copyOf()))
+            importEntered.await()
+            val imported = captured.captured
+
+            viewModelStore.clear()
+
+            assertTrue(imported.all { it == '\u0000' }, "Cancellation must erase the owned import buffer")
+            assertFalse(viewModel.state.value.isLoading)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `disposing before scheduled import starts erases the transferred input`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val imported = fakeMnemonic.copyOf()
+
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(imported))
+
+            assertTrue(imported.any { it != '\u0000' }, "The queued import still owns its input before cancellation")
+            viewModelStore.clear()
+
+            assertTrue(imported.all { it == '\u0000' }, "Disposal must erase input even if the coroutine never starts")
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `hiding during mnemonic load cancels the reveal owner`() =
+        runTest {
+            val loadEntered = CompletableDeferred<Unit>()
+            coEvery { mockProvider.getMnemonic() } coAnswers {
+                loadEntered.complete(Unit)
+                awaitCancellation()
+            }
+
+            viewModel.onIntent(DevToolsIntent.LoadMnemonic)
+            loadEntered.await()
+            assertTrue(viewModel.state.value.isLoading)
+
+            viewModel.onIntent(DevToolsIntent.ClearMnemonic)
+
+            assertFalse(viewModel.state.value.isLoading)
+            assertNull(viewModel.state.value.mnemonicWords)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `RecoverFromSeed with 24 words emits success state`() =
         runTest {
-            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(fakeMnemonic))
+            val mnemonic = fakeMnemonic.copyOf()
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))
 
             val state = viewModel.state.value
             assertFalse(state.isLoading)
             assertTrue(state.isRecoverSuccessful)
             assertNull(state.error)
+            assertTrue(mnemonic.all { it == '\u0000' })
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `RecoverFromSeed with fewer than 24 words sets error`() =
         runTest {
-            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(listOf("word1", "word2")))
+            val mnemonic = "word1 word2".toCharArray()
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))
 
             val state = viewModel.state.value
             assertFalse(state.isRecoverSuccessful)
             assertNotNull(state.error)
             assertTrue(state.error.contains("2"))
+            assertTrue(mnemonic.all { it == '\u0000' })
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `DismissError clears error from state`() =
         runTest {
-            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(emptyList()))
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(charArrayOf()))
             assertNotNull(viewModel.state.value.error)
 
             viewModel.onIntent(DevToolsIntent.DismissError)
@@ -138,6 +300,7 @@ class DevToolsViewModelTest {
      */
     @Nested
     inner class BiometricLockoutTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `T148c BiometricError LOCKOUT clears mnemonic and sets error`() =
             runTest {
@@ -159,6 +322,7 @@ class DevToolsViewModelTest {
                 assertNotNull(state.error, "Error must be set on lockout")
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `T148c BiometricError LOCKOUT_PERMANENT clears mnemonic and sets error`() =
             runTest {
@@ -179,6 +343,7 @@ class DevToolsViewModelTest {
                 assertNotNull(state.error)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `T148c BiometricError does not trigger retry or LoadMnemonic`() =
             runTest {

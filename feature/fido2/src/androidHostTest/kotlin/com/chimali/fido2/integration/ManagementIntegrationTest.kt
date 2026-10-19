@@ -2,8 +2,8 @@ package com.chimali.fido2.integration
 
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.time.TimeProvider
-import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -14,6 +14,7 @@ import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
 import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
 import com.chimali.fido2.presentation.management.CredentialManagementIntent
 import com.chimali.fido2.presentation.management.CredentialManagementViewModel
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.security.KeyPairGenerator
@@ -73,20 +74,15 @@ class ManagementIntegrationTest {
         // searchCredentials returns empty by default
         coEvery { repository.searchCredentials(any()) } returns emptyFlow()
 
-        coEvery { repository.deleteCredential(any()) } answers {
-            val arg = firstArg<Any>()
-            val targetEncoded =
-                if (arg is String) {
-                    arg
-                } else {
-                    (arg as com.chimali.core.domain.valueobject.CredentialId).encoded
+        listOf("dGVzdF9jcmVkZW50aWFsXzAx", "dGVzdF9jcmVkZW50aWFsXzAy")
+            .forEach { label ->
+                val credentialId = testCredentialIdFromLabel(label)
+                coEvery { repository.deleteCredential(credentialId) } answers {
+                    val targetEncoded = credentialId.encoded
+                    credentials.update { list -> list.filterNot { it.id.encoded == targetEncoded } }
+                    Outcome.Success(Unit)
                 }
-            credentials.update { list ->
-                val filtered = list.filterNot { it.id.encoded == targetEncoded }
-                filtered
             }
-            Outcome.Success(Unit)
-        }
 
         // deleteAllCredentials wipes in-memory list
         coEvery { repository.deleteAllCredentials(any()) } answers {
@@ -118,7 +114,7 @@ class ManagementIntegrationTest {
         idString: String,
         rpId: String = "https://example.com",
     ): PasskeyCredential {
-        val credId = CredentialId.fromEncoded(idString)
+        val credId = testCredentialIdFromLabel(idString)
         val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(EC_KEY_SIZE_256) }.generateKeyPair()
         return PasskeyCredential(
             id = credId,
@@ -127,17 +123,18 @@ class ManagementIntegrationTest {
             userName = "testuser",
             userDisplayName = "Test User",
             publicKey = keyPair.public,
-            privateKeyAlias = "test_alias",
             signCount = 0L,
             createdAt = TimeProvider().now(),
             lastUsedAt = TimeProvider().now(),
             aaguid = ByteArray(AAGUID_SIZE_16),
             credentialId = credId.toByteArray(),
+            derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
         )
     }
 
     // ── Credential Loading ───────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `setCredentials populates state with credentials`() =
         runTest {
@@ -151,6 +148,7 @@ class ManagementIntegrationTest {
             assertFalse(state.isLoading)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `empty credentials list results in empty state`() =
         runTest {
@@ -162,6 +160,7 @@ class ManagementIntegrationTest {
 
     // ── Credential Selection ─────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `selecting credential updates selectedCredential state`() =
         runTest {
@@ -174,6 +173,7 @@ class ManagementIntegrationTest {
             assertEquals(cred.id, state.selectedCredential?.id)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `dismiss clears dialog state`() =
         runTest {
@@ -192,6 +192,7 @@ class ManagementIntegrationTest {
 
     // ── Delete Single Credential ─────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `show delete dialog sets credentialToDelete`() =
         runTest {
@@ -204,6 +205,7 @@ class ManagementIntegrationTest {
             assertEquals(cred.id, state.credentialToDelete?.id)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `confirm delete removes credential from repository`() =
         runTest {
@@ -218,17 +220,19 @@ class ManagementIntegrationTest {
 
             assertEquals(1, credentials.value.size)
             assertEquals(
-                "dGVzdF9jcmVkZW50aWFsXzAy",
+                testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsXzAy").encoded,
                 credentials.value
                     .first()
                     .id.encoded,
             )
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `delete failure sets error state`() =
         runTest(UnconfinedTestDispatcher()) {
-            coEvery { repository.deleteCredential(any()) } returns
+            val credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsXzAx")
+            coEvery { repository.deleteCredential(credentialId) } returns
                 Outcome.Error(DomainError.UnknownError("Database error"))
 
             val cred = createDummyCredential("dGVzdF9jcmVkZW50aWFsXzAx")
@@ -241,6 +245,7 @@ class ManagementIntegrationTest {
 
     // ── Delete All Credentials ───────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `show delete all dialog sets warning flag`() =
         runTest {
@@ -248,6 +253,7 @@ class ManagementIntegrationTest {
             assertTrue(viewModel.state.value.isShowDeleteAllWarning)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `confirm delete all empties repository`() =
         runTest {
@@ -263,6 +269,7 @@ class ManagementIntegrationTest {
             assertTrue(credentials.value.isEmpty())
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `delete all failure sets error state`() =
         runTest(UnconfinedTestDispatcher()) {
@@ -278,6 +285,7 @@ class ManagementIntegrationTest {
 
     // ── Full Flow ────────────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `full management flow - add select delete wipe`() =
         runTest {
@@ -304,7 +312,7 @@ class ManagementIntegrationTest {
             advanceUntilIdle()
             assertEquals(1, credentials.value.size)
             assertEquals(
-                "dGVzdF9jcmVkZW50aWFsXzAy",
+                testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsXzAy").encoded,
                 credentials.value
                     .first()
                     .id.encoded,

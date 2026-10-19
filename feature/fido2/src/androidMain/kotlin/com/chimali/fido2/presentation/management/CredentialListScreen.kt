@@ -97,7 +97,7 @@ fun CredentialListScreen(
         viewModel.removalEvents.collect { credential ->
             val result =
                 snackbarHostState.showSnackbar(
-                    message = "Deleted passkey for ${credential.userName}",
+                    message = "Deleted passkey for ${credential.userName.toBoundaryString()}",
                     actionLabel = "Undo",
                     duration = SnackbarDuration.Long,
                 )
@@ -222,7 +222,9 @@ fun CredentialListScreen(
     state.credentialToDelete?.let { credential ->
         DeleteConfirmationDialog(
             title = "Delete Passkey?",
-            message = "This will permanently remove the passkey for ${credential.userName} from this device.",
+            message =
+                "This will permanently remove the passkey for " +
+                    "${credential.userName.toBoundaryString()} from this device.",
             onConfirm = {
                 viewModel.onIntent(CredentialManagementIntent.DismissDialog)
                 showBiometricPrompt = credential
@@ -235,7 +237,7 @@ fun CredentialListScreen(
     showBiometricPrompt?.let { credential ->
         BiometricPromptComponent(
             title = "Confirm Deletion",
-            subtitle = "Verify your identity to delete the passkey for ${credential.rpId}",
+            subtitle = "Verify your identity to delete the passkey for ${credential.rpId.toBoundaryString()}",
             onSuccess = {
                 showBiometricPrompt = null
                 viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credential.id))

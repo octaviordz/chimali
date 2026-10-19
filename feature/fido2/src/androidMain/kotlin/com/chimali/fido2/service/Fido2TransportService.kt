@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.fido2.data.transport.Fido2Transport
@@ -47,14 +48,23 @@ private const val AUTH_REQUEST_NOTIF_ID = 1002
  */
 class Fido2TransportService : Service() {
     companion object {
+        /** Explicit action that starts the authenticator foreground service. */
+        @Req("FR-HID-010", "FR-HID-030")
         const val ACTION_START = "com.chimali.fido2.START_TRANSPORT"
+
+        /** Explicit action that stops the authenticator foreground service. */
+        @Req("FR-HID-010", "FR-HID-030")
         const val ACTION_STOP = "com.chimali.fido2.STOP_TRANSPORT"
 
+        /** Creates an explicit service intent that starts the foreground authenticator transport. */
+        @Req("FR-HID-010", "FR-HID-030")
         fun startIntent(context: Context) =
             Intent(context, Fido2TransportService::class.java).apply {
                 action = ACTION_START
             }
 
+        /** Creates an explicit service intent that disconnects and stops the authenticator transport. */
+        @Req("FR-HID-010", "FR-HID-030")
         fun stopIntent(context: Context) =
             Intent(context, Fido2TransportService::class.java).apply {
                 action = ACTION_STOP
@@ -67,13 +77,19 @@ class Fido2TransportService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** Returns no binder; this service is controlled through explicit start and stop intents. */
+    @Req("FR-HID-010", "FR-HID-030")
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** Creates notification channels before the service begins advertising. */
+    @Req("FR-HID-010", "FR-HID-030")
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
 
+    /** Starts or stops the transport according to the explicit action and requests sticky restart. */
+    @Req("FR-HID-010", "FR-HID-030")
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -86,6 +102,8 @@ class Fido2TransportService : Service() {
         return START_STICKY // Restart if killed — keeps the key alive
     }
 
+    /** Cancels service work before delegating final cleanup to the Android service lifecycle. */
+    @Req("FR-HID-010", "FR-HID-030")
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()

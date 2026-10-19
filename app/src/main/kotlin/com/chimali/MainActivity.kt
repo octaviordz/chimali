@@ -10,12 +10,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.navigation.AppNavGraph
+import org.koin.android.ext.android.inject
 
+/** Hosts the wallet UI and owns only foreground reveal/import session access. */
 class MainActivity : FragmentActivity() {
     companion object {
         private const val TAG = "Chimali:MainActivity"
     }
+
+    private val masterSeedProvider: MasterSeedProvider by inject()
 
     private val requestPermissionLauncher =
         registerForActivityResult(
@@ -29,6 +35,10 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+    /**
+     * Requests startup permissions and installs the app navigation content.
+     * @param savedInstanceState Android's restored state, if present.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -75,5 +85,13 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    /** Cancels foreground seed owners when the UI stops; active HID ceremonies retain their own owner. */
+    override fun onStop() {
+        // Foreground reveal/import owners end when the app is no longer visible. Active HID
+        // authenticator owners remain independently bounded to their admitted ceremony.
+        masterSeedProvider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)
+        super.onStop()
     }
 }

@@ -1,483 +1,406 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
-import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.security.api.HdkChild
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
-import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.api.MasterSeedProvider
-import com.chimali.core.security.hdkeys.HdkEcdhP256
-import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.core.security.hdkeys.HdkP256
+import com.chimali.core.security.hdkeys.HkdfSha256
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.unmockkStatic
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import java.security.GeneralSecurityException
+import java.security.KeyPair
+import java.security.MessageDigest
+import java.security.PrivateKey
+import java.security.PublicKey
 import java.security.Security
+import java.security.Signature
+import java.util.HexFormat
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Nested
+import org.bouncycastle.jcajce.interfaces.MLDSAPublicKey
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 
-/**
- * T145a unit tests for [Fido2CryptoService] using the HDK-based software key derivation.
- *
- * Uses MockK to mock [HdkManager] and [MasterSeedProvider], verifying:
- * - deterministic public key derivation per credential ID
- * - correct delegation to HdkManager.deriveHdk and HdkManager.blindPrivateKey
- * - signing produces a non-empty DER-encoded byte array
- */
+/** Current local-profile integration tests against frozen independent reference outputs. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class Fido2CryptoServiceTest {
-    private lateinit var hdkManager: HdkManager
-    private lateinit var masterSeedProvider: MasterSeedProvider
-    private lateinit var timeProvider: com.chimali.core.domain.time.TimeProvider
+    private val seedProvider = mockk<MasterSeedProvider>()
+    private val root = ROOT_HEX.decodeHex()
+    private val parentPrivate = PARENT_PRIVATE_HEX.decodeHex()
+    private val parentPublic = PARENT_PUBLIC_HEX.decodeHex()
+    private val issuedRootCopies = mutableListOf<ByteArray>()
+    private val issuedParentPairs = mutableListOf<HdkKeyPair>()
+    private var childDerivations = 0
     private lateinit var service: Fido2CryptoService
-
-    // Use a real root key pair and seed so we can verify math
-    private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
-    private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let {
-            HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
-        }
-    }
-
-    private companion object {
-        private const val SEED_SIZE_32 = 32
-        private const val PUBLIC_KEY_SIZE_65 = 65
-        private const val DER_ECDSA_PREFIX = 0x30.toByte()
-        private const val UNCOMPRESSED_KEY_PREFIX = 0x04.toByte()
-        private const val PATH_SIZE_2 = 2
-        private const val KAT_SEED_MULTIPLIER_7 = 7
-        private const val KAT_SEED_OFFSET_3 = 3
-        private const val BYTE_MASK_FF = 255
-        private const val SEED_OFFSET_100 = 100
-        private const val MULTIPLIER_2 = 2
-    }
 
     @BeforeTest
     fun setUp() {
-        Security.addProvider(
-            org.bouncycastle.jce.provider
-                .BouncyCastleProvider(),
-        )
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.d(any(), any()) } returns 0
-        every { android.util.Log.e(any(), any(), any()) } returns 0
-        every { android.util.Log.w(any(), any<String>(), any()) } returns 0
-        every { android.util.Log.i(any(), any()) } returns 0
-
-        hdkManager = mockk()
-        masterSeedProvider = mockk()
-        timeProvider = mockk(relaxed = true)
-
-        // Wire up defaults
-        coEvery { masterSeedProvider.getMasterSeed() } returns realSeed
-        coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-
-        service =
-            Fido2CryptoService(
-                hdkManager,
-                masterSeedProvider,
-                PostQuantumCrypto(),
-                timeProvider,
-                UnconfinedTestDispatcher(),
-            )
-    }
-
-    @AfterEach
-    fun tearDown() {
-        unmockkStatic(android.util.Log::class)
-    }
-
-    @Nested
-    inner class GenerateCredentialKeyPairTests {
-        @Test
-        fun `generateCredentialKeyPair delegates to HdkManager deriveHdk`() =
-            runTest {
-                val credentialId = "test-cred-id-16chars"
-                val devicePubKeyBytes = realDeviceKeyPair.publicKey
-                val fakeResult =
-                    HdkResult(
-                        // reuse for simplicity
-                        publicKey = realDeviceKeyPair.publicKey,
-                        salt = ByteArray(SEED_SIZE_32),
-                        blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
-                    )
-
-                val capturedPath = slot<List<UInt>>()
-                every {
-                    hdkManager.deriveHdk(
-                        devicePublicKey = devicePubKeyBytes,
-                        seed = realSeed,
-                        path = capture(capturedPath),
-                    )
-                } returns fakeResult
-
-                val result =
-                    service.generateCredentialKeyPair(
-                        CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                    )
-
-                assertTrue(result.isSuccess)
-                val keyPair = result.getOrThrow()
-                assertEquals(
-                    Fido2CryptoService.credentialAlias(CredentialId.fromByteArray(credentialId.encodeToByteArray())),
-                    keyPair.alias,
-                )
-                assertEquals(PUBLIC_KEY_SIZE_65, keyPair.publicKeyBytes.size)
-                assertEquals(UNCOMPRESSED_KEY_PREFIX, keyPair.publicKeyBytes[0])
-                // Path must be a 2-element list [FIDO2_APP_INDEX, credIndex]
-                assertEquals(PATH_SIZE_2, capturedPath.captured.size)
-            }
-
-        @Test
-        fun `generateCredentialKeyPair returns same public key for same credentialId`() =
-            runTest {
-                val credentialId = "stable-credential-id-16"
-                val (_, pk) = P256Group.generateKeyPair()
-                val fakeResult =
-                    HdkResult(
-                        P256Group.serializeElement(pk),
-                        ByteArray(SEED_SIZE_32),
-                        P256Group.serializeScalar(P256Group.randomScalar()),
-                    )
-
-                every { hdkManager.deriveHdk(any(), any(), any()) } returns fakeResult
-
-                val result1 =
-                    service
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-                val result2 =
-                    service
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                assertTrue(result1.publicKeyBytes.contentEquals(result2.publicKeyBytes))
-            }
-
-        @Test
-        fun `generateCredentialKeyPair returns different public keys for different credentialIds`() =
-            runTest {
-                val (_, pk1) = P256Group.generateKeyPair()
-                val (_, pk2) = P256Group.generateKeyPair()
-                var callCount = 0
-                every { hdkManager.deriveHdk(any(), any(), any()) } answers {
-                    if (callCount++ == 0) {
-                        HdkResult(
-                            publicKey = P256Group.serializeElement(pk1),
-                            salt = ByteArray(SEED_SIZE_32),
-                            blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
-                        )
-                    } else {
-                        HdkResult(
-                            publicKey = P256Group.serializeElement(pk2),
-                            salt = ByteArray(SEED_SIZE_32),
-                            blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
-                        )
-                    }
+        Security.addProvider(BouncyCastleProvider())
+        every { seedProvider.sessionGeneration() } returns 1L
+        every { seedProvider.isSessionGenerationCurrent(any()) } returns true
+        issuedRootCopies.clear()
+        issuedParentPairs.clear()
+        coEvery { seedProvider.getMasterSeed() } answers {
+            root.copyOf().also(issuedRootCopies::add)
+        }
+        coEvery { seedProvider.getDeviceKeyPair() } answers {
+            HdkKeyPair(parentPrivate.copyOf(), parentPublic.copyOf()).also(issuedParentPairs::add)
+        }
+        val countingHdkManager =
+            object : HdkManager {
+                override fun deriveChild(
+                    localSecret: ByteArray,
+                    parentPublicKey: ByteArray,
+                    index: UInt,
+                ): HdkChild {
+                    childDerivations++
+                    return HdkP256.deriveChild(localSecret, parentPublicKey, index)
                 }
 
-                val key1 =
-                    service
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray("cred-1-long-enough".encodeToByteArray()),
-                        ).getOrThrow()
-                val key2 =
-                    service
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray("cred-2-long-enough".encodeToByteArray()),
-                        ).getOrThrow()
-
-                assertTrue(!key1.publicKeyBytes.contentEquals(key2.publicKeyBytes))
+                override fun deriveChildPrivateKey(
+                    parentPrivateKey: ByteArray,
+                    factor: ByteArray,
+                ): ByteArray = HdkP256.deriveChildPrivateKey(parentPrivateKey, factor)
             }
-
-        @Test
-        fun `generateCredentialKeyPair fails when master seed not available`() =
-            runTest {
-                coEvery { masterSeedProvider.getMasterSeed() } returns null
-
-                val result =
-                    service.generateCredentialKeyPair(
-                        CredentialId.fromByteArray("any-cred-long-enough".encodeToByteArray()),
-                    )
-
-                assertTrue(result.isFailure)
-            }
+        childDerivations = 0
+        service = Fido2CryptoService(countingHdkManager, seedProvider, PostQuantumCrypto(), UnconfinedTestDispatcher())
     }
 
-    @Nested
-    inner class SignTests {
-        @Test
-        fun `sign produces non-empty signature bytes`() =
-            runTest {
-                val credentialId = "sign-credential-id-16"
-                val data = "authData + clientDataHash".toByteArray()
+    @AfterTest
+    fun tearDown() {
+        root.fill(0)
+        parentPrivate.fill(0)
+        parentPublic.fill(0)
+    }
 
-                // Use real HDK derivation to sign
-                val realHdkManager = HdkEcdhP256()
-                val realService =
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `P-256 public key matches independent fixture and signature verifies`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ES256)
+            val generated = service.generateCredentialPublicKey(descriptor).getOrThrow()
+            assertContentEquals(P256_PUBLIC_HEX.decodeHex(), generated.publicKey)
+            assertEquals(1, childDerivations)
+
+            val jcaKey = service.decodePublicKey(descriptor, generated.publicKey)
+            val message = "fixture assertion".toByteArray(Charsets.US_ASCII)
+            val signature = service.sign(descriptor, message, jcaKey.encoded).getOrThrow()
+            Signature.getInstance("SHA256withECDSA", BouncyCastleProvider()).run {
+                initVerify(jcaKey)
+                update(message)
+                assertTrue(verify(signature))
+            }
+            assertEquals(2, childDerivations)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `Ed25519 public key matches independent fixture and signature verifies`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_EDDSA)
+            val generated = service.generateCredentialPublicKey(descriptor).getOrThrow()
+            assertContentEquals(ED25519_PUBLIC_HEX.decodeHex(), generated.publicKey)
+            val publicKey = service.decodePublicKey(descriptor, generated.publicKey)
+            val message = "fixture assertion".toByteArray(Charsets.US_ASCII)
+            val signature = service.sign(descriptor, message, publicKey.encoded).getOrThrow()
+            Signature.getInstance("Ed25519", BouncyCastleProvider()).run {
+                initVerify(publicKey)
+                update(message)
+                assertTrue(verify(signature))
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `ML-DSA public key matches the independent frozen fixture`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ML_DSA_65)
+            val generated = service.generateCredentialPublicKey(descriptor).getOrThrow()
+            val publicKey = service.decodePublicKey(descriptor, generated.publicKey) as MLDSAPublicKey
+            val digest = MessageDigest.getInstance("SHA-256").digest(publicKey.publicData)
+            assertEquals(ML_DSA_PUBLIC_SHA256, digest.joinToString("") { "%02x".format(it) })
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `signing discards output when session generation is fenced during provider work`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ES256)
+            every { seedProvider.isSessionGenerationCurrent(any()) } returnsMany listOf(true, false)
+
+            assertFailsWith<kotlinx.coroutines.CancellationException> {
+                service.sign(descriptor, "stale synthetic assertion".toByteArray(Charsets.US_ASCII))
+            }
+            assertEquals(1, childDerivations)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `complete identifier distinguishes values colliding under retired shortened mapping`() =
+        runTest {
+            val first = descriptor(COLLISION_ID_ONE_HEX, CredentialKeyDescriptor.COSE_EDDSA)
+            val second = descriptor(COLLISION_ID_TWO_HEX, CredentialKeyDescriptor.COSE_EDDSA)
+            val keyOne = service.generateCredentialPublicKey(first).getOrThrow().publicKey
+            val keyTwo = service.generateCredentialPublicKey(second).getOrThrow().publicKey
+            assertNotEquals(keyOne.toList(), keyTwo.toList())
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `credential public output is stable for the same descriptor`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_EDDSA)
+            val first = service.generateCredentialPublicKey(descriptor).getOrThrow().publicKey
+            val second = service.generateCredentialPublicKey(descriptor).getOrThrow().publicKey
+            assertContentEquals(first, second)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `sign rejects a valid but mismatched registered P-256 key before returning a signature`() =
+        runTest {
+            val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ES256)
+            val otherCredential = descriptor(COLLISION_ID_ONE_HEX, CredentialKeyDescriptor.COSE_ES256)
+            val mismatch = service.generateCredentialPublicKey(otherCredential).getOrThrow().publicKey
+
+            val result = service.sign(descriptor, byteArrayOf(1, 2, 3), mismatch)
+
+            assertTrue(result.isFailure)
+            assertEquals(2, childDerivations)
+            mismatch.fill(0)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `provider exception details are excluded from crypto error diagnostics`() =
+        runTest {
+            val secretMarker = "synthetic-private-material-marker"
+            val failingManager =
+                object : HdkManager {
+                    override fun deriveChild(
+                        localSecret: ByteArray,
+                        parentPublicKey: ByteArray,
+                        index: UInt,
+                    ): HdkChild = throw GeneralSecurityException(secretMarker)
+
+                    override fun deriveChildPrivateKey(
+                        parentPrivateKey: ByteArray,
+                        factor: ByteArray,
+                    ): ByteArray = throw GeneralSecurityException(secretMarker)
+                }
+            val failingService =
+                Fido2CryptoService(
+                    failingManager,
+                    seedProvider,
+                    PostQuantumCrypto(),
+                    UnconfinedTestDispatcher(),
+                )
+
+            val result =
+                failingService.generateCredentialPublicKey(
+                    descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ES256),
+                )
+            val error = (result as Outcome.Error).error
+
+            assertEquals("Credential key derivation failed", error.message)
+            assertNull(error.cause)
+            assertTrue(!error.message.contains(secretMarker))
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `P-256 signing erases operation-owned secrets when child scalar derivation fails`() =
+        runTest {
+            listOf(
+                GeneralSecurityException("synthetic signer failure"),
+                CancellationException("synthetic signer cancellation"),
+            ).forEach { failure ->
+                var observedLocalSecret: ByteArray? = null
+                var observedParentPrivate: ByteArray? = null
+                var observedFactor: ByteArray? = null
+                var observedChild: HdkChild? = null
+                val failingManager =
+                    object : HdkManager {
+                        override fun deriveChild(
+                            localSecret: ByteArray,
+                            parentPublicKey: ByteArray,
+                            index: UInt,
+                        ): HdkChild {
+                            observedLocalSecret = localSecret
+                            val child = HdkP256.deriveChild(localSecret, parentPublicKey, index)
+                            observedChild = child
+                            return child
+                        }
+
+                        override fun deriveChildPrivateKey(
+                            parentPrivateKey: ByteArray,
+                            factor: ByteArray,
+                        ): ByteArray {
+                            observedParentPrivate = parentPrivateKey
+                            observedFactor = factor
+                            throw failure
+                        }
+                    }
+                val failingService =
                     Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
+                        failingManager,
+                        seedProvider,
                         PostQuantumCrypto(),
-                        timeProvider,
                         UnconfinedTestDispatcher(),
                     )
+                val descriptor = descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ES256)
 
-                val result = realService.sign(CredentialId.fromByteArray(credentialId.encodeToByteArray()), data)
+                if (failure is CancellationException) {
+                    assertFailsWith<CancellationException> {
+                        failingService.sign(descriptor, byteArrayOf(0x01, 0x02, 0x03))
+                    }
+                } else {
+                    val result = failingService.sign(descriptor, byteArrayOf(0x01, 0x02, 0x03))
+                    assertTrue(result.isFailure)
+                    assertEquals("Credential signing failed", (result as Outcome.Error).error.message)
+                }
 
-                assertTrue(result.isSuccess)
-                val signature = result.getOrThrow()
-                assertTrue(signature.isNotEmpty())
-                // DER ECDSA signatures start with 0x30
-                assertEquals(DER_ECDSA_PREFIX, signature[0])
+                assertTrue(issuedRootCopies.last().all { it == 0.toByte() })
+                assertTrue(issuedParentPairs.last().privateKey.all { it == 0.toByte() })
+                assertTrue(requireNotNull(observedLocalSecret).all { it == 0.toByte() })
+                assertTrue(requireNotNull(observedParentPrivate).all { it == 0.toByte() })
+                assertTrue(requireNotNull(observedFactor).all { it == 0.toByte() })
+                assertTrue(requireNotNull(observedChild).factor.all { it == 0.toByte() })
             }
-    }
+            assertEquals(2, issuedRootCopies.size)
+        }
 
-    @Nested
-    inner class GetPublicKeyTests {
-        @Test
-        fun `getPublicKey returns non-null PublicKey for valid credentialId`() =
-            runTest {
-                val (_, pk) = P256Group.generateKeyPair()
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `Ed25519 signing erases the credential seed when session fencing cancels the result`() =
+        runTest {
+            val issuedSeeds = mutableListOf<ByteArray>()
+            mockkObject(HkdfSha256)
+            try {
                 every {
-                    hdkManager.deriveHdk(any(), any(), any())
-                } returns
-                    HdkResult(
-                        publicKey = P256Group.serializeElement(pk),
-                        salt = ByteArray(SEED_SIZE_32),
-                        blindingFactor = P256Group.serializeScalar(P256Group.randomScalar()),
-                    )
+                    HkdfSha256.deriveCredentialSeed(any(), any(), any())
+                } answers {
+                    callOriginal().also(issuedSeeds::add)
+                }
+                every { seedProvider.isSessionGenerationCurrent(any()) } returnsMany listOf(true, false)
 
-                val publicKey =
-                    service.getPublicKey(
-                        CredentialId.fromByteArray("some-creds-long-enough".encodeToByteArray()),
-                        Fido2CryptoService.COSE_ES256,
+                assertFailsWith<CancellationException> {
+                    service.sign(
+                        descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_EDDSA),
+                        byteArrayOf(0x01, 0x02, 0x03),
                     )
+                }
 
-                assertNotNull(publicKey)
+                assertEquals(1, issuedSeeds.size)
+                assertTrue(issuedSeeds.single().all { it == 0.toByte() })
+                assertTrue(issuedRootCopies.single().all { it == 0.toByte() })
+            } finally {
+                unmockkObject(HkdfSha256)
             }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `ML-DSA signing erases xi and private encoding when session fencing cancels the result`() =
+        runTest {
+            val issuedSeeds = mutableListOf<ByteArray>()
+            val privateEncoding = ByteArray(ML_DSA_PRIVATE_ENCODING_LENGTH) { 0x53 }
+            val privateKey = mockk<PrivateKey> { every { encoded } returns privateEncoding }
+            val publicKey = mockk<PublicKey>()
+            val keyPair = KeyPair(publicKey, privateKey)
+            val postQuantumCrypto = mockk<PostQuantumCrypto>()
+            mockkObject(HkdfSha256)
+            try {
+                every {
+                    HkdfSha256.deriveCredentialSeed(any(), any(), any())
+                } answers {
+                    callOriginal().also(issuedSeeds::add)
+                }
+                every { postQuantumCrypto.generateMlDsaKeyPair(any()) } returns keyPair
+                every { postQuantumCrypto.publicKeyBytes(keyPair) } returns byteArrayOf(0x02)
+                every { postQuantumCrypto.sign(privateKey, any()) } returns byteArrayOf(0x03)
+                every { seedProvider.isSessionGenerationCurrent(any()) } returnsMany listOf(true, false)
+                val mlDsaService =
+                    Fido2CryptoService(
+                        HdkP256,
+                        seedProvider,
+                        postQuantumCrypto,
+                        UnconfinedTestDispatcher(),
+                    )
+
+                assertFailsWith<CancellationException> {
+                    mlDsaService.sign(
+                        descriptor(CREDENTIAL_ID_HEX, CredentialKeyDescriptor.COSE_ML_DSA_65),
+                        byteArrayOf(0x01, 0x02, 0x03),
+                    )
+                }
+
+                assertEquals(1, issuedSeeds.size)
+                assertTrue(issuedSeeds.single().all { it == 0.toByte() })
+                assertTrue(privateEncoding.all { it == 0.toByte() })
+                assertTrue(issuedRootCopies.single().all { it == 0.toByte() })
+            } finally {
+                unmockkObject(HkdfSha256)
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `descriptor rejects an algorithm paired with another profile`() {
+        assertFailsWith<IllegalArgumentException> {
+            CredentialKeyDescriptor(
+                CredentialId.fromByteArray(CREDENTIAL_ID_HEX.decodeHex()),
+                CredentialKeyDescriptor.COSE_ES256,
+                CredentialKeyDescriptor.ED25519_PROFILE,
+            )
+        }
     }
 
-    /**
-     * T148b — Known-Answer Tests (KAT) for deterministic HDK key derivation.
-     *
-     * Verifies Constitution §II and SC-006: the same BIP39 seed MUST always derive
-     * the exact same public key for a given credential ID, enabling wallet recovery.
-     *
-     * Uses a real [HdkEcdhP256] instance (no mocking) so the math is actually exercised.
-     */
-    @Nested
-    inner class KnownAnswerTests {
-        private val realHdkManager = HdkEcdhP256()
+    private fun descriptor(
+        idHex: String,
+        algorithm: Int,
+    ): CredentialKeyDescriptor =
+        CredentialKeyDescriptor(
+            credentialId = CredentialId.fromByteArray(idHex.decodeHex()),
+            coseAlgorithm = algorithm,
+            derivationProfile = CredentialKeyDescriptor.profileFor(algorithm),
+        )
 
-        @Test
-        fun `T148b same seed and credentialId always derives the same public key`() =
-            runTest {
-                // Given: a fixed seed (simulating recovery from the same 24-word mnemonic)
-                val fixedSeed = ByteArray(SEED_SIZE_32) { (it * KAT_SEED_MULTIPLIER_7 + KAT_SEED_OFFSET_3).toByte() }
-                val credentialId = "kat-credential-stable"
+    private fun String.decodeHex(): ByteArray = HexFormat.of().parseHex(this)
 
-                coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
-                coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-
-                val realService =
-                    Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
-                        PostQuantumCrypto(),
-                        timeProvider,
-                        UnconfinedTestDispatcher(),
-                    )
-
-                // When: derive twice from the same seed
-                val keyPair1 =
-                    realService
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-                val keyPair2 =
-                    realService
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                // Then: public key bytes are identical (determinism — SC-006)
-                assertTrue(
-                    keyPair1.publicKeyBytes.contentEquals(keyPair2.publicKeyBytes),
-                    "Same seed must always yield the same public key (SC-006)",
-                )
-            }
-
-        @Test
-        fun `T148b different seeds derive different public keys for the same credentialId`() =
-            runTest {
-                // Given: two different seeds (different wallet recoveries)
-                val seed1 = ByteArray(SEED_SIZE_32) { it.toByte() }
-                val seed2 = ByteArray(SEED_SIZE_32) { (BYTE_MASK_FF - it).toByte() }
-                val credentialId = "kat-credential-different-seeds"
-
-                val realService1 =
-                    Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
-                        PostQuantumCrypto(),
-                        timeProvider,
-                        UnconfinedTestDispatcher(),
-                    )
-                val realService2 =
-                    Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
-                        PostQuantumCrypto(),
-                        timeProvider,
-                        UnconfinedTestDispatcher(),
-                    )
-
-                coEvery { masterSeedProvider.getMasterSeed() } returns seed1
-                coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-                val keyPair1 =
-                    realService1
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                coEvery { masterSeedProvider.getMasterSeed() } returns seed2
-                val keyPair2 =
-                    realService2
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                // Then: Different seeds must produce different public keys
-                assertTrue(
-                    !keyPair1.publicKeyBytes.contentEquals(keyPair2.publicKeyBytes),
-                    "Different seeds must produce different public keys",
-                )
-            }
-
-        @Test
-        fun `T148b after seed import re-derived keys differ from old seed keys`() =
-            runTest {
-                // Given: derive a key with the original seed
-                val oldSeed = ByteArray(SEED_SIZE_32) { (it + 1).toByte() }
-                val newSeed = ByteArray(SEED_SIZE_32) { (it + SEED_OFFSET_100).toByte() }
-                val credentialId = "kat-cred-post-import"
-
-                val realService =
-                    Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
-                        PostQuantumCrypto(),
-                        timeProvider,
-                        UnconfinedTestDispatcher(),
-                    )
-
-                coEvery { masterSeedProvider.getMasterSeed() } returns oldSeed
-                coEvery { masterSeedProvider.getDeviceKeyPair() } returns realDeviceKeyPair
-                val keysBeforeImport =
-                    realService
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                // Simulate seed import (cache invalidated, new seed returned)
-                coEvery { masterSeedProvider.getMasterSeed() } returns newSeed
-                val keysAfterImport =
-                    realService
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                assertTrue(
-                    !keysBeforeImport.publicKeyBytes.contentEquals(keysAfterImport.publicKeyBytes),
-                    "After seed replace, derived public keys must change (orphaned credential warning)",
-                )
-            }
-
-        /**
-         * T173 / T181 — End-to-end HDK KAT for the two-level FIDO2 path.
-         *
-         * Fixed inputs (do NOT change without regenerating expectedHex):
-         *   seed       = ByteArray(32) { (it * 2).toByte() }  → [0, 2, 4, …, 62]
-         *   deviceSk   = BigInteger.ONE
-         *   devicePk   = P256Group.G  (the P-256 generator)
-         *   credentialId = "kat-t173-two-level-path-stable-reference"
-         *
-         * The derivation path is [FIDO2_APP_INDEX, credentialPathIndex(credentialId)].
-         * expectedHex was captured from a clean local run after the T166 DeriveSalt fix.
-         * Any change to the hash preimage, blinding formula, or I2OSP encoding will
-         * cause this test to fail — which is the intent.
-         *
-         * Verification (Python 3):
-         *   See specs/004-fido2-hid/checklists/hdk-conformance.md Â§T173 for the full
-         *   step-by-step reference computation.
-         */
-        @Test
-        fun `t173 end-to-end HDK KAT for the two-level FIDO2 path`() =
-            runTest {
-                val fixedSeed = ByteArray(SEED_SIZE_32) { (it * MULTIPLIER_2).toByte() }
-                val credentialId = "kat-t173-two-level-path-stable-reference"
-
-                val fixedDeviceSk = java.math.BigInteger.ONE
-                val fixedDevicePk = P256Group.G
-                val fixedDeviceKeyPair =
-                    HdkKeyPair(P256Group.serializeScalar(fixedDeviceSk), P256Group.serializeElement(fixedDevicePk))
-
-                coEvery { masterSeedProvider.getMasterSeed() } returns fixedSeed
-                coEvery { masterSeedProvider.getDeviceKeyPair() } returns fixedDeviceKeyPair
-
-                val realService =
-                    Fido2CryptoService(
-                        realHdkManager,
-                        masterSeedProvider,
-                        PostQuantumCrypto(),
-                        timeProvider,
-                        UnconfinedTestDispatcher(),
-                    )
-                val keyPair =
-                    realService
-                        .generateCredentialKeyPair(
-                            CredentialId.fromByteArray(credentialId.encodeToByteArray()),
-                        ).getOrThrow()
-
-                // Pinned expected value — captured from local run after UInt fix.
-                // The raw 65-byte uncompressed P-256 point: 0x04 || X (32 bytes) || Y (32 bytes).
-                val expectedHex =
-                    "04962A65A7E025CCFE68130E0BC74AC061736FE5AE48CF63B7937B5F2B848754" +
-                        "91DEB440FC850B2D88AFEA9A492866DA0AA0B80D3B423012DD71767F9F50A219FE"
-                val actualHex = keyPair.publicKeyBytes.joinToString("") { "%02X".format(it) }
-
-                assertEquals(
-                    PUBLIC_KEY_SIZE_65,
-                    keyPair.publicKeyBytes.size,
-                    "Public key must be 65-byte uncompressed P-256 point",
-                )
-                assertEquals(
-                    UNCOMPRESSED_KEY_PREFIX,
-                    keyPair.publicKeyBytes[0],
-                    "Must start with 0x04 uncompressed prefix",
-                )
-                assertEquals(
-                    expectedHex,
-                    actualHex,
-                    "T173/T181: End-to-end HDK derivation output changed. " +
-                        "If this is intentional (e.g. after changing KAT inputs), " +
-                        "update expectedHex to: $actualHex",
-                )
-            }
+    private companion object {
+        const val ROOT_HEX = "aa6ff6f8d8e560bb6a8f8ff11f88b7684e184c480f30f17ac64a696730aacea2"
+        const val PARENT_PRIVATE_HEX = "773c062d85301fafa2be488494743ff510be3113768bffb23efd225f7f374fc2"
+        const val PARENT_PUBLIC_HEX =
+            "04728ddf2908da797079d719fa48e749c50f46e45d22c990166aa8164f8345783" +
+                "86b3faf07d3df11231dda5b929f4ec87ca140eb10d8bb95682808b4aa749bfae4"
+        const val CREDENTIAL_ID_HEX = "0b30557a9fc4e90e33587da2c7ec1136"
+        const val P256_PUBLIC_HEX =
+            "042ba469fef75c4b6443f441f05f72da95fcd19e0738921f337ec247a29181571" +
+                "0c855edac395bd09d395fa181bcfaecbae704e4c444ac31699d4567e3e779944e"
+        const val ED25519_PUBLIC_HEX = "0d9acca24e59e3160e9e1526bfa77b385e78b275d9d1a7c046df447c0a2048c9"
+        const val ML_DSA_PRIVATE_ENCODING_LENGTH = 4032
+        const val ML_DSA_PUBLIC_SHA256 = "bd673eba4feb26964b9d1435692b042fc77c80af3a13fc59d632bccda40a16a4"
+        const val COLLISION_ID_ONE_HEX = "00000000000076be636f6c6c6973696f6e2d66697874757265"
+        const val COLLISION_ID_TWO_HEX = "0000000000011616636f6c6c6973696f6e2d66697874757265"
     }
 }

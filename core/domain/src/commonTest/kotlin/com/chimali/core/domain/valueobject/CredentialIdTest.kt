@@ -9,6 +9,7 @@ import kotlin.test.assertNotEquals
 
 @OptIn(ExperimentalEncodingApi::class)
 class CredentialIdTest {
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `generate() creates unique identifiers of correct length`() {
         // T010a: Verify 256-bit entropy contract (FR-FIDO2-002)
@@ -23,6 +24,7 @@ class CredentialIdTest {
         )
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `init enforces non-empty value`() {
         assertFailsWith<IllegalArgumentException> {
@@ -30,6 +32,7 @@ class CredentialIdTest {
         }
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `fromByteArray() enforces size boundaries (16-1023 bytes)`() {
         // Lower boundary
@@ -50,6 +53,34 @@ class CredentialIdTest {
         }
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `fromEncoded canonicalizes equivalent padded and unpadded base64url`() {
+        val bytes = ByteArray(16) { it.toByte() }
+        val unpadded = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(bytes)
+        val padded = Base64.UrlSafe.withPadding(Base64.PaddingOption.PRESENT).encode(bytes)
+
+        val fromUnpadded = CredentialId.fromEncoded(unpadded)
+        val fromPadded = CredentialId.fromEncoded(padded)
+
+        assertEquals(fromUnpadded, fromPadded)
+        assertEquals(unpadded, fromPadded.encoded)
+        assertEquals(16, fromPadded.toByteArray().size)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `fromEncoded rejects malformed base64url and decoded lengths outside the contract`() {
+        assertFailsWith<IllegalArgumentException> { CredentialId.fromEncoded("not+base64") }
+        assertFailsWith<IllegalArgumentException> {
+            CredentialId.fromEncoded(Base64.UrlSafe.encode(ByteArray(15)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CredentialId.fromEncoded(Base64.UrlSafe.encode(ByteArray(1024)))
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `equals correctly compares internal values`() {
         val bytes = ByteArray(CredentialId.CREDENTIAL_ID_SIZE_BYTES) { it.toByte() }

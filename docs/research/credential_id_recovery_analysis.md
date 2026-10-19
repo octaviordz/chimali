@@ -1,53 +1,41 @@
-# Analysis: Credential ID and Recovery Consistency
-**Date**: 2026-03-16
+# Credential ID and Recovery Boundaries
 
+**Current profile reviewed**: 2026-10-14
+**Status**: Current requirements and recovery limits; implementation and activation review remain open.
 
-This report analyzes how the `Credential ID` factors into the BIP39/HDK recovery flow and identifies gaps in the current implementation when a device is wiped and restored from a mnemonic.
+## Current local profile
 
-## Current Mechanism
+The local credential profile is a Chimali application policy. Its P-256 branch uses the child-key arithmetic in [draft-dijkhuis-hdk-00](https://datatracker.ietf.org/doc/draft-dijkhuis-hdk/00/) with different local inputs: the full 64-byte BIP39 seed is extracted through the named RFC 5869 profile, and a credential-specific secret is derived using the complete decoded credential ID. That local secret, the canonical parent public key, and the local 32-bit index form the P-256 child derivation input. The draft's per-issuance X25519 shared secret and issuer workflow are not used. This adaptation is custom protocol composition and remains subject to independent review.
 
-### 1. Generation
-In `RegisterCredentialUseCase.kt`, the `credentialId` is generated using a timestamp and a random part:
-```kotlin
-private fun generateCredentialId(): String {
-    return "cred_${System.currentTimeMillis()}_${SecureRandom().nextInt(10000)}"
-}
-```
+Ed25519 and ML-DSA-65 use separately labeled HKDF-derived 32-byte seeds and their respective signature schemes. They are independent branches, not P-256 HDK instances.
 
-### 2. Key Derivation
-In `Fido2CryptoService.kt`, the FIDO2 private key is derived using the `credentialId` as the unique entropy source for the HDK path:
-```kotlin
-// Simplified path derivation
-val hash = sha256(credentialId)
-val index = hash.toPositiveInt()
-val path = [FIDO2_APP_INDEX, index]
-val key = hdkManager.deriveHdk(seed, devicePubKey, path)
-```
-> [!IMPORTANT]
-> The public/private key pair is a deterministic function of `(MasterSeed, credentialId)`.
+### What recovery requires
 
----
+Recovery requires both:
 
-## Recovery Analysis
+1. The approved wallet recovery material (the mnemonic, which produces the full BIP39 seed using the configured empty passphrase); and
+2. The credential metadata needed to select and reproduce the credential, including its complete credential ID, supported COSE algorithm, exact derivation profile identifier, and the other stored credential fields required by the authenticator.
 
-### Directed Assertion (Login with Username)
-When a website already knows who the user is, it sends the `credentialId` to the authenticator in the `allowCredentials` list.
-*   **Does it work after recovery?** Yes. Even if the local Chimali database is gone, the RP provides the `credentialId`. `Fido2CryptoService` takes that ID, hashes it, and re-derives the *exact same* key pair.
-*   **Current implementation check**: `GetAssertionUseCase.findCandidateCredentials` currently filters by what is in the local `credentialRepository`. If the DB is wiped, it returns an empty list, even if the RP sent a valid ID.
+A mnemonic alone does not enumerate random credential IDs, RP/user metadata, registered public keys, signature counters, or discoverable credential records. The local profile does not promise credential discovery after losing that metadata. A supplied allow-list ID also does not by itself establish a registered credential or authorize signing; current repository, ownership, algorithm/profile, and public-key checks still apply.
 
-### Discoverable Credentials (Resident Keys)
-When a user clicks "Login with a passkey" without entering a username, the client must "discover" which credentials it has for that `rpId`.
-*   **Does it work after recovery?** No. Since `credentialId` is random and local storage is wiped, the device no longer knows which IDs it used for that site. It cannot "guess" the `credentialId` to derive the key and user entity.
+The full decoded ID is a cryptographic derivation input after canonical decoding; text padding variants decode to the same bytes. The profile does not reduce the identity to the retired 31-bit hash index. Distinct IDs that collided under that old shortening must have distinct derivation inputs; this is supported by collision fixtures, not a claim that cryptographic hashes make every output mathematically unique.
 
----
+### Security and ownership limits
 
-## Findings & Recommendations
+- The P-256 parent is deterministically provisioned in software from the wallet PRK. Encrypted storage protects material at rest under the configured storage policy; it does not make the parent non-exportable hardware key material or inherit secure-area protections from the issuance draft.
+- Authorization is enforced by Chimali's operation and session policy. The profile itself does not authenticate a user or establish holder assurance for an issuer.
+- Root or recovery-material compromise enables reconstruction of every derived branch. Different labels separate uses but do not contain compromise of the common root.
+- A leaked child factor together with its child private scalar permits recovery of the parent scalar by modular inversion. Operation-local ownership and cleanup reduce exposure duration; they do not provide independent child-compromise isolation.
+- Provider, JVM, ICU, and `BigInteger` internals can create copies that application code cannot promise to erase physically. Application-owned mutable buffers must still be erased on every terminal path.
+- No existing-install migration or old-key compatibility is required for feature 055. The authorized scope is a clean installation; this is not evidence that previous credentials have been converted or preserved.
 
-| ID | Finding | Recommendation |
-|---|---|---|
-| **R1** | **Repository Dependency** | `GetAssertionUseCase` fails if the credential isn't in the local DB, even if the user has the mnemonic. | Modify `GetAssertionUseCase` to allow "Stateless Retrieval": if an `allowList` is provided, derive the keys even if the metadata isn't in the DB. |
-| **R2** | **Randomized Identifiers** | Random `credentialId` prevents recovery of Discoverable Credentials (resident keys). | **Switch to Deterministic IDs**: Base the `credentialId` on `Hash(rpId, user.id, counter)`. This allows "scanning" for credentials during a discovery flow. |
-| **R3** | **Sign Count Sync** | FIDO2 expects a monotonically increasing sign count. | After recovery, the sign count resets to 0. Some RPs might reject this. Consider using a timestamp-based sign count or warn users. |
+## Historical pre-feature analysis (2026-03-16; superseded)
 
-## Conclusion
-The current implementation allows for **Key Re-Derivability** (the math works), but lacks **Metadata Persistence**. Without a local database, Chimali currently "forgets" it owns the keys. To bridge this, Chimali should move towards deterministic `credentialId` generation as outlined in `FR-AUTH-030` requirements.
+The original analysis below described the earlier draft-06 implementation and made recommendations before the feature 055 clean-install scope and current recovery contract were approved. Its conclusions are retained as history and must not be used as current recovery guidance.
+
+- It proposed deterministic credential IDs and stateless retrieval as ways to compensate for missing credential metadata. Those proposals are not part of the approved feature and do not replace the current requirement to retain credential metadata.
+- It described the shortened credential-ID path as sufficient for re-derivation. That input mapping is retired; the current profile binds the complete decoded ID through its local derivation contract.
+- It noted that a mnemonic by itself does not reconstruct discoverable credential records. This remains true, but current recovery additionally requires the algorithm/profile descriptor and the credential metadata needed by the authenticator.
+- Sign-count reset and relying-party policy remain credential lifecycle questions; the local derivation profile does not promise that resetting state is accepted by every relying party.
+
+See the current [local derivation contract](../../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md), [credential lifecycle contract](../../specs/055-migrate-hdk-draft/contracts/credential-lifecycle.md), and [separate OpenID4VCI investigation](../backlog/openid4vci-hdk-issuance-investigation.md).

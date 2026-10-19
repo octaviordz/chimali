@@ -29,6 +29,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(project(":core:common"))
             implementation(libs.koin.core)
             // Koin Annotations for @Single, @Factory, @Module (compile-time DI)
             implementation(libs.koin.annotations)
@@ -70,4 +71,15 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+val isMac = System.getProperty("os.name").lowercase().contains("mac")
+
+// The iOS targets are placeholders; skip their native compilation on Windows like the other KMP modules.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile>().configureEach {
+    enabled = isMac
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink>().configureEach {
+    enabled = isMac
 }

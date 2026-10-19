@@ -1,6 +1,7 @@
 package com.chimali.fido2.domain.service.impl
 
 import androidx.biometric.BiometricManager
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.UserConsentRecord
@@ -170,6 +171,14 @@ class UserVerificationServiceImpl(
         // DEFERRED(040): Consent query — pending UserConsentRepository completion
         return flowOf()
     }
+
+    /** Current verification policy borrows the RP only for this decision and retains no association. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun isUserVerificationRequiredForText(
+        rpId: CharSequence,
+        operationType: String,
+        context: VerificationContext?,
+    ): UserVerificationRequirement = UserVerificationRequirement.PREFERRED
 
     override suspend fun isUserVerificationRequired(
         rpId: RpId,

@@ -2,6 +2,7 @@ package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
+import com.chimali.core.common.annotation.Req
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -39,6 +40,7 @@ class LocalCrashReportingLogWriter(
         }
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun log(
         severity: Severity,
         message: String,
@@ -68,8 +70,8 @@ class LocalCrashReportingLogWriter(
             buildString {
                 append("$time $priorityStr/$tag: $scrubbedMessage\n")
                 throwable?.let {
-                    val scrubbedTrace = PrivacyLogScrubber.scrub(it.stackTraceToString())
-                    append("$scrubbedTrace\n")
+                    append("${it::class.qualifiedName ?: "Throwable"}\n")
+                    it.stackTrace.forEach { frame -> append("\tat $frame\n") }
                 }
             }
 

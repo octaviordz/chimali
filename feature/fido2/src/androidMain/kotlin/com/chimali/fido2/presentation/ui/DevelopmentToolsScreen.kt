@@ -2,6 +2,7 @@ package com.chimali.fido2.presentation.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,19 +74,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.ui.theme.LegibilityType
-import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
@@ -125,12 +128,19 @@ private const val MNEMONIC_WORD_COUNT = 24
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 fun DevelopmentToolsScreen(
-    homeViewModel: Fido2HomeViewModel = koinViewModel(),
+    homeViewModel: Fido2HomeViewModel? = null,
     devToolsViewModel: DevToolsViewModel = koinViewModel(),
+    onHomeTestRegistration: ((MakeCredentialOptions) -> Unit)? = null,
+    authenticateMnemonic: ((ComponentActivity, () -> Unit) -> Unit)? = null,
 ) {
     val state by devToolsViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val registrationCallback =
+        onHomeTestRegistration ?: (homeViewModel ?: koinViewModel()).let { viewModel ->
+            viewModel::testRegistration
+        }
 
     // Collect one-time effects
     LaunchedEffect(Unit) {
@@ -152,7 +162,8 @@ fun DevelopmentToolsScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         onIntent = devToolsViewModel::onIntent,
-        onHomeTestRegistration = homeViewModel::testRegistration,
+        onHomeTestRegistration = registrationCallback,
+        authenticateMnemonic = authenticateMnemonic,
     )
 }
 
@@ -160,11 +171,13 @@ private val SCANNER_PREVIEW_HEIGHT = 280.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 internal fun DevelopmentToolsContent(
     state: DevToolsUiState,
     snackbarHostState: SnackbarHostState,
     onIntent: (DevToolsIntent) -> Unit,
     onHomeTestRegistration: (MakeCredentialOptions) -> Unit,
+    authenticateMnemonic: ((ComponentActivity, () -> Unit) -> Unit)? = null,
 ) {
     // 0 = ES256, 1 = ML-DSA-65
     var selectedAlgIndex by remember { mutableIntStateOf(0) }
@@ -230,6 +243,7 @@ internal fun DevelopmentToolsContent(
                     state = state,
                     snackbarHostState = snackbarHostState,
                     onIntent = onIntent,
+                    authenticateMnemonic = authenticateMnemonic,
                 )
             } // end DEBUG
         }
@@ -242,10 +256,12 @@ internal fun DevelopmentToolsContent(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun DebugMnemonicSection(
     state: DevToolsUiState,
     snackbarHostState: SnackbarHostState,
     onIntent: (DevToolsIntent) -> Unit,
+    authenticateMnemonic: ((ComponentActivity, () -> Unit) -> Unit)?,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -288,12 +304,19 @@ private fun DebugMnemonicSection(
         if (state.mnemonicWords == null) {
             ChimaliOutlinedButton(
                 onClick = {
-                    (context as? FragmentActivity)?.let { activity ->
-                        BiometricHelper.authenticate(
-                            activity = activity,
-                            title = "View Master Seed",
-                            description = "Authenticate to view your BIP39 mnemonic.",
-                        ) { onIntent(DevToolsIntent.LoadMnemonic) }
+                    val activity = context as? ComponentActivity ?: return@ChimaliOutlinedButton
+                    val onAuthenticationSucceeded = { onIntent(DevToolsIntent.LoadMnemonic) }
+                    if (authenticateMnemonic != null) {
+                        authenticateMnemonic(activity, onAuthenticationSucceeded)
+                    } else {
+                        (activity as? FragmentActivity)?.let { fragmentActivity ->
+                            BiometricHelper.authenticate(
+                                activity = fragmentActivity,
+                                title = "View Master Seed",
+                                description = "Authenticate to view your BIP39 mnemonic.",
+                                onSuccess = onAuthenticationSucceeded,
+                            )
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -362,6 +385,7 @@ private fun DebugMnemonicSection(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun MnemonicActionRow(
     isQrCodeVisible: Boolean,
     onCopy: () -> Unit,
@@ -429,6 +453,7 @@ private fun MnemonicActionRow(
 }
 
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun RecoverSeedForm(
     snackbarHostState: SnackbarHostState,
     onRequestCameraPermission: (String) -> Unit,
@@ -464,10 +489,10 @@ private fun RecoverSeedForm(
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {
                     MnemonicQrScanner(
-                        onScan = { words ->
+                        onScan = { mnemonic ->
                             onShowScanner(false)
-                            onIntent(DevToolsIntent.RecoverFromSeed(words))
-                            scope.launch { snackbarHostState.showSnackbar("Scanned ${words.size} words.") }
+                            onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))
+                            scope.launch { snackbarHostState.showSnackbar("Recovery phrase scanned.") }
                         },
                         onError = { errMsg ->
                             onShowScanner(false)
@@ -501,7 +526,9 @@ private fun RecoverSeedForm(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            ManualMnemonicEntryForm { words -> onIntent(DevToolsIntent.RecoverFromSeed(words)) }
+            SensitiveMnemonicInputPolicy {
+                ManualMnemonicEntryForm { mnemonic -> onIntent(DevToolsIntent.RecoverFromSeed(mnemonic)) }
+            }
         }
 
         if (isRationaleVisible) {
@@ -530,7 +557,8 @@ private fun RecoverSeedForm(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun MnemonicWordGrid(words: List<String>) {
+@Req("NFR-SEC-041", "TR-AUTH-031")
+private fun MnemonicWordGrid(words: CharArray) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),
         modifier =
@@ -540,7 +568,8 @@ private fun MnemonicWordGrid(words: List<String>) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        itemsIndexed(words) { index, word ->
+        items(MNEMONIC_WORD_COUNT) { index ->
+            val word = displayMnemonicWord(words, index)
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -577,11 +606,13 @@ private fun MnemonicWordGrid(words: List<String>) {
 }
 
 @Composable
-private fun MnemonicQrCodeView(words: List<String>) {
-    val mnemonic = remember(words) { words.joinToString(" ") }
+@Req("NFR-SEC-041", "TR-AUTH-031")
+private fun MnemonicQrCodeView(words: CharArray) {
+    // The QR library accepts String only. Scope this unavoidable text to the visible QR
+    // composition; hiding the QR removes its painter and this local representation.
     val painter =
         rememberQrCodePainter(
-            data = mnemonic,
+            data = String(words),
             shapes =
                 QrShapes(
                     ball = QrBallShape.circle(),
@@ -603,43 +634,84 @@ private fun MnemonicQrCodeView(words: List<String>) {
     }
 }
 
+/** Creates only the visible word's required platform text representation. */
+
+private fun displayMnemonicWord(
+    mnemonic: CharArray,
+    requestedWord: Int,
+): String {
+    var wordIndex = 0
+    var start = 0
+    for (position in 0..mnemonic.size) {
+        if (position == mnemonic.size || mnemonic[position] == ' ') {
+            if (wordIndex == requestedWord) return String(mnemonic, start, position - start)
+            wordIndex++
+            start = position + 1
+        }
+    }
+    return ""
+}
+
 @Composable
-private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
+@Req("NFR-SEC-041", "TR-AUTH-031")
+private fun ManualMnemonicEntryForm(onSubmit: (CharArray) -> Unit) {
     val wordCount = MNEMONIC_WORD_COUNT
     val fields =
         remember {
-            mutableStateListOf<TextFieldValue>().also { list ->
-                repeat(wordCount) { list.add(TextFieldValue("")) }
+            mutableStateListOf<MutableMnemonicWord>().also { list ->
+                repeat(wordCount) { list.add(MutableMnemonicWord.empty()) }
             }
         }
+
+    DisposableEffect(fields) {
+        onDispose {
+            fields.forEach(MutableMnemonicWord::erase)
+            fields.clear()
+        }
+    }
 
     Column {
         LazyVerticalGrid(
             columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),
             modifier =
                 Modifier
+                    .testTag("manual-recovery-grid")
                     .fillMaxWidth()
                     .heightIn(max = 360.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            itemsIndexed(fields) { index, value ->
+            itemsIndexed(fields) { index, word ->
                 OutlinedTextField(
-                    value = value,
-                    onValueChange = { fields[index] = it },
+                    value = word.displayText(),
+                    onValueChange = { replacement ->
+                        word.erase()
+                        fields[index] = MutableMnemonicWord.fromUiText(replacement)
+                    },
                     label = { Text("${index + 1}", style = MaterialTheme.typography.labelSmall) },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("manual-recovery-word-$index"),
                 )
             }
         }
 
         Spacer(Modifier.height(8.dp))
         ChimaliButton(
-            onClick = { onSubmit(fields.map { it.text.trim() }) },
+            onClick = {
+                val mnemonic = encodeMnemonicFields(fields)
+                var transferred = false
+                try {
+                    onSubmit(mnemonic)
+                    transferred = true
+                } finally {
+                    if (!transferred) mnemonic.fill('\u0000')
+                    fields.forEach(MutableMnemonicWord::erase)
+                    fields.indices.forEach { fields[it] = MutableMnemonicWord.empty() }
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
-            enabled = fields.all { it.text.isNotBlank() },
+            enabled = fields.all(MutableMnemonicWord::isNotEmpty),
         ) {
             Icon(Icons.Default.Key, contentDescription = null)
             Spacer(Modifier.width(8.dp))
@@ -648,8 +720,62 @@ private fun ManualMnemonicEntryForm(onSubmit: (List<String>) -> Unit) {
     }
 }
 
+/** Mutable UI owner for one entered BIP39 word; the TextField String is only a render/input boundary. */
+private class MutableMnemonicWord private constructor(
+    private val characters: CharArray,
+) {
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun displayText(): String = String(characters)
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun copyLength(): Int = characters.size
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun isNotEmpty(): Boolean = characters.isNotEmpty()
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun copyInto(
+        destination: CharArray,
+        offset: Int,
+    ): Int {
+        characters.copyInto(destination, offset)
+        return characters.size
+    }
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun erase() = characters.fill('\u0000')
+
+    companion object {
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun empty() = MutableMnemonicWord(charArrayOf())
+
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun fromUiText(value: String): MutableMnemonicWord {
+            var start = 0
+            var end = value.length
+            while (start < end && value[start].isWhitespace()) start++
+            while (end > start && value[end - 1].isWhitespace()) end--
+            return MutableMnemonicWord(CharArray(end - start) { index -> value[start + index] })
+        }
+    }
+}
+
+/** Builds one mutable import buffer without joining UI strings into another phrase String. */
+
+private fun encodeMnemonicFields(fields: List<MutableMnemonicWord>): CharArray {
+    val resultLength = fields.sumOf { it.copyLength() } + (fields.size - 1)
+    val result = CharArray(resultLength)
+    var destination = 0
+    fields.forEachIndexed { index, word ->
+        destination += word.copyInto(result, destination)
+        if (index != fields.lastIndex) result[destination++] = ' '
+    }
+    return result
+}
+
 /** Thin helper to fire a biometric prompt without pulling in a ViewModel dependency. */
 private object BiometricHelper {
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun authenticate(
         activity: FragmentActivity,
         title: String,
@@ -662,6 +788,7 @@ private object BiometricHelper {
                 activity,
                 executor,
                 object : BiometricPrompt.AuthenticationCallback() {
+                    @Req("NFR-SEC-041", "TR-AUTH-031")
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         onSuccess()
                     }
@@ -682,6 +809,7 @@ private object BiometricHelper {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun AlgorithmSelector(
     selectedAlgIndex: Int,
     onAlgIndexChange: (Int) -> Unit,
@@ -708,6 +836,7 @@ private fun AlgorithmSelector(
 }
 
 @Composable
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun TestRegistrationTrigger(
     selectedAlgIndex: Int,
     onHomeTestRegistration: (MakeCredentialOptions) -> Unit,
@@ -718,9 +847,9 @@ private fun TestRegistrationTrigger(
                 val mockUserId = "user_${System.currentTimeMillis()}"
                 val algId =
                     when (selectedAlgIndex) {
-                        0 -> Fido2CryptoService.COSE_ES256
-                        1 -> Fido2CryptoService.COSE_EDSA
-                        else -> Fido2CryptoService.COSE_ML_DSA_65
+                        0 -> CredentialKeyDescriptor.COSE_ES256
+                        1 -> CredentialKeyDescriptor.COSE_EDDSA
+                        else -> CredentialKeyDescriptor.COSE_ML_DSA_65
                     }
                 val params =
                     when (selectedAlgIndex) {

@@ -1,20 +1,21 @@
 package com.chimali.core.security.api
 
-/**
- * Interface for generating and managing the Master Seed based on BIP39.
- */
+import com.chimali.core.common.annotation.Req
+
+/** Mutable BIP39 boundary used to create and reconstruct the wallet root input. */
 interface MasterSeedGenerator {
     /**
-     * Generates a new 12 or 24 word mnemonic.
-     * @param wordCount Must be 12 or 24.
+     * Generate an owned mutable English mnemonic. The current wallet profile permits 24 words
+     * only; other counts are rejected. The caller owns and erases the returned buffer.
      */
-    fun generateMnemonic(wordCount: Int = 12): List<String>
+    @Req("NFR-SEC-041")
+    fun generateMnemonic(wordCount: Int = 24): CharArray
 
     /**
-     * Derives a seed from a mnemonic and an optional passphrase.
+     * Validate a 24-word English BIP39 mnemonic and return its full owned 64-byte PBKDF2-HMAC-SHA512
+     * result. This wallet profile fixes the BIP39 passphrase to empty. [mnemonic] is borrowed and
+     * must remain unchanged; the caller owns and erases the returned seed.
      */
-    fun deriveSeed(
-        mnemonic: List<String>,
-        passphrase: String = "",
-    ): ByteArray
+    @Req("NFR-SEC-041")
+    fun deriveSeed(mnemonic: CharArray): ByteArray
 }

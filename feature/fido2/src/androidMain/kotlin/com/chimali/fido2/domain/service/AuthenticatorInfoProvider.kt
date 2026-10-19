@@ -30,7 +30,7 @@ class AuthenticatorInfoProvider {
     private companion object {
         const val MAX_CREDENTIAL_COUNT = 50
         const val MAX_CREDENTIAL_ID_LENGTH = 255
-        val SUPPORTED_ALGORITHMS = listOf("ES256", "EdDSA", "RS256", "ML-DSA")
+        val SUPPORTED_ALGORITHMS = listOf("ES256", "EdDSA", "ML-DSA")
         val SUPPORTED_TRANSPORTS = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE)
         val CHIMALI_AAGUID =
             byteArrayOf(

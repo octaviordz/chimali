@@ -1,6 +1,40 @@
+> **Amendment impact report — 2026-10-16 (3.1.0, MINOR)**
+> Updates Principle III's FIDO2 Bluetooth authenticator latency budget: RP-to-verified-response round trip is <1,000 ms excluding measured user-verification wait; all internal FIDO operation processing is below 200 ms, excluding user-verification wait and Bluetooth response handoff. Rationale: host, browser, and Bluetooth round-trip overhead has a separate budget from the app's operation processing. Synchronized BRD NFR-PERF-030/050, FR-VAL-030, TR-PERF-010, and feature 055 SC-007/plan measurement boundaries.
+>
 <!--
 SYNC IMPACT REPORT
-Version: 1.2.1 -> 2.0.0 (MAJOR: document restructured for clarity and technical documentation best practices)
+Current amendment: Version 3.0.0 -> 3.1.0 (MINOR: materially clarify the FIDO2 authenticator latency budget and its measurement boundaries).
+Date: 2026-10-16; ratified date retained: 2026-02-19.
+Modified in 3.1.0:
+  - Principle III separates RP-to-verified-response end-to-end latency from app-internal FIDO operation processing.
+  - BRD NFR-PERF-030/050 and FR-VAL-030, TRD TR-PERF-010, and feature 055 SC-007 are synchronized to the new budgets.
+  - User-verification wait is excluded only when explicitly measured; Bluetooth response handoff is excluded from the internal-processing budget.
+Approval: User instruction on 2026-10-16 explicitly requested a 1-second end-to-end limit and a 200-ms internal-operation limit.
+-->
+>
+> **Amendment impact report — 2026-10-14 (3.0.0, MAJOR)**
+> Replaces the retired draft-dijkhuis-cfrg-hdkeys-06 mandate and its HDK-ECDH-P256, XMD,
+> remote-KEM and DeriveSalt requirements with the local profile in
+> `specs/055-migrate-hdk-draft/contracts/local-key-derivation.md`. Defines the full BIP39-to-HKDF
+> root, complete decoded credential-ID binding, independent Ed25519/ML-DSA branches, software
+> parent limits, mutable ownership and required recovery metadata. Clarifies fixed public KDF context
+> versus fresh nonce/IV randomness. Feature 055's clean-install scope is specifically authorized;
+> it does not alter general published-format evolution rules. Synchronized current requirement homes:
+> `docs/brd.md` (`NFR-SEC-041`) and `docs/trd.md` (`TR-AUTH-031`). Historical requirement IDs
+> remain identified as superseded; the OpenID4VCI investigation remains a separate backlog item.
+>
+<!--
+SYNC IMPACT REPORT
+Current amendment: Version 2.0.0 -> 3.0.0 (MAJOR: replace the normative root and credential derivation profile).
+Date: 2026-10-14; ratified date retained: 2026-02-19.
+Modified in 3.0.0:
+  - Principle II replaced with the current local BIP39/HKDF root, P-256 child profile, separate Ed25519/ML-DSA seeds, required recovery metadata, software-parent limits, and mutable lifecycle ownership.
+  - ES-V.5 clarifies that fixed public KDF context is permitted only in a named/versioned approved profile; fresh nonces/IVs remain random.
+  - Feature 055 clean-install schema scope recorded as a feature-specific user-authorized breaking change.
+  - BRD NFR-SEC-041 and TRD TR-AUTH-031 allocated; obsolete FR-HID-024, former NFR-SEC-040 derivation wording, and TR-UI-080 explicitly superseded.
+  - Current OpenID4VCI work remains in its separate research backlog.
+
+Prior amendment impact report (1.2.1 -> 2.0.0; preserved for history):
 Modified principles:
   - III. Uncompromising Architecture & Quality → renamed/split into "Architecture" top-level section
   - VIII. Event Sourcing Architecture → moved into Architecture section
@@ -98,51 +132,65 @@ Encryption Strategy** based on modern Android best practices:
 
 ### II. Master Seed Architecture
 
-The root of trust is established via a **Master Seed (Master Key)** architecture. Credential keys
-are derived using the **Hierarchical Deterministic Key (HDK) function** following
-**IETF draft-dijkhuis-cfrg-hdkeys-06**. This standardises privacy-preserving elliptic curve key
-management by eliminating legacy BIP-32 style components (such as separate chain codes) in favour
-of standard Key Derivation Functions mapping directly to the curve group. The architecture ensures
-deterministic derivation of classical (ECDSA/Ed25519) and Post-Quantum signature schemes from the
-single root seed, aligning with modern cryptography guidelines without reliance on mixed
-BIP-44/BIP-32 patterns.
+The root of trust is a BIP39 recovery mnemonic protected at rest by the application's approved
+authenticated-encryption storage. Fresh wallet creation MUST use 256 bits of cryptographically
+secure entropy and the published English wordlist to produce 24 words. Private mnemonic processing
+MUST use owned mutable storage and validate the required wordlist/checksum before deriving wallet
+material.
 
-**Concrete instantiation**: The implemented HDK instantiation is **HDK-ECDH-P256** (§4.1 of the
-draft), using:
-- **Group**: NIST P-256 (secp256r1)
-- **Hash**: SHA-256 (via the `P256_XMD:SHA-256_SSWU_RO_` hash-to-curve suite)
-- **Blinding**: Multiplicative blinding (§3.2.2) —
-  `BlindPublicKey(pk, bk, ctx) = ScalarMult(pk, DeriveBlindingFactor(bk, ctx))`
-- **KEM**: DHKEM(P-256, HKDF-SHA256) for remote key derivation (§3.3.1)
+The full BIP39 PBKDF2-HMAC-SHA512 result is a transient 64-byte input. The current wallet root
+MUST be the 32-byte RFC 5869 HKDF-SHA256 PRK derived by the approved, named and versioned local
+credential profile. The profile MUST document exact salt/context bytes and encodings, supported
+algorithms, parent derivation, required recovery metadata, and independent expected results. Full
+BIP39 working material MUST be erased after root extraction and required provisioning.
 
-**Key derivation rules** (per §2.5 of the draft):
-- A unit **MUST NOT** persist a blinded private key. Blinded private key bytes must be zeroed
-  immediately after the signing operation completes.
-- Salt values (including the seed) **MUST NOT** be reused outside of HDK derivation calls.
-- The seed is generated with 32 bytes of entropy (`SecureRandom`) and stored encrypted via an
-  encrypted preference store (AES-256-GCM).
+P-256 credential keys MUST use a named local profile that adapts the scalar mapping and child-key
+relation in Section 7 of `draft-dijkhuis-hdk-00`, substituting a separately specified local RFC 5869
+credential secret for the draft's per-issuance X25519 shared secret. This is local custom protocol
+composition, not the draft's OpenID4VCI issuance flow or an interoperability claim. Parent generation
+MUST follow the profile's published deterministic P-256 key-generation algorithm. Credential identity MUST bind
+the complete canonical decoded credential identifier; shortened identifier hashes and obsolete HDK
+path/salt/handle representations MUST NOT be part of the current profile.
 
-**PQ branch isolation**: The ML-DSA/Post-Quantum key branch uses **HDK DeriveSalt** (§2.4) with
-the context `"PQ_ML-DSA_Branch"`, followed by HMAC-SHA512 expansion, to produce a child seed that
-is cryptographically isolated from the ECDSA HDK branch. This ensures full compliance with
-`draft-dijkhuis-cfrg-hdkeys-06` without any legacy BIP-32/85 dependencies. The ECDSA branch uses
-`HMAC-SHA512("chimali_device_key_v1", masterSeed)` to derive the device key pair deterministically.
+Ed25519 and ML-DSA MUST use independently specified, algorithm-separated seed derivation and
+published key-generation/signature algorithms. They MUST NOT be described as P-256 HDK instances.
+All active operations MUST use the one current profile defined for their algorithm; unsupported
+algorithm/profile pairs MUST fail. Legacy compatibility implementations and speculative profile
+registries MUST NOT be added without a separate approved requirement.
 
-**Spec alignment**:
-- `DeriveSalt` conforms to §2.4 of `draft-dijkhuis-cfrg-hdkeys-06`. The normative definition
-  `H(salt || ctx)` is strictly implemented. The `ID` domain separator is embedded in `ctx` via
-  §2.3 (`ctx = ID || I2OSP(index, 4)`) and is not prepended again to the hash input.
-- `DST = "ECDH Key Blind"` for `HashToScalar` conforms to §4.1 of
-  `draft-dijkhuis-cfrg-hdkeys-06`.
+The parent signing key in this profile is software-derived. Android Keystore protection of
+encrypted recovery data MUST NOT be described as making that signing scalar non-exportable. Child
+operations MUST preserve the documented parent profile's authorization policy. The application
+MUST NOT claim OpenID4VCI issuance, issuer assurance or secure-hardware child operation conformance
+from local derivation alone.
+
+The provider MUST own separate cached buffers, publish initialized state atomically, and return
+operation-owned secret copies or an equally reviewed scoped interface. Owners MUST erase replaced
+and terminal secret buffers on success, error, cancellation, session end and required
+memory-pressure response. A private child key or per-credential seed MUST never be persisted.
+Plaintext mnemonic, seed, root, factor and private-key storage MUST comply with Principle I.5
+without a cryptographic UI exception. Dependency-internal copy limits MUST be documented and
+reviewed; dropping references is not physical erasure.
+
+Recovery reproduces a current credential only when supplied with the approved root/recovery inputs
+and required current credential metadata. A mnemonic alone MUST NOT imply account discovery or
+restoration of missing metadata.
+
+Feature 055 establishes the current profile for a clean new installation of unreleased Chimali. It
+does not require retention or conversion of prior credential/database/event formats. Record that
+feature-specific user-authorized scope when applying current schema changes; it does not introduce
+general exemptions for future published formats.
 
 ### III. Performance & Reliability
 
 The application MUST adhere to strict Android Vitals targets:
 - **Startup**: Cold Start < 2s, Warm Start < 1s, Hot Start < 500ms.
 - **Smoothness**: Maintain 60 FPS during interactions.
-- **Latency**: Bluetooth HID Virtual Authenticator actions MUST be < 200ms end-to-end. Outgoing
-  HID reports MUST utilize a thread-safe FIFO queuing mechanism to prevent packet loss during rapid
-  or fragmented transactions.
+- **Latency**: FIDO2 Bluetooth authenticator RP-to-verified-response round trips MUST be at most
+  < 1,000ms, excluding only measured user-verification wait. All internal FIDO operation
+  processing MUST be < 200ms, excluding user-verification wait and Bluetooth
+  response handoff. Outgoing HID reports MUST utilize a thread-safe FIFO queuing mechanism to
+  prevent packet loss during rapid or fragmented transactions.
 - **Resources**: Zero memory leaks and minimal battery impact (< 0.1% excessive wake locks).
 - **Clipboard**: Sensitive data must be explicitly cleared from the system clipboard within
   60 seconds of copy action.
@@ -633,8 +681,13 @@ MUST be strictly adhered to across all technologies.
   apply within cryptographic processing.
 - **Constant-Time Comparisons**: HMAC tags, signatures, and credential IDs MUST be compared using
   `MessageDigest.isEqual()` or an equivalent constant-time method to prevent timing attacks.
-- **SecureRandom**: All nonces, salts, and IVs MUST be generated using `java.security.SecureRandom`.
-  Using `kotlin.random.Random` or `java.util.Random` for any security-sensitive value is prohibited.
+- **SecureRandom**: Security-sensitive randomness, including fresh nonces and IVs, MUST use
+  `java.security.SecureRandom`. A fixed public salt or context required or permitted by a published
+  deterministic KDF MAY be used only as a public domain-separation input through an approved, named,
+  versioned derivation profile with documented byte encoding and domain separation. This exception
+  does not authorize treating the salt/context as secret input, nonce reuse, or replacement of
+  randomness where the governing construction requires fresh random values. Using
+  `kotlin.random.Random` or `java.util.Random` for any security-sensitive value is prohibited.
 - **Domain Separation**: Context strings and DST values MUST be defined as named constants with
   documentation referencing the specification section.
 - **No Cryptographic Invention**: All cryptographic constructions MUST conform to a published
@@ -700,4 +753,4 @@ defined limits in Principle III will be rejected.
 Agents working on this project MUST read this constitution before beginning any speckit workflow
 step (specify, plan, tasks, implement).
 
-**Version**: 2.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-09-22
+**Version**: 3.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-16

@@ -1,5 +1,6 @@
 package com.chimali.core.common.datastore
 
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -10,7 +11,7 @@ class CrossPlatformDataStoreTest {
     @Test
     fun testCrossPlatformDataSharing() =
         runTest {
-            val path = "/cross_platform_prefs.pb"
+            val path = "/cross_platform_prefs_${Random.nextLong()}.pb"
 
             val dataStore =
                 createUserPreferencesDataStore(

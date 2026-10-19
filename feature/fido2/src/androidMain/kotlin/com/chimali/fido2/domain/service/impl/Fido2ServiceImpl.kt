@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.service.impl
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.valueobject.CredentialId
@@ -29,23 +30,31 @@ class Fido2ServiceImpl(
      * - Options validation
      * - User verification (biometric / PIN)
      * - Consent recording (T075)
-     * - Key-pair generation & KeyStore storage
+     * - Descriptor-selected local key derivation and software signing after existing authorization
      * - AttestationObject construction
-     * - Credential persistence
+     * - Credential metadata persistence; derived private keys are not persisted
      */
-    override suspend fun makeCredential(options: MakeCredentialOptions): Outcome<MakeCredentialResult, DomainError> =
-        registerCredentialUseCase(options)
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override suspend fun makeCredential(
+        options: MakeCredentialOptions,
+        userVerificationPerformed: Boolean,
+    ): Outcome<MakeCredentialResult, DomainError> = registerCredentialUseCase(options, userVerificationPerformed)
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun registerNewCredential(
         rpId: RpId,
         userName: String,
         userDisplayName: String,
     ): Outcome<CredentialId, DomainError> = fido2Repository.registerCredential(rpId, userName, userDisplayName)
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun getAllCredentials(): Flow<PasskeyCredential> = fido2Repository.getAllCredentials()
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError> =
         fido2Repository.deleteCredential(credentialId)
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun isSupported(): Boolean = true
 }

@@ -1,5 +1,5 @@
 package com.chimali.fido2.domain.usecase
-
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.exceptionOrNull
@@ -18,6 +18,7 @@ import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
 import com.chimali.fido2.domain.service.UserVerificationAvailability
 import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -36,6 +37,7 @@ import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
 
+@Req("NFR-SEC-041")
 class GetUserConsentUseCaseTest {
     private lateinit var credentialRepository: CredentialRepository
     private lateinit var userVerificationService: UserVerificationService
@@ -64,7 +66,7 @@ class GetUserConsentUseCaseTest {
                     id = "test_consent_id",
                     operationType = ConsentOperationType.REGISTRATION,
                     rpId = testRpId,
-                    credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                    credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                     isBiometricUsed = true,
                     isPinUsed = false,
                     ipAddress = "192.168.1.1",
@@ -93,6 +95,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class SuccessfulConsentRecordingTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should successfully record consent with biometric verification`() =
             runTest {
@@ -110,7 +113,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -119,7 +122,10 @@ class GetUserConsentUseCaseTest {
                 assertNotNull(consentRecord)
                 assertEquals(ConsentOperationType.REGISTRATION, consentRecord.operationType)
                 assertEquals(testRpId, consentRecord.rpId)
-                assertEquals("dGVzdF9jcmVkZW50aWFsX2lk", consentRecord.credentialId?.encoded)
+                assertEquals(
+                    testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk").encoded,
+                    consentRecord.credentialId?.encoded,
+                )
                 assertTrue(consentRecord.isBiometricUsed)
                 assertFalse(consentRecord.isPinUsed)
 
@@ -129,6 +135,7 @@ class GetUserConsentUseCaseTest {
                 coVerify { credentialRepository.saveUserConsent(any()) }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should successfully record consent with pin verification`() =
             runTest {
@@ -148,7 +155,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.AUTHENTICATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -161,6 +168,7 @@ class GetUserConsentUseCaseTest {
                 // Expected behavior is to just check availability and proceed with recording the consent.
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should successfully record consent without verification when not required`() =
             runTest {
@@ -173,7 +181,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.CREDENTIAL_DELETION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = false,
                     )
 
@@ -187,6 +195,7 @@ class GetUserConsentUseCaseTest {
                 coVerify(exactly = 0) { userVerificationService.getUserVerificationAvailability() }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should successfully record consent without credential id`() =
             runTest {
@@ -204,6 +213,7 @@ class GetUserConsentUseCaseTest {
                 assertNull(consentRecord.credentialId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should use custom prompt when provided`() =
             runTest {
@@ -213,7 +223,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                         prompt = customPrompt,
                     )
@@ -226,6 +236,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class ConsentRetrievalTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should retrieve recent consent records`() =
             runTest {
@@ -254,6 +265,7 @@ class GetUserConsentUseCaseTest {
                 coVerify { credentialRepository.getRecentUserConsent(testRpId, FETCH_LIMIT_50) }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should retrieve consent records by operation type`() =
             runTest {
@@ -290,10 +302,11 @@ class GetUserConsentUseCaseTest {
                 assertEquals(ConsentOperationType.REGISTRATION, retrievedRecords.first().operationType)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should retrieve consent records by credential id`() =
             runTest {
-                val targetCredentialId = CredentialId.fromEncoded("dGFyZ2V0X2lk")
+                val targetCredentialId = testCredentialIdFromLabel("dGFyZ2V0X2lkAGRHRnlaMlYwWDJsaw")
                 val targetConsent =
                     UserConsentRecord.create(
                         id = "target_consent_id",
@@ -308,7 +321,7 @@ class GetUserConsentUseCaseTest {
                         id = "other_consent_id",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
-                        credentialId = CredentialId.fromEncoded("b3RoZXJfaWQ"),
+                        credentialId = testCredentialIdFromLabel("b3RoZXJfaWQAYjNSb1pYSmZhV1E"),
                         isBiometricUsed = false,
                         isPinUsed = true,
                     )
@@ -324,6 +337,7 @@ class GetUserConsentUseCaseTest {
                 assertEquals(targetCredentialId, retrievedRecords.first().credentialId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should retrieve consent records by rp id`() =
             runTest {
@@ -356,6 +370,7 @@ class GetUserConsentUseCaseTest {
                 assertEquals(targetRpId, retrievedRecords.first().rpId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should retrieve consent records by time range`() =
             runTest {
@@ -395,6 +410,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class ConsentStatisticsTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should calculate consent statistics correctly`() =
             runTest {
@@ -443,6 +459,7 @@ class GetUserConsentUseCaseTest {
                 assertTrue(result.consentsByRp.containsKey(RpId("https://other.com")))
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should calculate statistics for specific rp`() =
             runTest {
@@ -467,6 +484,7 @@ class GetUserConsentUseCaseTest {
                 assertEquals(1, result.consentsByRp[testRpId])
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should identify most used consent method`() =
             runTest {
@@ -508,6 +526,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class RecentConsentCheckTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly identify recent consent`() =
             runTest {
@@ -532,6 +551,7 @@ class GetUserConsentUseCaseTest {
                 assertTrue(result)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly identify non recent consent`() =
             runTest {
@@ -559,6 +579,7 @@ class GetUserConsentUseCaseTest {
                 assertFalse(result)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle no consent records`() =
             runTest {
@@ -577,6 +598,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class ValidationFailureTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when rp id is blank`() =
             runTest {
@@ -584,12 +606,13 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = RpId(""),
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when rp id is invalid`() =
             runTest {
@@ -597,7 +620,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = RpId("invalid-rp-id"),
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -605,6 +628,7 @@ class GetUserConsentUseCaseTest {
                 assertTrue(result.exceptionOrNull() is IllegalArgumentException)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when credential id is blank`() =
             runTest {
@@ -618,6 +642,7 @@ class GetUserConsentUseCaseTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when credential id exceeds maximum length`() =
             runTest {
@@ -634,6 +659,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class UserVerificationFailureTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when no verification method is available`() =
             runTest {
@@ -652,7 +678,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -660,6 +686,7 @@ class GetUserConsentUseCaseTest {
                 assertTrue(result.exceptionOrNull() is Fido2Exception.NoVerificationMethodAvailable)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should fail when consent storage fails`() =
             runTest {
@@ -675,7 +702,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = testRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -686,6 +713,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class OperationTypeTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle all operation types`() =
             runTest {
@@ -702,7 +730,7 @@ class GetUserConsentUseCaseTest {
                         getUserConsentUseCase(
                             rpId = testRpId,
                             operationType = operationType,
-                            credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                            credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                             // Skip verification for this test
                             isVerificationRequired = false,
                         )
@@ -713,6 +741,7 @@ class GetUserConsentUseCaseTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should use appropriate prompts for different operation types`() =
             runTest {
@@ -729,7 +758,7 @@ class GetUserConsentUseCaseTest {
                         getUserConsentUseCase(
                             rpId = testRpId,
                             operationType = operationType,
-                            credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                            credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                             isVerificationRequired = true,
                         )
 
@@ -742,6 +771,7 @@ class GetUserConsentUseCaseTest {
 
     @Nested
     inner class EdgeCases {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle maximum allowed credential id length`() =
             runTest {
@@ -758,6 +788,7 @@ class GetUserConsentUseCaseTest {
                 assertEquals(MAX_CRED_ID_LEN_1023, consentRecord.credentialId?.toByteArray()?.size)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle http rp id`() =
             runTest {
@@ -767,7 +798,7 @@ class GetUserConsentUseCaseTest {
                     getUserConsentUseCase(
                         rpId = httpRpId,
                         operationType = ConsentOperationType.REGISTRATION,
-                        credentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk"),
+                        credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
@@ -776,6 +807,7 @@ class GetUserConsentUseCaseTest {
                 assertEquals(httpRpId, consentRecord.rpId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle empty consent statistics`() =
             runTest {

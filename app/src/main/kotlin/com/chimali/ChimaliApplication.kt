@@ -8,20 +8,29 @@ import com.chimali.core.common.di.dataStoreModule
 import com.chimali.core.data.di.coreDataModule
 import com.chimali.core.database.di.databaseModule
 import com.chimali.core.domain.di.DomainModule
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.di.SecurityModule
 import com.chimali.feature.onboarding.di.onboardingModule
 import com.chimali.feature.settings.di.settingsModule
 import com.chimali.feature.vault.internal.vaultModule
 import com.chimali.fido2.Fido2Initializer
+import com.chimali.fido2.data.crypto.WalletSessionMemoryPressure
 import com.chimali.fido2.di.Fido2Module
 import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.ksp.generated.module
 
+/** Initializes process-wide crypto, dependency injection, and FIDO2 services. */
 class ChimaliApplication : Application() {
+    private val masterSeedProvider: MasterSeedProvider by lazy {
+        GlobalContext.get().get<MasterSeedProvider>()
+    }
+
+    /** Registers the provider and application modules once for this process. */
     override fun onCreate() {
         super.onCreate()
 
@@ -57,5 +66,18 @@ class ChimaliApplication : Application() {
         // Initialize Timber logging and local crash reporting parameters.
         // We use BuildConfig's debug status from the app module.
         Fido2Initializer.init(this)
+    }
+
+    /**
+     * Applies the severe-trim wallet-session fence while preserving other trim levels.
+     * @param level Android's current memory-trim level.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        WalletSessionMemoryPressure.handle(
+            level = level,
+            clearSession = masterSeedProvider::clearSession,
+            requestGc = System::gc,
+        )
     }
 }

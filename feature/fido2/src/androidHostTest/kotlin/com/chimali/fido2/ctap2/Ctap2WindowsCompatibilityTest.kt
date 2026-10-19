@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
@@ -9,7 +10,6 @@ import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
-import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import io.mockk.coEvery
 import io.mockk.every
@@ -33,6 +33,7 @@ class Ctap2WindowsCompatibilityTest {
         private const val AUTH_DATA_SIZE_37 = 37
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() =
         runTest {
@@ -59,9 +60,15 @@ class Ctap2WindowsCompatibilityTest {
             val dummyCredIdBytes = ByteArray(16) { 0x0A.toByte() }
             val rawAuthData = ByteArray(AUTH_DATA_SIZE_37) { 0xBB.toByte() }
             val rawSignature = ByteArray(SIG_SIZE_64) { 0xCC.toByte() }
+            val expectedAuthData = rawAuthData.copyOf()
+            val expectedSignature = rawSignature.copyOf()
 
-            // Fix for T052: mock candidate search to satisfy the new headless check in handle()
-            coEvery { mockGetAssertionUseCase.findCandidateSummaries(any()) } returns listOf(mockk())
+            val candidate =
+                mockk<CredentialSummary> {
+                    every { eraseSensitiveText() } returns Unit
+                    every { credProtectPolicy } returns 1
+                }
+            coEvery { mockGetAssertionUseCase.findCandidateSummaries(any()) } returns listOf(candidate)
 
             // Windows-style Base64 inputs
             val base64AuthData = Base64.getEncoder().encode(rawAuthData)
@@ -83,19 +90,13 @@ class Ctap2WindowsCompatibilityTest {
                     ),
                 )
 
-            // Mock EventBus dispatch to complete the deferred result
             val dummyAssertion = createDummyAssertion(dummyCredIdBytes, rawAuthData, rawSignature)
-            coEvery { mockEventBus.dispatch(any()) } answers {
-                val event = it.invocation.args[0] as? Fido2UiEvent
-                if (event is Fido2UiEvent.AuthenticationRequested) {
-                    event.deferred.complete(Outcome.Success(dummyAssertion))
-                }
-            }
 
             // Mock HmacProcessor to pass through
             every { mockHmacProcessor.isPresent(any()) } returns false
             coEvery { mockHmacProcessor.process(any(), any()) } returns null
-            coEvery { mockGetAssertionUseCase(any()) } returns Outcome.Success(dummyAssertion)
+            coEvery { mockGetAssertionUseCase.invokeHeadless(any(), listOf(candidate)) } returns
+                Outcome.Success(dummyAssertion)
 
             // Execute handler
             val realPackets = handler.handle(testCid, requestCbor)
@@ -126,10 +127,12 @@ class Ctap2WindowsCompatibilityTest {
             // CRITICAL: They MUST be the raw bytes, NOT Base64 text
             assertEquals(AUTH_DATA_SIZE_37, outAuthData.size, "authData must be raw binary (37 bytes)")
             assertEquals(SIG_SIZE_64, outSignature.size, "signature must be raw binary (64 bytes)")
+            assertEquals(expectedAuthData.toList(), outAuthData.toList())
+            assertEquals(expectedSignature.toList(), outSignature.toList())
 
             // Double check that the CBOR doesn't contain the Base64 strings anywhere
-            assertTrue(containsSubArray(cborPayload, rawAuthData), "CBOR must contain raw authData bytes")
-            assertTrue(containsSubArray(cborPayload, rawSignature), "CBOR must contain raw signature bytes")
+            assertTrue(containsSubArray(cborPayload, expectedAuthData), "CBOR must contain raw authData bytes")
+            assertTrue(containsSubArray(cborPayload, expectedSignature), "CBOR must contain raw signature bytes")
             assertTrue(containsSubArray(cborPayload, dummyCredIdBytes), "CBOR must contain raw credential ID bytes")
 
             // Verify Base64 textual representations DO NOT exist in the CBOR

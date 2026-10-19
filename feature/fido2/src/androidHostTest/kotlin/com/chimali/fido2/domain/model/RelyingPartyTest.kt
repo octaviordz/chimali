@@ -8,12 +8,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 
@@ -290,15 +290,18 @@ class RelyingPartyTest {
                 assertTrue(age <= 1) // Should be very recent
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should create rp with updated credential count`() =
             runTest {
+                val startedAt = Clock.System.now()
                 val updatedRp = rp.withCredentialCount(CRED_COUNT_10)
+                val completedAt = Clock.System.now()
 
                 assertEquals(CRED_COUNT_10, updatedRp.credentialCount)
                 assertEquals(rp.id, updatedRp.id)
                 assertEquals(rp.name, updatedRp.name)
-                assertNotEquals(rp.lastUsedAt, updatedRp.lastUsedAt) // Should be updated
+                assertTrue(requireNotNull(updatedRp.lastUsedAt) in startedAt..completedAt)
             }
 
         @Test

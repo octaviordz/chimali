@@ -31,17 +31,19 @@ class SearchableMetadataPerformanceTest {
         database = Fido2Database(driver)
     }
 
+    /** @see NFR-PERF-030 */
     @Test
     fun `exact-match lookup by rp_id_index completes within 200ms over 10000 records`() {
         // Seed relying party for FK constraint
         database.relyingPartyQueries.insert(
-            id = "rp-perf",
+            id = ("rp-perf").encodeToByteArray(),
             created_at = 1000L,
+            updated_at = 1000L,
             last_used_at = null,
             credential_count = RECORD_COUNT.toLong(),
             icon_url = null,
             is_blocked = 0L,
-            name = "Performance RP",
+            name = ("Performance RP").encodeToByteArray(),
             encrypted_metadata = null,
         )
 
@@ -58,20 +60,21 @@ class SearchableMetadataPerformanceTest {
                         database.passkeyCredentialQueries.insert(
                             id = "cred-$i",
                             created_at = 1000L + i,
+                            updated_at = 1000L + i,
                             last_used_at = 2000L + i,
                             aaguid = "aaguid",
                             cose_algorithm = -7L,
                             credential_id = "cred-id-$i",
                             cred_protect_policy = 1L,
                             label = null,
-                            private_key_alias = "alias-$i",
+                            derivation_profile = "chimali-local-hdk-p256-v1",
                             public_key = "pubkey-$i",
-                            rp_id = "rp-perf",
-                            rp_name = "Performance RP",
+                            rp_id = "rp-perf".encodeToByteArray(),
+                            rp_name = "Performance RP".encodeToByteArray(),
                             sign_count = 0L,
-                            user_display_name = "User $i",
-                            user_id = "user-$i",
-                            user_name = "user$i",
+                            user_display_name = "User $i".encodeToByteArray(),
+                            user_id = "user-$i".encodeToByteArray(),
+                            user_name = "user$i".encodeToByteArray(),
                             rp_id_index = rpIdIndex,
                             user_id_index = userIdIndex,
                             encrypted_metadata = ByteArray(32) { (i % 256).toByte() },
@@ -104,6 +107,7 @@ class SearchableMetadataPerformanceTest {
         )
     }
 
+    /** @see NFR-PERF-030 */
     @Test
     fun `exact-match lookup by combined rp_id_index and user_id_index performs within budget`() {
         database.transaction {
@@ -111,20 +115,21 @@ class SearchableMetadataPerformanceTest {
                 database.passkeyCredentialQueries.insert(
                     id = "cred-$i",
                     created_at = 1000L + i,
+                    updated_at = 1000L + i,
                     last_used_at = 2000L + i,
                     aaguid = "aaguid",
                     cose_algorithm = -7L,
                     credential_id = "cred-id-$i",
                     cred_protect_policy = 1L,
                     label = null,
-                    private_key_alias = "alias-$i",
+                    derivation_profile = "chimali-local-hdk-p256-v1",
                     public_key = "pubkey-$i",
-                    rp_id = "rp-combined",
-                    rp_name = "Combined RP",
+                    rp_id = "rp-combined".encodeToByteArray(),
+                    rp_name = "Combined RP".encodeToByteArray(),
                     sign_count = 0L,
-                    user_display_name = "User $i",
-                    user_id = "user-$i",
-                    user_name = "user$i",
+                    user_display_name = "User $i".encodeToByteArray(),
+                    user_id = "user-$i".encodeToByteArray(),
+                    user_name = "user$i".encodeToByteArray(),
                     rp_id_index = deriveTestToken("rp-combined", i),
                     user_id_index = deriveTestToken("user", i),
                     encrypted_metadata = ByteArray(16),
@@ -153,16 +158,18 @@ class SearchableMetadataPerformanceTest {
         )
     }
 
+    /** @see NFR-PERF-030 */
     @Test
     fun `consent record rp_id_index lookup performs within budget over 10000 records`() {
         database.relyingPartyQueries.insert(
-            id = "rp-consent",
+            id = ("rp-consent").encodeToByteArray(),
             created_at = 1000L,
+            updated_at = 1000L,
             last_used_at = null,
             credential_count = 0L,
             icon_url = null,
             is_blocked = 0L,
-            name = "Consent RP",
+            name = ("Consent RP").encodeToByteArray(),
             encrypted_metadata = null,
         )
 
@@ -170,14 +177,16 @@ class SearchableMetadataPerformanceTest {
             for (i in 0 until RECORD_COUNT) {
                 database.userConsentRecordQueries.insert(
                     id = "consent-$i",
+                    created_at = 1000L + i,
                     timestamp = 1000L + i,
+                    updated_at = 1000L + i,
                     biometric_used = 0L,
                     credential_id = null,
                     device_id = null,
                     ip_address = null,
                     operation_type = "AUTHENTICATION",
                     pin_used = 0L,
-                    rp_id = "rp-consent",
+                    rp_id = ("rp-consent").encodeToByteArray(),
                     user_agent = null,
                     rp_id_index = deriveTestToken("rp-consent", i),
                 )

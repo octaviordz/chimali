@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir
 
 /**
  * Integration tests for [SQLiteMCDriver] verifying database encryption, integrity check,
- * key verification, and recovery mechanisms.
+ * key verification, and preservation on failed opens.
  *
  * DO-178B Traceability (§XII.1, §XII.3):
  * @see FR-MC-010 Migrate SQLCipher to SQLite3MultipleCiphers
@@ -164,61 +164,5 @@ class SQLiteMCDriverIntegrationTest {
             val wrongRawKey = Key.raw(key = wrongKey.copyOf(), salt = salt, fillKey = true)
             factory.createBlocking(wrongRawKey)
         }
-    }
-
-    /**
-     * Verifies deterministic recovery from incompatible legacy database format by deleting the corrupt
-     * file and recreating a fresh database.
-     *
-     * Traceability:
-     * @see FR-MC-020
-     * @see FR-MC-040
-     * @see Constitution §XII.2 Determinism & Predictable Execution
-     * @see Constitution §XII.5 Fail-Safe Error Handling
-     */
-    @Test
-    fun `recovering from incompatible legacy database deletes corrupted file and recreates fresh DB`(
-        @TempDir tempDir: File,
-    ) {
-        val dbName = "legacy_incompatible.db"
-        val corruptFile = File(tempDir, dbName)
-        corruptFile.writeBytes("SQLite format 3\u0000plain sqlite legacy data".toByteArray(Charsets.UTF_8))
-
-        val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
-        val keyBytes = ByteArray(32) { (it + 5).toByte() }
-
-        val factory =
-            SQLiteMCDriver.Factory(
-                dbName = dbName,
-                schema = VaultDatabase.Schema,
-            ) {
-                filesystem(DatabasesDir(tempDir))
-            }
-
-        // Direct attempt fails because file is plain SQLite / incompatible
-        org.junit.jupiter.api.assertThrows<IllegalStateException> {
-            val rawKey = Key.raw(key = keyBytes.copyOf(), salt = salt, fillKey = true)
-            factory.createBlocking(rawKey)
-        }
-
-        // Simulate recovery by deleting the incompatible file
-        corruptFile.delete()
-
-        // Fresh creation now succeeds
-        val freshKey = Key.raw(key = keyBytes.copyOf(), salt = salt, fillKey = true)
-        val freshDriver = factory.createBlocking(freshKey)
-        val check =
-            freshDriver
-                .executeQuery(
-                    identifier = null,
-                    sql = "PRAGMA integrity_check",
-                    mapper = { cursor ->
-                        val hasRow = cursor.next().value
-                        QueryResult.Value(if (hasRow) cursor.getString(0) else null)
-                    },
-                    parameters = 0,
-                ).value
-        assertEquals("ok", check?.lowercase())
-        freshDriver.close()
     }
 }

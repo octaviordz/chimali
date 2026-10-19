@@ -3,6 +3,7 @@ package com.chimali.fido2.di
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.biometric.BiometricManager
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.database.EncryptedDriverFactory
 import com.chimali.core.domain.eventsourcing.AggregateService
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
@@ -42,6 +43,7 @@ class Fido2Module {
      * BluetoothHidTransportImpl and other HID components resolve this from the Koin graph.
      */
     @Single
+    @Req("FR-HID-010", "FR-HID-020")
     fun bluetoothManager(context: Context): BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
@@ -49,6 +51,7 @@ class Fido2Module {
      * Provides [BiometricManager] for user verification flows.
      */
     @Single
+    @Req("FR-AUTH-010")
     fun biometricManager(context: Context): BiometricManager = BiometricManager.from(context)
 
     /**
@@ -61,6 +64,7 @@ class Fido2Module {
      * @see Constitution §XII.4 Separation of Concerns (Partitioning)
      */
     @Single
+    @Req("NFR-SEC-010", "NFR-SEC-041")
     fun fido2Database(encryptedDriverFactory: EncryptedDriverFactory): Fido2Database {
         val driver = encryptedDriverFactory.createDriver(Fido2Database.Schema, "fido2.db")
         return Fido2Database(driver)
@@ -71,6 +75,7 @@ class Fido2Module {
      * Not annotated on [Fido2EventBus] directly as it lives in core:events.
      */
     @Single
+    @Req("FR-HID-030")
     fun fido2EventBus(): Fido2EventBus = Fido2EventBus()
 
     /**
@@ -78,6 +83,7 @@ class Fido2Module {
      */
     @Single
     @Named("passkey")
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun passkeyEventStoreRepository(
         database: Fido2Database,
         encryptionManager: EncryptionManager,
@@ -89,6 +95,7 @@ class Fido2Module {
      */
     @Single
     @Named("passkey")
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun passkeySnapshotRepository(
         database: Fido2Database,
         encryptionManager: EncryptionManager,
@@ -100,6 +107,7 @@ class Fido2Module {
      */
     @Single
     @Named("passkey")
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun passkeyAggregateService(
         @Named("passkey") eventStoreRepository: EventStoreRepository,
         @Named("passkey") snapshotRepository: SnapshotRepository,

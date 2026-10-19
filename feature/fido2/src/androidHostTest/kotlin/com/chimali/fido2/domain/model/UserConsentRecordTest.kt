@@ -1,11 +1,12 @@
 package com.chimali.fido2.domain.model
-
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.model.ConsentMethod
 import com.chimali.core.domain.model.ConsentOperationType
 import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,10 +21,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 
+@Req("NFR-SEC-041")
 class UserConsentRecordTest {
     private lateinit var testTimestamp: Instant
     private var testRpId: RpId = RpId("https://placeholder.com")
-    private var testCredentialId: CredentialId = CredentialId.fromEncoded("cGxhY2Vob2xkZXI")
+    private var testCredentialId: CredentialId = testCredentialIdFromLabel("cGxhY2Vob2xkZXIAY0d4aFkyVm9iMnhrWlhJ")
     private lateinit var testIpAddress: String
     private lateinit var testUserAgent: String
     private lateinit var testDeviceId: String
@@ -33,7 +35,7 @@ class UserConsentRecordTest {
         runTest {
             testTimestamp = TimeProvider().now()
             testRpId = RpId("https://example.com")
-            testCredentialId = CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk")
+            testCredentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk")
             testIpAddress = "192.168.1.1"
             testUserAgent = "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/109.0 Firefox/109.0"
             testDeviceId = "device_12345"
@@ -50,6 +52,7 @@ class UserConsentRecordTest {
 
     @Nested
     inner class ValidationTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should create valid consent record with all fields`() =
             runTest {
@@ -80,6 +83,7 @@ class UserConsentRecordTest {
                 assertEquals(testDeviceId, consent.deviceId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should create valid consent record with minimal fields`() =
             runTest {
@@ -110,6 +114,7 @@ class UserConsentRecordTest {
                 assertNull(consent.deviceId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when id is blank`() =
             runTest {
@@ -129,6 +134,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when rp id is blank`() =
             runTest {
@@ -148,6 +154,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when rp id is invalid`() =
             runTest {
@@ -167,6 +174,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when timestamp is in the future`() =
             runTest {
@@ -187,6 +195,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when credential id is blank`() =
             runTest {
@@ -206,6 +215,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when credential id exceeds maximum length`() =
             runTest {
@@ -225,6 +235,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when ip address is invalid`() =
             runTest {
@@ -244,6 +255,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when user agent is blank`() =
             runTest {
@@ -263,6 +275,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when device id is blank`() =
             runTest {
@@ -282,6 +295,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should throw exception when no consent method is used`() =
             runTest {
@@ -327,6 +341,7 @@ class UserConsentRecordTest {
                     )
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly check if consent is recent`() =
             runTest {
@@ -345,20 +360,26 @@ class UserConsentRecordTest {
                 assertTrue(recentConsent.isRecent(RECENT_THRESHOLD_5))
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly check if consent is for specific credential`() =
             runTest {
                 assertTrue(consent.isForCredential(testCredentialId))
                 assertTrue(
-                    consent.isForCredential(CredentialId.fromEncoded("dGVzdF9jcmVkZW50aWFsX2lk")),
+                    consent.isForCredential(testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk")),
                 ) // Case insensitive
 
-                assertFalse(consent.isForCredential(CredentialId.fromEncoded("other_credential_id")))
+                assertFalse(
+                    consent.isForCredential(
+                        testCredentialIdFromLabel("other_credential_icAb3RoZXJfY3JlZGVudGlhbF9pZA"),
+                    ),
+                )
 
                 val consentWithoutCredential = consent.copy(credentialId = null)
                 assertFalse(consentWithoutCredential.isForCredential(testCredentialId))
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly check if consent is for specific rp`() =
             runTest {
@@ -368,6 +389,7 @@ class UserConsentRecordTest {
                 assertFalse(consent.isForRelyingParty(RpId("https://other.com")))
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should return correct consent method`() =
             runTest {
@@ -383,6 +405,7 @@ class UserConsentRecordTest {
                 assertEquals(ConsentMethod.NONE, noConsent.getConsentMethod())
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should return safe credential id`() =
             runTest {
@@ -392,6 +415,7 @@ class UserConsentRecordTest {
                 assertEquals("N/A", consentWithoutCredential.getSafeCredentialId())
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly identify registration consent`() =
             runTest {
@@ -401,6 +425,7 @@ class UserConsentRecordTest {
                 assertFalse(authConsent.isRegistrationConsent())
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should correctly identify authentication consent`() =
             runTest {
@@ -413,6 +438,7 @@ class UserConsentRecordTest {
 
     @Nested
     inner class CompanionObjectTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should create consent record using companion object factory method`() =
             runTest {
@@ -442,6 +468,7 @@ class UserConsentRecordTest {
                 assertTrue(consent.timestamp < TimeProvider().now() + 1.seconds) // Should be recent
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should create consent record with minimal parameters`() =
             runTest {
@@ -465,6 +492,7 @@ class UserConsentRecordTest {
                 assertNull(consent.deviceId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should have correct constant values`() =
             runTest {
@@ -477,6 +505,7 @@ class UserConsentRecordTest {
 
     @Nested
     inner class IpAddressValidationTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should accept valid ipv4 addresses`() =
             runTest {
@@ -509,6 +538,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should accept valid ipv6 addresses`() =
             runTest {
@@ -540,6 +570,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should reject invalid ip addresses`() =
             runTest {
@@ -577,6 +608,7 @@ class UserConsentRecordTest {
 
     @Nested
     inner class EdgeCases {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle maximum allowed field sizes`() =
             runTest {
@@ -605,6 +637,7 @@ class UserConsentRecordTest {
                 assertEquals(maxDeviceId, consent.deviceId)
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle all operation types`() =
             runTest {
@@ -636,6 +669,7 @@ class UserConsentRecordTest {
                 }
             }
 
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `should handle combined biometric and pin consent`() =
             runTest {

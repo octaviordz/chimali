@@ -16,10 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,9 +25,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val MNEMONIC_WORD_COUNT = 24
 
@@ -52,19 +51,22 @@ private const val MNEMONIC_WORD_COUNT = 24
     "TooGenericExceptionCaught",
     "FunctionNaming",
 )
+@Req("NFR-SEC-041", "TR-AUTH-031")
 fun MnemonicQrScanner(
-    onScan: (List<String>) -> Unit,
+    onScan: (CharArray) -> Unit,
     modifier: Modifier = Modifier,
     onError: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var hasScanned by remember { mutableStateOf(false) }
+    val closed = remember { AtomicBoolean(false) }
+    val hasScanned = remember { AtomicBoolean(false) }
     val executor = remember { Executors.newSingleThreadExecutor() }
     val scanner = remember { BarcodeScanning.getClient() }
 
     DisposableEffect(Unit) {
         onDispose {
+            closed.set(true)
             executor.shutdown()
             scanner.close()
         }
@@ -90,16 +92,25 @@ fun MnemonicQrScanner(
                             .build()
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                        if (!hasScanned) {
+                        if (!closed.get() && !hasScanned.get()) {
                             processImageProxy(imageProxy, scanner) { rawValue ->
-                                val words = rawValue.trim().split("\\s+".toRegex())
-                                if (words.size == MNEMONIC_WORD_COUNT) {
-                                    hasScanned = true
-                                    onScan(words)
-                                } else {
-                                    // T005 - Non-critical validation error: log and continue scanning
+                                if (closed.get() || hasScanned.get()) return@processImageProxy
+                                val tokenCount = countWords(rawValue)
+                                if (tokenCount == MNEMONIC_WORD_COUNT && hasScanned.compareAndSet(false, true)) {
+                                    val mnemonic = copyTrimmed(rawValue)
+                                    var transferred = false
+                                    try {
+                                        if (!closed.get()) {
+                                            onScan(mnemonic)
+                                            transferred = true
+                                        }
+                                    } finally {
+                                        if (!transferred) mnemonic.fill('\u0000')
+                                    }
+                                } else if (tokenCount != MNEMONIC_WORD_COUNT) {
+                                    // Non-critical validation error; keep scanning and log only the count.
                                     Logger.w {
-                                        "QR scan had ${words.size} words, " +
+                                        "QR scan had $tokenCount words, " +
                                             "need $MNEMONIC_WORD_COUNT. Continuing scanner..."
                                     }
                                 }
@@ -146,7 +157,34 @@ fun MnemonicQrScanner(
     }
 }
 
+/** Counts whitespace-delimited words without creating immutable token strings. */
+
+private fun countWords(value: String): Int {
+    var count = 0
+    var inWord = false
+    for (character in value) {
+        if (character.isWhitespace()) {
+            inWord = false
+        } else if (!inWord) {
+            count++
+            inWord = true
+        }
+    }
+    return count
+}
+
+/** Copies only the trimmed scan characters into a mutable buffer for the caller to own. */
+
+private fun copyTrimmed(value: String): CharArray {
+    var start = 0
+    var end = value.length
+    while (start < end && value[start].isWhitespace()) start++
+    while (end > start && value[end - 1].isWhitespace()) end--
+    return CharArray(end - start) { index -> value[start + index] }
+}
+
 @OptIn(ExperimentalGetImage::class)
+@Req("NFR-SEC-041", "TR-AUTH-031")
 private fun processImageProxy(
     imageProxy: ImageProxy,
     scanner: com.google.mlkit.vision.barcode.BarcodeScanner,

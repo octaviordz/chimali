@@ -1,5 +1,6 @@
 package com.chimali.core.security.impl
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.security.api.EncryptedMetadataService
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -8,6 +9,15 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import org.koin.core.annotation.Single
 
+/**
+ * AES-GCM adapter for event and snapshot metadata.
+ *
+ * Callers retain ownership of the input arrays and erase their plaintext/key copies at the
+ * repository boundary. Returned ciphertext or plaintext belongs to the caller. `SecretKeySpec`
+ * and the JCA provider may retain internal key or data copies that this adapter cannot erase;
+ * [clearKey] drops the service's reference to the provisioned key but does not promise physical
+ * erasure of provider-managed storage.
+ */
 @Single
 class AesGcmEncryptedMetadataService : EncryptedMetadataService {
     companion object {
@@ -18,14 +28,19 @@ class AesGcmEncryptedMetadataService : EncryptedMetadataService {
     private var encryptionKey: SecretKey? = null
     private val secureRandom = SecureRandom()
 
+    /** Copies the borrowed key bytes into a provider-managed key object; the caller retains ownership. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun provisionKey(key: ByteArray) {
         encryptionKey = SecretKeySpec(key, "AES")
     }
 
+    /** Drops the key reference without claiming physical erasure of provider-managed storage. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun clearKey() {
         encryptionKey = null
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun encrypt(
         plaintext: ByteArray,
         associatedData: ByteArray?,
@@ -47,6 +62,7 @@ class AesGcmEncryptedMetadataService : EncryptedMetadataService {
         return byteArrayOf(EncryptedMetadataService.VERSION_1.toByte()) + nonce + ciphertext
     }
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun decrypt(
         ciphertext: ByteArray,
         associatedData: ByteArray?,

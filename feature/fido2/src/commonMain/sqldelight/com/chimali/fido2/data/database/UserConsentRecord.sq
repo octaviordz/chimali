@@ -1,9 +1,9 @@
 insert:
-INSERT INTO user_consent_record (id, timestamp, biometric_used, credential_id, device_id, ip_address, operation_type, pin_used, rp_id, user_agent, rp_id_index)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO user_consent_record (id, created_at, timestamp, updated_at, biometric_used, credential_id, device_id, ip_address, operation_type, pin_used, rp_id, rp_id_index, user_agent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 update_rp_id_index:
-UPDATE user_consent_record SET rp_id_index = ? WHERE id = ?;
+UPDATE user_consent_record SET rp_id_index = ?, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)) WHERE id = ?;
 
 select_by_id:
 SELECT * FROM user_consent_record WHERE id = ?;
@@ -75,7 +75,7 @@ select_by_timestamp:
 SELECT * FROM user_consent_record ORDER BY timestamp DESC LIMIT :limit;
 
 search:
-SELECT * FROM user_consent_record WHERE rp_id LIKE :query LIMIT :limit;
+SELECT * FROM user_consent_record WHERE CAST(rp_id AS TEXT) LIKE :query LIMIT :limit;
 
 select_old_consent:
 SELECT * FROM user_consent_record WHERE timestamp < :before;

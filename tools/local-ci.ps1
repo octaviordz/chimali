@@ -7,7 +7,8 @@ param(
     [switch]$SkipTests,
     [switch]$SkipLint,
     [switch]$NoFix,
-    [switch]$NoConfigurationCache
+    [switch]$NoConfigurationCache,
+    [switch]$RunCoverage
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,6 +67,13 @@ Run-Task "Compile All" "$Gradle compileDebugSources compileAndroidMain compileDe
 # 4. Unit Tests Phase
 if (-not $SkipTests) {
     Run-Task "Unit Tests" "$Gradle test"
+    Run-Task "KMP Android Host Tests" "$Gradle :core:common:testAndroidHostTest :core:security:testAndroidHostTest :core:domain:testAndroidHostTest :feature:fido2:testAndroidHostTest"
+}
+
+# Coverage includes connected Android suites, so keep it opt-in for the pre-commit path.
+# Run explicitly with -RunCoverage when a connected device is available.
+if ($RunCoverage) {
+    Run-Task "Coverage Gate (host and connected device suites)" "./gradlew --no-configuration-cache -I tools/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify"
 }
 
 $TotalDuration = (Get-Date) - $StartTime

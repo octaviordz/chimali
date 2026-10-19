@@ -3,6 +3,8 @@
 **Date:** March 4, 2026  
 **Component:** Chimali FIDO2 Bluetooth HID Authenticator  
 
+> **Historical implementation analysis:** This March 2026 document describes earlier code and behavior. In particular, the `CredentialStorageService.storePrivateKey()` path described below is not the current local-profile signing implementation; see the current requirements and [local derivation contract](../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md).
+
 This document provides a deep-dive analysis into the specific bugs, protocol nuances, and system constraints encountered while implementing a FIDO2 (CTAP2) authenticator over Bluetooth Low Energy (BLE) Human Interface Device (HID) for Windows 11 and webauthn.io.
 
 ---

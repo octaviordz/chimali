@@ -1,10 +1,10 @@
 package com.chimali.fido2.domain.usecase
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
-import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import org.koin.core.annotation.Factory
 
@@ -22,6 +22,8 @@ import org.koin.core.annotation.Factory
  */
 @Factory
 class SelectCredentialUseCase {
+    /** Selects metadata only, returning a redacted typed error when no candidate exists. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend operator fun invoke(
         candidates: List<CredentialSummary>,
         options: GetAssertionOptions,
@@ -30,18 +32,17 @@ class SelectCredentialUseCase {
             candidates.isEmpty() ->
                 Outcome.Error(
                     DomainError.NotFound(
-                        "No eligible credentials for rpId=${options.rpId.value}",
-                        Fido2Exception.CredentialNotFound(options.rpId.value),
+                        "No eligible credentials",
                     ),
                 )
 
             candidates.size == 1 -> {
-                Logger.d { "Auto-selecting single credential: ${candidates.first().id}" }
+                Logger.d { "Selecting single credential candidate" }
                 Outcome.Success(candidates.first())
             }
 
             else -> {
-                Logger.d { "Multiple credentials (${candidates.size}), selecting MRU for rpId=${options.rpId.value}" }
+                Logger.d { "Multiple credential candidates; selecting most recently used" }
                 Outcome.Success(selectMostRecentlyUsed(candidates))
             }
         }
@@ -50,7 +51,7 @@ class SelectCredentialUseCase {
         // Guaranteed not to be empty due to 'when' check in invoke()
         val selected = candidates.maxBy { it.lastUsedAt }
 
-        Logger.d { "MRU selected credential: ${selected.id} (lastUsed=${selected.lastUsedAt})" }
+        Logger.d { "Most recently used credential selected" }
         return selected
     }
 }

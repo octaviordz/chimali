@@ -3,18 +3,32 @@ package com.chimali.fido2.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,9 +53,12 @@ sealed interface AuthenticationIntent {
 
     data object VerifyUser : AuthenticationIntent
 
-    data object UserVerificationSuccess : AuthenticationIntent
+    data class UserVerificationSuccess(
+        val promptId: Long,
+    ) : AuthenticationIntent
 
     data class UserVerificationFailed(
+        val promptId: Long,
         val message: String,
     ) : AuthenticationIntent
 
@@ -58,14 +75,21 @@ sealed interface AuthenticationState {
     data object Idle : AuthenticationState
 
     data class AwaitingUserConsent(
-        val rpId: String,
-        val rpName: String,
+        val rpId: SensitiveCredentialText,
+        val rpName: SensitiveCredentialText,
         val availableMethod: VerificationMethod,
         val credentialCount: Int,
-    ) : AuthenticationState
+    ) : AuthenticationState {
+        /** Erases the presenter-owned RP text after the consent state ends. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun eraseSensitiveText() {
+            rpId.erase()
+            rpName.erase()
+        }
+    }
 
     data class SelectingCredential(
-        val rpId: String,
+        val rpId: SensitiveCredentialText,
         val credentials: List<PasskeyCredential>,
     ) : AuthenticationState
 
@@ -89,8 +113,13 @@ sealed interface AuthenticationState {
 
 sealed interface AuthenticationEffect {
     data class LaunchSystemPrompt(
+        val promptId: Long,
         val promptTitle: String,
         val promptSubtitle: String,
+    ) : AuthenticationEffect
+
+    data class CancelSystemPrompt(
+        val promptId: Long,
     ) : AuthenticationEffect
 
     data class NavigateToSuccess(
@@ -117,6 +146,7 @@ class AuthenticationPromptViewModel(
     private val getAssertionUseCase: GetAssertionUseCase,
     private val userVerificationService: UserVerificationService,
     private val uiEventBus: Fido2UiEventBus,
+    private val masterSeedProvider: MasterSeedProvider,
 ) : ViewModel() {
     private val _state = MutableStateFlow<AuthenticationState>(AuthenticationState.Idle)
     val state: StateFlow<AuthenticationState> = _state.asStateFlow()
@@ -125,7 +155,19 @@ class AuthenticationPromptViewModel(
     val effects: Flow<AuthenticationEffect> = _effects.receiveAsFlow()
 
     private var pendingOptions: GetAssertionOptions? = null
+    private var ownsPendingOptions = false
     private var pendingDeferred: kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>? = null
+    private var pendingUserInteractionCompleted: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+    private var ceremonyJob: Job? = null
+    private var pendingForegroundJob: Job? = null
+    private var pendingPromptAuthorized = false
+    private var pendingPromptGeneration = 0L
+    private var verificationPromptSequence = 0L
+    private var activeVerificationPromptId: Long? = null
+    private var responseCompletionOwned: AtomicBoolean? = null
+    private var requestWalletGeneration = 0L
+    private var requestGeneration = 0L
+    private var pendingRequestJob: CompletableJob? = null
 
     init {
         uiEventBus.events
@@ -139,20 +181,19 @@ class AuthenticationPromptViewModel(
                     }
                     return@onEach
                 }
-                uiEventBus.clearAuthenticationRequest()
-                pendingDeferred = event.deferred
-                initAuthentication(event.options)
+                uiEventBus.clearAuthenticationRequest(event.deferred)
+                initAuthentication(event.options, event.deferred, event.userInteractionCompleted)
             }.launchIn(viewModelScope)
 
         uiEventBus.currentAuthenticationRequest?.let { event ->
-            pendingDeferred = event.deferred
-            initAuthentication(event.options)
-            uiEventBus.clearAuthenticationRequest()
+            initAuthentication(event.options, event.deferred, event.userInteractionCompleted)
+            uiEventBus.clearAuthenticationRequest(event.deferred)
         }
     }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────
 
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun handleIntent(intent: AuthenticationIntent) {
         when (intent) {
             is AuthenticationIntent.InitAuthentication -> initAuthentication(intent.options)
@@ -160,10 +201,28 @@ class AuthenticationPromptViewModel(
             is AuthenticationIntent.CancelAuthentication -> cancel()
             is AuthenticationIntent.VerifyUser -> startSystemVerification()
             is AuthenticationIntent.UserVerificationSuccess -> {
-                pendingOptions?.let { performAuthentication(it) }
+                if (consumeVerificationResult(intent.promptId)) {
+                    pendingOptions?.let { performAuthentication(it, userVerificationPerformed = true) }
+                }
             }
             is AuthenticationIntent.UserVerificationFailed -> {
-                _state.value = AuthenticationState.Error(intent.message)
+                if (!consumeVerificationResult(intent.promptId)) return
+                finishUserInteraction()
+                val response = pendingDeferred
+                pendingDeferred = null
+                pendingUserInteractionCompleted = null
+                clearOwnedPendingOptions()
+                finishPendingForegroundPrompt(authorized = false)
+                if (!completeResponse(
+                        response,
+                        Outcome.Error(DomainError.OperationDenied("User verification failed")),
+                    )
+                ) {
+                    return
+                }
+                pendingRequestJob?.complete()
+                pendingRequestJob = null
+                setState(AuthenticationState.Error(intent.message))
                 viewModelScope.launch { emit(AuthenticationEffect.ShowSnackbar(intent.message)) }
             }
             is AuthenticationIntent.SelectCredential -> onCredentialSelected(intent.credential)
@@ -173,18 +232,50 @@ class AuthenticationPromptViewModel(
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    private fun initAuthentication(options: GetAssertionOptions) {
+    private fun initAuthentication(
+        options: GetAssertionOptions,
+        response: kotlinx.coroutines.CompletableDeferred<Outcome<AssertionObject, DomainError>>? = null,
+        userInteraction: kotlinx.coroutines.CompletableDeferred<Unit>? = null,
+    ) {
+        val previousResponse = pendingDeferred
+        val previousJob = pendingRequestJob
+        clearOwnedPendingOptions()
+        finishPendingForegroundPrompt(authorized = false)
+        ceremonyJob = null
+        requestGeneration += 1
+        val generation = requestGeneration
+        val request = Job(viewModelScope.coroutineContext[Job])
+        pendingRequestJob = request
+        requestWalletGeneration = masterSeedProvider.sessionGeneration()
         pendingOptions = options
-        viewModelScope.launch {
+        ownsPendingOptions = false
+        pendingDeferred = response
+        pendingUserInteractionCompleted = userInteraction
+        setState(AuthenticationState.Idle)
+        previousJob?.cancel(CancellationException("Authentication request was replaced"))
+        if (previousResponse !== response) previousResponse?.cancel()
+        val completionOwned = AtomicBoolean(false)
+        responseCompletionOwned = completionOwned
+        response?.invokeOnCompletion { cause ->
+            if (cause != null || !completionOwned.get()) {
+                request.cancel(CancellationException("Authentication response ended", cause))
+                viewModelScope.launch { terminateRequest(generation, request) }
+            }
+        }
+        if (!isLiveRequest(generation)) return
+        startPendingForegroundPrompt()
+        CoroutineScope(viewModelScope.coroutineContext + request).launch {
             val availability = userVerificationService.getUserVerificationAvailability()
-            _state.value =
+            if (!isLiveRequest(generation)) return@launch
+            setState(
                 AuthenticationState.AwaitingUserConsent(
-                    rpId = options.rpId.value,
+                    rpId = options.copyRpIdOwner(),
                     // RP name resolved from repo in a future pass
-                    rpName = options.rpId.value,
+                    rpName = options.copyRpIdOwner(),
                     availableMethod = availability.getBestAvailableMethod(),
                     credentialCount = options.allowCredentials?.size ?: 0,
-                )
+                ),
+            )
 
             // Fix F — Fallback auto-confirm for UV=NONE capability.
             // If the device has no biometric/PIN and UV is not strictly required,
@@ -202,13 +293,22 @@ class AuthenticationPromptViewModel(
     }
 
     private fun confirmAuthentication() {
+        if (_state.value !is AuthenticationState.AwaitingUserConsent &&
+            _state.value !is AuthenticationState.SelectingCredential
+        ) {
+            return
+        }
+        val generation = requestGeneration
+        val request = pendingRequestJob ?: return
+        if (!isLiveRequest(generation)) return
         val options =
             pendingOptions ?: run {
-                _state.value = AuthenticationState.Error("No pending authentication request", false)
+                setState(AuthenticationState.Error("No pending authentication request", false))
                 return
             }
-        viewModelScope.launch {
+        CoroutineScope(viewModelScope.coroutineContext + request).launch {
             val availability = userVerificationService.getUserVerificationAvailability()
+            if (!isLiveRequest(generation) || pendingOptions !== options) return@launch
 
             if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {
                 performAuthentication(options)
@@ -220,12 +320,35 @@ class AuthenticationPromptViewModel(
 
     private fun startSystemVerification() {
         val options = pendingOptions ?: return
+        if (_state.value !is AuthenticationState.AwaitingUserConsent &&
+            _state.value !is AuthenticationState.SelectingCredential
+        ) {
+            return
+        }
+        if (activeVerificationPromptId != null || _state.value == AuthenticationState.Processing) return
+        val promptId = ++verificationPromptSequence
+        activeVerificationPromptId = promptId
+        setState(AuthenticationState.AwaitingUserVerification)
         viewModelScope.launch {
-            _state.value = AuthenticationState.AwaitingUserVerification
             val promptTitle = "Sign in"
             val promptSubtitle = options.rpId.value
-            emit(AuthenticationEffect.LaunchSystemPrompt(promptTitle, promptSubtitle))
+            if (activeVerificationPromptId == promptId &&
+                _state.value == AuthenticationState.AwaitingUserVerification
+            ) {
+                emit(AuthenticationEffect.LaunchSystemPrompt(promptId, promptTitle, promptSubtitle))
+            }
         }
+    }
+
+    private fun consumeVerificationResult(promptId: Long): Boolean {
+        if (!isLiveRequest(requestGeneration) ||
+            activeVerificationPromptId != promptId ||
+            _state.value != AuthenticationState.AwaitingUserVerification
+        ) {
+            return false
+        }
+        activeVerificationPromptId = null
+        return true
     }
 
     private fun onCredentialSelected(credential: PasskeyCredential) {
@@ -236,57 +359,264 @@ class AuthenticationPromptViewModel(
                 com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
                     .create(id = credential.id),
             )
-        pendingOptions = options.copy(allowCredentials = filtered)
+        val filteredOptions = options.copy(allowCredentials = filtered)
+        clearOwnedPendingOptions()
+        pendingOptions = filteredOptions
+        ownsPendingOptions = true
         confirmAuthentication()
     }
 
     private fun cancel() {
-        pendingDeferred?.complete(Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
-        uiEventBus.clearAll()
-        pendingOptions = null
+        val request = pendingRequestJob
+        pendingRequestJob = null
+        requestGeneration += 1
+        finishUserInteraction()
+        ceremonyJob?.cancel(CancellationException("Authentication was cancelled by the user"))
+        ceremonyJob = null
+        finishPendingForegroundPrompt(authorized = false)
+        completeResponse(pendingDeferred, Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
+        uiEventBus.clearAuthenticationRequest(pendingDeferred)
+        clearOwnedPendingOptions()
         pendingDeferred = null
-        _state.value = AuthenticationState.Cancelled
+        setState(AuthenticationState.Cancelled)
+        request?.cancel(CancellationException("Authentication was cancelled by the user"))
         viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
     }
 
+    /** A terminal CTAP request can only be retried through a newly admitted transport request. */
     private fun retry() {
-        val options =
-            pendingOptions ?: run {
-                _state.value = AuthenticationState.Error("No pending request", false)
-                return
-            }
-        initAuthentication(options)
+        if (isLiveRequest(requestGeneration)) return
+        val next = uiEventBus.currentAuthenticationRequest
+        if (next != null && next.deferred.isActive) {
+            uiEventBus.clearAuthenticationRequest(next.deferred)
+            initAuthentication(next.options, next.deferred, next.userInteractionCompleted)
+        } else {
+            clearOwnedPendingOptions()
+            setState(AuthenticationState.Error("Start a new request to try again", false))
+        }
     }
 
-    private fun performAuthentication(options: GetAssertionOptions) {
-        _state.value = AuthenticationState.Processing
-        viewModelScope.launch {
-            when (val result = getAssertionUseCase(options)) {
-                is Outcome.Success -> {
-                    val assertion = result.data
-                    pendingDeferred?.complete(Outcome.Success(assertion))
-                    uiEventBus.clearAll()
-                    _state.value = AuthenticationState.Success(assertion)
-                    emit(AuthenticationEffect.NavigateToSuccess(assertion))
-                    pendingOptions = null
-                    pendingDeferred = null
-                }
-                is Outcome.Error -> {
-                    // Fix B — Null deferred + navigate back on error so the retry storm stops.
-                    // Previously: pendingDeferred was completed but NOT nulled, and NavigateBack
-                    // was never emitted.  The screen stayed open, the CTAP2 host retried,
-                    // the next AuthenticationRequested overwrote pendingDeferred, and a new
-                    // biometric prompt appeared.  Repeat until auto-select fired on attempt 5+.
-                    val error = result.error
-                    pendingDeferred?.complete(result)
-                    pendingDeferred = null
-                    pendingOptions = null
-                    Logger.e(error.cause) { "Authentication process failed: ${error.message}" }
-                    val ui = Fido2ErrorHandler.handle(error)
-                    _state.value = AuthenticationState.Error(ui.message, ui.isRetryable)
-                    viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
+    private fun performAuthentication(
+        options: GetAssertionOptions,
+        userVerificationPerformed: Boolean = false,
+    ) {
+        val generation = requestGeneration
+        val admittedWalletGeneration = requestWalletGeneration
+        val request = pendingRequestJob ?: return
+        if (!isLiveRequest(generation)) return
+        finishUserInteraction()
+        finishPendingForegroundPrompt(authorized = true)
+        setState(AuthenticationState.Processing)
+        val responseDeferred = pendingDeferred
+        val operation =
+            CoroutineScope(viewModelScope.coroutineContext + request).launch(start = CoroutineStart.LAZY) {
+                currentCoroutineContext().ensureActive()
+                if (!isLiveRequest(generation)) return@launch
+                requireCurrentWallet(admittedWalletGeneration)
+                val result =
+                    masterSeedProvider.withSessionOwner(
+                        ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,
+                    ) { ownerGeneration ->
+                        currentCoroutineContext().ensureActive()
+                        requireCurrentWallet(admittedWalletGeneration, ownerGeneration)
+                        if (!isLiveRequest(generation)) throw CancellationException("Authentication request ended")
+                        getAssertionUseCase(options, userVerificationPerformed)
+                    }
+                if (!isLiveRequest(generation)) return@launch
+                when (result) {
+                    is Outcome.Success -> {
+                        val assertion = result.data
+                        if (!completeResponse(
+                                responseDeferred,
+                                Outcome.Success(assertion),
+                            )
+                        ) {
+                            return@launch
+                        }
+                        uiEventBus.clearAuthenticationRequest(responseDeferred)
+                        setState(AuthenticationState.Success(assertion))
+                        emit(AuthenticationEffect.NavigateToSuccess(assertion))
+                        clearOwnedPendingOptions()
+                        pendingDeferred = null
+                        pendingUserInteractionCompleted = null
+                    }
+                    is Outcome.Error -> {
+                        // Fix B — Null deferred + navigate back on error so the retry storm stops.
+                        // Previously: pendingDeferred was completed but NOT nulled, and NavigateBack
+                        // was never emitted.  The screen stayed open, the CTAP2 host retried,
+                        // the next AuthenticationRequested overwrote pendingDeferred, and a new
+                        // biometric prompt appeared.  Repeat until auto-select fired on attempt 5+.
+                        val error = result.error
+                        if (!completeResponse(
+                                responseDeferred,
+                                result,
+                            )
+                        ) {
+                            return@launch
+                        }
+                        pendingDeferred = null
+                        pendingUserInteractionCompleted = null
+                        clearOwnedPendingOptions()
+                        Logger.e { "Authentication process failed" }
+                        val ui = Fido2ErrorHandler.handle(error)
+                        setState(AuthenticationState.Error(ui.message, ui.isRetryable))
+                        viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }
+                    }
                 }
             }
+        ceremonyJob = operation
+        operation.invokeOnCompletion { cause ->
+            if (cause is CancellationException) {
+                responseDeferred?.cancel(cause)
+                request.cancel(cause)
+                viewModelScope.launch { terminateRequest(generation, request) }
+            } else {
+                request.complete()
+            }
+        }
+        operation.start()
+    }
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun onCleared() {
+        pendingRequestJob?.cancel()
+        pendingRequestJob = null
+        clearOwnedPendingOptions()
+        finishUserInteraction()
+        ceremonyJob?.cancel()
+        ceremonyJob = null
+        finishPendingForegroundPrompt(authorized = false)
+        eraseStateSensitiveText(_state.value)
+        super.onCleared()
+    }
+
+    /** Foreground-bound verification closes before the separate authorized assertion operation starts. */
+
+    private fun startPendingForegroundPrompt() {
+        cancelActiveSystemPrompt()
+        pendingPromptGeneration += 1
+        val promptGeneration = pendingPromptGeneration
+        pendingPromptAuthorized = false
+        pendingForegroundJob?.cancel(CancellationException("Authentication prompt was replaced"))
+        pendingForegroundJob = null
+        if (pendingDeferred == null) return
+        pendingForegroundJob =
+            CoroutineScope(viewModelScope.coroutineContext + requireNotNull(pendingRequestJob)).launch {
+                try {
+                    masterSeedProvider.withSessionOwner(
+                        initialize = false,
+                        ownerKind = MasterSeedOwnerKind.FOREGROUND,
+                    ) {
+                        awaitCancellation()
+                    }
+                } catch (cancellation: CancellationException) {
+                    if (promptGeneration != pendingPromptGeneration || pendingPromptAuthorized) {
+                        throw cancellation
+                    }
+                    cancelActiveSystemPrompt()
+                    pendingRequestJob?.cancel(cancellation)
+                    finishUserInteraction()
+                    val response = pendingDeferred
+                    pendingDeferred = null
+                    pendingUserInteractionCompleted = null
+                    clearOwnedPendingOptions()
+                    uiEventBus.clearAuthenticationRequest(response)
+                    completeResponse(
+                        response,
+                        Outcome.Error(DomainError.OperationCanceled("Authentication prompt left the foreground")),
+                    )
+                    setState(AuthenticationState.Cancelled)
+                }
+            }
+    }
+
+    private fun finishPendingForegroundPrompt(authorized: Boolean) {
+        cancelActiveSystemPrompt()
+        pendingPromptGeneration += 1
+        pendingPromptAuthorized = authorized
+        pendingForegroundJob?.cancel(CancellationException("Authentication prompt ownership ended"))
+        pendingForegroundJob = null
+    }
+
+    private fun cancelActiveSystemPrompt() {
+        activeVerificationPromptId?.let { _effects.trySend(AuthenticationEffect.CancelSystemPrompt(it)) }
+        activeVerificationPromptId = null
+    }
+
+    /** Checks both the admission generation and the generation bound to the authorized owner. */
+    private fun requireCurrentWallet(
+        expected: Long,
+        ownerGeneration: Long = expected,
+    ) {
+        if (ownerGeneration != expected || !masterSeedProvider.isSessionGenerationCurrent(expected)) {
+            throw CancellationException("Wallet session ended before request authorization")
+        }
+    }
+
+    private fun isLiveRequest(generation: Long): Boolean =
+        generation == requestGeneration && pendingRequestJob?.isActive == true && pendingDeferred?.isActive != false
+
+    private fun terminateRequest(
+        generation: Long,
+        request: CompletableJob,
+    ) {
+        if (generation != requestGeneration || pendingRequestJob !== request) return
+        val response = pendingDeferred
+        pendingRequestJob = null
+        finishUserInteraction()
+        finishPendingForegroundPrompt(authorized = false)
+        ceremonyJob = null
+        clearOwnedPendingOptions()
+        pendingDeferred = null
+        pendingUserInteractionCompleted = null
+        uiEventBus.clearAuthenticationRequest(response)
+        setState(AuthenticationState.Cancelled)
+        _effects.trySend(AuthenticationEffect.NavigateBack)
+    }
+
+    /** Marks presenter-owned completion before synchronous deferred listeners can run. */
+    private fun completeResponse(
+        response: CompletableDeferred<Outcome<AssertionObject, DomainError>>?,
+        result: Outcome<AssertionObject, DomainError>,
+    ): Boolean {
+        responseCompletionOwned?.set(true)
+        val completed = response?.complete(result) ?: true
+        if (!completed) {
+            pendingRequestJob?.let { request ->
+                request.cancel(CancellationException("Authentication response already ended"))
+                terminateRequest(requestGeneration, request)
+            }
+        }
+        return completed
+    }
+
+    private fun finishUserInteraction() {
+        pendingUserInteractionCompleted?.complete(Unit)
+    }
+
+    /** Erases a presenter-created options copy while leaving the CTAP-owned source request untouched. */
+    private fun clearOwnedPendingOptions() {
+        if (ownsPendingOptions) pendingOptions?.eraseSensitiveText()
+        pendingOptions = null
+        ownsPendingOptions = false
+    }
+
+    private fun setState(next: AuthenticationState) {
+        if (_state.value !== next) eraseStateSensitiveText(_state.value)
+        _state.value = next
+    }
+
+    private fun eraseStateSensitiveText(state: AuthenticationState) {
+        when (state) {
+            is AuthenticationState.AwaitingUserConsent -> state.eraseSensitiveText()
+            is AuthenticationState.SelectingCredential -> state.rpId.erase()
+            AuthenticationState.AwaitingUserVerification,
+            AuthenticationState.Cancelled,
+            AuthenticationState.Idle,
+            AuthenticationState.Processing,
+            is AuthenticationState.Error,
+            is AuthenticationState.Success,
+            -> Unit
         }
     }
 

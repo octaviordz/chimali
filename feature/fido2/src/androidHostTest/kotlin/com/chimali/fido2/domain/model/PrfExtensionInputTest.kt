@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.model
 
+import com.chimali.core.common.annotation.Req
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -22,33 +23,58 @@ class PrfExtensionInputTest {
 
     // ── Valid constructions ───────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun singleSalt_passes() {
         val input = PrfExtensionInput.single(salt32)
         assertNotNull(input)
         assertEquals(1, input.salts.size)
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun twoSalts_passes() {
         val input = PrfExtensionInput.dual(salt32, salt32b)
         assertNotNull(input)
         assertEquals(2, input.salts.size)
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun salt1_accessor_returnsFirstSalt() {
         val input = PrfExtensionInput.single(salt32)
         assertEquals(salt32.toList(), input.salt1.toList())
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun salt2_accessor_returnsSecondSalt_whenPresent() {
         val input = PrfExtensionInput.dual(salt32, salt32b)
         assertEquals(salt32b.toList(), input.salt2?.toList())
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun salt2_accessor_returnsNull_forSingleSaltInput() {
         val input = PrfExtensionInput.single(salt32)
         assertNull(input.salt2)
@@ -56,7 +82,12 @@ class PrfExtensionInputTest {
 
     // ── Invalid constructions ─────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun emptyList_throws() {
         assertFailsWith<IllegalArgumentException>(
             "Empty salt list must throw",
@@ -65,7 +96,12 @@ class PrfExtensionInputTest {
         }
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun threeSalts_throws() {
         val thirdSalt = ByteArray(32) { 0xFF.toByte() }
         assertFailsWith<IllegalArgumentException>(
@@ -75,7 +111,12 @@ class PrfExtensionInputTest {
         }
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun wrongSizeSalt_31bytes_throws() {
         val shortSalt = ByteArray(31)
         assertFailsWith<IllegalArgumentException>("31-byte salt must throw") {
@@ -83,7 +124,12 @@ class PrfExtensionInputTest {
         }
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun wrongSizeSalt_33bytes_throws() {
         val longSalt = ByteArray(33)
         assertFailsWith<IllegalArgumentException>("33-byte salt must throw") {
@@ -91,7 +137,12 @@ class PrfExtensionInputTest {
         }
     }
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun wrongSizeSalt_empty_throws() {
         assertFailsWith<IllegalArgumentException>("Empty salt must throw") {
             PrfExtensionInput(listOf(byteArrayOf()))
@@ -100,7 +151,12 @@ class PrfExtensionInputTest {
 
     // ── Constants ─────────────────────────────────────────────────────────────
 
+    /**
+     * @see NFR-SEC-010
+     * @see FR-VAL-020
+     */
     @Test
+    @Req("NFR-SEC-010", "FR-VAL-020")
     fun constants_haveCorrectValues() {
         assertEquals(1, PrfExtensionInput.MIN_SALTS)
         assertEquals(2, PrfExtensionInput.MAX_SALTS)

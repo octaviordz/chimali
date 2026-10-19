@@ -1,215 +1,133 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.util.crypto.BouncyCastleLoader
+import java.security.KeyFactory
 import java.security.KeyPair
-import java.security.KeyPairGenerator
-import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.PublicKey
-import java.security.SecureRandom
-import java.security.Security
 import java.security.Signature
+import org.bouncycastle.jcajce.interfaces.MLDSAPrivateKey
+import org.bouncycastle.jcajce.interfaces.MLDSAPublicKey
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
-import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.jcajce.spec.MLDSAPrivateKeySpec
 import org.koin.core.annotation.Single
 
-// COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
-// IANA final assignment: https://www.iana.org/assignments/cose/cose.xhtml
+/** COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3). */
 const val COSE_ML_DSA_65 = -49
 
-/**
- * T017a — Post-Quantum signing via **ML-DSA-65** (Dilithium, NIST FIPS 204 Level 3).
- *
- * ## Design
- * Keys are derived deterministically from a 64-byte child seed produced by
- * [WalletMasterSeedProvider.getPqChildSeed]. This seed is derived via **HDK DeriveSalt**
- * (§2.4 of `draft-dijkhuis-cfrg-hdkeys-06`) using the context `"PQ_ML-DSA_Branch"`,
- * ensuring it is cryptographically isolated from the classical ECDSA branch.
- *
- * ## Algorithm Choice
- * - **ML-DSA-65** (Dilithium Level 3) is chosen over Falcon/FN-DSA because its deterministic
- *   key generation (`KeyGen_internal`, Algorithm 6) is fully standardized in FIPS 204.
- * - Falcon's seed-based key gen is still evolving and not yet backward-compatible.
- * - ML-DSA-65 is supported by BouncyCastle 1.80+ (`bcprov-jdk18on`) via
- *   `org.bouncycastle.jcajce.spec.MLDSAParameterSpec` in the standard BC provider.
- *
- * ## Security
- * - Provides ~128-bit post-quantum security under Grover/lattice assumptions.
- * - The 64-byte PQ child seed is kept in memory only; never persisted to disk.
- * - Signing does not require network access or Android KeyStore.
- */
+/** BC 1.80 ML-DSA-65 seed import, signing, verification and public-key encoding. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
 @Single
-class PostQuantumCrypto {
-    init {
-        BouncyCastleLoader.ensureRegistered()
+class PostQuantumCrypto() {
+    private var providerName: String = PROVIDER_NAME
 
-        Logger.d {
-            val version = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)?.version ?: 0.0
-            "PQC Provider registered: ${BouncyCastleProvider.PROVIDER_NAME} (version $version)"
-        }
+    /** Test-only provider selection for exercising unavailable-provider error handling. */
+    internal constructor(providerName: String) : this() {
+        this.providerName = providerName
     }
 
-    // ── Provider check ────────────────────────────────────────────────────────
+    init {
+        BouncyCastleLoader.ensureRegistered()
+    }
 
+    /**
+     * Returns whether the configured JCA provider supplies ML-DSA-65 key generation; security
+     * errors from the provider produce `false`.
+     */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isMlDsaSupported(): Boolean =
         try {
-            Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) != null
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "PostQuantumCrypto: ML-DSA support check failed" }
+            keyFactory()
+            true
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.e { "ML-DSA-65 provider is unavailable" }
             false
         }
 
-    // ── Key generation ────────────────────────────────────────────────────────
-
     /**
-     * Generates a deterministic ML-DSA-65 key pair from [pqChildSeed].
-     *
-     * Per NIST FIPS 204 §5.1, ML-DSA.KeyGen needs 32 bytes of entropy (ξ) from
-     * which all key material is derived deterministically. We supply those 32 bytes
-     * via [DeterministicSecureRandom], which uses SHA-256 CTR expansion to produce
-     * a reproducible byte stream from the seed.
-     *
-     * **Why not SHA1PRNG?**
-     * Android's `SecureRandom("SHA1PRNG")` implementation *accumulates* system entropy
-     * even after `setSeed()`, so two calls with the same seed produce different key pairs.
-     * This would mean the public key stored at registration and the private key
-     * re-derived at signing time belong to **different** key pairs, causing every
-     * signature to fail ("Invalid data" on the WebAuthn server).
-     *
-     * @param pqChildSeed 64-byte BIP-85-derived PQ branch seed from [MasterSeedProvider.getPqChildSeed].
-     * @return [KeyPair] or null if ML-DSA is not supported on this device.
+     * Imports a borrowed 32-byte FIPS 204 xi seed without a custom randomness adapter.
+     * Copies and clears its working seed and exported private-key encoding; BC/JCA may retain
+     * provider-owned key material. Returns an owned [KeyPair], or null when the provider fails.
+     * Throws [IllegalArgumentException] when [xi] is not exactly 32 bytes.
      */
-    fun generateMlDsaKeyPair(pqChildSeed: ByteArray): KeyPair? {
-        require(pqChildSeed.size >= MIN_SEED_SIZE_32) { "PQ child seed must be at least $MIN_SEED_SIZE_32 bytes" }
-        return try {
-            val kpg = KeyPairGenerator.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-            // SHA-256 of the seed is the 32-byte ξ for ML-DSA.KeyGen_internal (FIPS 204 Algorithm 6).
-            // DeterministicSecureRandom delivers it byte-by-byte with no external entropy injection.
-            val xi = MessageDigest.getInstance("SHA-256").digest(pqChildSeed)
-            kpg.initialize(MLDSAParameterSpec.ml_dsa_65, DeterministicSecureRandom(xi))
-            kpg.generateKeyPair().also {
-                Logger.d { "ML-DSA-65 key pair generated; pubKeyLen=${it.public.encoded.size}" }
-            }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "ML-DSA key generation failed" }
-            null
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun generateMlDsaKeyPair(xi: ByteArray): KeyPair? {
+        require(xi.size == MLDSA_SEED_LENGTH) { "ML-DSA-65 xi must be exactly 32 bytes" }
+        val ownedXi = xi.copyOf()
+        var privateKeyEncoding: ByteArray? = null
+        try {
+            val privateKey =
+                keyFactory().generatePrivate(MLDSAPrivateKeySpec(MLDSAParameterSpec.ml_dsa_65, ownedXi))
+                    as MLDSAPrivateKey
+            privateKeyEncoding = privateKey.encoded
+            val publicKey = privateKey.getPublicKey() as MLDSAPublicKey
+            return KeyPair(publicKey, privateKey)
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.e { "ML-DSA-65 seed import failed" }
+            return null
+        } finally {
+            ownedXi.fill(0)
+            privateKeyEncoding?.fill(0)
         }
     }
 
-    // ── Signing ───────────────────────────────────────────────────────────────
-
     /**
-     * Signs [data] with an ML-DSA-65 private key.
-     *
-     * @param privateKey ML-DSA-65 private key from [generateMlDsaKeyPair].
-     * @param data       Raw bytes to sign (typically `authData || clientDataHash` in CTAP2).
-     * @return ML-DSA signature bytes, or null on failure.
+     * Signs borrowed [data] with [privateKey], returning an owned signature or null on JCA failure.
+     * Clears an exported private-key encoding when available; the provider may retain internal copies.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun sign(
         privateKey: PrivateKey,
         data: ByteArray,
-    ): ByteArray? =
+    ): ByteArray? {
+        var privateEncoding: ByteArray? = null
         try {
-            val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-            sig.initSign(privateKey)
-            sig.update(data)
-            sig.sign().also { Logger.d { "ML-DSA-65 signature produced; sigLen=${it.size}" } }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "ML-DSA signing failed" }
-            null
+            privateEncoding = privateKey.encoded
+            val signer = Signature.getInstance(MLDSA_ALGORITHM, providerName)
+            signer.initSign(privateKey)
+            signer.update(data)
+            return signer.sign()
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.e { "ML-DSA-65 signing failed" }
+            return null
+        } finally {
+            privateEncoding?.fill(0)
         }
-
-    // ── Verification ──────────────────────────────────────────────────────────
+    }
 
     /**
-     * Verifies an ML-DSA-65 [signature] over [data] using [publicKey].
-     *
-     * Primarily used in unit tests and for local attestation checks.
-     *
-     * @return true if the signature is valid.
+     * Verifies borrowed [signature] and [data] with [publicKey]. Returns false when verification
+     * fails or the configured JCA provider reports a security error; inputs remain caller-owned.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun verify(
         publicKey: PublicKey,
         data: ByteArray,
         signature: ByteArray,
     ): Boolean =
         try {
-            val sig = Signature.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
-            sig.initVerify(publicKey)
-            sig.update(data)
-            sig.verify(signature)
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.e(e) { "ML-DSA verification failed" }
+            Signature
+                .getInstance(MLDSA_ALGORITHM, providerName)
+                .apply {
+                    initVerify(publicKey)
+                    update(data)
+                }.verify(signature)
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.e { "ML-DSA-65 signature verification failed" }
             false
         }
 
-    // ── Public key encoding ───────────────────────────────────────────────────
+    /** Returns an owned copy of the JCA X.509 public-key encoding. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded.copyOf()
 
-    /**
-     * Returns the raw DER-encoded bytes of an ML-DSA-65 public key.
-     * These bytes are stored in the credential repository alongside the COSE alg ID.
-     */
-    fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded
+    private fun keyFactory(): KeyFactory = KeyFactory.getInstance(MLDSA_ALGORITHM, providerName)
 
-    companion object {
-        private const val MIN_SEED_SIZE_32 = 32
+    private companion object {
+        const val MLDSA_ALGORITHM = "ML-DSA-65"
+        const val MLDSA_SEED_LENGTH = 32
+        const val PROVIDER_NAME = "BC"
     }
-}
-
-/**
- * A [SecureRandom] that expands a fixed seed deterministically via SHA-256 CTR-DRBG.
- *
- * Unlike Android's `SHA1PRNG`, this class never injects external entropy — `setSeed`
- * overrides are intentional no-ops. This guarantees that two calls with the same
- * constructor seed always produce identical byte sequences, a requirement for
- * re-deriving ML-DSA-65 key pairs from credential seeds.
- *
- * Byte stream: block_n = SHA-256(seed || n), blocks concatenated in order.
- * Each 32-byte block supplies enough entropy for one ML-DSA KeyGen (ξ = 32 bytes
- * per NIST FIPS 204 §5.1). The block counter prevents wrap-around aliasing.
- */
-@Suppress("serial")
-internal class DeterministicSecureRandom(
-    seed: ByteArray,
-) : SecureRandom() {
-    private val md = MessageDigest.getInstance("SHA-256")
-    private val seedSnapshot: ByteArray = seed.copyOf()
-    private var block: ByteArray = nextBlock(0)
-    private var blockPos = 0
-    private var blockCounter = 1
-
-    private fun nextBlock(counter: Int): ByteArray {
-        md.reset()
-        md.update(seedSnapshot)
-        md.update(counter.toByte())
-        md.update((counter ushr SHIFT_8).toByte())
-        md.update((counter ushr SHIFT_16).toByte())
-        md.update((counter ushr SHIFT_24).toByte())
-        return md.digest()
-    }
-
-    companion object {
-        private const val SHIFT_8 = 8
-        private const val SHIFT_16 = 16
-        private const val SHIFT_24 = 24
-    }
-
-    override fun nextBytes(bytes: ByteArray) {
-        var i = 0
-        while (i < bytes.size) {
-            if (blockPos >= block.size) {
-                block = nextBlock(blockCounter++)
-                blockPos = 0
-            }
-            bytes[i++] = block[blockPos++]
-        }
-    }
-
-    override fun generateSeed(numBytes: Int): ByteArray = ByteArray(numBytes).also { nextBytes(it) }
-
-    // Reject all external entropy injection to preserve determinism.
-    override fun setSeed(seed: Long) = Unit
-
-    override fun setSeed(seed: ByteArray) = Unit
 }

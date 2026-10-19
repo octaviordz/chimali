@@ -29,8 +29,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,12 +90,26 @@ fun AuthenticationPromptScreen(
 
     val updatedOnSuccess by rememberUpdatedState(onSuccess)
     val updatedOnCancel by rememberUpdatedState(onCancel)
+    var activePrompt by remember { mutableStateOf<Pair<Long, BiometricPrompt>?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            activePrompt?.second?.cancelAuthentication()
+            activePrompt = null
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is AuthenticationEffect.NavigateBack -> updatedOnCancel()
                 is AuthenticationEffect.NavigateToSuccess -> updatedOnSuccess(effect.assertion.credentialId)
+                is AuthenticationEffect.CancelSystemPrompt -> {
+                    if (activePrompt?.first == effect.promptId) {
+                        activePrompt?.second?.cancelAuthentication()
+                        activePrompt = null
+                    }
+                }
                 is AuthenticationEffect.LaunchSystemPrompt -> {
                     activity?.let { act ->
                         val executor = ContextCompat.getMainExecutor(act)
@@ -121,14 +138,20 @@ fun AuthenticationPromptScreen(
                                             errorCode == BiometricPrompt.ERROR_CANCELED ||
                                                 errorCode == BiometricPrompt.ERROR_USER_CANCELED
                                         if (isCancel) {
+                                            if (activePrompt?.first == effect.promptId) activePrompt = null
                                             viewModel.handleIntent(
                                                 AuthenticationIntent.UserVerificationFailed(
+                                                    effect.promptId,
                                                     "Verification cancelled by user",
                                                 ),
                                             )
                                         } else {
+                                            if (activePrompt?.first == effect.promptId) activePrompt = null
                                             viewModel.handleIntent(
-                                                AuthenticationIntent.UserVerificationFailed(errString.toString()),
+                                                AuthenticationIntent.UserVerificationFailed(
+                                                    effect.promptId,
+                                                    errString.toString(),
+                                                ),
                                             )
                                         }
                                     }
@@ -137,14 +160,19 @@ fun AuthenticationPromptScreen(
                                         result: BiometricPrompt.AuthenticationResult,
                                     ) {
                                         super.onAuthenticationSucceeded(result)
-                                        viewModel.handleIntent(AuthenticationIntent.UserVerificationSuccess)
+                                        if (activePrompt?.first == effect.promptId) activePrompt = null
+                                        viewModel.handleIntent(
+                                            AuthenticationIntent.UserVerificationSuccess(effect.promptId),
+                                        )
                                     }
                                 },
                             )
+                        activePrompt = effect.promptId to biometricPrompt
                         biometricPrompt.authenticate(promptInfo)
                     } ?: run {
                         viewModel.handleIntent(
                             AuthenticationIntent.UserVerificationFailed(
+                                effect.promptId,
                                 "Activity context required for biometric prompt",
                             ),
                         )
@@ -221,7 +249,7 @@ internal fun AuthenticationPromptContent(
                         Card(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    currentState.rpId,
+                                    currentState.rpId.toBoundaryString(),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )

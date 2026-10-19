@@ -1,40 +1,30 @@
-# Key Derivation Comparison: DiceKeys Seeding WebAuthn vs. Chimali HDK
+# Key Derivation Comparison: DiceKeys Seeding WebAuthn and Chimali
 
-This document provides a comparative analysis between the [dicekeys/seeding-webauthn](https://github.com/dicekeys/seeding-webauthn) specification and the current in-house HDK implementation used in Chimali.
+**Current local profile reviewed**: 2026-10-14
+**Status**: Current Chimali claims are stated first. The retained DiceKeys comparison is background, not an interoperability or security certification.
 
-## Overview of Implementations
+## Current Chimali local profile
 
-### DiceKeys Seeding WebAuthN
-- **Core Concept**: A fully **stateless** authenticator design. The authenticator only stores a single 32-byte `seedKey`.
-- **Credential ID Structure**: The `credentialId` generated during `MakeCredential` encapsulates all required data: `version || uniqueId || extState || credentialMac`. The `credentialMac` uniquely ties the credential to the RP ID.
-- **Key Derivation (GetAssertion)**: The private key is essentially a pseudo-random value deterministically derived. It relies on taking the HMAC of the `seedKey` and the `credentialMac` to generate candidates until a valid scalar is found (`cPlusOne < p`).
-- **Sign Counts**: Mandates **no signature counter** locally, making authenticators effortlessly cloneable since there is no state to sync.
+Feature 055 defines a clean-install local profile with a full BIP39-to-RFC 5869 root, complete decoded credential-ID binding, and explicit algorithm/profile metadata. Its P-256 branch reuses the child-key arithmetic from [draft-dijkhuis-hdk-00](https://datatracker.ietf.org/doc/draft-dijkhuis-hdk/00/) with deterministic local input: the draft's per-issuance X25519 `shared_secret` is replaced by a credential secret derived from the wallet PRK and complete credential ID. Chimali also proposes deterministic RFC 9180 DHKEM(P-256) parent provisioning. These local choices are not defined by the issuance draft and do not create OpenID4VCI interoperability; the complete composition is subject to independent security review.
 
-### Chimali HDK Implementation (`Fido2CryptoService.kt`)
-- **Core Concept**: A deterministically derived, **partially stateful** design. It relies on a BIP39 Master Seed.
-- **Derivation Path**: Uses an HDK mechanism based on a root device key pair and the master seed. The derivation path for a credential is `[FIDO2_APP_INDEX, stableHashIndex(credentialId)]`, where the second tier index is a 31-bit integer derived from `SHA-256(credentialId)`.
-- **Key Derivation**: Keys are derived in-memory on demand by blinding the device private key with a derived blinding factor (`sk' = sk * bf mod n`). This is cryptographically secure and prevents keeping the per-credential private keys on disk.
-- **Storage**: Chimali stores the uncompressed public key and credential metadata (like alias, RP IDs) locally via `CredentialStorageService`.
+Ed25519 and ML-DSA-65 use independent algorithm-specific HKDF seed branches. They are not instances of the P-256 child-key scheme.
 
----
+Chimali stores credential metadata and public-key projections. Reconstructing an existing credential requires the mnemonic plus retained credential metadata, including full credential ID, algorithm, and exact profile identifier. A mnemonic alone does not discover credentials after metadata loss. The software-derived parent is protected by the application's encrypted-storage and authorization policy; it is not non-exportable secure-area material. Root compromise controls all branches. Label separation separates purposes but does not contain common-root compromise.
 
-## Objective Comparison
+These statements describe the accepted local-profile target. Feature implementation, device evidence, and formal review remain incomplete until their corresponding tasks and gates close.
 
-Is one objectively "better" than the other? It depends heavily on the project's requirements regarding statelessness and compliance.
+## External DiceKeys comparison retained as background
 
-### 1. Statelessness vs. Stateful Metadata
-- **DiceKeys** is strictly stateless. By pushing all necessary derivation entropy (`seedKey` + `credentialMac`) and external state to the `credentialId` (which is stored by the Relying Party), the Authenticator needs no database.
-- **Chimali** derives the private key statelessly (via HDK), but continues to act as a *stateful* authenticator by storing public keys and metadata.
-  - *Advantage Chimali:* Allows for features like Discoverable Credentials (Resident Keys), showing a list of accounts to the user, and tracking per-credential signature counters for better RP trust.
-  - *Advantage DiceKeys:* Infinite storage capacity and trivial device replacement/cloning.
+The earlier comparison described [DiceKeys Seeding WebAuthn](https://github.com/dicekeys/seeding-webauthn) as a design that encodes derivation inputs in credential IDs and derives keys from a seed, while Chimali retains server/RP-independent credential metadata locally. That comparison is conceptual: it does not establish matching protocol behavior, equivalent threat models, issuer interoperability, or that one system is universally more secure. Confirm the referenced project's current version before using detailed implementation claims in product decisions.
 
-### 2. Standard Compliance & Compatibility
-- **DiceKeys Key Generation**: Uses a standard rejection-sampling method (NIST FIPS 186-4) from an HMAC-DRBG-like stream, making the key mathematically standard.
-- **WebAuthn Features**: DiceKeys specifically lacks state, which complicates WebAuthn Level 2+ features like Resident Keys (where the authenticator must return a user without being provided a `credentialId`). Chimali's stateful nature makes Resident Keys possible.
+The following trade-offs remain useful questions for a product-level comparison:
 
-### 3. Security & Linkability
-- **DiceKeys**: Warns that embedding `extState` inside the `credentialId` (sent in plaintext to the RP) can lead to user linkability if the `extState` isn't globally uniform.
-- **Chimali**: Private keys are deterministically generated, blinding the device root private key. Chimali's `credentialId` doesn't need to wrap extensive data payloads or MACs.
+- **Credential state and discovery**: stateless derivation from a relying-party-supplied credential ID still needs enough authenticated metadata to authorize a credential. Chimali's current profile explicitly retains local credential records and does not promise mnemonic-only enumeration after record loss.
+- **Recovery**: deterministic keys do not by themselves recover credential IDs, RP/user metadata, public-key registrations, counters, or other authenticator state. The current Chimali recovery contract requires the mnemonic and credential metadata.
+- **Identity and privacy**: full credential-ID binding prevents the retired shortened-index collision behavior. Neither local label separation nor deterministic derivation prevents correlation from other credential, RP, or protocol data.
+- **Protection boundary**: a common wallet root simplifies reproducible local derivation but makes root compromise affect all algorithm branches. Different HKDF labels provide purpose separation; they do not create independent compromise domains.
+- **Compatibility**: Chimali's local profile is not wire-compatible with the draft's OpenID4VCI exchange or another seed-based credential-ID construction merely because both derive keys deterministically.
 
-### Summary
-**Chimali's implementation is objectively better suited for a modern FIDO2 software authenticator (Wallet)** because it balances deterministic private key recovery (satisfying backup/restore requirements via BIP39) with the ability to store local metadata, which is critical for Resident Keys and managing user profiles. The DiceKeys spec is highly optimized for hardware security modules with severely constrained memory where storing credential metadata is impossible.
+## Historical Chimali comparison (pre-feature; superseded)
+
+The preceding version of this document described the retired draft-06 implementation, including a 31-bit `stableHashIndex`, old multiplicative blinding and DeriveSalt behavior, and an assertion that Chimali was “objectively better.” Those are historical statements, not current requirements or verified comparative conclusions. The old hash-index and HDK construction are retired under feature 055; the unqualified superiority claim is withdrawn. See the [current local derivation contract](../../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md), [recovery boundaries](credential_id_recovery_analysis.md), and the separate [OpenID4VCI investigation](../backlog/openid4vci-hdk-issuance-investigation.md).

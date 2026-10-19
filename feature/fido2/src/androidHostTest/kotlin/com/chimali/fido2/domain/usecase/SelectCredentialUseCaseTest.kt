@@ -1,20 +1,23 @@
 package com.chimali.fido2.domain.usecase
 
-import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.time.TimeProvider
-import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
-import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.testing.CapturedDiagnostics
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
@@ -49,24 +52,53 @@ class SelectCredentialUseCaseTest {
         CredentialSummary(
             id = id,
             rpId = RpId(rpId),
-            credentialId = CredentialId.fromEncoded(id),
+            credentialId = testCredentialIdFromLabel(id),
             lastUsedAt = lastUsedAt,
             coseAlgorithm = PasskeyCredential.COSE_ES256,
+            derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+            storedPublicKeyEncoding = byteArrayOf(),
         )
 
     // ── Empty candidates ─────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `returns failure when candidates list is empty`() =
         runTest {
             val result = useCase(emptyList(), createOptions())
 
             assertTrue(result.isFailure)
-            assertIs<Fido2Exception.CredentialNotFound>(result.exceptionOrNull())
+            val error = assertIs<DomainError.NotFound>(assertIs<Outcome.Error<*>>(result).error)
+            assertEquals("No eligible credentials", error.message)
+            assertNull(error.cause)
         }
 
     // ── Single credential ────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `selection does not disclose the RP association in errors or diagnostics`() =
+        runTest {
+            val marker = "synthetic-private-rp"
+            val options = createOptions("$marker.example.com")
+            val older = createSummary("older", options.rpId.value, Instant.fromEpochMilliseconds(1000))
+            val newer = createSummary("newer", options.rpId.value, Instant.fromEpochMilliseconds(2000))
+            CapturedDiagnostics().use { logs ->
+                val error = assertIs<Outcome.Error<*>>(useCase(emptyList(), options)).error
+                assertEquals("No eligible credentials", error.message)
+                assertNull(error.cause)
+                assertEquals(
+                    "newer",
+                    assertIs<Outcome.Success<CredentialSummary>>(
+                        useCase(listOf(older, newer), options),
+                    ).data.id,
+                )
+                assertTrue(logs.size > 0)
+                logs.assertNoSensitiveValues(marker)
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `auto-selects single credential`() =
         runTest {
@@ -79,6 +111,7 @@ class SelectCredentialUseCaseTest {
 
     // ── Multiple credentials ─────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `selects most recently used credential from multiple`() =
         runTest {
@@ -92,6 +125,7 @@ class SelectCredentialUseCaseTest {
             assertEquals("cred2", result.getOrThrow().id)
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `selects from three candidates without error`() =
         runTest {

@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.repository
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
@@ -9,6 +10,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -16,12 +18,28 @@ import kotlinx.coroutines.flow.Flow
  * Provides abstract methods for credential storage and retrieval operations.
  */
 interface CredentialRepository {
+    /** Borrows mutable RP text for metadata-only lookup; each returned summary transfers to the caller. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun getCredentialSummariesForRpText(rpId: CharSequence): Outcome<List<CredentialSummary>, DomainError>
+
+    /** Borrows RP/user text for creation validation without retaining either input. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun validateCredentialCreationForText(
+        rpId: CharSequence,
+        userId: CharSequence,
+    ): Outcome<Unit, DomainError>
+
+    /** Borrows an RP identifier and transfers any reconstructed mutable model to the caller. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun getRelyingPartyForText(rpId: CharSequence): RelyingParty?
+
     /**
      * Saves a new passkey credential to storage.
      *
      * @param credential The credential to save
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError>
 
     /**
@@ -30,6 +48,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to retrieve
      * @return The credential if found, null otherwise
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential?
 
     /**
@@ -38,6 +57,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
@@ -46,6 +66,7 @@ interface CredentialRepository {
      * @param userId The ID of the user
      * @return Flow of credentials for the user
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential>
 
     /**
@@ -53,6 +74,7 @@ interface CredentialRepository {
      *
      * @return Flow of all credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getAllCredentials(): Flow<PasskeyCredential>
 
     /**
@@ -62,6 +84,7 @@ interface CredentialRepository {
      * @param offset Number of credentials to skip
      * @return Outcome containing list of credentials for the requested page
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getPagedCredentials(
         limit: Long,
         offset: Long,
@@ -75,6 +98,7 @@ interface CredentialRepository {
      * @param offset Number of credentials to skip
      * @return Outcome containing list of credentials for the requested page
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getPagedCredentialsByRpId(
         rpId: RpId,
         limit: Long,
@@ -88,6 +112,7 @@ interface CredentialRepository {
      * @param newSignCount The new sign count value
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun updateSignCount(
         credentialId: CredentialId,
         newSignCount: Long,
@@ -99,6 +124,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to update
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun updateLastUsedAt(credentialId: CredentialId): Outcome<Unit, DomainError>
 
     /**
@@ -107,6 +133,7 @@ interface CredentialRepository {
      * @param credentialId The ID of the credential to delete
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun deleteCredential(credentialId: CredentialId): Outcome<Unit, DomainError>
 
     /**
@@ -116,6 +143,7 @@ interface CredentialRepository {
      * @param userId The ID of the user
      * @return True if credential exists, false otherwise
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun credentialExists(
         rpId: RpId,
         userId: UserId,
@@ -127,6 +155,7 @@ interface CredentialRepository {
      * @param maxAgeDays Maximum age in days before considering as expired
      * @return Flow of expired credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getExpiredCredentials(maxAgeDays: Long = 730): Flow<PasskeyCredential>
 
     /**
@@ -135,6 +164,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return The number of credentials for the RP
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialCountByRpId(rpId: RpId): Int
 
     /**
@@ -143,15 +173,12 @@ interface CredentialRepository {
      * @param days Number of days to consider as "recent"
      * @return Flow of recently unused credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getRecentlyUnusedCredentials(days: Long = 30): Flow<PasskeyCredential>
 
-    /**
-     * Searches credentials by display name or user name.
-     *
-     * @param query The search query
-     * @return Flow of matching credentials
-     */
-    fun searchCredentials(query: String): Flow<PasskeyCredential>
+    /** Borrows an erasable query owner while collecting matching credentials; the caller retains ownership. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun searchCredentials(query: SensitiveCredentialText): Flow<PasskeyCredential>
 
     /**
      * Validates that a credential can be created for the given RP and user.
@@ -160,6 +187,7 @@ interface CredentialRepository {
      * @param userId The ID of the user
      * @return Outcome indicating if creation is allowed
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun validateCredentialCreation(
         rpId: RpId,
         userId: UserId,
@@ -170,23 +198,28 @@ interface CredentialRepository {
      *
      * @return Flow of credentials requiring user verification
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential>
 
     /**
      * T156b — Saves a new relying party or updates an existing one.
      *
+     * Borrows the RP model until this call completes; the caller retains terminal erasure responsibility.
      * @param rp The relying party to save
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError>
 
     /**
-     * Updates the relying party information for all credentials belonging to an RP.
+     * Updates relying-party metadata. The callback borrows the current model for the duration
+     * of the call; its returned model transfers to the repository and is erased when the call ends.
      *
      * @param rpId The ID of the relying party
      * @param update Function to update the RP entity
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun updateRelyingParty(
         rpId: RpId,
         update: (RelyingParty) -> RelyingParty,
@@ -198,14 +231,17 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return The relying party if found, null otherwise
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getRelyingParty(rpId: RpId): RelyingParty?
 
     /**
      * Saves user consent record.
      *
+     * Borrows the consent until completion; persistence must not retain its mutable RP owner.
      * @param consent The consent record to save
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError>
 
     /**
@@ -215,6 +251,7 @@ interface CredentialRepository {
      * @param limit Maximum number of records to retrieve
      * @return Flow of recent consent records
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getRecentUserConsent(
         rpId: RpId? = null,
         limit: Int = 50,
@@ -227,6 +264,7 @@ interface CredentialRepository {
      * @param operationType The type of operation
      * @return True if consent is required, false otherwise
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun isUserConsentRequired(
         rpId: RpId,
         operationType: String,
@@ -237,6 +275,7 @@ interface CredentialRepository {
      *
      * @return Credential statistics including total count, by RP, etc.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialStatistics(): CredentialStatistics
 
     /**
@@ -246,6 +285,7 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @return Outcome containing list of matching credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError>
 
     /**
@@ -259,6 +299,7 @@ interface CredentialRepository {
      * @param rpId  The relying party identifier to filter by.
      * @return Outcome containing a list of summaries (empty list on DB error).
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialSummariesForRp(rpId: RpId): Outcome<List<CredentialSummary>, DomainError>
 
     /**
@@ -267,6 +308,7 @@ interface CredentialRepository {
      * @param credentialId  ID of the credential
      * @return Outcome containing the sign count (0 if not found)
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getSignCount(credentialId: CredentialId): Outcome<Long, DomainError>
 
     /**
@@ -277,6 +319,7 @@ interface CredentialRepository {
      * @param rpId          Optional RP filter for additional scoping
      * @return Outcome containing list of matching credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialsByIds(
         credentialIds: Set<CredentialId>,
         rpId: RpId? = null,
@@ -288,6 +331,7 @@ interface CredentialRepository {
      * @param maxAgeDays Maximum age in days before deletion
      * @return Outcome with count of deleted credentials
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun cleanupExpiredCredentials(maxAgeDays: Long = 730): Outcome<Int, DomainError>
 
     /**
@@ -296,6 +340,7 @@ interface CredentialRepository {
      * @param rpId Optional RP ID to filter destruction
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun deleteAllCredentials(rpId: RpId? = null): Outcome<Unit, DomainError>
 
     /**
@@ -304,11 +349,13 @@ interface CredentialRepository {
      *
      * @return Outcome indicating success or failure
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun resetAuthenticator(): Outcome<Unit, DomainError>
 
     /**
      * Updates the custom label or note for a specific credential.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun updateLabel(
         credentialId: CredentialId,
         label: String?,
@@ -318,9 +365,9 @@ interface CredentialRepository {
 /**
  * Data class representing credential statistics.
  */
+@Req("NFR-SEC-041", "TR-AUTH-031")
 data class CredentialStatistics(
     val totalCredentials: Int,
-    val credentialsByRp: Map<RpId, Int>,
     val expiredCredentials: Int,
     val recentlyUsedCredentials: Int,
     val credentialsRequiringUserVerification: Int,

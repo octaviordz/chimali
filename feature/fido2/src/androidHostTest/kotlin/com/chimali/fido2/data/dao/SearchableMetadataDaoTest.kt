@@ -25,6 +25,7 @@ class SearchableMetadataDaoTest {
 
     // -- PasskeyCredential token queries --
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `select_by_rp_id returns credentials matching rp_id_index token`() {
         val rpIdIndex = byteArrayOf(1, 2, 3)
@@ -36,6 +37,7 @@ class SearchableMetadataDaoTest {
         assertEquals("cred-1", results[0].id)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `select_by_user_id returns credentials matching user_id_index token`() {
         val userIdIndex = byteArrayOf(4, 5, 6)
@@ -47,6 +49,7 @@ class SearchableMetadataDaoTest {
         assertEquals("cred-1", results[0].id)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `select_by_rp_id_and_user_id returns credentials matching both tokens`() {
         val rpIdIndex = byteArrayOf(1, 2)
@@ -63,6 +66,7 @@ class SearchableMetadataDaoTest {
         assertEquals("match", results[0].id)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `count_by_rp_id returns correct count for token`() {
         val rpIdIndex = byteArrayOf(1, 2, 3)
@@ -74,6 +78,7 @@ class SearchableMetadataDaoTest {
         assertEquals(2L, count)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `delete_by_rp_id removes only matching token credentials`() {
         val rpIdIndex = byteArrayOf(1, 2, 3)
@@ -88,6 +93,7 @@ class SearchableMetadataDaoTest {
 
     // -- UserConsentRecord token queries --
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `select_by_rp_id returns consent records matching rp_id_index token`() {
         val rpIdIndex = byteArrayOf(7, 8, 9)
@@ -103,6 +109,7 @@ class SearchableMetadataDaoTest {
         assertEquals("consent-1", results[0].id)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `count_by_rp_id returns correct consent count for token`() {
         val rpIdIndex = byteArrayOf(7, 8)
@@ -115,6 +122,7 @@ class SearchableMetadataDaoTest {
         assertEquals(2L, count)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `search_by_rp_id uses token for exact RP match and LIKE for display search`() {
         val rpIdIndex = byteArrayOf(1, 2, 3)
@@ -129,6 +137,7 @@ class SearchableMetadataDaoTest {
         assertEquals("cred-1", results[0].id)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `null tokens return no results for token-based queries`() {
         seedCredential("cred-1", rpIdIndex = null, userIdIndex = null)
@@ -144,13 +153,14 @@ class SearchableMetadataDaoTest {
 
     private fun seedRelayingParty(id: String) {
         database.relyingPartyQueries.insert(
-            id = id,
+            id = (id).encodeToByteArray(),
             created_at = 1000L,
+            updated_at = 1000L,
             last_used_at = null,
             credential_count = 0L,
             icon_url = null,
             is_blocked = 0L,
-            name = "RP $id",
+            name = ("RP $id").encodeToByteArray(),
             encrypted_metadata = null,
         )
     }
@@ -164,20 +174,21 @@ class SearchableMetadataDaoTest {
         database.passkeyCredentialQueries.insert(
             id = id,
             created_at = 1000L,
+            updated_at = 1000L,
             last_used_at = 2000L,
             aaguid = "aaguid",
             cose_algorithm = -7L,
             credential_id = "cred-id-$id",
             cred_protect_policy = 1L,
             label = null,
-            private_key_alias = "alias-$id",
+            derivation_profile = "chimali-local-hdk-p256-v1",
             public_key = "pubkey-$id",
-            rp_id = "rp-1",
-            rp_name = "RP Name",
+            rp_id = "rp-1".encodeToByteArray(),
+            rp_name = "RP Name".encodeToByteArray(),
             sign_count = 0L,
-            user_display_name = "Display",
-            user_id = "user-$id",
-            user_name = userName,
+            user_display_name = "Display".encodeToByteArray(),
+            user_id = "user-$id".encodeToByteArray(),
+            user_name = userName.encodeToByteArray(),
             rp_id_index = rpIdIndex,
             user_id_index = userIdIndex,
             encrypted_metadata = null,
@@ -191,14 +202,16 @@ class SearchableMetadataDaoTest {
     ) {
         database.userConsentRecordQueries.insert(
             id = id,
+            created_at = 1000L,
             timestamp = 1000L,
+            updated_at = 1000L,
             biometric_used = 0L,
             credential_id = null,
             device_id = null,
             ip_address = null,
             operation_type = "AUTHENTICATION",
             pin_used = 0L,
-            rp_id = rpId,
+            rp_id = (rpId).encodeToByteArray(),
             user_agent = null,
             rp_id_index = rpIdIndex,
         )

@@ -40,6 +40,7 @@ class AttestationObjectTest {
 
     // ── AuthData contents ─────────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun authData_contains_nonEmpty_aaguid() {
         val authData = makeAuthData()
@@ -47,6 +48,7 @@ class AttestationObjectTest {
         assertEquals(16, authData.aaguid.size, "AAGUID must be exactly 16 bytes")
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun authData_contains_nonEmpty_credentialId() {
         val authData = makeAuthData()
@@ -54,14 +56,34 @@ class AttestationObjectTest {
         assertTrue(authData.credentialId.size >= 16, "Credential ID must be at least 16 bytes")
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun authData_contains_nonEmpty_publicKey() {
         val authData = makeAuthData()
         assertFalse(authData.publicKey.isEmpty(), "Public key must not be empty")
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun authData_equality_compares_byte_array_contents_and_scalar_fields() {
+        val original = makeAuthData()
+        val equal = makeAuthData()
+
+        assertTrue(original == original)
+        assertTrue(original == equal)
+        assertTrue(original.hashCode() == equal.hashCode())
+        assertFalse(original.equals("not authenticator data"))
+        assertFalse(original == makeAuthData().copy(rpIdHash = ByteArray(32) { 0x05 }))
+        assertFalse(original == makeAuthData().copy(flags = byteArrayOf(0x04)))
+        assertFalse(original == makeAuthData().copy(counter = 1L))
+        assertFalse(original == makeAuthData().copy(aaguid = ByteArray(16) { 0x06 }))
+        assertFalse(original == makeAuthData().copy(credentialId = ByteArray(32) { 0x07 }))
+        assertFalse(original == makeAuthData().copy(publicKey = ByteArray(77) { 0x08 }))
+    }
+
     // ── AttestationObject construction ────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun create_packed_format_succeeds() {
         val obj =
@@ -76,6 +98,7 @@ class AttestationObjectTest {
         assertTrue(obj.isPacked())
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun createSelfAttested_returns_none_format() {
         val obj =
@@ -88,6 +111,7 @@ class AttestationObjectTest {
         assertTrue(obj.isSelfAttested())
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun createAttCa_returns_attCA_format() {
         val obj =
@@ -102,24 +126,28 @@ class AttestationObjectTest {
 
     // ── AttestationType enum ──────────────────────────────────────────────────
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun attestationType_covers_BASIC() {
         val type = AttestationType.BASIC
         assertEquals("Basic Attestation", type.getLabel())
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun attestationType_covers_SELF() {
         val type = AttestationType.SELF
         assertEquals("Self Attestation", type.getLabel())
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun attestationType_covers_ATT_CA() {
         val type = AttestationType.ATT_CA
         assertEquals("Attestation CA", type.getLabel())
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun attestationType_covers_NONE() {
         val type = AttestationType.NONE

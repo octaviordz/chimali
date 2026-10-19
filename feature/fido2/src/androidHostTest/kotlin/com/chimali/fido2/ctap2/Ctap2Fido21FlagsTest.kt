@@ -137,7 +137,7 @@ class Ctap2Fido21FlagsTest {
 
     /**
      * T056a: credProtect extension in MakeCredential CBOR request is parsed correctly.
-     * Verifies that key 0x0A / "extensions" / "credProtect" = 3 (userVerificationRequired)
+     * Verifies that key 0x06 / "extensions" / "credProtect" = 3 (userVerificationRequired)
      * is correctly decoded by the handler's request parsing logic.
      */
     @Test
@@ -154,14 +154,14 @@ class Ctap2Fido21FlagsTest {
                 // pubKeyCredParams
                 "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
                 // extensions
-                "10" to mapOf("credProtect" to POLICY_UV_REQUIRED),
+                "6" to mapOf("credProtect" to POLICY_UV_REQUIRED),
             )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
-        // Decode the extensions key (0x0A = "10") — mirror the handler logic
+        // Decode the MakeCredential extensions key (0x06 = "6").
         @Suppress("UNCHECKED_CAST")
         val decoded = cborCodec.decodeFromFido2Format(requestCbor)
-        val extensions = (decoded["10"] ?: decoded["extensions"]) as? Map<*, *>
+        val extensions = decoded["6"] as? Map<*, *>
         val credProtectPolicy =
             extensions?.let {
                 (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int
@@ -185,13 +185,13 @@ class Ctap2Fido21FlagsTest {
                 "2" to mapOf("id" to "example.com", "name" to "Example"),
                 "3" to mapOf("id" to ByteArray(USER_ID_SIZE_8), "name" to "user"),
                 "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
-                // No "10" extensions key
+                // No "6" extensions key
             )
         val requestCbor = cborCodec.encodeToFido2Format(requestMap)
 
         @Suppress("UNCHECKED_CAST")
         val decoded = cborCodec.decodeFromFido2Format(requestCbor)
-        val extensions = (decoded["10"] ?: decoded["extensions"]) as? Map<*, *>
+        val extensions = decoded["6"] as? Map<*, *>
         val credProtectPolicy =
             extensions?.let {
                 (it["credProtect"] as? Long)?.toInt() ?: it["credProtect"] as? Int

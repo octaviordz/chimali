@@ -1,579 +1,355 @@
 package com.chimali.fido2.data.crypto
 
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
-import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.security.api.GeneratedCredentialPublicKey
+import com.chimali.core.security.api.HdkChild
+import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.HdkManager
 import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.core.security.hdkeys.HkdfSha256
 import com.chimali.core.security.hdkeys.P256Group
-import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
-import com.chimali.fido2.domain.usecase.GetAssertionUseCase
-import com.chimali.fido2.util.performance.LatencyProfiler
 import java.math.BigInteger
+import java.security.GeneralSecurityException
 import java.security.KeyFactory
+import java.security.MessageDigest
 import java.security.PublicKey
 import java.security.Signature
 import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
+import java.security.spec.X509EncodedKeySpec
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import org.bouncycastle.crypto.CryptoException
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Single
 
-/**
- * Data class representing a FIDO2 key pair derived via HDK.
- */
-data class Fido2KeyPair(
-    val alias: String,
-    val publicKeyBytes: ByteArray,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as Fido2KeyPair
-        if (alias != other.alias) return false
-        if (!publicKeyBytes.contentEquals(other.publicKeyBytes)) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = alias.hashCode()
-        result = 31 * result + publicKeyBytes.contentHashCode()
-        return result
-    }
-
-    override fun toString(): String = "Fido2KeyPair(alias='$alias', publicKeyBytes.size=${publicKeyBytes.size})"
-}
-
-/**
- * T145a — Software-derived FIDO2 key management via HdkManager (HDK-ECDH-P256).
- *
- * Replaces the previous Android KeyStore implementation to enable deterministic
- * key derivation from the Master Seed, satisfying the backup requirement FR-AUTH-030
- * and NFR-SEC-040.
- *
- * Key design:
- * - The device key pair (root) is generated once per install via [HdkManager.generateDeviceKeyPair].
- * - A unique derivation path `[FIDO2_APP_INDEX, credentialIndex]` is used per credential,
- *   where credentialIndex is derived deterministically from the credential ID string.
- * - Private keys are derived in-memory on demand and never persisted to disk.
- * - Public key bytes (uncompressed, 65 bytes) are stored alongside credential metadata.
- */
+/** Routes each explicitly described credential through its independent local derivation branch. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
 @Single
 class Fido2CryptoService(
     private val hdkManager: HdkManager,
     private val masterSeedProvider: MasterSeedProvider,
     private val postQuantumCrypto: PostQuantumCrypto,
-    private val timeProvider: com.chimali.core.domain.time.TimeProvider,
     @Named("DefaultDispatcher") private val defaultDispatcher: CoroutineDispatcher,
 ) {
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /**
-     * Derives a key pair for the given credential ID using the appropriate algorithm.
-     *
-     * ## Algorithm routing
-     *
-     * | Algorithm  | COSE ID | Derivation mechanism |
-     * |------------|---------|----------------------|
-     * | ES256      | -7      | **HDK-ECDH-P256** via                                              |
-     * |            |         | [HdkManager.deriveHdk] (§2.3–2.5 of draft-dijkhuis-cfrg-hdkeys-06) |
-     * | Ed25519    | -8      | **SHA-512 hash** — isolated branch; see note below |
-     * | ML-DSA-65  | -49     | **HDK DeriveSalt + SHA-512** — isolated PQ branch via                              |
-     * |            |         | [MasterSeedProvider.getPqChildSeed]                                                |
-     *
-     * ### Ed25519 isolation note
-     *
-     * Ed25519 keys use `SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]` rather than
-     * [HdkManager.deriveHdk]. This is **intentional**: Ed25519 operates on a different curve
-     * (Curve25519) and is incompatible with the P-256 multiplicative blinding used by
-     * HDK-ECDH-P256 (§3.2.2). The derivation is deterministic (reproducible across restarts),
-     * satisfies FR-AUTH-030, and is **cryptographically isolated** from the P-256 HDK tree.
-     *
-     * The derivation path for ES256 is `[FIDO2_APP_INDEX, credentialPathIndex(credentialId)]`.
-     *
-     * @param credentialId   Unique credential identifier.
-     * @param algId          COSE algorithm identifier (default [COSE_ES256]).
-     * @return [Outcome] containing [Fido2KeyPair] with alias and public key bytes, or [DomainError.CryptoError].
-     */
-    suspend fun generateCredentialKeyPair(
-        credentialId: CredentialId,
-        algId: Int = COSE_ES256,
-    ): Outcome<Fido2KeyPair, DomainError.CryptoError> =
+    /** Derives the selected public key once and returns public bytes only. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun generateCredentialPublicKey(
+        descriptor: CredentialKeyDescriptor,
+    ): Outcome<GeneratedCredentialPublicKey, DomainError.CryptoError> =
         withContext(defaultDispatcher) {
+            val admittedGeneration = masterSeedProvider.sessionGeneration()
+            var publicKey: ByteArray? = null
             try {
-                if (algId == COSE_ML_DSA_65) {
-                    val pqChildSeed =
-                        masterSeedProvider.getPqChildSeed()
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
-                    val derivedSeed =
-                        java.security.MessageDigest
-                            .getInstance("SHA-512")
-                            .apply {
-                                update(pqChildSeed)
-                                update(credentialId.encoded.toByteArray())
-                            }.digest()
-                    val keyPair =
-                        postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA not supported"))
-                    val publicKeyBytes = postQuantumCrypto.publicKeyBytes(keyPair)
-                    derivedSeed.fill(0)
-
-                    Logger.d {
-                        "ML-DSA key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
+                ensureCurrentGeneration(admittedGeneration)
+                publicKey =
+                    when (descriptor.coseAlgorithm) {
+                        CredentialKeyDescriptor.COSE_ES256 -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)
+                            deriveP256PublicKey(descriptor)
+                        }
+                        CredentialKeyDescriptor.COSE_EDDSA -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)
+                            deriveEd25519PublicKey(descriptor)
+                        }
+                        CredentialKeyDescriptor.COSE_ML_DSA_65 -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)
+                            deriveMlDsaPublicKey(descriptor)
+                        }
+                        else -> throw IllegalArgumentException("Unsupported credential algorithm")
                     }
-                    return@withContext Outcome.Success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
-                }
-
-                // EdDSA (Ed25519) branch — intentionally isolated from HDK-ECDH-P256.
-                // Derivation: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
-                // Ed25519 (Curve25519) is incompatible with P-256 multiplicative blinding (§3.2.2
-                // of draft-dijkhuis-cfrg-hdkeys-06), so HdkManager.deriveHdk cannot be used here.
-                // The 32-byte truncation produces the Ed25519 private key seed deterministically.
-                // The private key is zeroed immediately after the public key is extracted.
-                if (algId == COSE_EDSA) {
-                    val seed =
-                        masterSeedProvider.getMasterSeed()
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
-                    val derivedSeed =
-                        java.security.MessageDigest
-                            .getInstance("SHA-512")
-                            .apply {
-                                update(seed)
-                                update("Ed25519".toByteArray())
-                                update(credentialId.encoded.toByteArray())
-                            }.digest()
-                            .copyOf(ED25519_SEED_SIZE)
-
-                    val privParams =
-                        org.bouncycastle.crypto.params
-                            .Ed25519PrivateKeyParameters(derivedSeed, 0)
-                    val publicKeyBytes = privParams.generatePublicKey().encoded
-
-                    derivedSeed.fill(0)
-
-                    Logger.d {
-                        "Ed25519 key pair generated: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
-                    }
-                    return@withContext Outcome.Success(Fido2KeyPair(credentialAlias(credentialId), publicKeyBytes))
-                }
-
-                val seed =
-                    masterSeedProvider.getMasterSeed()
-                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
-
-                val deviceKeyPair =
-                    masterSeedProvider.getDeviceKeyPair()
-                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Device key pair not available"))
-
-                val devicePubKeyBytes = deviceKeyPair.publicKey
-                val path = derivationPath(credentialId)
-
-                Logger.d { "Deriving HDK key pair for credentialId=$credentialId path=$path" }
-
-                val hdkResult =
-                    hdkManager.deriveHdk(
-                        devicePublicKey = devicePubKeyBytes,
-                        seed = seed,
-                        path = path,
-                    )
-
-                val publicKeyBytes = hdkResult.publicKey // 65 bytes uncompressed
-
-                Logger.d {
-                    "HDK key pair derived: credentialId=$credentialId pubKeyLen=${publicKeyBytes.size}"
-                }
-                Outcome.Success(
-                    Fido2KeyPair(
-                        alias = credentialAlias(credentialId),
-                        publicKeyBytes = publicKeyBytes,
-                    ),
-                )
-            } catch (e: java.security.GeneralSecurityException) {
-                Logger.e(
-                    e,
-                ) { "Fido2CryptoService: Key derivation failed (security error) for credentialId=$credentialId" }
-                Outcome.Error(DomainError.CryptoError(e.message ?: "Key derivation failed", e))
-            } catch (e: IllegalStateException) {
-                Logger.e(e) { "Fido2CryptoService: Key derivation failed (state error) for credentialId=$credentialId" }
-                Outcome.Error(DomainError.CryptoError(e.message ?: "Key derivation failed", e))
+                ensureCurrentGeneration(admittedGeneration)
+                val result = GeneratedCredentialPublicKey(publicKey)
+                publicKey = null
+                Outcome.Success(result)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: GeneralSecurityException) {
+                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)
+            } catch (_: CryptoException) {
+                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)
+            } catch (_: IllegalArgumentException) {
+                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)
+            } catch (_: IllegalStateException) {
+                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)
+            } catch (_: SecurityException) {
+                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)
+            } finally {
+                publicKey?.fill(0)
             }
         }
 
-    /**
-     * Returns the uncompressed public key bytes (65 bytes) for a credential.
-     */
-    suspend fun getPublicKeyBytes(credentialId: CredentialId): ByteArray? {
-        val result = generateCredentialKeyPair(credentialId)
-        return if (result is Outcome.Success) result.data.publicKeyBytes else null
-    }
-
-    /**
-     * Returns a [PublicKey] instance reconstructed from the derived public key bytes.
-     */
-    suspend fun getPublicKey(
-        credentialId: CredentialId,
-        algId: Int,
-    ): PublicKey? {
-        return try {
-            val result = generateCredentialKeyPair(credentialId, algId)
-            if (result !is Outcome.Success) return null
-            val keyPair = result.data
-
-            when (algId) {
-                COSE_ML_DSA_65 -> {
-                    val bcProvider = BouncyCastleProvider()
-                    val kf = KeyFactory.getInstance("ML-DSA-65", bcProvider)
-                    val x509Spec = java.security.spec.X509EncodedKeySpec(keyPair.publicKeyBytes)
-                    kf.generatePublic(x509Spec)
-                }
-
-                COSE_EDSA -> {
-                    val bcProvider = BouncyCastleProvider()
-                    val kf = KeyFactory.getInstance("Ed25519", bcProvider)
-                    val prefix = ED25519_X509_PREFIX
-                    val x509Spec = java.security.spec.X509EncodedKeySpec(prefix + keyPair.publicKeyBytes)
-                    kf.generatePublic(x509Spec)
-                }
-
-                else -> {
-                    decodeUncompressedPoint(keyPair.publicKeyBytes)
-                }
-            }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.w(e) { "getPublicKey failed for $credentialId" }
-            null
-        }
-    }
-
-    /**
-     * Returns true if the master seed is available (prerequisite for any key existence).
-     */
-    suspend fun keyExists(
-        @Suppress("UNUSED_PARAMETER") credentialId: CredentialId,
-    ): Boolean = masterSeedProvider.getMasterSeed() != null
-
-    /**
-     * No-op: HDK keys are derived on demand, there is no persistent key to delete.
-     * Credential metadata cleanup is handled by the repository.
-     */
-    @Suppress("RedundantSuspendModifier")
-    suspend fun deleteCredentialKey(
-        @Suppress("UNUSED_PARAMETER") credentialId: CredentialId,
-    ): Outcome<Unit, DomainError.CryptoError> = Outcome.Success(Unit)
-
-    /**
-     * Pre-warms the master seed cache to eliminate first-ceremony latency.
-     *
-     * ## Problem (NFR-PERF-030)
-     *
-     * [sign] starts by calling [MasterSeedProvider.getMasterSeed], which on the first
-     * call decrypts the BIP39 mnemonic from Proto DataStore. That decrypt
-     * call initializes KeyStore implicitly. We use a separate thread and a
-     * *different* key alias (`chimali_fido2_hal_warmup`), not the DataStore
-     * one, to ensure we don't accidentally serialize execution with the thread
-     * waiting on DataStore/MasterSeedProvider init.
-     *
-     * The measured cost breaks down as follows on a Pixel 6a:
-     * 1. **KeyStore Init**: ~40ms (Android Keystore lazy initialization).
-     * 2. **Master Seed derivation**:
-     *      - (1) Decrypt BIP39 mnemonic from Proto DataStore (~150ms first call).
-     *
-     * ## Fix
-     *
-     * Call this method once in a fire-and-forget coroutine when the Bluetooth HID host
-     * connects (in [BluetoothHidTransportImpl.observeConnectionState]). By the time
-     * the first real [sign] call arrives, [MasterSeedProvider.getMasterSeed] returns
-     * the in-memory cached value (~0ms), eliminating the ~150ms cold-start spike.
-     *
-     * The result is intentionally discarded. Failures are non-fatal.
-     */
-    suspend fun warmUpMasterSeed() {
-        try {
-            val t0 = timeProvider.epochMillis()
-            Logger.d("Master seed pre-warm START")
-
-            // (1) Decrypt BIP39 mnemonic from EncryptedSharedPreferences (~150ms first call).
-            //     WalletMasterSeedProvider caches the result; subsequent calls return in ~0ms.
-            val seed =
-                masterSeedProvider.getMasterSeed()
-                    ?: run {
-                        Logger.w("Master seed pre-warm: seed not available — skipping full warmup")
-                        return
-                    }
-
-            val deviceKeyPair =
-                masterSeedProvider.getDeviceKeyPair()
-                    ?: run {
-                        Logger.w("Master seed pre-warm: device key pair not available — skipping full warmup")
-                        return
-                    }
-
-            val t1 = timeProvider.epochMillis()
-            Logger.d { "Master seed pre-warm: seed loaded in ${t1 - t0}ms — warming full sign() path" }
-
-            // (2) Mirror the full sign() execution path to JIT-compile every hotspot:
-            //
-            //  Previous approach used path=[0] (1 level, ~20ms) but the real sign() uses
-            //  path=[FIDO2_APP_INDEX, credentialIndex] (2 levels, ~65ms). Level 2 HMAC and the
-            //  blindPrivateKey + signWithRawScalar steps were still cold on first ceremony.
-            //
-            //  Now we run the exact same sequence as sign(), with dummy data:
-            //   a) serializeElement + serializeScalar for device key pair
-            //   b) deriveHdk with the REAL 2-level FIDO2 index path
-            //   c) serializeScalar for blinding factor
-            //   d) blindPrivateKey (BigInteger multiply mod n)
-            //   e) signWithRawScalar (KeyFactory.generatePrivate + Signature.sign via BC)
-            //
-            //  After this, every code path in sign() is JIT-compiled. The first real ceremony
-            //  should cost only the steady-state amount (~80-100ms HDK + ECDSA).
-            val devicePubKeyBytes = deviceKeyPair.publicKey
-            val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
-
-            // warms MessageDigest.getInstance("SHA-256")
-            // Use a 16-byte ID (minimum per CredentialId guard, FR-CRED-001) to avoid
-            // throwing IllegalArgumentException and aborting the warmup prematurely.
-            val warmupId = "warmup-chimali-v1".encodeToByteArray() // 17 bytes — satisfies ≥16 guard
-            val warmupPath = derivationPath(CredentialId.fromByteArray(warmupId))
-
-            // real 2-level path derived same way as sign()
-            val hdkResult =
-                hdkManager.deriveHdk(
-                    devicePublicKey = devicePubKeyBytes,
-                    seed = seed,
-                    path = warmupPath,
-                )
-
-            val blindingFactorBytes = hdkResult.blindingFactor
-            withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
-                // Perform a throwaway sign to warm signWithRawScalar (BC KeyFactory + Signature path).
-                // Result is discarded, dummy data avoids doing anything meaningful.
-                signWithRawScalar(blindedPrivKeyBytes, ByteArray(WARMUP_DUMMY_SIZE) { it.toByte() })
-            }
-
-            // Zeroise sensitive warmup material
-            devicePrivKeyBytes.fill(0)
-
-            Logger.d {
-                "Master seed pre-warm DONE: seed=${t1 - t0}ms " +
-                    "sign-path=${timeProvider.epochMillis() - t1}ms " +
-                    "total=${timeProvider.epochMillis() - t0}ms"
-            }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.w(e) { "Master seed pre-warm FAILED (security error): ${e.message}" }
-        } catch (e: IllegalStateException) {
-            Logger.w(e) { "Master seed pre-warm FAILED (state error): ${e.message}" }
-        }
-    }
-
-    /**
-     * Signs [data] with the HDK-derived ECDSA P-256 private key for [credentialId].
-     *
-     * This is the primary signing entry point used by [GetAssertionUseCase]. The
-     * blinded private key is derived in-memory and zeroed after use.
-     *
-     * @param credentialId The credential whose key should sign the data.
-     * @param data         The byte array to sign (authData || clientDataHash in CTAP2).
-     * @return [Outcome] containing DER-encoded ECDSA signature bytes.
-     */
+    /** Signs with one selected credential key derived from the descriptor's full decoded ID. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun sign(
-        credentialId: CredentialId,
+        descriptor: CredentialKeyDescriptor,
         data: ByteArray,
-        algId: Int = COSE_ES256,
+        expectedStoredPublicKey: ByteArray? = null,
     ): Outcome<ByteArray, DomainError.CryptoError> =
         withContext(defaultDispatcher) {
+            val admittedGeneration = masterSeedProvider.sessionGeneration()
+            var signature: ByteArray? = null
             try {
-                // NFR-PERF-030: Measure crypto signing overhead (HDK derivation + ECDSA)
-                LatencyProfiler.start(LATENCY_TAG_SIGN)
-
-                if (algId == COSE_ML_DSA_65) {
-                    val pqChildSeed =
-                        masterSeedProvider.getPqChildSeed()
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("PQ seed not available"))
-                    val derivedSeed =
-                        java.security.MessageDigest
-                            .getInstance("SHA-512")
-                            .apply {
-                                update(pqChildSeed)
-                                update(credentialId.encoded.toByteArray())
-                            }.digest()
-                    val keyPair =
-                        postQuantumCrypto.generateMlDsaKeyPair(derivedSeed)
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA generation failed"))
-                    val signature =
-                        postQuantumCrypto.sign(keyPair.private, data)
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("ML-DSA signing failed"))
-
-                    derivedSeed.fill(0)
-                    LatencyProfiler.end(LATENCY_TAG_SIGN)
-                    Logger.d {
-                        "Signed ${data.size} bytes with ML-DSA for " +
-                            "credentialId=$credentialId sigLen=${signature.size}"
-                    }
-                    return@withContext Outcome.Success(signature)
-                }
-
-                // EdDSA (Ed25519) branch — intentionally isolated from HDK-ECDH-P256.
-                // Re-derives the private key from scratch: SHA-512(masterSeed || "Ed25519" || credentialId)[0..31]
-                // The private scalar is zeroed immediately after signing. It is never persisted.
-                if (algId == COSE_EDSA) {
-                    val seed =
-                        masterSeedProvider.getMasterSeed()
-                            ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
-                    val derivedSeed =
-                        java.security.MessageDigest
-                            .getInstance("SHA-512")
-                            .apply {
-                                update(seed)
-                                update("Ed25519".toByteArray())
-                                update(credentialId.encoded.toByteArray())
-                            }.digest()
-                            .copyOf(ED25519_SEED_SIZE)
-
-                    val privParams =
-                        org.bouncycastle.crypto.params
-                            .Ed25519PrivateKeyParameters(derivedSeed, 0)
-                    val signer =
-                        org.bouncycastle.crypto.signers
-                            .Ed25519Signer()
-                    signer.init(true, privParams)
-                    signer.update(data, 0, data.size)
-                    val signature = signer.generateSignature()
-
-                    derivedSeed.fill(0)
-
-                    LatencyProfiler.end(LATENCY_TAG_SIGN)
-                    Logger.d {
-                        "Signed ${data.size} bytes with Ed25519 for " +
-                            "credentialId=$credentialId sigLen=${signature.size}"
-                    }
-                    return@withContext Outcome.Success(signature)
-                }
-
-                val seed =
-                    masterSeedProvider.getMasterSeed()
-                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Master seed not available"))
-
-                val deviceKeyPair =
-                    masterSeedProvider.getDeviceKeyPair()
-                        ?: return@withContext Outcome.Error(DomainError.CryptoError("Device key pair not available"))
-
-                val devicePubKeyBytes = deviceKeyPair.publicKey
-                val devicePrivKeyBytes = deviceKeyPair.privateKey.copyOf()
-
-                val path = derivationPath(credentialId)
-                val hdkResult =
-                    hdkManager.deriveHdk(
-                        devicePublicKey = devicePubKeyBytes,
-                        seed = seed,
-                        path = path,
-                    )
-
-                // Derive the blinded private key safely scoped
-                val blindingFactorBytes = hdkResult.blindingFactor
-
-                val signature =
-                    try {
-                        withBlindedPrivateKey(devicePrivKeyBytes, blindingFactorBytes) { blindedPrivKeyBytes ->
-                            signWithRawScalar(blindedPrivKeyBytes, data)
+                ensureCurrentGeneration(admittedGeneration)
+                signature =
+                    when (descriptor.coseAlgorithm) {
+                        CredentialKeyDescriptor.COSE_ES256 -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)
+                            signP256(descriptor, data, expectedStoredPublicKey)
                         }
-                    } finally {
-                        // T183: Zero blindingFactorBytes immediately after use — it must not linger in memory.
-                        // withBlindedPrivateKey already zeroes blindedPrivKeyBytes internally.
-                        blindingFactorBytes.fill(0)
+                        CredentialKeyDescriptor.COSE_EDDSA -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)
+                            signEd25519(descriptor, data, expectedStoredPublicKey)
+                        }
+                        CredentialKeyDescriptor.COSE_ML_DSA_65 -> {
+                            requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)
+                            signMlDsa(descriptor, data, expectedStoredPublicKey)
+                        }
+                        else -> throw IllegalArgumentException("Unsupported credential algorithm")
                     }
-
-                // Zero out device private key
-                devicePrivKeyBytes.fill(0)
-
-                LatencyProfiler.end(LATENCY_TAG_SIGN)
-                Logger.d { "Signed ${data.size} bytes for credentialId=$credentialId sigLen=${signature.size}" }
-                Outcome.Success(signature)
-            } catch (e: java.security.GeneralSecurityException) {
-                LatencyProfiler.end(LATENCY_TAG_SIGN)
-                Logger.e(e) { "Fido2CryptoService: Signing failed (security error) for $credentialId" }
-                Outcome.Error(DomainError.CryptoError(e.message ?: "Signing failed", e))
-            } catch (e: IllegalStateException) {
-                LatencyProfiler.end(LATENCY_TAG_SIGN)
-                Logger.e(e) { "Fido2CryptoService: Signing failed (state error) for $credentialId" }
-                Outcome.Error(DomainError.CryptoError(e.message ?: "Signing failed", e))
+                ensureCurrentGeneration(admittedGeneration)
+                val result = signature
+                signature = null
+                Outcome.Success(result)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: GeneralSecurityException) {
+                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)
+            } catch (_: CryptoException) {
+                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)
+            } catch (_: IllegalArgumentException) {
+                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)
+            } catch (_: IllegalStateException) {
+                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)
+            } catch (_: SecurityException) {
+                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)
+            } finally {
+                signature?.fill(0)
             }
         }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+    /** Discards operation output when trim/replacement has fenced its provider generation. */
 
-    /**
-     * Safely executes a block with a blinded private key and ensures it is zeroised,
-     * enforcing that the blinding key is not leaked or persisted (T178).
-     */
-    private inline fun <R> withBlindedPrivateKey(
-        devicePrivKeyBytes: ByteArray,
-        blindingFactorBytes: ByteArray,
-        block: (ByteArray) -> R,
-    ): R {
-        val blindedPrivKeyBytes = hdkManager.blindPrivateKey(devicePrivKeyBytes, blindingFactorBytes)
-        return try {
-            block(blindedPrivKeyBytes)
-        } finally {
-            blindedPrivKeyBytes.fill(0)
+    private fun ensureCurrentGeneration(generation: Long) {
+        if (!masterSeedProvider.isSessionGenerationCurrent(generation)) {
+            throw CancellationException("Wallet session generation changed during credential operation")
         }
     }
 
-    /**
-     * Signs data using a raw P-256 private scalar via BouncyCastle.
-     * Returns DER-encoded ECDSA signature.
-     *
-     * Note: We pass the [BouncyCastleProvider] *instance* rather than the provider name string
-     * because Android's security framework silently overrides the "BC" provider name with its
-     * own stripped-down variant, which lacks EC KeyFactory support.
-     */
-    private fun signWithRawScalar(
+    private fun cryptoFailure(
+        operation: String,
+        fallback: String,
+    ): Outcome.Error<DomainError.CryptoError> {
+        // Provider exception messages and causes are not safe diagnostic material: they may
+        // include key/provider state. Keep diagnostics and domain errors deliberately generic.
+        Logger.e { operation }
+        return Outcome.Error(DomainError.CryptoError(fallback))
+    }
+
+    /** Converts one already-derived native public representation to JCA without regenerating it. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun decodePublicKey(
+        descriptor: CredentialKeyDescriptor,
+        publicKeyBytes: ByteArray,
+    ): PublicKey =
+        when (descriptor.coseAlgorithm) {
+            CredentialKeyDescriptor.COSE_ES256 -> {
+                requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)
+                decodeP256Point(publicKeyBytes)
+            }
+            CredentialKeyDescriptor.COSE_EDDSA -> {
+                requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)
+                val encoded = ED25519_X509_PREFIX + publicKeyBytes
+                KeyFactory
+                    .getInstance("Ed25519", BouncyCastleProvider())
+                    .generatePublic(X509EncodedKeySpec(encoded))
+            }
+            CredentialKeyDescriptor.COSE_ML_DSA_65 -> {
+                requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)
+                KeyFactory
+                    .getInstance(MLDSA_ALGORITHM, BouncyCastleProvider())
+                    .generatePublic(X509EncodedKeySpec(publicKeyBytes))
+            }
+            else -> throw IllegalArgumentException("Unsupported credential algorithm")
+        }
+
+    private suspend fun deriveP256PublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var parent: HdkKeyPair? = null
+        var credentialId: ByteArray? = null
+        var localSecret: ByteArray? = null
+        var child: HdkChild? = null
+        try {
+            parent = requireNotNull(masterSeedProvider.getDeviceKeyPair()) { "P-256 parent is unavailable" }
+            credentialId = descriptor.credentialId.toByteArray()
+            localSecret = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.P256_CREDENTIAL_LABEL, credentialId)
+            child = hdkManager.deriveChild(localSecret, parent.publicKey, LOCAL_CREDENTIAL_INDEX)
+            return child.publicKey.copyOf()
+        } finally {
+            prk.fill(0)
+            parent?.erasePrivateKey()
+            credentialId?.fill(0)
+            localSecret?.fill(0)
+            child?.eraseFactor()
+        }
+    }
+
+    private suspend fun deriveEd25519PublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var credentialId: ByteArray? = null
+        var seed: ByteArray? = null
+        try {
+            credentialId = descriptor.credentialId.toByteArray()
+            seed = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.ED25519_CREDENTIAL_LABEL, credentialId)
+            return Ed25519PrivateKeyParameters(seed, 0).generatePublicKey().encoded
+        } finally {
+            prk.fill(0)
+            credentialId?.fill(0)
+            seed?.fill(0)
+        }
+    }
+
+    private suspend fun deriveMlDsaPublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var credentialId: ByteArray? = null
+        var xi: ByteArray? = null
+        var privateEncoding: ByteArray? = null
+        try {
+            credentialId = descriptor.credentialId.toByteArray()
+            xi = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.MLDSA65_CREDENTIAL_LABEL, credentialId)
+            val keyPair = requireNotNull(postQuantumCrypto.generateMlDsaKeyPair(xi)) { "ML-DSA-65 is unavailable" }
+            privateEncoding = keyPair.private.encoded
+            return postQuantumCrypto.publicKeyBytes(keyPair)
+        } finally {
+            prk.fill(0)
+            credentialId?.fill(0)
+            xi?.fill(0)
+            privateEncoding?.fill(0)
+        }
+    }
+
+    private suspend fun signP256(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var parent: HdkKeyPair? = null
+        var credentialId: ByteArray? = null
+        var localSecret: ByteArray? = null
+        var child: HdkChild? = null
+        var childPrivateKey: ByteArray? = null
+        try {
+            parent = requireNotNull(masterSeedProvider.getDeviceKeyPair()) { "P-256 parent is unavailable" }
+            credentialId = descriptor.credentialId.toByteArray()
+            localSecret = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.P256_CREDENTIAL_LABEL, credentialId)
+            child = hdkManager.deriveChild(localSecret, parent.publicKey, LOCAL_CREDENTIAL_INDEX)
+            requireRegisteredPublicKeyMatches(descriptor, child.publicKey, expectedStoredPublicKey)
+            childPrivateKey = hdkManager.deriveChildPrivateKey(parent.privateKey, child.factor)
+            return signP256Scalar(childPrivateKey, data)
+        } finally {
+            prk.fill(0)
+            parent?.erasePrivateKey()
+            credentialId?.fill(0)
+            localSecret?.fill(0)
+            child?.eraseFactor()
+            childPrivateKey?.fill(0)
+        }
+    }
+
+    private suspend fun signEd25519(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var credentialId: ByteArray? = null
+        var seed: ByteArray? = null
+        try {
+            credentialId = descriptor.credentialId.toByteArray()
+            seed = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.ED25519_CREDENTIAL_LABEL, credentialId)
+            val privateParameters = Ed25519PrivateKeyParameters(seed, 0)
+            requireRegisteredPublicKeyMatches(
+                descriptor,
+                privateParameters.generatePublicKey().encoded,
+                expectedStoredPublicKey,
+            )
+            val signer = Ed25519Signer()
+            signer.init(true, privateParameters)
+            signer.update(data, 0, data.size)
+            return signer.generateSignature()
+        } finally {
+            prk.fill(0)
+            credentialId?.fill(0)
+            seed?.fill(0)
+        }
+    }
+
+    private suspend fun signMlDsa(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }
+        var credentialId: ByteArray? = null
+        var xi: ByteArray? = null
+        var privateEncoding: ByteArray? = null
+        try {
+            credentialId = descriptor.credentialId.toByteArray()
+            xi = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.MLDSA65_CREDENTIAL_LABEL, credentialId)
+            val keyPair = requireNotNull(postQuantumCrypto.generateMlDsaKeyPair(xi)) { "ML-DSA-65 is unavailable" }
+            privateEncoding = keyPair.private.encoded
+            requireRegisteredPublicKeyMatches(
+                descriptor,
+                postQuantumCrypto.publicKeyBytes(keyPair),
+                expectedStoredPublicKey,
+            )
+            return requireNotNull(postQuantumCrypto.sign(keyPair.private, data)) { "ML-DSA-65 signing failed" }
+        } finally {
+            prk.fill(0)
+            credentialId?.fill(0)
+            xi?.fill(0)
+            privateEncoding?.fill(0)
+        }
+    }
+
+    private fun signP256Scalar(
         privateKeyBytes: ByteArray,
         data: ByteArray,
     ): ByteArray {
-        val sk = BigInteger(1, privateKeyBytes)
-        val bcProvider = BouncyCastleProvider()
-        // Reconstruct java.security.PrivateKey from scalar via BouncyCastle ECPrivateKeySpec
+        val scalar = BigInteger(1, privateKeyBytes)
+        val curve = P256Group.G.curve
         val ecSpec =
             org.bouncycastle.jce.spec.ECNamedCurveSpec(
                 "secp256r1",
-                P256Group.G.curve,
+                curve,
                 P256Group.G,
                 P256Group.ORDER,
-                P256Group.G.curve.cofactor,
+                curve.cofactor,
             )
-        val ecPrivKeySpec = java.security.spec.ECPrivateKeySpec(sk, ecSpec)
         val privateKey =
             KeyFactory
-                .getInstance("EC", bcProvider)
-                .generatePrivate(ecPrivKeySpec)
-
+                .getInstance("EC")
+                .generatePrivate(java.security.spec.ECPrivateKeySpec(scalar, ecSpec))
         return Signature
-            .getInstance("SHA256withECDSA", bcProvider)
+            .getInstance("SHA256withECDSA")
             .apply {
                 initSign(privateKey)
                 update(data)
             }.sign()
     }
 
-    /**
-     * Decodes an uncompressed EC point (65 bytes) to a [PublicKey] using BouncyCastle.
-     *
-     * Note: We pass the [BouncyCastleProvider] *instance* rather than the provider name string
-     * because Android's security framework silently overrides the "BC" provider name with its
-     * own stripped-down variant, which lacks EC KeyFactory support.
-     */
-    private fun decodeUncompressedPoint(bytes: ByteArray): PublicKey {
-        require(bytes.size == P256_UNCOMPRESSED_SIZE && bytes[0] == UNCOMPRESSED_PREFIX) {
-            "Expected uncompressed EC point (65 bytes, 0x04 prefix)"
-        }
-        val point = P256Group.deserializeElement(bytes)
-        val x = point.normalize().affineXCoord.toBigInteger()
-        val y = point.normalize().affineYCoord.toBigInteger()
-
-        val bcProvider = BouncyCastleProvider()
+    private fun decodeP256Point(bytes: ByteArray): PublicKey {
+        require(bytes.size == P256Group.ELEMENT_UNCOMPRESSED_LENGTH) { "P-256 public key must be 65 bytes" }
+        val point = P256Group.deserializeElement(bytes).normalize()
         val ecSpec =
             org.bouncycastle.jce.spec.ECNamedCurveSpec(
                 "secp256r1",
@@ -582,54 +358,54 @@ class Fido2CryptoService(
                 P256Group.ORDER,
                 P256Group.G.curve.cofactor,
             )
-        val javaPoint = ECPoint(x, y)
-        val pubKeySpec = ECPublicKeySpec(javaPoint, ecSpec)
         return KeyFactory
-            .getInstance("EC", bcProvider)
-            .generatePublic(pubKeySpec)
+            .getInstance("EC")
+            .generatePublic(
+                ECPublicKeySpec(ECPoint(point.affineXCoord.toBigInteger(), point.affineYCoord.toBigInteger()), ecSpec),
+            )
     }
 
-    companion object {
-        /**
-         * Application-level HDK namespace index for FIDO2 keys — the first level of the
-         * two-level derivation path `[FIDO2_APP_INDEX, credentialIndex]` used in
-         * [derivationPath] per §2.3 of `draft-dijkhuis-cfrg-hdkeys-06`.
-         *
-         * The value `0x46494432` is the ASCII encoding of `"FID2"` (F=0x46, I=0x49, D=0x44,
-         * 2=0x32), chosen to be self-describing. The top bit is intentionally clear (31-bit
-         * positive integer) to stay within the P-256 scalar field constraints used by HDK.
-         *
-         * Note: this index has **no structural relation to BIP-32 paths**. HDK path indices
-         * are opaque integers fed into [HdkManager.deriveHdk]; they carry no BIP-32 semantics
-         * such as hardened/non-hardened derivation.
-         */
-        private const val FIDO2_APP_INDEX: UInt = 0x4649_4432u // ASCII "FID2"
+    private fun requireProfile(
+        descriptor: CredentialKeyDescriptor,
+        expectedProfile: String,
+    ) {
+        require(descriptor.derivationProfile == expectedProfile) { "Unsupported credential derivation profile" }
+    }
 
-        /** COSE algorithm identifier for ES256 (ECDSA with SHA-256). */
-        const val COSE_ES256 = -7
+    private fun requireRegisteredPublicKeyMatches(
+        descriptor: CredentialKeyDescriptor,
+        derivedPublicKey: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ) {
+        if (expectedStoredPublicKey == null) return
+        val derived = decodePublicKey(descriptor, derivedPublicKey)
+        val storedAlgorithm =
+            when (descriptor.coseAlgorithm) {
+                CredentialKeyDescriptor.COSE_ES256 -> "EC"
+                CredentialKeyDescriptor.COSE_EDDSA -> "Ed25519"
+                CredentialKeyDescriptor.COSE_ML_DSA_65 -> MLDSA_ALGORITHM
+                else -> throw IllegalArgumentException("Unsupported credential algorithm")
+            }
+        val storedKeyFactory =
+            if (storedAlgorithm == "EC") {
+                KeyFactory.getInstance("EC")
+            } else {
+                KeyFactory.getInstance(storedAlgorithm, BouncyCastleProvider())
+            }
+        val stored = storedKeyFactory.generatePublic(X509EncodedKeySpec(expectedStoredPublicKey))
+        require(MessageDigest.isEqual(derived.encoded, stored.encoded)) {
+            "Derived credential public key does not match the registered key"
+        }
+    }
 
-        // COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3)
-        // Working-draft value; IANA final assignment pending.
-        const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
-
-        // COSE algorithm identifier for EdDSA (Ed25519).
-        const val COSE_EDSA = -8 // EdDSA / Ed25519, per WebAuthn L3 § 5.4
-
-        private const val ED25519_SEED_SIZE = 32
-        private const val P256_UNCOMPRESSED_SIZE = 65
-        private const val UNCOMPRESSED_PREFIX = 0x04.toByte()
-        private const val WARMUP_DUMMY_SIZE = 32
-        private const val INDEX_SHIFT_3 = 24
-        private const val INDEX_SHIFT_2 = 16
-        private const val INDEX_SHIFT_1 = 8
-        private const val BYTE_MASK = 0xFFu
-
-        private const val BYTE_INDEX_0 = 0
-        private const val BYTE_INDEX_1 = 1
-        private const val BYTE_INDEX_2 = 2
-        private const val BYTE_INDEX_3 = 3
-
-        private val ED25519_X509_PREFIX =
+    private companion object {
+        const val PUBLIC_KEY_DERIVATION_FAILED = "Credential public-key derivation failed"
+        const val SIGNING_FAILED = "Credential signing failed"
+        const val KEY_DERIVATION_FALLBACK = "Credential key derivation failed"
+        const val LOCAL_CREDENTIAL_INDEX: UInt = 0u
+        const val MLDSA_ALGORITHM = "ML-DSA-65"
+        const val WALLET_ROOT_UNAVAILABLE = "Wallet root is unavailable"
+        val ED25519_X509_PREFIX =
             byteArrayOf(
                 0x30,
                 0x2A,
@@ -644,39 +420,5 @@ class Fido2CryptoService(
                 0x21,
                 0x00,
             )
-
-        /**
-         * Computes a deterministic derivation path index from a credential ID.
-         *
-         * Uses [CredentialId.toByteArray] (UTF-8 encoding of the Base64 string).
-         * Path: [FIDO2_APP_INDEX, stableHashIndex(credentialId.toByteArray())]
-         * Both indices are full 32-bit unsigned integers.
-         */
-        private fun derivationPath(credentialId: CredentialId): List<UInt> {
-            val hashBytes =
-                java.security.MessageDigest
-                    .getInstance("SHA-256")
-                    .digest(credentialId.toByteArray())
-            val credIndex =
-                ((hashBytes[BYTE_INDEX_0].toUInt() and BYTE_MASK) shl INDEX_SHIFT_3) or
-                    ((hashBytes[BYTE_INDEX_1].toUInt() and BYTE_MASK) shl INDEX_SHIFT_2) or
-                    ((hashBytes[BYTE_INDEX_2].toUInt() and BYTE_MASK) shl INDEX_SHIFT_1) or
-                    (hashBytes[BYTE_INDEX_3].toUInt() and BYTE_MASK)
-            return listOf(FIDO2_APP_INDEX, credIndex)
-        }
-
-        /**
-         * Returns the logical alias for a credential using the format defined
-         * in §2.8 of draft-dijkhuis-cfrg-hdkeys-06 (origin-alias "/" path).
-         *
-         * `origin-alias` is "device-key".
-         * `path` is the `[`[FIDO2_APP_INDEX]`, credIndex]` derivation path separated by slashes.
-         */
-        fun credentialAlias(credentialId: CredentialId): String {
-            val path = derivationPath(credentialId)
-            return "device-key/${path.joinToString("/")}"
-        }
-
-        private const val LATENCY_TAG_SIGN = "Crypto.sign"
     }
 }

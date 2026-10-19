@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  * Tests [Ctap2ResponseBuilder] response encoding to verify correct CTAP2 wire format:
  * - Status byte at byte-offset 0 of payload
  * - Encoded body following the status byte
- * - Correct 64-byte HID packet framing from [HidReportParser]
+ * - Correct 62-byte HID packet framing from [HidReportParser]
  */
 class Ctap2ProtocolTest {
     private lateinit var cborCodec: CborCodec
@@ -119,6 +119,7 @@ class Ctap2ProtocolTest {
 
     // ── Ctap2ResponseBuilder — error response ─────────────────────────────────
 
+    /** @see Ctap2ResponseBuilder.errorResponse FR-HID-010 / FR-VAL-020. */
     @Test
     fun `errorResponse produces single packet with status byte`() {
         val statusCode = CTAP2_ERR_INVALID_CBOR
@@ -142,16 +143,19 @@ class Ctap2ProtocolTest {
         assertEquals(statusCode, packets[0][STATUS_BYTE_OFFSET])
     }
 
+    /** @see Ctap2ResponseBuilder.keepAliveResponse FR-HID-010 / FR-VAL-020. */
     @Test
     fun `keepAliveResponse produces correct structure`() {
         val packets = responseBuilder.keepAliveResponse(testCid, TEST_KEEPALIVE_STATUS)
         assertTrue(packets.isNotEmpty())
         assertEquals(HID_PACKET_SIZE, packets[0].size)
         assertContentEquals(testCid, packets[0].copyOfRange(0, CID_SIZE))
+        assertEquals(TEST_KEEPALIVE_STATUS, responseBuilder.keepAliveResponse(testCid)[0][STATUS_BYTE_OFFSET])
     }
 
     // ── makeCredentialResponse ────────────────────────────────────────────────
 
+    /** @see Ctap2ResponseBuilder.makeCredentialResponse FR-HID-010 / FR-VAL-020. */
     @Test
     fun `makeCredentialResponse success starts with CTAP2_OK`() {
         val attestation = makeAttestationObject()
@@ -161,13 +165,15 @@ class Ctap2ProtocolTest {
         assertEquals(CTAP2_OK, packets[0][STATUS_BYTE_OFFSET], "CTAP2_OK (0x00) must be first payload byte")
     }
 
+    /** @see Ctap2ResponseBuilder.makeCredentialResponse FR-HID-010 / FR-VAL-020. */
     @Test
-    fun `makeCredentialResponse encodes into 64-byte packets`() {
+    fun `makeCredentialResponse encodes into 62-byte packets`() {
         val attestation = makeAttestationObject()
         val packets = responseBuilder.makeCredentialResponse(testCid, attestation)
         packets.forEach { assertEquals(HID_PACKET_SIZE, it.size) }
     }
 
+    /** @see Ctap2ResponseBuilder.makeCredentialResponse FR-HID-010 / FR-VAL-020. */
     @Test
     fun `makeCredentialResponse payload includes status plus body`() {
         val attestation = makeAttestationObject()
@@ -181,6 +187,7 @@ class Ctap2ProtocolTest {
 
     // ── getInfoResponse ───────────────────────────────────────────────────────
 
+    /** @see Ctap2ResponseBuilder.getInfoResponse FR-HID-020 / FR-VAL-020. */
     @Test
     fun `getInfoResponse success starts with CTAP2_OK`() {
         val info =
@@ -205,8 +212,9 @@ class Ctap2ProtocolTest {
 
     // ── hidErrorResponse ─────────────────────────────────────────────────────
 
+    /** @see Ctap2ResponseBuilder.hidErrorResponse FR-HID-010 / FR-VAL-020. */
     @Test
-    fun `hidErrorResponse produces framed 64-byte packet`() {
+    fun `hidErrorResponse produces framed 62-byte packet`() {
         val packets = responseBuilder.hidErrorResponse(testCid, TEST_HID_ERROR_CODE)
         assertTrue(packets.isNotEmpty())
         assertEquals(HID_PACKET_SIZE, packets[0].size)
@@ -215,6 +223,7 @@ class Ctap2ProtocolTest {
 
     // ── statusDescription ─────────────────────────────────────────────────────
 
+    /** @see Ctap2ResponseBuilder.statusDescription FR-HID-010 / FR-VAL-020. */
     @Test
     fun `statusDescription returns non-empty for known codes`() {
         val knownCodes =
@@ -236,6 +245,7 @@ class Ctap2ProtocolTest {
         }
     }
 
+    /** @see Ctap2ResponseBuilder.statusDescription FR-HID-010 / FR-VAL-020. */
     @Test
     fun `statusDescription returns UNKNOWN for unrecognised code`() {
         val desc = responseBuilder.statusDescription(UNKNOWN_STATUS_CODE)

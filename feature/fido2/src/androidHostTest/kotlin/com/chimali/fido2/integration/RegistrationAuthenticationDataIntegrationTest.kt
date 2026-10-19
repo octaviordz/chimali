@@ -4,14 +4,14 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isSuccess
+import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.HdkKeyPair
-import com.chimali.core.security.api.HdkManager
-import com.chimali.core.security.api.HdkResult
 import com.chimali.core.security.api.MasterSeedProvider
-import com.chimali.core.security.hdkeys.P256Group
+import com.chimali.core.security.hdkeys.HdkP256
+import com.chimali.core.security.hdkeys.P256ParentKeyDerivation
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
@@ -22,7 +22,6 @@ import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.repository.CredentialRepositoryImpl
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
-import com.chimali.fido2.data.worker.CorruptedKeyRepairWorker
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
@@ -44,7 +43,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import java.math.BigInteger
 import java.security.Security
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -81,13 +79,12 @@ class RegistrationAuthenticationDataIntegrationTest {
         private const val CHALLENGE_SIZE_32 = 32
         private const val MAX_CREDENTIALS = 100
         private const val DUMMY_BYTE_CD = 0xCD.toByte()
-        private const val PATH_ARG_INDEX_2 = 2
     }
 
     private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
     private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256Group.generateKeyPair().let {
-            HdkKeyPair(P256Group.serializeScalar(it.first), P256Group.serializeElement(it.second))
+        P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
+            HdkKeyPair(result.privateScalar.copyOf(), result.publicKey.copyOf()).also { result.erasePrivateScalar() }
         }
     }
 
@@ -106,15 +103,27 @@ class RegistrationAuthenticationDataIntegrationTest {
         database = Fido2Database(driver)
 
         // 2. DAO Setup
-        val metadataProtectionService: CredentialMetadataProtectionService =
-            mockk(relaxed = true) {
-                every { getRpIdIndex(any()) } answers { "rp:${firstArg<String>()}".toByteArray() }
-                every { getUserIdIndex(any()) } answers { "user:${firstArg<String>()}".toByteArray() }
-                every { encryptMetadata(any(), any()) } returns byteArrayOf(1, 2, 3)
-                every { encryptRelyingPartyMetadata(any()) } returns byteArrayOf(4, 5, 6)
-                every { decryptMetadata(any(), any()) } returns
-                    """{"rpId":"https://data-integration.example.com","userId":"placeholder"}"""
-            }
+        // Exercise real metadata serialization and parsing; the synthetic envelope below is
+        // deliberately reversible and proves no platform AES/Keystore properties.
+        val metadataProtectionService =
+            CredentialMetadataProtectionService(
+                lookupTokenService =
+                    mockk {
+                        every { generateToken(any(), any()) } answers {
+                            StringBuilder()
+                                .append(firstArg<CharSequence>())
+                                .append(':')
+                                .append(secondArg<CharSequence>())
+                                .toString()
+                                .toByteArray()
+                        }
+                    },
+                encryptedMetadataService =
+                    mockk {
+                        every { encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                        every { decrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                    },
+            )
         val passkeyDao = PasskeyCredentialDao(database, timeProvider, metadataProtectionService)
         val rpDao = RelyingPartyDao(database, timeProvider, metadataProtectionService)
         val consentDao = UserConsentRecordDao(database, metadataProtectionService)
@@ -122,48 +131,23 @@ class RegistrationAuthenticationDataIntegrationTest {
         // 3. Crypto Setup
         val masterSeedProvider: MasterSeedProvider =
             mockk {
-                coEvery { getMasterSeed() } returns realSeed
-                coEvery { getDeviceKeyPair() } returns realDeviceKeyPair
-                coEvery { getPqChildSeed() } returns ByteArray(64)
-            }
-
-        val hdkManager: HdkManager =
-            mockk {
-                every { deriveHdk(any(), any(), any()) } answers {
-                    val seed = arg<ByteArray>(1)
-                    val path = arg<List<UInt>>(PATH_ARG_INDEX_2)
-                    val digest = java.security.MessageDigest.getInstance("SHA-256")
-                    path.forEach { idx -> digest.update((idx and 0xFFu).toByte()) }
-                    val childScalar =
-                        BigInteger(1, digest.digest(seed)).mod(P256Group.ORDER).let {
-                            if (it == BigInteger.ZERO) BigInteger.ONE else it
-                        }
-                    val childPubKey = P256Group.G.multiply(childScalar).normalize()
-                    HdkResult(
-                        publicKey = P256Group.serializeElement(childPubKey),
-                        salt = ByteArray(SEED_SIZE_32),
-                        blindingFactor = P256Group.serializeScalar(childScalar),
-                    )
-                }
-                every { blindPrivateKey(any(), any()) } answers {
-                    val devicePriv = BigInteger(1, arg<ByteArray>(0))
-                    val blindFactor = BigInteger(1, arg<ByteArray>(1))
-                    val blindedScalar = devicePriv.multiply(blindFactor).mod(P256Group.ORDER)
-                    P256Group.serializeScalar(blindedScalar)
-                }
+                every { sessionGeneration() } returns 1L
+                every { isSessionGenerationCurrent(any()) } returns true
+                coEvery { getMasterSeed() } answers { realSeed.copyOf() }
+                coEvery {
+                    getDeviceKeyPair()
+                } answers { HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf()) }
             }
 
         cryptoService =
             Fido2CryptoService(
-                hdkManager = hdkManager,
+                hdkManager = HdkP256,
                 masterSeedProvider = masterSeedProvider,
                 postQuantumCrypto = PostQuantumCrypto(),
-                timeProvider = timeProvider,
                 defaultDispatcher = testDispatcher,
             )
 
         // 4. Repository Setup
-        val repairWorker: CorruptedKeyRepairWorker = mockk(relaxed = true)
         val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder =
             mockk {
                 val dummyKey =
@@ -189,13 +173,10 @@ class RegistrationAuthenticationDataIntegrationTest {
                 passkeyCredentialDao = passkeyDao,
                 relyingPartyDao = rpDao,
                 userConsentRecordDao = consentDao,
-                cryptoService = cryptoService,
                 publicKeyDecoder = publicKeyDecoder,
-                corruptedKeyRepairWorker = repairWorker,
                 timeProvider = timeProvider,
                 aggregateService = aggregateService,
                 metadataProtectionService = metadataProtectionService,
-                ioDispatcher = testDispatcher,
             )
 
         // 5. UseCase Setup
@@ -212,7 +193,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                         biometricStrength = BiometricStrength.STRONG,
                     )
                 coEvery {
-                    isUserVerificationRequired(any(), any(), any())
+                    isUserVerificationRequiredForText(any(), any(), any())
                 } returns ServiceVerificationRequirement.PREFERRED
                 coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
             }
@@ -249,12 +230,13 @@ class RegistrationAuthenticationDataIntegrationTest {
         unmockkStatic(android.util.Log::class)
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `full registration and authentication flow with real data persistence`() =
         runTest {
             val rpIdHost = "data-integration.example.com"
             val rpId = RpId("https://$rpIdHost")
-            val userId = UserId("user-123")
+            val userId = UserId.fromByteArray("user-123".encodeToByteArray())
 
             // 1. Registration
             val makeOptions =
@@ -263,7 +245,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                     user = PublicKeyCredentialUserEntity.create(id = userId, name = "user", displayName = "User"),
                     challenge = ByteArray(CHALLENGE_SIZE_32) { it.toByte() },
                     pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                    selectedAlgId = Fido2CryptoService.COSE_ES256,
+                    selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
                 )
 
             val regResult = registerUseCase(makeOptions)
@@ -279,7 +261,7 @@ class RegistrationAuthenticationDataIntegrationTest {
             val savedCred = repository.getCredentialById(credId)
             assertTrue(savedCred != null, "Credential should be found in database")
             assertEquals(credId, savedCred.id)
-            assertEquals(rpId, savedCred.rpId)
+            assertEquals(rpId.value, savedCred.rpId.toBoundaryString())
 
             // 2. Authentication
             val authOptions =
@@ -305,12 +287,13 @@ class RegistrationAuthenticationDataIntegrationTest {
      * proving backward compatibility with the migrated schema.
      */
     @Suppress("LongMethod")
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `authentication succeeds with migrated credential schema`() =
         runTest {
             val rpIdHost = "migrated-integration.example.com"
             val rpId = RpId("https://$rpIdHost")
-            val userId = UserId("migrated-user-456")
+            val userId = UserId.fromByteArray("migrated-user-456".encodeToByteArray())
 
             // 1. Registration using the migrated DAO (rp_id_index + encrypted_metadata written)
             val makeOptions =
@@ -324,7 +307,7 @@ class RegistrationAuthenticationDataIntegrationTest {
                         ),
                     challenge = ByteArray(CHALLENGE_SIZE_32) { (it + 1).toByte() },
                     pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                    selectedAlgId = Fido2CryptoService.COSE_ES256,
+                    selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
                 )
 
             val regResult = registerUseCase(makeOptions)

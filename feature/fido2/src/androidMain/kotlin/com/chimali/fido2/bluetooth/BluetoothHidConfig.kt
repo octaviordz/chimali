@@ -36,9 +36,10 @@ data class BluetoothHidConfig(
      *
      * Android's Classic BT L2CAP channel does not expose per-packet ACKs, so we
      * rely on a fixed sleep to avoid overwhelming the driver's internal queue.
-     * 20 ms is safe across Pixel, Samsung, Asus, and Motorola.
+     * The 10 ms interval is a latency optimization; Bluetooth interoperability must be verified
+     * on supported devices when this pacing value changes.
      */
-    val reportPaceDelay: Duration = 20.milliseconds,
+    val reportPaceDelay: Duration = 10.milliseconds,
     /** Delay before the first CTAPHID_KEEPALIVE during long operations. */
     val keepaliveInitialDelay: Duration = 75.milliseconds,
     /** Interval between subsequent CTAPHID_KEEPALIVE packets. */

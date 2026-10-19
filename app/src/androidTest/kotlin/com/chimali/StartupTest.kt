@@ -1,7 +1,11 @@
 package com.chimali
 
+import android.view.ViewGroup
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -12,17 +16,12 @@ class StartupTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun appStartsAndShowsMainScreen() {
-        // Wait for a few seconds to ensure everything is loaded
-        Thread.sleep(WAIT_DURATION_MS)
-
-        // Check for some text that should be on the main screen.
-        // Assuming there's a "Passkeys" or similar title.
-        // If we don't know the text, we can just check if the activity is not null.
-        assert(composeTestRule.activity != null)
-    }
-
-    companion object {
-        private const val WAIT_DURATION_MS = 2000L
+    fun appCreatesAndAttachesComposeContentOnStartup() {
+        composeTestRule.activityRule.scenario.onActivity { activity ->
+            val content = activity.findViewById<ViewGroup>(android.R.id.content)
+            assertEquals(1, content.childCount)
+            assertTrue(content.getChildAt(0) is ComposeView)
+            assertTrue(content.getChildAt(0).isShown)
+        }
     }
 }

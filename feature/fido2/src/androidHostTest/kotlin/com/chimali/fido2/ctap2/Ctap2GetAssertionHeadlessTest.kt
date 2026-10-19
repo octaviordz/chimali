@@ -10,7 +10,9 @@ import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -38,20 +40,30 @@ class Ctap2GetAssertionHeadlessTest {
             ceremonyLock = ceremonyLock,
         )
 
+    init {
+        cborCodec.stubSensitiveRequestCompatibility()
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `handle returns success via headless path when uv is preferred and one candidate exists`() =
         runTest {
             // Arrange
             val cid = byteArrayOf(1, 2, 3, 4)
             val requestBytes = byteArrayOf(0x01, 0x02) // Dummy CBOR
-            val candidate = mockk<CredentialSummary>()
+            val candidate =
+                mockk<CredentialSummary> {
+                    every { eraseSensitiveText() } returns Unit
+                    every { credProtectPolicy } returns 1
+                }
             val assertionObject = mockk<AssertionObject>(relaxed = true)
 
             every { cborCodec.decodeFromFido2Format(requestBytes) } returns
                 mapOf("1" to "webauthn.io", "2" to ByteArray(32))
             every { ceremonyLock.tryLock() } returns true
             coEvery { getAssertionUseCase.findCandidateSummaries(any()) } returns listOf(candidate)
-            coEvery { getAssertionUseCase(any()) } returns Outcome.Success(assertionObject)
+            coEvery { getAssertionUseCase.invokeHeadless(any(), listOf(candidate)) } returns
+                Outcome.Success(assertionObject)
             coEvery { hmacSecretProcessor.isPresent(any()) } returns false
             coEvery { cborCodec.encodeToFido2Format(any<Map<String, Any>>()) } returns
                 byteArrayOf(0x00) // Dummy response
@@ -62,6 +74,7 @@ class Ctap2GetAssertionHeadlessTest {
 
             // Assert
             assertEquals(1, result.size)
+            coVerify(exactly = 1) { getAssertionUseCase.invokeHeadless(any(), listOf(candidate)) }
             verify(exactly = 0) { uiEventBus.dispatch(any()) }
         }
 }

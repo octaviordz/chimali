@@ -1,5 +1,6 @@
 package com.chimali.fido2.presentation.ui
 
+import com.chimali.core.common.annotation.Req
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -30,7 +31,12 @@ class RegistrationPromptScreenTest {
 
     // ── AwaitingUserConsent state ─────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun showsRpNameAndUserNameInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -58,7 +64,12 @@ class RegistrationPromptScreenTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
     }
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun rpAndUserCardsHaveMergedDescendantsForTalkBack() {
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -83,7 +94,12 @@ class RegistrationPromptScreenTest {
             .assertExists()
     }
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun showsCreatePasskeyButtonAndCancelButtonInConsentState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -105,7 +121,12 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithContentDescription("Cancel registration button").assertIsDisplayed()
     }
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun confirmButtonClickTriggersOnConfirmCallback() {
         var confirmCalled = false
         composeTestRule.setContent {
@@ -128,7 +149,12 @@ class RegistrationPromptScreenTest {
         assert(confirmCalled)
     }
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun cancelButtonClickTriggersOnCancelCallback() {
         var cancelCalled = false
         composeTestRule.setContent {
@@ -153,7 +179,12 @@ class RegistrationPromptScreenTest {
 
     // ── Processing state ──────────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun showsProgressIndicatorInProcessingState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -169,7 +200,12 @@ class RegistrationPromptScreenTest {
 
     // ── Error state ───────────────────────────────────────────────────────────
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun showsErrorMessageInErrorState() {
         composeTestRule.setContent {
             RegistrationPromptContent(
@@ -189,7 +225,12 @@ class RegistrationPromptScreenTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
+    /**
+     * @see FR-HID-030
+     * @see FR-AUTH-010
+     */
     @Test
+    @Req("FR-HID-030", "FR-AUTH-010")
     fun hidesRetryButtonForNonRetryableErrors() {
         composeTestRule.setContent {
             RegistrationPromptContent(

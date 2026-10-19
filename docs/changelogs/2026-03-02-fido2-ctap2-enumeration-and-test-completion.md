@@ -37,3 +37,7 @@ This update completes the CTAP2 `authenticatorCredentialManagement` implementati
 - ✅ **Security First**: All enumeration and assertion operations correctly gate on user verification (biometric/PIN).
 - ✅ **Zero-Knowledge**: Enumeration sessions are localized to the handler and do not leak global state.
 - ✅ **Privacy**: RP identification in enumeration uses SHA-256 hashes as per CTAP2 specification.
+
+## Current Runtime Scope — 2026-10-17
+
+The historical handler described above had no production CTAPHID dispatch path: the live transport accepts MakeCredential, GetAssertion, and GetInfo, and the service injected the management handler only to clear sessions on explicit stop. The unexposed handler and its direct-only tests were removed during the 055 convergence work. This historical changelog records the earlier source implementation; it does not establish that the command was available to relying parties. No new CTAPHID command routing was added.

@@ -1,5 +1,7 @@
 package com.chimali.fido2.util.logging
 
+import com.chimali.core.common.annotation.Req
+
 /**
  * T151: Privacy-safe debug logging.
  * Scrubs sensitive data (mnemonics, private keys, biometric states) from log messages.
@@ -20,14 +22,31 @@ object PrivacyLogScrubber {
         listOf(
             "password",
             "pin",
+            "prk",
             "privateKey",
+            "private key",
             "private_key",
+            "privateScalar",
+            "private scalar",
+            "private_scalar",
             "seed",
             "mnemonic",
             "secret",
             "secretKey",
+            "rootKey",
+            "root key",
+            "root_key",
+            "factor",
         )
 
+    // Compile once and scan once rather than compiling and scanning for every keyword. The
+    // scrubber runs on the logging path, including CTAP/HID handling, so avoid repeated work.
+    private val SENSITIVE_KEYWORD_PATTERN =
+        Regex(
+            """(?i)(${SENSITIVE_KEYWORDS.joinToString("|") { Regex.escape(it) }})\s*[:=]\s*([^\s,;&]+)""",
+        )
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun scrub(message: String): String {
         var scrubbed = message
 
@@ -39,10 +58,7 @@ object PrivacyLogScrubber {
 
         // 3. Simple Keyword Based Value Redaction
         // Replaces patterns like "seed=abandon..." or "password: blah"
-        SENSITIVE_KEYWORDS.forEach { keyword ->
-            val regex = Regex("""(?i)($keyword)\s*[:=]\s*([^\s,;&]+)""")
-            scrubbed = scrubbed.replace(regex, "$1=$REDACTED")
-        }
+        scrubbed = scrubbed.replace(SENSITIVE_KEYWORD_PATTERN, "$1=$REDACTED")
 
         return scrubbed
     }

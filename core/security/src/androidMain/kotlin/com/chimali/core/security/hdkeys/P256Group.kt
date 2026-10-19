@@ -1,23 +1,18 @@
 package com.chimali.core.security.hdkeys
 
+import com.chimali.core.common.annotation.Req
 import java.math.BigInteger
-import java.security.SecureRandom
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.ec.CustomNamedCurves
 import org.bouncycastle.math.ec.ECPoint
 
 /**
- * P-256 (secp256r1) prime-order group operations.
- *
- * Provides the elliptic curve primitives required by the HDK-ECDH-P256
- * instantiation as defined in IETF draft-dijkhuis-cfrg-hdkeys-06 §3.2.
- *
- * Uses Bouncy Castle for the underlying EC arithmetic.
+ * Validated P-256 (secp256r1) group operations for the current local profile.
  */
+@Req("NFR-SEC-041", "TR-AUTH-031")
 object P256Group {
     private val curveParams: X9ECParameters = CustomNamedCurves.getByName("secp256r1")
     private val curve = curveParams.curve
-    private val random = SecureRandom()
 
     /** Generator point G of P-256. */
     val G: ECPoint = curveParams.g
@@ -28,97 +23,106 @@ object P256Group {
     /** Length of a serialized scalar in bytes (32). */
     const val SCALAR_LENGTH = 32
 
-    /** Length of the x-coordinate output from ECDH (32 bytes). */
-    const val DH_OUTPUT_LENGTH = 32
+    private const val SEC1_UNCOMPRESSED_PREFIX_LENGTH = 1
+    private const val X_COORDINATE_OFFSET = SEC1_UNCOMPRESSED_PREFIX_LENGTH
+    private const val Y_COORDINATE_OFFSET = X_COORDINATE_OFFSET + SCALAR_LENGTH
+    private const val BIG_INTEGER_SIGN_PADDING_LENGTH = 1
 
     /** Length of an uncompressed serialized point: 0x04 || x(32) || y(32). */
-    const val ELEMENT_UNCOMPRESSED_LENGTH = 65
-    internal const val UNCOMPRESSED_FORMAT_INDICATOR = 0x04
+    const val ELEMENT_UNCOMPRESSED_LENGTH = SEC1_UNCOMPRESSED_PREFIX_LENGTH + 2 * SCALAR_LENGTH
 
-    /**
-     * Generate a random scalar in [1, Order-1].
-     */
-    fun randomScalar(): BigInteger {
-        var k: BigInteger
-        do {
-            k = BigInteger(ORDER.bitLength(), random).mod(ORDER)
-        } while (k == BigInteger.ZERO)
-        return k
-    }
+    /** SEC1 prefix byte identifying an uncompressed P-256 point. */
+    internal const val UNCOMPRESSED_FORMAT_INDICATOR = 0x04
 
     /**
      * Scalar multiplication: compute k * P.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun scalarMult(
         point: ECPoint,
         k: BigInteger,
-    ): ECPoint = point.multiply(k).normalize()
+    ): ECPoint {
+        requireScalar(k)
+        requirePoint(point)
+        return point.multiply(k).normalize()
+    }
 
     /**
      * Scalar-base multiplication: compute k * G.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun scalarBaseMult(k: BigInteger): ECPoint = scalarMult(G, k)
-
-    /**
-     * EC point addition: compute A + B.
-     */
-    fun add(
-        a: ECPoint,
-        b: ECPoint,
-    ): ECPoint = a.add(b).normalize()
-
-    /**
-     * Generate a key pair (sk, pk) where pk = sk * G.
-     */
-    fun generateKeyPair(): Pair<BigInteger, ECPoint> {
-        val sk = randomScalar()
-        val pk = scalarBaseMult(sk)
-        return Pair(sk, pk)
-    }
 
     /**
      * Serialize an EC point as uncompressed: 0x04 || x (32 bytes) || y (32 bytes).
      * Total: 65 bytes.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun serializeElement(point: ECPoint): ByteArray {
         val normalized = point.normalize()
+        requirePoint(normalized)
         return normalized.getEncoded(false) // uncompressed
     }
 
     /**
      * Deserialize an EC point from uncompressed encoding.
      */
-    fun deserializeElement(encoded: ByteArray): ECPoint = curve.decodePoint(encoded).normalize()
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun deserializeElement(encoded: ByteArray): ECPoint {
+        require(encoded.size == ELEMENT_UNCOMPRESSED_LENGTH) { "P-256 point must be exactly 65 bytes" }
+        require((encoded[0].toInt() and 0xff) == UNCOMPRESSED_FORMAT_INDICATOR) {
+            "P-256 point must use uncompressed SEC1 encoding"
+        }
+        val fieldPrime = curve.field.characteristic
+        val x = BigInteger(1, encoded.copyOfRange(X_COORDINATE_OFFSET, Y_COORDINATE_OFFSET))
+        val y = BigInteger(1, encoded.copyOfRange(Y_COORDINATE_OFFSET, ELEMENT_UNCOMPRESSED_LENGTH))
+        require(x < fieldPrime && y < fieldPrime) { "P-256 coordinates must be canonical field elements" }
+        val point =
+            try {
+                curve.decodePoint(encoded).normalize()
+            } catch (failure: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid P-256 point encoding", failure)
+            }
+        requirePoint(point)
+        return point
+    }
 
     /**
      * Serialize a scalar as a 32-byte big-endian byte array (I2OSP).
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun serializeScalar(scalar: BigInteger): ByteArray {
+        requireScalar(scalar)
         val bytes = scalar.toByteArray()
-        return when {
-            bytes.size == SCALAR_LENGTH -> bytes
-            bytes.size > SCALAR_LENGTH -> bytes.takeLast(SCALAR_LENGTH).toByteArray()
-            else -> ByteArray(SCALAR_LENGTH - bytes.size) + bytes
+        return try {
+            when {
+                bytes.size == SCALAR_LENGTH -> bytes.copyOf()
+                bytes.size == SCALAR_LENGTH + BIG_INTEGER_SIGN_PADDING_LENGTH && bytes[0] == 0.toByte() ->
+                    bytes.copyOfRange(BIG_INTEGER_SIGN_PADDING_LENGTH, bytes.size)
+                bytes.size < SCALAR_LENGTH -> ByteArray(SCALAR_LENGTH - bytes.size) + bytes
+                else -> throw IllegalArgumentException("P-256 scalar does not fit 32 bytes")
+            }
+        } finally {
+            bytes.fill(0)
         }
     }
 
     /**
      * Deserialize a scalar from a 32-byte big-endian byte array (OS2IP).
      */
-    fun deserializeScalar(bytes: ByteArray): BigInteger = BigInteger(1, bytes)
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun deserializeScalar(bytes: ByteArray): BigInteger {
+        require(bytes.size == SCALAR_LENGTH) { "P-256 scalar must be exactly 32 bytes" }
+        return BigInteger(1, bytes).also(::requireScalar)
+    }
 
-    /**
-     * ECKA-DH: Create shared secret as the x-coordinate of sk * pk.
-     * Returns the x-coordinate serialized as 32 bytes.
-     *
-     * Corresponds to CreateSharedSecret in the spec for EC-DH.
-     */
-    fun createSharedSecret(
-        sk: BigInteger,
-        pk: ECPoint,
-    ): ByteArray {
-        val sharedPoint = scalarMult(pk, sk).normalize()
-        val x = sharedPoint.affineXCoord.toBigInteger()
-        return serializeScalar(x)
+    private fun requireScalar(scalar: BigInteger) {
+        require(scalar.signum() > 0 && scalar < ORDER) { "P-256 scalar must be in 1..n-1" }
+    }
+
+    private fun requirePoint(point: ECPoint) {
+        require(!point.isInfinity && point.isValid && point.curve == curve) {
+            "P-256 point must be finite, valid, and on the P-256 curve"
+        }
     }
 }

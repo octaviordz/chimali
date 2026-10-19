@@ -1,10 +1,12 @@
 package com.chimali.core.domain.model
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -12,10 +14,10 @@ import kotlinx.serialization.Serializable
  * This entity tracks user consent for authentication and registration operations.
  */
 @Serializable
-data class UserConsentRecord(
+class UserConsentRecord private constructor(
     val id: String,
     val operationType: ConsentOperationType,
-    val rpId: RpId,
+    @SerialName("rpId") private val rpIdOwner: SensitiveText,
     val credentialId: CredentialId?,
     val timestamp: Instant,
     val isBiometricUsed: Boolean,
@@ -24,9 +26,111 @@ data class UserConsentRecord(
     val userAgent: String?,
     val deviceId: String?,
 ) {
+    /** Copies a compatibility RP value into independent mutable model ownership. */
+    constructor(
+        id: String,
+        operationType: ConsentOperationType,
+        rpId: RpId,
+        credentialId: CredentialId?,
+        timestamp: Instant,
+        isBiometricUsed: Boolean,
+        isPinUsed: Boolean,
+        ipAddress: String?,
+        userAgent: String?,
+        deviceId: String?,
+    ) : this(
+        id,
+        operationType,
+        SensitiveText.copyOf(rpId.value),
+        credentialId,
+        timestamp,
+        isBiometricUsed,
+        isPinUsed,
+        ipAddress,
+        userAgent,
+        deviceId,
+    )
+
+    /** Compatibility/display RP value; persistence and policy code borrow rpIdText. */
+    val rpId: RpId get() = RpId(rpIdOwner.toBoundaryString())
+
+    /** Borrowed RP text, valid until this consent owner ends. */
+    val rpIdText: SensitiveText get() = rpIdOwner
+
     init {
-        validate()
+        try {
+            validate()
+        } catch (failure: IllegalArgumentException) {
+            rpIdOwner.erase()
+            throw failure
+        }
     }
+
+    /** Erases the RP association owned by this record. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveText() = rpIdOwner.erase()
+
+    /** Deep-copies the owned RP while retaining the existing public optional-field contract. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun copy(
+        id: String = this.id,
+        operationType: ConsentOperationType = this.operationType,
+        rpId: RpId? = null,
+        credentialId: CredentialId? = this.credentialId,
+        timestamp: Instant = this.timestamp,
+        isBiometricUsed: Boolean = this.isBiometricUsed,
+        isPinUsed: Boolean = this.isPinUsed,
+        ipAddress: String? = this.ipAddress,
+        userAgent: String? = this.userAgent,
+        deviceId: String? = this.deviceId,
+    ): UserConsentRecord =
+        UserConsentRecord(
+            id,
+            operationType,
+            SensitiveText.copyOf(rpId?.value ?: rpIdOwner),
+            credentialId,
+            timestamp,
+            isBiometricUsed,
+            isPinUsed,
+            ipAddress,
+            userAgent,
+            deviceId,
+        )
+
+    /** Compares record fields without materializing the RP association. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun equals(other: Any?): Boolean =
+        other is UserConsentRecord &&
+            id == other.id &&
+            operationType == other.operationType &&
+            rpIdOwner == other.rpIdOwner &&
+            credentialId == other.credentialId &&
+            timestamp == other.timestamp &&
+            isBiometricUsed == other.isBiometricUsed &&
+            isPinUsed == other.isPinUsed &&
+            ipAddress == other.ipAddress &&
+            userAgent == other.userAgent &&
+            deviceId == other.deviceId
+
+    /** Hashes fields used by equals without RP text copies. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun hashCode(): Int =
+        listOf(
+            id,
+            operationType,
+            rpIdOwner,
+            credentialId,
+            timestamp,
+            isBiometricUsed,
+            isPinUsed,
+            ipAddress,
+            userAgent,
+            deviceId,
+        ).hashCode()
+
+    /** Redacts the RP and optional identifying fields from diagnostics. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "UserConsentRecord([sensitive metadata redacted])"
 
     /**
      * Validates the UserConsentRecord according to security requirements.
@@ -42,8 +146,8 @@ data class UserConsentRecord(
         }
 
         // Validate RP ID format
-        require(isValidRpId(rpId.value)) {
-            "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
+        require(isValidRpId(rpIdOwner)) {
+            "RP ID must be a valid domain or HTTPS origin"
         }
 
         credentialId?.let { id ->
@@ -79,6 +183,7 @@ data class UserConsentRecord(
     /**
      * Checks if this consent is still considered recent (e.g., within 5 minutes).
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isRecent(minutes: Int = 5): Boolean {
         val now = Clock.System.now()
         return (now - timestamp) <= minutes.minutes
@@ -87,16 +192,19 @@ data class UserConsentRecord(
     /**
      * Checks if this consent was for a specific credential ID.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isForCredential(credentialId: CredentialId): Boolean = this.credentialId == credentialId
 
     /**
      * Checks if this consent was for a specific relying party.
      */
-    fun isForRelyingParty(rpId: RpId): Boolean = this.rpId.value.equals(rpId.value, ignoreCase = true)
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun isForRelyingParty(rpId: RpId): Boolean = rpIdOwner.contentEquals(rpId.value, ignoreCase = true)
 
     /**
      * Returns the consent method used.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getConsentMethod(): ConsentMethod =
         when {
             isBiometricUsed && isPinUsed -> ConsentMethod.BIOMETRIC_AND_PIN
@@ -108,16 +216,19 @@ data class UserConsentRecord(
     /**
      * Returns a safe representation of the credential ID.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getSafeCredentialId(): String = credentialId?.encoded ?: "N/A"
 
     /**
      * Checks if this consent record is for registration.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isRegistrationConsent(): Boolean = operationType == ConsentOperationType.REGISTRATION
 
     /**
      * Checks if this consent record is for authentication.
      */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun isAuthenticationConsent(): Boolean = operationType == ConsentOperationType.AUTHENTICATION
 
     companion object {
@@ -128,9 +239,34 @@ data class UserConsentRecord(
         private const val MAX_IPV6_GROUP_LENGTH = 4
         private val FUTURE_GRACE = 1.minutes
 
+        /** Copies a borrowed RP into a new consent owner; the caller erases the returned record. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun fromText(
+            id: String,
+            operationType: ConsentOperationType,
+            rpId: CharSequence,
+            credentialId: CredentialId? = null,
+            timestamp: Instant = Clock.System.now(),
+            isBiometricUsed: Boolean = false,
+            isPinUsed: Boolean = false,
+        ): UserConsentRecord =
+            UserConsentRecord(
+                id,
+                operationType,
+                SensitiveText.copyOf(rpId),
+                credentialId,
+                timestamp,
+                isBiometricUsed,
+                isPinUsed,
+                null,
+                null,
+                null,
+            )
+
         /**
          * Creates a new UserConsentRecord with validation.
          */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
         fun create(
             id: String,
             operationType: ConsentOperationType,
@@ -159,8 +295,8 @@ data class UserConsentRecord(
         /**
          * Validates RP ID format according to FIDO2 specifications.
          */
-        private fun isValidRpId(rpId: String): Boolean =
-            rpId.matches(Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$"))
+        private fun isValidRpId(rpId: CharSequence): Boolean =
+            Regex("^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$").matches(rpId)
 
         /**
          * Validates IP address format (IPv4 or IPv6).

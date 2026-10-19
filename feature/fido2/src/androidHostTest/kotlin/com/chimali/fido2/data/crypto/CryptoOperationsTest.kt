@@ -1,19 +1,14 @@
-﻿package com.chimali.fido2.data.crypto
+package com.chimali.fido2.data.crypto
 
-import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import java.security.MessageDigest
 import kotlin.test.assertContentEquals
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 
 class CryptoOperationsTest {
-    companion object {
-        private const val PUB_KEY_SIZE_65 = 65
-        private const val COSE_ES256_VAL = -7
-    }
-
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `sha256 helper matches MessageDigest`() {
         val data = "hello fido2".toByteArray()
@@ -21,38 +16,16 @@ class CryptoOperationsTest {
         assertContentEquals(expected, ClientDataHashService().sha256(data))
     }
 
-    // -- Fido2CryptoService constants ------------------------------------------
-
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
-    fun `credentialAlias follows expected prefix`() {
-        // CredentialId must be at least 16 bytes
-        val credId = CredentialId.fromByteArray("abcdefghijklmnop".encodeToByteArray())
-        val alias = Fido2CryptoService.credentialAlias(credId)
-        assertTrue(alias.startsWith("device-key/"))
-    }
+    fun `RP hash encodes borrowed Unicode owner and leaves caller ownership intact`() {
+        val rpOwner = SensitiveCredentialText.copyOf("münchen.example")
+        val expected = MessageDigest.getInstance("SHA-256").digest("münchen.example".toByteArray(Charsets.UTF_8))
 
-    @Test
-    fun `COSE_ES256 constant is minus 7`() {
-        assertEquals(COSE_ES256_VAL, Fido2CryptoService.COSE_ES256)
-    }
-
-    // -- Fido2KeyPair ----------------------------------------------------------
-
-    @Test
-    fun `Fido2KeyPair equality based on alias and bytes`() {
-        val bytes = ByteArray(PUB_KEY_SIZE_65) { it.toByte() }
-        val kp1 = Fido2KeyPair("alias_a", bytes)
-        val kp2 = Fido2KeyPair("alias_a", bytes.copyOf())
-        val kp3 = Fido2KeyPair("alias_b", bytes)
-        assertEquals(kp1, kp2)
-        assertNotEquals(kp1, kp3)
-    }
-
-    @Test
-    fun `Fido2KeyPair toString contains alias and length`() {
-        val kp = Fido2KeyPair("my_alias", ByteArray(PUB_KEY_SIZE_65))
-        val str = kp.toString()
-        assertTrue(str.contains("my_alias"))
-        assertTrue(str.contains(PUB_KEY_SIZE_65.toString()))
+        assertContentEquals(expected, ClientDataHashService().rpIdHash(rpOwner))
+        assertEquals("münchen.example", rpOwner.toBoundaryString())
+        rpOwner.erase()
+        assertEquals("\u0000".repeat("münchen.example".length), rpOwner.toBoundaryString())
     }
 }

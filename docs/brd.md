@@ -15,7 +15,7 @@ Chimali is a modern, robust Android Wallet Secure Cryptographic Application (WSC
 
 ## 2. Project Overview
 ### 2.1 Mission Statement
-To provide a secure, intuitive, and highly integrated authentication experience that allows users to manage their digital identity across multiple platforms using their Android device as a hardware security key.
+To provide a secure, intuitive, and highly integrated authentication experience that allows users to manage their digital identity across multiple platforms using their Android device as a software virtual authenticator over Bluetooth HID.
 
 ### 2.2 Target Audience
 - Privacy-conscious individuals.
@@ -28,7 +28,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - High user satisfaction with the Jetpack Compose-based modern UI.
 
 ## 3. Business Goals & Objectives
-1.  **Security Leadership**: Implement industry-standard (AES-256) and Post-Quantum Cryptography (PQC) protection, leveraging the **Android Keystore** (TEE-backed, StrongBox-preferred where available).
+1.  **Security Leadership**: Implement industry-standard AES-256 protection and supported post-quantum signature algorithms. Use Android Keystore for persisted-secret protection where the configured platform/provider supports it, preferring StrongBox when available; credential signing keys in the current local profile are software-derived and are not hardware-backed.
 2.  **Cross-Platform Utility**: Allow users to authenticate on desktop systems without requiring specialized hardware keys.
 3.  **Modern UX**: Deliver a premium user experience through fluid animations, intuitive interactions, and a Material Design 3 (M3) design system.
 4.  **Future-Proofing**: Full support for FIDO2 and WebAuthn via Passkeys.
@@ -71,13 +71,14 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.7 Validation & Interoperability Requirements
 - **FR-VAL-010: Multi-Device Interoperability**: The application must be verified to work correctly across a diverse range of Android device manufacturers (e.g., Samsung, Pixel) and OS versions (API 28+) to ensure hardware-level Bluetooth HID stack compatibility.
 - **FR-VAL-020: FIDO2 Protocol Compliance**: The implementation must be validated using official FIDO Alliance conformance tools and key interoperability platforms (e.g., webauthn.io, passkeys.dev) to ensure strict adherence to FIDO2.1/CTAP2.1 specifications.
-- **FR-VAL-030: Performance Verification**: The application must include internal instrumentation to verify that FIDO2 HID operations meet the < 200ms latency target (NFR-PERF-030) during manual and automated verification passes.
+- **FR-VAL-030: Performance Verification**: The application must include internal instrumentation to verify that all internal FIDO2 operations meet the < 200ms latency target (NFR-PERF-030) during manual and automated verification passes. End-to-end operations must provide a responsive user experience, with latency < 1s.
 
 ### 4.8 Documentation Requirements
 - **FR-DOC-010: User Guidance**: The application shall provide comprehensive user-facing documentation for Bluetooth pairing, passkey registration, and troubleshooting.
 
-### 4.9 HDK Extended Features
-- **FR-HID-024: Remote Key Derivation Primitives**: The system must implement the cryptographic decapsulation logic (KEM) prescribed by the HDK specification to support future remote key provisioning flows.
+### 4.9 Local Credential Derivation
+- **FR-HID-024 (superseded)**: The prior remote key-derivation/KEM requirement is retired for the current local credential profile. It does not authorize remote provisioning or issuer flows. See the separate [OpenID4VCI investigation backlog](backlog/openid4vci-hdk-issuance-investigation.md).
+- **NFR-SEC-041: Current Local Credential Profile**: For fresh installations, credential recovery MUST use the full 64-byte BIP39 seed to derive the versioned 32-byte wallet PRK with RFC 5869 HKDF-SHA256. The current P-256 profile MUST bind the complete decoded credential identifier and adapt the scalar mapping and child-key relation in Section 7 of `draft-dijkhuis-hdk-00`, substituting a local RFC 5869 credential secret for the draft's per-issuance X25519 shared secret. It MUST use the profile's documented deterministic software parent. This is a local custom protocol, not the draft's issuance flow or an interoperability claim. Ed25519 and ML-DSA MUST use separate algorithm-specific seed labels. Credential metadata MUST retain the supported algorithm and exact profile identifier needed for reconstruction. Unsupported pairs MUST fail; private child keys/seeds MUST NOT be persisted. The signing parent is software-derived and is not represented as non-exportable hardware key material. A mnemonic alone does not restore missing credential metadata. This feature is a clean-install breaking change and makes no OpenID4VCI or issuer-assurance claim.
 
 ### 4.10 Onboarding Flow
 - **FR-OB-010: First-Run Onboarding**: The application MUST display an onboarding flow on first launch when no prior onboarding completion is recorded, before presenting any main application content.
@@ -95,10 +96,12 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ## 5. Non-Functional Requirements
 ### 5.1 Security
-- **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) and encrypted metadata values to enable hardware offloading. Exact-match searchable metadata MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes). Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields. Key wrapping MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data. (Note: Bouncy Castle is retained for non-SIV cryptographic features like HDK and PQC, but AES-SIV is explicitly removed as a requirement). The application SHOULD support Post-Quantum digital signature schemes (e.g., ML-DSA-65) for FIDO2 attestation and assertion signing, as defined in NFR-SEC-040.
-- **NFR-SEC-020**: Sensitive keys must be stored in the Android KeyStore (strongbox encouraged).
-- **NFR-SEC-030**: Mandatory prohibition of plain-text storage of credentials in memory. Sensitive data must only exist in decrypted form within volatile memory using mutable structures (e.g., byte/char arrays) that are explicitly zeroed out immediately after use.
-- **NFR-SEC-040: Master Key Management**: Implementation of a **Master Seed (Master Key)** architecture as the root of trust. Credential keys are derived using **Hierarchical Deterministic Key Derivation** following **IETF draft-dijkhuis-cfrg-hdkeys-06** (HDK-ECDH-P256) for privacy-preserving elliptic curve key management. BIP39 is used for mnemonic seed generation. The architecture allows deterministic derivation of both classical (e.g., ECDSA/P-256) and Post-Quantum (e.g., ML-DSA-65) signature schemes from the single BIP39 root seed; the Post-Quantum branch is cryptographically isolated via HDK `DeriveSalt` with a dedicated context string.
+- **NFR-SEC-010**: All sensitive data must be encrypted. The application MUST follow a **Multi-Mode Symmetric Encryption Strategy**: **AES-256-GCM** for general payloads (files, credential blobs) and encrypted metadata values. Hardware acceleration or offloading MUST NOT be assumed unless verified for the actual device/provider path. Exact-match searchable metadata MUST use deterministic keyed lookup tokens (e.g., HMAC blind indexes). Partial-text search is permitted ONLY via explicitly classified SQLCipher-protected display fields. Key wrapping MUST use platform-backed AES-GCM/AEAD with unique nonces and associated data. Bouncy Castle is retained for the current local profile and ML-DSA operations; AES-SIV is not a current requirement. The application SHOULD support Post-Quantum digital signature schemes (e.g., ML-DSA-65) for FIDO2 attestation and assertion signing, as specified by NFR-SEC-041.
+- **NFR-SEC-020**: Keys used to protect persisted secrets MUST use Android KeyStore where the current platform integration supports the operation; StrongBox MAY be preferred when available. The software-derived credential signing parent and operation keys defined by NFR-SEC-041 are not Android KeyStore keys and MUST NOT be described as non-exportable.
+- **NFR-SEC-030**: Sensitive credentials and derivation material MUST NOT be persisted in plaintext. Decrypted inputs and derived signing material may exist transiently in volatile memory only under the mutable ownership and cleanup controls in the constitution; application-owned mutable buffers MUST be erased on terminal paths.
+- **NFR-SEC-040: Master Key Management**: Use a BIP39 recovery mnemonic as the root of a local credential architecture, protected at rest with approved authenticated encryption. Apply mutable secret ownership, authorized signing, and explicit recovery metadata. The current derivation profile and algorithm requirements are specified by NFR-SEC-041.
+
+The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`, HDK `DeriveSalt`, and a shared classical/PQ hierarchy is superseded by this amendment. Historical references are retained only as history.
 
 ### 5.2 Performance & Reliability
 - **NFR-PERF-010: Startup Performance** (Android Vitals Targets):
@@ -108,12 +111,13 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 - **NFR-PERF-020: Rendering Smoothness**:
     - Maintain a consistent **60 FPS** (16.6ms per frame) during UI interactions.
     - Zero "Frozen Frames" (render time > 700ms) and < 1% "Slow Frames" (render time > 16ms).
-- **NFR-PERF-030: Bluetooth HID Latency**:
-    - Target end-to-end latency for virtual authenticator actions (from tap on phone to execution on host) should be **< 200ms** on supported hardware to ensure a responsive user experience.
+- **NFR-PERF-030: Bluetooth HID and Internal FIDO Operation Latency**:
+    - RP-to-verified-response end-to-end latency for FIDO2 Bluetooth authenticator ceremonies MUST be **< 1,000ms** on the designated device/workload, excluding only measured user-verification wait.
+    - All app-internal FIDO operation processing MUST be **< 200ms**, excluding user-verification wait and Bluetooth response handoff. The internal interval includes operation-specific lookup, derivation, signing, and response construction where applicable.
 - **NFR-PERF-040: Resource Optimization**:
     - Zero memory leaks detected via Profiler or LeakCanary.
     - "Excessive Wake Locks" must remain below 0.1% to minimize battery impact.
-- **NFR-PERF-050: Performance Monitoring and Instrumentation**: The application should implement internal telemetry to monitor HID latency and packet delivery success rates to ensure compliance with NFR-PERF-030. *(Note: Implementation deferred to a future dedicated performance optimization phase).*
+- **NFR-PERF-050: Performance Monitoring and Instrumentation**: The application should provide local instrumentation for the NFR-PERF-030 end-to-end and internal processing boundaries, plus HID report acceptance status. Measurements remain local and must not include credential secrets or user-identifying data.
 
 ### 5.3 Maintainability
 - **NFR-ARCH-010: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.

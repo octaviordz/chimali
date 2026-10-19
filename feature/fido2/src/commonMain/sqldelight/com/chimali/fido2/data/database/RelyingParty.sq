@@ -1,8 +1,18 @@
 insert:
-INSERT INTO relying_party (id, created_at, last_used_at, credential_count, icon_url, is_blocked, name, encrypted_metadata)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO relying_party (id, created_at, last_used_at, updated_at, credential_count, encrypted_metadata, icon_url, is_blocked, name)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
-  last_used_at = excluded.last_used_at,
+  last_used_at = CASE
+    WHEN relying_party.last_used_at IS NULL THEN excluded.last_used_at
+    WHEN excluded.last_used_at IS NULL THEN relying_party.last_used_at
+    ELSE MAX(relying_party.last_used_at, excluded.last_used_at)
+  END,
+  updated_at = MAX(
+    relying_party.updated_at + 1,
+    excluded.updated_at,
+    relying_party.created_at,
+    COALESCE(excluded.last_used_at, relying_party.last_used_at, relying_party.created_at)
+  ),
   credential_count = excluded.credential_count,
   icon_url = excluded.icon_url,
   is_blocked = excluded.is_blocked,
@@ -11,17 +21,31 @@ ON CONFLICT(id) DO UPDATE SET
 
 update:
 UPDATE relying_party
-SET last_used_at = ?, credential_count = ?, icon_url = ?, is_blocked = ?, name = ?, encrypted_metadata = ?
-WHERE id = ?;
+SET last_used_at = CASE
+        WHEN :last_used_at IS NULL THEN last_used_at
+        WHEN last_used_at IS NULL THEN :last_used_at
+        ELSE MAX(last_used_at, :last_used_at)
+    END,
+    credential_count = :credential_count, icon_url = :icon_url, is_blocked = :is_blocked,
+    name = :name, encrypted_metadata = :encrypted_metadata,
+    updated_at = MAX(
+        updated_at + 1,
+        CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER),
+        COALESCE(:last_used_at, last_used_at, created_at)
+    )
+WHERE id = :id;
 
 select_by_id:
 SELECT * FROM relying_party WHERE id = ?;
+
+select_created_at:
+SELECT created_at FROM relying_party WHERE id = ?;
 
 select_all:
 SELECT * FROM relying_party;
 
 search_by_name:
-SELECT * FROM relying_party WHERE name LIKE :query;
+SELECT * FROM relying_party WHERE CAST(name AS TEXT) LIKE :query;
 
 delete_by_id:
 DELETE FROM relying_party WHERE id = ?;
@@ -36,7 +60,7 @@ get_all_stats:
 SELECT * FROM relying_party_stats;
 
 update_credential_count:
-UPDATE relying_party SET credential_count = :credential_count, last_used_at = :last_used_at WHERE id = :id;
+UPDATE relying_party SET credential_count = :credential_count, last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;
 
 is_blocked:
 SELECT is_blocked FROM relying_party WHERE id = :id; 
@@ -81,7 +105,7 @@ exists_by_id:
 SELECT count(*) > 0 FROM relying_party WHERE id = :id;
 
 select_by_domain:
-SELECT * FROM relying_party WHERE id LIKE :domain;
+SELECT * FROM relying_party WHERE CAST(id AS TEXT) LIKE :domain;
 
 select_by_credential_count_range:
 SELECT * FROM relying_party WHERE credential_count >= :min AND credential_count <= :max;
@@ -96,13 +120,13 @@ get_top_relying_parties:
 SELECT * FROM relying_party ORDER BY credential_count DESC LIMIT :limit;
 
 increment_credential_count:
-UPDATE relying_party SET credential_count = credential_count + 1, last_used_at = :last_used_at WHERE id = :id;
+UPDATE relying_party SET credential_count = credential_count + 1, last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;
 
 decrement_credential_count:
-UPDATE relying_party SET credential_count = credential_count - 1, last_used_at = :last_used_at WHERE id = :id;
+UPDATE relying_party SET credential_count = credential_count - 1, last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;
 
 update_last_used_at:
-UPDATE relying_party SET last_used_at = :last_used_at WHERE id = :id;
+UPDATE relying_party SET last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;
 
 update_blocked_status:
-UPDATE relying_party SET is_blocked = :is_blocked WHERE id = :id;
+UPDATE relying_party SET is_blocked = :is_blocked, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)) WHERE id = :id;

@@ -56,6 +56,8 @@ android {
             signingConfig = signingConfigs["debug"]
             applicationIdSuffix = ".shrunk"
             isDebuggable = false
+            enableAndroidTestCoverage = true
+            proguardFiles("proguard-rules-leakcanary.pro")
             testProguardFiles("proguard-rules-test.pro")
         }
     }
@@ -130,6 +132,10 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+    debugImplementation(libs.leakcanary.android)
+    // shrunkDebug is the disposable instrumentation target variant, never the production release.
+    add("shrunkDebugImplementation", libs.leakcanary.android)
+    androidTestImplementation(libs.leakcanary.android.instrumentation)
 }
 
 tasks.withType<Test> {

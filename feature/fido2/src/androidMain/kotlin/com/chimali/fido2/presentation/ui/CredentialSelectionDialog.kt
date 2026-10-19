@@ -86,7 +86,9 @@ private fun CredentialItem(
             Modifier
                 .fillMaxWidth()
                 .clickable { onSelect(credential) }
-                .semantics { contentDescription = "Select credential ${credential.userDisplayName}" },
+                .semantics {
+                    contentDescription = "Select credential ${credential.userDisplayName.toBoundaryString()}"
+                },
         shape = RoundedCornerShape(8.dp),
         colors =
             CardDefaults.cardColors(
@@ -106,17 +108,17 @@ private fun CredentialItem(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = credential.userDisplayName,
+                    text = credential.userDisplayName.toBoundaryString(),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = credential.userName,
+                    text = credential.userName.toBoundaryString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = credential.rpId.value,
+                    text = credential.rpId.toBoundaryString(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
