@@ -1,8 +1,8 @@
 # Technical Requirements Document (TRD) - Chimali
 
 **Project Name**: Chimali  
-**Version**: 0.1.0  
-**Status**: Draft  
+**Version**: 0.2.0  
+**Status**: Approved  
 **Reference Document**: [BRD](brd.md)
 
 ---
@@ -11,11 +11,85 @@
 This Technical Requirements Document (TRD) translates the business goals outlined in the [BRD](brd.md) into actionable technical specifications. While the BRD focuses on the "what" and "why," the TRD focuses on the "how" and the specific technical constraints for implementation.
 
 ## 2. Project Overview (Architectural)
-Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)** for the presentation layer.
+Chimali follows a **Clean Architecture** pattern with **Unidirectional Data Flow (UDF)** and **MVI (Model-View-Intent)** across three primary layers:
 
-- **Presentation Layer**: Jetpack Compose (Modern UI, M3).
-- **Domain Layer**: Pure Kotlin (Core logic, Use cases).
-- **Data Layer**: SQLDelight (Persistence), Android KeyStore (Security), Bluetooth HID API (Transport).
+- **UI / Presentation Layer** (Jetpack Compose): Renders state and emits user intents. MUST contain no business logic. State is consumed as `StateFlow`; intents are dispatched to ViewModels.
+- **Domain Layer** (Aggregates, Services, Use Cases): Pure Kotlin business rules, invariants, and workflows. MUST remain independent of presentation frameworks and persistence mechanisms.
+- **Data Layer** (Repositories, Event Store): The authoritative Single Source of Truth (SSOT). Exposes reactive streams (`Flow` / `StateFlow`) upward.
+
+Data and state flow UP (`Data → Domain → UI`); events, intents, and actions flow DOWN (`UI → Domain → Data`). Neither UI nor Domain independently mutates or duplicates Data-held state.
+
+### 2.1 Feature Module Architecture & Dependency Rules
+All Gradle project modules within a feature or core library adhere to strict ownership boundaries and unidirectional dependency flow:
+
+- **Models** (`:core:model`, `:feature:{name}:model`):
+  Immutable Kotlin data classes, value classes, events, and domain primitives.
+  - *Responsibilities*: Define public data structures, contracts, and schema primitives.
+  - *Permitted dependencies*: Kotlin Standard Library only.
+  - *Prohibited dependencies*: Data, Database, Domain, App/DI, UI, or Android framework SDKs.
+
+- **Common** (`:core:common`, `:feature:{name}:common`):
+  Platform-neutral technical utilities, algorithms, and helpers (hashing, canonicalization, mathematical primitives).
+  - *Responsibilities*: Reusable, stateless algorithmic logic and low-level cross-cutting tools.
+  - *Permitted dependencies*: Models.
+  - *Prohibited dependencies*: Data, Database, Domain, App/DI, UI.
+
+- **Data** (`:core:data`, `:feature:{name}:data`):
+  Data source and repository abstractions, persistence interfaces, and Event Sourcing contracts.
+  - *Responsibilities*: Define abstractions for reading and writing feature data without binding to concrete storage.
+  - *Permitted dependencies*: Models, Common.
+  - *Prohibited dependencies*: Concrete storage (`Database`), Domain, App/DI, UI. Data contracts MUST remain persistence-technology-agnostic.
+
+- **Database** (`:core:database`, `:feature:{name}:database`):
+  Concrete storage implementations using SQLDelight and SQLite3MultipleCiphers.
+  - *Responsibilities*: Implement persistence mechanisms, execute Event Sourcing appends, manage transactions, and map storage entities to Models.
+  - *Permitted dependencies*: Data, Models, Common.
+  - *Prohibited dependencies*: Domain, App/DI, UI.
+
+- **Domain** (`:core:domain`, `:feature:{name}:domain`):
+  Core business logic, use cases, domain services, Event Sourcing `Decider` mechanisms, and validation rules.
+  - *Responsibilities*: Encapsulate domain algorithms, business invariants, and application workflows.
+  - *Permitted dependencies*: Models, Common, Data abstractions (interfaces only).
+  - *Prohibited dependencies*: Concrete storage (`Database`), App/DI, UI. Domain logic MUST remain independent of persistence mechanisms and presentation frameworks.
+
+- **UI / Presentation** (`:feature:{name}:ui`):
+  Jetpack Compose screens, MVI ViewModels, and interaction handling.
+  - *Responsibilities*: Render state, handle user intents, and delegate business workflows to Domain.
+  - *Permitted dependencies*: Public contracts from Domain and Models. May depend on Data abstractions only if strictly necessary.
+  - *Prohibited dependencies*: Concrete `Database` storage, feature-internal business rules, persistence logic, or hardware workflows.
+
+- **App & DI (Composition Root)** (`:app`):
+  The integration boundary, composition root, and Koin service-registration layer.
+  - *Responsibilities*: Compose concrete implementations with abstractions, register dependency injection, and adapt host platform lifecycles.
+  - *Permitted dependencies*: All layers (Domain, Data, Database, Common, Models, UI).
+  - *Prohibited dependencies*: Must NOT be referenced by any other module.
+
+Dependency flow points toward stable contracts: `UI → Domain → Data → Models`, `Database → Data → Models`, and `Common → Models`. Only `:app` binds implementations via Koin. Circular dependencies and direct UI-to-storage dependencies are strictly forbidden.
+
+### 2.2 Module Criticality Classification (Tier 1 & Tier 2)
+Modules across the project are categorized into two architectural criticality tiers:
+
+- **Tier 1 (Critical Modules)**: Modules where a defect can directly compromise security, cryptographic operations, data integrity, or authentication correctness:
+  - `:core:security` — cryptographic operations, key derivation, memory zeroing
+  - `:core:domain` — aggregates, domain services, Event Sourcing `Decider` mechanisms
+  - `:core:data` — repository contracts and data integrity rules
+  - `:feature:fido2` — CTAP2 protocol implementation and passkey flows
+  - `:feature:authenticator` — Bluetooth HID authentication orchestration
+  *Requirements*: Full DO-178B-inspired traceability (`@Req`), forbidden dead code, bounded execution, and high test coverage gates (>= 40%).
+- **Tier 2 (Feature & Infrastructure Modules)**: All other modules (`:core:bluetooth`, `:core:crdt`, `:core:database`, `:core:common`, `:core:ui`, `:feature:vault`, `:feature:editor`, `:feature:settings`, `:feature:onboarding`, `:app`).
+  *Requirements*: Root `README.md` requirement mapping (`FR-*`, `NFR-*`) and baseline test coverage (>= 20%).
+
+### 2.3 Event Sourcing Technical Architecture
+Event Sourcing serves as the primary persistence and audit mechanism for core aggregates (`VaultEntry`, `PasskeyCredential`):
+- **Immutable History**: Events are appended only; historical pruning is strictly prohibited (**Perpetual History**).
+- **Deterministic Reconstruction**: A `Decider` mechanism deterministically reconstructs entity state (`Model`) by folding an ordered event stream.
+- **Temporal Queries (Time Travel)**: Timestamp-based interface (`asOf(timestamp)`) reconstructs entity state at any point in history. Every reconstruction generates structured JSON trace logs for audits.
+- **Snapshot Acceleration**: Snapshots captured every 20 events for hydration performance, falling back to full fold if missing or corrupt.
+- **Schema Evolution**: Schema changes are strictly additive with default values. Optimistic concurrency with unique sequence numbers and automated retry on conflict.
+
+### 2.4 Predictable Lifecycles & Memory Management
+- **Configuration Changes & Process Death**: ViewModels survive configuration changes. UI state surviving process death is preserved via `SavedStateHandle`. Sensitive cryptographic keys/seeds MUST NOT be stored in `SavedStateHandle` or `onSaveInstanceState`; they MUST be re-derived or re-prompted upon restoration.
+- **Memory Pressure Response**: All custom caches, image loaders, and in-memory managers implement `ComponentCallbacks2.onTrimMemory()`. Upon receiving `TRIM_MEMORY_RUNNING_CRITICAL`, `TRIM_MEMORY_BACKGROUND`, or `TRIM_MEMORY_MODERATE`, components clear 100% of non-essential volatile caches and issue `System.gc()` release hints. Unit tests must verify complete cache flushing on trim events.
 
 ## 3. Business Goals & Objectives (Technical Translation)
 - **Security Leadership**: Integration of Bouncy Castle 1.80+ for the current local credential profile and ML-DSA-65 signing. ML-KEM or remote key provisioning is not part of the current credential profile; any issuer workflow remains a separate research item.
@@ -67,6 +141,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 ### 5.1 Encryption Standards (NFR-SEC-010)
 - **Classical**: AES-256-GCM (Hardware accelerated) for payloads and encrypted metadata values.
 - **Searchable Metadata**: HMAC-SHA-256 blind indexes for deterministic exact-match lookup tokens.
+- **Database File Encryption**: SQLite3MultipleCiphers configured with authenticated encryption, using a 256-bit key derived via `PBKDF2-HMAC-SHA512` from the master key.
 - **Key Wrapping**: Platform-backed AES-GCM/AEAD with unique nonces and associated data.
 - **Post-Quantum KEM**: No KEM-based remote provisioning capability is defined by the current local credential profile. Any future issuer or provisioning design remains subject to the separate [OpenID4VCI HDK issuance investigation](backlog/openid4vci-hdk-issuance-investigation.md); this document does not claim ML-KEM support or readiness.
 
@@ -76,7 +151,7 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 
 ## 6. User Interface & Experience (UI/UX Implementation)
 - **M3 Integration**: Use `MaterialTheme` color schemes derived from `dynamicLightColorScheme` or `dynamicDarkColorScheme`.
-- **Accessibility**: Implement `contentDescription` for all interactive elements and ensure touch targets meet the 48dp minimum.
+- **Accessibility**: Implement `contentDescription` for all interactive elements and ensure touch targets meet the 48dp minimum. Credentials must be displayed with high-legibility fonts (e.g., Atkinson Hyperlegible).
 - **TR-UI-040: FIDO Passkey Icon Integration**: Implement the official FIDO Passkey Icon (glyph) as a high-fidelity vector resource. All generic security/lock icons in the FIDO2 presentation module must be transitioned to this standardized glyph.
 - **TR-UI-050: Relying Party Icon Loading**: Prompts must support display of the RP icon/favicon. Implement using an asynchronous image loading library (e.g., **Coil**) with an automatic fallback to `https://{rpId}/favicon.ico` if the request doesn't provide a specific icon URL.
 - **TR-UI-060: Multi-Transport UI Context**: Prompt ViewModels must determine the transport (Local/Credential Manager vs. Remote/HID) to display the correct contextual header (e.g. "Create a passkey on another device" vs. "Create a passkey for this device").
@@ -89,6 +164,11 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 ## 7. Technical Constraints & Data Schema
 ### 7.1 Platform Constraints
 - **Minimum SDK**: API 28 (Android 9.0) required for the `BluetoothHidDevice` profile.
+- **Language**: Primary language Kotlin (100% for UI/Android layers). Languages producing native code (e.g., Rust) permitted for core cryptography, shared low-level logic, and Loro.dev CRDT integration via UniFFI.
+- **Multiplatform Readiness**: KMP-ready module structure maintained to facilitate future expansion. Platform-specific code (`expect`/`actual`) minimized; domain and presentation logic maximized in `commonMain`.
+- **Encrypted Persistence**: Standardized persistence using **SQLite3MultipleCiphers** and **SQLDelight**.
+- **Hardware Profile**: Mandatory support for Bluetooth HID Device Profile for virtual authenticator operations.
+- **Privacy Focus**: On-device AI only (ML Kit, Gemini Nano) for credential categorization; zero cloud processing of plaintext.
 
 ### 7.2 High-Level Schema
 | Table | Key Technical Field | Description |
@@ -110,6 +190,5 @@ Chimali follows a **Clean Architecture** pattern with **MVI (Model-View-Intent)*
 
 ## 10. Document Metadata
 - **Owner**: Chimali Engineering Team
-- **Version**: 0.1.0
+- **Version**: 0.2.0
 - **Reference**: [BRD](brd.md)
-

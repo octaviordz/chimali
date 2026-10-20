@@ -103,6 +103,8 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`, HDK `DeriveSalt`, and a shared classical/PQ hierarchy is superseded by this amendment. Historical references are retained only as history.
 
+- **NFR-SEC-050: System Clipboard Protection**: Sensitive credential data copied to the system clipboard must be explicitly cleared within 60 seconds of the copy action.
+
 ### 5.2 Performance & Reliability
 - **NFR-PERF-010: Startup Performance** (Android Vitals Targets):
     - **Cold Start**: < 2 seconds (Time to initial display).
@@ -118,12 +120,25 @@ The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`
     - Zero memory leaks detected via Profiler or LeakCanary.
     - "Excessive Wake Locks" must remain below 0.1% to minimize battery impact.
 - **NFR-PERF-050: Performance Monitoring and Instrumentation**: The application should provide local instrumentation for the NFR-PERF-030 end-to-end and internal processing boundaries, plus HID report acceptance status. Measurements remain local and must not include credential secrets or user-identifying data.
+- **NFR-PERF-060: App Binary & Tiered Memory Budgets**:
+    - **App Binary Budget**: Release AAB base module MUST NOT exceed 50 MB; feature size delta MUST NOT exceed +500 KB without documented architecture approval. R8 minification (`isMinifyEnabled`) and resource shrinking (`isShrinkResources`) must be enabled and verified on release/staging builds.
+    - **Tiered Memory Budgets**: Dynamic adaptation based on device RAM tier:
+        - Standard devices (4–6 GB RAM): Baseline < 150 MB | Hard peak limit 250 MB.
+        - High-end devices (≥ 8 GB RAM): Baseline < 250 MB | Hard peak limit 400 MB.
+    - **Memory Pressure Response**: Custom caches, image loaders, and in-memory managers must implement `ComponentCallbacks2.onTrimMemory()` to release 100% of non-essential in-memory caches upon receiving critical, background, or moderate memory signals. Dedicated unit tests must verify cache flushing on memory trim.
+- **NFR-PERF-070: Vault Scalability**:
+    - Support 10,000+ vault items with < 2% latency regression compared to baseline, measured via Jetpack Macrobenchmark.
 
 ### 5.3 Maintainability
 - **NFR-ARCH-010: Architecture**: Implementation of Clean Architecture with Unidirectional Data Flow (UDF) using the **MVI (Model-View-Intent)** pattern for predictable state management.
 - **NFR-ARCH-020: Dependency Injection**: Use **Koin** (with Koin Compiler) for standardized, compile-time safe dependency management across Kotlin Multiplatform targets.
 - **NFR-ARCH-030: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
 - **NFR-ARCH-040: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
+- **NFR-ARCH-050: Module Criticality Classification (Tier 1 & Tier 2)**:
+    - **Tier 1 (Critical)**: Modules where a defect can directly compromise security, cryptographic operations, data integrity, or authentication correctness (`:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`). Requires DO-178B-level traceability (`@Req`), high coverage gates (>= 40%), and bounded, fail-safe execution.
+    - **Tier 2 (Feature & Infrastructure)**: All other modules (`:core:bluetooth`, `:core:crdt`, `:core:database`, `:core:common`, `:core:ui`, `:feature:vault`, `:feature:editor`, `:feature:settings`, `:feature:onboarding`, `:app`). Requires module-level `README.md` requirement mapping and baseline coverage (>= 20%).
+- **NFR-ARCH-060: Event Sourcing & Perpetual History**:
+    - Core aggregates (`VaultEntry`, `PasskeyCredential`) must utilize Event Sourcing with an append-only event log (no historical pruning), deterministic `Decider` fold reconstruction, temporal query support (`asOf`), snapshot hydration (every 20 events with fallback to full fold), and strictly additive schema evolution.
 - **Documentation**: Comprehensive API documentation and user troubleshooting guides are documented as part of the post-release stabilization phase.
 - **FR-DOC-010**: User guides must be available as localized Markdown files within the application's help system.
 
