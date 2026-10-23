@@ -1,462 +1,258 @@
-# HDK Conformance Analysis and Enhancement Recommendations
+# HDK Conformance Assessment and Enhancement Recommendations
 
-**Date**: 2026-10-23  
-**Spec reference**: [draft-dijkhuis-hdk-00](https://www.ietf.org/archive/id/draft-dijkhuis-hdk-00.html)  
-**Scope**: Clean-install baseline; no OpenID4VCI implementation required; no backward compatibility.  
-**Related**: [Local derivation contract](../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md) · [Feature 055 plan](../specs/055-migrate-hdk-draft/plan.md) · [Security review](../specs/055-migrate-hdk-draft/security-review.md)
+**Date**: 2026-10-23
 
----
+**Status**: Consolidated engineering assessment and proposed follow-up work.
 
-## 1. Purpose
+**Scope**: Chimali's current local credential profile; fresh installations; no backward compatibility or OpenID4VCI implementation.
 
-This document analyzes Chimali's current implementation of its local HDK-derived key profile against `draft-dijkhuis-hdk-00`, identifies conformance gaps, and recommends enhancements. It covers:
+This document consolidates the original analysis, the corrections response, the external agent's sustained response, and the subsequent review. It supersedes their conflicting recommendations. Recommendation identifiers E-1–E-5 and TD-1–TD-8 are retained for traceability.
 
-- How each section of the draft maps to Chimali's implementation.
-- Concrete findings and their severity.
-- Actionable recommendations, each with a rationale and suggested file location.
-- Technical debt present in the current codebase.
-- Items that are explicitly out of scope (OpenID4VCI, backward compatibility).
+Only this assessment has been consolidated. Source comments, cryptographic behavior, the derivation contract, and security acceptance have not been changed by this documentation work. Recommendations below are proposed work unless explicitly identified as already satisfied or closed.
 
-> [!NOTE]
-> Chimali does **not** implement the draft's full OpenID4VCI issuance protocol. Its local profile adapts only the scalar mapping and multiplicative child-key relation defined in §7 of the draft, deliberately substituting a deterministic RFC 5869 credential secret for the draft's per-issuance X25519 `shared_secret`. This is a conscious, documented design decision. The findings below evaluate that adaptation and identify improvement areas within the local scope.
+## 1. Governing context and evidence
 
----
+Read this assessment with the [implementation plan](../specs/055-migrate-hdk-draft/plan.md), [local derivation contract](../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md), and [security review](../specs/055-migrate-hdk-draft/security-review.md). These remain the governing feature artifacts.
 
-## 2. Draft Structure vs. Chimali Coverage
+The assessment reviewed relevant implementation and existing test definitions, primary specifications, provider source, and direct scalar-bias arithmetic. Individual reviews had different evidence scopes: the external sustained response accepted the provider-erasure correction without independently checking BC 1.81 source; the subsequent review checked that source. No tests, device ceremonies, performance measurements, or independent security acceptance were produced by these document reviews. Existing fixtures and historical reports are evidence of their recorded scopes, not newly executed verification.
 
-| Draft section | Content | Chimali coverage |
-|---|---|---|
-| §1 Introduction | Problem statement, unlinkability | ✅ Acknowledged in contract and backlog |
-| §2 Conventions | Notation, group operations | ✅ Applied in `P256Group`, `HkdfSha256` |
-| §3 Overview | Key hierarchy, factor derivation | ✅ Scalar mapping adapted in `HdkP256` |
-| §4 Wallet assurance | Hardware-backed parent, non-exportability | ⚠️ Software-only; acknowledged limit |
-| §5 Issuance (OpenID4VCI) | X25519 KEM, issuer interaction | 🚫 Out of scope (backlog item) |
-| §6 Presentation / assertion | Holder-binding, presentation proofs | 🟡 Partial — FIDO2 assertion used instead |
-| §7 P-256 profile | Factor formula, child derivation | ✅ Core adapted; see §3 below |
-| §8 Hierarchy | Multi-level tree, child-of-child | ⚠️ Mathematical relation correct, production API limited to depth 1 |
-| §9 Capability metadata | `hdk` proof type, capability advertisement | 🚫 Not implemented (would require OpenID4VCI) |
-| §10 Interoperability | Wire format requirements | ℹ️ Local profile; no interoperability claimed |
-| §11 Security considerations | Compromise, privacy, oracle | ✅ Documented limitations in security-review.md |
-| §12 Privacy considerations | Unlinkability, parent correlation | ✅ Local profile inherits parent correlation limit |
+Chimali adapts the P-256 scalar mapping and multiplicative child-key relation in [draft-dijkhuis-hdk-00 §7](https://www.ietf.org/archive/id/draft-dijkhuis-hdk-00.html#section-7). It substitutes a deterministic per-credential HKDF secret for the draft's per-issuance X25519 shared secret and uses a deterministic software parent. This is custom local composition; it does not implement the draft's issuance protocol, inherit its security analysis, or claim issuance interoperability.
 
----
+## 2. Draft coverage and local policy
 
-## 3. Conformance Findings
+| Draft section | Actual subject | Chimali assessment |
+| --- | --- | --- |
+| §1 | Introduction | Related motivation; different local application model. |
+| §2 | Conventions and Encoding | Relevant encodings applied at the primitive boundary. |
+| §3 | Cryptographic Dependencies | P-256, canonical encodings, hashing, and group operations are relevant. |
+| §4 | Parent-Key Assurance | Current signing parent is software-derived; no hardware non-exportability or issuer-assurance claim. |
+| §5 | Credential Request | X25519 and OpenID4VCI request flow are excluded. |
+| §6 | Credential Response | Issuer exchange and credential batch response are excluded; this is not a FIDO2 assertion section. |
+| §7 | Child-Key Derivation | Scalar mapping and multiplicative relation are adapted locally. |
+| §7.1 | Hierarchical Derivation | Mathematical composition is tested; production FIDO2 uses one leaf derivation. |
+| §8 | Using a Child Key | Local software signing is used. |
+| §8.1 | ECDH | Parent-preserving ECDH equivalence is not implemented. |
+| §8.2 | ECDSA | Alternative raw-parent signing transformation is not implemented. |
+| §9 | OpenID4VCI Metadata | No hdk proof-type advertisement; no inference of HDK support from P-256 support. |
+| §10 | Interoperability Considerations | No interoperability with the draft's issuance construction is claimed. |
+| §11 | Security Considerations | Compromise and bias distinctions are discussed below. |
+| §12 | Privacy Considerations | No blanket unlinkability claim; metadata and application behavior can correlate credentials. |
 
-### 3.1 Factor Derivation Formula (§7) — Conformant with Intentional Substitution
+Deterministic parent generation using [RFC 9180 §7.1.3](https://www.rfc-editor.org/rfc/rfc9180.html#section-7.1.3) is Chimali's local policy. It is not required by the HDK draft. Parent-generation references must point to RFC 9180; child-relation references must point to draft §7.
 
-**Draft formula:**
-```
-context = SEC1_UNCOMPRESSED(pk_parent) || I2OSP(index, 4)
-factor = H(shared_secret || context)   # where H(m) = (OS2IP(SHA-256(m)) mod (n−1)) + 1
-```
+## 3. Current construction and assessment
 
-**Chimali adaptation ([HdkP256.kt](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/HdkP256.kt)):**
-```
-preimage = local_secret || SEC1_UNCOMPRESSED(pk_parent) || I2OSP(index, 4)
-digest   = SHA-256(preimage)
-factor   = (OS2IP(digest) mod (n−1)) + 1
+### 3.1 Root and independent credential branches
+
+The current contract uses the full 64-byte BIP39 seed as input to HKDF-SHA256:
+
+```text
+PRK = HKDF-Extract(ASCII("chimali-local-key-derivation-v1"), BIP39_seed)
+credentialInfo(label, C) = ASCII(label) || 0x00 || I2OSP(length(C), 2) || C
+credential_material = HKDF-Expand(PRK, credentialInfo(label, C), 32)
 ```
 
-**Assessment**: Correct. The substitution of `local_secret` (a 32-byte HKDF-derived value) for the draft's X25519 `shared_secret` is the documented local-profile adaptation. The scalar mapping `(OS2IP(·) mod (n−1)) + 1` matches §7 exactly, guaranteeing a non-zero factor. The context encoding `SEC1_UNCOMPRESSED(pk_parent) || I2OSP(index, 4)` matches the draft's context construction.
+`C` is the complete decoded credential ID, 16–1023 bytes. P-256 local secrets, Ed25519 seeds, and ML-DSA-65 xi seeds use separate labels. Unknown algorithm/profile pairs fail explicitly. The P-256 parent input uses its own expansion label.
 
-**Finding**: ✅ No change needed.
+Full-ID binding addresses the local recovery and identity requirements and avoids the former 32-bit identity-prefix collision problem. It is not evidence that this application is stronger than the draft's different issuance design. Credential-ID uniqueness remains dependent on generation and collision handling; a random identifier does not make collision mathematically impossible.
 
----
+### 3.2 Deterministic P-256 parent
 
-### 3.2 Parent Key Generation (§7.1) — Conformant
+[P256ParentKeyDerivation](../core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256ParentKeyDerivation.kt) implements the RFC 9180 DHKEM(P-256, HKDF-SHA256) deterministic sampler, with KEM identifier 0x0010, standard HPKE labels, and candidate counters 0–255 inclusive. It accepts only scalars in 1..n-1 and fails on exhaustion.
 
-**Draft requirement**: Parent key pair derived from a deterministic source using RFC 9180 DHKEM(P-256, HKDF-SHA256) `DeriveKeyPair` (§7.1.3).
+The parent is derived in software. Encrypted recovery storage and Android Keystore protection of persisted secrets do not make the signing scalar a non-exportable hardware key. [BRD NFR-SEC-041/NFR-SEC-020](brd.md) and [TRD TR-AUTH-031](trd.md) already state this distinction.
 
-**Chimali implementation ([P256ParentKeyDerivation.kt](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256ParentKeyDerivation.kt)):**
-- Labeled extraction: `HKDF-Extract(empty_salt, HPKE-v1 || KEM-0x0010 || "dkp_prk" || parent_ikm)`
-- Candidate loop: counters 0–255 inclusive, accepts first scalar in `(0, n)`.
-- KEM suite ID: `KEM || I2OSP(0x0010, 2)` — matches DHKEM(P-256) exactly.
+### 3.3 Child factor, public point, and private scalar
 
-**Assessment**: Conformant. The inclusive 0–255 candidate range (previously a bug with range 0–254) is now correctly implemented. Suite ID, version label, and labeled-expand construction all match RFC 9180 §7.1.3.
+[HdkP256](../core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/HdkP256.kt) applies:
 
-**Finding**: ✅ No change needed.
-
----
-
-### 3.3 Child Key Derivation Relation (§7) — Conformant
-
-**Draft:**
-```
-pk_child = pk_parent * factor
-sk_child = sk_parent * factor mod n
+```text
+n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+ctx = SEC1_UNCOMPRESSED(pk_parent) || I2OSP(index, 4)
+digest = SHA-256(local_secret || ctx)
+b = (OS2IP(digest) mod (n - 1)) + 1
+pk_child = ScalarMult(pk_parent, b)
+sk_child = sk_parent * b mod n
 ```
 
-**Chimali ([HdkP256.kt](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/HdkP256.kt#L64-L65)):**
-```kotlin
-val childPoint = P256Group.scalarMult(parentPoint, factor)
-childPrivate = P256Group.serializeScalar(parentScalar.multiply(factor).mod(P256Group.ORDER))
+These equations match the draft's scalar mapping and child relation with the documented local-secret substitution. Because the parent scalar and factor are nonzero modulo prime n, the child scalar is nonzero. HKDF derives the local secret upstream; the child factor uses SHA-256 directly.
+
+An all-zero 32-byte local secret remains a valid input to this mapping. The all-zero X25519 shared-secret rejection rule belongs to the excluded exchange. Do not invent an all-zero HKDF-output rejection rule.
+
+### 3.4 Point validation and subgroup membership
+
+[P256Group](../core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256Group.kt) requires canonical 65-byte uncompressed SEC1 input, canonical field coordinates, a valid finite point, and the specified curve.
+
+[BC 1.80 ECPoint validation](https://github.com/bcgit/bc-java/blob/r1rv80/core/src/main/java/org/bouncycastle/math/ec/ECPoint.java) includes an order-validation path. For cofactor-one curves, its order check succeeds without a separate multiplication: on P-256, a valid finite on-curve point belongs to the prime-order group.
+
+The original medium-severity subgroup finding is withdrawn. E-1 is a documentation clarification; this assessment identifies no missing subgroup multiplication.
+
+### 3.5 Scalar bias: exact quantities and limits of interpretation
+
+Assume a uniform SHA-256 output and define:
+
+```text
+N = 2^256
+m = n - 1
+r = N - m
+b = (digest mod m) + 1
 ```
 
-**Assessment**: Conformant. Both public and private child derivations match the draft's multiplicative relation.
+Since m < N < 2m, each scalar output in 1..r has two digest preimages, and each remaining output has one. Each digest still maps to exactly one scalar.
 
-**Finding**: ✅ No change needed.
+```text
+P[b = x] = 2/N, for 1 <= x <= r
+P[b = x] = 1/N, for r < x <= m
+Uniform reference probability = 1/m
 
----
+Excess for an output in 1..r = 2/N - 1/m
+                             = (m-r)/(N*m)
+                             approximately 2^-256
 
-### 3.4 Point Encoding and Validation (§3) — Conformant with One Open Finding
-
-**Draft requirement (§3)**: Parent public key must be canonical 65-byte uncompressed SEC1 encoding `0x04 || x || y`; public keys must be validated as non-infinite, on-curve, and in the correct subgroup.
-
-**Chimali ([P256Group.kt](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256Group.kt)):**
-- `deserializeElement` rejects wrong length, wrong prefix byte, out-of-field coordinates, and off-curve points via Bouncy Castle `decodePoint`.
-- `requirePoint` checks `!isInfinity && isValid && point.curve == curve`.
-
-**Open finding (MEDIUM)**: The `isValid` check on a Bouncy Castle `ECPoint` tests curve membership but does **not** perform a cofactor multiplication check for the full group order (P-256 has cofactor 1, so this is effectively a no-op risk here — but it is not explicitly documented). For P-256 (prime-order curve, cofactor = 1), subgroup membership is guaranteed by on-curve validation, but the rationale is absent from the code.
-
-**Recommendation E-1**: Add an inline comment to `requirePoint` stating that P-256 has cofactor 1, so on-curve membership implies full-order subgroup membership. This removes ambiguity for future reviewers without any code change.
-
----
-
-### 3.5 Wallet Assurance (§4) — Documented Limitation
-
-**Draft requirement (§4)**: The parent private key should be held in a non-exportable hardware-backed secure area (e.g., Android Keystore). The draft's security model relies on the issuer trusting the holder's hardware attestation for this property.
-
-**Chimali**: Parent key is software-derived, cached in JVM heap (`WalletMasterSeedProvider`), and non-exportable only by policy, not by hardware enforcement. This is explicitly documented in the security review and contract.
-
-**Finding**: ⚠️ Known architectural limitation. Not a bug. The `security-review.md` correctly states:
-
-> "Encrypted recovery storage does not make the signing scalar non-exportable."
-
-**Recommendation E-2**: Ensure the TRD and BRD carry an explicit statement distinguishing "software-wallet assurance" from "hardware-backed assurance" as defined in §4 of the draft. The backlog item `openid4vci-hdk-issuance-investigation.md` already flags this as a prerequisite for any future issuance integration. No code change is required; documentation update only.
-
----
-
-### 3.6 Credential Identifier Binding — Conformant and Improved
-
-**Draft (§7)**: The index `i` is a 32-bit unsigned value supplied by the issuer as part of the issuance context.
-
-**Chimali local adaptation**: The full decoded credential ID (16–1023 bytes) is fed into the HKDF `credentialInfo` function to derive the per-credential secret, replacing the draft's issuer-supplied index. The local FIDO2 application fixes `i = 0` in the child derivation. This means each credential effectively has a unique `local_secret`, making per-credential unlinkability a property of the HKDF step rather than the index.
-
-**Assessment**: This is an improvement over the draft's intent for local use cases, since credential IDs are cryptographically random (FIDO2 MakeCredential generates them with secure random) and of sufficient length.
-
-**Finding**: ✅ Design is stronger than required for local use. No change needed.
-
----
-
-### 3.7 Hierarchy Depth (§8) — Intentional Limitation
-
-**Draft (§8)**: The draft supports multi-level key hierarchies through recursive application of the child derivation formula.
-
-**Chimali**: The `HdkManager` interface exposes `deriveChild` and `deriveChildPrivateKey`, which can be composed. The test `repeated child composition preserves the scalar and point relation` in `HdkP256Test` verifies the mathematical property. However, the production FIDO2 application only uses depth 1 (index 0).
-
-**Finding**: ✅ Mathematical correctness is verified. Depth-1 restriction is intentional and appropriate for the current local FIDO2 use case. No production API for deeper hierarchies is needed.
-
----
-
-### 3.8 Capability Metadata (§9) — Out of Scope
-
-**Draft (§9)**: Defines how wallets advertise HDK capability in OpenID4VCI credential offer metadata using the `hdk` proof type identifier.
-
-**Chimali**: No OpenID4VCI capability is advertised. This is correctly excluded in the backlog item.
-
-**Finding**: 🚫 Out of scope. No action required for current release.
-
----
-
-### 3.9 Security Considerations (§11) — Partially Addressed
-
-The draft's §11 raises several security concerns. Chimali's status against each:
-
-| Draft §11 item | Chimali status |
-|---|---|
-| Parent compromise reconstructs all child keys | ✅ Documented in security-review.md |
-| Factor + child-private key reveals parent (inversion) | ✅ Factors are operation-scoped; `eraseSecrets()` called in `finally` |
-| Batch key derivation without parent private key | ✅ `deriveChild(public-only)` path exists in `HdkManager` |
-| Index space exhaustion / collision | ✅ Mitigated by HKDF-bound `local_secret`; credential IDs are unique |
-| Scalar bias from modulo mapping | ✅ Documented in contract: "Its specified small scalar bias is retained" |
-| Oracle attack: distinguishing valid from rejected scalars | ✅ No rejected scalars possible — the `(mod n-1)+1` mapping always yields `[1, n-1]` |
-
-**Open finding (LOW)**: The `(mod n-1)+1` scalar mapping introduces a slight bias toward lower values (the range `[1, 1]` has probability proportional to 1/(n-1) extra vs. uniform on `[1, n-1]`). The draft explicitly retains this bias. Chimali's contract documentation acknowledges it but does not quantify it. For a 256-bit group this bias is cryptographically negligible (~2⁻²⁵⁶). No code change is needed, but a single comment in the code or contract could quantify this.
-
-**Recommendation E-3**: Add one sentence to the `HdkP256.deriveChild` KDoc or the contract document quantifying the scalar bias as negligible (`~1/(n-1) ≈ 2⁻²⁵⁶` advantage per output bit).
-
----
-
-## 4. Technical Debt Findings
-
-### 4.1 `BigInteger` Non-Erasability — Known Residual
-
-**Location**: [`HdkP256.kt`](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/HdkP256.kt#L62-L65), [`P256ParentKeyDerivation.kt`](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256ParentKeyDerivation.kt#L76-L78), [`P256Group.kt`](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/hdkeys/P256Group.kt#L96)
-
-**Issue**: Java `BigInteger` is immutable. Intermediate scalar values computed during factor derivation, child-private computation, and scalar serialization exist as JVM heap objects that cannot be zeroed.
-
-**Assessment**: This is a known, documented, and accepted residual limit. The security review explicitly states:
-
-> "Java BigInteger values used for scalar arithmetic are immutable and not erasable."
-
-Application-owned byte arrays are erased. The JVM limitation is not resolvable without replacing the arithmetic engine.
-
-**Recommendation TD-1**: No code change is possible without replacing Bouncy Castle's EC arithmetic. Document this as a permanent residual in a comment near each `BigInteger` usage site for clarity. The existing security-review documentation already covers this; add a cross-reference `@see security-review.md` to the relevant KDoc blocks.
-
----
-
-### 4.2 ML-DSA Key Object Non-Erasability — Known Residual
-
-**Location**: [`PostQuantumCrypto.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt#L61-L73)
-
-**Issue**: BC 1.80's `MLDSAPrivateKey` object contains private byte-array fields that cannot be erased by application code. The application zeroes its owned `xi` copy and `privateKeyEncoding` copy, but the provider's internal state is not erased.
-
-**Assessment**: Correctly handled at application-ownership boundary. Documented in security review.
-
-**Recommendation TD-2**: When BC ≥ 1.81 adds a `destroy()` method to `MLDSAPrivateKey`, adopt it. Track BC release notes for this. No change needed now.
-
----
-
-### 4.3 `WalletMasterSeedProvider.provisionSearchableMetadataKeys` Uses HMAC-SHA512 — Inconsistency
-
-**Location**: [`WalletMasterSeedProvider.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt#L340-L354)
-
-**Issue**: Searchable metadata key derivation uses `HMAC-SHA512(ASCII("chimali_searchable_metadata_v1"), PRK)` rather than an HKDF expand from the same PRK used for credential derivation. This creates a second, distinct KDF in the codebase (not HKDF expand) that is not documented in the [local derivation contract](../specs/055-migrate-hdk-draft/contracts/local-key-derivation.md).
-
-**Assessment**: Not a security bug — the construction is domain-separated. However, it is inconsistent with the documented policy:
-1. It uses HMAC in "MAC" mode (data-before-key) rather than `HKDF-Expand` semantics.
-2. It uses SHA-512 while the rest of the local profile uses SHA-256.
-3. It is not covered by the derivation contract document.
-
-**Recommendation TD-3 (MEDIUM)**: Replace the ad-hoc `HMAC-SHA512(label, PRK)` with `HKDF-Expand(PRK, ASCII("chimali_searchable_metadata_v1"), 32)` using the existing `HkdfSha256.expand`. Update the contract document to include the metadata key expansion. This aligns the entire wallet secret surface under one documented KDF policy.
-
-```kotlin
-// Proposed replacement in provisionSearchableMetadataKeys:
-val label = SEARCHABLE_METADATA_EXPANSION_KEY.toByteArray(StandardCharsets.US_ASCII)
-val metadataKey = HkdfSha256.expand(prk, label, METADATA_KEY_SIZE_BYTES)
+Total variation distance = r*(m-r)/(N*m)
+                         approximately 2.328306435454494e-10
+                         approximately 2^-32
 ```
 
-> [!IMPORTANT]
-> This is a breaking change for encrypted metadata stored on disk. Since backward compatibility is explicitly excluded (clean-install scope), this change is safe to make in the same install scope as feature 055.
+The per-value deviation and aggregate statistical distance are different quantities. Neither is an unqualified per-output-bit security advantage. This calculation alone does not establish a practical key-recovery attack, a security-strength estimate, or a universal distinguishing sample count.
 
----
+The draft intentionally accepts the bias, and the local contract freezes the mapping. Preserve it under the existing profile identifier. E-3 may use a short qualitative source comment referencing this explanation; do not introduce rejection sampling or another mapping as a documentation cleanup.
 
-### 4.4 Missing Contract Documentation for Metadata Key Derivation
+### 3.6 Index and hierarchy boundaries
 
-**Location**: [`contracts/local-key-derivation.md`](file:///d:/octav/source/repos/Chimali/specs/055-migrate-hdk-draft/contracts/local-key-derivation.md)
+[HdkManager](../core/security/src/commonMain/kotlin/com/chimali/core/security/api/HdkManager.kt) deliberately accepts the full UInt index range. The FIDO2 application supplies LOCAL_CREDENTIAL_INDEX = 0u. Existing HdkP256 tests exercise nonzero indices and repeated composition.
 
-**Issue**: The contract document covers P-256, Ed25519, and ML-DSA-65 credential branches but makes no mention of the searchable-metadata key derivation used by `HmacMetadataLookupTokenService` and `AesGcmEncryptedMetadataService`.
+Retain this separation between the primitive and application policy. TD-8 is a KDoc clarification only. Removing the index parameter or rejecting nonzero indices would require a separate contract change; clean-install scope alone is not a reason to change the API. No additional production hierarchy API is needed.
 
-**Recommendation TD-4**: Add a "Non-signature consumers" section to the contract documenting the metadata key expansion: label, input, output length, and the consuming services.
+### 3.7 Signing, encodings, and BIP39 parameters
 
----
+[Fido2CryptoService](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt) signs the derived P-256 child scalar with SHA256withECDSA. It does not use the alternative NONEwithECDSA parent-signing transformation in draft §8.2. The draft discusses possible intellectual-property considerations; this assessment describes the construction used and makes no legal-clearance conclusion.
 
-### 4.5 Ed25519 `generatePublicKey().encoded` Returns JCA X.509 Encoding
+BC lightweight Ed25519 public-key generation returns raw 32-byte encoding. The JCA decoding adapter prepends ED25519_X509_PREFIX and constructs an X509EncodedKeySpec. TD-5 concerns comments at those boundaries, not a change to encoding.
 
-**Location**: [`Fido2CryptoService.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt#L212)
+[BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed) specifies exactly 2048 PBKDF2-HMAC-SHA512 iterations and a 64-byte result. This is not a configurable minimum. Increasing it changes the seed and all dependent keys. Password-storage iteration recommendations do not replace this derivation contract. The current 24-word mnemonic carries 256 bits of initial entropy when correctly generated; a disclosed mnemonic is not protected by that entropy claim.
 
-```kotlin
-return Ed25519PrivateKeyParameters(seed, 0).generatePublicKey().encoded
+## 4. Security residuals and lifecycle boundaries
+
+### 4.1 Compromise assumptions
+
+- Wallet PRK compromise permits reconstruction of the deterministic parent and all supported credential branches when the required credential metadata is available.
+- Parent-scalar-only compromise does not reveal the HKDF-derived local secrets and does not automatically reconstruct the credential keys, including the independent Ed25519 and ML-DSA branches.
+- A child private scalar and its factor reveal the parent scalar through sk_parent = sk_child * inverse(b) mod n. Erasure is an ownership measure; it cannot undo disclosure of both values.
+- Software derivation and encrypted storage do not establish hardware non-exportability, issuer assurance, or a global unlinkability guarantee.
+
+### 4.2 JVM and provider erasure limits
+
+Java BigInteger arithmetic creates immutable temporaries that application code cannot erase. HdkP256 already documents this. Application-owned byte arrays are cleared at their ownership boundaries; that is not proof of physical erasure of runtime or provider copies. TD-1 should add useful security-review references without repeating a warning at every arithmetic expression.
+
+[PostQuantumCrypto](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/PostQuantumCrypto.kt) imports ML-DSA xi through BC 1.80 and clears owned input/export buffers. Provider-managed key state remains outside that cleanup guarantee. The [BC 1.81 ML-DSA private-key source](https://github.com/bcgit/bc-java/blob/r1rv81/prov/src/main/java/org/bouncycastle/jcajce/provider/asymmetric/mldsa/BCMLDSAPrivateKey.java) supplies no effective destruction override. Do not promise that BC 1.81 or any unspecified later version resolves the limitation.
+
+In Java 17, [PrivateKey extends Destroyable](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/PrivateKey.html); destroy() is not declared by Key. An inherited API is not evidence of internal zeroing. Revisit TD-2 only for a specific verified destruction implementation, assessing remaining copies and actual lifecycle behavior. No provider upgrade is proposed solely on an expected capability.
+
+### 4.3 Memory-pressure implementation
+
+WalletSessionMemoryManager.kt does not exist. [WalletSessionMemoryPressure](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryPressure.kt) clears the session for the three specified severe Android trim levels and then requests a GC hint. It defines no KDF. [MemoryUtils](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/MemoryUtils.kt) likewise defines no independent KDF.
+
+[ChimaliApplication](../app/src/main/kotlin/com/chimali/ChimaliApplication.kt) wires memory callbacks; [WalletMasterSeedProvider](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt) owns generation fencing, session owners, and PRK/parent caches. E-5 is closed as an investigation. A GC hint does not guarantee physical erasure.
+
+## 5. Metadata derivation: TD-3 and TD-4
+
+### 5.1 Current construction and consumers
+
+WalletMasterSeedProvider.provisionSearchableMetadataKeys currently computes:
+
+```text
+label = ASCII("chimali_searchable_metadata_v1")
+metadataKey = first32(HMAC-SHA512(key = label, data = PRK))
 ```
 
-**Issue**: `Ed25519PublicKeyParameters.encoded` returns the raw 32-byte public key (Bouncy Castle lightweight API). This is correct for CTAP2 COSE encoding. However, in `decodePublicKey` for Ed25519, the code prefixes the 32-byte key with `ED25519_X509_PREFIX` to reconstruct a JCA `X509EncodedKeySpec`. The encoding assumptions are implicit and distributed across two methods.
+The same 32-byte result is provisioned into [HmacMetadataLookupTokenService](../core/security/src/androidMain/kotlin/com/chimali/core/security/impl/HmacMetadataLookupTokenService.kt) for lookup tokens and [AesGcmEncryptedMetadataService](../core/security/src/androidMain/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataService.kt) for metadata encryption.
 
-**Recommendation TD-5 (LOW)**: Add a comment at both call sites clarifying which encoding is used at each boundary. The encoding contract is currently enforced by the `ED25519_X509_PREFIX` constant but is not commented.
+Use explicit key/data notation. The earlier description of MAC mode as data-before-key is withdrawn. A public-label-keyed HMAC over secret input must be assessed using its actual input assumptions; the usual secret-key HMAC PRF argument alone does not justify this construction.
 
----
+The local contract already permits independent KDF policies for non-signature consumers. SHA-512 here is not an established violation of a universal HKDF-only rule. Other consumers, including database encryption, retain independent policies. Changing metadata alone would not standardize every wallet secret consumer.
 
-### 4.6 `PBKDF2_ITERATIONS = 2048` — Below Current BIP39 Recommendation
+TD-4 is useful independently: document the exact current label, key/data roles, truncation, consumer purposes, ownership, and recovery/install scope in the derivation contract. This contract update remains proposed work.
 
-**Location**: [`Bip39MasterSeedGenerator.kt`](file:///d:/octav/source/repos/Chimali/core/security/src/androidMain/kotlin/com/chimali/core/security/impl/Bip39MasterSeedGenerator.kt#L294)
+### 5.2 Proposed standardization decision
 
-**Issue**: The BIP39 specification mandates 2048 PBKDF2-HMAC-SHA512 iterations. This matches the constant. However, modern BIP39 wallets often use higher iteration counts (e.g., 210,000 for PBKDF2-SHA256 per OWASP 2023). The BIP39 constant of 2048 is the minimum mandated by the standard and is deliberately low for compatibility.
+HKDF-Expand from PRK is a reasonable direction for TD-3, primarily for explicit policy and auditability. It is not an established urgent vulnerability fix. The original one-key candidate was:
 
-**Assessment**: Technically correct per BIP39 spec. OWASP guidance applies to password storage, not BIP39 seed derivation (different threat model — attacker needs the mnemonic to brute-force, not just the hash). The 2048-iteration count is the BIP39 standard value. No change is required, but the rationale should be documented.
-
-**Recommendation TD-6 (LOW)**: Add a comment to the `PBKDF2_ITERATIONS` constant explaining that 2048 is the BIP39 specification value and that the security property derives from mnemonic entropy (256 bits), not iteration count. This answers future auditor questions.
-
----
-
-### 4.7 P256 `ECNamedCurveSpec` Constructed in `signP256Scalar` and `decodeP256Point` — Minor Inefficiency
-
-**Location**: [`Fido2CryptoService.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/Fido2CryptoService.kt#L330-L341)
-
-**Issue**: `ECNamedCurveSpec` is constructed on every P-256 signing call and in `decodeP256Point`. It wraps `P256Group.G.curve`, `P256Group.G`, `P256Group.ORDER`, and cofactor into a JCA curve spec. This object is immutable and could be a cached companion object constant.
-
-**Recommendation TD-7 (LOW)**: Extract the `ECNamedCurveSpec` construction into a `companion object` constant in `Fido2CryptoService`. This is a minor performance improvement (avoids 2–3 object allocations per signing call) with no security implications.
-
-```kotlin
-private companion object {
-    val EC_CURVE_SPEC = org.bouncycastle.jce.spec.ECNamedCurveSpec(
-        "secp256r1",
-        P256Group.G.curve,
-        P256Group.G,
-        P256Group.ORDER,
-        P256Group.G.curve.cofactor,
-    )
-    // ... existing constants
-}
+```text
+HKDF-Expand(PRK, ASCII("chimali_searchable_metadata_v1"), 32)
 ```
 
----
+This candidate is not a frozen design. Before implementation, decide whether lookup and encryption retain one shared key or receive distinct keys with separate purpose labels. Separate purposes deserve explicit consideration; this assessment does not demonstrate an exploit in the current shared-key use.
 
-### 4.8 `HdkManager.deriveChild` Public Interface Exposes `index: UInt` — Review
+Freeze exact labels, input/output lengths, purpose separation, ownership, and install scope before changing derivation. A changed algorithm produces different keys even if its label is unchanged.
 
-**Location**: [`HdkManager.kt`](file:///d:/octav/source/repos/Chimali/core/security/src/commonMain/kotlin/com/chimali/core/security/api/HdkManager.kt)
+### 5.3 Persistence consequences
 
-**Issue**: The `HdkManager` interface exposes `index: UInt` as a parameter, which allows callers to pass any 32-bit index. In the current production FIDO2 application, only index 0 (`LOCAL_CREDENTIAL_INDEX = 0u` in `Fido2CryptoService`) is ever used. If the application inadvertently called this with a non-zero index, it would silently produce a different child key.
+Replacing the derivation changes both encryption keys and lookup tokens. Previously stored ciphertext can fail authentication and existing indexes can stop matching, even though credential signing derivation remains unchanged.
 
-**Recommendation TD-8 (LOW)**: Consider removing the `index` parameter from `HdkManager.deriveChild` (the public API) and leaving it only on the internal implementation. The index is part of the draft's issuance protocol (to batch credentials from the same parent at an issuer), not of Chimali's local FIDO2 profile. Alternatively, document in the interface KDoc that index 0 is the mandated local value and that other indices are reserved.
+The selected clean-install scope permits a fresh-state implementation. It does not make old persisted state readable or constitute authorization to erase user data. State the fresh-install boundary explicitly; do not add migration, compatibility fallback, or reset workflows as incidental work.
 
-> [!WARNING]
-> Removing the parameter is an API break, but since there are no external callers and this is within the clean-install scope, it is safe to do.
+### 5.4 Required implementation evidence
 
----
+Design decisions must precede implementation; execution evidence must be produced during validation before the change is considered complete:
 
-## 5. Enhancements Aligned with the Draft
+1. Freeze the metadata derivation contract and independently calculate expected outputs for the exact construction.
+2. Exercise provisioning through the production wallet provider using concrete metadata service instances.
+3. Verify encryption/decryption and lookup consistency across wallet reconstruction and application restart using fresh-install state.
+4. Verify failure, cancellation, owner-release, and session-clear cleanup, including owned derived buffers and service key references within documented provider limits.
+5. Preserve root, parent, and credential-branch fixtures and verify affected registration/assertion behavior.
+6. Update focused regression evidence and security-review scope for the changed derivation, following applicable project gates.
 
-### 5.1 Explicit Conformance Statement in Code (Not Just Contract)
+The existing WalletMasterSeedProviderTest uses metadata-service interface mocks. Production provisioning uses concrete-service safe casts, so those mocks bypass actual provisioning. Existing wallet-root tests remain useful regression evidence for their assertions, but cannot alone verify this metadata change. Add coverage using concrete services; it may extend the existing test class or use a separate integration test.
 
-**Issue**: The conformance statement "Chimali's local P-256 profile adapts the scalar mapping and child-key relation in Section 7 of `draft-dijkhuis-hdk-00`..." exists in the contract document but is not referenced from the primary implementation classes.
+## 6. Consolidated recommendation decisions
 
-**Recommendation E-4**: Add a `@see` reference to `HdkP256.kt` pointing to both the contract document and the draft section. This makes auditor traversal from code to specification trivial.
+| ID | Priority/status | Proposed action and boundary |
+| --- | --- | --- |
+| E-1 | Low; documentation only | Explain P-256 cofactor-one membership. The earlier medium-severity finding is withdrawn. |
+| E-2 | Mostly already satisfied | Check existing BRD/TRD software-assurance statements; add wording only if it improves clarity. |
+| E-3 | Low; corrected explanation | Use the bias analysis in §3.5. Preserve the mapping and avoid per-bit or sample-count claims. |
+| E-4 | Low; recommended | Link HdkP256 to draft §7 and the local contract, and parent generation to RFC 9180 §7.1.3. Ensure documentation links resolve. |
+| E-5 | Closed | Actual memory helpers contain no KDF; replace the nonexistent target reference. |
+| TD-1 | Informational; selective documentation | Cross-reference security-review residuals where useful; existing BigInteger limitations remain. |
+| TD-2 | Conditional future work | Require verified effective provider destruction and documented copy limits; no assumed version guarantee. |
+| TD-3 | Medium design follow-up | Specify and separately review metadata KDF standardization, purpose separation, persistence consequences, and verification. |
+| TD-4 | Low; independent documentation | Document the current metadata construction before or independently of TD-3. |
+| TD-5 | Low; documentation | Clarify Ed25519 raw output versus JCA X.509 decoding. Preserve bytes. |
+| TD-6 | Low; documentation | Explain that 2048 is the exact BIP39 count. Preserve parameters. |
+| TD-7 | Low; optional cleanup | Share the public ECNamedCurveSpec across P-256 signing/decoding; keep mutable signature engines operation-local. |
+| TD-8 | Retain API; documentation only | Explain that FIDO2 uses zero and the primitive intentionally accepts all UInt indices. |
 
-```kotlin
-/**
- * Implements Chimali's local P-256 child relation from the byte-only HDK contract.
- *
- * Adapts the scalar mapping and child-key relation in §7 of draft-dijkhuis-hdk-00,
- * substituting a deterministic RFC 5869 local secret for the draft's X25519 shared_secret.
- * This is a local custom protocol; it does not implement the draft's OpenID4VCI issuance flow.
- *
- * @see <a href="https://www.ietf.org/archive/id/draft-dijkhuis-hdk-00.html#section-7">
- *     draft-dijkhuis-hdk-00 §7 P-256 Profile</a>
- * @see contracts/local-key-derivation.md
- */
-```
+TD-7 removes repeated construction of public curve parameters; it is a plausible allocation reduction, not a measured latency result. Verify affected compilation and existing signing/decoding behavior if implemented. Additional performance claims require measurement.
 
----
+## 7. Existing invariants and excluded work
 
-### 5.2 Validate `local_secret` Is Not All-Zero
+Source review and existing test definitions support the following intended invariants; this consolidation does not newly execute or certify them:
 
-**Issue**: The contract states that the `(mod n-1)+1` mapping always produces a non-zero factor regardless of the input. However, it does not address what happens if `local_secret` itself is all-zero (which would happen if HKDF-Expand produces a zero output — theoretically possible but computationally negligible).
+- Canonical SEC1 context framing and nonzero child-factor/scalar relation.
+- RFC 9180 parent labels, suite ID, and inclusive candidate range.
+- Complete decoded credential-ID binding and independent credential expansion labels.
+- Explicit algorithm/profile validation and registered-public-key mismatch rejection before signing.
+- Operation-owned secret cleanup and session-owner/generation fencing within documented runtime limits.
+- Frozen independent fixtures for HKDF, parent generation, and child derivation.
 
-The draft does not define rejection for an all-zero `shared_secret` in the P-256 path, and the contract explicitly states:
+OpenID4VCI request/response flows, ephemeral X25519 exchange, hdk capability metadata, hardware-backed parent migration, issuer batch workflows, and issuance interoperability remain excluded. Mathematical nonzero-index support is retained at the primitive boundary; no production batch API is proposed. Future issuance research remains in the [existing backlog item](backlog/openid4vci-hdk-issuance-investigation.md).
 
-> "Do not invent a rejection rule for an all-zero HKDF output."
+Recovery requires the mnemonic and required credential metadata. No recommendation here introduces old-key support, database conversion, key repair, or re-registration workflows.
 
-**Assessment**: The contract correctly handles this. The `(mod n-1)+1` mapping means even an all-zero input produces a non-zero factor. No validation is needed.
+## 8. Implementation order and completion criteria
 
-**Finding**: ✅ No change needed. Document this reasoning in `HdkP256.deriveChild` KDoc if not already present.
+1. Use this consolidated assessment as the corrected recommendation set. Earlier contradictory severity, formula, attribution, comparative-security, and legal-clearance statements are superseded.
+2. Apply useful source documentation: accurate specification/contract references, cofactor rationale, encoding boundaries, BIP39 parameters, selective erasure-limit references, and the index-policy distinction.
+3. Document the current metadata derivation under TD-4 without waiting for a redesign.
+4. Optionally implement TD-7 as an isolated cleanup and verify affected compilation and signing/decoding behavior.
+5. Design and implement TD-3 separately, with frozen inputs and labels, explicit fresh-install scope, concrete-service verification, and updated review evidence.
+6. Preserve the scalar mapping, BIP39 parameters, valid all-zero local-secret handling, and low-level index API unless a separately specified change deliberately revises the relevant contract.
 
----
+Only this document's consolidation is complete. Proposed source comments, contract amendments, optimizations, and KDF changes are not marked implemented by their acceptance in this assessment.
 
-### 5.3 Consider HKDF-SHA256 for `WalletSessionMemoryManager` (if it exists)
+The plan's T084/T085 performance deferrals, partial SC-007, ASUS waiver, Android 10 verifier limitation, clean-install scope, and exact-source security-review boundaries remain. This consolidation supplies no new independent current-source security acceptance, activation/deployment authorization, or numeric performance-compliance result.
 
-**Location**: [`WalletSessionMemoryManager.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryManager.kt) (referenced but not read)
+## 9. Review provenance
 
-The memory manager may have independent KDF usage. Review it against the unified derivation contract.
-
-**Recommendation E-5**: Audit `WalletSessionMemoryManager.kt` to confirm it uses no independent key derivation not covered by the contract.
-
----
-
-## 6. Summary of Recommendations
-
-| ID | Severity | Category | Description | File(s) |
-|---|---|---|---|---|
-| E-1 | LOW | Documentation | Add comment explaining P-256 cofactor=1 implies subgroup membership | `P256Group.kt` |
-| E-2 | LOW | Documentation | Add explicit "software wallet assurance" label to BRD/TRD | `docs/brd.md`, `docs/trd.md` |
-| E-3 | LOW | Documentation | Quantify scalar bias in KDoc or contract | `HdkP256.kt` or contract |
-| E-4 | LOW | Documentation | Add `@see` draft reference to `HdkP256.kt` | `HdkP256.kt` |
-| E-5 | LOW | Review | Audit `WalletSessionMemoryManager.kt` against unified contract | `WalletSessionMemoryManager.kt` |
-| TD-1 | INFO | Residual | Add `@see security-review.md` cross-reference near `BigInteger` usages | `HdkP256.kt`, `P256Group.kt`, `P256ParentKeyDerivation.kt` |
-| TD-2 | INFO | Future | Track BC `destroy()` for ML-DSA keys | `PostQuantumCrypto.kt` |
-| **TD-3** | **MEDIUM** | **Technical debt** | **Replace ad-hoc `HMAC-SHA512` metadata key derivation with `HKDF-Expand`; update contract** | **`WalletMasterSeedProvider.kt`, contract** |
-| TD-4 | LOW | Documentation | Document metadata key expansion in derivation contract | `contracts/local-key-derivation.md` |
-| TD-5 | LOW | Documentation | Comment Ed25519 encoding boundary in `Fido2CryptoService` | `Fido2CryptoService.kt` |
-| TD-6 | LOW | Documentation | Comment `PBKDF2_ITERATIONS = 2048` as the BIP39 spec value | `Bip39MasterSeedGenerator.kt` |
-| TD-7 | LOW | Performance | Cache `ECNamedCurveSpec` as companion constant | `Fido2CryptoService.kt` |
-| TD-8 | LOW | API | Remove or restrict `index` parameter on `HdkManager.deriveChild` | `HdkManager.kt`, `HdkP256.kt` |
-
----
-
-## 7. Non-Findings (Explicitly Verified Correct)
-
-The following areas were reviewed and found conformant:
-
-- **Factor non-zero guarantee**: `(OS2IP(digest) mod (n−1)) + 1` always in `[1, n−1]`. ✅
-- **Context encoding**: `SEC1_UNCOMPRESSED(pk_parent) || I2OSP(index, 4)`. ✅
-- **Parent sampler range**: Counters 0–255 inclusive. ✅
-- **Suite ID encoding**: `KEM || I2OSP(0x0010, 2)`. ✅
-- **Labeled HKDF extraction**: `HPKE-v1 || suiteId || label || ikm`. ✅
-- **Child public key derived from parent (not G)**: `pk_child = pk_parent * factor`. ✅
-- **Child private scalar**: `sk_child = sk_parent * factor mod n`. ✅
-- **Root PRK derivation**: `HKDF-Extract(ASCII("chimali-local-key-derivation-v1"), BIP39_seed)`. ✅
-- **Credential info framing**: `ASCII(label) || 0x00 || I2OSP(len, 2) || credentialId`. ✅
-- **All credential branches isolated**: P-256, Ed25519, ML-DSA-65 use distinct HKDF labels. ✅
-- **Session ownership and cache erasure**: PRK and parent scalar erased on session clear or last-owner exit. ✅
-- **Independent test vectors**: Frozen in `HdkP256Test`, `HkdfSha256Test`, `P256ParentKeyDerivationTest`. ✅
-- **Algorithm/profile pair validation**: `else -> throw IllegalArgumentException` on unknown pairs. ✅
-- **Public-key mismatch rejection**: `requireRegisteredPublicKeyMatches` rejects before signing. ✅
-
----
-
-## 8. Out-of-Scope Items (Confirmed)
-
-The following items from `draft-dijkhuis-hdk-00` are explicitly not implemented and are not considered gaps:
-
-1. **§5 OpenID4VCI issuance protocol** — X25519 KEM, credential offer, authorization, and proof binding. Tracked in [`docs/backlog/openid4vci-hdk-issuance-investigation.md`](file:///d:/octav/source/repos/Chimali/docs/backlog/openid4vci-hdk-issuance-investigation.md).
-2. **§9 Capability metadata** — `hdk` proof type advertisement in OpenID4VCI metadata.
-3. **§4 Hardware-backed parent** — Android Keystore non-exportable key storage. Acknowledged limitation.
-4. **§6 Batch issuance indexing** — Multiple credentials from one issuer request using index > 0. Only index 0 is used locally.
-5. **§10 Interoperability** — No wire-format interoperability with other HDK implementations is claimed.
-
----
-
-## 9. Supplementary Notes from Full Draft Review
-
-The following items were confirmed from reading the complete draft text:
-
-### 9.1 All-Zero X25519 Output Rejection (§5–§6)
-
-The draft requires:
-> If `shared_secret` is all zero, the Issuer/Wallet MUST reject the request/response.
-
-This applies **only to the X25519 exchange** in the issuance protocol (§5–§6), not to HKDF outputs. Chimali's local profile uses no X25519 exchange. The contract explicitly states:
-
-> "The X25519 all-zero-output rule belongs to the excluded exchange. Do not invent a rejection rule for an all-zero HKDF output."
-
-**Finding**: ✅ Correctly handled. No action needed.
-
-### 9.2 Draft Uses No HKDF in Child Derivation (§7)
-
-The draft's `H(msg) = (OS2IP(SHA-256(msg)) mod (n-1)) + 1` uses SHA-256 directly, not HKDF. Chimali correctly applies this same function with `local_secret` substituted for `shared_secret`. The HKDF usage in Chimali is in the root/parent derivation layer (from BIP39 seed), not in the child derivation formula itself. These are separate concerns and correctly separated in the implementation.
-
-**Finding**: ✅ No confusion between HKDF and SHA-256 layers.
-
-### 9.3 Draft Interoperability Explicitly Not Inherited (§10)
-
-The draft §10 states:
-> Implementations MUST NOT infer HDK support merely from P-256 support.
-
-Chimali's metadata and capability advertisement make no HDK capability claim. The capability metadata extension (`proof_types_supported: {"hdk": {}}`) is not implemented.
-
-**Finding**: ✅ No interoperability claim is made. No action needed.
-
-### 9.4 ECDSA Blinding Alternative (§8.2) — Not Applicable
-
-The draft §8.2 describes an alternative ECDSA signing method that keeps `sk_parent` in the secure area by computing `NONEwithECDSA(sk_parent, I2OSP(z * b⁻¹ mod n, 32))` with `s * b mod n`. This is for hardware-backed wallets where the parent key cannot be exported.
-
-Chimali derives `sk_child` directly in software and signs with it using `SHA256withECDSA`. Since the parent is software-derived and operation-local, this alternative construction is not needed.
-
-> [!NOTE]
-> The draft §8.2 carries an intellectual-property note: this ECDSA construction may be covered by patent claims in some jurisdictions. Since Chimali does not implement this construction, there is no exposure. The standard `sk_child` derivation + direct signing path used by Chimali is not the subject of that note.
-
-**Finding**: ✅ Chimali's signing path avoids the IP-noted construction. No action needed.
-
----
-
-## 10. Priority Order for Implementation
-
-Given the findings above, the recommended implementation order (highest value / lowest risk first):
-
-1. **TD-3** — Replace metadata key HMAC-SHA512 with HKDF-Expand + update contract. *(Medium priority: consistency + auditability)*
-2. **TD-4** — Add metadata key to contract document. *(Should accompany TD-3)*
-3. **E-4** — Add draft `@see` reference to `HdkP256.kt`. *(Low effort, high audit value)*
-4. **E-1, E-3** — Add cofactor and scalar-bias comments. *(Documentation only)*
-5. **E-2** — Add software-assurance label to BRD/TRD. *(Documentation only)*
-6. **TD-7** — Cache `ECNamedCurveSpec`. *(Low effort performance gain)*
-7. **TD-8** — Restrict or remove `index` parameter on `HdkManager`. *(API cleanup, safe in clean-install scope)*
-8. **TD-5, TD-6, TD-1** — Inline documentation improvements. *(Lowest priority)*
+The [corrections response](hdk-conformance-and-enhancements-corrections.md) and [external sustained response](hdk-conformance-enhancements-sustained-response.md) are retained as historical review inputs. Their conflicting or superseded wording must not be treated as a second implementation plan. This consolidated document incorporates the later review fixes: exact bias probabilities and mapping direction, correct parent-generation attribution, scoped verification claims, correct Destroyable inheritance, and explicit separation of proposed edits from completed work.
