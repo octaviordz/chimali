@@ -1,7 +1,8 @@
 # Backlog: Investigate OpenID4VCI and Remote HDK Credential Issuance
 
-**Status**: Open — research required  
+**Status**: Investigation complete — production no-go; feasibility follow-up proposed
 **Created**: 2026-10-14  
+**Investigated**: 2026-10-23
 **Origin**: User-requested follow-up to [055: Local HDK migration](../../specs/055-migrate-hdk-draft/spec.md)  
 **Related analysis**: [Replacement draft and source impact](../../specs/055-migrate-hdk-draft/analysis.md)
 
@@ -39,3 +40,9 @@ Chimali currently provides local credential storage and FIDO2 passkeys. The agre
 - An effort estimate and proposed separate feature specification if implementation is recommended.
 
 Research is complete when each question has an evidence-based answer or a named external dependency, and the recommendation explains the unresolved limits. Any proof of concept must describe its restricted scope; production OpenID4VCI support requires a separate authorized feature.
+
+## Investigation outcome
+
+See the [dated investigation and decision](../research/openid4vci-hdk-issuance-investigation.md) for the source audit, requirements/gaps, assurance decision, lifecycle and recovery proposal, interoperability experiment, effort estimate, and dependency owners.
+
+**Decision**: Do not implement production remote HDK issuance yet. A separately authorized, synthetic-data feasibility feature is proposed. No compatible production issuer, Android protected-child operation evidence, or resolution of the HDK/OpenID4VCI proof-binding gap was established. These are explicit follow-up dependencies, not claims of completed interoperability. This research changed documentation only; feature 055's local passkey profile remains the implementation boundary.
