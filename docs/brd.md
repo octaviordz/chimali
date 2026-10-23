@@ -60,7 +60,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ### 4.5 Human Interface & Accessibility
 - **FR-UI-010: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.
-- **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase).*
+- **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase)*. Technical verification criteria and evaluation procedures are specified in [TRD](trd.md) §9.5 and `.agents/rules/specify-rules.md` §1 under the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0).
 
 ### 4.6 Passkey User Experience (UX) Alignment
 - **FR-UI-020: Standardized Passkey Iconography**: The application shall implement the official FIDO Passkey Icon across all passkey-related screens (registration, authentication, and management) to ensure immediate user recognition and trust, adhering to the FIDO Alliance Design Guidelines.
@@ -105,6 +105,8 @@ The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`
 
 - **NFR-SEC-050: System Clipboard Protection**: Sensitive credential data copied to the system clipboard must be explicitly cleared within 60 seconds of the copy action.
 
+Classified data fields, memory ownership rules, and audited platform UI text boundaries are governed by the canonical registers [Data Classification Register](security/data-classification.md) and [Platform Text Boundary Register](security/platform-text-boundaries.md), synchronized with [TRD](trd.md) §5.1 and `.agents/rules/specify-rules.md` §5.5 under the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0). Historical security review scopes (2026-09-09 Vault remediation and 2026-10-14..16 feature-055 local key derivation) retain their original dated scopes and commit fingerprints without asserting current-source certification.
+
 ### 5.2 Performance & Reliability
 - **NFR-PERF-010: Startup Performance** (Android Vitals Targets):
     - **Cold Start**: < 2 seconds (Time to initial display).
@@ -113,6 +115,7 @@ The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`
 - **NFR-PERF-020: Rendering Smoothness**:
     - Maintain a consistent **60 FPS** (16.6ms per frame) during UI interactions.
     - Zero "Frozen Frames" (render time > 700ms) and < 1% "Slow Frames" (render time > 16ms).
+    - Minimum verification journeys are designated as vault list scrolling and password detail inspection, governed by the measurement-contract requirements in [TRD](trd.md) §9.6 and `.agents/rules/specify-rules.md` §1 under Constitution Principle V (Constitution 4.1.0). General UI rendering smoothness obligations across the entire application remain in full effect.
 - **NFR-PERF-030: Bluetooth HID and Internal FIDO Operation Latency**:
     - RP-to-verified-response end-to-end latency for FIDO2 Bluetooth authenticator ceremonies MUST be **< 1,000ms** on the designated device/workload, excluding only measured user-verification wait.
     - All app-internal FIDO operation processing MUST be **< 200ms**, excluding user-verification wait and Bluetooth response handoff. The internal interval includes operation-specific lookup, derivation, signing, and response construction where applicable.
@@ -170,5 +173,5 @@ The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`
 
 ## 9. Development & Testing Methodology
 - **Test-Driven Development (TDD)**: Implementation should follow TDD principles where feasible to ensure high code quality and reliability.
-- **Integration Testing**: Comprehensive integration tests must be implemented to verify the interaction between components (e.g., Bluetooth HID emulation, Credential Manager, and Encryption layers).
+- **Integration Testing**: Integration verification MUST cover distinct Bluetooth relying party (`FR-HID-010`) and Android Credential Manager (`FR-PASS-010`) entry-path journeys across registration, encrypted persistence, restart/reconstruction, and authentication/retrieval, including the 12 failure categories specified in [TRD](trd.md) §9.4 and `.agents/rules/specify-rules.md` §1. Verification evidence must strictly differentiate host/component test double substitutes from physical device and transport execution, in alignment with the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0).
 - **Unit Testing**: 100% coverage of core business logic (encryption, validation). Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.

@@ -1,32 +1,26 @@
 <!--
 SYNC IMPACT REPORT
-Current amendment: Version 3.1.0 -> 4.0.0 (MAJOR: Refactor constitution to first principles, eliminate overspecification, and relocate implementation details and coding standards).
-Date: 2026-10-19; ratified date retained: 2026-02-19.
+Current amendment: Version 4.0.0 -> 4.1.0 (MINOR: Add verifiable acceptance & evidence clause to Principle V, and synchronize validation, integration, accessibility, rendering, and security register contracts).
+Date: 2026-10-23; ratified date retained: 2026-02-19.
 
 Modified Principles:
-  - System Purpose: Retained core identity.
-  - Principle I (Security First): Condensed multi-mode encryption and memory zeroing to core governance laws; relocated cryptographic implementation minutiae to TRD §5.1 and .agents/rules/specify-rules.md §5.5.
-  - Principle II (Master Seed Architecture): Condensed to root of trust, deterministic local profile laws, and ephemeral key invariants; referenced BRD NFR-SEC-041 and TRD TR-AUTH-031.
-  - Principle III (Performance & Reliability): Relocated exhaustive numeric tables to BRD NFR-PERF-010..070 and lifecycle details to TRD §2.4; retained core Android Vitals & latency governance laws as Principle VI.
-  - Principle IV (Cross-Platform Authenticator): Consolidated into Principle VIII.
-  - Principle V (Inclusion & Accessibility): Consolidated into Principle VIII.
-  - Principle VI (Documentation Standards): Consolidated under Principle VII (Pragmatism & Specification Discipline).
-  - Architecture A-I: Retained as Principle III (Layered Clean Architecture & UDF).
-  - Architecture A-II (Feature Module Architecture): Relocated full dependency matrix to TRD §2.1; retained dependency flow law in Principle III.
-  - Architecture A-III (Module Criticality): Formulated as Principle V (Module Criticality & DO-178B Rigor).
-  - Architecture A-IV (Event Sourcing): Retained as Principle IV (Event Sourcing & Perpetual Auditability); technical snapshot/replay details housed in TRD §2.3.
-  - Technical Constraints: Consolidated into TRD §7 and BRD §7.
-  - ES-I through ES-V (Engineering Standards & Coding Conventions): Relocated to .agents/rules/specify-rules.md §1 through §5.
+  - Principle V (Module Criticality & DO-178B Rigor): Retained existing three bullets (Criticality Classification, DO-178B Traceability, Execution Determinism & Testing Gates); added "Verifiable Acceptance & Evidence" bullet requiring explicit scope, expected outcomes, truthful evidence reporting, and cross-referencing TRD §9 and rules §1.
 
 Added Sections:
-  - Engineering Standards & Conventions reference section linking to .agents/rules/specify-rules.md.
-  - Explicit precedence hierarchy in Governance.
+  - None to constitution body (remains concise).
 
 Removed Sections:
-  - Historical scratch amendment reports (3.1.0, 3.0.0, 2.0.0) removed from constitution body per spec-kit standard.
-  - Redundant technical constraint lists and styling conventions relocated to dedicated documents.
+  - None.
 
-Follow-up TODOs: None.
+Synchronized Authorities & Registers:
+  - docs/brd.md: Added verification references in §4.5 (accessibility deferral), §5.1 (security registers), §5.2 (rendering minimum journeys & budgets), and §9 (integration lifecycle scope).
+  - docs/trd.md: Added §9.1 Verification Evidence Schema & Status Taxonomy, §9.2 Verification Policy Framework & Five-Area Authority Map, §9.3 Validation & Negative-Case Verification Contracts, §9.4 Dual Credential Integration Lifecycle & Failure Matrices, §9.5 Universal Accessibility Verification Procedures, §9.6 Rendering Smoothness Measurement Contract; corrected §6 universal contentDescription rule.
+  - .agents/rules/specify-rules.md: Updated §1 (evidence schema, integration boundaries, accessibility, rendering execution), §5.2 (reconciled Outcome.Failure vs internal assertions, negative testing), §5.5 (security registers).
+  - docs/security/data-classification.md: Canonical register created.
+  - docs/security/platform-text-boundaries.md: Canonical register created.
+  - docs/backlog/constitution-testability-improvements.md: Synchronized delivery references and follow-ups.
+
+Follow-up TODOs: Tracked in specs/057-improve-verification-contracts/follow-ups.md (FUP-SEC-001, FUP-SEC-002, FUP-INT-001, FUP-INT-002, FUP-ACC-001, FUP-PERF-001, FUP-GOV-001).
 -->
 
 # Chimali Constitution
@@ -67,6 +61,7 @@ Chimali is a security-first Android application providing a local-first, encrypt
 - **Criticality Classification**: Code is partitioned into Tier 1 (Critical: `:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`) and Tier 2 (Feature & Infrastructure).
 - **DO-178B Traceability**: Tier 1 code MUST maintain 100% bi-directional requirement traceability. Every public and internal function MUST carry a `@Req` annotation mapping to stable IDs in `docs/brd.md` (`FR-*`) or `docs/trd.md` (`NFR-*`, `TR-*`). Unreferenced dead code is strictly prohibited.
 - **Execution Determinism & Testing Gates**: Hot execution paths MUST avoid dynamic memory allocations. Loops and retries MUST be bounded. Automated CI pipelines MUST enforce test coverage gates: Tier 1 ≥ 40%, Tier 2 ≥ 20%, Global repository floor ≥ 20%. Detailed rules are enforced via `.agents/rules/specify-rules.md` §3.
+- **Verifiable Acceptance & Evidence**: Verification obligations MUST define their assessed scope, expected outcomes, and traceable evidence. Unexecuted, deferred, and unsupported coverage MUST be identified explicitly and MUST NOT be represented as passing. Detailed verification procedures reside in `docs/trd.md` §9 and `.agents/rules/specify-rules.md` §1.
 
 ### VI. Performance Vitals & Resource Budgets
 
@@ -107,4 +102,4 @@ This constitution supersedes all informal conventions and project documentation.
 
 Agents working on this project MUST read this constitution before beginning any speckit workflow step (specify, plan, tasks, implement).
 
-**Version**: 4.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-19
+**Version**: 4.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-23
