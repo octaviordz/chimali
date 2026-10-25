@@ -109,29 +109,63 @@ gradle.projectsEvaluated {
     def reportTasks = []
     def moduleData = []
 
-    def registerReport = { project, String reportName, boolean scoped ->
-        def allTestTasks = project.tasks.withType(Test).findAll { task ->
-            task.name.toLowerCase().contains('test') && !task.name.toLowerCase().contains('compile')
+    def resolveProjectWorkload = { targetProject ->
+        def compilers = []
+        def tests = []
+        def shrunkKotlin = targetProject.tasks.findByName('compileShrunkDebugKotlin')
+        if (shrunkKotlin != null) {
+            compilers.add(shrunkKotlin)
+            def shrunkJava = targetProject.tasks.findByName('compileShrunkDebugJavaWithJavac')
+            if (shrunkJava != null) compilers.add(shrunkJava)
+            def shrunkTest = targetProject.tasks.findByName('testShrunkDebugUnitTest')
+            if (shrunkTest != null) tests.add(shrunkTest)
+            return [compilers: compilers, tests: tests]
         }
-        def preferredTests = allTestTasks.findAll { it.name in ['testAndroidHostTest', 'testDebugUnitTest', 'testShrunkDebugUnitTest'] }
-        def testTasks = preferredTests.isEmpty() ? allTestTasks : preferredTests
+        def androidMain = targetProject.tasks.findByName('compileAndroidMain')
+        if (androidMain != null) {
+            compilers.add(androidMain)
+            def kmpHostTest = targetProject.tasks.findByName('testAndroidHostTest')
+            if (kmpHostTest != null) tests.add(kmpHostTest)
+            def kmpUnitTest = targetProject.tasks.findByName('testDebugUnitTest')
+            if (kmpUnitTest != null && !tests.contains(kmpUnitTest)) tests.add(kmpUnitTest)
+            return [compilers: compilers, tests: tests]
+        }
+        def debugKotlin = targetProject.tasks.findByName('compileDebugKotlin')
+        if (debugKotlin != null) {
+            compilers.add(debugKotlin)
+            def debugJava = targetProject.tasks.findByName('compileDebugJavaWithJavac')
+            if (debugJava != null) compilers.add(debugJava)
+            def unitTest = targetProject.tasks.findByName('testDebugUnitTest')
+            if (unitTest != null) tests.add(unitTest)
+            return [compilers: compilers, tests: tests]
+        }
+        def releaseKotlin = targetProject.tasks.findByName('compileReleaseKotlin')
+        if (releaseKotlin != null) {
+            compilers.add(releaseKotlin)
+            def releaseJava = targetProject.tasks.findByName('compileReleaseJavaWithJavac')
+            if (releaseJava != null) compilers.add(releaseJava)
+            def unitTest = targetProject.tasks.findByName('testReleaseUnitTest')
+            if (unitTest != null) tests.add(unitTest)
+            return [compilers: compilers, tests: tests]
+        }
+        return [compilers: compilers, tests: tests]
+    }
+
+    def registerReport = { project, String reportName, boolean scoped ->
+        def workload = resolveProjectWorkload(project)
+        def testTasks = workload.tests
+        def compilerTasks = workload.compilers
 
         testTasks.each { testTask ->
             testTask.outputs.upToDateWhen { false }
             testTask.mustRunAfter(coveragePrepare)
         }
 
-        def compilerTasks = project.tasks.findAll { task ->
-            task.name ==~ /compile[A-Za-z0-9]*(AndroidMain|MainKotlin|DebugKotlin|DebugJavaWithJavac|ShrunkDebugKotlin|ShrunkDebugJavaWithJavac)/
-        }
-
         def executionFiles = testTasks.collect { task ->
             task.extensions.getByType(org.gradle.testing.jacoco.plugins.JacocoTaskExtension).destinationFile
         }
 
-        def deviceExecutionFiles = root.allprojects.collect { ownerProject ->
-            ownerProject.fileTree(dir: ownerProject.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec'])
-        }
+        def deviceExecutionFiles = project.fileTree(dir: project.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec'])
 
         def classDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
         def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
@@ -183,22 +217,19 @@ gradle.projectsEvaluated {
     def repositorySourceRoots = []
 
     allProductionProjects.each { project ->
-        def tests = project.tasks.withType(Test).findAll { task ->
-            task.name.toLowerCase().contains('test') && !task.name.toLowerCase().contains('compile')
-        }
-        def preferredTests = tests.findAll { it.name in ['testAndroidHostTest', 'testDebugUnitTest', 'testShrunkDebugUnitTest'] }
-        tests = preferredTests.isEmpty() ? tests : preferredTests
-        def compilers = project.tasks.findAll { task ->
-            task.name ==~ /compile[A-Za-z0-9]*(AndroidMain|MainKotlin|DebugKotlin|DebugJavaWithJavac|ShrunkDebugKotlin|ShrunkDebugJavaWithJavac)/
-        }
-        if (compilers.isEmpty()) {
+        def workload = resolveProjectWorkload(project)
+        def tests = workload.tests
+        def compilers = workload.compilers
+        if (compilers.isEmpty() && project.path != ':feature:authenticator') {
             throw new GradleException("Repository aggregate cannot omit ${project.path}: no production compilations discovered")
         }
         repositoryTestTasks.addAll(tests)
         repositoryCompilerTasks.addAll(compilers)
         repositoryExecFiles.addAll(tests.collect { it.extensions.getByType(org.gradle.testing.jacoco.plugins.JacocoTaskExtension).destinationFile })
         repositoryExecFiles.add(project.fileTree(dir: project.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec']))
-        repositoryClassDirs.add([project: project, directories: compilers.collectMany { it.outputs.files.files.toList() }.unique()])
+        if (!compilers.isEmpty()) {
+            repositoryClassDirs.add([project: project, directories: compilers.collectMany { it.outputs.files.files.toList() }.unique()])
+        }
         ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java'].each { path ->
             def sourceRoot = project.file(path)
             if (sourceRoot.exists()) repositorySourceRoots.add(sourceRoot)

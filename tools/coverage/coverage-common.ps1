@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Shared coverage utility functions, schema validators, exact ratio arithmetic,
     and canonical zero-counter proof normalization.
@@ -56,13 +56,18 @@ function Read-SafeXml {
     $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
     $settings.XmlResolver = $null
 
-    $reader = [System.Xml.XmlReader]::Create($Path, $settings)
+    $fileStream = [System.IO.FileStream]::new($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
     try {
-        $doc = [System.Xml.XmlDocument]::new()
-        $doc.Load($reader)
-        return $doc
+        $reader = [System.Xml.XmlReader]::Create($fileStream, $settings)
+        try {
+            $doc = [System.Xml.XmlDocument]::new()
+            $doc.Load($reader)
+            return $doc
+        } finally {
+            $reader.Close()
+        }
     } finally {
-        $reader.Close()
+        $fileStream.Close()
     }
 }
 
