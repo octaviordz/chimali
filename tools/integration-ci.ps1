@@ -109,7 +109,7 @@ if (Test-Path $localCiPath) {
 # 4. Canonical Coverage Capture
 Write-Host "`n[Step 2/3] Capturing candidate coverage..." -ForegroundColor Cyan
 $capturePath = Join-Path $CoverageDir "capture.ps1"
-& pwsh -NoProfile -ExecutionPolicy Bypass -File $capturePath `
+$captureOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File $capturePath `
     -RepositoryRoot $RepositoryRoot `
     -SourceRevision $candidateSha `
     -Purpose "Candidate" `
@@ -118,15 +118,41 @@ $capturePath = Join-Path $CoverageDir "capture.ps1"
     -DeviceSerial $DeviceSerial `
     -OutputRoot $EvidenceRoot
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Coverage capture failed with exit code $LASTEXITCODE"
-    exit $LASTEXITCODE
+$captureExit = $LASTEXITCODE
+if ($captureExit -ne 0) {
+    Write-Error "Coverage capture failed with exit code $captureExit"
+    exit $captureExit
 }
 
-# Find newly created run bundle
-$candidateBundle = Get-ChildItem -Path $EvidenceRoot -Directory | Sort-Object CreationTime -Descending | Select-Object -First 1
-if (-not $candidateBundle) {
-    Write-Error "Candidate run bundle not found in $EvidenceRoot"
+$capturedJson = $null
+foreach ($line in $captureOutput) {
+    Write-Host $line
+    if ($line -like "*[CAPTURE_RESULT]*") {
+        $idx = $line.IndexOf("[CAPTURE_RESULT]")
+        $jsonStr = $line.Substring($idx + "[CAPTURE_RESULT]".Length).Trim()
+        $capturedJson = $jsonStr | ConvertFrom-Json
+    }
+}
+
+if (-not $capturedJson -or -not $capturedJson.run_dir) {
+    Write-Error "Failed to parse [CAPTURE_RESULT] structured output from capture.ps1"
+    exit 2
+}
+
+$candidateBundlePath = $capturedJson.run_dir
+if (-not (Test-Path $candidateBundlePath)) {
+    Write-Error "Candidate run bundle not found: $candidateBundlePath"
+    exit 2
+}
+
+# Validate bundle manifest identities against candidate and target
+$manifest = Read-SafeJson -Path (Join-Path $candidateBundlePath "manifest.json")
+if ($manifest.source_commit -ne $candidateSha) {
+    Write-Error "Run bundle source_commit ($($manifest.source_commit)) does not match candidate SHA ($candidateSha)"
+    exit 2
+}
+if ($manifest.target_commit -and $manifest.target_commit -ne $targetSha) {
+    Write-Error "Run bundle target_commit ($($manifest.target_commit)) does not match target SHA ($targetSha)"
     exit 2
 }
 
@@ -134,20 +160,49 @@ if (-not $candidateBundle) {
 Write-Host "`n[Step 3/3] Verifying candidate decisions..." -ForegroundColor Cyan
 $verifyPath = Join-Path $CoverageDir "verify.ps1"
 $policyPath = Join-Path $CoverageDir "policy.json"
+$assessmentsDir = Join-Path (Join-Path $EvidenceRoot "assessments") $manifest.run_id
+
+$effectiveBaseline = $BaselineBundle
+if (-not $effectiveBaseline) {
+    $localCurrent = Join-Path (Join-Path $EvidenceRoot "baselines") "current.json"
+    if (Test-Path $localCurrent) {
+        $curr = Read-SafeJson -Path $localCurrent
+        if ($curr.target_commit -eq $targetSha -and $curr.bundle_path) {
+            $candidateBaseline = Join-Path $EvidenceRoot $curr.bundle_path
+            if (Test-Path $candidateBaseline) {
+                $effectiveBaseline = $candidateBaseline
+            }
+        }
+    }
+}
 
 $verifyArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", $verifyPath,
-    "-RunBundle", $candidateBundle.FullName,
-    "-PolicyPath", $policyPath
+    "-RunBundle", $candidateBundlePath,
+    "-PolicyPath", $policyPath,
+    "-OutputDirectory", $assessmentsDir
 )
-if ($BaselineBundle) {
-    $verifyArgs += @("-ComparisonBundle", $BaselineBundle)
+if ($effectiveBaseline) {
+    $verifyArgs += @("-ComparisonBundle", $effectiveBaseline)
 }
 
 & pwsh @verifyArgs
 $verifyCode = $LASTEXITCODE
+
+# 6. Revalidate Git Identities Immediately Before Completion
+Push-Location $RepositoryRoot
+try {
+    $postCandidateSha = (git rev-parse $CandidateRef).Trim()
+    $postTargetSha = (git rev-parse $TargetRef).Trim()
+    if ($postCandidateSha -ne $candidateSha -or $postTargetSha -ne $targetSha) {
+        Write-Error "Git head or target advanced during integration verification! Candidate: $postCandidateSha (was $candidateSha), Target: $postTargetSha (was $targetSha)"
+        exit 1
+    }
+} finally {
+    Pop-Location
+}
 
 if ($verifyCode -eq 0) {
     Write-Host "`nIntegration CI verification succeeded locally. Note: Remote hosted check and publication required for merge approval." -ForegroundColor Green

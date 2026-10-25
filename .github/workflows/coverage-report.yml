@@ -15,10 +15,22 @@ jobs:
     runs-on: windows-latest
     environment: coverage-reporting
     steps:
+      - name: Validate workflow run provenance
+        shell: pwsh
+        run: |
+          if ("${{ github.event.workflow_run.event }}" -notin @("pull_request", "merge_group", "push")) {
+            Write-Error "Unsupported triggering event: ${{ github.event.workflow_run.event }}"
+            exit 1
+          }
+          if ("${{ github.event.workflow_run.conclusion }}" -ne "success" -and "${{ github.event.workflow_run.conclusion }}" -ne "failure") {
+            Write-Error "Workflow run conclusion must be completed execution: ${{ github.event.workflow_run.conclusion }}"
+            exit 1
+          }
+
       - name: Checkout trusted default-branch harness
         uses: actions/checkout@v4
         with:
-          ref: lab/or/jpc
+          ref: ${{ vars.TRUSTED_HARNESS_SHA || '9af4b4ab63d42bc2bc6be703d15dc9d5924fcbc7' }}
           path: trusted-harness
 
       - name: Download capture artifact
@@ -40,9 +52,10 @@ jobs:
           $baseSha = "${{ github.event.workflow_run.pull_requests[0].base.sha }}"
           if (-not $baseSha) { $baseSha = $headSha }
 
-          $isDefaultBranch = ($baseSha -eq $headSha -or "${{ github.event.workflow_run.head_branch }}" -in @("main", "lab/or/jpc"))
+          # Strict promotion only on verified post-integration workflow run on default branch
+          $isDefaultBranchPush = ("${{ github.event.workflow_run.event }}" -eq "push" -and "${{ github.event.workflow_run.head_branch }}" -in @("main", "lab/or/jpc"))
           $promoteArgs = @()
-          if ($isDefaultBranch) {
+          if ($isDefaultBranchPush) {
               $promoteArgs += "-PromoteIntegration"
               $promoteArgs += "-IntegratedCommit"
               $promoteArgs += $headSha

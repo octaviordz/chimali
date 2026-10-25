@@ -220,8 +220,12 @@ try {
             Write-Error "IntegratedTree is required when promoting as accepted target"
             exit 1
         }
-        if ($manifest.source_tree -and $manifest.source_tree -ne $IntegratedTree) {
-            Write-Error "Integrated tree does not match tested candidate tree; fresh complete coverage capture required"
+        if (-not $manifest.source_tree) {
+            Write-Error "manifest.source_tree is required in run manifest for promotion"
+            exit 1
+        }
+        if ($manifest.source_tree -ne $IntegratedTree) {
+            Write-Error "Integrated tree ($IntegratedTree) does not match tested candidate tree ($($manifest.source_tree)); fresh complete coverage capture required"
             exit 1
         }
 
@@ -230,8 +234,11 @@ try {
             New-Item -ItemType Directory -Path $baselinesDir -Force | Out-Null
         }
         $acceptedIndex = [PSCustomObject]@{
-            target_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
+            tested_commit = $manifest.source_commit
+            integrated_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
             target_tree = $IntegratedTree
+            tested_tree = $manifest.source_tree
+            target_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
             run_id = $runId
             archive_branch = $EvidenceBranch
             bundle_path = "runs/$runId"

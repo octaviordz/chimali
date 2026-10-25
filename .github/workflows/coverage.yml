@@ -4,10 +4,17 @@ on:
   pull_request:
     branches: ["**"]
   push:
-    branches: ["lab/or/jpc", "codex/*"]
+    branches: ["main", "lab/or/jpc", "codex/*"]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
+
+# Serialize device access across workflows on the runner
+concurrency:
+  group: coverage-runner-device
+  cancel-in-progress: false
 
 jobs:
   capture:
@@ -18,7 +25,14 @@ jobs:
       - name: Checkout candidate source
         uses: actions/checkout@v4
         with:
+          path: candidate
           fetch-depth: 0
+
+      - name: Checkout trusted measurement harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.TRUSTED_HARNESS_SHA || '9af4b4ab63d42bc2bc6be703d15dc9d5924fcbc7' }}
+          path: trusted-harness
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,21 +53,34 @@ jobs:
       - name: Run Coverage Capture
         shell: pwsh
         run: |
-          $targetRef = "${{ github.base_ref }}"
-          if (-not $targetRef) { $targetRef = "HEAD" }
-          pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/capture.ps1 `
-            -RepositoryRoot $PWD.Path `
-            -SourceRevision "${{ github.sha }}" `
-            -Purpose "Candidate" `
-            -TargetRevision $targetRef `
-            -HarnessRoot $PWD.Path `
-            -DeviceSerial "emulator-5554" `
-            -OutputRoot "$env:RUNNER_TEMP/coverage-runs"
+          $headSha = "${{ github.event.pull_request.head.sha || github.sha }}"
+          $baseSha = "${{ github.event.pull_request.base.sha || github.event.before || '' }}"
+          $purpose = if ("${{ github.event_name }}" -eq "pull_request" -or "${{ github.event_name }}" -eq "merge_group") { "Candidate" } else { "Initial" }
+
+          $device = (adb devices | Select-String -Pattern "(\S+)\s+device\b").Matches.Groups[1].Value | Select-Object -First 1
+          if (-not $device) {
+            Write-Error "No connected capable Android device found online."
+            exit 2
+          }
+
+          $captureArgs = @(
+            "-RepositoryRoot", (Get-Item candidate).FullName,
+            "-SourceRevision", $headSha,
+            "-Purpose", $purpose,
+            "-HarnessRoot", (Get-Item trusted-harness).FullName,
+            "-DeviceSerial", $device,
+            "-OutputRoot", "$env:RUNNER_TEMP/coverage-runs"
+          )
+          if ($purpose -eq "Candidate" -and $baseSha) {
+            $captureArgs += @("-TargetRevision", $baseSha)
+          }
+
+          pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/capture.ps1 @captureArgs
 
       - name: Upload Coverage Run Bundle
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-bundle
-          path: |
-            ${{ runner.temp }}/coverage-runs/*
+          path: ${{ runner.temp }}/coverage-runs/*
           retention-days: 14

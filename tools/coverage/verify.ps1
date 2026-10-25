@@ -430,37 +430,105 @@ $regressionPassed = $true
 $regressionStatus = "NotApplicable"
 $comparisonCompatibility = "Missing"
 
+if ($manifest.purpose -eq "Comparison" -or $manifest.purpose -eq "Candidate") {
+    if (-not $ComparisonBundle) {
+        $regressionPassed = $false
+        $regressionStatus = "Failed"
+        $comparisonCompatibility = "Missing"
+        $reasons += "Baseline comparison bundle is required for purpose '$($manifest.purpose)' but was not provided"
+    }
+}
+
 if ($ComparisonBundle) {
     if (-not (Test-Path $ComparisonBundle)) {
         Write-Error "ComparisonBundle directory not found: $ComparisonBundle"
         exit 2
     }
+
+    $compManifestPath = Join-Path $ComparisonBundle "manifest.json"
+    $compManifest = if (Test-Path $compManifestPath) { Read-SafeJson -Path $compManifestPath } else { $null }
+
+    if ($compManifest) {
+        # Check baseline test eligibility
+        if ($compManifest.decisions -and $compManifest.decisions.tests -eq "Failed") {
+            $comparisonCompatibility = "IneligibleBaseline"
+            $regressionPassed = $false
+            $reasons += "Comparison baseline is ineligible because required tests failed in baseline run"
+        }
+
+        # Check policy fingerprint compatibility
+        if ($compManifest.policy_fingerprint -and $manifest.policy_fingerprint -and ($compManifest.policy_fingerprint -ne $manifest.policy_fingerprint)) {
+            $comparisonCompatibility = "Incompatible"
+            $regressionPassed = $false
+            $reasons += "Comparison baseline has incompatible policy fingerprint: $($compManifest.policy_fingerprint) vs $($manifest.policy_fingerprint)"
+        }
+    }
+
     $compCountersPath = Join-Path $ComparisonBundle "counters.json"
     if (-not (Test-Path $compCountersPath)) {
         Write-Error "counters.json not found in ComparisonBundle: $compCountersPath"
         exit 2
     }
     $compCounters = Read-SafeJson -Path $compCountersPath
-    $comparisonCompatibility = "Compatible"
-    $regressionStatus = "Passed"
 
-    # Evaluate regression on Tier 1 modules
-    foreach ($mod in $policy.tier1_modules) {
-        $cMod = $countersData.modules | Where-Object { $_.module_path -eq $mod }
-        $bMod = $compCounters.modules | Where-Object { $_.module_path -eq $mod }
-        if ($cMod -and $bMod) {
-            $regInst = Test-ExactRegressionRatio -CandidateCovered $cMod.instruction.covered -CandidateMissed $cMod.instruction.missed -BaselineCovered $bMod.instruction.covered -BaselineMissed $bMod.instruction.missed
-            if ($regInst.Applicable -and -not $regInst.Passed) {
-                $regressionPassed = $false
-                $reasons += "${mod}: instruction $($regInst.Reason)"
+    if ($comparisonCompatibility -ne "Incompatible" -and $comparisonCompatibility -ne "IneligibleBaseline") {
+        $comparisonCompatibility = "Compatible"
+    }
+
+    # Derive affected Tier 1 modules based on ChangedPathsFile if supplied
+    $affectedTier1 = @($policy.tier1_modules)
+    if ($ChangedPathsFile -and (Test-Path $ChangedPathsFile)) {
+        $changedLines = Get-Content -Path $ChangedPathsFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $sharedRootChange = $false
+        $explicitAffected = @()
+        foreach ($line in $changedLines) {
+            $normLine = $line.Trim().Replace("\", "/")
+            if ($normLine -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/)' -or $normLine -eq "tools/coverage/policy.json") {
+                $sharedRootChange = $true
+                break
             }
-            $regBranch = Test-ExactRegressionRatio -CandidateCovered $cMod.branch.covered -CandidateMissed $cMod.branch.missed -BaselineCovered $bMod.branch.covered -BaselineMissed $bMod.branch.missed
-            if ($regBranch.Applicable -and -not $regBranch.Passed) {
-                $regressionPassed = $false
-                $reasons += "${mod}: branch $($regBranch.Reason)"
+            foreach ($mPath in $policy.tier1_modules) {
+                $dirPrefix = $mPath.Replace(":", "/").TrimStart("/") + "/"
+                if ($normLine.StartsWith($dirPrefix)) {
+                    if ($mPath -notin $explicitAffected) {
+                        $explicitAffected += $mPath
+                    }
+                }
             }
         }
+        if (-not $sharedRootChange) {
+            $affectedTier1 = $explicitAffected
+        }
     }
+
+    $regressionStatus = if ($regressionPassed) { "Passed" } else { "Failed" }
+
+    # Evaluate regression on affected Tier 1 modules
+    foreach ($mod in $affectedTier1) {
+        $cMod = $countersData.modules | Where-Object { $_.module_path -eq $mod }
+        $bMod = $compCounters.modules | Where-Object { $_.module_path -eq $mod }
+        if (-not $cMod) {
+            $regressionPassed = $false
+            $reasons += "${mod}: affected module missing in candidate counters"
+            continue
+        }
+        if (-not $bMod) {
+            # If baseline was empty/unmeasured, evaluate whether candidate gained scope
+            continue
+        }
+
+        $regInst = Test-ExactRegressionRatio -CandidateCovered $cMod.instruction.covered -CandidateMissed $cMod.instruction.missed -BaselineCovered $bMod.instruction.covered -BaselineMissed $bMod.instruction.missed
+        if ($regInst.Applicable -and -not $regInst.Passed) {
+            $regressionPassed = $false
+            $reasons += "${mod}: instruction $($regInst.Reason)"
+        }
+        $regBranch = Test-ExactRegressionRatio -CandidateCovered $cMod.branch.covered -CandidateMissed $cMod.branch.missed -BaselineCovered $bMod.branch.covered -BaselineMissed $bMod.branch.missed
+        if ($regBranch.Applicable -and -not $regBranch.Passed) {
+            $regressionPassed = $false
+            $reasons += "${mod}: branch $($regBranch.Reason)"
+        }
+    }
+
     if (-not $regressionPassed) {
         $regressionStatus = "Failed"
     }
