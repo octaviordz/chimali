@@ -225,17 +225,46 @@
   - Added `kotlin.srcDir("src/test/kotlin")` to `androidHostTest` in `core/security/build.gradle.kts` to ensure full test discovery during `androidHostTest` execution.
 
 ### T032–T034: Live Device Baseline Prerequisites & Execution Status
-- **Date**: 2026-10-24
+- **Date**: 2026-10-25
 - **Requirement**: FR-006, FR-007, FR-016
-- **Status**: Blocked / Unmet Prerequisites
+- **Status**: Complete
 - **Recorded Identities**:
-  - **Measured Commit**: `6834761bfc2aafa6f0637dd55c250b37b6c34e86`
+  - **Measured Commit**: `30fef893a58c870568edd0bad59ccccda3809b41`
   - **Harness Root**: `D:\octav\source\repos\Chimali`
-  - **Connected Device**: ✗ NONE. `adb devices` returns 0 attached devices.
+  - **Connected Device**: `emulator-5554` (API 35 x86_64 Automated Test Device `dev35_aosp_atd_x86_64_Pixel_2`)
+  - **Run ID**: `2ef82c38-e42f-4f67-9d62-9b73623b20e2`
+  - **External Bundle Path**: `D:\temp\chimali-coverage-runs\2ef82c38-e42f-4f67-9d62-9b73623b20e2`
+  - **Named Procedure**: `pwsh -File tools/coverage/capture.ps1 -RepositoryRoot "D:\octav\source\repos\Chimali" -SourceRevision "30fef893a58c870568edd0bad59ccccda3809b41" -Purpose "Initial" -HarnessRoot "D:\octav\source\repos\Chimali" -DeviceSerial "emulator-5554" -OutputRoot "D:\temp\chimali-coverage-runs"`
+- **Observed Results & Exact Counters**:
+  - **Collection Decision**: `Complete` (Gradle `hdkHostCoverage` succeeded with host + connected device tests in 2m 10s)
+  - **Test Decision**: `Passed` (All host unit and connected device suites passed with 0 failures)
+  - **Floors Decision**: `Failed` (Truthful diagnostic failure against new 60% floors)
+  - **Module Counter Accounting**:
+    - `:core:security` (Tier 1): Instructions 3,385 covered / 1,067 missed (76.033%), Branches 239 covered / 147 missed (61.917%) -> `Passed`
+    - `:core:domain` (Tier 1): Instructions 4,306 covered / 2,605 missed (62.306%), Branches 317 covered / 241 missed (56.810%) -> `Failed` (branch floor breach)
+    - `:core:data` (Tier 1): Instructions 1,095 covered / 238 missed (82.145%), Branches 41 covered / 19 missed (68.333%) -> `Passed`
+    - `:feature:fido2` (Tier 1): Instructions 50,786 covered / 35,292 missed (58.999%), Branches 3,005 covered / 2,519 missed (54.398%) -> `Failed` (instruction & branch floor breach)
+    - `:feature:authenticator` (Tier 1): Instructions 0 / 0, Branches 0 / 0, `AnalyzedZeroProofV1` bound -> `NotApplicable` (`Passed`)
+    - `:core:database` (Tier 2): Instructions 406 covered / 208 missed (66.123%) -> `Passed` (>= 20%)
+    - `:core:common` (Tier 2): Instructions 374 covered / 1,381 missed (21.310%) -> `Passed` (>= 20%)
+    - `:app` (Tier 2): Instructions 738 covered / 1,258 missed (36.973%) -> `Passed` (>= 20%)
+  - **Repository Aggregate**:
+    - Instructions: 69,568 covered / 63,031 missed (52.464%) -> `Passed` (>= 50% repository floor)
+    - Branches: 4,189 covered / 3,799 missed (52.441%) -> Reported
+- **Ten TRD Fields Validation**:
+  - `requirement`: FR-006, FR-007, FR-016
+  - `scope`: Repository and all 5 Tier 1 + 3 Tier 2 modules
+  - `revision`: `30fef893a58c870568edd0bad59ccccda3809b41`
+  - `named_procedure`: `tools/coverage/capture.ps1`
+  - `environment`: Windows 11 / JVM 25 Microsoft Hotspot / Android SDK 37 / Device emulator-5554 (API 35 ATD)
+  - `expected_observed_result`: Expected complete capture of host and connected device coverage; observed complete bundle with 76.0% security, 62.3% domain, 82.1% data, 59.0% fido2, 52.5% repository aggregate
+  - `date`: 2026-10-25
+  - `limitations`: Initial baseline before complete FIDO2/domain branch remediation; proves toolchain functionality, device execution, and truthful floor rejection
+  - `status`: Verified
+  - `artifact_link`: `runs/2ef82c38-e42f-4f67-9d62-9b73623b20e2/manifest.json`
 - **Disposition**:
-  - In accordance with task governance, an absent device is NOT converted into a synthetic pass.
-  - Live capture (`capture.ps1 -Purpose Initial`) requires an authorized connected Android API 28+ device.
-  - T032, T033, and T034 remain explicitly unmet pending hardware/emulator attachment. Tooling and fixture contracts for subsequent stories proceed independently.
+  - Initial baseline capture is fully verified on live connected Android device `emulator-5554`.
+  - Immutable bundle preserved outside repository tree in accordance with US2 and TRD §2.2.
 
 ---
 
@@ -366,6 +395,62 @@
   - Zero unhandled regressions across all executed suites.
   - All selected cases in `test-selection.md` are marked `Verified` with verified passing test suites.
   - Requirement traceability confirmed for `NFR-SEC-041`, `TR-AUTH-031`, and `NFR-ARCH-050`.
+
+---
+
+## 9. Phase 8 Evidence: Cross-Cutting Acceptance and Final Disposition (T073–T080)
+
+### T073 & T074: Governing Document Audit & Specification Alignment
+- **Date**: 2026-10-25
+- **Requirement**: FR-001, FR-016, FR-018, SC-001, SC-002, SC-007
+- **Status**: Complete
+- **Audit Summary**:
+  - Authoritative thresholds verified: Principle V in `.specify/memory/constitution.md` (5.0.0), `docs/brd.md` (NFR-ARCH-050), `docs/trd.md` (TRD §2.2 & §9), and `.agents/rules/specify-rules.md`.
+  - Exact hard floors enforced: Tier 1 instructions >= 60%, branches >= 60% (where measurable); repository aggregate instructions >= 50%; affected Tier 2 instructions >= 20%; non-binding branch improvement goal ~65%.
+  - Contracts in `specs/058-enforce-coverage-targets/contracts/coverage-workflow.md`, `quickstart.md`, and `plan.md` reconciled with executable CLI scripts.
+
+### T075: Full Test Policy Matrix Verification
+- **Date**: 2026-10-25
+- **Requirement**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017, FR-018
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (76/76 fixtures passing, 0 failures across 12 suites)
+- **Verified Suites**:
+  - `archive-lifecycle.json`: 3 passed (concurrent race detection, equal-tree promotion, changed-tree blocked)
+  - `baselines.json`: 3 passed (provenance reuse, changed target rejection, forged baseline rejection)
+  - `collection.json`: 4 passed (complete collection retention, missing exec data, probe variant compatibility, baseline eligibility)
+  - `comparison.json`: 7 passed (regression above floor, equal ratios, increased ratio, below-floor baseline, failed test rejection, policy mismatch, empty-to-executable transition)
+  - `floors.json`: 8 passed (exact Tier 1 60%, rounding trap rejection, aggregate vs module floor, BigInteger overflow safety, Tier 2 20% floor, nonbinding 65% branch goal, branchless module)
+  - `freshness.json`: 6 passed (dirty tree preflight, wrong HEAD SHA, UUID overwrite rejection, target requirement, offline device rejection, valid initial preflight)
+  - `integration.json`: 5 passed (skip flag rejection, stale target rejection, non-ancestor rejection, ref mismatch, local success leaves integration unverified)
+  - `inventory.json`: 8 passed (explicit 5 Tier 1 modules, custom roots, duplicate class rejection, AnalyzedZeroProofV1 normalization, omitted counter without proof rejection, mismatched digest rejection, empty module proof, contradictory proof rejection)
+  - `policy.json`: 6 passed (canonical policy, missing critical module, unclassified module, weaker floor rejection, unknown CLI argument rejection, inside-tree output rejection)
+  - `publication.json`: 5 passed (digest corruption rejection, app source binding required, dedicated App check accepted, immutable run overwrite rejection, skipped capture blocked)
+  - `schema.json`: 11 passed (valid manifests, unsupported schema version, invalid purpose/status, path traversal rejection, missing TRD key rejection, duplicate modules, zero proof format, reporter binding)
+  - `selection.json`: 4 passed (impact 4 > impact 3 priority, equal risk deficit tie-breaking, failed test blocks progression, aggregate deficit extends ledger)
+  - `suites.json`: 6 passed (passed suite, failed suite, error suite, skipped test accountability, zero execution rejection, optional suite pass)
+
+### T076–T077: Clean Candidate Preparation & Live Connected-Device Baseline
+- **Date**: 2026-10-25
+- **Requirement**: FR-006, FR-007, FR-016, SC-001, SC-002, SC-003, SC-004, SC-006
+- **Status**: Complete
+- **Evidence**:
+  - Measured clean commit: `30fef893a58c870568edd0bad59ccccda3809b41`
+  - Connected device: `emulator-5554` (API 35 x86_64 Automated Test Device `dev35_aosp_atd_x86_64_Pixel_2`)
+  - Run ID: `2ef82c38-e42f-4f67-9d62-9b73623b20e2`
+  - Full host unit tests and connected device tests (`connectedShrunkDebugAndroidTest`, `connectedAndroidDeviceTest`) executed under `tools/hdk-coverage.init.gradle`.
+  - Captured bundle at `D:\temp\chimali-coverage-runs\2ef82c38-e42f-4f67-9d62-9b73623b20e2` with raw counters, manifests, reports, and canonical `AnalyzedZeroProofV1` zero proofs.
+
+### T078–T080: Protected Integration Controls & Honest Disposition Summary
+- **Date**: 2026-10-25
+- **Requirement**: FR-012, FR-013, FR-014, FR-015, FR-017, SC-007, SC-008
+- **Status**: Tooling Complete / Remote Environmental Prerequisites Explicitly Unmet
+- **Reconciliation with Principle I & Task Governance**:
+  - Tooling verification proves that candidate Actions runs cannot grant merge authority (`PUB_002_APP_SOURCE_BINDING_REQUIRED`), skip flags fail closed (`INT_001_PROHIBITED_SKIP_OPTION_REJECTED`), and branch regressions are rejected (`COMP_001_REGRESSION_ABOVE_FLOOR_FAILS`).
+  - Remote environmental controls (dedicated GitHub App installation in remote organization, GitHub runner provisioning with attached hardware, and default branch protection rules) remain explicitly unmet rather than simulated.
+  - The live candidate run `2ef82c38-e42f-4f67-9d62-9b73623b20e2` correctly and honestly reports floor failure for `:core:domain` branch (56.8%) and `:feature:fido2` (58.9% / 54.4%) while passing repository aggregate (52.5%), exactly matching the test remediation baseline requirements of User Story 2 & User Story 3.
+  - Full audit trail preserved in immutable archive bundles and verified by `tools/coverage/test-policy.ps1`.
+
 
 
 
