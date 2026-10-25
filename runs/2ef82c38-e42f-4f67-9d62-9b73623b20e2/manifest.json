@@ -1,0 +1,162 @@
+{
+  "run_id": "2ef82c38-e42f-4f67-9d62-9b73623b20e2",
+  "schema_version": "1.0",
+  "policy_id": "chimali-coverage-v1",
+  "purpose": "Initial",
+  "timestamps": {
+    "start_utc": "2026-10-25T05:18:37Z",
+    "end_utc": "2026-10-25T05:20:47Z",
+    "display_date": "2026-10-24 23:20:48 -06:00"
+  },
+  "git": {
+    "source_commit": "30fef893a58c870568edd0bad59ccccda3809b41",
+    "source_tree": "0d532288a655105fc6dbe28f516ad94e5f72b04f",
+    "target_commit": "",
+    "clean_preflight": true,
+    "clean_postflight": true
+  },
+  "device": {
+    "device_serial": "emulator-5554",
+    "device_online": true
+  },
+  "decisions": {
+    "collection": "Complete",
+    "tests": "Passed",
+    "floors": "Unverified",
+    "comparison_compatibility": "Missing",
+    "regression": "NotApplicable",
+    "publication": "Pending",
+    "integration": "Unverified"
+  },
+  "evidence_records": [
+    {
+      "requirement": "FR-006",
+      "scope": ":core:security",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 3385 covered / 1067 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/core-security.xml"
+    },
+    {
+      "requirement": "NFR-SEC-041",
+      "scope": ":core:domain",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 4306 covered / 2605 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/core-domain.xml"
+    },
+    {
+      "requirement": "NFR-ARCH-050",
+      "scope": ":core:data",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 1095 covered / 238 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/core-data.xml"
+    },
+    {
+      "requirement": "TR-AUTH-031",
+      "scope": ":feature:fido2",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 50786 covered / 35292 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/feature-fido2.xml"
+    },
+    {
+      "requirement": "FR-001",
+      "scope": ":feature:authenticator",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 0 covered / 0 missed; disposition NotApplicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/feature-authenticator.xml"
+    },
+    {
+      "requirement": "FR-001",
+      "scope": ":core:database",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 406 covered / 208 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/core-database.xml"
+    },
+    {
+      "requirement": "FR-001",
+      "scope": ":core:common",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 374 covered / 1381 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/core-common.xml"
+    },
+    {
+      "requirement": "FR-001",
+      "scope": ":app",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Captured coverage: instructions 738 covered / 1258 missed; disposition Applicable",
+      "date": "2026-10-24",
+      "limitations": "Host unit and connected tests executed with JaCoCo 0.8.15",
+      "status": "Passed",
+      "artifact_link": "reports/modules/app.xml"
+    },
+    {
+      "requirement": "FR-001",
+      "scope": ":repository",
+      "revision": "30fef893a58c870568edd0bad59ccccda3809b41",
+      "named_procedure": "hdkHostCoverage",
+      "environment": "Windows 11 / JVM 25 / Android SDK 37 / Device emulator-5554",
+      "expected_observed_result": "Repository aggregate: instructions 69568 covered / 63031 missed",
+      "date": "2026-10-24",
+      "limitations": "Repository aggregate over all production projects",
+      "status": "Passed",
+      "artifact_link": "reports/repository.xml"
+    }
+  ],
+  "zero_count_proofs": [
+    {
+      "normalization_rule": "AnalyzedZeroProofV1",
+      "module_path": ":feature:authenticator",
+      "analyzer_identity": "jacoco-0.8.15",
+      "report_file": "reports/modules/feature-authenticator.xml",
+      "report_digest": "",
+      "counters": {
+        "INSTRUCTION": {
+          "covered": 0,
+          "missed": 0,
+          "total": 0
+        },
+        "BRANCH": {
+          "covered": 0,
+          "missed": 0,
+          "total": 0
+        }
+      }
+    }
+  ]
+}

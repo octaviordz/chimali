@@ -1,0 +1,15 @@
+{
+  "run_id": "2ef82c38-e42f-4f67-9d62-9b73623b20e2",
+  "schema_version": "1.0",
+  "publication_purpose": "Initial",
+  "published_at": "2026-10-25T05:21:38Z",
+  "archive_branch": "codex/coverage-evidence",
+  "archive_commit": "dry-run-simulated-commit",
+  "bundle_digest": "025f6b16e70b10bf1b1749c4dabeae76a0ad53bb025c2bbf4ccb7b97503f991b",
+  "status": "Published",
+  "artifacts": {
+    "manifest": "runs/2ef82c38-e42f-4f67-9d62-9b73623b20e2/manifest.json",
+    "counters": "runs/2ef82c38-e42f-4f67-9d62-9b73623b20e2/counters.json",
+    "summary": "runs/2ef82c38-e42f-4f67-9d62-9b73623b20e2/summary.md"
+  }
+}

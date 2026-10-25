@@ -1,0 +1,161 @@
+{
+  "run_id": "2ef82c38-e42f-4f67-9d62-9b73623b20e2",
+  "policy_id": "chimali-coverage-v1",
+  "evaluated_at": "2026-10-25T05:21:12Z",
+  "decisions": {
+    "collection": "Complete",
+    "tests": "Passed",
+    "floors": "Failed",
+    "comparison_compatibility": "Missing",
+    "regression": "NotApplicable",
+    "publication": "Pending",
+    "integration": "Failed"
+  },
+  "overall_passed": false,
+  "unmet_reasons": [
+    ":core:domain: branch ",
+    ":feature:fido2: instruction ",
+    ":feature:fido2: branch "
+  ],
+  "modules": [
+    {
+      "Module": ":core:security",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 76.033,
+        "Covered": 3385,
+        "Passed": true,
+        "Missed": 1067
+      },
+      "Branch": {
+        "Percent": 61.917,
+        "Covered": 239,
+        "Passed": true,
+        "Applicable": true,
+        "Missed": 147
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:domain",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 62.306,
+        "Covered": 4306,
+        "Passed": true,
+        "Missed": 2605
+      },
+      "Branch": {
+        "Percent": 56.81,
+        "Covered": 317,
+        "Passed": false,
+        "Applicable": true,
+        "Missed": 241
+      },
+      "Status": "Failed"
+    },
+    {
+      "Module": ":core:data",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 82.146,
+        "Covered": 1095,
+        "Passed": true,
+        "Missed": 238
+      },
+      "Branch": {
+        "Percent": 68.333,
+        "Covered": 41,
+        "Passed": true,
+        "Applicable": true,
+        "Missed": 19
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:fido2",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 59.0,
+        "Covered": 50786,
+        "Passed": false,
+        "Missed": 35292
+      },
+      "Branch": {
+        "Percent": 54.399,
+        "Covered": 3005,
+        "Passed": false,
+        "Applicable": true,
+        "Missed": 2519
+      },
+      "Status": "Failed"
+    },
+    {
+      "Module": ":feature:authenticator",
+      "Tier": 1,
+      "Disposition": "NotApplicable",
+      "Status": "Passed",
+      "Reason": "Verified no executable production instructions"
+    },
+    {
+      "Module": ":core:database",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 66.124,
+        "Covered": 406,
+        "Passed": true,
+        "Missed": 208
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 19,
+        "Missed": 17
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:common",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 21.311,
+        "Covered": 374,
+        "Passed": true,
+        "Missed": 1381
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 8,
+        "Missed": 50
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":app",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": 36.974,
+        "Covered": 738,
+        "Passed": true,
+        "Missed": 1258
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 28,
+        "Missed": 67
+      },
+      "Status": "Passed"
+    }
+  ],
+  "repository": {
+    "InstructionPercent": 52.465,
+    "Passed": true,
+    "Reason": "Meets floor 50%"
+  }
+}

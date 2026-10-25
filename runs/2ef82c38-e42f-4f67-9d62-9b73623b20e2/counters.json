@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "chimali-coverage-v1",
+  "modules": [
+    {
+      "module_path": ":core:security",
+      "tier": 1,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 3385,
+        "missed": 1067
+      },
+      "branch": {
+        "covered": 239,
+        "missed": 147
+      }
+    },
+    {
+      "module_path": ":core:domain",
+      "tier": 1,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 4306,
+        "missed": 2605
+      },
+      "branch": {
+        "covered": 317,
+        "missed": 241
+      }
+    },
+    {
+      "module_path": ":core:data",
+      "tier": 1,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 1095,
+        "missed": 238
+      },
+      "branch": {
+        "covered": 41,
+        "missed": 19
+      }
+    },
+    {
+      "module_path": ":feature:fido2",
+      "tier": 1,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 50786,
+        "missed": 35292
+      },
+      "branch": {
+        "covered": 3005,
+        "missed": 2519
+      }
+    },
+    {
+      "module_path": ":feature:authenticator",
+      "tier": 1,
+      "disposition": "NotApplicable",
+      "instruction": {
+        "covered": 0,
+        "missed": 0
+      },
+      "branch": {
+        "covered": 0,
+        "missed": 0
+      }
+    },
+    {
+      "module_path": ":core:database",
+      "tier": 2,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 406,
+        "missed": 208
+      },
+      "branch": {
+        "covered": 19,
+        "missed": 17
+      }
+    },
+    {
+      "module_path": ":core:common",
+      "tier": 2,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 374,
+        "missed": 1381
+      },
+      "branch": {
+        "covered": 8,
+        "missed": 50
+      }
+    },
+    {
+      "module_path": ":app",
+      "tier": 2,
+      "disposition": "Applicable",
+      "instruction": {
+        "covered": 738,
+        "missed": 1258
+      },
+      "branch": {
+        "covered": 28,
+        "missed": 67
+      }
+    }
+  ],
+  "repository": {
+    "instruction": {
+      "covered": 69568,
+      "missed": 63031
+    },
+    "branch": {
+      "covered": 4189,
+      "missed": 3799
+    }
+  }
+}
