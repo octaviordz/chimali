@@ -561,6 +561,7 @@ function Test-SuiteOutcome {
         Status = $status
         Executed = $executed
         Reasons = $reasons
+        Passed = ($status -eq "Passed")
     }
 }
 

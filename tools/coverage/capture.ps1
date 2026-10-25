@@ -494,7 +494,7 @@ try {
 $suiteFailures = @()
 foreach ($s in $suitesList) {
     $eval = Test-SuiteOutcome -SuiteResult $s
-    if (-not $eval.Passed) {
+    if ($eval.Status -ne "Passed") {
         $suiteFailures += "$($s.suite_name): $($eval.Reasons -join ', ')"
     }
 }
