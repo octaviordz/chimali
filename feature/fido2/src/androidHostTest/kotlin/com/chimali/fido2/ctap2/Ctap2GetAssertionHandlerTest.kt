@@ -1,6 +1,7 @@
 package com.chimali.fido2.ctap2
 
 import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.valueobject.CredentialId
@@ -9,14 +10,18 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
 import com.chimali.fido2.domain.model.PrfExtensionOutput
 import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
 import com.chimali.fido2.testing.testCredentialIdFromLabel
+import com.chimali.core.domain.valueobject.UserId
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -128,6 +133,132 @@ class Ctap2GetAssertionHandlerTest {
 
             assertEquals(0x12.toByte(), handler.handle(cid, requestBytes).single().first())
             coVerify(exactly = 0) { getAssertionUseCase.findCandidateSummaries(any()) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `busy ceremony rejects request before decoding or credential lookup`() =
+        runTest {
+            every { ceremonyLock.tryLock() } returns false
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            assertEquals(0x06.toByte(), handler.handle(cid, requestBytes).single().first())
+            coVerify(exactly = 0) { cborCodec.decodeSensitiveRequest(any()) }
+            coVerify(exactly = 0) { getAssertionUseCase.findCandidateSummaries(any()) }
+            coVerify(exactly = 0) { ceremonyLock.unlock() }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `maps domain failures to their protocol status and fail-closed fallback`() =
+        runTest {
+            val summary =
+                mockk<CredentialSummary> {
+                    every { eraseSensitiveText() } returns Unit
+                    every { credProtectPolicy } returns 1
+                }
+            every { cborCodec.decodeFromFido2Format(any()) } returns
+                mapOf("1" to "example.com", "2" to ByteArray(32))
+            coEvery { getAssertionUseCase.findCandidateSummaries(any()) } returns listOf(summary)
+            coEvery { getAssertionUseCase.invokeHeadless(any(), listOf(summary)) } returnsMany
+                listOf(
+                    Outcome.Error(DomainError.NotFound("synthetic missing credential")),
+                    Outcome.Error(DomainError.OperationDenied("synthetic consent rejection")),
+                    Outcome.Error(DomainError.ValidationError("synthetic unexpected failure")),
+                )
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            val statuses = List(3) { handler.handle(cid, requestBytes).single().first() }
+
+            assertEquals(listOf(0x2E.toByte(), 0x29.toByte(), 0x7F.toByte()), statuses)
+            coVerify(exactly = 3) { summary.eraseSensitiveText() }
+            coVerify(exactly = 3) { ceremonyLock.unlock() }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `maps decoder exceptions to invalid-CBOR or processing statuses`() =
+        runTest {
+            val exceptions =
+                listOf(
+                    Fido2Exception.InvalidFormatException("synthetic malformed CBOR"),
+                    Fido2Exception.InvalidParameter("synthetic invalid parameter"),
+                    Fido2Exception.InvalidFormatException("synthetic unexpected format"),
+                    java.io.IOException("synthetic transport failure"),
+                    IllegalArgumentException("synthetic argument failure"),
+                    IllegalStateException("synthetic state failure"),
+                )
+            every { cborCodec.decodeSensitiveRequest(any()) } throwsMany exceptions
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            val statuses = List(exceptions.size) { handler.handle(cid, requestBytes).single().first() }
+
+            assertEquals(
+                listOf(0x12.toByte(), 0x12.toByte(), 0x12.toByte(), 0x7F.toByte(), 0x7F.toByte(), 0x7F.toByte()),
+                statuses,
+            )
+            coVerify(exactly = exceptions.size) { ceremonyLock.unlock() }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `encodes credential user entity and matching credential count in assertion response`() =
+        runTest {
+            val summary =
+                mockk<CredentialSummary> {
+                    every { eraseSensitiveText() } returns Unit
+                    every { credProtectPolicy } returns 1
+                }
+            val credential =
+                PublicKeyCredentialDescriptor.create(
+                    id = testCredentialIdFromLabel("ctap-selected-credential"),
+                )
+            val user =
+                mockk<PublicKeyCredentialUserEntity> {
+                    every { id } returns UserId("synthetic-user")
+                    every { name } returns "synthetic-name"
+                    every { displayName } returns ""
+                }
+            val assertion =
+                AssertionObject(
+                    credential = credential,
+                    authData = ByteArray(37) { 0x21 },
+                    signature = byteArrayOf(0x31, 0x32),
+                    user = user,
+                    numberOfCredentials = 2,
+                )
+            val responseFields = mutableMapOf<String, Any>()
+            every { cborCodec.decodeFromFido2Format(any()) } returns
+                mapOf("1" to "example.com", "2" to ByteArray(32))
+            coEvery { getAssertionUseCase.findCandidateSummaries(any()) } returns listOf(summary)
+            coEvery { getAssertionUseCase.invokeHeadless(any(), listOf(summary)) } returns Outcome.Success(assertion)
+            every { cborCodec.encodeToFido2Format(any()) } answers {
+                responseFields.putAll(firstArg<Map<String, Any>>())
+                byteArrayOf(0x44)
+            }
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload.copyOf())
+            }
+
+            val response = handler.handle(cid, requestBytes).single()
+
+            assertEquals(setOf("1", "2", "3", "4", "5"), responseFields.keys)
+            assertEquals(2, responseFields["5"])
+            assertEquals("public-key", (responseFields["1"] as Map<*, *>)["type"])
+            assertEquals("synthetic-user", (responseFields["4"] as Map<*, *>)["id"])
+            assertEquals("synthetic-name", (responseFields["4"] as Map<*, *>)["displayName"])
+            assertEquals(0x00.toByte(), response.first())
+            response.fill(0)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

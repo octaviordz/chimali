@@ -151,9 +151,10 @@ class UserConsentRecordBehaviorTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `diagnostics redact metadata and equals hashCode work on record fields`() {
-        val consent1 = record(id = "rec-1", rpId = "https://site1.com")
-        val consent2 = record(id = "rec-1", rpId = "https://site1.com")
-        val consent3 = record(id = "rec-2", rpId = "https://site2.com")
+        val timestamp = Clock.System.now()
+        val consent1 = record(id = "rec-1", rpId = "https://site1.com", timestamp = timestamp)
+        val consent2 = record(id = "rec-1", rpId = "https://site1.com", timestamp = timestamp)
+        val consent3 = record(id = "rec-2", rpId = "https://site2.com", timestamp = timestamp)
 
         assertEquals("UserConsentRecord([sensitive metadata redacted])", consent1.toString())
         assertEquals(consent1, consent2)
