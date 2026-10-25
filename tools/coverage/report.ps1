@@ -82,10 +82,11 @@ $policyPath = Join-Path $ScriptDir "policy.json"
 $verifyScript = Join-Path $ScriptDir "verify.ps1"
 
 # 2. Execute verification using trusted verify.ps1
-$verifyOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verifyScript -RunBundle $RunBundle -PolicyPath $policyPath
+$assessmentsDir = Join-Path (Split-Path -Parent $RunBundle) "assessments" $manifest.run_id
+$verifyOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verifyScript -RunBundle $RunBundle -PolicyPath $policyPath -OutputDirectory $assessmentsDir
 $verifyCode = $LASTEXITCODE
 
-$decisionJsonPath = Join-Path $RunBundle "decision.json"
+$decisionJsonPath = Join-Path $assessmentsDir "decision.json"
 $decision = if (Test-Path $decisionJsonPath) { Read-SafeJson -Path $decisionJsonPath } else { $null }
 
 $checkConclusion = if ($verifyCode -eq 0 -and $decision -and $decision.overall_passed) {

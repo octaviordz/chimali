@@ -398,6 +398,10 @@ function Test-ManifestSchema {
         $errors += "Invalid purpose: $($Manifest.purpose)"
     }
 
+    if (-not $Manifest.run_id -or ($Manifest.run_id -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')) {
+        $errors += "Invalid or missing run_id: $($Manifest.run_id)"
+    }
+
     if ($Manifest.decisions) {
         foreach ($dim in $global:DECISION_STATES.Keys) {
             $val = $Manifest.decisions.$dim
@@ -419,6 +423,27 @@ function Test-ManifestSchema {
                 if ($link -match "\.\." -or [System.IO.Path]::IsPathRooted($link)) {
                     $errors += "Malformed or escaping artifact path: $link"
                 }
+            }
+        }
+    }
+
+    if ($Manifest.artifacts) {
+        foreach ($art in $Manifest.artifacts) {
+            if (-not $art.path) {
+                $errors += "Artifact entry missing path"
+            } elseif ($art.path -match "\.\." -or [System.IO.Path]::IsPathRooted($art.path)) {
+                $errors += "Malformed or escaping artifact path: $($art.path)"
+            }
+        }
+    }
+
+    if ($Manifest.suites) {
+        foreach ($s in $Manifest.suites) {
+            if (-not $s.suite_name) {
+                $errors += "Suite result missing suite_name"
+            }
+            if ($s.tests -and [int]$s.tests -lt 0) {
+                $errors += "Suite $($s.suite_name) has negative tests count"
             }
         }
     }

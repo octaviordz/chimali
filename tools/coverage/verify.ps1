@@ -4,7 +4,8 @@
 .DESCRIPTION
     Validates manifest and counter data, calculates exact integer ratios for Tier 1
     (60% instructions, 60% branches where measurable), repository aggregate (50%),
-    and Tier 2 (20%). Produces decision.json and decision.md.
+    and Tier 2 (20%). Enforces suite outcomes, artifact integrity, zero proofs,
+    retained compiled scope, and writes immutable assessment records outside the sealed bundle.
 .PARAMETER RunBundle
     Absolute path to the captured run bundle directory.
 .PARAMETER ComparisonBundle
@@ -15,6 +16,9 @@
     Optional path to a file listing changed paths for regression scoping.
 .PARAMETER OutputDirectory
     Optional path to directory where decision.json and decision.md will be written.
+    Cannot be located inside the RunBundle.
+.PARAMETER Force
+    Allow overwriting an existing decision record in OutputDirectory.
 #>
 [CmdletBinding()]
 param(
@@ -31,7 +35,10 @@ param(
     [string]$ChangedPathsFile,
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,16 +68,6 @@ if (-not [System.IO.Path]::IsPathRooted($PolicyPath)) {
 if (-not (Test-Path $PolicyPath)) {
     Write-Error "PolicyPath file not found: $PolicyPath"
     exit 3
-}
-
-$targetOutDir = if ($OutputDirectory) {
-    if (-not [System.IO.Path]::IsPathRooted($OutputDirectory)) {
-        Write-Error "OutputDirectory must be an absolute path: $OutputDirectory"
-        exit 3
-    }
-    $OutputDirectory
-} else {
-    $RunBundle
 }
 
 # 1. Load and Validate Policy
@@ -105,7 +102,103 @@ try {
     exit 3
 }
 
-# 3. Load Canonical Counters
+# 3. Output Directory Enforcement (Outside Sealed Bundle & No Silent Overwrite)
+$bundleParent = Split-Path -Parent $RunBundle
+$targetOutDir = if ($OutputDirectory) {
+    if (-not [System.IO.Path]::IsPathRooted($OutputDirectory)) {
+        Write-Error "OutputDirectory must be an absolute path: $OutputDirectory"
+        exit 3
+    }
+    $OutputDirectory
+} else {
+    Join-Path $bundleParent "assessments" $manifest.run_id
+}
+
+$canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
+$canonicalOut = [System.IO.Path]::GetFullPath($targetOutDir).TrimEnd('\', '/')
+if ($canonicalOut -eq $canonicalBundle -or $canonicalOut.StartsWith($canonicalBundle + [System.IO.Path]::DirectorySeparatorChar)) {
+    Write-Error "Assessment receipts cannot be written inside sealed capture bundle: $RunBundle"
+    exit 3
+}
+
+if (-not (Test-Path $targetOutDir)) {
+    New-Item -ItemType Directory -Path $targetOutDir -Force | Out-Null
+}
+
+$decisionJsonPath = Join-Path $targetOutDir "decision.json"
+if ((Test-Path $decisionJsonPath) -and (-not $Force)) {
+    Write-Error "Assessment receipt already exists at $decisionJsonPath; silent overwrite prohibited"
+    exit 3
+}
+
+$reasons = @()
+
+# 4. Verify Artifact Paths & Digests
+if ($manifest.artifacts) {
+    foreach ($art in $manifest.artifacts) {
+        if (-not $art.path) {
+            $reasons += "Manifest artifact entry missing path"
+            continue
+        }
+        if ($art.path -match "\.\." -or [System.IO.Path]::IsPathRooted($art.path)) {
+            $reasons += "Manifest artifact path is escaping or rooted: $($art.path)"
+            continue
+        }
+        $artFullPath = Join-Path $RunBundle $art.path
+        if (-not (Test-Path $artFullPath)) {
+            $reasons += "Manifest artifact not found on disk: $($art.path)"
+            continue
+        }
+        if ($art.sha256) {
+            $computedHash = Get-FileSha256 -Path $artFullPath
+            if ($computedHash -ne $art.sha256.ToLower()) {
+                $reasons += "Manifest artifact digest mismatch for $($art.path): expected $($art.sha256), observed $computedHash"
+            }
+        }
+    }
+}
+
+# 5. Verify Test Suites and Execution Outcomes (Do not trust manifest Passed blindly)
+$suitesPassed = $true
+if ($manifest.suites -and $manifest.suites.Count -gt 0) {
+    foreach ($s in $manifest.suites) {
+        $sOutcome = Test-SuiteOutcome -SuiteResult $s
+        if ($sOutcome.Status -ne "Passed") {
+            $suitesPassed = $false
+            $reasons += "Test suite $($s.suite_name): $($sOutcome.Reasons -join '; ')"
+        }
+    }
+}
+
+$finalTestsStatus = if (-not $suitesPassed) {
+    "Failed"
+} elseif ($manifest.decisions -and $manifest.decisions.tests) {
+    $manifest.decisions.tests
+} else {
+    "Unverified"
+}
+
+if ($finalTestsStatus -ne "Passed") {
+    $reasons += "Required tests are not passed: status is $finalTestsStatus"
+}
+
+# 6. Verify Collection Completeness
+$finalCollectionStatus = if ($manifest.decisions -and $manifest.decisions.collection) {
+    $manifest.decisions.collection
+} else {
+    "Incomplete"
+}
+
+if ($manifest.git -and ($manifest.git.clean_postflight -eq $false)) {
+    $finalCollectionStatus = "Incomplete"
+    $reasons += "Working tree was modified during collection (clean_postflight is false)"
+}
+
+if ($finalCollectionStatus -ne "Complete") {
+    $reasons += "Collection is incomplete: status is $finalCollectionStatus"
+}
+
+# 7. Load and Verify Canonical Counters against Reports & Proofs
 $countersPath = Join-Path $RunBundle "counters.json"
 $countersData = $null
 if (Test-Path $countersPath) {
@@ -115,9 +208,10 @@ if (Test-Path $countersPath) {
         Write-Error "Failed to read counters.json: $_"
         exit 2
     }
+} else {
+    $reasons += "counters.json missing from run bundle"
 }
 
-$reasons = @()
 $floorPassed = $true
 $moduleDecisions = @()
 
@@ -141,23 +235,98 @@ foreach ($modPath in $policy.tier1_modules) {
         continue
     }
 
+    # Locate Module XML report if present in RunBundle
+    $cleanModName = $modPath.Replace(":", "_").TrimStart("_")
+    $modXmlCandidatePaths = @(
+        (Join-Path $RunBundle "reports" "$cleanModName.xml"),
+        (Join-Path $RunBundle "reports" "modules" "$cleanModName.xml"),
+        (Join-Path $RunBundle "reports" $cleanModName "jacoco.xml")
+    )
+    $modXmlPath = $null
+    foreach ($candidate in $modXmlCandidatePaths) {
+        if (Test-Path $candidate) {
+            $modXmlPath = $candidate
+            break
+        }
+    }
+
+    # If XML report exists, verify report level counters match counters.json
+    $xmlDoc = $null
+    $xmlHash = $null
+    if ($modXmlPath) {
+        try {
+            $xmlDoc = Read-SafeXml -Path $modXmlPath
+            $xmlHash = Get-FileSha256 -Path $modXmlPath
+        } catch {
+            $reasons += "${modPath}: failed to read XML report at ${modXmlPath}: $_"
+        }
+    }
+
     $instCov = $modCounters.instruction.covered
     $instMis = $modCounters.instruction.missed
     $instTot = [System.Numerics.BigInteger]::Parse($instCov.ToString()) + [System.Numerics.BigInteger]::Parse($instMis.ToString())
 
-    if ($instTot -eq [System.Numerics.BigInteger]::Zero) {
-        # Check if verified empty
-        $isEvidencedEmpty = ($modCounters.disposition -eq "NotApplicable")
-        $moduleDecisions += [PSCustomObject]@{
-            Module = $modPath
-            Tier = 1
-            Disposition = "NotApplicable"
-            Status = if ($isEvidencedEmpty) { "Passed" } else { "Failed" }
-            Reason = if ($isEvidencedEmpty) { "Verified no executable production instructions" } else { "Empty instructions without valid NotApplicable disposition" }
+    $branchCov = $modCounters.branch.covered
+    $branchMis = $modCounters.branch.missed
+    $branchTot = [System.Numerics.BigInteger]::Parse($branchCov.ToString()) + [System.Numerics.BigInteger]::Parse($branchMis.ToString())
+
+    # Verify XML agreement if report exists
+    if ($xmlDoc -and $xmlDoc.report) {
+        $xmlInstNode = $xmlDoc.report.SelectSingleNode("counter[@type='INSTRUCTION']")
+        if ($xmlInstNode) {
+            $xCov = [int64]$xmlInstNode.GetAttribute("covered")
+            $xMis = [int64]$xmlInstNode.GetAttribute("missed")
+            if ([int64]$instCov -ne $xCov -or [int64]$instMis -ne $xMis) {
+                $floorPassed = $false
+                $reasons += "${modPath}: instruction counters in counters.json do not match XML (JSON: $instCov/$instMis, XML: $xCov/$xMis)"
+            }
         }
-        if (-not $isEvidencedEmpty) {
+
+        $xmlBranchNode = $xmlDoc.report.SelectSingleNode("counter[@type='BRANCH']")
+        if ($xmlBranchNode) {
+            $xCov = [int64]$xmlBranchNode.GetAttribute("covered")
+            $xMis = [int64]$xmlBranchNode.GetAttribute("missed")
+            if ([int64]$branchCov -ne $xCov -or [int64]$branchMis -ne $xMis) {
+                $floorPassed = $false
+                $reasons += "${modPath}: branch counters in counters.json do not match XML (JSON: $branchCov/$branchMis, XML: $xCov/$xMis)"
+            }
+        }
+    }
+
+    # Check for empty instruction module (requires canonical proof AnalyzedZeroProofV1)
+    if ($instTot -eq [System.Numerics.BigInteger]::Zero) {
+        # Find proof
+        $proof = $null
+        if ($manifest.zero_count_proofs) {
+            $proof = $manifest.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
+        }
+        if (-not $proof -and $countersData.zero_count_proofs) {
+            $proof = $countersData.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
+        }
+
+        $proofValid = ($null -ne $proof) -and `
+                      ($proof.normalization_rule -eq "AnalyzedZeroProofV1") -and `
+                      ($proof.counters.INSTRUCTION.total -eq 0) -and `
+                      (-not $xmlHash -or $proof.report_digest -eq $xmlHash)
+
+        if ($proofValid) {
+            $moduleDecisions += [PSCustomObject]@{
+                Module = $modPath
+                Tier = 1
+                Disposition = "NotApplicable"
+                Status = "Passed"
+                Reason = "Verified no executable production instructions (AnalyzedZeroProofV1)"
+            }
+        } else {
             $floorPassed = $false
-            $reasons += "${modPath}: empty instructions without valid NotApplicable disposition"
+            $reasons += "${modPath}: empty instructions without valid AnalyzedZeroProofV1 proof"
+            $moduleDecisions += [PSCustomObject]@{
+                Module = $modPath
+                Tier = 1
+                Disposition = "NotApplicable"
+                Status = "Failed"
+                Reason = "Empty instructions without valid AnalyzedZeroProofV1 proof"
+            }
         }
         continue
     }
@@ -166,18 +335,34 @@ foreach ($modPath in $policy.tier1_modules) {
     $instEval = Test-ExactFloorRatio -Covered $instCov -Missed $instMis -MinimumPercent $policy.tier1_instruction_min_percent
     if (-not $instEval.Passed) {
         $floorPassed = $false
-        $reasons += "${modPath}: instruction ${instEval.Reason}"
+        $reasons += "${modPath}: instruction $($instEval.Reason)"
     }
 
     # Evaluate Tier 1 Branch Floor (60% where measurable)
-    $branchCov = $modCounters.branch.covered
-    $branchMis = $modCounters.branch.missed
     $branchEval = Test-ExactFloorRatio -Covered $branchCov -Missed $branchMis -MinimumPercent $policy.tier1_branch_min_percent
-
     if ($branchEval.Applicable) {
         if (-not $branchEval.Passed) {
             $floorPassed = $false
-            $reasons += "${modPath}: branch ${branchEval.Reason}"
+            $reasons += "${modPath}: branch $($branchEval.Reason)"
+        }
+    } else {
+        # Branchless module - check if proof is required for omitted counter
+        if ($xmlDoc -and $xmlDoc.report -and (-not $xmlDoc.report.SelectSingleNode("counter[@type='BRANCH']"))) {
+            $proof = $null
+            if ($manifest.zero_count_proofs) {
+                $proof = $manifest.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
+            }
+            if (-not $proof -and $countersData.zero_count_proofs) {
+                $proof = $countersData.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
+            }
+            $proofValid = ($null -ne $proof) -and `
+                          ($proof.normalization_rule -eq "AnalyzedZeroProofV1") -and `
+                          ($proof.counters.BRANCH.total -eq 0) -and `
+                          (-not $xmlHash -or $proof.report_digest -eq $xmlHash)
+            if (-not $proofValid) {
+                $floorPassed = $false
+                $reasons += "${modPath}: omitted XML branch counter without valid AnalyzedZeroProofV1 proof"
+            }
         }
     }
 
@@ -211,7 +396,7 @@ if ($policy.tier2_gated_modules) {
             $instEval = Test-ExactFloorRatio -Covered $instCov -Missed $instMis -MinimumPercent $policy.tier2_instruction_min_percent
             if (-not $instEval.Passed) {
                 $floorPassed = $false
-                $reasons += "${modPath}: Tier 2 instruction ${instEval.Reason}"
+                $reasons += "${modPath}: Tier 2 instruction $($instEval.Reason)"
             }
             $moduleDecisions += [PSCustomObject]@{
                 Module = $modPath
@@ -233,7 +418,7 @@ if ($countersData -and $countersData.repository) {
     $repoEval = Test-ExactFloorRatio -Covered $repoCov -Missed $repoMis -MinimumPercent $policy.repository_instruction_min_percent
     if (-not $repoEval.Passed) {
         $floorPassed = $false
-        $reasons += "Repository instruction aggregate ${repoEval.Reason}"
+        $reasons += "Repository instruction aggregate $($repoEval.Reason)"
     }
 } else {
     $floorPassed = $false
@@ -267,12 +452,12 @@ if ($ComparisonBundle) {
             $regInst = Test-ExactRegressionRatio -CandidateCovered $cMod.instruction.covered -CandidateMissed $cMod.instruction.missed -BaselineCovered $bMod.instruction.covered -BaselineMissed $bMod.instruction.missed
             if ($regInst.Applicable -and -not $regInst.Passed) {
                 $regressionPassed = $false
-                $reasons += "${mod}: instruction ${regInst.Reason}"
+                $reasons += "${mod}: instruction $($regInst.Reason)"
             }
             $regBranch = Test-ExactRegressionRatio -CandidateCovered $cMod.branch.covered -CandidateMissed $cMod.branch.missed -BaselineCovered $bMod.branch.covered -BaselineMissed $bMod.branch.missed
             if ($regBranch.Applicable -and -not $regBranch.Passed) {
                 $regressionPassed = $false
-                $reasons += "${mod}: branch ${regBranch.Reason}"
+                $reasons += "${mod}: branch $($regBranch.Reason)"
             }
         }
     }
@@ -283,14 +468,19 @@ if ($ComparisonBundle) {
 
 # Determine overall decisions
 $finalFloorsStatus = if ($floorPassed) { "Passed" } else { "Failed" }
-$finalTestsStatus = if ($manifest.decisions -and $manifest.decisions.tests) { $manifest.decisions.tests } else { "Unverified" }
-$finalCollectionStatus = if ($manifest.decisions -and $manifest.decisions.collection) { $manifest.decisions.collection } else { "Complete" }
+$isCollectionComplete = ($finalCollectionStatus -eq "Complete")
+$isTestsPassed = ($finalTestsStatus -eq "Passed")
+$isRegressionPassed = ($regressionStatus -eq "Passed" -or $regressionStatus -eq "NotApplicable")
 
-$overallSuccess = ($finalFloorsStatus -eq "Passed" -and $finalTestsStatus -eq "Passed" -and ($regressionStatus -eq "Passed" -or $regressionStatus -eq "NotApplicable"))
+# Reject incomplete run even if counters exceed floors
+$overallSuccess = ($finalFloorsStatus -eq "Passed" -and $isCollectionComplete -and $isTestsPassed -and $isRegressionPassed)
+
+$manifestDigest = Get-FileSha256 -Path $manifestPath
 
 $decisionObject = [PSCustomObject]@{
     run_id = $manifest.run_id
     policy_id = $policy.policy_id
+    manifest_digest = $manifestDigest
     evaluated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     decisions = [PSCustomObject]@{
         collection = $finalCollectionStatus
@@ -298,8 +488,8 @@ $decisionObject = [PSCustomObject]@{
         floors = $finalFloorsStatus
         comparison_compatibility = $comparisonCompatibility
         regression = $regressionStatus
-        publication = if ($manifest.decisions.publication) { $manifest.decisions.publication } else { "Pending" }
-        integration = if ($overallSuccess) { "Unverified" } else { "Failed" } # Local verifier leaves integration Unverified until hosted check
+        publication = if ($manifest.decisions -and $manifest.decisions.publication) { $manifest.decisions.publication } else { "Pending" }
+        integration = if ($overallSuccess) { "Unverified" } else { "Failed" }
     }
     overall_passed = $overallSuccess
     unmet_reasons = $reasons
@@ -314,7 +504,6 @@ $decisionObject = [PSCustomObject]@{
 }
 
 # Write decision.json
-$decisionJsonPath = Join-Path $targetOutDir "decision.json"
 $decisionObject | ConvertTo-Json -Depth 10 | Set-Content -Path $decisionJsonPath -Encoding utf8
 
 # Write decision.md
@@ -323,6 +512,7 @@ $mdContent = @"
 # Coverage Verification Decision
 
 - **Run ID**: $($manifest.run_id)
+- **Manifest Digest**: $manifestDigest
 - **Policy**: $($policy.policy_id)
 - **Evaluated**: $($decisionObject.evaluated_at)
 - **Overall Result**: $(if ($overallSuccess) { "✓ PASS" } else { "✗ FAIL" })
