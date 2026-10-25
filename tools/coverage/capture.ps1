@@ -122,7 +122,7 @@ try {
         }
     }
 } catch {
-    Write-Warning "Could not query adb for device $DeviceSerial: $_"
+    Write-Warning "Could not query adb for device ${DeviceSerial}: $_"
 }
 
 if (-not $deviceOnline) {
