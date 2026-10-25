@@ -1,7 +1,7 @@
-[hook "local-ci"]
-	event = pre-push
-	command = powershell -ExecutionPolicy Bypass -File ./tools/local-ci.ps1
-
 [hook "local-ci-lint"]
 	event = pre-commit
-	command = powershell -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 -SkipTests
+	command = pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 -SkipTests
+
+[hook "integration-ci"]
+	event = pre-push
+	command = pwsh -NoProfile -ExecutionPolicy Bypass -Command "if (git rev-parse --verify origin/HEAD 2>$null) { & pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/integration-ci.ps1 -TargetRef origin/HEAD } else { & pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 }"

@@ -1,10 +1,11 @@
 <!--
 SYNC IMPACT REPORT
-Current amendment: Version 4.0.0 -> 4.1.0 (MINOR: Add verifiable acceptance & evidence clause to Principle V, and synchronize validation, integration, accessibility, rendering, and security register contracts).
-Date: 2026-10-23; ratified date retained: 2026-02-19.
+Current amendment: Version 4.1.0 -> 5.0.0 (MAJOR: Raise the binding coverage floors).
+Date: 2026-10-24; ratified date retained: 2026-02-19.
 
 Modified Principles:
-  - Principle V (Module Criticality & DO-178B Rigor): Retained existing three bullets (Criticality Classification, DO-178B Traceability, Execution Determinism & Testing Gates); added "Verifiable Acceptance & Evidence" bullet requiring explicit scope, expected outcomes, truthful evidence reporting, and cross-referencing TRD §9 and rules §1.
+  - Principle V (Module Criticality & DO-178B Rigor), Execution Determinism & Testing Gates: Changed only the stated percentages to Tier 1 ≥ 60%, Tier 2 ≥ 20%, and Global repository floor ≥ 50%. The existing sentence and its reference to `.agents/rules/specify-rules.md` §3 remain otherwise unchanged.
+  - Previous amendment 4.0.0 -> 4.1.0 (2026-10-23) added the Verifiable Acceptance & Evidence clause; its synchronization record is preserved in Git history.
 
 Added Sections:
   - None to constitution body (remains concise).
@@ -13,6 +14,9 @@ Removed Sections:
   - None.
 
 Synchronized Authorities & Registers:
+  - docs/brd.md: Updated NFR-ARCH-050 with the 60% Tier 1 instruction/branch gates, 50% repository aggregate instruction floor, existing 20% Tier 2 instruction floor, mandatory integration check, nonregression, raw-count decisions and nonbinding 65% remediation goal; preserved the separate 100% core business-logic objective. Version 0.1.0 -> 0.2.0.
+  - docs/trd.md: Updated §2.2 with the same coverage policy and applicability rules. Version 0.2.0 -> 0.3.0.
+  - .agents/rules/specify-rules.md: Updated §1 thresholds, measurement terminology, integration enforcement and regression requirements; constitution reference advanced to 5.0.0.
   - docs/brd.md: Added verification references in §4.5 (accessibility deferral), §5.1 (security registers), §5.2 (rendering minimum journeys & budgets), and §9 (integration lifecycle scope).
   - docs/trd.md: Added §9.1 Verification Evidence Schema & Status Taxonomy, §9.2 Verification Policy Framework & Five-Area Authority Map, §9.3 Validation & Negative-Case Verification Contracts, §9.4 Dual Credential Integration Lifecycle & Failure Matrices, §9.5 Universal Accessibility Verification Procedures, §9.6 Rendering Smoothness Measurement Contract; corrected §6 universal contentDescription rule.
   - .agents/rules/specify-rules.md: Updated §1 (evidence schema, integration boundaries, accessibility, rendering execution), §5.2 (reconciled Outcome.Failure vs internal assertions, negative testing), §5.5 (security registers).
@@ -60,7 +64,7 @@ Chimali is a security-first Android application providing a local-first, encrypt
 
 - **Criticality Classification**: Code is partitioned into Tier 1 (Critical: `:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`) and Tier 2 (Feature & Infrastructure).
 - **DO-178B Traceability**: Tier 1 code MUST maintain 100% bi-directional requirement traceability. Every public and internal function MUST carry a `@Req` annotation mapping to stable IDs in `docs/brd.md` (`FR-*`) or `docs/trd.md` (`NFR-*`, `TR-*`). Unreferenced dead code is strictly prohibited.
-- **Execution Determinism & Testing Gates**: Hot execution paths MUST avoid dynamic memory allocations. Loops and retries MUST be bounded. Automated CI pipelines MUST enforce test coverage gates: Tier 1 ≥ 40%, Tier 2 ≥ 20%, Global repository floor ≥ 20%. Detailed rules are enforced via `.agents/rules/specify-rules.md` §3.
+- **Execution Determinism & Testing Gates**: Hot execution paths MUST avoid dynamic memory allocations. Loops and retries MUST be bounded. Automated CI pipelines MUST enforce test coverage gates: Tier 1 ≥ 60%, Tier 2 ≥ 20%, Global repository floor ≥ 50%. Detailed rules are enforced via `.agents/rules/specify-rules.md` §3.
 - **Verifiable Acceptance & Evidence**: Verification obligations MUST define their assessed scope, expected outcomes, and traceable evidence. Unexecuted, deferred, and unsupported coverage MUST be identified explicitly and MUST NOT be represented as passing. Detailed verification procedures reside in `docs/trd.md` §9 and `.agents/rules/specify-rules.md` §1.
 
 ### VI. Performance Vitals & Resource Budgets
@@ -102,4 +106,4 @@ This constitution supersedes all informal conventions and project documentation.
 
 Agents working on this project MUST read this constitution before beginning any speckit workflow step (specify, plan, tasks, implement).
 
-**Version**: 4.1.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-23
+**Version**: 5.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-24

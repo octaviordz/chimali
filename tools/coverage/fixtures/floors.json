@@ -1,0 +1,127 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Floor ratio evaluation fixtures exercising exact integer arithmetic, rounding traps, and large integers",
+  "cases": [
+    {
+      "id": "FLOOR_001_EXACT_TIER1_PASS",
+      "description": "Exact 60% instruction and 60% branch coverage meets Tier 1 threshold",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "counters": {
+        "module_path": ":core:security",
+        "tier": 1,
+        "instruction": { "covered": 60, "missed": 40 },
+        "branch": { "covered": 30, "missed": 20 }
+      },
+      "expected_pass": true
+    },
+    {
+      "id": "FLOOR_002_ROUNDING_TRAP_FAIL",
+      "description": "59.996% instructions rounds to 60.0% in display but MUST FAIL exact gate",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60
+      },
+      "counters": {
+        "module_path": ":core:security",
+        "tier": 1,
+        "instruction": { "covered": 59996, "missed": 40004 },
+        "branch": { "covered": 60, "missed": 40 }
+      },
+      "expected_pass": false
+    },
+    {
+      "id": "FLOOR_003_FAILING_MODULE_PASSING_AGGREGATE",
+      "description": "Failing Tier 1 module (55%) fails overall gate even if aggregate is 70%",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "counters": {
+        "module_path": ":core:data",
+        "tier": 1,
+        "instruction": { "covered": 55, "missed": 45 },
+        "branch": { "covered": 60, "missed": 40 }
+      },
+      "expected_pass": false
+    },
+    {
+      "id": "FLOOR_004_LARGE_INTEGER_ARITHMETIC",
+      "description": "Large counter values that overflow 32-bit signed integer evaluate accurately",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60
+      },
+      "counters": {
+        "module_path": ":core:domain",
+        "tier": 1,
+        "instruction": { "covered": "3000000000", "missed": "2000000000" },
+        "branch": { "covered": "6000000000", "missed": "4000000000" }
+      },
+      "expected_pass": true
+    },
+    {
+      "id": "FLOOR_005_TIER2_PASS_AND_BRANCH_REPORTING",
+      "description": "Tier 2 module passes 20% instruction floor; branch reported without branch floor",
+      "policy": {
+        "tier2_instruction_min_percent": 20
+      },
+      "counters": {
+        "module_path": ":core:database",
+        "tier": 2,
+        "instruction": { "covered": 20, "missed": 80 },
+        "branch": { "covered": 5, "missed": 95 }
+      },
+      "expected_pass": true
+    },
+    {
+      "id": "FLOOR_006_TIER2_FAIL",
+      "description": "Tier 2 module with 19.9% instruction fails 20% floor",
+      "policy": {
+        "tier2_instruction_min_percent": 20
+      },
+      "counters": {
+        "module_path": ":core:database",
+        "tier": 2,
+        "instruction": { "covered": 199, "missed": 801 },
+        "branch": { "covered": 50, "missed": 50 }
+      },
+      "expected_pass": false
+    },
+    {
+      "id": "FLOOR_007_NONBINDING_65_BRANCH_GOAL",
+      "description": "Tier 1 module meets 60% branch floor (62%); does not fail floor due to missing 65% goal",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "branch_improvement_goal_percent": 65
+      },
+      "counters": {
+        "module_path": ":feature:fido2",
+        "tier": 1,
+        "instruction": { "covered": 70, "missed": 30 },
+        "branch": { "covered": 62, "missed": 38 }
+      },
+      "expected_pass": true
+    },
+    {
+      "id": "FLOOR_008_BRANCHLESS_MODULE_PASS",
+      "description": "Module with executable instructions but zero branch denominator has branch N/A and passes",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60
+      },
+      "counters": {
+        "module_path": ":core:security",
+        "tier": 1,
+        "instruction": { "covered": 80, "missed": 20 },
+        "branch": { "covered": 0, "missed": 0 }
+      },
+      "expected_pass": true
+    }
+  ]
+}

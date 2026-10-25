@@ -1,0 +1,132 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Policy definition and verifier CLI interface rejection fixtures",
+  "cases": [
+    {
+      "id": "POL_001_VALID_POLICY",
+      "description": "Canonical policy with exact five Tier 1 paths and 60/60/50 thresholds",
+      "policy": {
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50,
+        "tier2_instruction_min_percent": 20,
+        "tier2_gated_modules": [":core:database", ":core:common", ":app"],
+        "branch_improvement_goal_percent": 65,
+        "counter_normalization": "AnalyzedZeroProofV1"
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "POL_002_MISSING_CRITICAL_MODULE",
+      "description": "Policy missing :core:data from Tier 1 modules fails validation",
+      "policy": {
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "expected_valid": false,
+      "expected_error": "Tier 1 modules must be exactly the five classified paths"
+    },
+    {
+      "id": "POL_003_UNCLASSIFIED_TIER1_MODULE",
+      "description": "Policy with unclassified module :app in Tier 1 fails validation",
+      "policy": {
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":app"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "expected_valid": false,
+      "expected_error": "Tier 1 modules must be exactly the five classified paths"
+    },
+    {
+      "id": "POL_004_WEAKER_FLOOR_POLICY",
+      "description": "Candidate attempting to provide lower 40% Tier 1 floor fails validation",
+      "policy": {
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 40,
+        "tier1_branch_min_percent": 40,
+        "repository_instruction_min_percent": 50
+      },
+      "expected_valid": false,
+      "expected_error": "Tier 1 thresholds must be 60/60"
+    },
+    {
+      "id": "POL_005_UNKNOWN_CLI_ARGUMENT",
+      "description": "Prohibited or unknown CLI argument like -SkipCoverage fails verifier",
+      "policy": {
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "arguments": {
+        "SkipCoverage": true
+      },
+      "expected_valid": false,
+      "expected_error": "Prohibited or unknown argument: SkipCoverage"
+    },
+    {
+      "id": "POL_006_WRITABLE_OUTPUT_INSIDE_MEASURED_SCOPE",
+      "description": "Specifying output directory inside measured source tree fails validation",
+      "policy": {
+        "policy_id": "chimali-coverage-v1",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50
+      },
+      "arguments": {
+        "OutputRoot": "core/security/src/main/evidence"
+      },
+      "expected_valid": false,
+      "expected_error": "OutputRoot cannot be located inside measured source tree"
+    }
+  ]
+}

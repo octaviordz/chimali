@@ -1,0 +1,71 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Test selection, risk ranking, batch ordering, and aggregate floor extension fixtures",
+  "cases": [
+    {
+      "id": "SEL_001_RISK_PRIORITY_ORDERING",
+      "description": "Higher impact case (Impact 4) outranks lower impact case (Impact 3) regardless of module floor status",
+      "candidates": [
+        {
+          "candidate_id": "COV-002",
+          "module": ":core:domain",
+          "impact": 3,
+          "likelihood": 3,
+          "module_deficit": 15.0
+        },
+        {
+          "candidate_id": "COV-001",
+          "module": ":core:security",
+          "impact": 4,
+          "likelihood": 2,
+          "module_deficit": 0.0
+        }
+      ],
+      "expected_first": "COV-001"
+    },
+    {
+      "id": "SEL_002_EQUAL_RISK_DEFICIT_ORDERING",
+      "description": "Among equal risk ranks (Impact 3, Likelihood 2), larger module deficit is ordered first",
+      "candidates": [
+        {
+          "candidate_id": "COV-003",
+          "module": ":core:domain",
+          "impact": 3,
+          "likelihood": 2,
+          "module_deficit": 5.0
+        },
+        {
+          "candidate_id": "COV-004",
+          "module": ":core:data",
+          "impact": 3,
+          "likelihood": 2,
+          "module_deficit": 12.5
+        }
+      ],
+      "expected_first": "COV-004"
+    },
+    {
+      "id": "SEL_003_FAILED_TEST_BLOCKS_PROGRESSION",
+      "description": "Failed test in Impact 4 batch blocks advancing to Impact 3 batch until repaired and verified",
+      "batch_state": {
+        "current_rank": 4,
+        "selected_case": "COV-001",
+        "test_status": "Failed",
+        "attempted_next_rank": 3
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "Cannot advance to lower risk rank while higher rank test COV-001 is Failed or Unverified"
+    },
+    {
+      "id": "SEL_004_AGGREGATE_SHORTFALL_EXTENDS_LEDGER",
+      "description": "When individual floors pass but repository aggregate is below 50%, AggregateFloor candidates are triggered",
+      "evaluation": {
+        "individual_floors_passed": true,
+        "repository_instruction_percent": 44.5,
+        "required_floor": 50.0
+      },
+      "expected_aggregate_shortfall": true,
+      "expected_action": "Extend test-selection.md with AggregateFloor candidates in remaining production modules"
+    }
+  ]
+}

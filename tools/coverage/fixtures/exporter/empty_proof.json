@@ -1,0 +1,13 @@
+{
+  "normalization_rule": "AnalyzedZeroProofV1",
+  "module_path": ":feature:authenticator",
+  "analyzer_identity": "jacoco-0.8.15",
+  "report_file": "empty.xml",
+  "report_digest": "50aa2db5bc151a78443029eaf9dbb45e235b696d2c3c0604dfb66086fe0b4c7b",
+  "retained_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "counters": {
+    "INSTRUCTION": { "covered": 0, "missed": 0, "total": 0 },
+    "BRANCH": { "covered": 0, "missed": 0, "total": 0 },
+    "LINE": { "covered": 0, "missed": 0, "total": 0 }
+  }
+}

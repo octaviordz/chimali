@@ -1,0 +1,345 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Foundation schema and manifest validation fixtures for coverage tooling",
+  "cases": [
+    {
+      "id": "SCHEMA_001_VALID_INITIAL",
+      "description": "Valid Initial purpose manifest with supported schema version and valid 10 TRD keys",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_002_VALID_COMPARISON",
+      "description": "Valid Comparison purpose manifest with target revision",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Comparison",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:10:00Z",
+          "end_utc": "2026-10-24T20:15:00Z",
+          "display_date": "2026-10-24 14:10:00 -06:00"
+        },
+        "git": {
+          "source_commit": "1111111111111111111111111111111111111111",
+          "source_tree": "2222222222222222222222222222222222222222",
+          "target_commit": "3333333333333333333333333333333333333333",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_003_VALID_CANDIDATE",
+      "description": "Valid Candidate purpose manifest with target and PR metadata",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000003",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Candidate",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:20:00Z",
+          "end_utc": "2026-10-24T20:25:00Z",
+          "display_date": "2026-10-24 14:20:00 -06:00"
+        },
+        "git": {
+          "source_commit": "4444444444444444444444444444444444444444",
+          "source_tree": "5555555555555555555555555555555555555555",
+          "target_commit": "6666666666666666666666666666666666666666",
+          "head_commit": "4444444444444444444444444444444444444444",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed",
+          "publication": "Published",
+          "integration": "Passed"
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_004_INVALID_UNSUPPORTED_VERSION",
+      "description": "Unknown or unsupported schema version fails configuration validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000004",
+        "schema_version": "99.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "decisions": { "collection": "Complete" }
+      },
+      "expected_valid": false,
+      "expected_error": "Unsupported schema version: 99.0"
+    },
+    {
+      "id": "SCHEMA_005_INVALID_PURPOSE",
+      "description": "Unknown purpose fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000005",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "AdHocExploratory",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "decisions": { "collection": "Complete" }
+      },
+      "expected_valid": false,
+      "expected_error": "Invalid purpose: AdHocExploratory"
+    },
+    {
+      "id": "SCHEMA_006_INVALID_STATUS_ENUM",
+      "description": "Unknown decision status enum fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000006",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "decisions": {
+          "collection": "AlmostDone",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Invalid collection decision status: AlmostDone"
+    },
+    {
+      "id": "SCHEMA_007_INVALID_PATH_TRAVERSAL",
+      "description": "Attempt to reference artifact outside bundle fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000007",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-016",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11",
+            "expected_observed_result": "report",
+            "date": "2026-10-24",
+            "limitations": "none",
+            "status": "Passed",
+            "artifact_link": "../../outside-bundle/secret.txt"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Malformed or escaping artifact path: ../../outside-bundle/secret.txt"
+    },
+    {
+      "id": "SCHEMA_008_INVALID_MISSING_TRD_KEY",
+      "description": "Evidence record missing one of the ten exact TRD keys fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000008",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-016",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "environment": "Windows 11",
+            "expected_observed_result": "report",
+            "date": "2026-10-24",
+            "limitations": "none",
+            "status": "Passed",
+            "artifact_link": "reports/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing required TRD evidence key: named_procedure"
+    },
+    {
+      "id": "SCHEMA_009_INVALID_DUPLICATE_MODULE_IDS",
+      "description": "Duplicate module path in inventories or results fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000009",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "module_results": [
+          { "module_path": ":core:security", "disposition": "Applicable" },
+          { "module_path": ":core:security", "disposition": "Applicable" }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Duplicate module entry: :core:security"
+    },
+    {
+      "id": "SCHEMA_010_INVALID_ZERO_PROOF_FORMAT",
+      "description": "Zero count proof without required AnalyzedZeroProofV1 fields fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000010",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "zero_count_proofs": [
+          {
+            "normalization_rule": "InformalOmissionCheck",
+            "module_path": ":feature:authenticator"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Unsupported zero count proof rule: InformalOmissionCheck"
+    },
+    {
+      "id": "SCHEMA_011_INVALID_REPORTER_BINDING",
+      "description": "Trusted reporter binding with missing App ID fails validation",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000011",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Candidate",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "target_commit": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "trusted_reporter_binding": {
+          "workflow_commit": "abcdef1234567890abcdef1234567890abcdef12",
+          "reporter_sha": "1234567890abcdef1234567890abcdef12345678",
+          "repository_id": 12345678
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed",
+          "publication": "Published",
+          "integration": "Passed"
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing required field in TrustedReporterBinding: app_id"
+    }
+  ]
+}

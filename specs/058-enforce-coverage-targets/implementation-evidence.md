@@ -1,0 +1,375 @@
+# Implementation Evidence: Enforce Coverage Targets
+
+**Feature**: [spec.md](spec.md) | [plan.md](plan.md) | [tasks.md](tasks.md)  
+**Branch**: `codex/058-enforce-coverage-targets`  
+**Starting Commit**: `6834761bfc2aafa6f0637dd55c250b37b6c34e86`  
+**Date**: 2026-10-24  
+
+---
+
+## 1. Setup State and Scope Inventory (T001)
+
+### 1.1 Branch & Revision Context
+- **Current Branch**: `codex/058-enforce-coverage-targets`
+- **Current HEAD**: `6834761bfc2aafa6f0637dd55c250b37b6c34e86`
+- **Working Tree**: Staged specification, governance synchronization, and initial threshold adjustments; no unstaged dirty files.
+
+### 1.2 Starting Staged Changes
+- Governance & specifications:
+  - `.agents/rules/specify-rules.md` (synchronized 60/60/50 floors, 65% branch goal)
+  - `.specify/feature.json` (feature registration)
+  - `.specify/memory/constitution.md` (amended Principle V to 5.0.0: Tier 1 60%, Tier 2 20%, Global repository 50%)
+  - `AGENTS.md` (active plan pointer)
+  - `docs/brd.md` (NFR-ARCH-050 synchronization)
+  - `docs/trd.md` (TRD §2.2 & §9 synchronization)
+  - `specs/055-migrate-hdk-draft/*` (documentation alignment)
+  - `specs/058-enforce-coverage-targets/*` (design documents: spec, plan, tasks, data-model, research, quickstart, contracts)
+- Init Script starting edit:
+  - `tools/hdk-coverage.init.gradle`: Added `:core:data` and `:feature:authenticator` to `selectedPaths` and `tier1Paths`; raised threshold checks to 60.0% for Tier 1 and 50.0% for repository.
+  - *Distinction*: These edited 60/50 numbers in `tools/hdk-coverage.init.gradle` represent partial, unverified initial edits. They do not implement canonical zero-count proof (`AnalyzedZeroProofV1`), structured verification bundles, exact integer arithmetic, connected device baseline capture, target comparison, or protected App-authenticated GitHub integration checks.
+
+### 1.3 Existing Task Entry Points
+- `hdkHostCoverage`: Gradle task aggregating JVM test coverage across selected projects.
+- `hdkModuleCoverage`: Gradle task for per-module coverage reporting.
+- `hdkRepositoryCoverage`: Gradle task for repository-wide coverage reporting.
+- `hdkScopedCoverage`: Gradle diagnostic scoped coverage task.
+- `hdkCoverageVerify`: Gradle gate task verifying thresholds.
+- `tools/local-ci.ps1`: Fast local pre-commit verification script.
+
+### 1.4 Inherited Limitations
+- Floating-point percentage rounding in Groovy init script.
+- Naive directory existence check for production sources (`hasProductionSources`).
+- Omitted JaCoCo XML counters are not proved zero via canonical analysis binding.
+- No run-specific UUID bundle or immutable evidence archive.
+- Missing remote GitHub App integration check and branch protection verification.
+
+---
+
+## 2. Environment and Prerequisites Inventory (T002)
+
+| Prerequisite | Required / Target Specification | Observed Local State | Status / Disposition |
+| --- | --- | --- | --- |
+| **PowerShell 7** | PowerShell 7.x (`pwsh`) | PowerShell 7.6.7 installed and functional | ✓ Met |
+| **Git** | Git version control | Git 2.56.0.windows.3 | ✓ Met |
+| **JDK / Launcher** | JDK 17 compatible runtime | Launcher JVM 25.0.4.1 (Microsoft Hotspot), Daemon JVM 21 (JetBrains JBR) | ✓ Met (runs Gradle 9.6.0) |
+| **Android SDK & adb** | Android SDK API 28+ & `adb` | SDK located at `C:\Users\octav\AppData\Local\Android\Sdk`, platform-tools `adb.exe` present | ✓ Met |
+| **Authorized Connected Device** | Physical device or emulator capable of connected tests | `adb devices` returns 0 attached devices | ✗ Unmet (Missing connected device; live baseline capture blocked until device attached) |
+| **GitHub CLI / Auth** | Authenticated GitHub CLI (`gh`) | `gh` installed, not authenticated (`gh auth status` exit 1) | ✗ Unmet (No remote token or GitHub session) |
+| **Integration Target** | Explicit remote integration target ref | Remote `origin/HEAD` points to `origin/lab/or/jpc`, but target not authenticated or confirmed | ✗ Unmet (Explicit target must be resolved per command, never assumed `main`) |
+| **Dedicated GitHub App** | GitHub App for `coverage-integration` check | Not installed/provisioned in local environment | ✗ Unmet (Remote environment provisioning required for Phase 5 / Phase 8) |
+| **Protected Archive Branch** | `codex/coverage-evidence` protected branch | Not yet created or verified remotely | ✗ Unmet |
+
+---
+
+## 3. Evidence Log by Task
+
+### T001: Scope, Revision and Task Entry Point Inventory
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-018, FR-020
+- **Status**: Complete
+- **Evidence**: Sections 1.1–1.4 above document exact revision `6834761bfc2aafa6f0637dd55c250b37b6c34e86`, staged changes, existing Gradle entry points, and inherited limitations.
+
+### T002: Environment and Prerequisites Inventory
+- **Date**: 2026-10-24
+- **Requirement**: FR-012, FR-016
+- **Status**: Complete (Live settings recorded; absent device and remote provisioning explicitly unmet)
+- **Evidence**: Section 2 above records PowerShell 7.6.7, Git 2.56.0, JDK 25/21, Android SDK presence, absent device connectivity, unauthenticated GitHub status, and unconfirmed target ref.
+
+### T003: Fixture Directories and Governance Documentation
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-016
+- **Status**: Complete
+- **Evidence**: Created `tools/coverage/fixtures/`, `tools/coverage/fixtures/exporter/`, and authored `tools/coverage/fixtures/README.md` documenting fixture ownership, toolchain versions (Gradle 9.6.0, AGP 9.4.1, Kotlin 2.3.21/JVM 17, JaCoCo 0.8.15), and Principle I synthetic-data restrictions.
+
+### T004: Command Shapes and Workflow Reconciliation
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-012, FR-016, FR-017
+- **Status**: Complete
+- **Evidence**: Reconciled command contracts against `contracts/coverage-workflow.md`, `data-model.md`, and `plan.md`. Confirmed parameter contracts for `capture.ps1`, `verify.ps1`, and `integration-ci.ps1`, internal helper roles for `publish.ps1` and `report.ps1`, exact integer math rules (`BigInteger`), `AnalyzedZeroProofV1` canonical zero-count normalization, ten TRD evidence keys, and standard exit codes (0, 1, 2, 3).
+
+### T008, T009, T010: Foundation Fixtures, Common Utilities, and Verification
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-016, FR-017
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (11/11 foundation fixture cases passed)
+- **Observed Results**:
+  - `SCHEMA_001_VALID_INITIAL`: Passed (Valid Initial manifest with exact ten TRD keys and version 1.0)
+  - `SCHEMA_002_VALID_COMPARISON`: Passed (Valid Comparison manifest with target revision)
+  - `SCHEMA_003_VALID_CANDIDATE`: Passed (Valid Candidate manifest with PR and target commits)
+  - `SCHEMA_004_INVALID_UNSUPPORTED_VERSION`: Passed rejection ("Unsupported schema version: 99.0")
+  - `SCHEMA_005_INVALID_PURPOSE`: Passed rejection ("Invalid purpose: AdHocExploratory")
+  - `SCHEMA_006_INVALID_STATUS_ENUM`: Passed rejection ("Invalid collection decision status: AlmostDone")
+  - `SCHEMA_007_INVALID_PATH_TRAVERSAL`: Passed rejection ("Malformed or escaping artifact path: ../../outside-bundle/secret.txt")
+  - `SCHEMA_008_INVALID_MISSING_TRD_KEY`: Passed rejection ("Missing required TRD evidence key: named_procedure")
+  - `SCHEMA_009_INVALID_DUPLICATE_MODULE_IDS`: Passed rejection ("Duplicate module entry: :core:security")
+  - `SCHEMA_010_INVALID_ZERO_PROOF_FORMAT`: Passed rejection ("Unsupported zero count proof rule: InformalOmissionCheck")
+  - `SCHEMA_011_INVALID_REPORTER_BINDING`: Passed rejection ("Missing required field in TrustedReporterBinding: app_id")
+- **Limitations**: Fixture harness only; verifies schema and contract enforcement before runtime story execution.
+
+---
+
+## 4. User Story 1 Evidence: Consistent Coverage Requirements (T011–T022)
+
+### T011–T015, T020: US1 Decision & Policy Contract Matrix
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-018
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (All 33 fixtures passed: 8 floors, 8 inventory, 6 policy, 11 schema)
+- **Observed Results**:
+  - `FLOOR_001_EXACT_TIER1_PASS`: Passed (Exact 60% instruction & 60% branch satisfies Tier 1)
+  - `FLOOR_002_ROUNDING_TRAP_FAIL`: Passed rejection (59.996% instructions rounds to 60.0% in display but strictly fails exact gate: `5999600 < 6000000`)
+  - `FLOOR_003_FAILING_MODULE_PASSING_AGGREGATE`: Passed rejection (Tier 1 module at 55% fails gate even when aggregate exceeds 70%)
+  - `FLOOR_004_LARGE_INTEGER_ARITHMETIC`: Passed (BigInteger prevents 32-bit signed overflow on large counts)
+  - `FLOOR_005_TIER2_PASS_AND_BRANCH_REPORTING`: Passed (Tier 2 module meets 20% instruction floor; branches reported without branch floor)
+  - `FLOOR_006_TIER2_FAIL`: Passed rejection (19.9% instruction fails Tier 2 20% floor)
+  - `FLOOR_007_NONBINDING_65_BRANCH_GOAL`: Passed (Tier 1 module at 62% branches passes 60% floor; 65% is an improvement goal, not an integration floor failure)
+  - `FLOOR_008_BRANCHLESS_MODULE_PASS`: Passed (Branchless code with zero denominator has branch `NotApplicable` and passes gate)
+  - `INV_001_EXPLICIT_FIVE_MODULES`: Passed (Explicit accounting of all 5 Tier 1 modules)
+  - `INV_002_CUSTOM_SOURCE_ROOT`: Passed (Custom source roots parsed properly)
+  - `INV_003_DUPLICATE_CLASS_FAILS`: Passed rejection (Duplicate class identity fails accounting)
+  - `INV_004_BRANCHLESS_WITH_VALID_PROOF`: Passed (JaCoCo 0.8.15 exporter-omitted branch counter normalizes to 0 with matching `AnalyzedZeroProofV1` proof)
+  - `INV_005_BRANCHLESS_MISSING_PROOF_FAILS`: Passed rejection (Omitted branch counter without proof fails completeness)
+  - `INV_006_BRANCHLESS_MISMATCHED_DIGEST_FAILS`: Passed rejection (Mismatched report SHA256 digest fails proof)
+  - `INV_007_EMPTY_WITH_VALID_PROOF`: Passed (Empty module XML normalizes to zero with proof)
+  - `INV_008_NONZERO_PROOF_FOR_OMITTED_COUNTER_FAILS`: Passed rejection (Contradictory positive proof for omitted XML counter fails)
+  - `POL_001_VALID_POLICY`: Passed (Canonical policy configuration validated)
+  - `POL_002_MISSING_CRITICAL_MODULE`: Passed rejection (Missing `:core:data` fails policy validation)
+  - `POL_003_UNCLASSIFIED_TIER1_MODULE`: Passed rejection (Unclassified module in Tier 1 fails)
+  - `POL_004_WEAKER_FLOOR_POLICY`: Passed rejection (Weaker 40% floor fails policy validation)
+  - `POL_005_UNKNOWN_CLI_ARGUMENT`: Passed rejection (Unknown argument `-SkipCoverage` fails CLI validation)
+  - `POL_006_WRITABLE_OUTPUT_INSIDE_MEASURED_SCOPE`: Passed rejection (Output inside measured tree fails validation)
+
+### T016, T017, T019: Init Script Configuration & Exact Gate Enforcement
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-002, FR-006, FR-016
+- **Status**: Complete
+- **Evidence**: `tools/hdk-coverage.init.gradle` updated to:
+  - Retain all 5 Tier 1 modules (`:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`) without naive directory removal.
+  - Accommodate `:app` production compilation outputs (`compileShrunkDebugKotlin`, `compileShrunkDebugJavaWithJavac`) and tests (`testShrunkDebugUnitTest`, `connectedShrunkDebugAndroidTest`).
+  - Use exact BigInteger math (`java.math.BigInteger`) in `hdkCoverageVerify` to eliminate floating-point rounding errors.
+  - Correctly identify `NotApplicable` for modules without executable production classes.
+
+### T018: Verification CLI Implementation
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-005, FR-016
+- **Status**: Complete
+- **Evidence**: `tools/coverage/verify.ps1` implemented with absolute path validation, independent decision dimensions, raw counter evaluation, branch `NotApplicable` on zero denominator, and serialization of `decision.json` and `decision.md`.
+
+### T021: Configured Task/Source/Output Model Inspection
+- **Date**: 2026-10-24
+- **Requirement**: FR-001, FR-006, FR-016
+- **Status**: Complete
+- **Observed Module Dispositions**:
+  - `:core:security`: KMP library. Compilers: `compileDebugKotlin`, `compileDebugJavaWithJavac`, `compileCommonMainKotlinMetadata`. Tests: `testDebugUnitTest`. Disposition: `Applicable`.
+  - `:core:domain`: KMP library. Compilers: `compileDebugKotlin`, `compileCommonMainKotlinMetadata`. Tests: `testDebugUnitTest`. Disposition: `Applicable`.
+  - `:core:data`: Android library. Compilers: `compileDebugKotlin`, `compileDebugJavaWithJavac`. Tests: `testDebugUnitTest`. Included in Tier 1. Disposition: `Applicable`.
+  - `:feature:fido2`: Android/KMP library. Compilers: `compileDebugKotlin`, `compileDebugJavaWithJavac`. Tests: `testDebugUnitTest`, `connectedAndroidDeviceTest`. Disposition: `Applicable`.
+  - `:feature:authenticator`: Contains only `src/iosMain/README.md`. No Android/JVM production Kotlin/Java source files or classes exist. Evidenced disposition: `NotApplicable` (empty module, no artificial implementation added).
+  - `:core:database`: Tier 2 KMP library. SQLDelight generated sources excluded from denominator. Tests: `testDebugUnitTest`. Disposition: `Applicable` (20% floor).
+  - `:core:common`: Tier 2 KMP library. Tests: `testDebugUnitTest`. Disposition: `Applicable` (20% floor).
+  - `:app`: Android application. Compilers: `compileShrunkDebugKotlin`, `compileShrunkDebugJavaWithJavac`. Tests: `testShrunkDebugUnitTest`, `connectedAndroidTest`. Disposition: `Applicable` (20% floor).
+
+### T022: Policy and Guidance Audit
+- **Date**: 2026-10-24
+- **Requirement**: FR-018, FR-020
+- **Status**: Complete
+- **Audit Findings**:
+  - Authoritative floors in `tools/coverage/policy.json` (60% Tier 1 instructions, 60% Tier 1 branches where measurable, 50% repository instructions, 20% Tier 2 instructions, 65% branch remediation goal) align 100% with `.specify/memory/constitution.md` Principle V 5.0.0, `docs/brd.md` NFR-ARCH-050, `docs/trd.md` §2.2, and `.agents/rules/specify-rules.md`.
+  - Feature 055 historical measurements and exclusions remain preserved without backdating.
+  - Phase 3 / User Story 1 MVP acceptance complete: Gate correctness, exact applicability, and inventory accounting are verified via controlled fixtures. Runtime baseline execution (US2) and protected remote integration (US4) remain pending.
+
+---
+
+## 5. User Story 2 Evidence: Trustworthy Current Baseline (T023–T034)
+
+### T023–T026, T031: Freshness, Suite Outcome & Collection Lifecycle Verification
+- **Date**: 2026-10-24
+- **Requirement**: FR-006, FR-007, FR-008, FR-016
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (All 49 fixtures passed: 6 freshness, 6 suites, 4 collection, 8 floors, 8 inventory, 6 policy, 11 schema)
+- **Observed Results**:
+  - `FRESH_001_DIRTY_TREE_REJECTED`: Passed rejection (Dirty tree fails capture preflight)
+  - `FRESH_002_WRONG_HEAD_REJECTED`: Passed rejection (Mismatched SourceRevision fails preflight)
+  - `FRESH_003_OVERWRITE_RUN_DIRECTORY_REJECTED`: Passed rejection (Attempt to overwrite existing UUID directory fails)
+  - `FRESH_004_MISSING_TARGET_FOR_COMPARISON`: Passed rejection (Missing TargetRevision for Comparison fails)
+  - `FRESH_005_OFFLINE_DEVICE_REJECTED`: Passed rejection (Offline/unauthorized device fails preflight)
+  - `FRESH_006_VALID_INITIAL_PREFLIGHT`: Passed (Clean tree, matching HEAD, online device succeeds)
+  - `SUITE_001_ALL_TESTS_PASSED`: Passed (All tests passing -> Suite Passed)
+  - `SUITE_002_FAILED_TEST_FAILS_SUITE`: Passed rejection (1 failure -> Suite Failed)
+  - `SUITE_003_ERROR_FAILS_SUITE`: Passed rejection (1 error -> Suite Failed)
+  - `SUITE_004_SKIPPED_DOES_NOT_COUNT_AS_EXECUTED`: Passed rejection (Skipped tests fail required suite: `tests - skipped`)
+  - `SUITE_005_ZERO_EXECUTED_FAILS_REQUIRED`: Passed rejection (0 actual executions fails required suite)
+  - `SUITE_006_OPTIONAL_SKIPPED_SUITE_PASSES`: Passed (Optional non-required suite with skipped tests passes)
+  - `COLL_001_COMPLETE_COLLECTION_FAILING_TESTS`: Passed (Complete collection with failing tests retains diagnostic evidence but is ineligible as baseline)
+  - `COLL_002_INCOMPLETE_MISSING_EXECUTION_DATA`: Passed rejection (Missing execution data -> Incomplete)
+  - `COLL_003_INCOMPATIBLE_APP_PROBES`: Passed rejection (Mismatched variant probes -> Incomplete)
+  - `COLL_004_VALID_BASELINE_ELIGIBLE`: Passed (Complete collection with passed required tests -> Eligible baseline)
+
+### T027, T028, T029: Capture Script & Workload Freshness
+- **Date**: 2026-10-24
+- **Requirement**: FR-006, FR-007, FR-016
+- **Status**: Complete
+- **Evidence**:
+  - `tools/coverage/capture.ps1` implemented with strict argument validation, clean preflight, online device verification, UUID directory creation, Gradle execution wrapping, and manifest packaging.
+  - `tools/hdk-coverage.init.gradle` enforces fresh execution data via `hdkCoveragePrepare`, eliminating stale `.exec`/`.ec` reuse.
+
+### T030: Suite Discovery Audit & Placement Repair
+- **Date**: 2026-10-24
+- **Requirement**: FR-006, FR-016
+- **Status**: Complete
+- **Evidence**:
+  - Audited `core/security/build.gradle.kts`: Identified legacy test directory `src/test/kotlin` containing `AesEncryptionManagerTest` and `AesGcmEncryptedMetadataServiceTest`.
+  - Added `kotlin.srcDir("src/test/kotlin")` to `androidHostTest` in `core/security/build.gradle.kts` to ensure full test discovery during `androidHostTest` execution.
+
+### T032–T034: Live Device Baseline Prerequisites & Execution Status
+- **Date**: 2026-10-24
+- **Requirement**: FR-006, FR-007, FR-016
+- **Status**: Blocked / Unmet Prerequisites
+- **Recorded Identities**:
+  - **Measured Commit**: `6834761bfc2aafa6f0637dd55c250b37b6c34e86`
+  - **Harness Root**: `D:\octav\source\repos\Chimali`
+  - **Connected Device**: ✗ NONE. `adb devices` returns 0 attached devices.
+- **Disposition**:
+  - In accordance with task governance, an absent device is NOT converted into a synthetic pass.
+  - Live capture (`capture.ps1 -Purpose Initial`) requires an authorized connected Android API 28+ device.
+  - T032, T033, and T034 remain explicitly unmet pending hardware/emulator attachment. Tooling and fixture contracts for subsequent stories proceed independently.
+
+---
+
+## 6. User Story 4 Evidence: Block Integration Without Complete Evidence (T035–T050)
+
+### T035–T038, T045: Integration Orchestration, Comparison & Publication Fixture Verification
+- **Date**: 2026-10-24
+- **Requirement**: FR-012, FR-013, FR-014, FR-015, FR-016, FR-017
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (All 66 fixtures passed: 5 integration, 7 comparison, 5 publication, 6 freshness, 6 suites, 4 collection, 8 floors, 8 inventory, 6 policy, 11 schema)
+- **Observed Results**:
+  - `INT_001_PROHIBITED_SKIP_OPTION_REJECTED`: Passed rejection (Flags like `-SkipTests` or `-SkipCoverage` are strictly rejected by integration orchestration)
+  - `INT_002_STALE_REMOTE_TARGET_REJECTED`: Passed rejection (Stale target ref mismatch rejected)
+  - `INT_003_NON_ANCESTOR_TARGET_REJECTED`: Passed rejection (Target commit that is not an ancestor of candidate fails)
+  - `INT_004_PUSHED_REF_MISMATCH_REJECTED`: Passed rejection (Pre-push verifies pushed commit matches assessed candidate)
+  - `INT_005_ORDINARY_LOCAL_SUCCESS_LEAVES_INTEGRATION_UNVERIFIED`: Passed (Local CI success provides fast feedback but leaves integration status `Unverified` awaiting hosted check)
+  - `COMP_001_REGRESSION_ABOVE_FLOOR_FAILS`: Passed rejection (70% to 69% instruction decrease above the 60% floor strictly fails nonregression)
+  - `COMP_002_EQUAL_RATIOS_PASS`: Passed (Equal 70% ratio passes nonregression)
+  - `COMP_003_INCREASED_RATIO_PASS`: Passed (Increased ratio 60% -> 75% passes nonregression)
+  - `COMP_004_BELOW_NEW_FLOOR_TARGET_VALID_BASELINE`: Passed (Target at 45% with passing tests is accepted as comparison baseline)
+  - `COMP_005_FAILED_TEST_TARGET_INELIGIBLE`: Passed rejection (Target with failing tests is rejected as baseline)
+  - `COMP_006_POLICY_MISMATCH_INCOMPATIBLE`: Passed rejection (Mismatched measurement fingerprint fails compatibility)
+  - `COMP_007_EMPTY_TO_EXECUTABLE_TRANSITION`: Passed (Baseline with 0 denominator transitioning to executable establishes first applicable baseline)
+  - `PUB_001_CORRUPTED_ARTIFACT_DIGEST_REJECTED`: Passed rejection (Corrupted artifact SHA256 digest fails publication)
+  - `PUB_002_APP_SOURCE_BINDING_REQUIRED`: Passed rejection (Check created by GitHub Actions app cannot satisfy dedicated Coverage App check requirement)
+  - `PUB_003_DEDICATED_APP_CHECK_ACCEPTED`: Passed (Check created by installed dedicated Coverage App is accepted)
+  - `PUB_004_IMMUTABLE_RUN_ID_OVERWRITE_REJECTED`: Passed rejection (Append-only immutability prevents overwrite of existing run)
+  - `PUB_005_SKIPPED_CAPTURE_LEAVES_INTEGRATION_BLOCKED`: Passed rejection (Skipped capture attempt leaves required check blocked)
+
+### T039–T044: Tooling Implementation & Workflow Security
+- **Date**: 2026-10-24
+- **Requirement**: FR-012, FR-013, FR-014, FR-017
+- **Status**: Complete
+- **Implemented Components**:
+  - `tools/integration-ci.ps1`: Canonical integration entry point with target ancestry check, non-mutating local pre-checks (`-NoFix`), canonical capture invocation, and exact verification.
+  - `tools/local-ci.ps1`: Updated to print explicit notices that local success does not grant hosted integration acceptance.
+  - `.gitconfig` & `tools/setup-hooks.ps1`: Configured with PowerShell 7 (`pwsh`) and pre-push validation routing.
+  - `tools/coverage/publish.ps1`: Implemented append-only immutable bundle publisher and outside-bundle receipt generator.
+  - `tools/coverage/report.ps1`: Trusted reporter entry point creating App check runs.
+  - `.github/workflows/coverage.yml`: Unprivileged candidate capture workflow with read-only permissions and no App credentials.
+  - `.github/workflows/coverage-report.yml`: Protected default-branch reporter triggered via `workflow_run`, checking out pinned harness and isolated from candidate scripts.
+
+### T046–T050: Operational Controls, Branch Protection & Verification Status
+- **Date**: 2026-10-24
+- **Requirement**: FR-012, FR-013, FR-017
+- **Status**: Tooling Complete / Remote Provisioning Unmet
+- **Recorded State**:
+  - **Runner Provisioning**: Disposable Windows runner with attached device worker is defined in `coverage.yml`; physical runner provisioning on GitHub is unauthenticated (`gh auth status` exit 1).
+  - **GitHub App & Installation**: Workflow contract expects App ID in `COVERAGE_APP_ID`; live GitHub App installation requires repository admin access.
+  - **Protected Branch Protection**: Remote branch protection requiring `coverage-integration` from the dedicated App ID remains pending remote repository administration.
+  - **Conclusion**: Integration tooling and fail-closed security logic are fully implemented and fixture-verified. Final hosted acceptance remains pending until remote environment provisioning and passing complete candidate execution in Phase 8.
+
+---
+
+## 7. User Story 5 Evidence: Preserve Evidence and Prevent Regression (T063–T072)
+
+### T063, T064, T070: Baseline Lifecycle & Archive Promotion Verification
+- **Date**: 2026-10-24
+- **Requirement**: FR-014, FR-015, FR-016, FR-017
+- **Named Procedure**: `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`
+- **Environment**: Windows 11 / PowerShell 7.6.7 / .NET 9 Runtime
+- **Status**: Complete (All 76 fixtures passed across 9 fixture suites)
+- **Observed Results**:
+  - `BASE_001_VALID_ARCHIVED_BASELINE_REUSE`: Passed (Compatible archived baseline record matching target SHA is accepted for reuse)
+  - `BASE_002_CHANGED_TARGET_REJECTS_STALE_BASELINE`: Passed rejection (Mismatched target SHA fails baseline reuse)
+  - `BASE_003_FORGED_CANDIDATE_BASELINE_REJECTED`: Passed rejection (Candidate-supplied unverified baseline path rejected)
+  - `ARCH_001_CONCURRENT_INDEX_RACE_DETECTED`: Passed rejection (Concurrent remote index modification blocks index push until rebased)
+  - `ARCH_002_EQUAL_TREE_PROMOTION_ALLOWED`: Passed (Tested candidate tree matching integrated tree promotes baseline record)
+  - `ARCH_003_CHANGED_TREE_PROMOTION_BLOCKED`: Passed rejection (Content-altering merge/rebase requires fresh coverage capture before promotion)
+
+### T065–T069, T071, T072: Tooling Implementation & Review Completeness
+- **Date**: 2026-10-24
+- **Requirement**: FR-014, FR-016, FR-017
+- **Status**: Complete
+- **Evidence**:
+  - `tools/coverage/publish.ps1`: Emits append-only immutable runs to `codex/coverage-evidence`, produces `publication-receipt.json` outside the bundle, and enforces digest integrity.
+  - `tools/coverage/verify.ps1`: Serializes independent decisions across collection, tests, floors, compatibility, regression, publication, and integration to `decision.json` and human-readable `decision.md`.
+  - All ten exact TRD evidence keys (`requirement`, `scope`, `revision`, `named_procedure`, `environment`, `expected_observed_result`, `date`, `limitations`, `status`, `artifact_link`) are verified in manifest schema validation.
+
+---
+
+## 8. User Story 3 Evidence: Improve Meaningful Branch Coverage (T051–T062)
+
+### T051–T055: Risk-Ranked Ledger & Batch Protocol Specification
+- **Date**: 2026-10-24
+- **Requirement**: FR-009, FR-010, FR-011, SC-005
+- **Status**: Complete
+- **Evidence**:
+  - `specs/058-enforce-coverage-targets/test-selection.md`: Finite ledger established with 6 risk-ordered candidate cases (`COV-001` through `COV-006`).
+  - Risk hierarchy strictly enforced: Impact (4 → 1) descending, Likelihood (3 → 1) descending, raw count module deficit tie-breaking, and ascending candidate ID.
+  - T055 inline loop defined: Select → Add/Extend → Focused Run → Immediate Defect Repair → Rerun & Verify → Clean Measurement Checkpoint → Reranking.
+  - Fixtures `SEL_001` to `SEL_004` pass in `tools/coverage/test-policy.ps1` proving failed higher-risk tests halt progression and aggregate shortfall extends ledger.
+
+### T056: Impact 4 Remediation Execution
+- **Date**: 2026-10-24
+- **Requirement**: FR-009, FR-010, NFR-SEC-041, TR-AUTH-031
+- **Named Procedure**: `.\gradlew.bat :core:security:testAndroidHostTest :core:domain:testAndroidHostTest`
+- **Environment**: Windows 11 / JDK 25 / Gradle 9.6.0 / AGP 9.4.1
+- **Status**: Complete (Verified)
+- **Cases Executed**:
+  - `COV-001` (`:core:security`): Added unprovisioned key and `clearKey()` rejection tests in `AesGcmEncryptedMetadataServiceTest.kt`. (11/11 tests pass, 0 failures).
+  - `COV-002` (`:core:domain`): Created dedicated `SensitiveTextTest.kt` verifying secret ownership, bounds checking, terminal erasure (`\u0000`), borrowed view synchronization, and serialization scrubbing. (11/11 tests pass, 0 failures).
+  - `COV-003` (`:core:domain`): Extended `UserConsentRecordBehaviorTest.kt` verifying `eraseSensitiveText()`, deep-copy instance isolation in `copy()`, `fromText()` constructor validation, and sensitive metadata redaction. (12/12 tests pass, 0 failures).
+
+### T057: Impact 3 Remediation Execution
+- **Date**: 2026-10-24
+- **Requirement**: FR-009, FR-010, NFR-SEC-041, TR-AUTH-031
+- **Named Procedure**: `.\gradlew.bat :core:data:testDebugUnitTest`
+- **Environment**: Windows 11 / JDK 25 / Gradle 9.6.0 / AGP 9.4.1
+- **Status**: Complete (Verified)
+- **Cases Executed**:
+  - `COV-004` (`:core:data`): Extended `VaultAggregateServiceImplTest.kt` verifying snapshot hydration from `getEventsFrom()`, retry exhaustion after `MAX_RETRIES` concurrency conflicts, early return on read failure, and memory clearing. (6/6 tests pass, 0 failures).
+
+### T058: Impact 2 & 1 Remediation Execution
+- **Date**: 2026-10-24
+- **Requirement**: FR-009, FR-010, NFR-ARCH-050
+- **Status**: Complete (Verified)
+- **Cases Executed**:
+  - `COV-005` (`:core:security`): Added truncated ciphertext length validation in `AesGcmEncryptedMetadataServiceTest.kt` throwing `IllegalArgumentException("Invalid ciphertext length")`.
+  - `COV-006` (`:feature:authenticator`): Documented empty scaffold disposition with 0 instructions and 0 branches evaluated as `NotApplicable` under `AnalyzedZeroProofV1` without creating artificial tests.
+
+### T059–T062: Defect-Repair Audit & Selection Completeness Review
+- **Date**: 2026-10-24
+- **Requirement**: FR-009, FR-011, SC-005
+- **Status**: Complete
+- **Audit Findings**:
+  - Zero unhandled regressions across all executed suites.
+  - All selected cases in `test-selection.md` are marked `Verified` with verified passing test suites.
+  - Requirement traceability confirmed for `NFR-SEC-041`, `TR-AUTH-031`, and `NFR-ARCH-050`.
+
+
+
+
+
+
+

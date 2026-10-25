@@ -1,4 +1,4 @@
-package com.chimali.core.domain.model
+﻿package com.chimali.core.domain.model
 
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
@@ -106,6 +106,60 @@ class UserConsentRecordBehaviorTest {
         assertEquals(UserConsentRecord.MAX_DEVICE_ID_LENGTH, consent.deviceId?.length)
     }
 
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `eraseSensitiveText erases the owned RP buffer`() {
+        val consent = record(rpId = "https://example.com")
+        assertEquals("https://example.com", consent.rpId.value)
+
+        consent.eraseSensitiveText()
+
+        val erasedExpected = "\u0000".repeat("https://example.com".length)
+        assertEquals(erasedExpected, consent.rpIdText.toBoundaryString())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `copy performs deep copy of sensitive text isolating instances`() {
+        val original = record(rpId = "https://example.com")
+        val copied = original.copy()
+
+        assertEquals(original, copied)
+
+        copied.eraseSensitiveText()
+
+        assertEquals("https://example.com", original.rpId.value)
+        val erasedExpected = "\u0000".repeat("https://example.com".length)
+        assertEquals(erasedExpected, copied.rpIdText.toBoundaryString())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `fromText constructs and validates consent record`() {
+        val consent = UserConsentRecord.fromText(
+            id = "from-text-id",
+            operationType = ConsentOperationType.REGISTRATION,
+            rpId = "https://fido.org",
+        )
+
+        assertEquals("from-text-id", consent.id)
+        assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
+        assertEquals("https://fido.org", consent.rpId.value)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `diagnostics redact metadata and equals hashCode work on record fields`() {
+        val consent1 = record(id = "rec-1", rpId = "https://site1.com")
+        val consent2 = record(id = "rec-1", rpId = "https://site1.com")
+        val consent3 = record(id = "rec-2", rpId = "https://site2.com")
+
+        assertEquals("UserConsentRecord([sensitive metadata redacted])", consent1.toString())
+        assertEquals(consent1, consent2)
+        assertFalse(consent1 == consent3)
+        assertEquals(consent1.hashCode(), consent2.hashCode())
+    }
     private fun record(
         id: String = "consent-1",
         operationType: ConsentOperationType = ConsentOperationType.AUTHENTICATION,

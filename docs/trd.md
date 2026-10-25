@@ -1,7 +1,7 @@
 # Technical Requirements Document (TRD) - Chimali
 
 **Project Name**: Chimali  
-**Version**: 0.2.0  
+**Version**: 0.3.0
 **Status**: Approved  
 **Reference Document**: [BRD](brd.md)
 
@@ -75,9 +75,11 @@ Modules across the project are categorized into two architectural criticality ti
   - `:core:data` — repository contracts and data integrity rules
   - `:feature:fido2` — CTAP2 protocol implementation and passkey flows
   - `:feature:authenticator` — Bluetooth HID authentication orchestration
-  *Requirements*: Full DO-178B-inspired traceability (`@Req`), forbidden dead code, bounded execution, and high test coverage gates (>= 40%).
+  *Requirements*: Full DO-178B-inspired traceability (`@Req`), forbidden dead code, bounded execution, and independent minimum gates of 60% JaCoCo instruction coverage and 60% branch coverage where branches exist. Evaluate floors using raw covered and missed counts; do not use rounded percentages for acceptance.
 - **Tier 2 (Feature & Infrastructure Modules)**: All other modules (`:core:bluetooth`, `:core:crdt`, `:core:database`, `:core:common`, `:core:ui`, `:feature:vault`, `:feature:editor`, `:feature:settings`, `:feature:onboarding`, `:app`).
   *Requirements*: Root `README.md` requirement mapping (`FR-*`, `NFR-*`) and baseline test coverage (>= 20%).
+
+The aggregate JaCoCo instruction coverage across all production modules MUST be at least 50%. A complete current coverage run, including all required host and connected-device suites, MUST pass before integration. For every changed Tier 1 module, neither instruction nor applicable branch coverage may decrease against the accepted integration-target baseline. Modules with no executable production instructions require a fresh, evidenced inventory disposition; a zero branch denominator applies only to the branch metric. Approximately 65% branch coverage in remediated Tier 1 modules is an improvement goal, not an integration floor. These policy decisions use raw counters and are enforced by the trusted integration coverage check.
 
 ### 2.3 Event Sourcing Technical Architecture
 Event Sourcing serves as the primary persistence and audit mechanism for core aggregates (`VaultEntry`, `PasskeyCredential`):
@@ -226,7 +228,7 @@ To prevent conflation between document readiness and live software verification,
 
 ### 9.2 Verification Policy Framework & Five-Area Authority Map
 
-In alignment with the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0), verification procedures are systematically structured across five critical governance areas. In accordance with the constitutional precedence hierarchy (Constitution → BRD → TRD → Rules → Feature artifacts), the procedures defined in this section and engineering rules are operational mechanisms subordinate to constitutional principles.
+In alignment with the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0), verification procedures are systematically structured across five critical governance areas. In accordance with the constitutional precedence hierarchy (Constitution → BRD → TRD → Rules → Feature artifacts), the procedures defined in this section and engineering rules are operational mechanisms subordinate to constitutional principles.
 
 | Governance Area | Constitutional Principle & Authority Baseline | Governing Product Requirement | TRD Verification Section | Engineering Rules Anchor | Register / Evidence Location |
 | --- | --- | --- | --- | --- | --- |
@@ -237,7 +239,7 @@ In alignment with the Constitution Principle V verifiable acceptance policy (Con
 | **5. Universal Accessibility** | Principle VIII (Accessibility as a Security Feature) | BRD `FR-UI-010`, `FR-UI-011` (Deferred) | §6 (Corrected description rule), §9.5 Accessibility Matrix | Rules §1, §5.4 (UI Compose testing) | Feature evidence records; `follow-ups.md` (FUP-ACC-001) |
 
 > [!IMPORTANT]
-> **Separation of Policy Delivery from Runtime Product Compliance**: The inclusion of verification schemas, lifecycle matrices, and measurement contracts in this technical specification establishes mandatory future obligations. It DOES NOT indicate that current application code complies with these standards or that tests have been executed. Runtime compliance remains an independent empirical determination requiring executed evidence. The live Constitution (4.1.0) remains the supreme baseline.
+> **Separation of Policy Delivery from Runtime Product Compliance**: The inclusion of verification schemas, lifecycle matrices, and measurement contracts in this technical specification establishes mandatory future obligations. It DOES NOT indicate that current application code complies with these standards or that tests have been executed. Runtime compliance remains an independent empirical determination requiring executed evidence. The live Constitution (5.0.0) remains the supreme baseline.
 
 ### 9.3 Validation & Negative-Case Verification Contracts
 
@@ -385,5 +387,5 @@ Any future performance measurement proposal or benchmark suite MUST fully specif
 
 ## 10. Document Metadata
 - **Owner**: Chimali Engineering Team
-- **Version**: 0.2.0
+- **Version**: 0.3.0
 - **Reference**: [BRD](brd.md)

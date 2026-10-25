@@ -1,0 +1,88 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Baseline comparison, ratio regression, and compatibility matrix fixtures",
+  "cases": [
+    {
+      "id": "COMP_001_REGRESSION_ABOVE_FLOOR_FAILS",
+      "description": "70% to 69% coverage regression above the 60% floor strictly FAILS nonregression",
+      "baseline": {
+        "instruction": { "covered": 70, "missed": 30 }
+      },
+      "candidate": {
+        "instruction": { "covered": 69, "missed": 31 }
+      },
+      "expected_passed": false,
+      "expected_error": "Regression detected: 69% < 70%"
+    },
+    {
+      "id": "COMP_002_EQUAL_RATIOS_PASS",
+      "description": "Equal instruction ratio passes nonregression",
+      "baseline": {
+        "instruction": { "covered": 70, "missed": 30 }
+      },
+      "candidate": {
+        "instruction": { "covered": 140, "missed": 60 }
+      },
+      "expected_passed": true
+    },
+    {
+      "id": "COMP_003_INCREASED_RATIO_PASS",
+      "description": "Increased ratio passes nonregression",
+      "baseline": {
+        "instruction": { "covered": 60, "missed": 40 }
+      },
+      "candidate": {
+        "instruction": { "covered": 75, "missed": 25 }
+      },
+      "expected_passed": true
+    },
+    {
+      "id": "COMP_004_BELOW_NEW_FLOOR_TARGET_VALID_BASELINE",
+      "description": "Target at 45% with passing tests provides valid comparison baseline without being compliant with new floors",
+      "baseline": {
+        "instruction": { "covered": 45, "missed": 55 },
+        "tests_passed": true,
+        "collection": "Complete"
+      },
+      "candidate": {
+        "instruction": { "covered": 65, "missed": 35 }
+      },
+      "expected_baseline_valid": true,
+      "expected_passed": true
+    },
+    {
+      "id": "COMP_005_FAILED_TEST_TARGET_INELIGIBLE",
+      "description": "Target with failing tests cannot be accepted as comparison baseline",
+      "baseline": {
+        "instruction": { "covered": 80, "missed": 20 },
+        "tests_passed": false,
+        "collection": "Complete"
+      },
+      "expected_baseline_valid": false,
+      "expected_error": "Target run has failing tests; ineligible as comparison baseline"
+    },
+    {
+      "id": "COMP_006_POLICY_MISMATCH_INCOMPATIBLE",
+      "description": "Target measured with incompatible policy fingerprint fails compatibility",
+      "baseline": {
+        "measurement_fingerprint": "fingerprint_old_incompatible"
+      },
+      "candidate": {
+        "measurement_fingerprint": "fingerprint_new_v1"
+      },
+      "expected_compatible": false,
+      "expected_error": "Measurement compatibility fingerprint mismatch"
+    },
+    {
+      "id": "COMP_007_EMPTY_TO_EXECUTABLE_TRANSITION",
+      "description": "Baseline was empty/zero, candidate gains executable scope -> first applicable baseline",
+      "baseline": {
+        "instruction": { "covered": 0, "missed": 0 }
+      },
+      "candidate": {
+        "instruction": { "covered": 60, "missed": 40 }
+      },
+      "expected_passed": true
+    }
+  ]
+}

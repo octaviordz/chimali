@@ -1,0 +1,42 @@
+{
+  "$schema": "./fixtures/schema-fixture.json",
+  "schema_version": "1.0",
+  "policy_id": "chimali-coverage-v1",
+  "description": "Authoritative coverage thresholds, critical module classifications, and verification rules",
+  "tier1_modules": [
+    ":core:security",
+    ":core:domain",
+    ":core:data",
+    ":feature:fido2",
+    ":feature:authenticator"
+  ],
+  "tier1_instruction_min_percent": 60,
+  "tier1_branch_min_percent": 60,
+  "repository_instruction_min_percent": 50,
+  "tier2_instruction_min_percent": 20,
+  "tier2_gated_modules": [
+    ":core:database",
+    ":core:common",
+    ":app"
+  ],
+  "branch_improvement_goal_percent": 65,
+  "metrics": {
+    "primary": ["INSTRUCTION", "BRANCH"],
+    "diagnostic": ["LINE"],
+    "arithmetic": "arbitrary_precision_integer"
+  },
+  "counter_normalization": "AnalyzedZeroProofV1",
+  "production_inventory_rules": {
+    "source_sets": ["commonMain", "androidMain", "main"],
+    "fail_on_unmapped_classes": true
+  },
+  "generated_exclusion_rules": {
+    "exclude_sqldelight": true,
+    "allow_handwritten_exclusions": false
+  },
+  "required_workload": {
+    "host_unit_tests": true,
+    "connected_device_tests": true
+  },
+  "regression_rule": "nondecreasing_applicable_ratios"
+}

@@ -1,0 +1,92 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "JUnit report parsing, suite outcome calculation, and skip accounting fixtures",
+  "cases": [
+    {
+      "id": "SUITE_001_ALL_TESTS_PASSED",
+      "description": "Suite with all tests passing evaluates to Passed",
+      "suite_result": {
+        "suite_name": "com.chimali.core.security.CipherTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "required": true
+      },
+      "expected_status": "Passed",
+      "expected_executed": 10
+    },
+    {
+      "id": "SUITE_002_FAILED_TEST_FAILS_SUITE",
+      "description": "Suite with 1 failure evaluates to Failed",
+      "suite_result": {
+        "suite_name": "com.chimali.core.security.AesGcmTest",
+        "tests": 10,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "required": true
+      },
+      "expected_status": "Failed",
+      "expected_executed": 10
+    },
+    {
+      "id": "SUITE_003_ERROR_FAILS_SUITE",
+      "description": "Suite with 1 test error evaluates to Failed",
+      "suite_result": {
+        "suite_name": "com.chimali.core.domain.UseCaseTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 1,
+        "skipped": 0,
+        "required": true
+      },
+      "expected_status": "Failed",
+      "expected_executed": 5
+    },
+    {
+      "id": "SUITE_004_SKIPPED_DOES_NOT_COUNT_AS_EXECUTED",
+      "description": "Skipped tests are not counted as executed; required suite with skipped test fails",
+      "suite_result": {
+        "suite_name": "com.chimali.feature.fido2.Fido2AuthTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "required": true
+      },
+      "expected_status": "Failed",
+      "expected_executed": 3,
+      "expected_error": "Required suite has skipped testcases: 2 skipped"
+    },
+    {
+      "id": "SUITE_005_ZERO_EXECUTED_FAILS_REQUIRED",
+      "description": "Required suite that discovered 0 tests or executed 0 tests fails",
+      "suite_result": {
+        "suite_name": "com.chimali.core.data.RepositoryTest",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "required": true
+      },
+      "expected_status": "Failed",
+      "expected_executed": 0,
+      "expected_error": "Required suite produced zero actual executions"
+    },
+    {
+      "id": "SUITE_006_OPTIONAL_SKIPPED_SUITE_PASSES",
+      "description": "Non-required suite with skipped tests does not fail overall gate",
+      "suite_result": {
+        "suite_name": "com.chimali.core.ui.OptionalUiPreviewTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "required": false
+      },
+      "expected_status": "Passed",
+      "expected_executed": 2
+    }
+  ]
+}

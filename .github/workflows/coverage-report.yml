@@ -1,0 +1,59 @@
+name: Protected Coverage Report
+
+on:
+  workflow_run:
+    workflows: ["Coverage Capture"]
+    types: [completed]
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  report:
+    name: Protected Check Reporter
+    runs-on: windows-latest
+    environment: coverage-reporting
+    steps:
+      - name: Checkout trusted default-branch harness
+        uses: actions/checkout@v4
+        with:
+          ref: lab/or/jpc
+          path: trusted-harness
+
+      - name: Download capture artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-bundle
+          path: run-bundle
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Coverage Check
+        shell: pwsh
+        env:
+          APP_ID: ${{ secrets.COVERAGE_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.COVERAGE_APP_PRIVATE_KEY }}
+          INSTALLATION_ID: ${{ secrets.COVERAGE_APP_INSTALLATION_ID }}
+        run: |
+          $headSha = "${{ github.event.workflow_run.head_sha }}"
+          $baseSha = "${{ github.event.workflow_run.pull_requests[0].base.sha }}"
+          if (-not $baseSha) { $baseSha = $headSha }
+
+          $isDefaultBranch = ($baseSha -eq $headSha -or "${{ github.event.workflow_run.head_branch }}" -in @("main", "lab/or/jpc"))
+          $promoteArgs = @()
+          if ($isDefaultBranch) {
+              $promoteArgs += "-PromoteIntegration"
+              $promoteArgs += "-IntegratedCommit"
+              $promoteArgs += $headSha
+          }
+
+          pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/report.ps1 `
+            -RunBundle (Get-Item run-bundle/* | Select-Object -First 1).FullName `
+            -Repository "${{ github.repository }}" `
+            -HeadSha $headSha `
+            -BaseSha $baseSha `
+            -AppId $env:APP_ID `
+            -AppPrivateKey $env:APP_PRIVATE_KEY `
+            -InstallationId $env:INSTALLATION_ID `
+            @promoteArgs

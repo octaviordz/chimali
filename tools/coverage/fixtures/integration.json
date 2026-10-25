@@ -1,0 +1,60 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Integration orchestration, target ancestry, ref validation, and CLI enforcement fixtures",
+  "cases": [
+    {
+      "id": "INT_001_PROHIBITED_SKIP_OPTION_REJECTED",
+      "description": "Integration CI rejects prohibited skip flags like -SkipTests or -SkipCoverage",
+      "invocation": {
+        "arguments": {
+          "SkipTests": true
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Prohibited or unknown argument: SkipTests"
+    },
+    {
+      "id": "INT_002_STALE_REMOTE_TARGET_REJECTED",
+      "description": "Integration target that does not match remote target ref is rejected",
+      "invocation": {
+        "candidate_ref": "0123456789abcdef0123456789abcdef01234567",
+        "target_ref": "stale_target_ref",
+        "remote_target_sha": "target_head_sha_current",
+        "resolved_target_sha": "target_head_sha_old"
+      },
+      "expected_valid": false,
+      "expected_error": "TargetRef resolved to stale SHA; does not match current remote target"
+    },
+    {
+      "id": "INT_003_NON_ANCESTOR_TARGET_REJECTED",
+      "description": "Target commit is not an ancestor of proposed candidate",
+      "invocation": {
+        "candidate_ref": "candidate_sha",
+        "target_ref": "target_sha",
+        "is_ancestor": false
+      },
+      "expected_valid": false,
+      "expected_error": "Target commit is not an ancestor of candidate"
+    },
+    {
+      "id": "INT_004_PUSHED_REF_MISMATCH_REJECTED",
+      "description": "Pre-push hook verifies pushed ref matches assessed candidate commit",
+      "invocation": {
+        "pushed_ref_sha": "different_sha_pushed",
+        "assessed_candidate_sha": "assessed_sha"
+      },
+      "expected_valid": false,
+      "expected_error": "Pushed commit does not match assessed coverage candidate"
+    },
+    {
+      "id": "INT_005_ORDINARY_LOCAL_SUCCESS_LEAVES_INTEGRATION_UNVERIFIED",
+      "description": "Passing local CI run leaves integration decision Unverified awaiting hosted check",
+      "invocation": {
+        "local_verification_passed": true,
+        "hosted_check_present": false
+      },
+      "expected_integration_status": "Unverified",
+      "expected_notes": "Local success provides fast feedback; cannot grant remote merge approval"
+    }
+  ]
+}

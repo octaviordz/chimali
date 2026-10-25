@@ -1,11 +1,11 @@
 # setup-hooks.ps1
-# Configures the repository to use the tracked .gitconfig for Git hooks (Git 2.54+).
+# Configures the repository to use the tracked .gitconfig for Git hooks with PowerShell 7.
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Configuring Git hooks (Git 2.54+)..." -ForegroundColor Cyan
+Write-Host "Configuring Git hooks (Git 2.54+ / PowerShell 7)..." -ForegroundColor Cyan
 
-# Check Git version
+# 1. Verify Git version
 $gitVersion = git --version
 if ($gitVersion -match "git version (\d+\.\d+)") {
     $version = [double]$matches[1]
@@ -15,9 +15,14 @@ if ($gitVersion -match "git version (\d+\.\d+)") {
     }
 }
 
-# Set up the include path to point to the tracked .gitconfig
-# Using ../.gitconfig because it's relative to the .git directory
+# 2. Verify PowerShell 7 (pwsh) availability
+if (-not (Get-Command "pwsh" -ErrorAction SilentlyContinue)) {
+    Write-Warning "PowerShell 7 (pwsh) was not found in PATH. Pre-commit and pre-push hooks require pwsh."
+}
+
+# 3. Configure tracked .gitconfig include
 git config --local include.path ../.gitconfig
 
 Write-Host "Done: Repository configured to include .gitconfig for shared hooks." -ForegroundColor Green
+Write-Host "NOTE: Local hook bypass (e.g. git push --no-verify) does NOT grant remote merge approval; remote GitHub branch protection strictly enforces the dedicated App coverage check." -ForegroundColor Yellow
 Write-Host "`nGit hooks setup complete!" -ForegroundColor Cyan

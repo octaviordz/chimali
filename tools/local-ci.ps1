@@ -77,5 +77,6 @@ if ($RunCoverage) {
 }
 
 $TotalDuration = (Get-Date) - $StartTime
+Write-Host "`nNOTICE: Ordinary local CI success does NOT establish hosted integration acceptance; integration remains Unverified until complete tools/integration-ci.ps1 runs." -ForegroundColor Yellow
 Write-Host "`nLocal CI Pipeline Completed Successfully! ($([math]::Round($TotalDuration.TotalSeconds, 2))s)" -ForegroundColor Cyan
 exit 0

@@ -1,0 +1,38 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Archive index concurrency, baseline promotion, and tree-matching lifecycle fixtures",
+  "cases": [
+    {
+      "id": "ARCH_001_CONCURRENT_INDEX_RACE_DETECTED",
+      "description": "Index advance fails if parent index commit changed concurrently",
+      "index_update": {
+        "expected_parent_index": "parent_sha_1111111111111111111111111111",
+        "actual_remote_parent": "parent_sha_2222222222222222222222222222"
+      },
+      "expected_success": false,
+      "expected_error": "Concurrent archive index conflict detected; rebase required before index advance"
+    },
+    {
+      "id": "ARCH_002_EQUAL_TREE_PROMOTION_ALLOWED",
+      "description": "Integration that creates a merge commit with identical tested product tree promotes baseline",
+      "promotion": {
+        "candidate_tested_tree": "tree_abcdef1234567890abcdef1234567890",
+        "integrated_tree": "tree_abcdef1234567890abcdef1234567890",
+        "tested_commit": "candidate_head_commit",
+        "integrated_commit": "merge_commit_sha"
+      },
+      "expected_promotion_allowed": true,
+      "expected_notes": "Both candidate commit and integrated commit recorded for equal tree promotion"
+    },
+    {
+      "id": "ARCH_003_CHANGED_TREE_PROMOTION_BLOCKED",
+      "description": "Rebase or merge conflict resolution that modifies product tree cannot be promoted without fresh capture",
+      "promotion": {
+        "candidate_tested_tree": "tree_abcdef1234567890abcdef1234567890",
+        "integrated_tree": "tree_differing9876543210differing987654"
+      },
+      "expected_promotion_allowed": false,
+      "expected_error": "Integrated tree does not match tested candidate tree; fresh complete coverage capture required"
+    }
+  ]
+}

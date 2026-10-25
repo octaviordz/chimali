@@ -48,6 +48,7 @@ kotlin {
         }
 
         val androidHostTest by getting {
+            kotlin.srcDir("src/test/kotlin")
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.junit.jupiter)

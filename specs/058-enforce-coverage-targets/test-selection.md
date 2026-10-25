@@ -1,0 +1,138 @@
+# Behavior Test Selection and Remediation Ledger
+
+**Feature**: 058-enforce-coverage-targets  
+**Status**: Active  
+**Last Updated**: 2026-10-24  
+
+## 1. Selection Protocol and Ordering Rules
+
+### Risk-First Hierarchy
+In accordance with Principle V (5.0.0), BRD NFR-ARCH-050, and TRD §2.2/§9, test selection and remediation proceed strictly by risk priority across all Tier 1 modules before coverage-deficit ordering:
+1. **Impact** (Descending 4 → 1):
+   - **4**: Credential compromise, unauthorized access, or irrecoverable sensitive-data loss.
+   - **3**: Integrity or recoverability failure, state corruption, or event synchronization failure.
+   - **2**: Bounded functional failure, graceful error handling, or boundary validation failure.
+   - **1**: Low-consequence behavior, scaffold accounting, or informational telemetry.
+2. **Likelihood / Exposure** (Descending 3 → 1):
+   - **3**: Ordinary or externally supplied reachable conditions, public APIs, or known regressions.
+   - **2**: Credible failure, boundary conditions, or complex lifecycle transitions.
+   - **1**: Constrained internal conditions or unreachable fallback branches.
+3. **Module Deficit Tie-Breaker**:
+   - For identical risk rank `(impact, likelihood)`, order by larger positive percentage-point gap against applicable module floors (Tier 1: 60% instructions/branches).
+4. **Stable Candidate ID**:
+   - For remaining ties, order by ascending stable identifier (`COV-001`, `COV-002`, etc.).
+
+### Mandatory Inline Batch Loop (T055)
+Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inline cycle before advancing to a lower-risk rank:
+1. **Select**: Identify highest-ranked candidate(s) in the active rank.
+2. **Author / Extend**: Implement independent assertions in the designated test file. Tests must verify independent expected outcomes and typed failures; manufacturing artificial defects is forbidden.
+3. **Focused Execution**: Run the focused test task for the affected module.
+4. **Immediate Remediation**: If an exposed product defect is revealed, repair it immediately with bounded corrections.
+5. **Rerun & Verify**: Rerun the test suite to confirm passing outcome before marking status `Verified`.
+6. **Fresh Measurement Checkpoint**: Capture fresh coverage data under local-CI policy.
+7. **Reranking**: Rerank remaining candidates; newly discovered higher-risk cases reenter priority order. A failed or unverified test strictly blocks progression to lower-risk ranks.
+
+---
+
+## 2. Finite Candidate Ledger
+
+| ID | Module | Behavior | Reason | Impact | Likelihood | Deficit | Status | Test Location | Action |
+|---|---|---|---|---|---|---|---|---|---|
+| `COV-001` | `:core:security` | Unprovisioned / cleared key failure rejection | `Tier1Risk` | 4 | 3 | 0.0% | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
+| `COV-002` | `:core:domain` | `SensitiveText` terminal erasure, view bounds, serialization | `Tier1Risk` | 4 | 3 | 0.0% | `Verified` | `SensitiveTextTest.kt` | `Add` |
+| `COV-003` | `:core:domain` | `UserConsentRecord` RP erasure, deep-copy isolation, validation wiping | `Tier1Risk` | 4 | 2 | 0.0% | `Verified` | `UserConsentRecordBehaviorTest.kt` | `Extend` |
+| `COV-004` | `:core:data` | `VaultAggregateServiceImpl` snapshot hydration, retry exhaustion, memory scrubbing | `Tier1Risk` | 3 | 2 | 0.0% | `Verified` | `VaultAggregateServiceImplTest.kt` | `Extend` |
+| `COV-005` | `:core:security` | `AesGcmEncryptedMetadataService` malformed ciphertext length rejection | `Tier1Risk` | 2 | 3 | 0.0% | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
+| `COV-006` | `:feature:authenticator` | Evidenced empty iOS-only scaffold module disposition | `Tier1Risk` | 1 | 1 | 0.0% | `Verified` | N/A (`AnalyzedZeroProofV1`) | `None` |
+
+---
+
+## 3. Detailed Case Specifications
+
+### Batch 1: Impact 4 (Critical Credential & Secret Protection)
+
+#### COV-001: AesGcmEncryptedMetadataService Key Lifecycle & Unprovisioned Rejection
+- **Module**: `:core:security`
+- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Impact**: 4 | **Likelihood**: 3 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: `AesGcmEncryptedMetadataService` initialized without calling `provisionKey`, or after invoking `clearKey()`.
+- **Expected Result**: Calling `encrypt()` or `decrypt()` throws `IllegalStateException` with message `"Encryption key not provisioned"`.
+- **Forbidden Effects**: No cipher initialization, no key retention, no null-pointer dereference.
+- **Test File**: [AesGcmEncryptedMetadataServiceTest.kt](file:///d:/octav/source/repos/Chimali/core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt)
+- **Existing Action**: `Extend`
+
+#### COV-002: SensitiveText Terminal Erasure, View Bounds, and Serialization Scrubbing
+- **Module**: `:core:domain`
+- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Impact**: 4 | **Likelihood**: 3 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: `SensitiveText` instances created via `takeOwnership` or `copyOf`.
+- **Expected Result**:
+  - `erase()` fills buffer with null characters (`\u0000`).
+  - Borrowed views via `subSequence()` immediately reflect terminal erasure.
+  - `subSequence()` throws `IllegalArgumentException` on negative start or start > end or end > length.
+  - Borrowed view indexing throws `IllegalArgumentException` on index < 0 or index >= view length.
+  - `copyOwner()` creates an independent owner whose erasure does not alter the original.
+  - `toBoundaryString()` correctly exports characters to String.
+  - `SensitiveTextSerializer` erases temporary character arrays on exit in both normal and exceptional flows.
+- **Forbidden Effects**: No un-erased credential buffers left in heap memory.
+- **Test File**: [SensitiveTextTest.kt](file:///d:/octav/source/repos/Chimali/core/domain/src/commonTest/kotlin/com/chimali/core/domain/model/SensitiveTextTest.kt)
+- **Existing Action**: `Add`
+
+#### COV-003: UserConsentRecord RP Erasure, Deep-Copy Isolation, and Validation Scrubbing
+- **Module**: `:core:domain`
+- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Impact**: 4 | **Likelihood**: 2 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: `UserConsentRecord` instances with valid or invalid RP URLs.
+- **Expected Result**:
+  - `eraseSensitiveText()` fills the underlying `rpIdOwner` with null characters.
+  - `copy()` produces a deep copy of the sensitive RP text so erasing or modifying the copy does not affect the original.
+  - `UserConsentRecord.fromText()` constructs record borrowing RP CharSequence and validates correctly.
+  - When validation fails (e.g., blank ID or malformed RP), `rpIdOwner.erase()` is executed before re-throwing `IllegalArgumentException`.
+  - `toString()` redacts sensitive metadata (`UserConsentRecord([sensitive metadata redacted])`).
+- **Forbidden Effects**: No plaintext RP retention after validation rejection.
+- **Test File**: [UserConsentRecordBehaviorTest.kt](file:///d:/octav/source/repos/Chimali/core/domain/src/commonTest/kotlin/com/chimali/core/domain/model/UserConsentRecordBehaviorTest.kt)
+- **Existing Action**: `Extend`
+
+---
+
+### Batch 2: Impact 3 (Data Integrity & Recovery)
+
+#### COV-004: VaultAggregateServiceImpl Snapshot Hydration, Retry Exhaustion, and Memory Scrubbing
+- **Module**: `:core:data`
+- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Impact**: 3 | **Likelihood**: 2 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: `VaultAggregateServiceImpl` with mocked `EventStoreRepository` and `SnapshotRepository`.
+- **Expected Result**:
+  - `getState` with `asOf == null` queries `snapshotRepository.getLatest`. If snapshot exists, hydrations calls `getEventsFrom(..., snapshot.sequenceNumber)` and evolves from `snapshot.state`.
+  - `execute` with command retries up to `MAX_RETRIES` (3 times) on optimistic concurrency conflict. If all 3 retries fail, returns `Result.failure` with `RuntimeException("Aggregate command execution failed after retries")`.
+  - When `currentStateResult.isFailure`, `execute` immediately returns the failure without calling decider.
+  - When decider produces empty events, returns `Result.success(currentState)`.
+  - When `state.sequenceNumber % SNAPSHOT_THRESHOLD == 0L`, saves snapshot to `snapshotRepository`.
+  - In all execution paths (success, retry, failure), `clearSensitiveMemory()` is invoked on events and command.
+- **Forbidden Effects**: No unscrubbed sensitive event or command state left in memory.
+- **Test File**: [VaultAggregateServiceImplTest.kt](file:///d:/octav/source/repos/Chimali/core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt)
+- **Existing Action**: `Extend`
+
+---
+
+### Batch 3: Impact 2 & 1 (Bounded Functional Failure & Scaffold Accounting)
+
+#### COV-005: AesGcmEncryptedMetadataService Malformed Ciphertext Truncation
+- **Module**: `:core:security`
+- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Impact**: 2 | **Likelihood**: 3 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: Provisioned `AesGcmEncryptedMetadataService`.
+- **Expected Result**: Calling `decrypt` with ciphertext shorter than 1 + 12 bytes throws `IllegalArgumentException("Invalid ciphertext length")`.
+- **Forbidden Effects**: No out-of-bounds array slicing or cryptic JCA exceptions.
+- **Test File**: [AesGcmEncryptedMetadataServiceTest.kt](file:///d:/octav/source/repos/Chimali/core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt)
+- **Existing Action**: `Extend`
+
+#### COV-006: Feature Authenticator Scaffold Disposition Accounting
+- **Module**: `:feature:authenticator`
+- **Requirements**: `NFR-ARCH-050`
+- **Impact**: 1 | **Likelihood**: 1 | **Selection Reason**: `Tier1Risk`
+- **Initial State**: `:feature:authenticator` contains only `src/iosMain/README.md` and zero Kotlin sources.
+- **Expected Result**: Complete inventory accounts for module with 0 instructions, 0 branches; verified as `NotApplicable` under `AnalyzedZeroProofV1`.
+- **Forbidden Effects**: No artificial dummy code or fake tests added.
+- **Test File**: N/A (`AnalyzedZeroProofV1`)
+- **Existing Action**: `None`

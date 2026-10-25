@@ -1,0 +1,59 @@
+name: Coverage Capture
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: ["lab/or/jpc", "codex/*"]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Unprivileged Coverage Capture
+    runs-on: [self-hosted, windows, android-device]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Preflight device check
+        shell: pwsh
+        run: |
+          adb devices
+          $online = (adb devices) | Select-String -Pattern "\bdevice\b"
+          if (-not $online) {
+            Write-Error "No connected Android test device found online."
+            exit 2
+          }
+
+      - name: Run Coverage Capture
+        shell: pwsh
+        run: |
+          $targetRef = "${{ github.base_ref }}"
+          if (-not $targetRef) { $targetRef = "HEAD" }
+          pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/capture.ps1 `
+            -RepositoryRoot $PWD.Path `
+            -SourceRevision "${{ github.sha }}" `
+            -Purpose "Candidate" `
+            -TargetRevision $targetRef `
+            -HarnessRoot $PWD.Path `
+            -DeviceSerial "emulator-5554" `
+            -OutputRoot "$env:RUNNER_TEMP/coverage-runs"
+
+      - name: Upload Coverage Run Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-bundle
+          path: |
+            ${{ runner.temp }}/coverage-runs/*
+          retention-days: 14

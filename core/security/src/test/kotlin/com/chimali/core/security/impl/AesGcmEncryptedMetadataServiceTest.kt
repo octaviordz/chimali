@@ -1,4 +1,4 @@
-package com.chimali.core.security.impl
+﻿package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.EncryptedMetadataService
 import org.junit.jupiter.api.Assertions.assertArrayEquals
@@ -114,5 +114,52 @@ class AesGcmEncryptedMetadataServiceTest {
         assertFailsWith<IllegalArgumentException> {
             service.decrypt(ciphertext, associatedData)
         }
+    }
+
+    @Test
+    fun `encrypt without provisioned key fails with illegal state`() {
+        val unprovisionedService = AesGcmEncryptedMetadataService()
+        val exception = assertFailsWith<IllegalStateException> {
+            unprovisionedService.encrypt("data".toByteArray(), null)
+        }
+        assertEquals("Encryption key not provisioned", exception.message)
+    }
+
+    @Test
+    fun `decrypt without provisioned key fails with illegal state`() {
+        val unprovisionedService = AesGcmEncryptedMetadataService()
+        val dummyCiphertext = byteArrayOf(EncryptedMetadataService.VERSION_1.toByte()) + ByteArray(20)
+        val exception = assertFailsWith<IllegalStateException> {
+            unprovisionedService.decrypt(dummyCiphertext, null)
+        }
+        assertEquals("Encryption key not provisioned", exception.message)
+    }
+
+    @Test
+    fun `clearKey drops key and prevents subsequent encryption and decryption`() {
+        val plaintext = "test_value".toByteArray()
+        val ciphertext = service.encrypt(plaintext, null)
+
+        service.clearKey()
+
+        val encryptException = assertFailsWith<IllegalStateException> {
+            service.encrypt(plaintext, null)
+        }
+        assertEquals("Encryption key not provisioned", encryptException.message)
+
+        val decryptException = assertFailsWith<IllegalStateException> {
+            service.decrypt(ciphertext, null)
+        }
+        assertEquals("Encryption key not provisioned", decryptException.message)
+    }
+
+    @Test
+    fun `ciphertext shorter than version and nonce fails with illegal argument`() {
+        val tooShort = ByteArray(EncryptedMetadataService.NONCE_LENGTH_BYTES)
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            service.decrypt(tooShort, null)
+        }
+        assertEquals("Invalid ciphertext length", exception.message)
     }
 }

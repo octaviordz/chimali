@@ -1,0 +1,13 @@
+{
+  "normalization_rule": "AnalyzedZeroProofV1",
+  "module_path": ":core:security",
+  "analyzer_identity": "jacoco-0.8.15",
+  "report_file": "branchless.xml",
+  "report_digest": "61f04d3c0b40a9fd2b60427c8fb6f7f5416e6b8c27c675e3a88eb07adb0b5594",
+  "retained_inventory_digest": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+  "counters": {
+    "INSTRUCTION": { "covered": 3, "missed": 0, "total": 3 },
+    "BRANCH": { "covered": 0, "missed": 0, "total": 0 },
+    "LINE": { "covered": 1, "missed": 0, "total": 1 }
+  }
+}

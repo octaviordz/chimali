@@ -1,0 +1,72 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Run freshness, commit integrity, and capture CLI preflight fixtures",
+  "cases": [
+    {
+      "id": "FRESH_001_DIRTY_TREE_REJECTED",
+      "description": "Dirty working tree with unstaged or staged modifications fails capture preflight",
+      "preflight": {
+        "source_commit": "0123456789abcdef0123456789abcdef01234567",
+        "clean_tree": false
+      },
+      "expected_valid": false,
+      "expected_error": "Working tree is dirty; clean tree required for coverage capture"
+    },
+    {
+      "id": "FRESH_002_WRONG_HEAD_REJECTED",
+      "description": "SourceRevision does not match checkout HEAD commit",
+      "preflight": {
+        "expected_head": "0123456789abcdef0123456789abcdef01234567",
+        "actual_head": "ffffffffffffffffffffffffffffffffffffffff",
+        "clean_tree": true
+      },
+      "expected_valid": false,
+      "expected_error": "SourceRevision does not match current repository HEAD"
+    },
+    {
+      "id": "FRESH_003_OVERWRITE_RUN_DIRECTORY_REJECTED",
+      "description": "Existing run UUID directory cannot be overwritten",
+      "preflight": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "directory_exists": true
+      },
+      "expected_valid": false,
+      "expected_error": "Run directory already exists; cannot overwrite existing run bundle"
+    },
+    {
+      "id": "FRESH_004_MISSING_TARGET_FOR_COMPARISON",
+      "description": "Purpose Comparison requires TargetRevision",
+      "preflight": {
+        "purpose": "Comparison",
+        "target_revision": null
+      },
+      "expected_valid": false,
+      "expected_error": "TargetRevision is required when Purpose is not Initial"
+    },
+    {
+      "id": "FRESH_005_OFFLINE_DEVICE_REJECTED",
+      "description": "Specified DeviceSerial is offline or unauthorized",
+      "preflight": {
+        "device_serial": "emulator-5554",
+        "device_state": "offline"
+      },
+      "expected_valid": false,
+      "expected_error": "Specified device emulator-5554 is not online and authorized"
+    },
+    {
+      "id": "FRESH_006_VALID_INITIAL_PREFLIGHT",
+      "description": "Clean tree, matching HEAD, and online device passes initial capture preflight",
+      "preflight": {
+        "source_commit": "0123456789abcdef0123456789abcdef01234567",
+        "expected_head": "0123456789abcdef0123456789abcdef01234567",
+        "actual_head": "0123456789abcdef0123456789abcdef01234567",
+        "clean_tree": true,
+        "purpose": "Initial",
+        "device_serial": "emulator-5554",
+        "device_state": "device",
+        "directory_exists": false
+      },
+      "expected_valid": true
+    }
+  ]
+}

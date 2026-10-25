@@ -1,0 +1,124 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Module inventory accounting, zero-count proof binding, and source boundary fixtures",
+  "cases": [
+    {
+      "id": "INV_001_EXPLICIT_FIVE_MODULES",
+      "description": "All five Tier 1 modules are explicitly accounted for in inventory",
+      "inventory": {
+        "modules": [
+          { "path": ":core:security", "source_roots": ["src/commonMain/kotlin"], "class_count": 15 },
+          { "path": ":core:domain", "source_roots": ["src/commonMain/kotlin"], "class_count": 25 },
+          { "path": ":core:data", "source_roots": ["src/commonMain/kotlin"], "class_count": 30 },
+          { "path": ":feature:fido2", "source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin"], "class_count": 40 },
+          { "path": ":feature:authenticator", "source_roots": ["src/commonMain/kotlin"], "class_count": 0 }
+        ]
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "INV_002_CUSTOM_SOURCE_ROOT",
+      "description": "Custom source root correctly recognized in module inventory",
+      "inventory": {
+        "modules": [
+          { "path": ":core:security", "source_roots": ["src/commonMain/kotlin", "src/jvmMain/kotlin"], "class_count": 20 },
+          { "path": ":core:domain", "source_roots": ["src/commonMain/kotlin"], "class_count": 25 },
+          { "path": ":core:data", "source_roots": ["src/commonMain/kotlin"], "class_count": 30 },
+          { "path": ":feature:fido2", "source_roots": ["src/commonMain/kotlin"], "class_count": 40 },
+          { "path": ":feature:authenticator", "source_roots": ["src/commonMain/kotlin"], "class_count": 0 }
+        ]
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "INV_003_DUPLICATE_CLASS_FAILS",
+      "description": "Duplicate class identity across compilation units fails validation",
+      "inventory": {
+        "modules": [
+          {
+            "path": ":core:security",
+            "source_roots": ["src/commonMain/kotlin"],
+            "classes": [
+              "com.chimali.core.security.Cipher",
+              "com.chimali.core.security.Cipher"
+            ]
+          }
+        ]
+      },
+      "expected_valid": false,
+      "expected_error": "Duplicate class detected in inventory: com.chimali.core.security.Cipher"
+    },
+    {
+      "id": "INV_004_BRANCHLESS_WITH_VALID_PROOF",
+      "description": "Branchless XML with matching AnalyzedZeroProofV1 normalizes zero branches and passes",
+      "inventory": {
+        "module_path": ":core:security"
+      },
+      "xml_file": "exporter/branchless.xml",
+      "proof_file": "exporter/branchless_proof.json",
+      "expected_valid": true
+    },
+    {
+      "id": "INV_005_BRANCHLESS_MISSING_PROOF_FAILS",
+      "description": "Branchless XML with omitted branch counter but NO proof fails completeness",
+      "inventory": {
+        "module_path": ":core:security"
+      },
+      "xml_file": "exporter/branchless.xml",
+      "proof": null,
+      "expected_valid": false,
+      "expected_error": "Omitted XML counter for BRANCH without canonical zero proof"
+    },
+    {
+      "id": "INV_006_BRANCHLESS_MISMATCHED_DIGEST_FAILS",
+      "description": "Branchless XML with mismatched report digest fails validation",
+      "inventory": {
+        "module_path": ":core:security"
+      },
+      "xml_file": "exporter/branchless.xml",
+      "proof": {
+        "normalization_rule": "AnalyzedZeroProofV1",
+        "module_path": ":core:security",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_file": "branchless.xml",
+        "report_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "counters": {
+          "BRANCH": { "covered": 0, "missed": 0, "total": 0 }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Report digest mismatch in zero count proof"
+    },
+    {
+      "id": "INV_007_EMPTY_WITH_VALID_PROOF",
+      "description": "Empty module with matching AnalyzedZeroProofV1 normalizes instructions and branches to 0",
+      "inventory": {
+        "module_path": ":feature:authenticator",
+        "class_count": 0
+      },
+      "xml_file": "exporter/empty.xml",
+      "proof_file": "exporter/empty_proof.json",
+      "expected_valid": true
+    },
+    {
+      "id": "INV_008_NONZERO_PROOF_FOR_OMITTED_COUNTER_FAILS",
+      "description": "Canonical proof showing positive total while XML counter was omitted fails validation",
+      "inventory": {
+        "module_path": ":core:security"
+      },
+      "xml_file": "exporter/branchless.xml",
+      "proof": {
+        "normalization_rule": "AnalyzedZeroProofV1",
+        "module_path": ":core:security",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_file": "branchless.xml",
+        "report_digest": "61f04d3c0b40a9fd2b60427c8fb6f7f5416e6b8c27c675e3a88eb07adb0b5594",
+        "counters": {
+          "BRANCH": { "covered": 5, "missed": 5, "total": 10 }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Contradictory zero proof: canonical total 10 is nonzero for omitted XML counter"
+    }
+  ]
+}

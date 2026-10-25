@@ -1,0 +1,57 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Evidence archive publication, artifact hash verification, and GitHub App reporter authority fixtures",
+  "cases": [
+    {
+      "id": "PUB_001_CORRUPTED_ARTIFACT_DIGEST_REJECTED",
+      "description": "Artifact with mismatched SHA256 digest fails publication verification",
+      "publication": {
+        "expected_digest": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        "actual_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected_valid": false,
+      "expected_error": "Artifact SHA256 digest mismatch: expected abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    },
+    {
+      "id": "PUB_002_APP_SOURCE_BINDING_REQUIRED",
+      "description": "Check created by GitHub Actions app cannot replace dedicated Coverage App check",
+      "check_run": {
+        "check_name": "coverage-integration",
+        "app_id": 15368,
+        "app_slug": "github-actions"
+      },
+      "expected_valid": false,
+      "expected_error": "coverage-integration check produced by unauthorized app (app_slug: github-actions); must originate from dedicated Coverage App"
+    },
+    {
+      "id": "PUB_003_DEDICATED_APP_CHECK_ACCEPTED",
+      "description": "Check created by installed dedicated Coverage App is accepted",
+      "check_run": {
+        "check_name": "coverage-integration",
+        "app_id": 998877,
+        "app_slug": "chimali-coverage-reporter",
+        "head_sha": "0123456789abcdef0123456789abcdef01234567"
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "PUB_004_IMMUTABLE_RUN_ID_OVERWRITE_REJECTED",
+      "description": "Attempting to push existing run_id to archive branch fails with atomic conflict",
+      "publication": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "remote_path_exists": true
+      },
+      "expected_valid": false,
+      "expected_error": "Cannot overwrite immutable run record: runs/00000000-0000-4000-8000-000000000001 already exists"
+    },
+    {
+      "id": "PUB_005_SKIPPED_CAPTURE_LEAVES_INTEGRATION_BLOCKED",
+      "description": "Skipped capture workflow cannot publish success; check remains blocked",
+      "reporter_event": {
+        "capture_conclusion": "skipped"
+      },
+      "expected_valid": false,
+      "expected_error": "Capture workflow concluded as skipped; complete required evidence was not produced"
+    }
+  ]
+}

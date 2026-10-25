@@ -1,0 +1,60 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Probe collection, variant matching, and collection-state lifecycle fixtures",
+  "cases": [
+    {
+      "id": "COLL_001_COMPLETE_COLLECTION_FAILING_TESTS",
+      "description": "Collection is Complete even when tests fail, preserving honest failed evidence but ineligible as baseline",
+      "collection_run": {
+        "execution_files_present": true,
+        "reports_generated": true,
+        "all_suites_attempted": true,
+        "tests_passed": false,
+        "floors_passed": false
+      },
+      "expected_collection_status": "Complete",
+      "expected_baseline_eligible": false,
+      "expected_notes": "Complete collection with failing tests is valid diagnostic evidence but ineligible as accepted baseline"
+    },
+    {
+      "id": "COLL_002_INCOMPLETE_MISSING_EXECUTION_DATA",
+      "description": "Missing .exec or .ec file leaves collection Incomplete",
+      "collection_run": {
+        "execution_files_present": false,
+        "reports_generated": false,
+        "all_suites_attempted": false
+      },
+      "expected_collection_status": "Incomplete",
+      "expected_baseline_eligible": false,
+      "expected_error": "Missing or empty current-run JaCoCo execution data"
+    },
+    {
+      "id": "COLL_003_INCOMPATIBLE_APP_PROBES",
+      "description": "Device probes from un-shrunk variant matching shrunkDebug classes fail probe compatibility",
+      "collection_run": {
+        "execution_files_present": true,
+        "class_variant": "shrunkDebug",
+        "probe_variant": "debugRegular",
+        "probe_compatible": false
+      },
+      "expected_collection_status": "Incomplete",
+      "expected_baseline_eligible": false,
+      "expected_error": "Incompatible execution probe variant: expected shrunkDebug"
+    },
+    {
+      "id": "COLL_004_VALID_BASELINE_ELIGIBLE",
+      "description": "Complete collection with passing required tests and compatible probes is eligible as comparison baseline",
+      "collection_run": {
+        "execution_files_present": true,
+        "reports_generated": true,
+        "all_suites_attempted": true,
+        "tests_passed": true,
+        "floors_passed": false,
+        "probe_compatible": true
+      },
+      "expected_collection_status": "Complete",
+      "expected_baseline_eligible": true,
+      "expected_notes": "A valid comparison baseline requires complete collection and passed required tests; it may fail new higher floors"
+    }
+  ]
+}

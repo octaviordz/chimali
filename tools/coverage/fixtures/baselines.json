@@ -1,0 +1,46 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Accepted baseline lookup, provenance validation, and lifecycle transition fixtures",
+  "cases": [
+    {
+      "id": "BASE_001_VALID_ARCHIVED_BASELINE_REUSE",
+      "description": "Archived accepted run matching target commit and compatibility fingerprint is successfully reused",
+      "baseline_record": {
+        "target_commit": "0123456789abcdef0123456789abcdef01234567",
+        "provenance": "ArchivedAcceptedRun",
+        "measurement_fingerprint": "fingerprint_current_v1",
+        "archive_path": "runs/00000000-0000-4000-8000-000000000001",
+        "tests_passed": true,
+        "collection": "Complete"
+      },
+      "candidate": {
+        "target_commit": "0123456789abcdef0123456789abcdef01234567",
+        "measurement_fingerprint": "fingerprint_current_v1"
+      },
+      "expected_reusable": true
+    },
+    {
+      "id": "BASE_002_CHANGED_TARGET_REJECTS_STALE_BASELINE",
+      "description": "Baseline commit that does not match candidate's current TargetCommit is rejected",
+      "baseline_record": {
+        "target_commit": "old_target_sha_1111111111111111111111111111",
+        "provenance": "ArchivedAcceptedRun"
+      },
+      "candidate": {
+        "target_commit": "new_target_sha_2222222222222222222222222222"
+      },
+      "expected_reusable": false,
+      "expected_error": "Baseline record target commit does not match candidate target"
+    },
+    {
+      "id": "BASE_003_FORGED_CANDIDATE_BASELINE_REJECTED",
+      "description": "Candidate-supplied arbitrary baseline path without verified archive provenance is rejected",
+      "baseline_record": {
+        "target_commit": "0123456789abcdef0123456789abcdef01234567",
+        "provenance": "CandidateSuppliedPath"
+      },
+      "expected_reusable": false,
+      "expected_error": "Unverified baseline provenance: CandidateSuppliedPath; must originate from ArchivedAcceptedRun or MeasuredAcceptedTarget"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD) - Chimali
 
 **Project Name**: Chimali
-**Version**: 0.1.0
+**Version**: 0.2.0
 **Project Type**: Android Native Application
 **Technology Stack**: Kotlin + Jetpack Compose Multiplatform
 
@@ -60,7 +60,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 
 ### 4.5 Human Interface & Accessibility
 - **FR-UI-010: Password Legibility and Confusion Prevention**: Ensure passwords are displayed using high-legibility fonts (e.g., monospaced) that clearly distinguish ambiguous characters (e.g., 'O' vs '0', 'I' vs 'l' vs '1'). Implement colorblind-friendly indicators or semantic highlighting to differentiate between character types (uppercase, lowercase, digits, symbols) to reduce visual confusion.
-- **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase)*. Technical verification criteria and evaluation procedures are specified in [TRD](trd.md) §9.5 and `.agents/rules/specify-rules.md` §1 under the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0).
+- **FR-UI-011: High-Contrast and Dynamic Scaling Support**: The application must support high-contrast modes meeting WCAG AAA color contrast ratios and dynamic text scaling (up to 200%) to accommodate low-vision users. *(Note: Full implementation deferred to a future dedicated UI accessibility phase)*. Technical verification criteria and evaluation procedures are specified in [TRD](trd.md) §9.5 and `.agents/rules/specify-rules.md` §1 under the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0).
 
 ### 4.6 Passkey User Experience (UX) Alignment
 - **FR-UI-020: Standardized Passkey Iconography**: The application shall implement the official FIDO Passkey Icon across all passkey-related screens (registration, authentication, and management) to ensure immediate user recognition and trust, adhering to the FIDO Alliance Design Guidelines.
@@ -105,7 +105,7 @@ The former NFR-SEC-040 derivation text mandating `draft-dijkhuis-cfrg-hdkeys-06`
 
 - **NFR-SEC-050: System Clipboard Protection**: Sensitive credential data copied to the system clipboard must be explicitly cleared within 60 seconds of the copy action.
 
-Classified data fields, memory ownership rules, and audited platform UI text boundaries are governed by the canonical registers [Data Classification Register](security/data-classification.md) and [Platform Text Boundary Register](security/platform-text-boundaries.md), synchronized with [TRD](trd.md) §5.1 and `.agents/rules/specify-rules.md` §5.5 under the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0). Historical security review scopes (2026-09-09 Vault remediation and 2026-10-14..16 feature-055 local key derivation) retain their original dated scopes and commit fingerprints without asserting current-source certification.
+Classified data fields, memory ownership rules, and audited platform UI text boundaries are governed by the canonical registers [Data Classification Register](security/data-classification.md) and [Platform Text Boundary Register](security/platform-text-boundaries.md), synchronized with [TRD](trd.md) §5.1 and `.agents/rules/specify-rules.md` §5.5 under the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0). Historical security review scopes (2026-09-09 Vault remediation and 2026-10-14..16 feature-055 local key derivation) retain their original dated scopes and commit fingerprints without asserting current-source certification.
 
 ### 5.2 Performance & Reliability
 - **NFR-PERF-010: Startup Performance** (Android Vitals Targets):
@@ -115,7 +115,7 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
 - **NFR-PERF-020: Rendering Smoothness**:
     - Maintain a consistent **60 FPS** (16.6ms per frame) during UI interactions.
     - Zero "Frozen Frames" (render time > 700ms) and < 1% "Slow Frames" (render time > 16ms).
-    - Minimum verification journeys are designated as vault list scrolling and password detail inspection, governed by the measurement-contract requirements in [TRD](trd.md) §9.6 and `.agents/rules/specify-rules.md` §1 under Constitution Principle V (Constitution 4.1.0). General UI rendering smoothness obligations across the entire application remain in full effect.
+    - Minimum verification journeys are designated as vault list scrolling and password detail inspection, governed by the measurement-contract requirements in [TRD](trd.md) §9.6 and `.agents/rules/specify-rules.md` §1 under Constitution Principle V (Constitution 5.0.0). General UI rendering smoothness obligations across the entire application remain in full effect.
 - **NFR-PERF-030: Bluetooth HID and Internal FIDO Operation Latency**:
     - RP-to-verified-response end-to-end latency for FIDO2 Bluetooth authenticator ceremonies MUST be **< 1,000ms** on the designated device/workload, excluding only measured user-verification wait.
     - All app-internal FIDO operation processing MUST be **< 200ms**, excluding user-verification wait and Bluetooth response handoff. The internal interval includes operation-specific lookup, derivation, signing, and response construction where applicable.
@@ -138,8 +138,9 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
 - **NFR-ARCH-030: Modularization**: Adoption of a multi-module project structure (Feature-by-module) to ensure separation of concerns and optimized build performance.
 - **NFR-ARCH-040: Static Analysis**: Use **Detekt** and **Ktlint** (open-source) to enforce coding standards and detect architectural regressions automatically.
 - **NFR-ARCH-050: Module Criticality Classification (Tier 1 & Tier 2)**:
-    - **Tier 1 (Critical)**: Modules where a defect can directly compromise security, cryptographic operations, data integrity, or authentication correctness (`:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`). Requires DO-178B-level traceability (`@Req`), high coverage gates (>= 40%), and bounded, fail-safe execution.
+    - **Tier 1 (Critical)**: Modules where a defect can directly compromise security, cryptographic operations, data integrity, or authentication correctness (`:core:security`, `:core:domain`, `:core:data`, `:feature:fido2`, `:feature:authenticator`). Requires DO-178B-level traceability (`@Req`), at least 60% JaCoCo instruction coverage and at least 60% branch coverage where branches exist, and bounded, fail-safe execution. Each module is gated independently.
     - **Tier 2 (Feature & Infrastructure)**: All other modules (`:core:bluetooth`, `:core:crdt`, `:core:database`, `:core:common`, `:core:ui`, `:feature:vault`, `:feature:editor`, `:feature:settings`, `:feature:onboarding`, `:app`). Requires module-level `README.md` requirement mapping and baseline coverage (>= 20%).
+    - The aggregate across all production modules MUST meet at least 50% JaCoCo instruction coverage. A complete current coverage run is required for integration, and changed Tier 1 modules MUST NOT regress in instruction or applicable branch coverage against the accepted integration-target baseline. Approximately 65% Tier 1 branch coverage is a remediation goal, not a binding floor. Coverage floors are decided from raw covered and missed instruction/branch counts, not rounded display percentages.
 - **NFR-ARCH-060: Event Sourcing & Perpetual History**:
     - Core aggregates (`VaultEntry`, `PasskeyCredential`) must utilize Event Sourcing with an append-only event log (no historical pruning), deterministic `Decider` fold reconstruction, temporal query support (`asOf`), snapshot hydration (every 20 events with fallback to full fold), and strictly additive schema evolution.
 - **Documentation**: Comprehensive API documentation and user troubleshooting guides are documented as part of the post-release stabilization phase.
@@ -173,5 +174,5 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
 
 ## 9. Development & Testing Methodology
 - **Test-Driven Development (TDD)**: Implementation should follow TDD principles where feasible to ensure high code quality and reliability.
-- **Integration Testing**: Integration verification MUST cover distinct Bluetooth relying party (`FR-HID-010`) and Android Credential Manager (`FR-PASS-010`) entry-path journeys across registration, encrypted persistence, restart/reconstruction, and authentication/retrieval, including the 12 failure categories specified in [TRD](trd.md) §9.4 and `.agents/rules/specify-rules.md` §1. Verification evidence must strictly differentiate host/component test double substitutes from physical device and transport execution, in alignment with the Constitution Principle V verifiable acceptance policy (Constitution 4.1.0).
+- **Integration Testing**: Integration verification MUST cover distinct Bluetooth relying party (`FR-HID-010`) and Android Credential Manager (`FR-PASS-010`) entry-path journeys across registration, encrypted persistence, restart/reconstruction, and authentication/retrieval, including the 12 failure categories specified in [TRD](trd.md) §9.4 and `.agents/rules/specify-rules.md` §1. Verification evidence must strictly differentiate host/component test double substitutes from physical device and transport execution, in alignment with the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0).
 - **Unit Testing**: 100% coverage of core business logic (encryption, validation). Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.

@@ -1,6 +1,8 @@
-package com.chimali.core.data.eventsourcing
+﻿package com.chimali.core.data.eventsourcing
 
 import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.Snapshot
+import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.eventsourcing.vault.VaultCommand
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
 import com.chimali.core.domain.repository.EventStoreRepository
@@ -104,5 +106,79 @@ class VaultAggregateServiceImplTest {
 
             assertTrue(state.title.contentEquals("title".toCharArray()))
             assertEquals(1L, state.sequenceNumber)
+        }
+
+    @Test
+    fun `getState should hydrate from snapshot when available`() =
+        runTest {
+            val snapshotState = VaultState(
+                id = aggregateId,
+                type = "login",
+                title = "snapshot title".toCharArray(),
+                payload = byteArrayOf(1, 2),
+                identityId = "user1",
+                isDeleted = false,
+                sequenceNumber = 2L,
+            )
+            val snapshot = Snapshot<VaultState>(
+                aggregateId = aggregateId,
+                sequenceNumber = 2L,
+                state = snapshotState,
+                timestamp = kotlinx.datetime.Clock.System.now(),
+            )
+            val subsequentEvents = listOf(
+                VaultEvent.Updated(
+                    aggregateId,
+                    3L,
+                    kotlinx.datetime.Clock.System.now(),
+                    "title from event",
+                    null,
+                ),
+            )
+
+            coEvery {
+                snapshotRepository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId)
+            } returns Result.success(snapshot)
+            coEvery {
+                eventStoreRepository.getEventsFrom(EventKind.VAULT_ENTRY, aggregateId, 2L)
+            } returns Result.success(subsequentEvents)
+
+            val state = service.getState(aggregateId).getOrThrow()
+
+            assertTrue(state.title.contentEquals("title from event".toCharArray()))
+            assertEquals(3L, state.sequenceNumber)
+        }
+
+    @Test
+    fun `execute returns failure when all retries are exhausted`() =
+        runTest {
+            val command = VaultCommand.Create(aggregateId, "type", "title", byteArrayOf(1), "identity")
+
+            coEvery {
+                eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
+            } returns Result.success(emptyList())
+            coEvery {
+                eventStoreRepository.append(EventKind.VAULT_ENTRY, any())
+            } returns Result.failure(RuntimeException("Database lock"))
+
+            val result = service.execute(aggregateId, command)
+
+            assertTrue(result.isFailure)
+            assertEquals("Database lock", result.exceptionOrNull()?.message)
+        }
+
+    @Test
+    fun `execute returns early failure when getState fails`() =
+        runTest {
+            val command = VaultCommand.Create(aggregateId, "type", "title", byteArrayOf(1), "identity")
+
+            coEvery {
+                eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
+            } returns Result.failure(RuntimeException("Read failure"))
+
+            val result = service.execute(aggregateId, command)
+
+            assertTrue(result.isFailure)
+            assertEquals("Read failure", result.exceptionOrNull()?.message)
         }
 }
