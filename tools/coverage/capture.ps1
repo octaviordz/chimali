@@ -119,11 +119,26 @@ $deviceApi = "Unknown"
 $deviceAbi = "Unknown"
 
 try {
+    & $adbPath start-server 2>$null
+    if ($DeviceSerial) {
+        & $adbPath -s $DeviceSerial wait-for-device 2>$null
+    }
+    Start-Sleep -Seconds 1
     $adbDevices = & $adbPath devices
     foreach ($line in $adbDevices) {
         if ($line -match "^$([regex]::Escape($DeviceSerial))\s+device\b") {
             $deviceOnline = $true
             break
+        }
+    }
+    if (-not $deviceOnline) {
+        Start-Sleep -Seconds 2
+        $adbDevices = & $adbPath devices
+        foreach ($line in $adbDevices) {
+            if ($line -match "^$([regex]::Escape($DeviceSerial))\s+device\b") {
+                $deviceOnline = $true
+                break
+            }
         }
     }
     if ($deviceOnline) {
