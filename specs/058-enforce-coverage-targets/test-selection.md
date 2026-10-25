@@ -36,14 +36,16 @@ Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inl
 
 ## 2. Finite Candidate Ledger
 
-| ID | Module | Behavior | Reason | Impact | Likelihood | Deficit | Status | Test Location | Action |
+| ID | Module | Behavior | Reason | Impact | Likelihood | Live Deficit | Status | Test Location | Action |
 |---|---|---|---|---|---|---|---|---|---|
-| `COV-001` | `:core:security` | Unprovisioned / cleared key failure rejection | `Tier1Risk` | 4 | 3 | 0.0% | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
-| `COV-002` | `:core:domain` | `SensitiveText` terminal erasure, view bounds, serialization | `Tier1Risk` | 4 | 3 | 0.0% | `Verified` | `SensitiveTextTest.kt` | `Add` |
-| `COV-003` | `:core:domain` | `UserConsentRecord` RP erasure, deep-copy isolation, validation wiping | `Tier1Risk` | 4 | 2 | 0.0% | `Verified` | `UserConsentRecordBehaviorTest.kt` | `Extend` |
-| `COV-004` | `:core:data` | `VaultAggregateServiceImpl` snapshot hydration, retry exhaustion, memory scrubbing | `Tier1Risk` | 3 | 2 | 0.0% | `Verified` | `VaultAggregateServiceImplTest.kt` | `Extend` |
-| `COV-005` | `:core:security` | `AesGcmEncryptedMetadataService` malformed ciphertext length rejection | `Tier1Risk` | 2 | 3 | 0.0% | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
-| `COV-006` | `:feature:authenticator` | Evidenced empty iOS-only scaffold module disposition | `Tier1Risk` | 1 | 1 | 0.0% | `Verified` | N/A (`AnalyzedZeroProofV1`) | `None` |
+| `COV-001` | `:core:security` | Unprovisioned / cleared key failure rejection | `Tier1Risk` | 4 | 3 | 0.0% (Passed) | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
+| `COV-002` | `:core:domain` | `SensitiveText` terminal erasure, view bounds, serialization | `Tier1Risk` | 4 | 3 | +3.19% branch | `Verified` | `SensitiveTextTest.kt` | `Add` |
+| `COV-003` | `:core:domain` | `UserConsentRecord` RP erasure, deep-copy isolation, validation wiping | `Tier1Risk` | 4 | 2 | +3.19% branch | `Verified` | `UserConsentRecordBehaviorTest.kt` | `Extend` |
+| `COV-004` | `:core:data` | `VaultAggregateServiceImpl` snapshot hydration, retry exhaustion, memory scrubbing | `Tier1Risk` | 3 | 2 | 0.0% (Passed) | `Verified` | `VaultAggregateServiceImplTest.kt` | `Extend` |
+| `COV-005` | `:core:security` | `AesGcmEncryptedMetadataService` malformed ciphertext length rejection | `Tier1Risk` | 2 | 3 | 0.0% (Passed) | `Verified` | `AesGcmEncryptedMetadataServiceTest.kt` | `Extend` |
+| `COV-006` | `:feature:authenticator` | Evidenced empty iOS-only scaffold module disposition | `Tier1Risk` | 1 | 1 | 0.0% (N/A) | `Verified` | N/A (`AnalyzedZeroProofV1`) | `None` |
+
+*Note on Live Deficits*: Module deficits are derived from the live baseline run `2ef82c38-e42f-4f67-9d62-9b73623b20e2`. `:core:domain` has a +3.19% branch deficit (56.81% observed vs 60.0% floor). Additional FIDO2 candidates will be integrated under T104 to remediate `:feature:fido2`'s +1.00% instruction and +5.60% branch deficit.
 
 ---
 

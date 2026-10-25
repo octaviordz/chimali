@@ -451,6 +451,55 @@
   - The live candidate run `2ef82c38-e42f-4f67-9d62-9b73623b20e2` correctly and honestly reports floor failure for `:core:domain` branch (56.8%) and `:feature:fido2` (58.9% / 54.4%) while passing repository aggregate (52.5%), exactly matching the test remediation baseline requirements of User Story 2 & User Story 3.
   - Full audit trail preserved in immutable archive bundles and verified by `tools/coverage/test-policy.ps1`.
 
+---
+
+## 10. Phase 9 Evidence: Convergence Audit and Superseding Corrections (T085)
+
+### 10.1 Audit of Baseline Numbers & Floor Realities
+- **Measured Live Baseline Bundle**: `2ef82c38-e42f-4f67-9d62-9b73623b20e2` at `D:\temp\chimali-coverage-runs\2ef82c38-e42f-4f67-9d62-9b73623b20e2`.
+- **Verified Counter Data**:
+  - `:core:security`: Instructions 76.03%, Branches 61.92% (Passed both floors >= 60%)
+  - `:core:domain`: Instructions 62.31% (Passed), Branches 56.81% (Failed 60% floor; gap = +3.19% or 24 branches)
+  - `:core:data`: Instructions 82.15%, Branches 68.33% (Passed both floors >= 60%)
+  - `:feature:fido2`: Instructions 58.999% (Failed 60% floor; gap = +1.001%), Branches 54.398% (Failed 60% floor; gap = +5.602%)
+  - `:feature:authenticator`: 0 / 0 instructions and branches (`NotApplicable` under `AnalyzedZeroProofV1`, Passed)
+  - `:core:database`: Instructions 66.12% (Passed Tier 2 >= 20%)
+  - `:core:common`: Instructions 21.31% (Passed Tier 2 >= 20%)
+  - `:app`: Instructions 36.97% (Passed Tier 2 >= 20%)
+  - **Repository Aggregate**: Instructions 69,568 / 63,031 (52.464% >= 50% floor, Passed)
+- **Superseding Correction on All-Floor Closure**:
+  - Neither all-floor closure nor 100% Tier 1 compliance is claimed. The baseline faithfully records that `:core:domain` branches and `:feature:fido2` instructions/branches are below the 60% floor. Full closure is the objective of active convergence remediation.
+
+### 10.2 Audit of Publication and Remote Prerequisites
+- **Superseding Correction on Publication Claims**:
+  - Remote evidence branch `codex/coverage-evidence` and dedicated GitHub App credentials on GitHub are unmet external prerequisites (T046–T049, T089).
+  - `publish.ps1` operates locally with atomic conflict detection, payload hashing, and outside-bundle receipt emission.
+  - Dry-run executions emit `status: "DryRun"` receipts, and pushes attempted without remote credentials or branch access fail closed with exit code 1 or 2. In accordance with Constitution V and FR-017, no `Published` acceptance receipt is produced under dry runs or absent remote access.
+
+### 10.3 Audit of Behavior Test Remediation and Traceability (T081)
+- **Traceability Verification**:
+  - Production code in `VaultAggregateServiceImpl.kt` (`getState`, `execute`) is annotated with `NFR-ARCH-050` and `NFR-SEC-041`.
+  - Corresponding tests in `VaultAggregateServiceImplTest.kt`, `SensitiveTextTest.kt`, and `AesGcmEncryptedMetadataServiceTest.kt` carry matching `@Test` annotations referencing `FR-006`, `TR-AUTH-031`, `NFR-SEC-041`, and `NFR-ARCH-050`.
+  - Focused suites pass with 100% success (11/11 in `AesGcmEncryptedMetadataServiceTest`, 11/11 in `SensitiveTextTest`, 12/12 in `UserConsentRecordBehaviorTest`, 6/6 in `VaultAggregateServiceImplTest`).
+- **Superseding Correction on Batch Measurement**:
+  - The unit test cases in Batches 1–3 are implemented and passing, but full batch-by-batch JaCoCo remeasurement and deficit reranking was not concluded prior to the initial live baseline. Full batch remeasurement is actively tracked under T104–T107.
+
+### 10.4 Audit of Verifier Completeness & Sealed Bundle Protection (T083)
+- `verify.ps1` and `coverage-common.ps1` have been hardened to:
+  - Enforce complete schema validation (`run_id` UUID, 10 TRD keys, non-escaping artifact paths).
+  - Verify every test suite outcome in `manifest.suites`; rejected runs cannot claim tests `Passed`.
+  - Require `collection: "Complete"` for overall pass; an incomplete run is rejected even if counters exceed floors.
+  - Verify JaCoCo XML report counters match `counters.json` exactly.
+  - Require canonical `AnalyzedZeroProofV1` proof with matching report SHA256 digest for any omitted counter or empty module.
+  - Write immutable decision records (`decision.json`, `decision.md`) strictly outside the sealed capture bundle (defaulting to `<bundle_parent>/assessments/<run_id>/`). Attempts to write inside the bundle fail closed.
+  - Prohibit silent overwriting of existing assessment receipts unless `-Force` is explicitly passed.
+
+### 10.5 Status of Tasks and Active Convergence
+- Tasks T001–T045, T050–T075, T081–T085 are verified and completed.
+- Tasks T046–T049 and T089 remain explicitly unmet (external GitHub App / remote runner provisioning).
+- Remaining convergence tasks (T086–T108) continue sequentially.
+
+
 
 
 
