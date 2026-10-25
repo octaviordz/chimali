@@ -166,9 +166,18 @@ class UserConsentRecordBehaviorTest {
     @Test
     fun `validation failure erases the internal sensitive text buffer`() {
         val valid = record(rpId = "https://example.com")
+        var rejectedOwner: SensitiveText? = null
         assertFailsWith<IllegalArgumentException> {
-            valid.copy(id = "   ")
+            valid.copyWithOwnerFactory(id = "   ") { value ->
+                SensitiveText.copyOf(value).also { rejectedOwner = it }
+            }
         }
+
+        assertEquals(
+            "\u0000".repeat("https://example.com".length),
+            requireNotNull(rejectedOwner).toBoundaryString(),
+        )
+        assertEquals("https://example.com", valid.rpId.value)
     }
 
     private fun record(

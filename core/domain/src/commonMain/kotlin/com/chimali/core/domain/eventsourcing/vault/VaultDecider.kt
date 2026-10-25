@@ -25,7 +25,7 @@ class VaultDecider : Decider<VaultCommand, VaultState, VaultEvent> {
                         timestamp = timestamp,
                         type = command.type,
                         title = command.title.copyOf(),
-                        payload = command.payload,
+                        payload = command.payload.copyOf(),
                         identityId = command.identityId,
                     ),
                 )
@@ -36,7 +36,7 @@ class VaultDecider : Decider<VaultCommand, VaultState, VaultEvent> {
                         sequenceNumber = nextSequenceNumber,
                         timestamp = timestamp,
                         title = command.title?.copyOf(),
-                        payload = command.payload,
+                        payload = command.payload?.copyOf(),
                     ),
                 )
             is VaultCommand.Delete ->
@@ -60,14 +60,14 @@ class VaultDecider : Decider<VaultCommand, VaultState, VaultEvent> {
                     id = event.aggregateId,
                     type = event.type,
                     title = event.title.copyOf(),
-                    payload = event.payload,
+                    payload = event.payload.copyOf(),
                     identityId = event.identityId,
                     sequenceNumber = event.sequenceNumber,
                 )
             is VaultEvent.Updated ->
                 state.copy(
                     title = event.title?.copyOf() ?: state.title.copyOf(),
-                    payload = event.payload ?: state.payload,
+                    payload = event.payload?.copyOf() ?: state.payload.copyOf(),
                     sequenceNumber = event.sequenceNumber,
                 )
             is VaultEvent.Deleted ->

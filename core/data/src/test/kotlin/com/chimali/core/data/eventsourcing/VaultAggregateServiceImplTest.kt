@@ -102,21 +102,35 @@ class VaultAggregateServiceImplTest {
     @Test
     fun `execute should retry on optimistic concurrency failure`() =
         runTest {
-            val command = VaultCommand.Create(aggregateId, "type", "title", byteArrayOf(1), "identity")
+            val commandPayload = byteArrayOf(0x41, 0x42)
+            val command = VaultCommand.Create(aggregateId, "type", "title", commandPayload, "identity")
+            val appendedEvents = mutableListOf<VaultEvent.Created>()
+            val payloadsSeenAtAppend = mutableListOf<List<Byte>>()
 
             coEvery {
                 eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
             } returns Result.success(emptyList())
-            coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } returnsMany
-                listOf(
-                    Result.failure(RuntimeException("Concurrency error")),
-                    Result.success(Unit),
-                )
+            coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } coAnswers {
+                val event = secondArg<List<VaultEvent>>().single() as VaultEvent.Created
+                appendedEvents += event
+                payloadsSeenAtAppend += event.payload.toList()
+                if (appendedEvents.size == 1) {
+                    Result.failure(RuntimeException("Concurrency error"))
+                } else {
+                    Result.success(Unit)
+                }
+            }
 
             val state = service.execute(aggregateId, command).getOrThrow()
 
             assertTrue(state.title.contentEquals("title".toCharArray()))
             assertEquals(1L, state.sequenceNumber)
+            assertTrue(state.payload.contentEquals(byteArrayOf(0x41, 0x42)))
+            assertEquals(List(2) { listOf<Byte>(0x41, 0x42) }, payloadsSeenAtAppend)
+            assertTrue(command.title.all { it == '\u0000' })
+            assertTrue(commandPayload.all { it == 0.toByte() })
+            assertTrue(appendedEvents.all { event -> event.title.all { it == '\u0000' } })
+            assertTrue(appendedEvents.all { event -> event.payload.all { it == 0.toByte() } })
         }
 
     // Requirement: NFR-ARCH-050 (Snapshot acceleration and differential hydration)
@@ -171,21 +185,81 @@ class VaultAggregateServiceImplTest {
     @Test
     fun `execute returns failure when all retries are exhausted`() =
         runTest {
-            val command = VaultCommand.Create(aggregateId, "type", "title", byteArrayOf(1), "identity")
+            val commandPayload = byteArrayOf(0x31, 0x32)
+            val command = VaultCommand.Create(aggregateId, "type", "title", commandPayload, "identity")
+            val appendedEvents = mutableListOf<VaultEvent.Created>()
+            val payloadsSeenAtAppend = mutableListOf<List<Byte>>()
 
             coEvery {
                 eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
             } returns Result.success(emptyList())
             coEvery {
                 eventStoreRepository.append(EventKind.VAULT_ENTRY, any())
-            } returns Result.failure(RuntimeException("Database lock"))
+            } coAnswers {
+                val event = secondArg<List<VaultEvent>>().single() as VaultEvent.Created
+                appendedEvents += event
+                payloadsSeenAtAppend += event.payload.toList()
+                Result.failure(RuntimeException("Database lock"))
+            }
 
             val result = service.execute(aggregateId, command)
 
             assertTrue(result.isFailure)
             assertEquals("Database lock", result.exceptionOrNull()?.message)
             coVerify(exactly = 3) { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) }
+            assertEquals(List(3) { listOf<Byte>(0x31, 0x32) }, payloadsSeenAtAppend)
+            assertTrue(command.title.all { it == '\u0000' })
+            assertTrue(commandPayload.all { it == 0.toByte() })
+            assertTrue(appendedEvents.all { event -> event.title.all { it == '\u0000' } })
+            assertTrue(appendedEvents.all { event -> event.payload.all { it == 0.toByte() } })
         }
+
+    // Requirement: NFR-SEC-041 (Sensitive memory cleanup when execution is cancelled)
+    @Test
+    fun `execute clears command and event payloads when append is cancelled`() =
+        runTest {
+            val commandPayload = byteArrayOf(0x51, 0x52)
+            val command = VaultCommand.Create(aggregateId, "type", "title", commandPayload, "identity")
+            lateinit var appendedEvent: VaultEvent.Created
+            coEvery {
+                eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
+            } returns Result.success(emptyList())
+            coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } coAnswers {
+                appendedEvent = secondArg<List<VaultEvent>>().single() as VaultEvent.Created
+                throw kotlinx.coroutines.CancellationException("synthetic cancellation")
+            }
+
+            var cancellationPropagated = false
+            try {
+                service.execute(aggregateId, command)
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                cancellationPropagated = true
+            }
+
+            assertTrue(cancellationPropagated)
+            assertTrue(command.title.all { it == '\u0000' })
+            assertTrue(commandPayload.all { it == 0.toByte() })
+            assertTrue(appendedEvent.title.all { it == '\u0000' })
+            assertTrue(appendedEvent.payload.all { it == 0.toByte() })
+        }
+
+    // Requirement: NFR-SEC-041 (Owned vault state cleanup)
+    @Test
+    fun `clearing vault state erases title and payload buffers`() {
+        val state =
+            VaultState(
+                id = aggregateId,
+                type = "type",
+                title = "sensitive title",
+                payload = byteArrayOf(0x61, 0x62),
+                identityId = "identity",
+            )
+
+        state.clearSensitiveMemory()
+
+        assertTrue(state.title.all { it == '\u0000' })
+        assertTrue(state.payload.all { it == 0.toByte() })
+    }
 
     // Requirement: NFR-ARCH-050 (State read failure propagation)
     @Test

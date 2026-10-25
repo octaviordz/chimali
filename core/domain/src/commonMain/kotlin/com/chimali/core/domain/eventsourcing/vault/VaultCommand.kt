@@ -49,8 +49,14 @@ sealed interface VaultCommand {
 /** Clears command-owned sensitive text once command processing has finished. */
 fun VaultCommand.clearSensitiveMemory() {
     when (this) {
-        is VaultCommand.Create -> title.fill('\u0000')
-        is VaultCommand.Update -> title?.fill('\u0000')
+        is VaultCommand.Create -> {
+            title.fill('\u0000')
+            payload.fill(0)
+        }
+        is VaultCommand.Update -> {
+            title?.fill('\u0000')
+            payload?.fill(0)
+        }
         is VaultCommand.Delete -> Unit
     }
 }

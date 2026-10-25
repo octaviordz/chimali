@@ -138,6 +138,33 @@ class Ctap2GetAssertionHandlerTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `rejects malformed allow-list containers and descriptors before credential lookup`() =
+        runTest {
+            val malformedRequests =
+                listOf(
+                    mapOf("1" to "example.com", "2" to ByteArray(32), "3" to "not-an-array"),
+                    mapOf("1" to "example.com", "2" to ByteArray(32), "3" to listOf("not-a-map")),
+                    mapOf(
+                        "1" to "example.com",
+                        "2" to ByteArray(32),
+                        "3" to listOf(mapOf("id" to 42)),
+                    ),
+                )
+            every { cborCodec.decodeFromFido2Format(any()) } returnsMany malformedRequests
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            val statuses = List(malformedRequests.size) { handler.handle(cid, requestBytes).single().first() }
+
+            assertEquals(List(malformedRequests.size) { 0x12.toByte() }, statuses)
+            coVerify(exactly = 0) { getAssertionUseCase.findCandidateSummaries(any()) }
+            coVerify(exactly = malformedRequests.size) { ceremonyLock.unlock() }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `busy ceremony rejects request before decoding or credential lookup`() =
         runTest {
             every { ceremonyLock.tryLock() } returns false

@@ -519,6 +519,29 @@
 - The strict capture script was not run successfully: it requires a clean checkout whose source revision equals `HEAD`. The worktree contains these test edits and the untracked handoff document. Do not use the diagnostic XML as a substitute for a fresh clean `capture.ps1` run.
 - Tier 1 floor closure, risk-ledger completion, accepted-target regression, sealed evidence publication, GitHub App check, and remote protection remain unverified or unmet. T104, T105, T107, and T108 must remain open until their full criteria are met.
 
+### 11.3 Malformed allow-list coverage continuation (2026-10-25)
+
+- **Selected behavior**: `COV-010` exercises a non-list allow-list, a non-map descriptor, and an unsupported credential-ID value. Each request returns CTAP invalid-CBOR before candidate lookup and releases the ceremony lock.
+- **Focused verification**: `:feature:fido2:testAndroidHostTest --tests '*Ctap2GetAssertionHandlerTest*'` passed.
+- **Full diagnostic**: `.\gradlew.bat --no-configuration-cache -I tools/hdk-coverage.init.gradle hdkHostCoverage` completed successfully in 2m56s with the configured ASUS_AI2302 physical device (Android API 35) and host suites.
+- **Latest FIDO2 counters**: instructions 53,261 / 86,100 = 61.86%; branches 3,230 / 5,526 = 58.45%. The 60% branch floor requires 3,316 covered branches, so 86 more branches are required. The prior local diagnostic had 3,229 covered branches; this test added one covered branch in the latest report.
+- This was a direct dirty-worktree diagnostic, not `capture.ps1`; it has no sealed run bundle or accepted assessment. It does not satisfy clean-revision baseline, comparison, publication, or integration acceptance. T104, T105, T107, and T108 remain open, as do external T046-T049 and T089.
+
+### 11.4 Vault and consent ownership cleanup (2026-10-25)
+
+- **Vault defect found by assertion**: retry events shared payload arrays with the input command, while the cleanup helpers only erased titles. That aliasing could make per-attempt event cleanup corrupt the payload needed by a later retry, and command/event/state payload buffers were retained after cleanup.
+- **Correction**: `VaultDecider` now copies payloads at command-to-event and event-to-state boundaries. `clearSensitiveMemory` erases each owner’s payload as well as title for commands, events, and states.
+- **Behavior assertions**: `VaultAggregateServiceImplTest` now verifies the exact three retry attempts, unchanged input payload at each attempt, command/event erasure after successful retry and exhausted failure, cleanup while cancellation propagates, and state-owned title/payload erasure. The retry-exhaustion result remains the last append failure (`Database lock`), consistent with current implementation behavior.
+- **Consent rejection assertion**: `UserConsentRecord.copyWithOwnerFactory` exposes an internal narrow ownership seam; the validation rejection test retains and checks that the rejected copy's RP buffer is zeroed while the original record stays intact.
+- **Focused verification**: `:core:data:testDebugUnitTest --tests '*VaultAggregateServiceImplTest*'` and `:core:domain:testAndroidHostTest --tests '*UserConsentRecordBehaviorTest*'` passed. The FIDO2 CTAP suite with COV-010 also passed.
+- **Latest full diagnostic**: `hdkHostCoverage` succeeded on 2026-10-25 with the configured host/device workload and ASUS_AI2302 (Android API 35). Tier 1 counters: security 3,385/4,452 instructions (76.03%), 239/386 branches (61.92%); domain 5,081/7,142 (71.14%), 403/570 (70.70%); data 1,158/1,333 (86.87%), 44/60 (73.33%); FIDO2 53,261/86,100 (61.86%), 3,230/5,526 (58.45%); authenticator 0/0 under proved-zero applicability. Repository instructions: 72,891/132,861 (54.86%). FIDO2 remains 86 covered branches short of its 60% floor; the other measured floors pass.
+- The full run was a direct dirty-tree Gradle diagnostic without a sealed bundle. It does not close T088, T104, T107, or T108. A clean revision-bound capture, full risk-ranked selection and reranking, regression comparison, immutable publication, and protected integration acceptance remain outstanding.
+
+### 11.5 GitHub service cost review (2026-10-25)
+
+- The repository `octaviordz/chimali` is public. GitHub's current official documentation states protected branches are available for public repositories on GitHub Free, standard GitHub-hosted Actions runners are free for public repositories, and self-hosted runners carry no GitHub Actions usage charge (the operator bears host/device costs). A custom GitHub App can be registered and installed on the account; marketplace app subscriptions are separate.
+- No paid GitHub plan, paid Marketplace app, or rented runner is required by that zero-subscription configuration. T046-T049 remain operationally unmet until the App, runner, evidence branch, required App-bound check, protection and real rejection/passing demonstrations are actually configured and verified. This cost review is not evidence that those controls exist.
+
 
 
 

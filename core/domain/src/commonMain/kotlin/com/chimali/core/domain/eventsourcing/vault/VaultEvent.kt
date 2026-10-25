@@ -69,8 +69,14 @@ sealed interface VaultEvent : DomainEvent {
 /** Clears event-owned sensitive text after the state has made its own copy. */
 fun VaultEvent.clearSensitiveMemory() {
     when (this) {
-        is VaultEvent.Created -> title.fill('\u0000')
-        is VaultEvent.Updated -> title?.fill('\u0000')
+        is VaultEvent.Created -> {
+            title.fill('\u0000')
+            payload.fill(0)
+        }
+        is VaultEvent.Updated -> {
+            title?.fill('\u0000')
+            payload?.fill(0)
+        }
         is VaultEvent.Deleted -> Unit
     }
 }

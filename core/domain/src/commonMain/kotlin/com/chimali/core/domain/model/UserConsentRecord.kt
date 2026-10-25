@@ -84,10 +84,10 @@ class UserConsentRecord private constructor(
         userAgent: String? = this.userAgent,
         deviceId: String? = this.deviceId,
     ): UserConsentRecord =
-        UserConsentRecord(
+        copyWithOwnerFactory(
             id,
             operationType,
-            SensitiveText.copyOf(rpId?.value ?: rpIdOwner),
+            rpId,
             credentialId,
             timestamp,
             isBiometricUsed,
@@ -96,6 +96,41 @@ class UserConsentRecord private constructor(
             userAgent,
             deviceId,
         )
+
+    /** Creates a copy through an injectable owner factory so rejection cleanup is observable. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun copyWithOwnerFactory(
+        id: String = this.id,
+        operationType: ConsentOperationType = this.operationType,
+        rpId: RpId? = null,
+        credentialId: CredentialId? = this.credentialId,
+        timestamp: Instant = this.timestamp,
+        isBiometricUsed: Boolean = this.isBiometricUsed,
+        isPinUsed: Boolean = this.isPinUsed,
+        ipAddress: String? = this.ipAddress,
+        userAgent: String? = this.userAgent,
+        deviceId: String? = this.deviceId,
+        ownerFactory: (CharSequence) -> SensitiveText = SensitiveText::copyOf,
+    ): UserConsentRecord {
+        var createdOwner: SensitiveText? = null
+        try {
+            createdOwner = ownerFactory(rpId?.value ?: rpIdOwner)
+            return UserConsentRecord(
+                id,
+                operationType,
+                requireNotNull(createdOwner),
+                credentialId,
+                timestamp,
+                isBiometricUsed,
+                isPinUsed,
+                ipAddress,
+                userAgent,
+                deviceId,
+            ).also { createdOwner = null }
+        } finally {
+            createdOwner?.erase()
+        }
+    }
 
     /** Compares record fields without materializing the RP association. */
     @Req("NFR-SEC-041", "TR-AUTH-031")

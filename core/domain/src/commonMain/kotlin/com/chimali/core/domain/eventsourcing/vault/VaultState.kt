@@ -28,6 +28,7 @@ data class VaultState(
 
     fun clearSensitiveMemory() {
         title.fill('\u0000')
+        payload.fill(0)
     }
 
     override fun equals(other: Any?): Boolean {
