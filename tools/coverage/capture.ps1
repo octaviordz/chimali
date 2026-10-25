@@ -4,6 +4,7 @@
 .DESCRIPTION
     Executes fresh host and device test workloads under the reviewed harness,
     verifies clean git state, binds canonical AnalyzedZeroProofV1 proofs,
+    copies reports, execution data, test outcomes, and inventories,
     and packages run artifacts into an immutable UUID directory.
 .PARAMETER RepositoryRoot
     Absolute path to the measured clean checkout.
@@ -113,6 +114,10 @@ if (-not (Get-Command "adb" -ErrorAction SilentlyContinue)) {
 }
 
 $deviceOnline = $false
+$deviceModel = "Unknown"
+$deviceApi = "Unknown"
+$deviceAbi = "Unknown"
+
 try {
     $adbDevices = & $adbPath devices
     foreach ($line in $adbDevices) {
@@ -120,6 +125,11 @@ try {
             $deviceOnline = $true
             break
         }
+    }
+    if ($deviceOnline) {
+        $deviceModel = (& $adbPath -s $DeviceSerial shell getprop ro.product.model 2>$null).Trim()
+        $deviceApi = (& $adbPath -s $DeviceSerial shell getprop ro.build.version.sdk 2>$null).Trim()
+        $deviceAbi = (& $adbPath -s $DeviceSerial shell getprop ro.product.cpu.abi 2>$null).Trim()
     }
 } catch {
     Write-Warning "Could not query adb for device ${DeviceSerial}: $_"
@@ -183,6 +193,10 @@ $moduleMap = [ordered]@{
     ":app" = "app"
 }
 
+# Check if Gradle canonical counters were emitted
+$gradleCountersFile = Join-Path $RepositoryRoot "build/reports/hdk-coverage/counters.json"
+$gradleCanonicalCounters = if (Test-Path $gradleCountersFile) { Read-SafeJson -Path $gradleCountersFile } else { $null }
+
 $moduleCountersList = @()
 $zeroCountProofs = @()
 $evidenceRecords = @()
@@ -190,9 +204,11 @@ $evidenceRecords = @()
 foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
     $tier = if ($modPath -in $policy.tier1_modules) { 1 } else { 2 }
     $projRel = $moduleMap[$modPath]
-    $srcXml = Join-Path $RepositoryRoot $projRel "build/reports/hdk-coverage/hdkModuleCoverage.xml"
-    $safeName = $modPath.Replace(":", "-").TrimStart("-")
+    $srcXml = Join-Path (Join-Path $RepositoryRoot $projRel) "build/reports/hdk-coverage/hdkModuleCoverage.xml"
+    $srcHtmlDir = Join-Path (Join-Path $RepositoryRoot $projRel) "build/reports/hdk-coverage/hdkModuleCoverage"
+    $safeName = $modPath.Replace(":", "_").TrimStart("_")
     $dstXml = Join-Path $modulesDir "$safeName.xml"
+    $dstHtml = Join-Path $modulesDir "$safeName"
     $relArtifactLink = "reports/modules/$safeName.xml"
 
     $instCov = 0L
@@ -200,56 +216,80 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
     $branchCov = 0L
     $branchMis = 0L
     $disposition = "Applicable"
+    $reportDigest = ""
+    $classInvDigest = ""
+
+    # Check Gradle counters first if available
+    if ($gradleCanonicalCounters -and $gradleCanonicalCounters.modules) {
+        $mEntry = $gradleCanonicalCounters.modules | Where-Object { $_.module_path -eq $modPath }
+        if ($mEntry) {
+            $instCov = [long]$mEntry.instruction.covered
+            $instMis = [long]$mEntry.instruction.missed
+            $branchCov = [long]$mEntry.branch.covered
+            $branchMis = [long]$mEntry.branch.missed
+            $disposition = $mEntry.disposition
+            $reportDigest = $mEntry.report_digest
+            $classInvDigest = $mEntry.class_inventory_digest
+        }
+    }
 
     if (Test-Path $srcXml) {
         Copy-Item -Path $srcXml -Destination $dstXml -Force
-        $doc = Read-SafeXml -Path $srcXml
+        if (Test-Path $srcHtmlDir) {
+            Copy-Item -Path $srcHtmlDir -Destination $dstHtml -Recurse -Force
+        }
         $xmlHash = Get-FileSha256 -Path $srcXml
+        $reportDigest = $xmlHash
 
-        $instNode = $doc.SelectSingleNode("/report/counter[@type='INSTRUCTION']")
-        if ($instNode) {
-            $instCov = [long]$instNode.GetAttribute("covered")
-            $instMis = [long]$instNode.GetAttribute("missed")
-        }
-
-        $brNode = $doc.SelectSingleNode("/report/counter[@type='BRANCH']")
-        if ($brNode) {
-            $branchCov = [long]$brNode.GetAttribute("covered")
-            $branchMis = [long]$brNode.GetAttribute("missed")
-        } else {
-            # Omitted branch counter; branchless proof
-            $branchProof = [PSCustomObject]@{
-                normalization_rule = "AnalyzedZeroProofV1"
-                module_path = $modPath
-                analyzer_identity = "jacoco-0.8.15"
-                report_file = $relArtifactLink
-                report_digest = $xmlHash
-                counters = [PSCustomObject]@{
-                    BRANCH = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
-                }
+        if (-not $gradleCanonicalCounters) {
+            $doc = Read-SafeXml -Path $srcXml
+            $instNode = $doc.SelectSingleNode("/report/counter[@type='INSTRUCTION']")
+            if ($instNode) {
+                $instCov = [long]$instNode.GetAttribute("covered")
+                $instMis = [long]$instNode.GetAttribute("missed")
             }
-            $zeroCountProofs += $branchProof
-        }
 
-        if (($instCov + $instMis) -eq 0L) {
-            $disposition = "NotApplicable"
+            $brNode = $doc.SelectSingleNode("/report/counter[@type='BRANCH']")
+            if ($brNode) {
+                $branchCov = [long]$brNode.GetAttribute("covered")
+                $branchMis = [long]$brNode.GetAttribute("missed")
+            } else {
+                $branchProof = [PSCustomObject]@{
+                    normalization_rule = "AnalyzedZeroProofV1"
+                    module_path = $modPath
+                    analyzer_identity = "jacoco-0.8.15"
+                    report_file = "$safeName.xml"
+                    report_digest = $xmlHash
+                    class_inventory_digest = ""
+                    counters = [PSCustomObject]@{
+                        BRANCH = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
+                    }
+                }
+                $zeroCountProofs += $branchProof
+            }
+
+            if (($instCov + $instMis) -eq 0L) {
+                $disposition = "NotApplicable"
+            }
         }
     } else {
-        # Report XML not present (e.g. empty module with no classes like :feature:authenticator)
         if ($modPath -eq ":feature:authenticator") {
             $disposition = "NotApplicable"
-            $authProof = [PSCustomObject]@{
-                normalization_rule = "AnalyzedZeroProofV1"
-                module_path = $modPath
-                analyzer_identity = "jacoco-0.8.15"
-                report_file = $relArtifactLink
-                report_digest = ""
-                counters = [PSCustomObject]@{
-                    INSTRUCTION = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
-                    BRANCH = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
+            if (-not $gradleCanonicalCounters) {
+                $authProof = [PSCustomObject]@{
+                    normalization_rule = "AnalyzedZeroProofV1"
+                    module_path = $modPath
+                    analyzer_identity = "jacoco-0.8.15"
+                    report_file = "$safeName.xml"
+                    report_digest = ""
+                    class_inventory_digest = ""
+                    counters = [PSCustomObject]@{
+                        INSTRUCTION = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
+                        BRANCH = [PSCustomObject]@{ covered = 0; missed = 0; total = 0 }
+                    }
                 }
+                $zeroCountProofs += $authProof
             }
-            $zeroCountProofs += $authProof
         } else {
             $disposition = "Missing"
         }
@@ -267,6 +307,8 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
             covered = $branchCov
             missed = $branchMis
         }
+        report_digest = $reportDigest
+        class_inventory_digest = $classInvDigest
     }
     $moduleCountersList += $modEntry
 
@@ -286,16 +328,27 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
     }
 }
 
+if ($gradleCanonicalCounters -and $gradleCanonicalCounters.zero_count_proofs) {
+    $zeroCountProofs = $gradleCanonicalCounters.zero_count_proofs
+}
+
 # Repository Aggregate
 $repoSrcXml = Join-Path $RepositoryRoot "build/reports/hdk-coverage/repository.xml"
+$repoSrcHtmlDir = Join-Path $RepositoryRoot "build/reports/hdk-coverage/repository"
 $repoDstXml = Join-Path $reportsDir "repository.xml"
+$repoDstHtml = Join-Path $reportsDir "repository"
 $repoInstCov = 0L
 $repoInstMis = 0L
 $repoBranchCov = 0L
 $repoBranchMis = 0L
+$repoReportDigest = ""
 
 if (Test-Path $repoSrcXml) {
     Copy-Item -Path $repoSrcXml -Destination $repoDstXml -Force
+    if (Test-Path $repoSrcHtmlDir) {
+        Copy-Item -Path $repoSrcHtmlDir -Destination $repoDstHtml -Recurse -Force
+    }
+    $repoReportDigest = Get-FileSha256 -Path $repoSrcXml
     $repoDoc = Read-SafeXml -Path $repoSrcXml
     $rInstNode = $repoDoc.SelectSingleNode("/report/counter[@type='INSTRUCTION']")
     if ($rInstNode) {
@@ -322,9 +375,76 @@ $evidenceRecords += [PSCustomObject]@{
     artifact_link = "reports/repository.xml"
 }
 
+# Copy execution data (.exec and .ec)
+$execDataDir = Join-Path $runDir "execution-data"
+New-Item -ItemType Directory -Path $execDataDir -Force | Out-Null
+Get-ChildItem -Path $RepositoryRoot -Filter "*.exec" -Recurse | Where-Object { $_.FullName -like "*jacoco*" } | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination $execDataDir -Force
+}
+Get-ChildItem -Path $RepositoryRoot -Filter "*.ec" -Recurse | Where-Object { $_.FullName -like "*code_coverage*" } | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination $execDataDir -Force
+}
+
+# Copy JUnit XML reports and construct structured suite results
+$testsReportsDir = Join-Path $reportsDir "tests"
+New-Item -ItemType Directory -Path $testsReportsDir -Force | Out-Null
+$suitesList = @()
+
+$junitFiles = Get-ChildItem -Path $RepositoryRoot -Filter "TEST-*.xml" -Recurse | Where-Object { $_.FullName -like "*test-results*" }
+foreach ($jf in $junitFiles) {
+    try {
+        $jDoc = Read-SafeXml -Path $jf.FullName
+        $testSuiteNode = $jDoc.SelectSingleNode("/testsuite")
+        if ($testSuiteNode) {
+            $sName = $testSuiteNode.GetAttribute("name")
+            $sTests = [int]($testSuiteNode.GetAttribute("tests") ?: "0")
+            $sFailures = [int]($testSuiteNode.GetAttribute("failures") ?: "0")
+            $sErrors = [int]($testSuiteNode.GetAttribute("errors") ?: "0")
+            $sSkipped = [int]($testSuiteNode.GetAttribute("skipped") ?: "0")
+
+            $destXml = Join-Path $testsReportsDir $jf.Name
+            Copy-Item -Path $jf.FullName -Destination $destXml -Force
+
+            $suitesList += [PSCustomObject]@{
+                suite_name = $sName
+                tests = $sTests
+                failures = $sFailures
+                errors = $sErrors
+                skipped = $sSkipped
+                required = $true
+            }
+        }
+    } catch {
+        Write-Warning "Failed to parse JUnit XML at $($jf.FullName): $_"
+    }
+}
+
+# Production Inventory
+$inventoryPath = Join-Path $runDir "inventory.json"
+$inventoryData = [PSCustomObject]@{
+    schema_version = "1.0"
+    policy_id = "chimali-coverage-v1"
+    toolchain = [PSCustomObject]@{
+        gradle = "9.6.0"
+        agp = "9.4.1"
+        kotlin = "2.3.21"
+        jacoco = "0.8.15"
+    }
+    modules = ($policy.tier1_modules + $policy.tier2_gated_modules) | ForEach-Object {
+        $mPath = $_
+        [PSCustomObject]@{
+            module_path = $mPath
+            tier = if ($mPath -in $policy.tier1_modules) { 1 } else { 2 }
+            disposition = ($moduleCountersList | Where-Object { $_.module_path -eq $mPath }).disposition
+        }
+    }
+}
+$inventoryData | ConvertTo-Json -Depth 5 | Set-Content -Path $inventoryPath -Encoding utf8
+
 $countersData = [PSCustomObject]@{
     schema_version = "1.0"
     policy_id = "chimali-coverage-v1"
+    analyzer_identity = "jacoco-0.8.15"
     modules = $moduleCountersList
     repository = [PSCustomObject]@{
         instruction = [PSCustomObject]@{
@@ -335,7 +455,9 @@ $countersData = [PSCustomObject]@{
             covered = $repoBranchCov
             missed = $repoBranchMis
         }
+        report_digest = $repoReportDigest
     }
+    zero_count_proofs = $zeroCountProofs
 }
 
 $countersJsonPath = Join-Path $runDir "counters.json"
@@ -358,6 +480,16 @@ $isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPos
 $collectionStatus = if ($isCollectionComplete) { "Complete" } else { "Incomplete" }
 $testStatus = if ($SkipExecution) { "Unverified" } elseif ($gradleSuccess) { "Passed" } else { "Failed" }
 
+# Build artifact manifest
+$artifactsList = @()
+Get-ChildItem -Path $runDir -Recurse -File | Where-Object { $_.Name -ne "manifest.json" } | ForEach-Object {
+    $rel = [System.IO.Path]::GetRelativePath($runDir, $_.FullName).Replace("\", "/")
+    $artifactsList += [PSCustomObject]@{
+        path = $rel
+        sha256 = Get-FileSha256 -Path $_.FullName
+    }
+}
+
 # 8. Assemble Manifest & Evidence
 $manifest = [PSCustomObject]@{
     run_id = $runId
@@ -379,6 +511,9 @@ $manifest = [PSCustomObject]@{
     device = [PSCustomObject]@{
         device_serial = $DeviceSerial
         device_online = $deviceOnline
+        model = $deviceModel
+        api_level = $deviceApi
+        abi = $deviceAbi
     }
     decisions = [PSCustomObject]@{
         collection = $collectionStatus
@@ -389,8 +524,10 @@ $manifest = [PSCustomObject]@{
         publication = "Pending"
         integration = "Unverified"
     }
+    suites = $suitesList
     evidence_records = $evidenceRecords
     zero_count_proofs = $zeroCountProofs
+    artifacts = $artifactsList
 }
 
 $manifestPath = Join-Path $runDir "manifest.json"
@@ -404,7 +541,7 @@ $summaryContent = @"
 - **Purpose**: $Purpose
 - **Source Revision**: $SourceRevision
 - **Target Revision**: $(if ($TargetRevision) { $TargetRevision } else { "N/A (Initial)" })
-- **Device**: $DeviceSerial
+- **Device**: $DeviceSerial ($deviceModel, API $deviceApi, $deviceAbi)
 - **Collection Status**: $($manifest.decisions.collection)
 - **Start UTC**: $startTimeUtc
 - **End UTC**: $endTimeUtc
@@ -415,6 +552,7 @@ $summaryContent = @"
 Set-Content -Path $summaryPath -Value $summaryContent -Encoding utf8
 
 Write-Host "Coverage run captured to $runDir" -ForegroundColor $(if ($gradleSuccess) { "Green" } else { "Yellow" })
+Write-Output "[CAPTURE_RESULT] $(ConvertTo-Json -Compress ([PSCustomObject]@{ run_id = $runId; run_dir = $runDir; collection = $collectionStatus; tests = $testStatus }))"
 
 if (-not $gradleSuccess) {
     exit 1

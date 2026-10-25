@@ -75,7 +75,8 @@ gradle.projectsEvaluated {
                 if (segments.length >= 4) {
                     def generatedClassPath = segments.drop(2).join('/')
                     generatedClassPath = generatedClassPath.substring(0, generatedClassPath.length() - '.kt'.length())
-                    patterns.add("**/${generatedClassPath}*.class")
+                    patterns.add("${generatedClassPath}.class".toString())
+                    patterns.add("${generatedClassPath}\$*.class".toString())
                 }
             }
         }
@@ -171,7 +172,21 @@ gradle.projectsEvaluated {
         def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
             .collect { project.file(it) }.findAll { it.exists() }
 
-        def isExecutable = !classDirs.isEmpty() && classDirs.any { it.exists() && it.listFiles()?.length > 0 }
+        def isExecutable = {
+            def currentClassDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
+            if (currentClassDirs.isEmpty()) return false
+            def foundClass = false
+            currentClassDirs.each { dir ->
+                if (dir.exists()) {
+                    dir.eachFileRecurse { f ->
+                        if (f.isFile() && f.name.endsWith('.class')) {
+                            foundClass = true
+                        }
+                    }
+                }
+            }
+            return foundClass
+        }
 
         def task = project.tasks.register(reportName, JacocoReport) {
             dependsOn(compilerTasks)
@@ -300,12 +315,67 @@ gradle.projectsEvaluated {
                 lhs.compareTo(rhs) >= 0
             }
 
+            def computeClassInventoryDigest = { targetProj, targetDirs ->
+                def entries = []
+                targetDirs.each { dir ->
+                    if (dir.exists()) {
+                        dir.eachFileRecurse { f ->
+                            if (f.isFile() && f.name.endsWith('.class')) {
+                                def rel = dir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
+                                entries.add("${rel}:${sha256Hex(f.bytes)}".toString())
+                            }
+                        }
+                    }
+                }
+                entries.sort()
+                return sha256Hex(entries.join(';').getBytes('UTF-8'))
+            }
+
+            def modulesJsonList = []
+            def proofsJsonList = []
+
             moduleData.each { entry ->
                 if (entry.scoped) return
+                def modPath = entry.project.path
+                def isExec = entry.isExecutable()
                 def reportFile = entry.reportFile.get().asFile
                 def coverage = summarize(reportFile)
+                def repDigest = fileSha256(reportFile)
+                def workload = resolveProjectWorkload(entry.project)
+                def cDirs = workload.compilers.collectMany { task -> task.outputs.files.files.toList() }.unique()
+                def invDigest = computeClassInventoryDigest(entry.project, cDirs)
 
-                if (!entry.isExecutable) {
+                def modInst = coverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
+                def modBranch = coverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
+                def modTier = (modPath in tier1Paths) ? 1 : 2
+                def disposition = isExec ? "Applicable" : "NotApplicable"
+
+                modulesJsonList.add([
+                    module_path: modPath,
+                    tier: modTier,
+                    disposition: disposition,
+                    instruction: [covered: modInst.covered, missed: modInst.missed, total: modInst.covered + modInst.missed],
+                    branch: [covered: modBranch.covered, missed: modBranch.missed, total: modBranch.covered + modBranch.missed],
+                    report_digest: repDigest,
+                    class_inventory_digest: invDigest
+                ])
+
+                if (!isExec || modBranch.total == 0L) {
+                    proofsJsonList.add([
+                        normalization_rule: "AnalyzedZeroProofV1",
+                        module_path: modPath,
+                        analyzer_identity: "jacoco-0.8.15",
+                        report_file: reportFile.name,
+                        report_digest: repDigest,
+                        class_inventory_digest: invDigest,
+                        counters: [
+                            INSTRUCTION: [covered: modInst.covered, missed: modInst.missed, total: modInst.covered + modInst.missed],
+                            BRANCH: [covered: modBranch.covered, missed: modBranch.missed, total: modBranch.covered + modBranch.missed]
+                        ]
+                    ])
+                }
+
+                if (!isExec) {
                     root.logger.lifecycle("${entry.project.path}: Tier 1 coverage not applicable; no executable production instructions")
                     return
                 }
@@ -355,8 +425,30 @@ gradle.projectsEvaluated {
                 }
             }
 
-            def repositoryCoverage = summarize(root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml').get().asFile)
-            def repoInst = repositoryCoverage.INSTRUCTION
+            def repoReportFile = root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml').get().asFile
+            def repositoryCoverage = summarize(repoReportFile)
+            def repoRepDigest = fileSha256(repoReportFile)
+            def repoInst = repositoryCoverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
+            def repoBranch = repositoryCoverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
+
+            def canonicalCounters = [
+                schema_version: "1.0",
+                analyzer_identity: "jacoco-0.8.15",
+                generated_at: new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").with { timeZone = TimeZone.getTimeZone('UTC'); format(new Date()) },
+                modules: modulesJsonList,
+                repository: [
+                    instruction: [covered: repoInst.covered, missed: repoInst.missed, total: repoInst.covered + repoInst.missed],
+                    branch: [covered: repoBranch.covered, missed: repoBranch.missed, total: repoBranch.covered + repoBranch.missed],
+                    report_digest: repoRepDigest
+                ],
+                zero_count_proofs: proofsJsonList
+            ]
+
+            def countersOutFile = root.layout.buildDirectory.file('reports/hdk-coverage/counters.json').get().asFile
+            countersOutFile.parentFile.mkdirs()
+            countersOutFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(canonicalCounters))
+            root.logger.lifecycle("Canonical counters written to ${countersOutFile}")
+
             if (repoInst == null || !exactFloorPass(repoInst.covered, repoInst.missed, 50)) {
                 def pct = (repoInst == null || repoInst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * repoInst.covered / repoInst.total))
                 failures.add("repository instruction coverage ${pct} is below 50%")

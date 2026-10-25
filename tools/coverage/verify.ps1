@@ -111,7 +111,7 @@ $targetOutDir = if ($OutputDirectory) {
     }
     $OutputDirectory
 } else {
-    Join-Path $bundleParent "assessments" $manifest.run_id
+    Join-Path (Join-Path $bundleParent "assessments") $manifest.run_id
 }
 
 $canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
@@ -238,9 +238,9 @@ foreach ($modPath in $policy.tier1_modules) {
     # Locate Module XML report if present in RunBundle
     $cleanModName = $modPath.Replace(":", "_").TrimStart("_")
     $modXmlCandidatePaths = @(
-        (Join-Path $RunBundle "reports" "$cleanModName.xml"),
-        (Join-Path $RunBundle "reports" "modules" "$cleanModName.xml"),
-        (Join-Path $RunBundle "reports" $cleanModName "jacoco.xml")
+        (Join-Path (Join-Path $RunBundle "reports") "$cleanModName.xml"),
+        (Join-Path (Join-Path (Join-Path $RunBundle "reports") "modules") "$cleanModName.xml"),
+        (Join-Path (Join-Path $RunBundle "reports") (Join-Path $cleanModName "jacoco.xml"))
     )
     $modXmlPath = $null
     foreach ($candidate in $modXmlCandidatePaths) {

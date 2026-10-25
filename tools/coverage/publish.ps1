@@ -89,7 +89,7 @@ $receiptTarget = if ($OutputReceiptPath) {
     }
     $OutputReceiptPath
 } else {
-    Join-Path $bundleParent "assessments" $runId "publication-receipt.json"
+    Join-Path (Join-Path $bundleParent "assessments") (Join-Path $runId "publication-receipt.json")
 }
 
 $canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
@@ -204,7 +204,7 @@ try {
     }
 
     # Atomic Conflict Detection: Check if runs/<runId> already exists
-    $targetRunDir = Join-Path $tempWorktree "runs" $runId
+    $targetRunDir = Join-Path (Join-Path $tempWorktree "runs") $runId
     if (Test-Path $targetRunDir) {
         Write-Error "Cannot overwrite immutable run record: runs/$runId already exists in $EvidenceBranch"
         exit 1

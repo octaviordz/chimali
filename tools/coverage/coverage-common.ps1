@@ -78,7 +78,12 @@ function Read-SafeJson {
         throw "JSON file not found: $Path"
     }
 
-    return Get-Content -Path $Path -Raw | ConvertFrom-Json -Depth 100
+    $raw = Get-Content -Path $Path -Raw
+    try {
+        return $raw | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+    } catch {
+        return $raw | ConvertFrom-Json
+    }
 }
 
 function Get-FileSha256 {
@@ -251,7 +256,7 @@ function Test-InventoryAccounting {
     if ($XmlData -or ($Case -and $Case.xml_file)) {
         $scriptDir = $global:COVERAGE_TOOLS_DIR
         $xmlRel = if ($Case -and $Case.xml_file) { $Case.xml_file } else { $XmlData }
-        $xmlPath = Join-Path $scriptDir "fixtures" $xmlRel
+        $xmlPath = Join-Path (Join-Path $scriptDir "fixtures") $xmlRel
         if (-not (Test-Path $xmlPath)) {
             $xmlPath = Join-Path $scriptDir $xmlRel
         }
@@ -278,7 +283,7 @@ function Test-InventoryAccounting {
             } elseif ($Case.proof) {
                 $proof = $Case.proof
             } elseif ($Case.proof_file) {
-                $proofPath = Join-Path $scriptDir "fixtures" $Case.proof_file
+                $proofPath = Join-Path (Join-Path $scriptDir "fixtures") $Case.proof_file
                 if (-not (Test-Path $proofPath)) {
                     $proofPath = Join-Path $scriptDir $Case.proof_file
                 }
