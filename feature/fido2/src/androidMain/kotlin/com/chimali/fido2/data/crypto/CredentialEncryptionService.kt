@@ -43,6 +43,7 @@ class CredentialEncryptionService(
     }
 
     private val secureRandom = SecureRandom()
+    private var cachedMasterKey: SecretKey? = null
 
     /**
      * Encrypts sensitive credential data with authenticated encryption.
@@ -349,7 +350,7 @@ class CredentialEncryptionService(
      */
     suspend fun rotateMasterKey(): Outcome<Unit, DomainError.CryptoError> =
         try {
-            generateMasterKey()
+            cachedMasterKey = generateMasterKey()
 
             // In a real implementation, you would:
             // 1. Re-encrypt all existing data with the new key
@@ -376,7 +377,7 @@ class CredentialEncryptionService(
             credentialStorageService.keyExists(MASTER_KEY_ALIAS)
             // In a real implementation, you would retrieve the actual key from KeyStore
             // For now, we'll generate a temporary key for demonstration
-            generateMasterKey()
+            cachedMasterKey ?: generateMasterKey().also { cachedMasterKey = it }
         } catch (e: java.security.GeneralSecurityException) {
             Logger.e(e) { "CredentialEncryptionService: Failed to get master key" }
             null
