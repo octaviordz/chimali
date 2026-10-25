@@ -718,11 +718,45 @@ function Sort-TestSelectionCandidates {
     param(
         [Parameter(Mandatory = $true)][array]$Candidates
     )
-    return $Candidates | Sort-Object `
-        @{ Expression = { [int]$_.impact }; Descending = $true }, `
-        @{ Expression = { [int]$_.likelihood }; Descending = $true }, `
-        @{ Expression = { [double]$_.module_deficit }; Descending = $true }, `
-        @{ Expression = { $_.candidate_id }; Descending = $false }
+    $augmented = foreach ($c in $Candidates) {
+        $num = [System.Numerics.BigInteger]::Zero
+        $den = [System.Numerics.BigInteger]::One
+        if ($c.module_deficit_numerator -and $c.module_deficit_denominator) {
+            $num = [System.Numerics.BigInteger]::Parse($c.module_deficit_numerator.ToString())
+            $den = [System.Numerics.BigInteger]::Parse($c.module_deficit_denominator.ToString())
+        } elseif ($null -ne $c.module_deficit) {
+            $decVal = [decimal]$c.module_deficit
+            $num = [System.Numerics.BigInteger]([Math]::Round($decVal * [decimal]1000000))
+            $den = [System.Numerics.BigInteger]1000000
+        }
+        [PSCustomObject]@{
+            Candidate = $c
+            Impact = [int]$c.impact
+            Likelihood = [int]$c.likelihood
+            DeficitNum = $num
+            DeficitDen = $den
+            CandidateId = [string]$c.candidate_id
+        }
+    }
+
+    $list = [System.Collections.Generic.List[object]]::new($augmented)
+    $list.Sort({
+        param($a, $b)
+        if ($a.Impact -ne $b.Impact) {
+            return $b.Impact.CompareTo($a.Impact)
+        }
+        if ($a.Likelihood -ne $b.Likelihood) {
+            return $b.Likelihood.CompareTo($a.Likelihood)
+        }
+        $prodA = $a.DeficitNum * $b.DeficitDen
+        $prodB = $b.DeficitNum * $a.DeficitDen
+        if ($prodA -ne $prodB) {
+            return $prodB.CompareTo($prodA)
+        }
+        return [string]::Compare($a.CandidateId, $b.CandidateId, [System.StringComparison]::Ordinal)
+    })
+
+    return @($list | ForEach-Object { $_.Candidate })
 }
 
 function Test-BatchProgression {
@@ -730,12 +764,23 @@ function Test-BatchProgression {
         [Parameter(Mandatory = $true)][int]$CurrentRank,
         [Parameter(Mandatory = $true)][int]$AttemptedNextRank,
         [Parameter(Mandatory = $true)][string]$TestStatus,
-        [Parameter(Mandatory = $false)][string]$SelectedCase
+        [Parameter(Mandatory = $false)][string]$SelectedCase,
+        [Parameter(Mandatory = $false)]$Receipts
     )
-    if ($CurrentRank -gt $AttemptedNextRank -and ($TestStatus -in @("Failed", "Unverified"))) {
-        return @{
-            Allowed = $false
-            Error = "Cannot advance to lower risk rank while higher rank test $SelectedCase is Failed or Unverified"
+    if ($CurrentRank -gt $AttemptedNextRank) {
+        if ($TestStatus -in @("Failed", "Unverified")) {
+            return @{
+                Allowed = $false
+                Error = "Cannot advance to lower risk rank while higher rank test $SelectedCase is Failed or Unverified"
+            }
+        }
+        if ($Receipts) {
+            if (-not $Receipts.focused_assertion_passed -or -not $Receipts.clean_measurement_run_id -or -not $Receipts.reranking_performed) {
+                return @{
+                    Allowed = $false
+                    Error = "Progression blocked: candidate $SelectedCase requires focused assertion, clean measurement, and reranking receipts"
+                }
+            }
         }
     }
     return @{

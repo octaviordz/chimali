@@ -476,9 +476,24 @@ try {
     Pop-Location
 }
 
+$suiteFailures = @()
+foreach ($s in $suitesList) {
+    $eval = Test-SuiteOutcome -SuiteResult $s
+    if (-not $eval.Passed) {
+        $suiteFailures += "$($s.suite_name): $($eval.Reasons -join ', ')"
+    }
+}
+
 $isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and (Test-Path $repoDstXml)
 $collectionStatus = if ($isCollectionComplete) { "Complete" } else { "Incomplete" }
-$testStatus = if ($SkipExecution) { "Unverified" } elseif ($gradleSuccess) { "Passed" } else { "Failed" }
+
+$testStatus = if ($SkipExecution) {
+    "Unverified"
+} elseif (-not $gradleSuccess -or $suiteFailures.Count -gt 0 -or $suitesList.Count -eq 0) {
+    "Failed"
+} else {
+    "Passed"
+}
 
 # Build artifact manifest
 $artifactsList = @()

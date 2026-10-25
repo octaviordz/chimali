@@ -26,8 +26,8 @@ $FixturesDir = Join-Path $ScriptDir "fixtures"
 $fixtureFiles = Get-ChildItem -Path $FixturesDir -Filter $FixturePattern -File | Where-Object { $_.Name -ne "package.json" -and $_.Name -ne "schema-fixture.json" }
 
 if ($fixtureFiles.Count -eq 0) {
-    Write-Warning "No fixture files found matching '$FixturePattern' in $FixturesDir"
-    exit 0
+    Write-Error "No fixture files found matching '$FixturePattern' in $FixturesDir"
+    exit 1
 }
 
 $totalPassed = 0
@@ -334,7 +334,12 @@ foreach ($file in $fixtureFiles) {
     }
 }
 
-Write-Host "`nTest Summary: $totalPassed passed, $totalFailed failed" -ForegroundColor $(if ($totalFailed -eq 0) { "Green" } else { "Red" })
+Write-Host "`nTest Summary: $totalPassed passed, $totalFailed failed" -ForegroundColor $(if ($totalFailed -eq 0 -and $totalPassed -gt 0) { "Green" } else { "Red" })
+
+if (($totalPassed + $totalFailed) -eq 0) {
+    Write-Error "Zero test cases were selected or executed (SpecificCase='$SpecificCase', Pattern='$FixturePattern')"
+    exit 1
+}
 
 if ($totalFailed -gt 0) {
     exit 1

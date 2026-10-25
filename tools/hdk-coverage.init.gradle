@@ -34,10 +34,16 @@ gradle.projectsEvaluated {
         candidate
     }
 
-    def deviceCoverageTasks = [
-        root.project(':feature:fido2').tasks.findByName('connectedAndroidDeviceTest') ?: root.project(':feature:fido2').tasks.findByName('connectedDebugAndroidTest'),
-        root.project(':app').tasks.findByName('connectedAndroidTest') ?: root.project(':app').tasks.findByName('connectedShrunkDebugAndroidTest')
-    ].findAll { it != null }
+    def fido2DeviceTask = root.project(':feature:fido2').tasks.findByName('connectedAndroidDeviceTest') ?: root.project(':feature:fido2').tasks.findByName('connectedDebugAndroidTest')
+    if (fido2DeviceTask == null) {
+        throw new GradleException("Required device test task for :feature:fido2 not found")
+    }
+    def appDeviceTask = root.project(':app').tasks.findByName('connectedShrunkDebugAndroidTest') ?: root.project(':app').tasks.findByName('connectedAndroidTest') ?: root.project(':app').tasks.findByName('connectedDebugAndroidTest')
+
+    def deviceCoverageTasks = [fido2DeviceTask]
+    if (appDeviceTask != null) {
+        deviceCoverageTasks.add(appDeviceTask)
+    }
 
     def coveragePrepare = root.tasks.register('hdkCoveragePrepare') {
         group = 'verification'
