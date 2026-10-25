@@ -53,7 +53,7 @@ Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inl
 
 #### COV-001: AesGcmEncryptedMetadataService Key Lifecycle & Unprovisioned Rejection
 - **Module**: `:core:security`
-- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Requirements**: `FR-006`, `TR-AUTH-031`, `NFR-SEC-041`
 - **Impact**: 4 | **Likelihood**: 3 | **Selection Reason**: `Tier1Risk`
 - **Initial State**: `AesGcmEncryptedMetadataService` initialized without calling `provisionKey`, or after invoking `clearKey()`.
 - **Expected Result**: Calling `encrypt()` or `decrypt()` throws `IllegalStateException` with message `"Encryption key not provisioned"`.
@@ -99,7 +99,7 @@ Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inl
 
 #### COV-004: VaultAggregateServiceImpl Snapshot Hydration, Retry Exhaustion, and Memory Scrubbing
 - **Module**: `:core:data`
-- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Requirements**: `NFR-ARCH-050`, `NFR-SEC-041`
 - **Impact**: 3 | **Likelihood**: 2 | **Selection Reason**: `Tier1Risk`
 - **Initial State**: `VaultAggregateServiceImpl` with mocked `EventStoreRepository` and `SnapshotRepository`.
 - **Expected Result**:
@@ -119,7 +119,7 @@ Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inl
 
 #### COV-005: AesGcmEncryptedMetadataService Malformed Ciphertext Truncation
 - **Module**: `:core:security`
-- **Requirements**: `NFR-SEC-041`, `TR-AUTH-031`
+- **Requirements**: `FR-006`, `NFR-SEC-041`
 - **Impact**: 2 | **Likelihood**: 3 | **Selection Reason**: `Tier1Risk`
 - **Initial State**: Provisioned `AesGcmEncryptedMetadataService`.
 - **Expected Result**: Calling `decrypt` with ciphertext shorter than 1 + 12 bytes throws `IllegalArgumentException("Invalid ciphertext length")`.

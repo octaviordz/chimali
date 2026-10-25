@@ -29,6 +29,12 @@ class VaultAggregateServiceImpl(
         private const val SNAPSHOT_THRESHOLD = 20
     }
 
+    /**
+     * Reconstructs aggregate state up to the specified point in time or latest.
+     * Uses snapshot hydration when available with fallback to full event fold.
+     *
+     * Traceability: NFR-ARCH-050 (Deterministic Decider fold reconstruction, snapshot acceleration, full fold fallback)
+     */
     override suspend fun getState(
         aggregateId: String,
         asOf: Instant?,
@@ -54,6 +60,13 @@ class VaultAggregateServiceImpl(
             .map { events -> evolveOwned(decider.initialState, events) }
     }
 
+    /**
+     * Executes a command against the aggregate with optimistic concurrency retry logic.
+     * Appends generated events, takes snapshots at configured intervals, and clears volatile memory.
+     *
+     * Traceability: NFR-ARCH-050 (Append-only commit, bounded optimistic concurrency retry, snapshot generation)
+     * Traceability: NFR-SEC-041 (Sensitive memory zeroization on state transition)
+     */
     override suspend fun execute(
         aggregateId: String,
         command: VaultCommand,

@@ -1,4 +1,4 @@
-﻿package com.chimali.core.security.impl
+package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.EncryptedMetadataService
 import java.security.SecureRandom
@@ -9,6 +9,14 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+/**
+ * Unit tests for AesGcmEncryptedMetadataService.
+ *
+ * Traceability:
+ * - FR-006: Authenticated AES-GCM encryption for credential metadata with associated data binding.
+ * - TR-AUTH-031: Cryptographic key hygiene, terminal erasure (clearKey), and unprovisioned key rejection.
+ * - NFR-SEC-041: Protection against ciphertext tampering and truncated payload injection.
+ */
 class AesGcmEncryptedMetadataServiceTest {
     private lateinit var service: AesGcmEncryptedMetadataService
     private lateinit var testKey: ByteArray
@@ -118,6 +126,7 @@ class AesGcmEncryptedMetadataServiceTest {
         }
     }
 
+    // Requirement: TR-AUTH-031 (Rejection of unprovisioned encryption key)
     @Test
     fun `encrypt without provisioned key fails with illegal state`() {
         val unprovisionedService = AesGcmEncryptedMetadataService()
@@ -128,6 +137,7 @@ class AesGcmEncryptedMetadataServiceTest {
         assertEquals("Encryption key not provisioned", exception.message)
     }
 
+    // Requirement: TR-AUTH-031 (Rejection of unprovisioned decryption key)
     @Test
     fun `decrypt without provisioned key fails with illegal state`() {
         val unprovisionedService = AesGcmEncryptedMetadataService()
@@ -139,6 +149,7 @@ class AesGcmEncryptedMetadataServiceTest {
         assertEquals("Encryption key not provisioned", exception.message)
     }
 
+    // Requirement: TR-AUTH-031, NFR-SEC-041 (Key zeroization and terminal erasure)
     @Test
     fun `clearKey drops key and prevents subsequent encryption and decryption`() {
         val plaintext = "test_value".toByteArray()
@@ -159,6 +170,7 @@ class AesGcmEncryptedMetadataServiceTest {
         assertEquals("Encryption key not provisioned", decryptException.message)
     }
 
+    // Requirement: FR-006, NFR-SEC-041 (Truncated ciphertext rejection)
     @Test
     fun `ciphertext shorter than version and nonce fails with illegal argument`() {
         val tooShort = ByteArray(EncryptedMetadataService.NONCE_LENGTH_BYTES)

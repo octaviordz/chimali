@@ -341,7 +341,24 @@ $countersData = [PSCustomObject]@{
 $countersJsonPath = Join-Path $runDir "counters.json"
 $countersData | ConvertTo-Json -Depth 10 | Set-Content -Path $countersJsonPath -Encoding utf8
 
-# 7. Assemble Manifest & Evidence
+# 7. Postflight Cleanliness Verification
+Push-Location $RepositoryRoot
+try {
+    $postStatus = (git status --porcelain)
+    $postHead = (git rev-parse HEAD).Trim()
+    $cleanPostflight = [string]::IsNullOrEmpty($postStatus) -and ($postHead -eq $SourceRevision)
+    if (-not $cleanPostflight) {
+        Write-Warning "Postflight git check failed: working tree modified or HEAD changed during collection"
+    }
+} finally {
+    Pop-Location
+}
+
+$isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and (Test-Path $repoDstXml)
+$collectionStatus = if ($isCollectionComplete) { "Complete" } else { "Incomplete" }
+$testStatus = if ($SkipExecution) { "Unverified" } elseif ($gradleSuccess) { "Passed" } else { "Failed" }
+
+# 8. Assemble Manifest & Evidence
 $manifest = [PSCustomObject]@{
     run_id = $runId
     schema_version = "1.0"
@@ -357,15 +374,15 @@ $manifest = [PSCustomObject]@{
         source_tree = $sourceTree
         target_commit = $TargetRevision
         clean_preflight = $true
-        clean_postflight = $true
+        clean_postflight = $cleanPostflight
     }
     device = [PSCustomObject]@{
         device_serial = $DeviceSerial
         device_online = $deviceOnline
     }
     decisions = [PSCustomObject]@{
-        collection = if ($gradleSuccess) { "Complete" } else { "Incomplete" }
-        tests = if ($gradleSuccess) { "Passed" } else { "Failed" }
+        collection = $collectionStatus
+        tests = $testStatus
         floors = "Unverified"
         comparison_compatibility = if ($Purpose -eq "Initial") { "Missing" } else { "Compatible" }
         regression = if ($Purpose -eq "Initial") { "NotApplicable" } else { "Unverified" }

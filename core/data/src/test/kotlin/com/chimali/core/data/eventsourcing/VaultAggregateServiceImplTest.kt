@@ -1,4 +1,4 @@
-﻿package com.chimali.core.data.eventsourcing
+package com.chimali.core.data.eventsourcing
 
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.Snapshot
@@ -17,6 +17,11 @@ import org.junit.Test
 
 /**
  * Unit tests for VaultAggregateServiceImpl.
+ *
+ * Traceability:
+ * - NFR-ARCH-050: Core aggregates (VaultEntry) utilize Event Sourcing, Decider fold reconstruction,
+ *   temporal queries (asOf), snapshot hydration, and optimistic concurrency retry.
+ * - NFR-SEC-041: Sensitive memory zeroization on state transitions.
  */
 class VaultAggregateServiceImplTest {
     private val eventStoreRepository = mockk<EventStoreRepository>()
@@ -28,6 +33,7 @@ class VaultAggregateServiceImplTest {
     private val service = VaultAggregateServiceImpl(eventStoreRepository, snapshotRepository)
     private val aggregateId = UUID.randomUUID().toString()
 
+    // Requirement: NFR-ARCH-050 (State reconstruction from event stream)
     @Test
     fun `getState should hydrate state from events`() =
         runTest {
@@ -61,6 +67,7 @@ class VaultAggregateServiceImplTest {
             assertEquals(2L, state.sequenceNumber)
         }
 
+    // Requirement: NFR-ARCH-050 (Temporal query / historical state reconstruction)
     @Test
     fun `getState with asOf should reconstruct state at specific point in time`() =
         runTest {
@@ -88,6 +95,7 @@ class VaultAggregateServiceImplTest {
             assertEquals(2L, stateAtT2.sequenceNumber)
         }
 
+    // Requirement: NFR-ARCH-050 (Optimistic concurrency retry on conflict)
     @Test
     fun `execute should retry on optimistic concurrency failure`() =
         runTest {
@@ -108,6 +116,7 @@ class VaultAggregateServiceImplTest {
             assertEquals(1L, state.sequenceNumber)
         }
 
+    // Requirement: NFR-ARCH-050 (Snapshot acceleration and differential hydration)
     @Test
     fun `getState should hydrate from snapshot when available`() =
         runTest {
@@ -155,6 +164,7 @@ class VaultAggregateServiceImplTest {
             assertEquals(3L, state.sequenceNumber)
         }
 
+    // Requirement: NFR-ARCH-050 (Bounded retry exhaustion)
     @Test
     fun `execute returns failure when all retries are exhausted`() =
         runTest {
@@ -173,6 +183,7 @@ class VaultAggregateServiceImplTest {
             assertEquals("Database lock", result.exceptionOrNull()?.message)
         }
 
+    // Requirement: NFR-ARCH-050 (State read failure propagation)
     @Test
     fun `execute returns early failure when getState fails`() =
         runTest {
