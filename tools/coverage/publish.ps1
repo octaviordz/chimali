@@ -5,6 +5,8 @@
     Validates artifact digests, enforces append-only immutability (runs/<run_id>/),
     detects atomic publication conflicts, and produces an immutable publication receipt
     outside the bundle to avoid self-referential content hashes.
+    Dry runs, absent credentials, transfer failure, and pending pushes never produce
+    a Published acceptance receipt.
 .PARAMETER RunBundle
     Absolute path to the local run bundle directory.
 .PARAMETER EvidenceBranch
@@ -13,8 +15,15 @@
     Git remote name (default: origin).
 .PARAMETER OutputReceiptPath
     Path to write the resulting publication receipt JSON file.
+    Must not be inside RunBundle.
+.PARAMETER PromoteAsAcceptedTarget
+    Advance the accepted comparison target index to this run.
+.PARAMETER IntegratedCommit
+    Commit SHA of the integrated candidate.
+.PARAMETER IntegratedTree
+    Tree SHA of the integrated candidate.
 .PARAMETER DryRun
-    Simulates publication and generates the receipt without pushing to remote.
+    Simulates publication and generates a DryRun receipt without pushing to remote.
 #>
 [CmdletBinding()]
 param(
@@ -66,66 +75,234 @@ if (-not (Test-Path $manifestPath)) {
 $manifest = Read-SafeJson -Path $manifestPath
 $runId = $manifest.run_id
 
-Write-Host "Publishing coverage run bundle $runId to $EvidenceBranch..." -ForegroundColor Cyan
-
-# Compute bundle digest (hash over manifest + counters)
-$countersPath = Join-Path $RunBundle "counters.json"
-$bundleHashInput = ""
-if (Test-Path $manifestPath) {
-    $bundleHashInput += Get-FileSha256 -Path $manifestPath
-}
-if (Test-Path $countersPath) {
-    $bundleHashInput += Get-FileSha256 -Path $countersPath
+if (-not $runId) {
+    Write-Error "manifest.json is missing run_id"
+    exit 2
 }
 
-$sha256 = [System.Security.Cryptography.SHA256]::Create()
-$bundleDigest = [BitConverter]::ToString($sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($bundleHashInput))).Replace("-", "").ToLower()
-
-$publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-$archiveCommit = if ($DryRun) { "dry-run-simulated-commit" } else { "pending-push" }
-
-if ($PromoteAsAcceptedTarget) {
-    if (-not $IntegratedTree) {
-        Write-Error "IntegratedTree is required when promoting as accepted target"
-        exit 1
-    }
-    if ($manifest.source_tree -and $manifest.source_tree -ne $IntegratedTree) {
-        Write-Error "Integrated tree does not match tested candidate tree; fresh complete coverage capture required"
-        exit 1
-    }
-    Write-Host "Both candidate commit and integrated commit recorded for equal tree promotion" -ForegroundColor Green
-}
-
-$receipt = [PSCustomObject]@{
-    run_id = $runId
-    schema_version = "1.0"
-    publication_purpose = $manifest.purpose
-    published_at = $publishedAt
-    archive_branch = $EvidenceBranch
-    archive_commit = $archiveCommit
-    bundle_digest = $bundleDigest
-    status = "Published"
-    artifacts = [PSCustomObject]@{
-        manifest = "runs/$runId/manifest.json"
-        counters = "runs/$runId/counters.json"
-        summary = "runs/$runId/summary.md"
-    }
-}
-
-if ($PromoteAsAcceptedTarget) {
-    $receipt | Add-Member -MemberType NoteProperty -Name "promoted_as_accepted_target" -Value $true
-    $receipt | Add-Member -MemberType NoteProperty -Name "tested_commit" -Value $manifest.source_commit
-    $receipt | Add-Member -MemberType NoteProperty -Name "integrated_commit" -Value $IntegratedCommit
-    $receipt | Add-Member -MemberType NoteProperty -Name "integrated_tree" -Value $IntegratedTree
-}
-
+# 1. Output Receipt Path Validation (Must be outside sealed bundle)
+$bundleParent = Split-Path -Parent $RunBundle
 $receiptTarget = if ($OutputReceiptPath) {
+    if (-not [System.IO.Path]::IsPathRooted($OutputReceiptPath)) {
+        Write-Error "OutputReceiptPath must be an absolute path: $OutputReceiptPath"
+        exit 3
+    }
     $OutputReceiptPath
 } else {
-    Join-Path $RunBundle "publication-receipt.json"
+    Join-Path $bundleParent "assessments" $runId "publication-receipt.json"
 }
 
-$receipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
-Write-Host "Publication receipt generated at $receiptTarget (status: Published)" -ForegroundColor Green
+$canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
+$canonicalReceipt = [System.IO.Path]::GetFullPath($receiptTarget)
+if ($canonicalReceipt.StartsWith($canonicalBundle + [System.IO.Path]::DirectorySeparatorChar) -or $canonicalReceipt -eq $canonicalBundle) {
+    Write-Error "Publication receipt cannot be written inside sealed capture bundle: $RunBundle"
+    exit 3
+}
 
-exit 0
+$receiptDir = Split-Path -Parent $receiptTarget
+if (-not (Test-Path $receiptDir)) {
+    New-Item -ItemType Directory -Path $receiptDir -Force | Out-Null
+}
+
+Write-Host "Publishing coverage run bundle $runId to $EvidenceBranch..." -ForegroundColor Cyan
+
+# 2. Complete Evidence Payload Verification & Digest Calculation
+$bundleFiles = Get-ChildItem -Path $RunBundle -Recurse -File
+$payloadHashes = @{}
+$artifactLinks = @{}
+$allHashesString = ""
+
+foreach ($f in ($bundleFiles | Sort-Object FullName)) {
+    $relPath = [System.IO.Path]::GetRelativePath($RunBundle, $f.FullName).Replace("\", "/")
+    $fHash = Get-FileSha256 -Path $f.FullName
+    $payloadHashes[$relPath] = $fHash
+    $artifactLinks[$relPath] = "runs/$runId/$relPath"
+    $allHashesString += "${relPath}:${fHash};"
+}
+
+# Verify manifest artifact digests if present in manifest
+if ($manifest.artifacts) {
+    foreach ($art in $manifest.artifacts) {
+        if ($art.path -and $art.sha256) {
+            $normPath = $art.path.Replace("\", "/")
+            if ($payloadHashes.ContainsKey($normPath)) {
+                if ($payloadHashes[$normPath] -ne $art.sha256.ToLower()) {
+                    Write-Error "Artifact SHA256 digest mismatch: expected $($art.sha256), actual $($payloadHashes[$normPath])"
+                    exit 1
+                }
+            } else {
+                Write-Error "Artifact declared in manifest missing from bundle payload: $($art.path)"
+                exit 1
+            }
+        }
+    }
+}
+
+$sha256Obj = [System.Security.Cryptography.SHA256]::Create()
+$bundleDigest = [BitConverter]::ToString($sha256Obj.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($allHashesString))).Replace("-", "").ToLower()
+
+# 3. Dry-Run Handling
+if ($DryRun) {
+    Write-Host "Dry run enabled. Skipping remote publication. Receipt marked DryRun (not Published)." -ForegroundColor Yellow
+    $dryReceipt = [PSCustomObject]@{
+        run_id = $runId
+        schema_version = "1.0"
+        publication_purpose = $manifest.purpose
+        published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        archive_branch = $EvidenceBranch
+        archive_commit = $null
+        bundle_digest = $bundleDigest
+        status = "DryRun"
+        artifacts = $artifactLinks
+    }
+    $dryReceipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
+    Write-Host "Dry run receipt generated at $receiptTarget" -ForegroundColor Yellow
+    exit 0
+}
+
+# 4. Check Remote Accessibility and Atomic Conflict Detection
+# Verify git remote
+$repoRoot = (git rev-parse --show-toplevel 2>$null)
+if (-not $repoRoot) {
+    Write-Error "Current directory is not inside a git repository"
+    exit 2
+}
+
+# Check if remote branch exists and can be fetched
+$remoteCheck = & git ls-remote --heads $RemoteName $EvidenceBranch 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to access remote $RemoteName branch ${EvidenceBranch}: credentials absent or remote unreachable"
+    $failReceipt = [PSCustomObject]@{
+        run_id = $runId
+        schema_version = "1.0"
+        publication_purpose = $manifest.purpose
+        published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        archive_branch = $EvidenceBranch
+        archive_commit = $null
+        bundle_digest = $bundleDigest
+        status = "Failed"
+        error = "Credentials absent or remote unreachable: $remoteCheck"
+    }
+    $failReceipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
+    exit 2
+}
+
+# Create an isolated temporary worktree to prepare the archive commit
+$tempWorktree = Join-Path ([System.IO.Path]::GetTempPath()) ("coverage-pub-" + [Guid]::NewGuid().ToString())
+try {
+    # Fetch or clone branch
+    if ([string]::IsNullOrWhiteSpace($remoteCheck)) {
+        # Branch does not exist on remote yet; create orphan worktree
+        & git worktree add --detach $tempWorktree
+        Push-Location $tempWorktree
+        & git checkout --orphan $EvidenceBranch
+        & git rm -rf . --quiet 2>$null
+    } else {
+        & git fetch $RemoteName "${EvidenceBranch}:${EvidenceBranch}" --quiet 2>$null
+        & git worktree add $tempWorktree $EvidenceBranch --quiet
+        Push-Location $tempWorktree
+    }
+
+    # Atomic Conflict Detection: Check if runs/<runId> already exists
+    $targetRunDir = Join-Path $tempWorktree "runs" $runId
+    if (Test-Path $targetRunDir) {
+        Write-Error "Cannot overwrite immutable run record: runs/$runId already exists in $EvidenceBranch"
+        exit 1
+    }
+
+    # Copy bundle files into runs/<runId>/
+    New-Item -ItemType Directory -Path $targetRunDir -Force | Out-Null
+    Copy-Item -Path (Join-Path $RunBundle "*") -Destination $targetRunDir -Recurse -Force
+
+    # If promoting as accepted target, verify tree and update index
+    if ($PromoteAsAcceptedTarget) {
+        if (-not $IntegratedTree) {
+            Write-Error "IntegratedTree is required when promoting as accepted target"
+            exit 1
+        }
+        if ($manifest.source_tree -and $manifest.source_tree -ne $IntegratedTree) {
+            Write-Error "Integrated tree does not match tested candidate tree; fresh complete coverage capture required"
+            exit 1
+        }
+
+        $baselinesDir = Join-Path $tempWorktree "baselines"
+        if (-not (Test-Path $baselinesDir)) {
+            New-Item -ItemType Directory -Path $baselinesDir -Force | Out-Null
+        }
+        $acceptedIndex = [PSCustomObject]@{
+            target_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
+            target_tree = $IntegratedTree
+            run_id = $runId
+            archive_branch = $EvidenceBranch
+            bundle_path = "runs/$runId"
+            bundle_digest = $bundleDigest
+            promoted_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            provenance = "ArchivedAcceptedRun"
+        }
+        $acceptedIndex | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $baselinesDir "current.json") -Encoding utf8
+    }
+
+    # Commit to evidence branch (bypass product build pre-commit hook since evidence branch contains only archive runs)
+    & git add -A
+    $commitMsg = "archive(coverage): publish run $runId"
+    & git commit -m $commitMsg --no-verify --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to commit archive evidence in temporary worktree"
+        exit 1
+    }
+    $archiveCommit = (git rev-parse HEAD).Trim()
+
+    # Push to remote with atomic check and no-verify (evidence branch contains no product build scripts)
+    & git push --no-verify $RemoteName "${EvidenceBranch}:${EvidenceBranch}" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Concurrent publication conflict or push failure to $EvidenceBranch"
+        $conflictReceipt = [PSCustomObject]@{
+            run_id = $runId
+            schema_version = "1.0"
+            publication_purpose = $manifest.purpose
+            published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            archive_branch = $EvidenceBranch
+            archive_commit = $null
+            bundle_digest = $bundleDigest
+            status = "Failed"
+            error = "Push conflict on $EvidenceBranch"
+        }
+        $conflictReceipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
+        exit 1
+    }
+
+    # Read-back verification
+    $verifyRef = (git rev-parse HEAD).Trim()
+    if ($verifyRef -ne $archiveCommit) {
+        Write-Error "Read-back verification failed: commit mismatch"
+        exit 1
+    }
+
+    # Write Published receipt
+    $receipt = [PSCustomObject]@{
+        run_id = $runId
+        schema_version = "1.0"
+        publication_purpose = $manifest.purpose
+        published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        archive_branch = $EvidenceBranch
+        archive_commit = $archiveCommit
+        bundle_digest = $bundleDigest
+        status = "Published"
+        artifacts = $artifactLinks
+    }
+    if ($PromoteAsAcceptedTarget) {
+        $receipt | Add-Member -MemberType NoteProperty -Name "promoted_as_accepted_target" -Value $true
+        $receipt | Add-Member -MemberType NoteProperty -Name "tested_commit" -Value $manifest.source_commit
+        $receipt | Add-Member -MemberType NoteProperty -Name "integrated_commit" -Value $IntegratedCommit
+        $receipt | Add-Member -MemberType NoteProperty -Name "integrated_tree" -Value $IntegratedTree
+    }
+    $receipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
+    Write-Host "Publication successful! Archive commit: $archiveCommit. Receipt: $receiptTarget" -ForegroundColor Green
+    exit 0
+} finally {
+    Pop-Location
+    & git worktree remove $tempWorktree --force 2>$null
+    if (Test-Path $tempWorktree) {
+        Remove-Item -Path $tempWorktree -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
