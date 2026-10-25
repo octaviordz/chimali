@@ -412,10 +412,10 @@ foreach ($jf in $junitFiles) {
         $testSuiteNode = $jDoc.SelectSingleNode("/testsuite")
         if ($testSuiteNode) {
             $sName = $testSuiteNode.GetAttribute("name")
-            $sTests = [int]($testSuiteNode.GetAttribute("tests") ?: "0")
-            $sFailures = [int]($testSuiteNode.GetAttribute("failures") ?: "0")
-            $sErrors = [int]($testSuiteNode.GetAttribute("errors") ?: "0")
-            $sSkipped = [int]($testSuiteNode.GetAttribute("skipped") ?: "0")
+            $sTests = if ($testSuiteNode.HasAttribute("tests")) { [int]$testSuiteNode.GetAttribute("tests") } else { 0 }
+            $sFailures = if ($testSuiteNode.HasAttribute("failures")) { [int]$testSuiteNode.GetAttribute("failures") } else { 0 }
+            $sErrors = if ($testSuiteNode.HasAttribute("errors")) { [int]$testSuiteNode.GetAttribute("errors") } else { 0 }
+            $sSkipped = if ($testSuiteNode.HasAttribute("skipped")) { [int]$testSuiteNode.GetAttribute("skipped") } else { 0 }
 
             $destXml = Join-Path $testsReportsDir $jf.Name
             Copy-Item -Path $jf.FullName -Destination $destXml -Force
