@@ -218,7 +218,7 @@ gradle.projectsEvaluated {
             html.required = true
             csv.required = true
             xml.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml')
-            html.layout = root.layout.buildDirectory.dir('reports/hdk-coverage/repository')
+            html.outputLocation = root.layout.buildDirectory.dir('reports/hdk-coverage/repository')
             csv.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.csv')
         }
     }
