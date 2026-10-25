@@ -1,16 +1,15 @@
 ﻿package com.chimali.core.security.impl
 
 import com.chimali.core.security.api.EncryptedMetadataService
+import java.security.SecureRandom
+import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.security.SecureRandom
-import kotlin.test.assertFailsWith
 
 class AesGcmEncryptedMetadataServiceTest {
-
     private lateinit var service: AesGcmEncryptedMetadataService
     private lateinit var testKey: ByteArray
 
@@ -51,9 +50,10 @@ class AesGcmEncryptedMetadataServiceTest {
 
         val ciphertext = service.encrypt(plaintext, associatedData)
 
-        val exception = assertFailsWith<SecurityException> {
-            service.decrypt(ciphertext, wrongAssociatedData)
-        }
+        val exception =
+            assertFailsWith<SecurityException> {
+                service.decrypt(ciphertext, wrongAssociatedData)
+            }
         assertEquals("Authentication failed: data may be tampered", exception.message)
     }
 
@@ -75,13 +75,14 @@ class AesGcmEncryptedMetadataServiceTest {
         val associatedData = "rp_id".toByteArray()
 
         val ciphertext = service.encrypt(plaintext, associatedData)
-        
+
         // Flip one bit in the ciphertext part
         ciphertext[ciphertext.size - 1] = (ciphertext[ciphertext.size - 1].toInt() xor 1).toByte()
 
-        val exception = assertFailsWith<SecurityException> {
-            service.decrypt(ciphertext, associatedData)
-        }
+        val exception =
+            assertFailsWith<SecurityException> {
+                service.decrypt(ciphertext, associatedData)
+            }
         assertEquals("Authentication failed: data may be tampered", exception.message)
     }
 
@@ -91,13 +92,14 @@ class AesGcmEncryptedMetadataServiceTest {
         val associatedData = "rp_id".toByteArray()
 
         val ciphertext = service.encrypt(plaintext, associatedData)
-        
+
         // Modify the nonce
         ciphertext[1] = (ciphertext[1].toInt() xor 1).toByte()
 
-        val exception = assertFailsWith<SecurityException> {
-            service.decrypt(ciphertext, associatedData)
-        }
+        val exception =
+            assertFailsWith<SecurityException> {
+                service.decrypt(ciphertext, associatedData)
+            }
         assertEquals("Authentication failed: data may be tampered", exception.message)
     }
 
@@ -107,7 +109,7 @@ class AesGcmEncryptedMetadataServiceTest {
         val associatedData = "rp_id".toByteArray()
 
         val ciphertext = service.encrypt(plaintext, associatedData)
-        
+
         // Modify the version byte
         ciphertext[0] = (EncryptedMetadataService.VERSION_1 + 1).toByte()
 
@@ -119,9 +121,10 @@ class AesGcmEncryptedMetadataServiceTest {
     @Test
     fun `encrypt without provisioned key fails with illegal state`() {
         val unprovisionedService = AesGcmEncryptedMetadataService()
-        val exception = assertFailsWith<IllegalStateException> {
-            unprovisionedService.encrypt("data".toByteArray(), null)
-        }
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                unprovisionedService.encrypt("data".toByteArray(), null)
+            }
         assertEquals("Encryption key not provisioned", exception.message)
     }
 
@@ -129,9 +132,10 @@ class AesGcmEncryptedMetadataServiceTest {
     fun `decrypt without provisioned key fails with illegal state`() {
         val unprovisionedService = AesGcmEncryptedMetadataService()
         val dummyCiphertext = byteArrayOf(EncryptedMetadataService.VERSION_1.toByte()) + ByteArray(20)
-        val exception = assertFailsWith<IllegalStateException> {
-            unprovisionedService.decrypt(dummyCiphertext, null)
-        }
+        val exception =
+            assertFailsWith<IllegalStateException> {
+                unprovisionedService.decrypt(dummyCiphertext, null)
+            }
         assertEquals("Encryption key not provisioned", exception.message)
     }
 
@@ -142,14 +146,16 @@ class AesGcmEncryptedMetadataServiceTest {
 
         service.clearKey()
 
-        val encryptException = assertFailsWith<IllegalStateException> {
-            service.encrypt(plaintext, null)
-        }
+        val encryptException =
+            assertFailsWith<IllegalStateException> {
+                service.encrypt(plaintext, null)
+            }
         assertEquals("Encryption key not provisioned", encryptException.message)
 
-        val decryptException = assertFailsWith<IllegalStateException> {
-            service.decrypt(ciphertext, null)
-        }
+        val decryptException =
+            assertFailsWith<IllegalStateException> {
+                service.decrypt(ciphertext, null)
+            }
         assertEquals("Encryption key not provisioned", decryptException.message)
     }
 
@@ -157,9 +163,10 @@ class AesGcmEncryptedMetadataServiceTest {
     fun `ciphertext shorter than version and nonce fails with illegal argument`() {
         val tooShort = ByteArray(EncryptedMetadataService.NONCE_LENGTH_BYTES)
 
-        val exception = assertFailsWith<IllegalArgumentException> {
-            service.decrypt(tooShort, null)
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                service.decrypt(tooShort, null)
+            }
         assertEquals("Invalid ciphertext length", exception.message)
     }
 }

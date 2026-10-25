@@ -2,9 +2,9 @@
 
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.Snapshot
-import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.eventsourcing.vault.VaultCommand
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
+import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
 import io.mockk.coEvery
@@ -111,30 +111,36 @@ class VaultAggregateServiceImplTest {
     @Test
     fun `getState should hydrate from snapshot when available`() =
         runTest {
-            val snapshotState = VaultState(
-                id = aggregateId,
-                type = "login",
-                title = "snapshot title".toCharArray(),
-                payload = byteArrayOf(1, 2),
-                identityId = "user1",
-                isDeleted = false,
-                sequenceNumber = 2L,
-            )
-            val snapshot = Snapshot<VaultState>(
-                aggregateId = aggregateId,
-                sequenceNumber = 2L,
-                state = snapshotState,
-                timestamp = kotlinx.datetime.Clock.System.now(),
-            )
-            val subsequentEvents = listOf(
-                VaultEvent.Updated(
-                    aggregateId,
-                    3L,
-                    kotlinx.datetime.Clock.System.now(),
-                    "title from event",
-                    null,
-                ),
-            )
+            val snapshotState =
+                VaultState(
+                    id = aggregateId,
+                    type = "login",
+                    title = "snapshot title".toCharArray(),
+                    payload = byteArrayOf(1, 2),
+                    identityId = "user1",
+                    isDeleted = false,
+                    sequenceNumber = 2L,
+                )
+            val snapshot =
+                Snapshot<VaultState>(
+                    aggregateId = aggregateId,
+                    sequenceNumber = 2L,
+                    state = snapshotState,
+                    timestamp =
+                        kotlinx.datetime.Clock.System
+                            .now(),
+                )
+            val subsequentEvents =
+                listOf(
+                    VaultEvent.Updated(
+                        aggregateId,
+                        3L,
+                        kotlinx.datetime.Clock.System
+                            .now(),
+                        "title from event",
+                        null,
+                    ),
+                )
 
             coEvery {
                 snapshotRepository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId)

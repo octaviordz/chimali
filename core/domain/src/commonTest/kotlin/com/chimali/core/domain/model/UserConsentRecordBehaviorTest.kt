@@ -106,7 +106,6 @@ class UserConsentRecordBehaviorTest {
         assertEquals(UserConsentRecord.MAX_DEVICE_ID_LENGTH, consent.deviceId?.length)
     }
 
-
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `eraseSensitiveText erases the owned RP buffer`() {
@@ -137,11 +136,12 @@ class UserConsentRecordBehaviorTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `fromText constructs and validates consent record`() {
-        val consent = UserConsentRecord.fromText(
-            id = "from-text-id",
-            operationType = ConsentOperationType.REGISTRATION,
-            rpId = "https://fido.org",
-        )
+        val consent =
+            UserConsentRecord.fromText(
+                id = "from-text-id",
+                operationType = ConsentOperationType.REGISTRATION,
+                rpId = "https://fido.org",
+            )
 
         assertEquals("from-text-id", consent.id)
         assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
@@ -160,6 +160,7 @@ class UserConsentRecordBehaviorTest {
         assertFalse(consent1 == consent3)
         assertEquals(consent1.hashCode(), consent2.hashCode())
     }
+
     private fun record(
         id: String = "consent-1",
         operationType: ConsentOperationType = ConsentOperationType.AUTHENTICATION,

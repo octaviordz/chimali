@@ -13,7 +13,6 @@ import kotlinx.serialization.json.Json
  * Traceable to NFR-SEC-041 and TR-AUTH-031.
  */
 class SensitiveTextTest {
-
     @Test
     fun `copyOf creates independent owner preserving characters`() {
         val source = "secret_password_123"
