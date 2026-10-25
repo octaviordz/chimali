@@ -160,6 +160,28 @@ class WalletMasterSeedProviderTest {
      */
     @Test
     @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `failed mnemonic encryption erases caller phrase and derived validation seed without persisting`() =
+        runTest {
+            val imported = phrase.toCharArray()
+            val validationSeed = seed.copyOf()
+            every { generator.deriveSeed(any()) } returns validationSeed
+            every { encryption.encrypt(any()) } throws IllegalStateException("synthetic encryption failure")
+
+            assertFailsWith<IllegalStateException> { provider.importMnemonic(imported) }
+
+            assertTrue(imported.all { it == '\u0000' })
+            assertTrue(validationSeed.all { it == 0.toByte() })
+            assertEquals("", dataStore.data.first().encryptedWalletSeed)
+            assertEquals(null, cachedValue("cachedPrk"))
+            assertEquals(null, cachedValue("cachedParent"))
+        }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
     fun `failed root derivation does not publish a partial cache`() =
         runTest {
             every { generator.deriveSeed(any()) } throws IllegalStateException("synthetic failure")

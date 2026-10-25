@@ -29,6 +29,50 @@ class PasskeyCredentialTest {
     private lateinit var testCredentialId: ByteArray
     private lateinit var testTimestamp: Instant
 
+    private fun assertInvalidCredentialIsRejectedAndErased(
+        rpId: String = "https://example.com",
+        userId: String = "user123",
+        userName: String = "synthetic-user",
+        userDisplayName: String = "Synthetic User",
+        signCount: Long = 0L,
+        createdAt: Instant = testTimestamp,
+        lastUsedAt: Instant = testTimestamp,
+        aaguid: ByteArray = testAaguid,
+        credentialId: ByteArray = testCredentialId,
+        coseAlgorithm: Int = PasskeyCredential.COSE_ES256,
+        derivationProfile: String = CredentialKeyDescriptor.P256_PROFILE,
+        credProtectPolicy: Int = 1,
+    ) {
+        val owners =
+            listOf(
+                SensitiveCredentialText.copyOf(rpId),
+                SensitiveCredentialText.copyOf(userId),
+                SensitiveCredentialText.copyOf(userName),
+                SensitiveCredentialText.copyOf(userDisplayName),
+            )
+
+        assertFailsWith<IllegalArgumentException> {
+            PasskeyCredential(
+                id = testCredentialIdFromLabel("validation-failure"),
+                rpId = owners[0],
+                userId = owners[1],
+                userName = owners[2],
+                userDisplayName = owners[3],
+                publicKey = testPublicKey,
+                signCount = signCount,
+                createdAt = createdAt,
+                lastUsedAt = lastUsedAt,
+                aaguid = aaguid,
+                credentialId = credentialId,
+                coseAlgorithm = coseAlgorithm,
+                derivationProfile = derivationProfile,
+                credProtectPolicy = credProtectPolicy,
+            )
+        }
+
+        owners.forEach { owner -> assertEquals("\u0000".repeat(owner.length), owner.toBoundaryString()) }
+    }
+
     @BeforeTest
     fun setUp() =
         runTest {
@@ -84,6 +128,41 @@ class PasskeyCredentialTest {
 
     @Nested
     inner class ValidationTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `rejecting invalid stored metadata erases every owned sensitive field`() =
+            runTest {
+                assertInvalidCredentialIsRejectedAndErased(rpId = "not a valid relying party")
+                assertInvalidCredentialIsRejectedAndErased(userName = " \t\n")
+                assertInvalidCredentialIsRejectedAndErased(userDisplayName = " \t\n")
+                assertInvalidCredentialIsRejectedAndErased(userId = "u".repeat(MAX_SIZE_64 + 1))
+                assertInvalidCredentialIsRejectedAndErased(userName = "n".repeat(MAX_SIZE_64 + 1))
+                assertInvalidCredentialIsRejectedAndErased(userDisplayName = "d".repeat(MAX_SIZE_64 + 1))
+                assertInvalidCredentialIsRejectedAndErased(
+                    coseAlgorithm = PasskeyCredential.COSE_EDSA,
+                    derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                )
+                assertInvalidCredentialIsRejectedAndErased(coseAlgorithm = Int.MIN_VALUE)
+                assertInvalidCredentialIsRejectedAndErased(credProtectPolicy = 0)
+                assertInvalidCredentialIsRejectedAndErased(signCount = -1)
+                assertInvalidCredentialIsRejectedAndErased(credentialId = byteArrayOf())
+                assertInvalidCredentialIsRejectedAndErased(credentialId = ByteArray(MAX_CRED_ID_SIZE_1023 + 1))
+                assertInvalidCredentialIsRejectedAndErased(aaguid = ByteArray(15))
+                assertInvalidCredentialIsRejectedAndErased(
+                    createdAt = TimeProvider().now() + 301.seconds,
+                )
+                assertInvalidCredentialIsRejectedAndErased(
+                    lastUsedAt = TimeProvider().now() + 301.seconds,
+                )
+
+                val creation = TimeProvider().now() - 1.seconds
+                assertInvalidCredentialIsRejectedAndErased(
+                    createdAt = creation,
+                    lastUsedAt = creation - 1.seconds,
+                )
+            }
+
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Req("NFR-SEC-041", "TR-AUTH-031")
         @Test

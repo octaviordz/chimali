@@ -499,6 +499,26 @@
 - Tasks T046–T049 and T089 remain explicitly unmet (external GitHub App / remote runner provisioning).
 - Remaining convergence tasks (T086–T108) continue sequentially.
 
+## 11. FIDO2 Coverage Continuation (2026-10-25)
+
+### 11.1 Behavior tests added
+
+- `PasskeyCredentialTest.rejecting invalid stored metadata erases every owned sensitive field` exercises RP, credProtect, sign-count, credential-ID, AAGUID, and timestamp rejection while asserting erasure of all four owned sensitive text buffers.
+- `WalletMasterSeedProviderTest.failed mnemonic encryption erases caller phrase and derived validation seed without persisting` forces the encryption failure path and verifies caller-buffer erasure, validation-seed erasure, no persisted ciphertext, and no published root/parent cache.
+- `Ctap2GetAssertionHandlerTest.decodes allow-list identifiers and required user verification from CTAP request` verifies allow-list mapping and required-UV selection reach credential lookup. `rejects malformed CTAP user-verification option with invalid-CBOR status` verifies malformed input is rejected before lookup.
+- The focused FIDO2 host suites for these tests passed; the full FIDO2 `testAndroidHostTest` suite also passed.
+
+### 11.2 Full workload diagnostic (not an acceptance bundle)
+
+- **Revision**: `aa1408dd` (`codex/058-enforce-coverage-targets`) with uncommitted test changes.
+- **Workload**: `hdkHostCoverage` with `tools/hdk-coverage.init.gradle`; full host test suites, configured connected workloads, and report generation completed successfully on the ASUS_AI2302 physical device (Android API 35).
+- **Diagnostic FIDO2 instruction coverage**: 53,070 / 86,100 = 61.64%.
+- **Diagnostic FIDO2 branch coverage**: 3,213 / 5,526 = 58.14%; 103 additional covered branches are required for the 60% floor.
+- **Earlier diagnostic in this continuation**: 3,206 / 5,526 (58.02%) in sealed handoff run `42bb76a8-47c1-49ba-9c8b-9afce9c281df`; subsequent dirty-tree diagnostics observed 3,208, 3,212, then 3,213 covered branches. These are local reports and are not sealed evidence or an accepted baseline.
+- The first full diagnostic attempt used the emulator; `manualRecoveryTransfersOneMutablePhraseBuffer` failed with an empty JUnit failure element, then the emulator disconnected before coverage data could be collected. Re-running with the physical device completed successfully. The unexplained emulator failure remains a test-environment/test result to investigate, not a pass.
+- The strict capture script was not run successfully: it requires a clean checkout whose source revision equals `HEAD`. The worktree contains these test edits and the untracked handoff document. Do not use the diagnostic XML as a substitute for a fresh clean `capture.ps1` run.
+- Tier 1 floor closure, risk-ledger completion, accepted-target regression, sealed evidence publication, GitHub App check, and remote protection remain unverified or unmet. T104, T105, T107, and T108 must remain open until their full criteria are met.
+
 
 
 

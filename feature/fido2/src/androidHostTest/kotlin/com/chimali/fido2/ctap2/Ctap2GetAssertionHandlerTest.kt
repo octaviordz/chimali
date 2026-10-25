@@ -3,17 +3,20 @@ package com.chimali.fido2.ctap2
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PrfExtensionOutput
+import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -76,6 +79,55 @@ class Ctap2GetAssertionHandlerTest {
                 logs.assertNoSensitiveValues(marker)
             }
             coVerify(exactly = 0) { getAssertionUseCase.invokeHeadless(any(), any()) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decodes allow-list identifiers and required user verification from CTAP request`() =
+        runTest {
+            val encodedId = testCredentialIdFromLabel("ctap-allow-list").encoded
+            every { cborCodec.decodeFromFido2Format(any()) } returns
+                mapOf(
+                    "1" to "example.com",
+                    "2" to ByteArray(32),
+                    "3" to listOf(mapOf("id" to encodedId)),
+                    "4" to emptyMap<String, Any>(),
+                    "5" to mapOf("uv" to true, "up" to false),
+                )
+            coEvery { getAssertionUseCase.findCandidateSummaries(any()) } returns emptyList()
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            assertEquals(0x2E.toByte(), handler.handle(cid, requestBytes).single().first())
+            coVerify {
+                getAssertionUseCase.findCandidateSummaries(
+                    match { options ->
+                        options.allowCredentials?.single()?.id == CredentialId.fromEncoded(encodedId) &&
+                            options.userVerification == UserVerificationRequirement.REQUIRED
+                    },
+                )
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `rejects malformed CTAP user-verification option with invalid-CBOR status`() =
+        runTest {
+            every { cborCodec.decodeFromFido2Format(any()) } returns
+                mapOf(
+                    "1" to "example.com",
+                    "2" to ByteArray(32),
+                    "5" to mapOf("uv" to "true"),
+                )
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            assertEquals(0x12.toByte(), handler.handle(cid, requestBytes).single().first())
+            coVerify(exactly = 0) { getAssertionUseCase.findCandidateSummaries(any()) }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

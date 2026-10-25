@@ -138,3 +138,15 @@ Every rank batch (Impact 4, Impact 3, Impact 2/1) must execute the following inl
 - **Forbidden Effects**: No artificial dummy code or fake tests added.
 - **Test File**: N/A (`AnalyzedZeroProofV1`)
 - **Existing Action**: `None`
+
+## 4. FIDO2 Continuation Cases (2026-10-25)
+
+The current handoff identifies the active FIDO2 floor gap from sealed run `42bb76a8-47c1-49ba-9c8b-9afce9c281df`: 3,206/5,526 branches (58.02%), requiring 110 additional covered branches to reach 60%. The following cases were added against observable security/protocol behavior, not selected solely for branch yield:
+
+| ID | Module | Behavior | Impact | Likelihood | Baseline Deficit | Status | Test Location |
+|---|---|---|---:|---:|---|---|---|
+| `COV-007` | `:feature:fido2` | Rejected passkey records erase all owned RP/account text | 4 | 2 | 110 branches to floor | Focused and full host suites passed; measured impact is diagnostic only | `PasskeyCredentialTest.kt` — `rejecting invalid stored metadata erases every owned sensitive field` |
+| `COV-008` | `:feature:fido2` | Mnemonic encryption failure erases imported phrase and validation seed without persistence | 4 | 2 | 110 branches to floor | Focused and full host suites passed; measured impact is diagnostic only | `WalletMasterSeedProviderTest.kt` — `failed mnemonic encryption erases caller phrase and derived validation seed without persisting` |
+| `COV-009` | `:feature:fido2` | CTAP allow-list/UV decoding and malformed UV rejection | 2 | 3 | 110 branches to floor | Focused and full host suites passed; measured impact is diagnostic only | `Ctap2GetAssertionHandlerTest.kt` — `decodes allow-list identifiers and required user verification from CTAP request`; `rejects malformed CTAP user-verification option with invalid-CBOR status` |
+
+After these additions, the direct full Gradle diagnostic reports 3,213/5,526 FIDO2 branches (58.14%); the 60% floor remains unmet by 103 branches. This diagnostic ran the complete configured host/device workload with the physical API 35 device, but bypassed `capture.ps1` because the checkout is dirty. It is not a sealed baseline, candidate bundle, or integration decision. Continue risk-ranked review across all five Tier 1 modules and capture a clean revision before marking any floor or regression requirement complete.
