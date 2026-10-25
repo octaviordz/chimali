@@ -308,6 +308,126 @@ class PasskeyDeciderTest {
         assertEquals(2L, state.sequenceNumber)
     }
 
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `PasskeyState equals and hashCode cover all properties and edge cases`() {
+        val baseState =
+            PasskeyState(
+                id = "passkey-1",
+                rpId = "example.com".toCharArray(),
+                userId = "user-1".toCharArray(),
+                userName = "alice".toCharArray(),
+                userDisplayName = "Alice A".toCharArray(),
+                credentialId = byteArrayOf(1, 2, 3),
+                publicKey = "pub-key",
+                aaguid = "aaguid-1",
+                signCount = 10L,
+                isDeleted = false,
+                sequenceNumber = 1L,
+                coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+            )
+
+        val sameState =
+            PasskeyState(
+                id = "passkey-1",
+                rpId = "example.com".toCharArray(),
+                userId = "user-1".toCharArray(),
+                userName = "alice".toCharArray(),
+                userDisplayName = "Alice A".toCharArray(),
+                credentialId = byteArrayOf(1, 2, 3),
+                publicKey = "pub-key",
+                aaguid = "aaguid-1",
+                signCount = 10L,
+                isDeleted = false,
+                sequenceNumber = 1L,
+                coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+            )
+
+        assertEquals(baseState, baseState)
+        assertEquals(baseState, sameState)
+        assertEquals(baseState.hashCode(), sameState.hashCode())
+        val nullState: Any? = null
+        assertFalse(baseState == nullState)
+        assertFalse(baseState.equals("not a PasskeyState"))
+
+        assertFalse(baseState == baseState.copy(id = "other-id"))
+        assertFalse(baseState == baseState.copy(rpId = "other.com".toCharArray()))
+        assertFalse(baseState == baseState.copy(userId = "user-2".toCharArray()))
+        assertFalse(baseState == baseState.copy(userName = "bob".toCharArray()))
+        assertFalse(baseState == baseState.copy(userDisplayName = "Bob B".toCharArray()))
+        assertFalse(baseState == baseState.copy(credentialId = byteArrayOf(1, 2, 9)))
+        assertFalse(baseState == baseState.copy(publicKey = "other-pub"))
+        assertFalse(baseState == baseState.copy(aaguid = "other-aaguid"))
+        assertFalse(baseState == baseState.copy(signCount = 99L))
+        assertFalse(baseState == baseState.copy(isDeleted = true))
+        assertFalse(baseState == baseState.copy(sequenceNumber = 2L))
+        assertFalse(baseState == baseState.copy(coseAlgorithm = CredentialKeyDescriptor.COSE_ML_DSA_65))
+        assertFalse(baseState == baseState.copy(derivationProfile = CredentialKeyDescriptor.MLDSA65_PROFILE))
+    }
+
+    /**
+     * @see NFR-SEC-041
+     * @see TR-AUTH-031
+     */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `PasskeyCommand Register equals and hashCode cover all properties and edge cases`() {
+        val baseCmd =
+            PasskeyCommand.Register(
+                id = "passkey-1",
+                rpId = "example.com".toCharArray(),
+                userId = "user-1".toCharArray(),
+                userName = "alice".toCharArray(),
+                userDisplayName = "Alice A".toCharArray(),
+                credentialId = byteArrayOf(1, 2, 3),
+                publicKey = "pub-key",
+                aaguid = "aaguid-1",
+                signCount = 10L,
+                coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+            )
+
+        val sameCmd =
+            PasskeyCommand.Register(
+                id = "passkey-1",
+                rpId = "example.com".toCharArray(),
+                userId = "user-1".toCharArray(),
+                userName = "alice".toCharArray(),
+                userDisplayName = "Alice A".toCharArray(),
+                credentialId = byteArrayOf(1, 2, 3),
+                publicKey = "pub-key",
+                aaguid = "aaguid-1",
+                signCount = 10L,
+                coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+            )
+
+        assertEquals(baseCmd, baseCmd)
+        assertEquals(baseCmd, sameCmd)
+        assertEquals(baseCmd.hashCode(), sameCmd.hashCode())
+        val nullCmd: Any? = null
+        assertFalse(baseCmd == nullCmd)
+        assertFalse(baseCmd.equals("not a Register command"))
+
+        assertFalse(baseCmd == baseCmd.copy(id = "other-id"))
+        assertFalse(baseCmd == baseCmd.copy(rpId = "other.com".toCharArray()))
+        assertFalse(baseCmd == baseCmd.copy(userId = "user-2".toCharArray()))
+        assertFalse(baseCmd == baseCmd.copy(userName = "bob".toCharArray()))
+        assertFalse(baseCmd == baseCmd.copy(userDisplayName = "Bob B".toCharArray()))
+        assertFalse(baseCmd == baseCmd.copy(credentialId = byteArrayOf(1, 2, 9)))
+        assertFalse(baseCmd == baseCmd.copy(publicKey = "other-pub"))
+        assertFalse(baseCmd == baseCmd.copy(aaguid = "other-aaguid"))
+        assertFalse(baseCmd == baseCmd.copy(signCount = 99L))
+        assertFalse(baseCmd == baseCmd.copy(coseAlgorithm = CredentialKeyDescriptor.COSE_ML_DSA_65))
+        assertFalse(baseCmd == baseCmd.copy(derivationProfile = CredentialKeyDescriptor.MLDSA65_PROFILE))
+    }
+
     private fun registrationCommand(
         coseAlgorithm: Int,
         derivationProfile: String,

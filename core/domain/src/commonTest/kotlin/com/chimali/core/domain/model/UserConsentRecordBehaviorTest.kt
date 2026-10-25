@@ -1,4 +1,4 @@
-﻿package com.chimali.core.domain.model
+package com.chimali.core.domain.model
 
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
@@ -159,6 +159,15 @@ class UserConsentRecordBehaviorTest {
         assertEquals(consent1, consent2)
         assertFalse(consent1 == consent3)
         assertEquals(consent1.hashCode(), consent2.hashCode())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `validation failure erases the internal sensitive text buffer`() {
+        val valid = record(rpId = "https://example.com")
+        assertFailsWith<IllegalArgumentException> {
+            valid.copy(id = "   ")
+        }
     }
 
     private fun record(

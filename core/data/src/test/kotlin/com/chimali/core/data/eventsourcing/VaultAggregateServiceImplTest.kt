@@ -3,11 +3,14 @@ package com.chimali.core.data.eventsourcing
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.Snapshot
 import com.chimali.core.domain.eventsourcing.vault.VaultCommand
+import com.chimali.core.domain.eventsourcing.vault.VaultDecider
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
 import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
@@ -181,6 +184,7 @@ class VaultAggregateServiceImplTest {
 
             assertTrue(result.isFailure)
             assertEquals("Database lock", result.exceptionOrNull()?.message)
+            coVerify(exactly = 3) { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) }
         }
 
     // Requirement: NFR-ARCH-050 (State read failure propagation)
@@ -197,5 +201,74 @@ class VaultAggregateServiceImplTest {
 
             assertTrue(result.isFailure)
             assertEquals("Read failure", result.exceptionOrNull()?.message)
+        }
+
+    // Requirement: NFR-ARCH-050 (Snapshot generation at interval threshold)
+    @Test
+    fun `execute saves snapshot when sequence number reaches snapshot threshold`() =
+        runTest {
+            val events =
+                listOf(
+                    VaultEvent.Created(
+                        aggregateId,
+                        19L,
+                        kotlinx.datetime.Clock.System
+                            .now(),
+                        "login",
+                        "title",
+                        byteArrayOf(1),
+                        "id1",
+                    ),
+                )
+            coEvery { eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any()) } returns
+                Result.success(events)
+            coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } returns Result.success(Unit)
+            coEvery { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) } returns
+                Result.success(Unit)
+
+            val command = VaultCommand.Update(aggregateId, "new title", null)
+            val result = service.execute(aggregateId, command)
+
+            assertTrue(result.isSuccess)
+            assertEquals(20L, result.getOrThrow().sequenceNumber)
+            coVerify(exactly = 1) { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) }
+        }
+
+    // Requirement: NFR-ARCH-050 (No-op command execution bypasses append)
+    @Test
+    fun `execute returns current state without append when decider yields no events`() =
+        runTest {
+            val events =
+                listOf(
+                    VaultEvent.Created(
+                        aggregateId,
+                        1L,
+                        kotlinx.datetime.Clock.System
+                            .now(),
+                        "login",
+                        "title",
+                        byteArrayOf(1),
+                        "id1",
+                    ),
+                )
+            coEvery { eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any()) } returns
+                Result.success(events)
+
+            val mockDecider = mockk<VaultDecider>()
+            every { mockDecider.initialState } returns VaultState()
+            every { mockDecider.evolve(any<VaultState>(), any<VaultEvent>()) } answers { firstArg<VaultState>() }
+            every { mockDecider.decide(any<VaultState>(), any<VaultCommand>()) } returns emptyList<VaultEvent>()
+
+            val customService = VaultAggregateServiceImpl(eventStoreRepository, snapshotRepository, mockDecider)
+            val command = VaultCommand.Update(aggregateId, "same title", null)
+            val result = customService.execute(aggregateId, command)
+
+            assertTrue(result.isSuccess)
+            coVerify(exactly = 0) {
+                eventStoreRepository.append(
+                    any<EventKind>(),
+                    any<List<com.chimali.core.domain.eventsourcing.DomainEvent>>(),
+                )
+            }
         }
 }

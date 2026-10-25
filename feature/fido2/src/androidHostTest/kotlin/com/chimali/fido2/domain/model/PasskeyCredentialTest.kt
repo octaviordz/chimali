@@ -679,4 +679,102 @@ class PasskeyCredentialTest {
                 assertEquals("http://localhost:8080", credential.rpId.toBoundaryString())
             }
     }
+
+    @Nested
+    inner class EqualsAndHashCodeTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `equals and hashCode cover all properties and edge cases`() =
+            runTest {
+                val cred1 =
+                    PasskeyCredential(
+                        id = testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
+                        userName = "testuser",
+                        userDisplayName = "Test User",
+                        publicKey = testPublicKey,
+                        derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                        signCount = 10L,
+                        createdAt = testTimestamp,
+                        lastUsedAt = testTimestamp,
+                        aaguid = testAaguid,
+                        credentialId = testCredentialId,
+                        credProtectPolicy = 1,
+                        label = "personal",
+                    )
+                val same =
+                    PasskeyCredential(
+                        id = testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB"),
+                        rpId = RpId("https://example.com"),
+                        userId = UserId("user123"),
+                        userName = "testuser",
+                        userDisplayName = "Test User",
+                        publicKey = testPublicKey,
+                        derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                        signCount = 10L,
+                        createdAt = testTimestamp,
+                        lastUsedAt = testTimestamp,
+                        aaguid = testAaguid,
+                        credentialId = testCredentialId,
+                        credProtectPolicy = 1,
+                        label = "personal",
+                    )
+
+                assertEquals(cred1, cred1)
+                assertEquals(cred1, same)
+                assertEquals(cred1.hashCode(), same.hashCode())
+                val nullCred: Any? = null
+                assertFalse(cred1 == nullCred)
+                assertFalse(cred1.equals("not a passkey credential"))
+
+                // Differing ID
+                assertFalse(cred1 == cred1.copy(id = testCredentialIdFromLabel("b3RoZXJfaWQA")))
+                // Differing RP
+                assertFalse(cred1 == cred1.copy(rpId = SensitiveCredentialText.copyOf("https://other.com")))
+                // Differing User ID
+                assertFalse(cred1 == cred1.copy(userId = SensitiveCredentialText.copyOf("otheruser")))
+                // Differing User Name
+                assertFalse(cred1 == cred1.copy(userName = SensitiveCredentialText.copyOf("othername")))
+                // Differing User Display Name
+                assertFalse(cred1 == cred1.copy(userDisplayName = SensitiveCredentialText.copyOf("Other Display")))
+                // Differing sign count
+                assertFalse(cred1 == cred1.copy(signCount = 99L))
+                // Differing createdAt
+                assertFalse(cred1 == cred1.copy(createdAt = testTimestamp - 100.seconds))
+                // Differing lastUsedAt
+                assertFalse(cred1 == cred1.copy(lastUsedAt = testTimestamp + 10.seconds))
+                // Differing aaguid
+                assertFalse(cred1 == cred1.copy(aaguid = ByteArray(16) { 0xFF.toByte() }))
+                // Differing credentialId
+                assertFalse(cred1 == cred1.copy(credentialId = byteArrayOf(1, 2, 9)))
+                // Differing credProtectPolicy
+                assertFalse(cred1 == cred1.copy(credProtectPolicy = 2))
+                // Differing label
+                assertFalse(cred1 == cred1.copy(label = "work"))
+                assertFalse(cred1 == cred1.copy(label = null))
+
+                // Label hash code null vs non-null
+                val credNullLabel = cred1.copy(label = null)
+                val credNullLabel2 = cred1.copy(label = null)
+                assertEquals(credNullLabel.hashCode(), credNullLabel2.hashCode())
+                assertNotEquals(cred1.hashCode(), credNullLabel.hashCode())
+
+                // Belongs to RP
+                assertTrue(cred1.belongsToRelyingParty(RpId("https://example.com")))
+                assertFalse(cred1.belongsToRelyingParty(RpId("https://wrong.com")))
+
+                // Belongs to User
+                assertTrue(cred1.belongsToUser(UserId("user123")))
+                assertFalse(cred1.belongsToUser(UserId("otheruser")))
+
+                // Safe display name
+                assertEquals("Test User", cred1.getSafeDisplayName())
+
+                // Is expired
+                assertFalse(cred1.isExpired(365L))
+                assertTrue(cred1.isExpired(0L))
+            }
+    }
 }

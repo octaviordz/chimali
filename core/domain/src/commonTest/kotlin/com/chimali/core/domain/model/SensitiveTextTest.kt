@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
  * Verification of SensitiveText secret ownership, bounds enforcement, terminal erasure, and serialization.
  * Traceable to NFR-SEC-041 and TR-AUTH-031.
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 class SensitiveTextTest {
     @Test
     fun `copyOf creates independent owner preserving characters`() {
@@ -149,5 +150,20 @@ class SensitiveTextTest {
 
         assertEquals(original.toBoundaryString(), decoded.toBoundaryString())
         assertEquals(original, decoded)
+    }
+
+    @Test
+    fun `serializer clears temporary buffer on encoder failure`() {
+        val original = SensitiveText.copyOf("failure_secret")
+        val throwingEncoder =
+            object : kotlinx.serialization.encoding.AbstractEncoder() {
+                override val serializersModule = kotlinx.serialization.modules.EmptySerializersModule()
+
+                override fun encodeString(value: String): Unit = error("forced encoder failure")
+            }
+        assertFailsWith<IllegalStateException> {
+            SensitiveTextSerializer.serialize(throwingEncoder, original)
+        }
+        assertEquals("failure_secret", original.toBoundaryString())
     }
 }
