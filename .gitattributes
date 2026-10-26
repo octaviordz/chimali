@@ -1,0 +1,2 @@
+tools/coverage/fixtures/exporter/branchless.xml -text
+tools/coverage/fixtures/exporter/empty.xml -text

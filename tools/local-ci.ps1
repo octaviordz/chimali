@@ -19,6 +19,8 @@ Write-Host "Starting Local CI Pipeline..." -ForegroundColor Cyan
 $Gradle = "./gradlew"
 if (-not $NoConfigurationCache) {
     $Gradle += " --configuration-cache"
+} else {
+    $Gradle += " --no-configuration-cache"
 }
 
 function Run-Task($Name, $Command, [bool]$IgnoreFailure = $false) {

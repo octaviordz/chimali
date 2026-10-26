@@ -575,6 +575,37 @@
 - The repository `octaviordz/chimali` is public. GitHub's current official documentation states protected branches are available for public repositories on GitHub Free, standard GitHub-hosted Actions runners are free for public repositories, and self-hosted runners carry no GitHub Actions usage charge (the operator bears host/device costs). A custom GitHub App can be registered and installed on the account; marketplace app subscriptions are separate.
 - No paid GitHub plan, paid Marketplace app, or rented runner is required by that zero-subscription configuration. T046-T049 remain operationally unmet until the App, runner, evidence branch, required App-bound check, protection and real rejection/passing demonstrations are actually configured and verified. This cost review is not evidence that those controls exist.
 
+### 11.10 Windows host/device validation (2026-10-26)
+
+- **Measured identity**: clean commit `50526113779a808695dc87ba04d2ea38f1ac8d3e`, tree `8d10c950a899b881ffb0e7e820d19933cbf1350c`, on `lab/or/chimali`. A detached local harness copy at the same commit was used; this is not a protected/reviewed hosted harness provenance claim. This documentation was appended after capture and is not part of that measured tree.
+- **Environment preparation**: installed Google Android command-line tools 23.0 (Android CLI `1.1.16717390`), platform `android-37.0` revision 2, and build-tools `37.0.0`. The tools ZIP matched Google's repository SHA-1 metadata. Validation commands selected the existing JetBrains JDK `21.0.10` at `D:/packages/gradle/jdks/jetbrains_s_r_o_-21-amd64-windows.2`; Gradle's committed daemon criteria also select JetBrains Java 21. System-wide Java settings were not changed. Gradle `9.6.0` configuration (`help`) passed in 4m43s.
+- **Checkout reproducibility finding**: system Git `core.autocrlf=true` converted the byte-hashed `branchless.xml` and `empty.xml` fixtures to CRLF. The first policy run returned 73 passed / 3 failed. Restoring their committed LF bytes reproduced both producer-proof SHA-256 values; all 76 fixtures then passed. Refreshing the index left no staged or unstaged content changes. No `.gitattributes` fix has been made, so a fresh Windows checkout can reproduce this failure.
+- **Device**: physical `ASUS_AI2302`, serial `R7AIB7002901AZ3`, Android 15/API 35, ARM64, authorized over USB. The connected FIDO2 suite executed 25 tests and the app `shrunkDebug` suite executed 11 tests, both with zero failures, errors, or skips. These executions supersede the earlier no-attached-device observation for this local validation only; they do not prove guest-VM connectivity or every separate hardware/performance obligation.
+- **Full workload**: external-harness `capture.ps1 -Purpose Initial` ran `hdkHostCoverage` from 2026-10-26 14:42:48Z to 15:10:09Z. Gradle succeeded in 27m20s with 477 tasks executed. Run ID: `eb5a5aea-d356-4356-aa08-26ddc8baacc8`; retained bundle: `D:/octav/coverage-local-validation/runs/eb5a5aea-d356-4356-aa08-26ddc8baacc8`. The collector records 1,179 host tests with zero failures/errors/skips. Its 2,905 listed artifact hashes independently matched their retained files; the bundle contains 2,907 files totaling approximately 28.6 MiB.
+
+| Scope | Instructions covered / total | Branches covered / total | Diagnostic floor observation |
+| --- | --- | --- | --- |
+| `:core:security` | 3,385 / 4,452 | 239 / 386 | 60/60 floors met |
+| `:core:domain` | 5,124 / 7,184 | 412 / 578 | 60/60 floors met |
+| `:core:data` | 1,158 / 1,333 | 44 / 60 | 60/60 floors met |
+| `:feature:fido2` | 53,331 / 86,100 | 3,238 / 5,526 | Branches 58.596%; 78 more covered branches needed at this denominator for 60% |
+| `:feature:authenticator` | 0 / 0 reported | 0 / 0 reported | Collector's empty disposition remains unsupported by bound retained-scope proof |
+| `:core:database` | 409 / 623 | 19 / 36 | Tier 2 instruction floor met |
+| `:core:common` | 374 / 1,755 | 8 / 58 | Tier 2 instruction floor met |
+| `:app` | 738 / 1,996 | 28 / 95 | Tier 2 instruction floor met |
+| Repository | 73,004 / 132,903 | 4,514 / 8,010 | Instructions 54.930%; 50% floor met |
+
+- **Assessment**: `verify.ps1` exited 1 and wrote `D:/octav/coverage-local-validation/assessment-eb5a5aea/decision.json` and `decision.md`; its named floor failure is FIDO2 branches below 60%. Security branches (61.917%) and FIDO2 branches (58.596%) remain below the nonbinding 65% goal; domain/data exceed that goal. This was an Initial diagnostic, with no current-target regression comparison or archive publication.
+- **Independent evidence limitations**: the collector parses only `/testsuite`, omitting the Android reports rooted at `/testsuites` and their 36 test results from its manifest and test-report copies. Unmodified copies and hashes are retained separately at `D:/octav/coverage-local-validation/supplement-eb5a5aea/`. Module `class_inventory_digest` values are empty, authenticator zero-proof report/inventory bindings are empty, and Gradle did not emit the canonical root `build/reports/hdk-coverage/counters.json`. The collector's evidence environment is hardcoded to JVM 25 although this capture selected Java 21. Its `Complete`/`Passed` labels and verifier's empty-module approval do not resolve these deficiencies; T088 is not closed by this run.
+- **Local check failure**: `tools/local-ci.ps1 -NoFix -NoConfigurationCache` reported `:core:domain:ktlintCommonTestSourceSetCheck FAILED`: `RelyingPartyTest.kt:45:13 Unexpected newline before '.'`. After that definite failure, only this invocation's Gradle wrapper was stopped while parallel Kotlin/Native downloads were pending; the local-CI script returned exit 1, and the daemon subsequently shut down. No formatter or product-source repair was applied. The script also does not actually append `--no-configuration-cache` when its `-NoConfigurationCache` switch is supplied, so that switch is not evidence that caching was disabled. Later local-CI phases were not executed and cannot be claimed passed from this attempt.
+- **Task status**: no task completion marks changed. T046-T049, T088, T089, T107, and T108 remain open. Local host/device execution is now demonstrated; disposable-worker provisioning, valid accepted baseline, all-floor closure, trusted current-target comparison, GitHub App/environment/archive/protection controls, and actual protected rejection/passing demonstrations remain unmet or unverified. No VM was created and no GitHub settings were changed.
+
+### 11.11 Post-run local reproducibility fixes (2026-10-26)
+
+- After the diagnostic capture in 11.10, the collector was updated to recognize both top-level `<testsuite>` and nested `<testsuites><testsuite>` JUnit reports, preserve report source-relative paths to avoid same-name collisions, and fail capture when a report cannot be parsed or has no suites. The evidence environment label now reads the Java runtime and Android SDK platform directories from the capture host instead of claiming JVM 25.
+- Added `.gitattributes` entries to preserve the exact bytes of the two SHA-256-bound exporter fixtures on Windows checkouts. Corrected `-NoConfigurationCache` to pass Gradle's `--no-configuration-cache` option and fixed the observed Ktlint line break in `RelyingPartyTest.kt`.
+- These are source changes after the run recorded in 11.10. They have not been rerun or independently verified; the previous run remains diagnostic evidence only, and no task completion marks changed.
+
 
 
 

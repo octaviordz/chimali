@@ -54,6 +54,15 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
 
+$javaVersionOutput = (& java -version 2>&1 | Select-Object -First 1)
+$javaRuntime = if ($javaVersionOutput -match '"([^"]+)"') { $Matches[1] } else { "unknown" }
+$androidSdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+$androidPlatforms = @()
+if ($androidSdkRoot -and (Test-Path (Join-Path $androidSdkRoot "platforms"))) {
+    $androidPlatforms = @(Get-ChildItem (Join-Path $androidSdkRoot "platforms") -Directory | Select-Object -ExpandProperty Name | Sort-Object)
+}
+$environmentDescription = "Windows $([Environment]::OSVersion.Version) / JVM $javaRuntime / Android SDK platforms $($androidPlatforms -join ',') / Device $DeviceSerial"
+
 if (-not (Test-Path $CommonPath)) {
     Write-Error "Common utilities not found at $CommonPath"
     exit 3
@@ -334,7 +343,7 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
         scope = $modPath
         revision = $SourceRevision
         named_procedure = "hdkHostCoverage"
-        environment = "Windows 11 / JVM 25 / Android SDK 37 / Device $DeviceSerial"
+        environment = $environmentDescription
         expected_observed_result = "Captured coverage: instructions $instCov covered / $instMis missed; disposition $disposition"
         date = (Get-Date).ToString("yyyy-MM-dd")
         limitations = "Host unit and connected tests executed with JaCoCo 0.8.15"
@@ -382,7 +391,7 @@ $evidenceRecords += [PSCustomObject]@{
     scope = ":repository"
     revision = $SourceRevision
     named_procedure = "hdkHostCoverage"
-    environment = "Windows 11 / JVM 25 / Android SDK 37 / Device $DeviceSerial"
+    environment = $environmentDescription
     expected_observed_result = "Repository aggregate: instructions $repoInstCov covered / $repoInstMis missed"
     date = (Get-Date).ToString("yyyy-MM-dd")
     limitations = "Repository aggregate over all production projects"
@@ -405,20 +414,32 @@ $testsReportsDir = Join-Path $reportsDir "tests"
 New-Item -ItemType Directory -Path $testsReportsDir -Force | Out-Null
 $suitesList = @()
 
-$junitFiles = Get-ChildItem -Path $RepositoryRoot -Filter "TEST-*.xml" -Recurse | Where-Object { $_.FullName -like "*test-results*" }
+$junitFiles = Get-ChildItem -Path $RepositoryRoot -Filter "TEST-*.xml" -Recurse -File | Where-Object { $_.FullName -like "*test-results*" }
+$junitParseFailures = @()
 foreach ($jf in $junitFiles) {
     try {
         $jDoc = Read-SafeXml -Path $jf.FullName
-        $testSuiteNode = $jDoc.SelectSingleNode("/testsuite")
-        if ($testSuiteNode) {
-            $sName = $testSuiteNode.GetAttribute("name")
-            $sTests = if ($testSuiteNode.HasAttribute("tests")) { [int]$testSuiteNode.GetAttribute("tests") } else { 0 }
-            $sFailures = if ($testSuiteNode.HasAttribute("failures")) { [int]$testSuiteNode.GetAttribute("failures") } else { 0 }
-            $sErrors = if ($testSuiteNode.HasAttribute("errors")) { [int]$testSuiteNode.GetAttribute("errors") } else { 0 }
-            $sSkipped = if ($testSuiteNode.HasAttribute("skipped")) { [int]$testSuiteNode.GetAttribute("skipped") } else { 0 }
+        $testSuiteNodes = $jDoc.SelectNodes("/testsuite | /testsuites/testsuite")
+        if ($null -eq $testSuiteNodes -or $testSuiteNodes.Count -eq 0) {
+            throw "JUnit XML contains no test suites: $($jf.FullName)"
+        }
 
-            $destXml = Join-Path $testsReportsDir $jf.Name
-            Copy-Item -Path $jf.FullName -Destination $destXml -Force
+        $relativeJUnitPath = [System.IO.Path]::GetRelativePath($RepositoryRoot, $jf.FullName)
+        if ([System.IO.Path]::IsPathRooted($relativeJUnitPath) -or $relativeJUnitPath.Replace("\", "/") -match '(^|/)\.\.(/|$)') {
+            throw "JUnit XML path is outside the repository root: $($jf.FullName)"
+        }
+
+        $destXml = Join-Path (Join-Path $testsReportsDir $relativeJUnitPath)
+        $destXmlParent = Split-Path -Parent $destXml
+        New-Item -ItemType Directory -Path $destXmlParent -Force | Out-Null
+        Copy-Item -Path $jf.FullName -Destination $destXml -Force
+
+        foreach ($testSuiteNode in $testSuiteNodes) {
+            $sName = $testSuiteNode.GetAttribute("name")
+            $sTests = if ($testSuiteNode.HasAttribute("tests")) { [int]$testSuiteNode.GetAttribute("tests") } else { $testSuiteNode.SelectNodes("testcase").Count }
+            $sFailures = if ($testSuiteNode.HasAttribute("failures")) { [int]$testSuiteNode.GetAttribute("failures") } else { $testSuiteNode.SelectNodes("testcase/failure").Count }
+            $sErrors = if ($testSuiteNode.HasAttribute("errors")) { [int]$testSuiteNode.GetAttribute("errors") } else { $testSuiteNode.SelectNodes("testcase/error").Count }
+            $sSkipped = if ($testSuiteNode.HasAttribute("skipped")) { [int]$testSuiteNode.GetAttribute("skipped") } else { $testSuiteNode.SelectNodes("testcase/skipped").Count }
 
             $suitesList += [PSCustomObject]@{
                 suite_name = $sName
@@ -430,8 +451,12 @@ foreach ($jf in $junitFiles) {
             }
         }
     } catch {
-        Write-Warning "Failed to parse JUnit XML at $($jf.FullName): $_"
+        $junitParseFailures += "Failed to parse JUnit XML at $($jf.FullName): $_"
     }
+}
+if ($junitParseFailures.Count -gt 0) {
+    $junitParseFailures | ForEach-Object { Write-Error $_ }
+    exit 2
 }
 
 # Production Inventory

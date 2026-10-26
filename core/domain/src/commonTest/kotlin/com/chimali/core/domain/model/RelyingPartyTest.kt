@@ -41,10 +41,9 @@ class RelyingPartyTest {
             "local host",
             "localhostish",
             "example com",
-        )
-            .forEach { rpId ->
-                assertFalse(RelyingParty.isValidRpId(rpId), "Expected invalid RP ID: $rpId")
-            }
+        ).forEach { rpId ->
+            assertFalse(RelyingParty.isValidRpId(rpId), "Expected invalid RP ID: $rpId")
+        }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
