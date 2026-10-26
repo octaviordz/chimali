@@ -7,7 +7,7 @@ description: "Dependency-ordered implementation and verification tasks for cover
 **Input**: Design documents from `specs/058-enforce-coverage-targets/`  
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [workflow contract](contracts/coverage-workflow.md), [validation guide](quickstart.md)  
 **Created**: 2026-10-24  
-**Status**: Implementation in progress (2026-10-25); T105 is verified complete. T046–T049 are explicitly deferred by the user and remain unchecked; T088, T089, T104, T107, and T108 remain open.
+**Status**: Implementation in progress (2026-10-26); T105 is verified complete. T046–T049 are explicitly deferred by the user and remain unchecked; T088, T089, T104, T107, and T108 remain open.
 
 **Tests**: Explicitly required by this feature. Write decision/contract fixtures before implementing the missing tooling, verify that the missing behavior is detected, then make them pass. Behavioral coverage additions target existing production behavior and may pass without a production change; assert independent expected outcomes and named failure conditions rather than introducing artificial defects to obtain a failing test.
 

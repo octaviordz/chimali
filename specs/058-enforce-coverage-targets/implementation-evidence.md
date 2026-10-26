@@ -550,9 +550,16 @@
 
 - Added two independent Bluetooth HID callback tests for rejecting a never-bonded host, preserving the active session when a different host disconnects, and clearing owned queued report bytes while advancing session generation after the active host disconnects.
 - The first focused attempt exposed a test-fixture issue: replacing the wrapper's `MutableStateFlow` after construction left the public `StateFlow` view attached to the original instance. The fixture now writes the initial state into the existing flow; production behavior required no change.
-- **Focused verification**: `:feature:fido2:testAndroidHostTest --tests '*BluetoothHidDeviceWrapperIncomingReportTest*'` passed.
+- **Focused verification**: `:feature:fido2:testAndroidHostTest --tests '*BluetoothHidDeviceWrapperIncomingReportTest*'` passed, followed by the complete `:feature:fido2:testAndroidHostTest` suite.
 - **Latest full diagnostic**: `hdkHostCoverage` completed successfully on ASUS_AI2302 (Android API 35); FIDO2 and app connected-test exit codes were both `0`. Security: 3,385/4,452 instructions (76.03%), 239/386 branches (61.92%); domain: 5,090/7,151 (71.18%), 403/570 (70.70%); data: 1,158/1,333 (86.87%), 44/60 (73.33%); FIDO2: 53,288/86,100 instructions (61.89%), 3,234/5,526 branches (58.52%); authenticator 0/0 under proved-zero applicability; repository instructions 72,927/132,870 (54.89%). FIDO2 needs 82 more covered branches to meet its 60% floor; other measured Tier 1 and repository floors pass.
 - This remains a direct dirty-tree diagnostic, not a sealed clean-revision capture or integration assessment. It does not close T088, T089, T104, T107, or T108. T046–T049 remain explicitly deferred and unchecked.
+
+### 11.8 Pairing-in-progress admission test (2026-10-26)
+
+- Added COV-015 to verify that a Bluetooth HID connection received during `BOND_BONDING` stays pending, does not become the active authenticator session, and is cleared if the host disconnects before bonding completes. The test asserts `Advertising`, no active host, and pending-host cleanup.
+- **Focused verification**: `:feature:fido2:testAndroidHostTest --tests '*BluetoothHidDeviceWrapperIncomingReportTest*'` passed.
+- **Full measurement attempt**: `hdkHostCoverage` stopped at `:app:connectedShrunkDebugAndroidTest` with `DeviceException: No connected devices!`. `adb devices -l` confirmed no attached device. The prior successful ASUS API 35 counters remain the last completed diagnostic; COV-015's coverage impact is unmeasured.
+- T046–T049 remain deferred and unchecked. T088, T089, T104, T107, and T108 remain open; no floor, regression, or integration status is changed by this focused test.
 
 ### 11.5 GitHub service cost review (2026-10-25)
 

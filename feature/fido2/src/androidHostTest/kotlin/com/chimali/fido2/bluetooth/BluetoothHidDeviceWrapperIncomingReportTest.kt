@@ -143,6 +143,30 @@ class BluetoothHidDeviceWrapperIncomingReportTest {
     /** @see NFR-SEC-041 and FR-HID-020 */
     @Test
     @Req("NFR-SEC-041", "FR-HID-020")
+    fun `host connecting during bond is deferred and cleared if it disconnects`() {
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        val host = mockk<BluetoothDevice>()
+        every { host.address } returns "00:11:22:33:44:55"
+        every { host.bondState } returns BluetoothDevice.BOND_BONDING
+        setConnectionState(wrapper, HidConnectionState.Advertising)
+        val callback = getPrivateField(wrapper, "hidCallback") as BluetoothHidDevice.Callback
+
+        callback.onConnectionStateChanged(host, BluetoothProfile.STATE_CONNECTED)
+
+        assertTrue(wrapper.connectionState.value is HidConnectionState.Advertising)
+        assertTrue(getPrivateField(wrapper, "connectedDevice") == null)
+        assertTrue(getPrivateField(wrapper, "pendingBondDevice") === host)
+
+        callback.onConnectionStateChanged(host, BluetoothProfile.STATE_DISCONNECTED)
+
+        assertTrue(wrapper.connectionState.value is HidConnectionState.Advertising)
+        assertTrue(getPrivateField(wrapper, "connectedDevice") == null)
+        assertTrue(getPrivateField(wrapper, "pendingBondDevice") == null)
+    }
+
+    /** @see NFR-SEC-041 and FR-HID-020 */
+    @Test
+    @Req("NFR-SEC-041", "FR-HID-020")
     fun `active host disconnect advances generation and erases queued reports`() {
         val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
         val activeHost = mockk<BluetoothDevice>()
