@@ -305,7 +305,16 @@ class RelyingParty private constructor(
                         rpId[index].equals("https"[index], ignoreCase = true)
                     }
             if (!isHttp && !isHttps) return false
-            return (schemeSeparator + SCHEME_PREFIX_LENGTH until rpId.length).any { !rpId[it].isWhitespace() }
+            val authorityStart = schemeSeparator + SCHEME_PREFIX_LENGTH
+            var authorityEnd = rpId.length
+            for (index in authorityStart until rpId.length) {
+                if (rpId[index] == '/' || rpId[index] == '?' || rpId[index] == '#') {
+                    authorityEnd = index
+                    break
+                }
+            }
+            if (authorityStart >= authorityEnd) return false
+            return (authorityStart until authorityEnd).none { rpId[it].isWhitespace() }
         }
 
         /**

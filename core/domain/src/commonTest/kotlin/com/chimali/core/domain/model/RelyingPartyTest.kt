@@ -29,7 +29,19 @@ class RelyingPartyTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `RP ID parser rejects blank unsupported and malformed forms`() {
-        listOf("", "  ", "ftp://example.com", "https://", "local host", "localhostish", "example com")
+        listOf(
+            "",
+            "  ",
+            "ftp://example.com",
+            "https://",
+            "https:///",
+            "https://?query",
+            "https://#fragment",
+            "https://bad host/path",
+            "local host",
+            "localhostish",
+            "example com",
+        )
             .forEach { rpId ->
                 assertFalse(RelyingParty.isValidRpId(rpId), "Expected invalid RP ID: $rpId")
             }
