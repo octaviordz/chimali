@@ -131,6 +131,7 @@ class VaultAggregateServiceImplTest {
             assertTrue(commandPayload.all { it == 0.toByte() })
             assertTrue(appendedEvents.all { event -> event.title.all { it == '\u0000' } })
             assertTrue(appendedEvents.all { event -> event.payload.all { it == 0.toByte() } })
+            coVerify(exactly = 0) { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) }
         }
 
     // Requirement: NFR-ARCH-050 (Snapshot acceleration and differential hydration)
@@ -212,6 +213,7 @@ class VaultAggregateServiceImplTest {
             assertTrue(commandPayload.all { it == 0.toByte() })
             assertTrue(appendedEvents.all { event -> event.title.all { it == '\u0000' } })
             assertTrue(appendedEvents.all { event -> event.payload.all { it == 0.toByte() } })
+            coVerify(exactly = 0) { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) }
         }
 
     // Requirement: NFR-SEC-041 (Sensitive memory cleanup when execution is cancelled)
@@ -241,6 +243,7 @@ class VaultAggregateServiceImplTest {
             assertTrue(commandPayload.all { it == 0.toByte() })
             assertTrue(appendedEvent.title.all { it == '\u0000' })
             assertTrue(appendedEvent.payload.all { it == 0.toByte() })
+            coVerify(exactly = 0) { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) }
         }
 
     // Requirement: NFR-SEC-041 (Owned vault state cleanup)

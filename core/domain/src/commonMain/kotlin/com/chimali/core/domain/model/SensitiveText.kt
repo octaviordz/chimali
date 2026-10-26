@@ -114,8 +114,16 @@ object SensitiveTextSerializer : KSerializer<SensitiveText> {
     override fun serialize(
         encoder: Encoder,
         value: SensitiveText,
+    ) = serializeWithTemporaryFactory(encoder, value, SensitiveText::copyCharacters)
+
+    /** Uses an injectable temporary-owner factory so terminal cleanup is directly testable. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun serializeWithTemporaryFactory(
+        encoder: Encoder,
+        value: SensitiveText,
+        temporaryFactory: (SensitiveText) -> CharArray,
     ) {
-        val characters = value.copyCharacters()
+        val characters = temporaryFactory(value)
         try {
             SensitiveCharArraySerializer.serialize(encoder, characters)
         } finally {

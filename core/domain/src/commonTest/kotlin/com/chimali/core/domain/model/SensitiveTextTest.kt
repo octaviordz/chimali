@@ -155,6 +155,7 @@ class SensitiveTextTest {
     @Test
     fun `serializer clears temporary buffer on encoder failure`() {
         val original = SensitiveText.copyOf("failure_secret")
+        lateinit var temporary: CharArray
         val throwingEncoder =
             object : kotlinx.serialization.encoding.AbstractEncoder() {
                 override val serializersModule = kotlinx.serialization.modules.EmptySerializersModule()
@@ -162,8 +163,34 @@ class SensitiveTextTest {
                 override fun encodeString(value: String): Unit = error("forced encoder failure")
             }
         assertFailsWith<IllegalStateException> {
-            SensitiveTextSerializer.serialize(throwingEncoder, original)
+            SensitiveTextSerializer.serializeWithTemporaryFactory(throwingEncoder, original) { value ->
+                value.copyCharacters().also { temporary = it }
+            }
         }
+        assertTrue(temporary.all { it == '\u0000' })
         assertEquals("failure_secret", original.toBoundaryString())
+    }
+
+    @Test
+    fun `serializer clears temporary buffer after successful encoding`() {
+        val original = SensitiveText.copyOf("success_secret")
+        lateinit var temporary: CharArray
+        var encoded: String? = null
+        val encoder =
+            object : kotlinx.serialization.encoding.AbstractEncoder() {
+                override val serializersModule = kotlinx.serialization.modules.EmptySerializersModule()
+
+                override fun encodeString(value: String) {
+                    encoded = value
+                }
+            }
+
+        SensitiveTextSerializer.serializeWithTemporaryFactory(encoder, original) { value ->
+            value.copyCharacters().also { temporary = it }
+        }
+
+        assertEquals("success_secret", encoded)
+        assertTrue(temporary.all { it == '\u0000' })
+        assertEquals("success_secret", original.toBoundaryString())
     }
 }

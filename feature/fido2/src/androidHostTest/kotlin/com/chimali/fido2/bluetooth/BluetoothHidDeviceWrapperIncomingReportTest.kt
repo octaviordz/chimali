@@ -2,6 +2,7 @@ package com.chimali.fido2.bluetooth
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
@@ -102,7 +103,7 @@ class BluetoothHidDeviceWrapperIncomingReportTest {
         every { activeDevice.address } returns "00:11:22:33:44:55"
         every { staleDevice.address } returns "AA:BB:CC:DD:EE:FF"
         setPrivateField(wrapper, "connectedDevice", activeDevice)
-        setPrivateField(wrapper, "_connectionState", MutableStateFlow(HidConnectionState.Connected(activeDevice)))
+        setConnectionState(wrapper, HidConnectionState.Connected(activeDevice))
 
         val staleBytes = ByteArray(REPORT_SIZE) { 0x12 }
         wrapper.enqueueIncomingReportFromDevice(staleDevice, staleBytes)
@@ -116,6 +117,60 @@ class BluetoothHidDeviceWrapperIncomingReportTest {
         wrapper.advanceSessionGenerationForTest()
         assertNotEquals(wrapper.sessionGeneration(), queued.sessionGeneration)
         queued.bytes.fill(0)
+    }
+
+    /** @see NFR-SEC-041 and FR-HID-020 */
+    @Test
+    @Req("NFR-SEC-041", "FR-HID-020")
+    fun `never-bonded host is disconnected without becoming the active session`() {
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        val hidDevice = mockk<BluetoothHidDevice>(relaxed = true)
+        val host = mockk<BluetoothDevice>()
+        every { host.address } returns "00:11:22:33:44:55"
+        every { host.bondState } returns BluetoothDevice.BOND_NONE
+        setPrivateField(wrapper, "hidDevice", hidDevice)
+        setConnectionState(wrapper, HidConnectionState.Advertising)
+        val callback = getPrivateField(wrapper, "hidCallback") as BluetoothHidDevice.Callback
+
+        callback.onConnectionStateChanged(host, BluetoothProfile.STATE_CONNECTED)
+
+        verify(exactly = 1) { hidDevice.disconnect(host) }
+        assertTrue(wrapper.connectionState.value is HidConnectionState.Advertising)
+        assertTrue(getPrivateField(wrapper, "connectedDevice") == null)
+        assertTrue(getPrivateField(wrapper, "pendingBondDevice") == null)
+    }
+
+    /** @see NFR-SEC-041 and FR-HID-020 */
+    @Test
+    @Req("NFR-SEC-041", "FR-HID-020")
+    fun `active host disconnect advances generation and erases queued reports`() {
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        val activeHost = mockk<BluetoothDevice>()
+        val otherHost = mockk<BluetoothDevice>()
+        every { activeHost.address } returns "00:11:22:33:44:55"
+        every { otherHost.address } returns "AA:BB:CC:DD:EE:FF"
+        setPrivateField(wrapper, "connectedDevice", activeHost)
+        setConnectionState(wrapper, HidConnectionState.Connected(activeHost))
+        val ownedReports = mutableListOf<ByteArray>()
+        wrapper.onIncomingReportOwnedForTest = { ownedReports += it }
+        val report = ByteArray(REPORT_SIZE) { 0x39 }
+        wrapper.enqueueIncomingReport(report)
+        val queuedOwner = ownedReports.single()
+        val generation = wrapper.sessionGeneration()
+        val callback = getPrivateField(wrapper, "hidCallback") as BluetoothHidDevice.Callback
+
+        callback.onConnectionStateChanged(otherHost, BluetoothProfile.STATE_DISCONNECTED)
+        assertEquals(generation, wrapper.sessionGeneration())
+        assertTrue(wrapper.connectionState.value is HidConnectionState.Connected)
+
+        callback.onConnectionStateChanged(activeHost, BluetoothProfile.STATE_DISCONNECTED)
+
+        assertEquals(generation + 1, wrapper.sessionGeneration())
+        assertTrue(wrapper.connectionState.value is HidConnectionState.Advertising)
+        assertTrue(getPrivateField(wrapper, "connectedDevice") == null)
+        assertTrue(queuedOwner.all { it == 0.toByte() })
+        assertTrue(wrapper.incomingReports.tryReceive().isFailure)
+        assertTrue(report.all { it == 0x39.toByte() })
     }
 
     /**
@@ -205,6 +260,19 @@ class BluetoothHidDeviceWrapperIncomingReportTest {
             isAccessible = true
             set(instance, value)
         }
+    }
+
+    private fun getPrivateField(
+        instance: Any,
+        name: String,
+    ): Any? = instance.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(instance)
+
+    @Suppress("UNCHECKED_CAST")
+    private fun setConnectionState(
+        wrapper: BluetoothHidDeviceWrapper,
+        state: HidConnectionState,
+    ) {
+        (getPrivateField(wrapper, "_connectionState") as MutableStateFlow<HidConnectionState>).value = state
     }
 
     private companion object {
