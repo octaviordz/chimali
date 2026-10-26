@@ -119,6 +119,90 @@
       },
       "expected_valid": false,
       "expected_error": "Contradictory zero proof: canonical total 10 is nonzero for omitted XML counter"
+    },
+    {
+      "id": "INV_009_EMPTY_INVENTORY_REPORT_COUNTER_AND_PROOF_BIND",
+      "description": "Empty module has matching retained-class, report, inventory-file, analyzer, and zero-proof bindings",
+      "inventory": { "module_path": ":feature:authenticator" },
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "retained_classes": [],
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "proof": {
+          "normalization_rule": "AnalyzedZeroProofV1",
+          "analyzer_identity": "jacoco-0.8.15",
+          "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "counters": { "INSTRUCTION": { "total": 0 }, "BRANCH": { "total": 0 } }
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "INV_010_INVENTORY_FILE_DIGEST_MISMATCH_FAILS",
+      "description": "Counter cannot bind to a different production-inventory file digest",
+      "inventory": { "module_path": ":feature:authenticator" },
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "retained_classes": [],
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_inventory_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "expected_valid": false,
+      "expected_error": "Inventory file digest mismatch"
+    },
+    {
+      "id": "INV_011_ZERO_PROOF_INVENTORY_MISMATCH_FAILS",
+      "description": "Zero proof cannot be replayed against a different inventory file",
+      "inventory": { "module_path": ":feature:authenticator" },
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "retained_classes": [],
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "proof": {
+          "normalization_rule": "AnalyzedZeroProofV1",
+          "analyzer_identity": "jacoco-0.8.15",
+          "inventory_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "counters": { "INSTRUCTION": { "total": 0 }, "BRANCH": { "total": 0 } }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Zero proof inventory digest mismatch"
     }
   ]
 }

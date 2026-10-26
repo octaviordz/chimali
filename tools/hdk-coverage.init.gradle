@@ -113,6 +113,43 @@ gradle.projectsEvaluated {
         sha256Hex(file.bytes)
     }
 
+    def retainedClassEntries = { project, targetDirs ->
+        def excludes = generatedSqlDelightExcludes(project)
+        def entries = []
+        targetDirs.each { dir ->
+            if (dir.exists()) {
+                def classFiles = project.fileTree(dir: dir).matching {
+                    include '**/*.class'
+                    if (!excludes.isEmpty()) exclude(excludes)
+                }.files
+                classFiles.each { classFile ->
+                    def relative = dir.toPath().relativize(classFile.toPath()).toString().replace(File.separator, '/')
+                    entries.add([class_id: relative, sha256: fileSha256(classFile)])
+                }
+            }
+        }
+        entries.sort { left, right -> left.class_id <=> right.class_id }
+        def duplicateIds = entries.groupBy { it.class_id }.findAll { id, copies -> copies.size() > 1 }.keySet()
+        if (!duplicateIds.isEmpty()) {
+            throw new GradleException("Duplicate retained production class identities in ${project.path}: ${duplicateIds.sort().join(', ')}")
+        }
+        entries
+    }
+
+    def classInventoryDigest = { entries ->
+        def canonical = entries.collect { "${it.class_id}:${it.sha256}" }.join('\n')
+        sha256Hex(canonical.getBytes('UTF-8'))
+    }
+
+    def variantFor = { compilerTasks ->
+        def taskNames = compilerTasks.collect { it.name }
+        if (taskNames.any { it.toLowerCase().contains('shrunkdebug') }) return 'shrunkDebug'
+        if (taskNames.any { it.toLowerCase().contains('androidmain') }) return 'androidMain'
+        if (taskNames.any { it.toLowerCase().contains('debug') }) return 'debug'
+        if (taskNames.any { it.toLowerCase().contains('release') }) return 'release'
+        taskNames.isEmpty() ? 'none' : taskNames.sort().join(',')
+    }
+
     def reportTasks = []
     def moduleData = []
 
@@ -180,18 +217,7 @@ gradle.projectsEvaluated {
 
         def isExecutable = {
             def currentClassDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
-            if (currentClassDirs.isEmpty()) return false
-            def foundClass = false
-            currentClassDirs.each { dir ->
-                if (dir.exists()) {
-                    dir.eachFileRecurse { f ->
-                        if (f.isFile() && f.name.endsWith('.class')) {
-                            foundClass = true
-                        }
-                    }
-                }
-            }
-            return foundClass
+            !retainedClassEntries(project, currentClassDirs).isEmpty()
         }
 
         def task = project.tasks.register(reportName, JacocoReport) {
@@ -211,6 +237,24 @@ gradle.projectsEvaluated {
                 xml.outputLocation = project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.xml")
                 html.outputLocation = project.layout.buildDirectory.dir("reports/hdk-coverage/${reportName}")
                 csv.outputLocation = project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.csv")
+            }
+        }
+        if (project.path == ':feature:authenticator') {
+            def emptyExecFile = project.layout.buildDirectory.file('jacoco/hdk/empty-authenticator.exec').get().asFile
+            def prepareEmptyExec = project.tasks.register('hdkPrepareEmptyCoverageData') {
+                group = 'verification'
+                description = 'Creates an empty JaCoCo execution stream so JaCoCo emits the authenticator empty-scope report.'
+                dependsOn(coveragePrepare)
+                mustRunAfter(coveragePrepare)
+                outputs.file(emptyExecFile)
+                doLast {
+                    emptyExecFile.parentFile.mkdirs()
+                    emptyExecFile.bytes = new byte[0]
+                }
+            }
+            task.configure {
+                dependsOn(prepareEmptyExec)
+                executionData.from(emptyExecFile)
             }
         }
         reportTasks.add(task)
@@ -285,9 +329,9 @@ gradle.projectsEvaluated {
         dependsOn(repositoryReport)
     }
 
-    root.tasks.register('hdkCoverageVerify') {
+    root.tasks.register('hdkCoverageAnalyze') {
         group = 'verification'
-        description = 'Enforces Spec 058 module and repository coverage floors and rejects missing or empty test data.'
+        description = 'Creates canonical Spec 058 counters and retained production inventories after the required workload.'
         dependsOn(root.tasks.named('hdkHostCoverage'))
         doLast {
             def failures = []
@@ -313,43 +357,59 @@ gradle.projectsEvaluated {
                 counts
             }
 
-            def exactFloorPass = { long covered, long missed, int minPercent ->
-                def total = covered + missed
-                if (total == 0L) return true
-                def lhs = java.math.BigInteger.valueOf(100L).multiply(java.math.BigInteger.valueOf(covered))
-                def rhs = java.math.BigInteger.valueOf((long)minPercent).multiply(java.math.BigInteger.valueOf(total))
+            def exactFloorPass = { coveredValue, missedValue, minPercentValue ->
+                def covered = new java.math.BigInteger(coveredValue.toString())
+                def missed = new java.math.BigInteger(missedValue.toString())
+                def minimum = new java.math.BigInteger(minPercentValue.toString())
+                def total = covered.add(missed)
+                if (total.signum() == 0) return true
+                def lhs = new java.math.BigInteger('100').multiply(covered)
+                def rhs = minimum.multiply(total)
                 lhs.compareTo(rhs) >= 0
-            }
-
-            def computeClassInventoryDigest = { targetProj, targetDirs ->
-                def entries = []
-                targetDirs.each { dir ->
-                    if (dir.exists()) {
-                        dir.eachFileRecurse { f ->
-                            if (f.isFile() && f.name.endsWith('.class')) {
-                                def rel = dir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
-                                entries.add("${rel}:${sha256Hex(f.bytes)}".toString())
-                            }
-                        }
-                    }
-                }
-                entries.sort()
-                return sha256Hex(entries.join(';').getBytes('UTF-8'))
             }
 
             def modulesJsonList = []
             def proofsJsonList = []
 
+            def inventoryProjects = (allProductionProjects + selectedProjects).unique { it.path }.sort { it.path }
+            def inventoryModulesJsonList = inventoryProjects.collect { targetProject ->
+                def workload = resolveProjectWorkload(targetProject)
+                def compilerTasks = workload.compilers
+                def outputDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
+                def entries = retainedClassEntries(targetProject, outputDirs)
+                def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
+                    .findAll { targetProject.file(it).exists() }
+                    .collect { it.replace('\\', '/') }
+                    .sort()
+                def outputPaths = outputDirs.collect { dir ->
+                    targetProject.projectDir.toPath().relativize(dir.toPath()).toString().replace(File.separator, '/')
+                }.sort()
+                def disposition = entries.isEmpty() ? 'NotApplicable' : 'Applicable'
+                [
+                    module_path: targetProject.path,
+                    tier: (targetProject.path in tier1Paths) ? 1 : 2,
+                    disposition: disposition,
+                    source_roots: sourceRoots,
+                    compiler_tasks: compilerTasks.collect { it.path }.sort(),
+                    selected_variant: variantFor(compilerTasks),
+                    output_directories: outputPaths,
+                    excluded_class_patterns: generatedSqlDelightExcludes(targetProject).sort(),
+                    retained_classes: entries,
+                    class_inventory_digest: classInventoryDigest(entries)
+                ]
+            }
+            def inventoryByModule = inventoryModulesJsonList.collectEntries { [(it.module_path): it] }
+
             moduleData.each { entry ->
                 if (entry.scoped) return
                 def modPath = entry.project.path
-                def isExec = entry.isExecutable()
+                def inventoryEntry = inventoryByModule[modPath]
+                if (inventoryEntry == null) throw new GradleException("Missing production inventory for ${modPath}")
+                def isExec = !inventoryEntry.retained_classes.isEmpty()
                 def reportFile = entry.reportFile.get().asFile
                 def coverage = summarize(reportFile)
                 def repDigest = fileSha256(reportFile)
-                def workload = resolveProjectWorkload(entry.project)
-                def cDirs = workload.compilers.collectMany { task -> task.outputs.files.files.toList() }.unique()
-                def invDigest = computeClassInventoryDigest(entry.project, cDirs)
+                def invDigest = inventoryEntry.class_inventory_digest
 
                 def modInst = coverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
                 def modBranch = coverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
@@ -413,20 +473,20 @@ gradle.projectsEvaluated {
                     def inst = coverage.INSTRUCTION
                     if (inst == null || !exactFloorPass(inst.covered, inst.missed, 60)) {
                         def pct = (inst == null || inst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * inst.covered / inst.total))
-                        failures.add("${entry.project.path}: instruction coverage ${pct} is below 60%")
+                        root.logger.lifecycle("Coverage floor failure: ${entry.project.path} instruction coverage ${pct} is below 60%")
                     }
                     def br = coverage.BRANCH
                     if (br != null && br.total > 0L) {
                         if (!exactFloorPass(br.covered, br.missed, 60)) {
                             def pct = String.format("%.3f%%", (100.0 * br.covered / br.total))
-                            failures.add("${entry.project.path}: branch coverage ${pct} is below 60%")
+                            root.logger.lifecycle("Coverage floor failure: ${entry.project.path} branch coverage ${pct} is below 60%")
                         }
                     }
                 } else if (entry.project.path in tier2Paths) {
                     def inst = coverage.INSTRUCTION
                     if (inst == null || !exactFloorPass(inst.covered, inst.missed, 20)) {
                         def pct = (inst == null || inst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * inst.covered / inst.total))
-                        failures.add("${entry.project.path}: Tier 2 instruction coverage ${pct} is below 20%")
+                        root.logger.lifecycle("Coverage floor failure: ${entry.project.path} Tier 2 instruction coverage ${pct} is below 20%")
                     }
                 }
             }
@@ -437,9 +497,21 @@ gradle.projectsEvaluated {
             def repoInst = repositoryCoverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
             def repoBranch = repositoryCoverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
 
+            def inventoryFile = root.layout.buildDirectory.file('reports/hdk-coverage/production-inventory.json').get().asFile
+            inventoryFile.parentFile.mkdirs()
+            def inventoryDocument = [
+                schema_version: '1.0',
+                analyzer_identity: 'jacoco-0.8.15',
+                modules: inventoryModulesJsonList
+            ]
+            inventoryFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(inventoryDocument))
+            def inventoryDigest = fileSha256(inventoryFile)
+            proofsJsonList.each { proof -> proof.inventory_digest = inventoryDigest }
+
             def canonicalCounters = [
                 schema_version: "1.0",
                 analyzer_identity: "jacoco-0.8.15",
+                inventory_digest: inventoryDigest,
                 generated_at: new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").with { timeZone = TimeZone.getTimeZone('UTC'); format(new Date()) },
                 modules: modulesJsonList,
                 repository: [
@@ -454,15 +526,58 @@ gradle.projectsEvaluated {
             countersOutFile.parentFile.mkdirs()
             countersOutFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(canonicalCounters))
             root.logger.lifecycle("Canonical counters written to ${countersOutFile}")
+            root.logger.lifecycle("Production inventory written to ${inventoryFile}")
 
             if (repoInst == null || !exactFloorPass(repoInst.covered, repoInst.missed, 50)) {
                 def pct = (repoInst == null || repoInst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * repoInst.covered / repoInst.total))
-                failures.add("repository instruction coverage ${pct} is below 50%")
+                root.logger.lifecycle("Coverage floor failure: repository instruction coverage ${pct} is below 50%")
             }
 
             if (!failures.isEmpty()) {
-                throw new GradleException('HDK coverage gates failed:\n - ' + failures.join('\n - '))
+                throw new GradleException('HDK coverage evidence is incomplete:\n - ' + failures.join('\n - '))
             }
+        }
+    }
+
+    root.tasks.register('hdkCoverageVerify') {
+        group = 'verification'
+        description = 'Enforces Spec 058 module and repository coverage floors from canonical analyzed counters.'
+        dependsOn(root.tasks.named('hdkCoverageAnalyze'))
+        doLast {
+            def countersFile = root.layout.buildDirectory.file('reports/hdk-coverage/counters.json').get().asFile
+            if (!countersFile.isFile()) throw new GradleException('Canonical coverage counters are missing')
+            def counters = new groovy.json.JsonSlurper().parse(countersFile)
+            def failures = []
+            def exactFloorPass = { covered, missed, int minimum ->
+                def total = new java.math.BigInteger(covered.toString()).add(new java.math.BigInteger(missed.toString()))
+                if (total.signum() == 0) return true
+                def left = new java.math.BigInteger('100').multiply(new java.math.BigInteger(covered.toString()))
+                def right = new java.math.BigInteger(minimum.toString()).multiply(total)
+                left.compareTo(right) >= 0
+            }
+            tier1Paths.each { modulePath ->
+                def result = counters.modules.find { it.module_path == modulePath }
+                if (result == null) {
+                    failures.add("${modulePath}: canonical module counters missing")
+                } else if ((result.instruction.covered + result.instruction.missed) > 0 &&
+                    !exactFloorPass(result.instruction.covered, result.instruction.missed, 60)) {
+                    failures.add("${modulePath}: instruction coverage is below 60%")
+                } else if ((result.branch.covered + result.branch.missed) > 0 &&
+                    !exactFloorPass(result.branch.covered, result.branch.missed, 60)) {
+                    failures.add("${modulePath}: branch coverage is below 60%")
+                }
+            }
+            tier2Paths.each { modulePath ->
+                def result = counters.modules.find { it.module_path == modulePath }
+                if (result == null || !exactFloorPass(result.instruction.covered, result.instruction.missed, 20)) {
+                    failures.add("${modulePath}: Tier 2 instruction coverage is below 20% or counters are missing")
+                }
+            }
+            def repository = counters.repository.instruction
+            if (!exactFloorPass(repository.covered, repository.missed, 50)) {
+                failures.add('repository instruction coverage is below 50% or counters are missing')
+            }
+            if (!failures.isEmpty()) throw new GradleException('HDK coverage floors failed:\n - ' + failures.join('\n - '))
         }
     }
 }

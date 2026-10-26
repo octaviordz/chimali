@@ -212,6 +212,80 @@ if (Test-Path $countersPath) {
     $reasons += "counters.json missing from run bundle"
 }
 
+$canonicalInventoryValid = $true
+$inventoryFileDigest = ''
+$inventoryPath = Join-Path $RunBundle 'inventory.json'
+$inventoryData = $null
+if (-not (Test-Path -LiteralPath $inventoryPath)) {
+    $canonicalInventoryValid = $false
+    $reasons += 'Retained production inventory is missing from the run bundle'
+} else {
+    try {
+        $inventoryData = Read-SafeJson -Path $inventoryPath
+    } catch {
+        $canonicalInventoryValid = $false
+        $reasons += "Retained production inventory is invalid JSON: $_"
+    }
+}
+if ($inventoryData -and $countersData) {
+    $inventoryFileDigest = Get-FileSha256 -Path $inventoryPath
+    if ($countersData.inventory_digest -ne $inventoryFileDigest -or
+        $manifest.production_inventory_digest -ne $inventoryFileDigest) {
+        $canonicalInventoryValid = $false
+        $reasons += 'Inventory file digest does not match manifest and canonical counters'
+    }
+    if ($inventoryData.analyzer_identity -ne $countersData.analyzer_identity) {
+        $canonicalInventoryValid = $false
+        $reasons += 'Inventory analyzer identity does not match canonical counters'
+    }
+
+    foreach ($inventoryModule in $inventoryData.modules) {
+        $classEntries = @($inventoryModule.retained_classes)
+        $classDigestResult = Get-ProductionClassInventoryDigest -InventoryModule $inventoryModule
+        if (-not $classDigestResult.IsValid -or $inventoryModule.class_inventory_digest -ne $classDigestResult.Digest) {
+            $canonicalInventoryValid = $false
+            foreach ($digestReason in $classDigestResult.Reasons) { $reasons += "$($inventoryModule.module_path): $digestReason" }
+            if ($inventoryModule.class_inventory_digest -ne $classDigestResult.Digest) {
+                $reasons += "$($inventoryModule.module_path): retained class digest does not match listed classes"
+            }
+        }
+        if (($inventoryModule.disposition -eq 'NotApplicable') -and $classEntries.Count -gt 0) {
+            $canonicalInventoryValid = $false
+            $reasons += "$($inventoryModule.module_path): NotApplicable disposition has retained executable classes"
+        }
+        if (($inventoryModule.disposition -eq 'Applicable') -and $classEntries.Count -eq 0) {
+            $canonicalInventoryValid = $false
+            $reasons += "$($inventoryModule.module_path): Applicable disposition has no retained executable classes"
+        }
+    }
+
+    foreach ($requiredModule in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
+        $counterModule = $countersData.modules | Where-Object { $_.module_path -eq $requiredModule } | Select-Object -First 1
+        $inventoryModule = $inventoryData.modules | Where-Object { $_.module_path -eq $requiredModule } | Select-Object -First 1
+        if (-not $counterModule -or -not $inventoryModule) {
+            $canonicalInventoryValid = $false
+            $reasons += "${requiredModule}: counter or retained inventory entry is missing"
+            continue
+        }
+        $safeName = $requiredModule.Replace(':', '_').TrimStart('_')
+        $xmlPath = Join-Path (Join-Path $RunBundle 'reports/modules') "$safeName.xml"
+        if (-not $counterModule.report_digest -or -not (Test-Path -LiteralPath $xmlPath)) {
+            $canonicalInventoryValid = $false
+            $reasons += "${requiredModule}: report or report digest is missing"
+        } else {
+            $binding = Test-CanonicalInventoryModuleBinding -InventoryModule $inventoryModule -CounterModule $counterModule -InventoryDigest $inventoryFileDigest -ExpectedInventoryDigest $countersData.inventory_digest -AnalyzerIdentity $countersData.analyzer_identity -ReportDigest (Get-FileSha256 -Path $xmlPath)
+            if (-not $binding.IsValid) {
+                $canonicalInventoryValid = $false
+                foreach ($bindingReason in $binding.Reasons) { $reasons += "${requiredModule}: $bindingReason" }
+            }
+        }
+    }
+}
+if (-not $canonicalInventoryValid) {
+    $finalCollectionStatus = 'Incomplete'
+    $reasons += 'Collection is incomplete: canonical production inventory/report bindings failed'
+}
+
 $floorPassed = $true
 $moduleDecisions = @()
 
@@ -304,10 +378,11 @@ foreach ($modPath in $policy.tier1_modules) {
             $proof = $countersData.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
         }
 
-        $proofValid = ($null -ne $proof) -and `
-                      ($proof.normalization_rule -eq "AnalyzedZeroProofV1") -and `
-                      ($proof.counters.INSTRUCTION.total -eq 0) -and `
-                      (-not $xmlHash -or $proof.report_digest -eq $xmlHash)
+        $inventoryModule = if ($inventoryData) { $inventoryData.modules | Where-Object { $_.module_path -eq $modPath } | Select-Object -First 1 } else { $null }
+        $proofBinding = if ($proof -and $inventoryModule -and $xmlHash) {
+            Test-CanonicalZeroProofBinding -Proof $proof -InventoryModule $inventoryModule -CounterModule $modCounters -InventoryDigest $inventoryFileDigest -ExpectedInventoryDigest $countersData.inventory_digest -AnalyzerIdentity $countersData.analyzer_identity -ReportDigest $xmlHash
+        } else { $null }
+        $proofValid = ($null -ne $proof) -and ($null -ne $proofBinding) -and $proofBinding.IsValid -and ($proof.counters.INSTRUCTION.total -eq 0)
 
         if ($proofValid) {
             $moduleDecisions += [PSCustomObject]@{
@@ -355,10 +430,11 @@ foreach ($modPath in $policy.tier1_modules) {
             if (-not $proof -and $countersData.zero_count_proofs) {
                 $proof = $countersData.zero_count_proofs | Where-Object { $_.module_path -eq $modPath }
             }
-            $proofValid = ($null -ne $proof) -and `
-                          ($proof.normalization_rule -eq "AnalyzedZeroProofV1") -and `
-                          ($proof.counters.BRANCH.total -eq 0) -and `
-                          (-not $xmlHash -or $proof.report_digest -eq $xmlHash)
+            $inventoryModule = if ($inventoryData) { $inventoryData.modules | Where-Object { $_.module_path -eq $modPath } | Select-Object -First 1 } else { $null }
+            $proofBinding = if ($proof -and $inventoryModule -and $xmlHash) {
+                Test-CanonicalZeroProofBinding -Proof $proof -InventoryModule $inventoryModule -CounterModule $modCounters -InventoryDigest $inventoryFileDigest -ExpectedInventoryDigest $countersData.inventory_digest -AnalyzerIdentity $countersData.analyzer_identity -ReportDigest $xmlHash
+            } else { $null }
+            $proofValid = ($null -ne $proof) -and ($null -ne $proofBinding) -and $proofBinding.IsValid -and ($proof.counters.BRANCH.total -eq 0)
             if (-not $proofValid) {
                 $floorPassed = $false
                 $reasons += "${modPath}: omitted XML branch counter without valid AnalyzedZeroProofV1 proof"

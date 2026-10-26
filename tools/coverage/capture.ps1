@@ -70,6 +70,35 @@ if (-not (Test-Path $CommonPath)) {
 
 . $CommonPath
 
+if (-not [System.IO.Path]::IsPathRooted($HarnessRoot) -or -not (Test-Path -LiteralPath $HarnessRoot)) {
+    Write-Error "HarnessRoot must be an existing absolute path: $HarnessRoot"
+    exit 2
+}
+$harnessScriptPaths = @(
+    (Join-Path $HarnessRoot 'tools/coverage/capture.ps1'),
+    (Join-Path $HarnessRoot 'tools/hdk-coverage.init.gradle'),
+    (Join-Path $HarnessRoot 'tools/coverage/policy.json'),
+    (Join-Path $HarnessRoot 'tools/coverage/verify.ps1')
+)
+foreach ($harnessScriptPath in $harnessScriptPaths) {
+    if (-not (Test-Path -LiteralPath $harnessScriptPath -PathType Leaf)) {
+        Write-Error "Harness checkout is missing required file: $harnessScriptPath"
+        exit 2
+    }
+}
+$harnessRevision = (& git -C $HarnessRoot rev-parse HEAD 2>$null).Trim()
+$harnessTree = (& git -C $HarnessRoot rev-parse 'HEAD^{tree}' 2>$null).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $harnessRevision -or -not $harnessTree) {
+    Write-Error "HarnessRoot is not a readable Git checkout: $HarnessRoot"
+    exit 2
+}
+$harnessClean = [string]::IsNullOrEmpty((& git -C $HarnessRoot status --porcelain))
+$harnessFileHashes = [ordered]@{}
+foreach ($harnessScriptPath in $harnessScriptPaths) {
+    $relativeHarnessPath = [System.IO.Path]::GetRelativePath($HarnessRoot, $harnessScriptPath).Replace('\', '/')
+    $harnessFileHashes[$relativeHarnessPath] = Get-FileSha256 -Path $harnessScriptPath
+}
+
 # 1. Path and Argument Validation
 if (-not [System.IO.Path]::IsPathRooted($RepositoryRoot)) {
     Write-Error "RepositoryRoot must be an absolute path: $RepositoryRoot"
@@ -185,9 +214,9 @@ if (-not $SkipExecution) {
     try {
         $env:ANDROID_SERIAL = $DeviceSerial
         $initScript = Join-Path $HarnessRoot "tools/hdk-coverage.init.gradle"
-        $gradleCmd = ".\gradlew.bat --no-configuration-cache -I $initScript hdkHostCoverage"
+        $gradleCmd = ".\gradlew.bat --no-configuration-cache -I $initScript hdkHostCoverage hdkCoverageAnalyze"
         Write-Host "Executing Gradle workload: $gradleCmd" -ForegroundColor Cyan
-        & .\gradlew.bat --no-configuration-cache -I $initScript hdkHostCoverage
+        & .\gradlew.bat --no-configuration-cache -I $initScript hdkHostCoverage hdkCoverageAnalyze
         if ($LASTEXITCODE -ne 0) {
             $gradleSuccess = $false
             Write-Warning "Gradle coverage collection exited with code $LASTEXITCODE"
@@ -220,6 +249,40 @@ $moduleMap = [ordered]@{
 # Check if Gradle canonical counters were emitted
 $gradleCountersFile = Join-Path $RepositoryRoot "build/reports/hdk-coverage/counters.json"
 $gradleCanonicalCounters = if (Test-Path $gradleCountersFile) { Read-SafeJson -Path $gradleCountersFile } else { $null }
+$gradleInventoryFile = Join-Path $RepositoryRoot "build/reports/hdk-coverage/production-inventory.json"
+$gradleProductionInventory = if (Test-Path $gradleInventoryFile) { Read-SafeJson -Path $gradleInventoryFile } else { $null }
+$canonicalEvidenceErrors = @()
+$canonicalEvidenceValid = ($null -ne $gradleCanonicalCounters) -and ($null -ne $gradleProductionInventory)
+if (-not $gradleCanonicalCounters) { $canonicalEvidenceErrors += "Gradle canonical counters are missing: $gradleCountersFile" }
+if (-not $gradleProductionInventory) { $canonicalEvidenceErrors += "Gradle production inventory is missing: $gradleInventoryFile" }
+if ($gradleCanonicalCounters -and $gradleProductionInventory) {
+    $inventoryFileDigest = Get-FileSha256 -Path $gradleInventoryFile
+    if ($gradleCanonicalCounters.inventory_digest -ne $inventoryFileDigest) {
+        $canonicalEvidenceErrors += "Canonical counters inventory_digest does not match production-inventory.json"
+    }
+    foreach ($requiredModule in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
+        $counterModule = $gradleCanonicalCounters.modules | Where-Object { $_.module_path -eq $requiredModule } | Select-Object -First 1
+        $inventoryModule = $gradleProductionInventory.modules | Where-Object { $_.module_path -eq $requiredModule } | Select-Object -First 1
+        if (-not $counterModule -or -not $inventoryModule) {
+            $canonicalEvidenceErrors += "Canonical counters or retained production inventory missing module $requiredModule"
+            continue
+        }
+        if ($counterModule.class_inventory_digest -ne $inventoryModule.class_inventory_digest) {
+            $canonicalEvidenceErrors += "Class inventory digest mismatch for $requiredModule"
+        }
+    }
+    foreach ($proof in @($gradleCanonicalCounters.zero_count_proofs)) {
+        $proofCounterModule = $gradleCanonicalCounters.modules | Where-Object { $_.module_path -eq $proof.module_path } | Select-Object -First 1
+        $proofInventoryModule = $gradleProductionInventory.modules | Where-Object { $_.module_path -eq $proof.module_path } | Select-Object -First 1
+        if ($proof.analyzer_identity -ne $gradleCanonicalCounters.analyzer_identity -or
+            $proof.inventory_digest -ne $inventoryFileDigest -or
+            -not $proofCounterModule -or -not $proofInventoryModule -or
+            $proof.class_inventory_digest -ne $proofInventoryModule.class_inventory_digest -or
+            $proof.report_digest -ne $proofCounterModule.report_digest) {
+            $canonicalEvidenceErrors += "Zero-count proof for $($proof.module_path) is not bound to its analyzer, report, and production inventory"
+        }
+    }
+}
 
 $moduleCountersList = @()
 $zeroCountProofs = @()
@@ -242,6 +305,7 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
     $disposition = "Applicable"
     $reportDigest = ""
     $classInvDigest = ""
+    $mEntry = $null
 
     # Check Gradle counters first if available
     if ($gradleCanonicalCounters -and $gradleCanonicalCounters.modules) {
@@ -263,6 +327,9 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
             Copy-Item -Path $srcHtmlDir -Destination $dstHtml -Recurse -Force
         }
         $xmlHash = Get-FileSha256 -Path $srcXml
+        if ($mEntry -and $mEntry.report_digest -ne $xmlHash) {
+            $canonicalEvidenceErrors += "Canonical report digest mismatch for $modPath"
+        }
         $reportDigest = $xmlHash
 
         if (-not $gradleCanonicalCounters) {
@@ -351,6 +418,20 @@ foreach ($modPath in ($policy.tier1_modules + $policy.tier2_gated_modules)) {
         artifact_link = $relArtifactLink
     }
 }
+
+if ($gradleCanonicalCounters) {
+    foreach ($counterModule in $gradleCanonicalCounters.modules) {
+        $safeName = $counterModule.module_path.Replace(":", "_").TrimStart("_")
+        $copiedXml = Join-Path $modulesDir "$safeName.xml"
+        if (-not $counterModule.report_digest -or -not (Test-Path -LiteralPath $copiedXml)) {
+            $canonicalEvidenceErrors += "Canonical report or report digest is missing for $($counterModule.module_path)"
+        } elseif ((Get-FileSha256 -Path $copiedXml) -ne $counterModule.report_digest) {
+            $canonicalEvidenceErrors += "Bundled report does not match canonical report digest for $($counterModule.module_path)"
+        }
+    }
+}
+foreach ($evidenceError in $canonicalEvidenceErrors) { Write-Warning $evidenceError }
+if ($canonicalEvidenceErrors.Count -gt 0) { $canonicalEvidenceValid = $false }
 
 if ($gradleCanonicalCounters -and $gradleCanonicalCounters.zero_count_proofs) {
     $zeroCountProofs = $gradleCanonicalCounters.zero_count_proofs
@@ -461,30 +542,15 @@ if ($junitParseFailures.Count -gt 0) {
 
 # Production Inventory
 $inventoryPath = Join-Path $runDir "inventory.json"
-$inventoryData = [PSCustomObject]@{
-    schema_version = "1.0"
-    policy_id = "chimali-coverage-v1"
-    toolchain = [PSCustomObject]@{
-        gradle = "9.6.0"
-        agp = "9.4.1"
-        kotlin = "2.3.21"
-        jacoco = "0.8.15"
-    }
-    modules = ($policy.tier1_modules + $policy.tier2_gated_modules) | ForEach-Object {
-        $mPath = $_
-        [PSCustomObject]@{
-            module_path = $mPath
-            tier = if ($mPath -in $policy.tier1_modules) { 1 } else { 2 }
-            disposition = ($moduleCountersList | Where-Object { $_.module_path -eq $mPath }).disposition
-        }
-    }
+if ($gradleProductionInventory -and (Test-Path -LiteralPath $gradleInventoryFile)) {
+    Copy-Item -LiteralPath $gradleInventoryFile -Destination $inventoryPath
 }
-$inventoryData | ConvertTo-Json -Depth 5 | Set-Content -Path $inventoryPath -Encoding utf8
 
 $countersData = [PSCustomObject]@{
     schema_version = "1.0"
     policy_id = "chimali-coverage-v1"
     analyzer_identity = "jacoco-0.8.15"
+    inventory_digest = if ($gradleCanonicalCounters) { $gradleCanonicalCounters.inventory_digest } else { "" }
     modules = $moduleCountersList
     repository = [PSCustomObject]@{
         instruction = [PSCustomObject]@{
@@ -524,7 +590,7 @@ foreach ($s in $suitesList) {
     }
 }
 
-$isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and (Test-Path $repoDstXml)
+$isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and (Test-Path $repoDstXml) -and $canonicalEvidenceValid
 $collectionStatus = if ($isCollectionComplete) { "Complete" } else { "Incomplete" }
 
 $testStatus = if ($SkipExecution) {
@@ -563,6 +629,12 @@ $manifest = [PSCustomObject]@{
         clean_preflight = $true
         clean_postflight = $cleanPostflight
     }
+    harness = [PSCustomObject]@{
+        revision = $harnessRevision
+        tree = $harnessTree
+        clean = $harnessClean
+        file_sha256 = [PSCustomObject]$harnessFileHashes
+    }
     device = [PSCustomObject]@{
         device_serial = $DeviceSerial
         device_online = $deviceOnline
@@ -580,6 +652,7 @@ $manifest = [PSCustomObject]@{
         integration = "Unverified"
     }
     suites = $suitesList
+    production_inventory_digest = if ($gradleCanonicalCounters) { $gradleCanonicalCounters.inventory_digest } else { "" }
     evidence_records = $evidenceRecords
     zero_count_proofs = $zeroCountProofs
     artifacts = $artifactsList

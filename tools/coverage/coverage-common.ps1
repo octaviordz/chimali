@@ -326,10 +326,105 @@ function Test-InventoryAccounting {
         }
     }
 
+    if ($Case -and $Case.canonical_binding) {
+        $bindingCase = $Case.canonical_binding
+        $binding = Test-CanonicalInventoryModuleBinding -InventoryModule $bindingCase.inventory_module -CounterModule $bindingCase.counter_module -InventoryDigest $bindingCase.inventory_digest -ExpectedInventoryDigest $bindingCase.expected_inventory_digest -AnalyzerIdentity $bindingCase.analyzer_identity -ReportDigest $bindingCase.report_digest
+        if (-not $binding.IsValid) {
+            $valid = $false
+            $reasons += $binding.Reasons
+        }
+        if ($bindingCase.proof) {
+            $proofBinding = Test-CanonicalZeroProofBinding -Proof $bindingCase.proof -InventoryModule $bindingCase.inventory_module -CounterModule $bindingCase.counter_module -InventoryDigest $bindingCase.inventory_digest -ExpectedInventoryDigest $bindingCase.expected_inventory_digest -AnalyzerIdentity $bindingCase.analyzer_identity -ReportDigest $bindingCase.report_digest
+            if (-not $proofBinding.IsValid) {
+                $valid = $false
+                $reasons += $proofBinding.Reasons
+            }
+        }
+    }
+
     return @{
         IsValid = $valid
         Reasons = $reasons
     }
+}
+
+function Get-ProductionClassInventoryDigest {
+    param([Parameter(Mandatory = $true)]$InventoryModule)
+
+    $reasons = @()
+    $entries = @($InventoryModule.retained_classes)
+    $classIds = @($entries | ForEach-Object { [string]$_.class_id })
+    $uniqueClassIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($classId in $classIds) {
+        if (-not $uniqueClassIds.Add($classId)) {
+            $reasons += 'Duplicate retained class identities'
+            break
+        }
+    }
+    if ($reasons.Count -gt 0) {
+        return @{ IsValid = $false; Digest = ''; Reasons = $reasons }
+    }
+    foreach ($entry in $entries) {
+        if (-not $entry.class_id -or $entry.class_id -match '(^|/)\.\.(/|$)' -or $entry.sha256 -notmatch '^[0-9a-f]{64}$') {
+            $reasons += 'Malformed retained class inventory entry'
+        }
+    }
+    if ($reasons.Count -gt 0) { return @{ IsValid = $false; Digest = ''; Reasons = $reasons } }
+
+    $canonicalEntries = @($entries | ForEach-Object { "$($_.class_id):$($_.sha256)" })
+    [Array]::Sort($canonicalEntries, [System.StringComparer]::Ordinal)
+    $canonical = [string]::Join("`n", $canonicalEntries)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $sha256.ComputeHash([System.Text.UTF8Encoding]::new($false).GetBytes($canonical))
+        $digest = [System.Convert]::ToHexString($bytes).ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+    return @{ IsValid = $true; Digest = $digest; Reasons = @() }
+}
+
+function Test-CanonicalInventoryModuleBinding {
+    param(
+        [Parameter(Mandatory = $true)]$InventoryModule,
+        [Parameter(Mandatory = $true)]$CounterModule,
+        [Parameter(Mandatory = $true)][string]$InventoryDigest,
+        [Parameter(Mandatory = $true)][string]$ExpectedInventoryDigest,
+        [Parameter(Mandatory = $true)][string]$AnalyzerIdentity,
+        [Parameter(Mandatory = $true)][string]$ReportDigest
+    )
+
+    $reasons = @()
+    $classDigest = Get-ProductionClassInventoryDigest -InventoryModule $InventoryModule
+    if (-not $classDigest.IsValid) { $reasons += $classDigest.Reasons }
+    if ($InventoryDigest -ne $ExpectedInventoryDigest) { $reasons += 'Inventory file digest mismatch' }
+    if ($InventoryModule.class_inventory_digest -ne $classDigest.Digest) { $reasons += 'Retained class digest mismatch' }
+    if ($CounterModule.class_inventory_digest -ne $InventoryModule.class_inventory_digest) { $reasons += 'Counter class inventory digest mismatch' }
+    if ($CounterModule.report_digest -ne $ReportDigest -or -not $ReportDigest) { $reasons += 'Counter report digest mismatch' }
+    if ($AnalyzerIdentity -ne 'jacoco-0.8.15') { $reasons += 'Unexpected analyzer identity' }
+    return @{ IsValid = ($reasons.Count -eq 0); Reasons = $reasons }
+}
+
+function Test-CanonicalZeroProofBinding {
+    param(
+        [Parameter(Mandatory = $true)]$Proof,
+        [Parameter(Mandatory = $true)]$InventoryModule,
+        [Parameter(Mandatory = $true)]$CounterModule,
+        [Parameter(Mandatory = $true)][string]$InventoryDigest,
+        [Parameter(Mandatory = $true)][string]$ExpectedInventoryDigest,
+        [Parameter(Mandatory = $true)][string]$AnalyzerIdentity,
+        [Parameter(Mandatory = $true)][string]$ReportDigest
+    )
+
+    $reasons = @()
+    $moduleBinding = Test-CanonicalInventoryModuleBinding -InventoryModule $InventoryModule -CounterModule $CounterModule -InventoryDigest $InventoryDigest -ExpectedInventoryDigest $ExpectedInventoryDigest -AnalyzerIdentity $AnalyzerIdentity -ReportDigest $ReportDigest
+    $reasons += $moduleBinding.Reasons
+    if ($Proof.normalization_rule -ne 'AnalyzedZeroProofV1') { $reasons += 'Unsupported zero proof rule' }
+    if ($Proof.analyzer_identity -ne $AnalyzerIdentity) { $reasons += 'Zero proof analyzer identity mismatch' }
+    if ($Proof.inventory_digest -ne $InventoryDigest) { $reasons += 'Zero proof inventory digest mismatch' }
+    if ($Proof.class_inventory_digest -ne $InventoryModule.class_inventory_digest) { $reasons += 'Zero proof class inventory digest mismatch' }
+    if ($Proof.report_digest -ne $ReportDigest -or -not $ReportDigest) { $reasons += 'Zero proof report digest mismatch' }
+    return @{ IsValid = ($reasons.Count -eq 0); Reasons = $reasons }
 }
 
 function Test-PolicyConfiguration {
