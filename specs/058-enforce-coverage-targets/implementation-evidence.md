@@ -606,6 +606,12 @@
 - Added `.gitattributes` entries to preserve the exact bytes of the two SHA-256-bound exporter fixtures on Windows checkouts. Corrected `-NoConfigurationCache` to pass Gradle's `--no-configuration-cache` option and fixed the observed Ktlint line break in `RelyingPartyTest.kt`.
 - These are source changes after the run recorded in 11.10. They have not been rerun or independently verified; the previous run remains diagnostic evidence only, and no task completion marks changed.
 
+### 11.12 Follow-up verification and collector retry (2026-10-26)
+
+- On committed revision `4fede6149b6a884ea0c47fbb2f750e2361ca7aa8`, `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1` passed all 76 fixtures, and `gradlew.bat --no-configuration-cache :core:domain:ktlintCommonTestSourceSetCheck` completed successfully in 53 seconds.
+- A fresh Initial capture against that clean revision found the authorized `ASUS_AI2302` (Android 15/API 35) and completed Gradle task `hdkHostCoverage` successfully in 6m31s (477 tasks; 25 executed, 452 up-to-date). Capture run `2f0e1f84-ee0a-48e7-8535-ca1a655ce631` did not complete: collection stopped while copying the first nested JUnit report because the new destination-path expression called `Join-Path` without its child path. The partial bundle is retained under `D:/octav/coverage-local-validation/runs/2f0e1f84-ee0a-48e7-8535-ca1a655ce631`; no verifier decision or completed manifest was produced.
+- Corrected the destination expression. A focused read of the generated reports then parsed 189 JUnit XML files, 199 suites, and 1,215 tests and resolved the relative destination paths. This focused check does not replace a successful full capture. The one-line correction is currently an uncommitted working-tree change; a fresh clean-revision capture remains pending. No task status was changed.
+
 
 
 

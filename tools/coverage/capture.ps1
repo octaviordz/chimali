@@ -429,7 +429,7 @@ foreach ($jf in $junitFiles) {
             throw "JUnit XML path is outside the repository root: $($jf.FullName)"
         }
 
-        $destXml = Join-Path (Join-Path $testsReportsDir $relativeJUnitPath)
+        $destXml = Join-Path $testsReportsDir $relativeJUnitPath
         $destXmlParent = Split-Path -Parent $destXml
         New-Item -ItemType Directory -Path $destXmlParent -Force | Out-Null
         Copy-Item -Path $jf.FullName -Destination $destXml -Force
