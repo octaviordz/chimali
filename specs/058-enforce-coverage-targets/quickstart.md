@@ -13,6 +13,20 @@ Use [plan.md](plan.md) for sequencing, [data-model.md](data-model.md) for result
 4. Resolve the real accepted integration target explicitly. The local cached `origin/HEAD` currently names `lab/or/jpc`; verify live configuration before using it. Do not substitute an assumed `main` branch.
 5. Provision an evidence directory outside measured checkouts. Complete hosted acceptance additionally requires authenticated repository access, a clean device-capable worker, the protected evidence archive branch and configured required-check protection. Those external controls were not verifiable in the planning environment.
 
+### Recreate the local Windows host environment
+
+The host profile is checked into `tools/coverage/host-profile.json`; `tools/coverage/setup-host.ps1` reads the Gradle daemon JVM and wrapper pins from the repository, checks the Android SDK package revisions, and sets `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and `PATH` for the current PowerShell process only. It can ask the Gradle wrapper to provision its pinned daemon JDK when the launcher has Java 17 or newer. It does not modify machine-wide or persistent user environment settings.
+
+On a new Windows checkout, install PowerShell 7, Git, a Java 17+ launcher runtime, and Android SDK Command-line Tools 23.0 under the selected SDK root. Then run:
+
+```powershell
+. .\tools\coverage\setup-host.ps1 -InstallAndroidPackages -DeviceSerial '<authorized-device-serial>'
+```
+
+Dot-source the script in each PowerShell session so later Gradle/capture commands inherit its process-scoped environment. The install switch asks `sdkmanager` to install the pinned Android platform and build-tools plus the current platform-tools package; accept SDK licenses first if required. The script then validates all installed revisions, including platform-tools 37.0.0. Since Android publishes `platform-tools` as an unversioned SDK Manager package, a future release causes a clear revision failure; use the archived official 37.0.0 package when recreating the exact profile after that package advances. The current SDK root is discovered from `ANDROID_HOME`, `ANDROID_SDK_ROOT`, ignored `local.properties`, or `%LOCALAPPDATA%\Android\Sdk`, in that order. Pass `-AndroidSdkRoot` to select another root. It validates the connected device is authorized and meets the profile's minimum API level; it does not claim that API level alone proves every hardware capability.
+
+The command-line tools package itself is a bootstrap prerequisite and must be installed at revision 23.0. Keep its official SDK package source available when recreating a machine. A missing or different SDK package causes a hard failure rather than silently using another revision.
+
 Run these read-only checks from the repository root:
 
 ```powershell
