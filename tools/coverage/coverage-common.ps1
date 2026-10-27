@@ -735,6 +735,7 @@ function Test-IntegrationInvocation {
 function ConvertFrom-CaptureResultOutput {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string[]]$OutputLines
     )
 

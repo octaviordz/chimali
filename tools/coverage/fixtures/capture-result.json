@@ -7,6 +7,7 @@
       "description": "Find the literal marker after ordinary build logs and parse the run identity",
       "output_lines": [
         "Gradle build successful",
+        "",
         "Coverage run captured to D:\\runs\\run-001",
         "[CAPTURE_RESULT] {\"run_id\":\"run-001\",\"run_dir\":\"D:\\\\runs\\\\run-001\",\"collection\":\"Complete\",\"tests\":\"Passed\"}"
       ],
