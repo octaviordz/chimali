@@ -54,6 +54,12 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$IntegratedTree,
 
+    [Parameter(Mandatory = $false)]
+    [string]$ComparisonBundle,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ChangedPathsFile,
+
     [switch]$DryRun
 )
 
@@ -81,9 +87,10 @@ $manifest = Read-SafeJson -Path $manifestPath
 $policyPath = Join-Path $ScriptDir "policy.json"
 $verifyScript = Join-Path $ScriptDir "verify.ps1"
 
-# Validate candidate/target bindings
-if ($manifest.source_commit -and $manifest.source_commit -ne $HeadSha) {
-    Write-Error "RunBundle source_commit ($($manifest.source_commit)) does not match expected HeadSha ($HeadSha)"
+# Validate candidate/target bindings using the canonical nested schema.
+$identity = Test-CandidateManifestIdentity -Manifest $manifest -ExpectedSourceCommit $HeadSha -ExpectedTargetCommit $BaseSha
+if (-not $identity.IsValid) {
+    Write-Error "RunBundle identity validation failed: $($identity.Errors -join '; ')"
     exit 1
 }
 
@@ -100,8 +107,9 @@ $verifyArgs = @(
     "-OutputDirectory", $assessmentsDir
 )
 if ($manifest.purpose -eq "Comparison" -or $manifest.purpose -eq "Candidate") {
-    $verifyArgs += @("-TargetRevision", $BaseSha)
+    if ($ComparisonBundle) { $verifyArgs += @("-ComparisonBundle", $ComparisonBundle) }
 }
+if ($ChangedPathsFile) { $verifyArgs += @("-ChangedPathsFile", $ChangedPathsFile) }
 
 $verifyOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verifyScript @verifyArgs
 $verifyCode = $LASTEXITCODE
@@ -277,7 +285,7 @@ if ($PromoteIntegration -and $checkConclusion -eq "success") {
         "-RunBundle", $RunBundle,
         "-PromoteAsAcceptedTarget",
         "-IntegratedCommit", $(if ($IntegratedCommit) { $IntegratedCommit } else { $HeadSha }),
-        "-IntegratedTree", $(if ($IntegratedTree) { $IntegratedTree } else { $manifest.source_tree })
+        "-IntegratedTree", $(if ($IntegratedTree) { $IntegratedTree } else { $manifest.git.source_tree })
     )
     $publishTokenVariable = "CHIMALI_COVERAGE_PUBLISH_TOKEN"
     $previousPublishToken = [Environment]::GetEnvironmentVariable($publishTokenVariable, "Process")

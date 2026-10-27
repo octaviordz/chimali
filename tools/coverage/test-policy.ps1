@@ -311,6 +311,15 @@ foreach ($file in $fixtureFiles) {
                         $errorMsg = "Expected reusable=$($case.expected_reusable), got $($baseEval.Reusable)"
                     }
                 }
+                "trusted-comparison.json" {
+                    $comparison = Test-TrustedComparisonManifest -CandidateManifest $case.candidate -BaselineManifest $case.baseline
+                    if ($comparison.IsValid -eq $case.expected_valid) {
+                        if (-not $case.expected_error -or ($comparison.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
+                        else { $errorMsg = "Expected error '$($case.expected_error)', got: $($comparison.Errors -join '; ')" }
+                    } else {
+                        $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($comparison.IsValid). Errors: $($comparison.Errors -join '; ')"
+                    }
+                }
                 "archive-lifecycle.json" {
                     $archEval = Test-ArchiveLifecycleCase -Case $case
                     if ($case.PSObject.Properties['expected_success']) {

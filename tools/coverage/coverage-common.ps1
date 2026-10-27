@@ -94,6 +94,20 @@ function Get-FileSha256 {
     return (Get-FileHash -Path $Path -Algorithm SHA256).Hash.ToLower()
 }
 
+function Get-CoverageBundleDigest {
+    param([Parameter(Mandatory = $true)][string]$BundlePath)
+    if (-not (Test-Path -LiteralPath $BundlePath -PathType Container)) { throw "Bundle directory not found: $BundlePath" }
+    $root = [System.IO.Path]::GetFullPath($BundlePath)
+    $content = ''
+    foreach ($file in (Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName)) {
+        $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+        $content += "${relative}:$(Get-FileSha256 -Path $file.FullName);"
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($content))).Replace("-", "").ToLowerInvariant() }
+    finally { $sha.Dispose() }
+}
+
 function Test-ExactFloorRatio {
     param(
         [Parameter(Mandatory = $true)]$Covered,
@@ -792,6 +806,46 @@ function Test-CandidateManifestIdentity {
         TargetCommit = $targetCommit
         Errors = $errors
     }
+}
+
+function Test-TrustedComparisonManifest {
+    param(
+        [Parameter(Mandatory = $true)]$CandidateManifest,
+        [Parameter(Mandatory = $true)]$BaselineManifest
+    )
+
+    $errors = @()
+    $candidateTarget = [string]$CandidateManifest.git.target_commit
+    $baselineSource = [string]$BaselineManifest.git.source_commit
+    if ([string]::IsNullOrWhiteSpace($candidateTarget) -or [string]::IsNullOrWhiteSpace($baselineSource) -or $baselineSource -ne $candidateTarget) {
+        $errors += "Baseline git.source_commit ('$baselineSource') does not match candidate git.target_commit ('$candidateTarget')"
+    }
+    if ($BaselineManifest.decisions.collection -ne 'Complete') {
+        $errors += "Baseline collection must be explicitly Complete"
+    }
+    if ($BaselineManifest.decisions.tests -ne 'Passed') {
+        $errors += "Baseline tests must be explicitly Passed"
+    }
+    if (-not $BaselineManifest.policy_id -or $BaselineManifest.policy_id -ne $CandidateManifest.policy_id) {
+        $errors += "Baseline and candidate policy_id values must be present and equal"
+    }
+    if ($BaselineManifest.policy_fingerprint -or $CandidateManifest.policy_fingerprint) {
+        if (-not $BaselineManifest.policy_fingerprint -or -not $CandidateManifest.policy_fingerprint -or $BaselineManifest.policy_fingerprint -ne $CandidateManifest.policy_fingerprint) {
+            $errors += "Baseline and candidate policy fingerprints must be present and equal when either is supplied"
+        }
+    }
+    if (-not $BaselineManifest.suites -or @($BaselineManifest.suites).Count -eq 0) {
+        $errors += "Baseline must contain required suite outcome records"
+    } else {
+        foreach ($suite in $BaselineManifest.suites) {
+            $outcome = Test-SuiteOutcome -SuiteResult $suite
+            if ($outcome.Status -ne 'Passed') {
+                $errors += "Baseline suite '$($suite.suite_name)' is not Passed: $($outcome.Reasons -join '; ')"
+            }
+        }
+    }
+
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
 function Test-ComparisonCase {

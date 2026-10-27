@@ -524,19 +524,16 @@ if ($ComparisonBundle) {
     $compManifestPath = Join-Path $ComparisonBundle "manifest.json"
     $compManifest = if (Test-Path $compManifestPath) { Read-SafeJson -Path $compManifestPath } else { $null }
 
-    if ($compManifest) {
-        # Check baseline test eligibility
-        if ($compManifest.decisions -and $compManifest.decisions.tests -eq "Failed") {
-            $comparisonCompatibility = "IneligibleBaseline"
-            $regressionPassed = $false
-            $reasons += "Comparison baseline is ineligible because required tests failed in baseline run"
-        }
-
-        # Check policy fingerprint compatibility
-        if ($compManifest.policy_fingerprint -and $manifest.policy_fingerprint -and ($compManifest.policy_fingerprint -ne $manifest.policy_fingerprint)) {
+    if (-not $compManifest) {
+        $comparisonCompatibility = "Incompatible"
+        $regressionPassed = $false
+        $reasons += "Comparison baseline manifest is missing"
+    } else {
+        $baselineValidation = Test-TrustedComparisonManifest -CandidateManifest $manifest -BaselineManifest $compManifest
+        if (-not $baselineValidation.IsValid) {
             $comparisonCompatibility = "Incompatible"
             $regressionPassed = $false
-            $reasons += "Comparison baseline has incompatible policy fingerprint: $($compManifest.policy_fingerprint) vs $($manifest.policy_fingerprint)"
+            $reasons += $baselineValidation.Errors
         }
     }
 
@@ -547,7 +544,13 @@ if ($ComparisonBundle) {
     }
     $compCounters = Read-SafeJson -Path $compCountersPath
 
-    if ($comparisonCompatibility -ne "Incompatible" -and $comparisonCompatibility -ne "IneligibleBaseline") {
+    if (-not $compCounters.analyzer_identity -or -not $countersData.analyzer_identity -or $compCounters.analyzer_identity -ne $countersData.analyzer_identity) {
+        $comparisonCompatibility = "Incompatible"
+        $regressionPassed = $false
+        $reasons += "Baseline and candidate analyzer identities must be present and equal"
+    }
+
+    if ($comparisonCompatibility -eq "Missing") {
         $comparisonCompatibility = "Compatible"
     }
 
@@ -559,7 +562,7 @@ if ($ComparisonBundle) {
         $explicitAffected = @()
         foreach ($line in $changedLines) {
             $normLine = $line.Trim().Replace("\", "/")
-            if ($normLine -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/)' -or $normLine -eq "tools/coverage/policy.json") {
+            if ($normLine -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/|\.github/|\.agents/|\.specify/|buildSrc/)' -or $normLine -in @('gradle.properties', 'gradlew', 'gradlew.bat', 'tools/coverage/policy.json')) {
                 $sharedRootChange = $true
                 break
             }

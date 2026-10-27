@@ -74,6 +74,8 @@ if (-not (Test-Path $manifestPath)) {
 
 $manifest = Read-SafeJson -Path $manifestPath
 $runId = $manifest.run_id
+$testedCommit = [string]$manifest.git.source_commit
+$testedTree = [string]$manifest.git.source_tree
 
 if (-not $runId) {
     Write-Error "manifest.json is missing run_id"
@@ -237,16 +239,16 @@ try {
 
     # If promoting as accepted target, verify tree and update index
     if ($PromoteAsAcceptedTarget) {
+        if ([string]::IsNullOrWhiteSpace($testedCommit) -or [string]::IsNullOrWhiteSpace($testedTree)) {
+            Write-Error "manifest.git.source_commit and manifest.git.source_tree are required for promotion"
+            exit 1
+        }
         if (-not $IntegratedTree) {
             Write-Error "IntegratedTree is required when promoting as accepted target"
             exit 1
         }
-        if (-not $manifest.source_tree) {
-            Write-Error "manifest.source_tree is required in run manifest for promotion"
-            exit 1
-        }
-        if ($manifest.source_tree -ne $IntegratedTree) {
-            Write-Error "Integrated tree ($IntegratedTree) does not match tested candidate tree ($($manifest.source_tree)); fresh complete coverage capture required"
+        if ($testedTree -ne $IntegratedTree) {
+            Write-Error "Integrated tree ($IntegratedTree) does not match tested candidate tree ($testedTree); fresh complete coverage capture required"
             exit 1
         }
 
@@ -255,11 +257,11 @@ try {
             New-Item -ItemType Directory -Path $baselinesDir -Force | Out-Null
         }
         $acceptedIndex = [PSCustomObject]@{
-            tested_commit = $manifest.source_commit
-            integrated_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
+            tested_commit = $testedCommit
+            integrated_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $testedCommit }
             target_tree = $IntegratedTree
-            tested_tree = $manifest.source_tree
-            target_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $manifest.source_commit }
+            tested_tree = $testedTree
+            target_commit = if ($IntegratedCommit) { $IntegratedCommit } else { $testedCommit }
             run_id = $runId
             archive_branch = $EvidenceBranch
             bundle_path = "runs/$runId"
@@ -350,7 +352,7 @@ try {
     }
     if ($PromoteAsAcceptedTarget) {
         $receipt | Add-Member -MemberType NoteProperty -Name "promoted_as_accepted_target" -Value $true
-        $receipt | Add-Member -MemberType NoteProperty -Name "tested_commit" -Value $manifest.source_commit
+        $receipt | Add-Member -MemberType NoteProperty -Name "tested_commit" -Value $testedCommit
         $receipt | Add-Member -MemberType NoteProperty -Name "integrated_commit" -Value $IntegratedCommit
         $receipt | Add-Member -MemberType NoteProperty -Name "integrated_tree" -Value $IntegratedTree
     }

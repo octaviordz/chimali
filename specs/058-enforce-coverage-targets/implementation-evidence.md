@@ -1067,3 +1067,18 @@ Historical startup verification; the runner was subsequently disabled at the own
 
 
 
+
+### 11.45 Convergence remediation tooling changes (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Enforce trusted accepted-target comparison and exact nested manifest identities, pass changed production paths into Tier 1 regression scoping, and fail closed on stale targets (FR-012/014/015/017; SC-003/006/007). |
+| `scope` | Updated `integration-ci.ps1` to require a live remote target matching the frozen local target, validate the accepted-baseline index provenance/target/path/run ID/digest and the baseline's complete/passed suite evidence, bind the baseline source commit to the candidate target, and supply target-to-candidate changed paths to `verify.ps1`. Updated `verify.ps1` to reject missing/incomplete/failed/mismatched baselines and analyzer identities, and to expand shared build/tool/policy/workflow changes to all Tier 1 modules. Updated `report.ps1` to validate nested source/target commits and accept only supported comparison/changed-path verifier arguments. Updated `publish.ps1` to use nested tested commit/tree values and require exact tree equality before promotion. Added four comparison-manifest fixtures. |
+| `revision` | Working tree changes are uncommitted. No commit or hosted workflow execution is claimed. |
+| `named_procedure` | Parsed six changed PowerShell scripts with the PowerShell AST parser; ran `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1`; ran `git diff --check`. |
+| `environment` | Windows PowerShell 7 runtime in the Chimali repository workspace, 2026-10-27. |
+| `expected_observed_result` | All six changed PowerShell scripts parsed without syntax errors. Coverage policy fixture suite: 94 passed, 0 failed. `git diff --check` passed; Git reported only the existing tasks document line-ending normalization warning. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | No full `integration-ci.ps1` run, fresh device capture, archive retrieval, App publication, promotion, or protected hosted check was executed. The production entry-point scenarios, current accepted-baseline setup, and live remote target behavior still need integration verification; T109–T111 remain unchecked. T046–T049 and T089 remain owner-waived. |
+| `status` | Code changes and deterministic fixture validation are complete for this pass; end-to-end acceptance of T109–T111 remains open pending production-entry-point verification. No hosted acceptance is claimed. |
+| `artifact_link` | `tools/coverage/fixtures/trusted-comparison.json`; `tools/coverage/test-policy.ps1` output (94/94); changed source files under `tools/coverage/` and `tools/integration-ci.ps1`. |

@@ -19,6 +19,8 @@
     Required evidence directory outside the measured checkout.
 .PARAMETER BaselineBundle
     Optional archived baseline bundle directory for comparison.
+.PARAMETER RemoteName
+    Git remote whose live target ref must match TargetRef. Defaults to origin.
 #>
 [CmdletBinding()]
 param(
@@ -41,7 +43,10 @@ param(
     [string]$EvidenceRoot,
 
     [Parameter(Mandatory = $false)]
-    [string]$BaselineBundle
+    [string]$BaselineBundle,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RemoteName = 'origin'
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,6 +84,21 @@ Push-Location $RepositoryRoot
 try {
     $candidateSha = (git rev-parse $CandidateRef).Trim()
     $targetSha = (git rev-parse $TargetRef).Trim()
+
+    $targetRemoteRef = if ($TargetRef.StartsWith("refs/remotes/$RemoteName/")) {
+        'refs/heads/' + $TargetRef.Substring("refs/remotes/$RemoteName/".Length)
+    } elseif ($TargetRef.StartsWith("$RemoteName/")) {
+        'refs/heads/' + $TargetRef.Substring("$RemoteName/".Length)
+    } elseif ($TargetRef.StartsWith('refs/')) { $TargetRef } else { "refs/heads/$TargetRef" }
+    if ($targetSha -match '^[0-9a-fA-F]{40,64}$') {
+        throw "TargetRef must name a live remote branch/ref so freshness can be verified; a commit SHA alone is insufficient."
+    }
+    $remoteTargetOutput = @(git ls-remote $RemoteName $targetRemoteRef 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to resolve live remote target '$targetRemoteRef': $($remoteTargetOutput -join ' ')" }
+    $remoteTargetSha = if ($remoteTargetOutput.Count -gt 0) { (($remoteTargetOutput[0] -split '\s+')[0]).Trim() } else { '' }
+    if (-not $remoteTargetSha -or $remoteTargetSha -ne $targetSha) {
+        throw "TargetRef '$TargetRef' is stale or missing locally (local=$targetSha, remote=$remoteTargetSha); fetch and retry against the live target."
+    }
 
     # Verify target is ancestor of candidate
     git merge-base --is-ancestor $targetSha $candidateSha
@@ -156,18 +176,55 @@ $policyPath = Join-Path $CoverageDir "policy.json"
 $assessmentsDir = Join-Path (Join-Path $EvidenceRoot "assessments") $manifest.run_id
 
 $effectiveBaseline = $BaselineBundle
-if (-not $effectiveBaseline) {
-    $localCurrent = Join-Path (Join-Path $EvidenceRoot "baselines") "current.json"
-    if (Test-Path $localCurrent) {
-        $curr = Read-SafeJson -Path $localCurrent
-        if ($curr.target_commit -eq $targetSha -and $curr.bundle_path) {
-            $candidateBaseline = Join-Path $EvidenceRoot $curr.bundle_path
-            if (Test-Path $candidateBaseline) {
-                $effectiveBaseline = $candidateBaseline
-            }
-        }
-    }
+$localCurrent = Join-Path (Join-Path $EvidenceRoot "baselines") "current.json"
+if (-not (Test-Path $localCurrent)) {
+    Write-Error "No accepted baseline index exists at '$localCurrent'; publish or measure the exact target before comparison."
+    exit 2
 }
+$curr = Read-SafeJson -Path $localCurrent
+if ($curr.provenance -notin @('ArchivedAcceptedRun', 'MeasuredAcceptedTarget') -or $curr.target_commit -ne $targetSha -or -not $curr.bundle_path -or -not $curr.run_id) {
+    Write-Error "Accepted baseline index has unsupported provenance or does not match the frozen target $targetSha."
+    exit 2
+}
+if ($curr.bundle_path -match '(^|[/\\])\.\.([/\\]|$)' -or [System.IO.Path]::IsPathRooted([string]$curr.bundle_path)) {
+    Write-Error "Accepted baseline index bundle_path must be a relative path contained under EvidenceRoot."
+    exit 2
+}
+$indexedBaseline = [System.IO.Path]::GetFullPath((Join-Path $EvidenceRoot $curr.bundle_path))
+$canonicalEvidence = [System.IO.Path]::GetFullPath($EvidenceRoot).TrimEnd('\', '/')
+if (-not $indexedBaseline.StartsWith($canonicalEvidence + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Error "Accepted baseline bundle resolves outside EvidenceRoot."
+    exit 2
+}
+if ($effectiveBaseline -and [System.IO.Path]::GetFullPath($effectiveBaseline) -ne $indexedBaseline) {
+    Write-Error "Caller-supplied BaselineBundle does not match the independently indexed accepted baseline."
+    exit 2
+}
+$effectiveBaseline = $indexedBaseline
+if (-not (Test-Path (Join-Path $effectiveBaseline 'manifest.json'))) {
+    Write-Error "Indexed accepted baseline bundle is missing: $effectiveBaseline"
+    exit 2
+}
+$actualBaselineDigest = Get-CoverageBundleDigest -BundlePath $effectiveBaseline
+if (-not $curr.bundle_digest -or $actualBaselineDigest -ne $curr.bundle_digest) {
+    Write-Error "Accepted baseline bundle digest does not match its index; restore the indexed immutable bundle or measure the target again."
+    exit 2
+}
+$baselineManifest = Read-SafeJson -Path (Join-Path $effectiveBaseline 'manifest.json')
+$baselineIdentity = Test-TrustedComparisonManifest -CandidateManifest $manifest -BaselineManifest $baselineManifest
+if (-not $baselineIdentity.IsValid -or $baselineManifest.run_id -ne $curr.run_id) {
+    Write-Error "Indexed baseline failed provenance/identity validation: $($baselineIdentity.Errors -join '; ')"
+    exit 2
+}
+
+$changedPathsFile = Join-Path $assessmentsDir 'changed-paths.txt'
+New-Item -ItemType Directory -Path $assessmentsDir -Force | Out-Null
+Push-Location $RepositoryRoot
+try {
+    $changedPaths = @(git diff --name-only $targetSha $candidateSha)
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to compute target-to-candidate changed paths.' }
+    $changedPaths | Set-Content -LiteralPath $changedPathsFile -Encoding utf8
+} finally { Pop-Location }
 
 $verifyArgs = @(
     "-NoProfile",
@@ -180,6 +237,7 @@ $verifyArgs = @(
 if ($effectiveBaseline) {
     $verifyArgs += @("-ComparisonBundle", $effectiveBaseline)
 }
+$verifyArgs += @("-ChangedPathsFile", $changedPathsFile)
 
 & pwsh @verifyArgs
 $verifyCode = $LASTEXITCODE
@@ -189,7 +247,10 @@ Push-Location $RepositoryRoot
 try {
     $postCandidateSha = (git rev-parse $CandidateRef).Trim()
     $postTargetSha = (git rev-parse $TargetRef).Trim()
-    if ($postCandidateSha -ne $candidateSha -or $postTargetSha -ne $targetSha) {
+    $postRemoteOutput = @(git ls-remote $RemoteName $targetRemoteRef 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to revalidate live remote target '$targetRemoteRef'." }
+    $postRemoteSha = if ($postRemoteOutput.Count -gt 0) { (($postRemoteOutput[0] -split '\s+')[0]).Trim() } else { '' }
+    if ($postCandidateSha -ne $candidateSha -or $postTargetSha -ne $targetSha -or $postRemoteSha -ne $targetSha) {
         Write-Error "Git head or target advanced during integration verification! Candidate: $postCandidateSha (was $candidateSha), Target: $postTargetSha (was $targetSha)"
         exit 1
     }

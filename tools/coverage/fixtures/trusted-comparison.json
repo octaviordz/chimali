@@ -1,0 +1,33 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Production comparison baseline identity and completeness checks",
+  "cases": [
+    {
+      "id": "TRUSTED_COMP_001_VALID_BASELINE",
+      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Complete", "tests": "Passed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 0, "errors": 0 } ] },
+      "expected_valid": true
+    },
+    {
+      "id": "TRUSTED_COMP_002_WRONG_SOURCE_COMMIT",
+      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }, "decisions": { "collection": "Complete", "tests": "Passed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 0, "errors": 0 } ] },
+      "expected_valid": false,
+      "expected_error": "does not match candidate git.target_commit"
+    },
+    {
+      "id": "TRUSTED_COMP_003_FAILED_TESTS",
+      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Complete", "tests": "Failed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 1, "errors": 0 } ] },
+      "expected_valid": false,
+      "expected_error": "Baseline tests must be explicitly Passed"
+    },
+    {
+      "id": "TRUSTED_COMP_004_INCOMPLETE_BASELINE",
+      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Incomplete", "tests": "Passed" }, "suites": [] },
+      "expected_valid": false,
+      "expected_error": "collection must be explicitly Complete"
+    }
+  ]
+}
