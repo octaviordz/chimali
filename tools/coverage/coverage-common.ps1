@@ -865,6 +865,27 @@ function Test-AcceptedBaselineIndex {
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
+function ConvertTo-RemoteTargetRef {
+    param(
+        [Parameter(Mandatory = $true)][string]$TargetRef,
+        [Parameter(Mandatory = $true)][string]$RemoteName
+    )
+
+    if ($TargetRef -match '^[0-9a-fA-F]{40,64}$') {
+        return @{ IsValid = $false; Ref = $null; Error = 'TargetRef must name a live remote branch/ref; a commit SHA alone is insufficient.' }
+    }
+    if ($TargetRef.StartsWith("refs/remotes/$RemoteName/")) {
+        return @{ IsValid = $true; Ref = 'refs/heads/' + $TargetRef.Substring("refs/remotes/$RemoteName/".Length); Error = $null }
+    }
+    if ($TargetRef.StartsWith("$RemoteName/")) {
+        return @{ IsValid = $true; Ref = 'refs/heads/' + $TargetRef.Substring("$RemoteName/".Length); Error = $null }
+    }
+    if ($TargetRef.StartsWith('refs/')) {
+        return @{ IsValid = $true; Ref = $TargetRef; Error = $null }
+    }
+    return @{ IsValid = $true; Ref = "refs/heads/$TargetRef"; Error = $null }
+}
+
 function Get-AffectedTier1Modules {
     param(
         [Parameter(Mandatory = $true)]$Policy,

@@ -348,6 +348,15 @@ foreach ($file in $fixtureFiles) {
                         $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($promotion.IsValid). Errors: $($promotion.Errors -join '; ')"
                     }
                 }
+                "remote-target-ref.json" {
+                    $targetRef = ConvertTo-RemoteTargetRef -TargetRef $case.target_ref -RemoteName $case.remote_name
+                    if ($targetRef.IsValid -eq $case.expected_valid -and $targetRef.Ref -eq $case.expected_ref) {
+                        if (-not $case.expected_error -or $targetRef.Error -eq $case.expected_error) { $casePassed = $true }
+                        else { $errorMsg = "Expected error '$($case.expected_error)', got '$($targetRef.Error)'" }
+                    } else {
+                        $errorMsg = "Expected valid=$($case.expected_valid) ref='$($case.expected_ref)', got valid=$($targetRef.IsValid) ref='$($targetRef.Ref)'"
+                    }
+                }
                 "archive-lifecycle.json" {
                     $archEval = Test-ArchiveLifecycleCase -Case $case
                     if ($case.PSObject.Properties['expected_success']) {

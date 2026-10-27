@@ -85,14 +85,9 @@ try {
     $candidateSha = (git rev-parse $CandidateRef).Trim()
     $targetSha = (git rev-parse $TargetRef).Trim()
 
-    $targetRemoteRef = if ($TargetRef.StartsWith("refs/remotes/$RemoteName/")) {
-        'refs/heads/' + $TargetRef.Substring("refs/remotes/$RemoteName/".Length)
-    } elseif ($TargetRef.StartsWith("$RemoteName/")) {
-        'refs/heads/' + $TargetRef.Substring("$RemoteName/".Length)
-    } elseif ($TargetRef.StartsWith('refs/')) { $TargetRef } else { "refs/heads/$TargetRef" }
-    if ($targetSha -match '^[0-9a-fA-F]{40,64}$') {
-        throw "TargetRef must name a live remote branch/ref so freshness can be verified; a commit SHA alone is insufficient."
-    }
+    $remoteTargetRef = ConvertTo-RemoteTargetRef -TargetRef $TargetRef -RemoteName $RemoteName
+    if (-not $remoteTargetRef.IsValid) { throw $remoteTargetRef.Error }
+    $targetRemoteRef = $remoteTargetRef.Ref
     $remoteTargetOutput = @(git ls-remote $RemoteName $targetRemoteRef 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "Unable to resolve live remote target '$targetRemoteRef': $($remoteTargetOutput -join ' ')" }
     $remoteTargetSha = if ($remoteTargetOutput.Count -gt 0) { (($remoteTargetOutput[0] -split '\s+')[0]).Trim() } else { '' }

@@ -1,0 +1,42 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Live target branch ref normalization and SHA-only rejection",
+  "cases": [
+    {
+      "id": "REMOTE_TARGET_001_REMOTE_TRACKING_NAME",
+      "target_ref": "origin/lab/or/chimali",
+      "remote_name": "origin",
+      "expected_valid": true,
+      "expected_ref": "refs/heads/lab/or/chimali"
+    },
+    {
+      "id": "REMOTE_TARGET_002_FULL_REMOTE_TRACKING_REF",
+      "target_ref": "refs/remotes/upstream/main",
+      "remote_name": "upstream",
+      "expected_valid": true,
+      "expected_ref": "refs/heads/main"
+    },
+    {
+      "id": "REMOTE_TARGET_003_BRANCH_NAME",
+      "target_ref": "main",
+      "remote_name": "origin",
+      "expected_valid": true,
+      "expected_ref": "refs/heads/main"
+    },
+    {
+      "id": "REMOTE_TARGET_004_EXPLICIT_REMOTE_REF",
+      "target_ref": "refs/heads/release",
+      "remote_name": "origin",
+      "expected_valid": true,
+      "expected_ref": "refs/heads/release"
+    },
+    {
+      "id": "REMOTE_TARGET_005_SHA_ONLY_REJECTED",
+      "target_ref": "fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2",
+      "remote_name": "origin",
+      "expected_valid": false,
+      "expected_ref": null,
+      "expected_error": "TargetRef must name a live remote branch/ref; a commit SHA alone is insufficient."
+    }
+  ]
+}
