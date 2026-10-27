@@ -1,0 +1,36 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Changed-path Tier 1 regression scoping",
+  "cases": [
+    {
+      "id": "CHANGED_PATH_001_SINGLE_MODULE",
+      "paths_provided": true,
+      "paths": ["core/security/src/main/Example.kt"],
+      "expected_modules": [":core:security"]
+    },
+    {
+      "id": "CHANGED_PATH_002_TWO_MODULES",
+      "paths_provided": true,
+      "paths": ["core/data/src/commonMain/Example.kt", "feature/fido2/src/commonMain/Example.kt"],
+      "expected_modules": [":core:data", ":feature:fido2"]
+    },
+    {
+      "id": "CHANGED_PATH_003_SHARED_TOOL_CHANGE_EXPANDS_ALL",
+      "paths_provided": true,
+      "paths": ["tools/coverage/verify.ps1"],
+      "expected_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"]
+    },
+    {
+      "id": "CHANGED_PATH_004_EMPTY_CHANGESET_GATES_NONE",
+      "paths_provided": true,
+      "paths": [],
+      "expected_modules": []
+    },
+    {
+      "id": "CHANGED_PATH_005_NO_CHANGESET_FALLS_BACK_TO_ALL",
+      "paths_provided": false,
+      "paths": [],
+      "expected_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"]
+    }
+  ]
+}

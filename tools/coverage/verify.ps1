@@ -554,31 +554,10 @@ if ($ComparisonBundle) {
         $comparisonCompatibility = "Compatible"
     }
 
-    # Derive affected Tier 1 modules based on ChangedPathsFile if supplied
-    $affectedTier1 = @($policy.tier1_modules)
-    if ($ChangedPathsFile -and (Test-Path $ChangedPathsFile)) {
-        $changedLines = Get-Content -Path $ChangedPathsFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-        $sharedRootChange = $false
-        $explicitAffected = @()
-        foreach ($line in $changedLines) {
-            $normLine = $line.Trim().Replace("\", "/")
-            if ($normLine -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/|\.github/|\.agents/|\.specify/|buildSrc/)' -or $normLine -in @('gradle.properties', 'gradlew', 'gradlew.bat', 'tools/coverage/policy.json')) {
-                $sharedRootChange = $true
-                break
-            }
-            foreach ($mPath in $policy.tier1_modules) {
-                $dirPrefix = $mPath.Replace(":", "/").TrimStart("/") + "/"
-                if ($normLine.StartsWith($dirPrefix)) {
-                    if ($mPath -notin $explicitAffected) {
-                        $explicitAffected += $mPath
-                    }
-                }
-            }
-        }
-        if (-not $sharedRootChange) {
-            $affectedTier1 = $explicitAffected
-        }
-    }
+    # Derive affected Tier 1 modules based on the verified changed-path set.
+    $changedPathsProvided = [bool]($ChangedPathsFile -and (Test-Path $ChangedPathsFile))
+    $changedLines = if ($changedPathsProvided) { @(Get-Content -Path $ChangedPathsFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { @() }
+    $affectedTier1 = Get-AffectedTier1Modules -Policy $policy -ChangedPaths $changedLines -ChangedPathsProvided $changedPathsProvided
 
     $regressionStatus = if ($regressionPassed) { "Passed" } else { "Failed" }
 

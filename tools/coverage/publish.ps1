@@ -239,18 +239,18 @@ try {
 
     # If promoting as accepted target, verify tree and update index
     if ($PromoteAsAcceptedTarget) {
-        if ([string]::IsNullOrWhiteSpace($testedCommit) -or [string]::IsNullOrWhiteSpace($testedTree)) {
-            Write-Error "manifest.git.source_commit and manifest.git.source_tree are required for promotion"
-            exit 1
-        }
         if (-not $IntegratedTree) {
             Write-Error "IntegratedTree is required when promoting as accepted target"
             exit 1
         }
-        if ($testedTree -ne $IntegratedTree) {
-            Write-Error "Integrated tree ($IntegratedTree) does not match tested candidate tree ($testedTree); fresh complete coverage capture required"
+        $promotionIdentity = Test-PromotionIdentity -Manifest $manifest -IntegratedTree $IntegratedTree -IntegratedCommit $IntegratedCommit
+        if (-not $promotionIdentity.IsValid) {
+            Write-Error "Promotion identity validation failed: $($promotionIdentity.Errors -join '; ')"
             exit 1
         }
+        $testedCommit = $promotionIdentity.TestedCommit
+        $testedTree = $promotionIdentity.TestedTree
+        $IntegratedCommit = $promotionIdentity.IntegratedCommit
 
         $baselinesDir = Join-Path $tempWorktree "baselines"
         if (-not (Test-Path $baselinesDir)) {

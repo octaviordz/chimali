@@ -1082,3 +1082,33 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | No full `integration-ci.ps1` run, fresh device capture, archive retrieval, App publication, promotion, or protected hosted check was executed. The production entry-point scenarios, current accepted-baseline setup, and live remote target behavior still need integration verification; T109–T111 remain unchecked. T046–T049 and T089 remain owner-waived. |
 | `status` | Code changes and deterministic fixture validation are complete for this pass; end-to-end acceptance of T109–T111 remains open pending production-entry-point verification. No hosted acceptance is claimed. |
 | `artifact_link` | `tools/coverage/fixtures/trusted-comparison.json`; `tools/coverage/test-policy.ps1` output (94/94); changed source files under `tools/coverage/` and `tools/integration-ci.ps1`. |
+
+### 11.46 T109–T111 expanded deterministic verification (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Verify accepted baseline provenance and exact target/source identity, changed Tier 1 scoping, and nested candidate/promotion identities (FR-012/014/015/017; SC-003/006/007). |
+| `scope` | Added production helper checks and fixtures for accepted-index provenance, target, path traversal and digest; valid/mismatched/incomplete/failed baseline manifests; single-module, multi-module, shared-change, empty and fallback changed-path scopes; and nested promotion-tree identity. Replayed the retained T108 Candidate run against the retained current-target Comparison bundle through the changed production `verify.ps1`. |
+| `revision` | Local changes remain uncommitted. Candidate bundle source `8c733f106e8cd8b3bcf0fc2b6a3a7577181ef38e`; target/baseline source `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`. |
+| `named_procedure` | PowerShell AST parse of six scripts; `tools/coverage/test-policy.ps1`; direct `verify.ps1 -RunBundle ... -ComparisonBundle ... -ChangedPathsFile ...`; independent recomputation of the accepted baseline bundle digest; `git diff --check`. |
+| `environment` | Windows PowerShell 7 runtime in the Chimali repository workspace; retained external coverage bundles at `D:/octav/coverage-local-validation`; 2026-10-27. |
+| `expected_observed_result` | Fixture suite: 108 passed, 0 failed. Direct verification passed collection, tests, floors, baseline compatibility and regression (`overall_passed = true`). Coverage bundle digest helper matched an independent recomputation (`1e66af4f40ba33cccb6cfe35368615dab38b0f6235832346771342ab2cf4bee5`). PowerShell syntax and whitespace checks passed. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | Full `integration-ci.ps1` was not run: the evidence root has no accepted `baselines/current.json` index, and the current source tree is modified. Live remote target freshness and the changed wrapper/report/promotion flows have not been exercised end to end. No new device capture, archive write/read-back, GitHub App call, promotion, or hosted check was performed. T109–T111 remain open pending those production-entry-point checks; T046–T049 and T089 remain owner-waived. |
+| `status` | Deterministic baseline, changed-path, promotion-identity and real retained-bundle verification passed. Local orchestration and hosted operations remain unverified; no acceptance claim is made for T109–T111. |
+| `artifact_link` | `tools/coverage/fixtures/accepted-baseline-index.json`; `tools/coverage/fixtures/trusted-comparison.json`; `tools/coverage/fixtures/changed-paths.json`; `tools/coverage/fixtures/promotion-identity.json`; `D:/octav/coverage-local-validation/assessments/convergence-final-5df3d5d5ea2e4d0da19cea52c5478fc5/decision.json`. |
+
+### 11.47 Local accepted-target index bootstrap (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Make the existing complete measured target run discoverable through the local accepted-baseline index required by T109. |
+| `scope` | Created `D:/octav/coverage-local-validation/baselines/current.json` from the retained target Comparison run after checking its nested source commit, Complete collection, Passed tests, and bundle digest. The index identifies provenance as `MeasuredAcceptedTarget`, uses relative bundle path `runs/10b510ad-4638-4107-9fe6-91efdbbf9827`, and binds target commit `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`. |
+| `revision` | Target commit `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`; baseline run `10b510ad-4638-4107-9fe6-91efdbbf9827`. Index is external local evidence, not a repository source change. |
+| `named_procedure` | Validated baseline `manifest.json`, computed `Get-CoverageBundleDigest`, wrote the local index once without overwrite, reloaded it, and validated it with `Test-AcceptedBaselineIndex`. |
+| `environment` | Windows PowerShell 7; `D:/octav/coverage-local-validation`; 2026-10-27. No GitHub API or network request. |
+| `expected_observed_result` | Index created and revalidated successfully; bundle provenance, target commit, run ID, and SHA-256 digest are bound. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | The full integration wrapper remains unrun because source changes are uncommitted and live remote target freshness has not been checked. The index is a local measurement record; it is not a hosted archive receipt. |
+| `status` | Local accepted-target index bootstrap complete. T109–T111 remain open pending clean-revision production entry-point verification; hosted operations remain unverified/waived. |
+| `artifact_link` | `D:/octav/coverage-local-validation/baselines/current.json`; target bundle manifest `D:/octav/coverage-local-validation/runs/10b510ad-4638-4107-9fe6-91efdbbf9827/manifest.json`. |

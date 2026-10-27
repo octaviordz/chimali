@@ -1,0 +1,42 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Accepted baseline index provenance, target and bundle digest checks",
+  "cases": [
+    {
+      "id": "BASE_INDEX_001_VALID_ARCHIVED",
+      "index": { "provenance": "ArchivedAcceptedRun", "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-1", "bundle_path": "runs/run-1", "bundle_digest": "digest" },
+      "expected_target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "actual_digest": "digest",
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_INDEX_002_WRONG_TARGET",
+      "index": { "provenance": "MeasuredAcceptedTarget", "target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "run_id": "run-1", "bundle_path": "runs/run-1", "bundle_digest": "digest" },
+      "expected_target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_valid": false,
+      "expected_error": "does not match"
+    },
+    {
+      "id": "BASE_INDEX_003_UNTRUSTED_PROVENANCE",
+      "index": { "provenance": "CandidateSuppliedPath", "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-1", "bundle_path": "runs/run-1", "bundle_digest": "digest" },
+      "expected_target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_valid": false,
+      "expected_error": "Unsupported accepted baseline provenance"
+    },
+    {
+      "id": "BASE_INDEX_004_PATH_TRAVERSAL",
+      "index": { "provenance": "ArchivedAcceptedRun", "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-1", "bundle_path": "../elsewhere", "bundle_digest": "digest" },
+      "expected_target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_valid": false,
+      "expected_error": "contained relative path"
+    },
+    {
+      "id": "BASE_INDEX_005_DIGEST_MISMATCH",
+      "index": { "provenance": "ArchivedAcceptedRun", "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-1", "bundle_path": "runs/run-1", "bundle_digest": "old-digest" },
+      "expected_target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "actual_digest": "new-digest",
+      "expected_valid": false,
+      "expected_error": "digest does not match"
+    }
+  ]
+}

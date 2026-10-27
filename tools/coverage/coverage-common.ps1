@@ -848,6 +848,66 @@ function Test-TrustedComparisonManifest {
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
+function Test-AcceptedBaselineIndex {
+    param(
+        [Parameter(Mandatory = $true)]$Index,
+        [Parameter(Mandatory = $true)][string]$ExpectedTargetCommit,
+        [Parameter(Mandatory = $false)][string]$ActualBundleDigest
+    )
+
+    $errors = @()
+    if ($Index.provenance -notin @('ArchivedAcceptedRun', 'MeasuredAcceptedTarget')) { $errors += "Unsupported accepted baseline provenance '$($Index.provenance)'" }
+    if ([string]::IsNullOrWhiteSpace([string]$Index.target_commit) -or $Index.target_commit -ne $ExpectedTargetCommit) { $errors += "Accepted baseline target does not match '$ExpectedTargetCommit'" }
+    if ([string]::IsNullOrWhiteSpace([string]$Index.run_id)) { $errors += 'Accepted baseline index is missing run_id' }
+    if ([string]::IsNullOrWhiteSpace([string]$Index.bundle_path) -or [System.IO.Path]::IsPathRooted([string]$Index.bundle_path) -or $Index.bundle_path -match '(^|[/\\])\.\.([/\\]|$)') { $errors += 'Accepted baseline bundle_path must be a contained relative path' }
+    if ($ActualBundleDigest -and (-not $Index.bundle_digest -or $Index.bundle_digest -ne $ActualBundleDigest)) { $errors += 'Accepted baseline bundle digest does not match its index' }
+
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Get-AffectedTier1Modules {
+    param(
+        [Parameter(Mandatory = $true)]$Policy,
+        [Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][string[]]$ChangedPaths,
+        [Parameter(Mandatory = $true)][bool]$ChangedPathsProvided
+    )
+
+    if (-not $ChangedPathsProvided) { return @($Policy.tier1_modules) }
+    $sharedChange = $false
+    $affected = @()
+    foreach ($line in $ChangedPaths) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $path = $line.Trim().Replace('\', '/')
+        if ($path -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/|\.github/|\.agents/|\.specify/|buildSrc/)' -or $path -in @('gradle.properties', 'gradlew', 'gradlew.bat')) {
+            $sharedChange = $true
+            break
+        }
+        foreach ($module in $Policy.tier1_modules) {
+            $prefix = $module.Replace(':', '/').TrimStart('/') + '/'
+            if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -and $module -notin $affected) { $affected += $module }
+        }
+    }
+    if ($sharedChange) { return @($Policy.tier1_modules) }
+    return @($affected)
+}
+
+function Test-PromotionIdentity {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)][string]$IntegratedTree,
+        [Parameter(Mandatory = $false)][string]$IntegratedCommit
+    )
+
+    $errors = @()
+    $testedCommit = [string]$Manifest.git.source_commit
+    $testedTree = [string]$Manifest.git.source_tree
+    if ($testedCommit -notmatch '^[0-9a-fA-F]{40,64}$') { $errors += 'manifest.git.source_commit must be a full commit SHA' }
+    if ($testedTree -notmatch '^[0-9a-fA-F]{40,64}$') { $errors += 'manifest.git.source_tree must be a full tree SHA' }
+    if ([string]::IsNullOrWhiteSpace($IntegratedTree) -or $IntegratedTree -ne $testedTree) { $errors += 'Integrated tree does not match tested manifest.git.source_tree' }
+    if ($IntegratedCommit -and $IntegratedCommit -notmatch '^[0-9a-fA-F]{40,64}$') { $errors += 'Integrated commit must be a full commit SHA' }
+    return @{ IsValid = ($errors.Count -eq 0); TestedCommit = $testedCommit; TestedTree = $testedTree; IntegratedCommit = if ($IntegratedCommit) { $IntegratedCommit } else { $testedCommit }; Errors = $errors }
+}
+
 function Test-ComparisonCase {
     param(
         [Parameter(Mandatory = $true)]$Case

@@ -320,6 +320,34 @@ foreach ($file in $fixtureFiles) {
                         $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($comparison.IsValid). Errors: $($comparison.Errors -join '; ')"
                     }
                 }
+                "accepted-baseline-index.json" {
+                    $indexEval = Test-AcceptedBaselineIndex -Index $case.index -ExpectedTargetCommit $case.expected_target -ActualBundleDigest $case.actual_digest
+                    if ($indexEval.IsValid -eq $case.expected_valid) {
+                        if (-not $case.expected_error -or ($indexEval.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
+                        else { $errorMsg = "Expected index error '$($case.expected_error)', got: $($indexEval.Errors -join '; ')" }
+                    } else {
+                        $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($indexEval.IsValid). Errors: $($indexEval.Errors -join '; ')"
+                    }
+                }
+                "changed-paths.json" {
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $pathsProvided = [bool]$case.paths_provided
+                    [string[]]$changed = @()
+                    if ($case.paths) { $changed = @($case.paths) }
+                    $affectedModules = @(Get-AffectedTier1Modules -Policy $coveragePolicy -ChangedPaths $changed -ChangedPathsProvided $pathsProvided)
+                    $expectedModules = @($case.expected_modules)
+                    if (($affectedModules -join ',') -ceq ($expectedModules -join ',')) { $casePassed = $true }
+                    else { $errorMsg = "Expected modules [$($expectedModules -join ',')], got [$($affectedModules -join ',')]" }
+                }
+                "promotion-identity.json" {
+                    $promotion = Test-PromotionIdentity -Manifest $case.manifest -IntegratedTree $case.integrated_tree -IntegratedCommit $case.integrated_commit
+                    if ($promotion.IsValid -eq $case.expected_valid) {
+                        if (-not $case.expected_error -or ($promotion.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
+                        else { $errorMsg = "Expected promotion error '$($case.expected_error)', got: $($promotion.Errors -join '; ')" }
+                    } else {
+                        $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($promotion.IsValid). Errors: $($promotion.Errors -join '; ')"
+                    }
+                }
                 "archive-lifecycle.json" {
                     $archEval = Test-ArchiveLifecycleCase -Case $case
                     if ($case.PSObject.Properties['expected_success']) {

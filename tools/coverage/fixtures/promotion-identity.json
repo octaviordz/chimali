@@ -1,0 +1,35 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Nested capture identity validation for accepted-target promotion",
+  "cases": [
+    {
+      "id": "PROMOTION_ID_001_VALID_EQUAL_TREE",
+      "manifest": { "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+      "integrated_commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "integrated_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": true
+    },
+    {
+      "id": "PROMOTION_ID_002_TREE_MISMATCH",
+      "manifest": { "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+      "integrated_tree": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": false,
+      "expected_error": "does not match tested manifest.git.source_tree"
+    },
+    {
+      "id": "PROMOTION_ID_003_TOP_LEVEL_DECOYS_REJECTED",
+      "manifest": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+      "integrated_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": false,
+      "expected_error": "manifest.git.source_commit must be a full commit SHA"
+    },
+    {
+      "id": "PROMOTION_ID_004_INVALID_INTEGRATED_COMMIT",
+      "manifest": { "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+      "integrated_commit": "not-a-sha",
+      "integrated_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": false,
+      "expected_error": "Integrated commit must be a full commit SHA"
+    }
+  ]
+}

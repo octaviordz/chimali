@@ -182,8 +182,9 @@ if (-not (Test-Path $localCurrent)) {
     exit 2
 }
 $curr = Read-SafeJson -Path $localCurrent
-if ($curr.provenance -notin @('ArchivedAcceptedRun', 'MeasuredAcceptedTarget') -or $curr.target_commit -ne $targetSha -or -not $curr.bundle_path -or -not $curr.run_id) {
-    Write-Error "Accepted baseline index has unsupported provenance or does not match the frozen target $targetSha."
+$indexValidation = Test-AcceptedBaselineIndex -Index $curr -ExpectedTargetCommit $targetSha
+if (-not $indexValidation.IsValid) {
+    Write-Error "Accepted baseline index validation failed: $($indexValidation.Errors -join '; ')"
     exit 2
 }
 if ($curr.bundle_path -match '(^|[/\\])\.\.([/\\]|$)' -or [System.IO.Path]::IsPathRooted([string]$curr.bundle_path)) {
@@ -206,8 +207,9 @@ if (-not (Test-Path (Join-Path $effectiveBaseline 'manifest.json'))) {
     exit 2
 }
 $actualBaselineDigest = Get-CoverageBundleDigest -BundlePath $effectiveBaseline
-if (-not $curr.bundle_digest -or $actualBaselineDigest -ne $curr.bundle_digest) {
-    Write-Error "Accepted baseline bundle digest does not match its index; restore the indexed immutable bundle or measure the target again."
+$indexValidation = Test-AcceptedBaselineIndex -Index $curr -ExpectedTargetCommit $targetSha -ActualBundleDigest $actualBaselineDigest
+if (-not $indexValidation.IsValid) {
+    Write-Error "Accepted baseline index validation failed: $($indexValidation.Errors -join '; '); restore the indexed immutable bundle or measure the target again."
     exit 2
 }
 $baselineManifest = Read-SafeJson -Path (Join-Path $effectiveBaseline 'manifest.json')
