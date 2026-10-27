@@ -133,6 +133,49 @@ class HdkP256Test {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `public child derivation returns an owned factor that composes with the parent scalar`() {
+        val localSecret = ByteArray(32) { (it + 1).toByte() }
+        val parentScalar = ByteArray(32).also { it[31] = 1 }
+        val parentPublic = P256Group.serializeElement(P256Group.G)
+        val secretBefore = localSecret.copyOf()
+        val scalarBefore = parentScalar.copyOf()
+        val publicBefore = parentPublic.copyOf()
+
+        val child = HdkP256.deriveChild(localSecret, parentPublic, 0x80000000u)
+        val childScalar = HdkP256.deriveChildPrivateKey(parentScalar, child.factor)
+        try {
+            val expectedPoint = P256Group.scalarBaseMult(BigInteger(1, childScalar))
+            assertContentEquals(P256Group.serializeElement(expectedPoint), child.publicKey)
+            assertContentEquals(secretBefore, localSecret)
+            assertContentEquals(scalarBefore, parentScalar)
+            assertContentEquals(publicBefore, parentPublic)
+            assertNotSame(parentPublic, child.publicKey)
+            assertNotSame(parentScalar, child.factor)
+        } finally {
+            child.eraseFactor()
+            childScalar.fill(0)
+            localSecret.fill(0)
+            parentScalar.fill(0)
+            secretBefore.fill(0)
+            scalarBefore.fill(0)
+            publicBefore.fill(0)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `public child derivation rejects incomplete or oversized local secrets`() {
+        val parentPublic = P256Group.serializeElement(P256Group.G)
+        assertFailsWith<IllegalArgumentException> {
+            HdkP256.deriveChild(ByteArray(31), parentPublic, 0u)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            HdkP256.deriveChild(ByteArray(33), parentPublic, 0u)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `derivation rejects malformed secrets scalars points and mismatched parent pair`() {
         val secret = ByteArray(32) { 0x71 }
         val scalarOne = ByteArray(32).also { it[31] = 1 }

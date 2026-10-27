@@ -345,6 +345,69 @@ class PasskeyAggregateServiceImplTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `partially initialized snapshots are rejected and sensitive fields erased before replay`() =
+        runTest {
+            val partialStates =
+                listOf(
+                    PasskeyState().copy(id = aggregateId),
+                    PasskeyState().copy(rpId = "rp.example".toCharArray()),
+                    PasskeyState().copy(userId = "user".toCharArray()),
+                    PasskeyState().copy(userName = "name".toCharArray()),
+                    PasskeyState().copy(userDisplayName = "display".toCharArray()),
+                    PasskeyState().copy(credentialId = byteArrayOf(1)),
+                    PasskeyState().copy(publicKey = "public"),
+                    PasskeyState().copy(aaguid = "aaguid"),
+                    PasskeyState().copy(signCount = 1L),
+                    PasskeyState().copy(isDeleted = true),
+                    PasskeyState().copy(sequenceNumber = 1L),
+                    PasskeyState().copy(coseAlgorithm = CredentialKeyDescriptor.COSE_ES256),
+                    PasskeyState().copy(derivationProfile = CredentialKeyDescriptor.P256_PROFILE),
+                )
+
+            partialStates.forEach { invalidSnapshotState ->
+                val registered = registeredEvent()
+                coEvery { snapshotRepository.getLatest<PasskeyState>(EventKind.PASSKEY, aggregateId) } returns
+                    Result.success(
+                        Snapshot(
+                            aggregateId,
+                            invalidSnapshotState.sequenceNumber,
+                            invalidSnapshotState,
+                            registered.timestamp,
+                        ),
+                    )
+                coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
+                    Result.success(listOf(registered.copyOwnedForTest()))
+
+                val restored = service.getState(aggregateId).getOrThrow()
+
+                try {
+                    assertEquals(1L, restored.sequenceNumber)
+                    assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, restored.coseAlgorithm)
+                    assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, restored.derivationProfile)
+                    assertContentEquals(CharArray(invalidSnapshotState.rpId.size), invalidSnapshotState.rpId)
+                    assertContentEquals(CharArray(invalidSnapshotState.userId.size), invalidSnapshotState.userId)
+                    assertContentEquals(CharArray(invalidSnapshotState.userName.size), invalidSnapshotState.userName)
+                    assertContentEquals(
+                        CharArray(invalidSnapshotState.userDisplayName.size),
+                        invalidSnapshotState.userDisplayName,
+                    )
+                } finally {
+                    restored.eraseSensitiveMetadata()
+                    registered.eraseSensitiveMetadata()
+                }
+            }
+
+            io.mockk.coVerify(exactly = partialStates.size) {
+                eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any())
+            }
+            io.mockk.coVerify(exactly = 0) {
+                eventStoreRepository.getEventsFrom(EventKind.PASSKEY, aggregateId, any())
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `invalid current Registered event returns a fixed failure and erases event metadata`() =
         runTest {
             val invalid = registeredEvent(coseAlgorithm = 0, derivationProfile = "")

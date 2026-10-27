@@ -98,5 +98,78 @@ class HkdfSha256Test {
         }
     }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `expand accepts zero and maximum RFC output lengths without mutating borrowed inputs`() {
+        val prk = ByteArray(32) { it.toByte() }
+        val info = "boundary-info".encodeToByteArray()
+        val prkBefore = prk.copyOf()
+        val infoBefore = info.copyOf()
+
+        val empty = HkdfSha256.expand(prk, info, 0)
+        val maximum = HkdfSha256.expand(prk, info, 255 * HkdfSha256.HASH_LENGTH)
+
+        assertEquals(0, empty.size)
+        assertEquals(255 * HkdfSha256.HASH_LENGTH, maximum.size)
+        assertTrue(maximum.any { it != 0.toByte() })
+        assertContentEquals(prkBefore, prk)
+        assertContentEquals(infoBefore, info)
+        empty.fill(0)
+        maximum.fill(0)
+        prk.fill(0)
+        info.fill(0)
+        prkBefore.fill(0)
+        infoBefore.fill(0)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `expand rejects malformed PRKs and negative output length`() {
+        val validPrk = ByteArray(HkdfSha256.HASH_LENGTH) { 0x5a }
+        try {
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                HkdfSha256.expand(ByteArray(HkdfSha256.HASH_LENGTH - 1), byteArrayOf(), 1)
+            }
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                HkdfSha256.expand(ByteArray(HkdfSha256.HASH_LENGTH + 1), byteArrayOf(), 1)
+            }
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                HkdfSha256.expand(validPrk, byteArrayOf(), -1)
+            }
+        } finally {
+            validPrk.fill(0)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `credential info rejects empty and non ASCII labels without mutating borrowed identifier`() {
+        val credentialId = ByteArray(16) { it.toByte() }
+        val before = credentialId.copyOf()
+        try {
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                HkdfSha256.credentialInfo("", credentialId)
+            }
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                HkdfSha256.credentialInfo("label-π", credentialId)
+            }
+            assertContentEquals(before, credentialId)
+        } finally {
+            credentialId.fill(0)
+            before.fill(0)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `wallet derivation rejects seeds that are not the complete BIP39 seed`() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            HkdfSha256.deriveWalletPrk(ByteArray(63))
+        }
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            HkdfSha256.deriveWalletPrk(ByteArray(65))
+        }
+    }
+
     private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 }

@@ -12,9 +12,11 @@ import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.data.crypto.PrfKeyDerivation
 import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.PrfExtensionOutput
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
@@ -26,8 +28,10 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.util.Base64
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -114,6 +118,44 @@ class Ctap2GetAssertionHandlerTest {
                     },
                 )
             }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decodes legacy sensitive text request values and erases their owners`() =
+        runTest {
+            val expectedHash = ByteArray(32) { (it + 1).toByte() }
+            val rpIdOwner = SensitiveCredentialText.copyOf("example.com")
+            val encodedHash = Base64.getEncoder().encodeToString(expectedHash)
+            val hashOwner = SensitiveCredentialText.copyOf(encodedHash)
+            var observedRpId: String? = null
+            var observedHash: ByteArray? = null
+            every { cborCodec.decodeSensitiveRequest(any()) } returns
+                mapOf("1" to rpIdOwner, "2" to hashOwner)
+            every { cborCodec.eraseDecodedRequestValues(any()) } answers {
+                (firstArg<Any?>() as? Map<*, *>)
+                    ?.values
+                    ?.filterIsInstance<SensitiveCredentialText>()
+                    ?.forEach(SensitiveCredentialText::erase)
+            }
+            coEvery { getAssertionUseCase.findCandidateSummaries(any()) } coAnswers {
+                val options = firstArg<GetAssertionOptions>()
+                observedRpId = options.rpId.value
+                observedHash = options.clientDataHash.copyOf()
+                emptyList()
+            }
+            every { hidReportParser.encodeResponse(any()) } answers {
+                listOf(firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload)
+            }
+
+            assertEquals(0x2E.toByte(), handler.handle(cid, requestBytes).single().first())
+            assertEquals("example.com", observedRpId)
+            assertContentEquals(expectedHash, observedHash)
+            assertContentEquals(CharArray(rpIdOwner.length), rpIdOwner.copyCharacters())
+            assertContentEquals(CharArray(hashOwner.length), hashOwner.copyCharacters())
+            observedHash?.fill(0)
+            expectedHash.fill(0)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

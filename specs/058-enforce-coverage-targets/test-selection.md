@@ -18,6 +18,39 @@ The clean initial report used to rank the Tier 1 candidates is run `42bb76a8-47c
 
 Repository instructions were 72,418 / 132,630 (54.60%), 6,103 covered instructions above the 50% floor. The archived run's `floors` field was left `Unverified` in its manifest despite the separate decision record calculating floors. The initial bundle also lacks nonempty retained-class inventory digests and bound zero-proof report digests, so it is selection evidence, **not a trusted regression baseline** and does not close T088. The latest completed full diagnostic after COV-014 (dirty tree, before COV-015) measured FIDO2 at 3,234 / 5,526 branches (58.52%), 82 branches short. COV-015's impact remains unmeasured because the subsequent full workload had no connected Android device.
 
+### Superseding clean checkpoint (2026-10-26)
+
+Clean run `83ccf4f6-e85c-4db4-8476-1ee0b349c284` supersedes the older diagnostics as the latest complete measurement of the implemented test set. It measured commit `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2` / tree `5c0ed87b07424a3e572bc7328d1136caa2786280` with 202 suites and 1,271 tests, no failures/errors/skips, and a verified five-module Tier 1 inventory. All hard instruction and branch floors, plus the repository 50% instruction floor, passed. COV-015–017's isolated deltas were not separated, but their cumulative end-state is included below. This is an `Initial` capture and does not prove candidate-to-target nonregression.
+
+| Tier 1 module | Latest clean instructions | Latest clean branches | Exact hard-floor gap | 65% branch goal |
+|---|---:|---:|---:|---|
+| `:core:security` | 3,385 / 4,452 (76.033%) | 239 / 386 (61.917%) | 0 instructions; 0 branches | 12 additional covered branches (minimum 251/386) |
+| `:core:domain` | 5,124 / 7,184 (71.325%) | 412 / 578 (71.280%) | 0 instructions; 0 branches | Met |
+| `:core:data` | 1,158 / 1,333 (86.872%) | 44 / 60 (73.333%) | 0 instructions; 0 branches | Met |
+| `:feature:fido2` | 54,452 / 86,114 (63.232%) | 3,333 / 5,526 (60.315%) | 0 instructions; 0 branches | 259 additional covered branches (minimum 3,592/5,526) |
+| `:feature:authenticator` | 0 / 0 (`AnalyzedZeroProofV1`) | 0 / 0 (`AnalyzedZeroProofV1`) | Not applicable; inventory only | Not applicable |
+
+Repository instructions are 74,125 / 132,917 (55.768%), 7,666 covered instructions above the 50% floor. Compared with the older selection run, repository counts are +1,707 covered / +287 total instructions; FIDO2 is +1,444 covered / +14 total instructions and +127 covered branches; domain is +201 covered / +273 total instructions and +13 covered branches. These are cumulative cross-revision differences, not isolated per-case causal deltas. The security and FIDO2 branch figures remain short of the nonbinding 65% goal by 3.083 and 4.685 percentage points respectively. Clean current-target run `10b510ad-4638-4107-9fe6-91efdbbf9827` is now compatible with and regression-passing against the same-revision Initial capture; its raw counters match. This provides a trusted local target reference, but changed-candidate Tier 1 nonregression remains unverified until a clean candidate capture is assessed.
+
+### Post-checkpoint security boundary batch (2026-10-26; diagnostic only)
+
+After the sealed Initial run, the missed-branch report and source audit showed that the public-only P-256 child-derivation overload had no direct behavioral tests, and HKDF's exceptional input boundaries were not all asserted. These are security-relevant API/derivation cases; they were selected to verify scalar/public-point composition, borrowed-input ownership, RFC 5869 output limits, and rejection of malformed KDF inputs. Added cases:
+
+| ID | Module | Behavior | Impact | Likelihood | Focused result | Measured contribution |
+|---|---|---|---:|---:|---|---|
+| `COV-018` | `:core:security` | Public-only P-256 child derivation composes with the parent scalar and rejects incomplete/oversized local secrets | 4 | 2 | `HdkP256Test`: 6 tests, 0 failures/errors | The full dirty-tree diagnostic advanced security from 249 to 258 covered branches cumulatively with COV-019; isolated per-case attribution is not available. |
+| `COV-019` | `:core:security` | HKDF validates PRK/length boundaries, zero and maximum output lengths, credential-label ASCII constraints, and complete BIP39 seed length while preserving borrowed buffers | 4 | 2 | `HkdfSha256Test`: 9 tests, 0 failures/errors | The intermediate diagnostic after this case and before COV-018 measured 249/386 security branches. |
+
+The final dirty-tree diagnostic after both cases measured security at 258/386 branches (66.839%), exceeding the approximate 65% goal. It reported all configured hard floors passed. This diagnostic uses current build outputs and is not a sealed candidate capture; it cannot establish target nonregression. FIDO2 remains at 3,333/5,526 branches (60.315%), 259 covered branches below the exact 65% threshold. See `implementation-evidence.md` §11.34 for run environment and full Tier 1/repository counts.
+
+### FIDO2 sensitive CTAP compatibility case (2026-10-26; diagnostic only)
+
+The current CTAP handler accepts client-data hashes represented as byte arrays or legacy base64 text held in `SensitiveCredentialText`. The handler must decode the exact 32-byte digest for lookup, retain it for the operation, and erase the source text owners after request processing. `COV-020` adds a focused assertion for that behavior. The focused `Ctap2GetAssertionHandlerTest` suite passed 14/14; the full host/device diagnostic also passed. FIDO2 moved from 3,333/5,526 to 3,335/5,526 covered branches (+2) and from 54,452/86,114 to 54,465/86,114 covered instructions (+13); repository instructions moved from 74,166/132,917 to 74,179/132,917 (+13). The 65% FIDO2 branch goal remains 257 additional covered branches away (3,592 required). All hard floors pass, but the counters remain unsealed dirty-tree evidence with no target regression decision. See `implementation-evidence.md` §11.35.
+
+| ID | Module | Behavior | Impact | Likelihood | Focused result | Measured contribution |
+|---|---|---|---:|---:|---|---|
+| `COV-020` | `:feature:fido2` | Legacy sensitive-text clientDataHash is decoded to the exact digest for candidate lookup, then RP/hash request owners are erased | 2 | 3 | `Ctap2GetAssertionHandlerTest`: 14 tests, 0 failures/errors; ktlint passed | Full dirty-tree diagnostic: FIDO2 +2 branches and +13 instructions versus §11.34; cumulative case-level attribution was not isolated. |
+
 ### Missed-branch report and assertion audit across Tier 1
 
 - **`:core:security`** — The initial report's largest branch misses were `Bip39MasterSeedGenerator` (32), `HdkP256` (17), then generated/value-type branches in `HdkKeyPair` and `HdkChild` (16 each). The BIP39 suite already asserts valid seed derivation, invalid length/word/checksum/spacing rejection, caller ownership and temporary-buffer erasure; P-256 suites assert published vectors, malformed scalar/point rejection, sampler exhaustion and candidate/PRK erasure. Mapped to `NFR-SEC-041` / `TR-AUTH-031`; no higher-risk missing assertion displaced the selected 4/3 key lifecycle case.
