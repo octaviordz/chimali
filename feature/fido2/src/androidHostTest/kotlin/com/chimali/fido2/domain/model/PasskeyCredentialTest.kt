@@ -40,7 +40,6 @@ class PasskeyCredentialTest {
         aaguid: ByteArray = testAaguid,
         credentialId: ByteArray = testCredentialId,
         coseAlgorithm: Int = PasskeyCredential.COSE_ES256,
-        derivationProfile: String = CredentialKeyDescriptor.P256_PROFILE,
         credProtectPolicy: Int = 1,
     ) {
         val owners =
@@ -65,7 +64,7 @@ class PasskeyCredentialTest {
                 aaguid = aaguid,
                 credentialId = credentialId,
                 coseAlgorithm = coseAlgorithm,
-                derivationProfile = derivationProfile,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
                 credProtectPolicy = credProtectPolicy,
             )
         }
@@ -141,7 +140,6 @@ class PasskeyCredentialTest {
                 assertInvalidCredentialIsRejectedAndErased(userDisplayName = "d".repeat(MAX_SIZE_64 + 1))
                 assertInvalidCredentialIsRejectedAndErased(
                     coseAlgorithm = PasskeyCredential.COSE_EDSA,
-                    derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
                 )
                 assertInvalidCredentialIsRejectedAndErased(coseAlgorithm = Int.MIN_VALUE)
                 assertInvalidCredentialIsRejectedAndErased(credProtectPolicy = 0)

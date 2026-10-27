@@ -322,6 +322,7 @@ internal class BluetoothHidCallbackCoordinator(
                         advanceSessionGeneration()
                         owner.hidDevice = null
                         owner.connectedDevice = null
+                        owner.pendingBondDevice = null
                         discardQueuedIncomingReports()
                         publishSessionState(HidConnectionState.Idle)
                     }
@@ -442,6 +443,7 @@ internal class BluetoothHidCallbackCoordinator(
                     synchronized(sessionLock) {
                         advanceSessionGeneration()
                         owner.connectedDevice = null
+                        owner.pendingBondDevice = null
                         discardQueuedIncomingReports()
                         publishSessionState(HidConnectionState.Idle)
                     }

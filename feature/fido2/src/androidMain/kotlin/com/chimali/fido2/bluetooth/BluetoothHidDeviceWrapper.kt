@@ -717,6 +717,7 @@ class BluetoothHidDeviceWrapper(
         synchronized(sessionLock) {
             advanceSessionGeneration()
             connectedDevice = null
+            pendingBondDevice = null
             discardQueuedIncomingReports()
             publishSessionState(HidConnectionState.Idle)
         }
@@ -757,6 +758,7 @@ class BluetoothHidDeviceWrapper(
         synchronized(sessionLock) {
             advanceSessionGeneration()
             connectedDevice = null
+            pendingBondDevice = null
             discardQueuedIncomingReports()
             publishSessionState(HidConnectionState.Error(message))
         }

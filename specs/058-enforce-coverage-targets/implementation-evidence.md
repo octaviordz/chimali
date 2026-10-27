@@ -648,6 +648,29 @@
 - **Sealed-bundle verifier**: `tools/coverage/verify.ps1` consumed that exact bundle and exited 1 with one unmet reason: FIDO2 branch coverage 3,238/5,526 = 58.596%, below 60%. The decision records collection Complete, tests Passed, repository instructions 54.93% (pass), and all other measured module floors pass. The inventory file SHA-256 matched both the manifest and counters (`49f0a6425151b2dfc321beadc0058961b44c406d7371935c4ed08cbb78ee1b27`); all module report digests and the authenticator zero proof were accepted. Decision: `D:/octav/coverage-local-validation/assessment-6788e4cd-753a-45bf-875b-46e9151541c9/decision.json` and `.md`.
 - **Limits**: comparison compatibility is Missing, regression is NotApplicable, publication is Pending, and integration is Failed because the floor decision failed. No accepted baseline, protected runner/harness, GitHub App, archive, branch-protection, or target-comparison behavior was exercised. T046–T049 remain unchecked and no task status was changed.
 
+### 11.18 COV-017 HID callback regression tests and bounded repair (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | `FR-HID-010`, `FR-HID-020`; TRD §9.4 connection-loss handling. |
+| `scope` | Android host component tests for bond admission, delayed reconnects, discovery filtering, callback continuations/forwarding, report admission, and real wrapper queue erasure. Added 52 test cases: 34 coordinator cases and 18 additional wrapper cases. |
+| `revision` | Base commit `cd9b7dbc6a3d8b64473d6efb451e9b5a3f470651` plus uncommitted test additions and four pending-host cleanup assignments in the coordinator and wrapper. File identities are recorded in `D:/octav/coverage-local-validation/cov017-source-sha256.json`; these results are not clean-commit acceptance evidence. |
+| `named_procedure` | `BluetoothHidCallbackCoordinatorTest`; `BluetoothHidDeviceWrapperIncomingReportTest`; `tools/local-ci.ps1 -NoFix -NoConfigurationCache -RunCoverage`. |
+| `environment` | Windows host, JetBrains Java 21.0.10, Gradle 9.6.0, Kotlin 2.3.21; MockK Android platform doubles and coroutine virtual time for the focused tests. Final coverage used authorized ASUS_AI2302 device `R7AIB7002901AZ3`, Android 15/API 35, with the process environment selected by `setup-host.ps1`. |
+| `expected_observed_result` | Initial focused run: 46 cases, exactly two failures. `late bond completion after callback session loss cannot admit a host` observed `Connected` instead of `Idle` for `profile-lost` and `registration-lost`. Clearing `pendingBondDevice` inside their existing synchronized cleanup blocks made all 46 cases pass. The expanded 61-case run exposed the same defect after `unregister`, `close`, and `error`. Clearing the pending host in `unregisterApp()` (also used by `close()`) and `reportError()` made all 61 focused cases pass. The final complete FIDO2 host suite passed 957 tests with zero failures, errors, or skips; all local CI phases and the fresh host/device coverage gate passed. |
+| `date` | 2026-10-26. |
+| `limitations` | Host doubles establish component callback behavior, not physical pairing interoperability. Full CI initially required Native distribution setup and exposed an existing CTAP test import-order issue and redundant credential-test helper parameter; both test-only style fixes preserve assertions. Clean post-change coverage, accepted-target comparison, publication, and integration remain unverified. |
+| `status` | Focused assertions Passed; full local CI including diagnostic coverage gate Passed; clean coverage, comparison, and integration Unverified. |
+| `artifact_link` | `D:/octav/coverage-local-validation/cov017-before/` and `cov017-extra-before/` (failed JUnit); `cov017-final-focused-passed/` (61 passing focused cases); `cov017-final-ci-passed/` (957 passing FIDO2 host cases); `cov017-extra-focused-before.txt`, `cov017-extra-focused-after.txt`, and `cov017-final-ci-coverage.txt` in the same evidence directory. |
+
+The first iteration's fresh host/device diagnostic passed workload and analysis, then failed only the FIDO2 branch floor at 3,303/5,526 = 59.772% (65 additional covered branches, 13 short). Its counters, inventory, report, and source hashes are retained under `D:/octav/coverage-local-validation/cov017-diagnostic-1`. It used the dirty checkout and is not a sealed or accepted baseline. The same COV-017 risk batch was extended before any lower-risk progression.
+
+The final full pipeline completed successfully in 1,707.31 seconds (28m27s). Its coverage Gradle invocation completed in 16m19s, and `hdkCoverageVerify` passed. Canonical counters generated at `2026-10-27T00:52:40Z` (2026-10-26 local) report FIDO2 instructions 54,452/86,114 (63.232%) and branches 3,333/5,526 (60.315%). This adds 95 covered branches over the clean pre-batch run and exceeds the exact 60% minimum of 3,316 by 17. Repository instructions are 74,125/132,917 (55.768%); all configured module/repository hard floors passed. The approximately-65% branch improvement goal remains unmet and is not an acceptance floor.
+
+All 14 retained production class-inventory digests recomputed successfully; the inventory file hash matched the canonical counter binding, and all six recorded source/test file hashes still matched the final measured files. Final counters, inventory, FIDO2 XML, and source identities are retained under `D:/octav/coverage-local-validation/cov017-final-diagnostic`; the execution log is `D:/octav/coverage-local-validation/cov017-final-ci-coverage.txt`. This was an uncommitted direct Gradle diagnostic, not a `capture.ps1` sealed bundle. A clean post-commit capture and its separate verifier decision remain required; no accepted target comparison, publication, or integration decision was made.
+
+No task checkbox was changed. T046–T049 remain unchecked. The current batch must receive a clean measurement checkpoint before lower-risk progression.
+
 
 
 
