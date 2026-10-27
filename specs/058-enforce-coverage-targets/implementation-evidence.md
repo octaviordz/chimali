@@ -671,6 +671,25 @@ All 14 retained production class-inventory digests recomputed successfully; the 
 
 No task checkbox was changed. T046–T049 remain unchecked. The current batch must receive a clean measurement checkpoint before lower-risk progression.
 
+### 11.19 Clean post-commit capture and passing sealed verification (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Spec 058 local collection, inventory, hard-floor, and per-batch measurement requirements; COV-017 component behavior under `FR-HID-010` / `FR-HID-020`. |
+| `scope` | Complete Initial host/device capture and separate sealed-bundle verification on this Windows host. No accepted-target comparison or hosted integration was performed. |
+| `revision` | Commit `997cc3b3ccab94f1f57f5b9c770e98c5b969118f`, tree `bc6b6f323d80fd2d8ce6785096b7bd20fe9529c1`. Both clean preflight and postflight passed. The same clean local commit/tree supplied the harness; the manifest retains hashes of its capture, Gradle init, policy, and verifier files. |
+| `named_procedure` | `setup-host.ps1 -DeviceSerial R7AIB7002901AZ3`; `capture.ps1` with exact source revision and `Purpose Initial`; `verify.ps1` against exact run `5fad15f8-0604-46ea-b822-6b0997de4e26`, writing the assessment outside the sealed bundle. |
+| `environment` | Windows, JetBrains Java 21.0.10, Gradle 9.6.0, Android platform 37.0/build-tools 37.0.0/platform-tools 37.0.0; authorized ASUS_AI2302 (`R7AIB7002901AZ3`), Android 15/API 35, arm64-v8a. Setup applied process-scoped environment values. |
+| `expected_observed_result` | Capture exited 0 with collection Complete and tests Passed. It retained 200 suites / 1,267 test results, zero failures, errors, or skips. The two HID suites contain 34 and 27 passing cases. The separate verifier exited 0 with `overall_passed=true`, collection Complete, tests Passed, floors Passed, and zero unmet local reasons. All eight configured module decisions passed, including the authenticator's proved-empty disposition. |
+| `date` | 2026-10-26 local. Manifest workload timestamps: `2026-10-27T00:58:58Z` to `2026-10-27T01:10:09Z`; Gradle reported 11m9s. Report packaging finished before the separate verification. |
+| `limitations` | Local harness identity is recorded; protected/reviewed harness provenance is not established. Compatibility is Missing, regression NotApplicable, publication Pending, and integration Unverified. Physical Bluetooth pairing interoperability and the stronger separate business-logic objective were not certified. The nonbinding approximately-65% branch goal remains unmet. |
+| `status` | Passed for local collection, tests, floors, and the COV-017 measurement checkpoint. Accepted-target comparison, publication, and hosted integration remain Unverified. |
+| `artifact_link` | Bundle: `D:/octav/coverage-local-validation/5fad15f8-0604-46ea-b822-6b0997de4e26`; assessment: `D:/octav/coverage-local-validation/assessment-5fad15f8-0604-46ea-b822-6b0997de4e26/decision.json` and `decision.md`; execution logs: `capture-997cc3b.txt` and `verify-997cc3b.txt` under the same evidence root. |
+
+The sealed verifier accepted artifact integrity, production inventory/counter/report bindings, and the authenticator zero proof. Its manifest digest is `708382d35e6c32129e3c303b8e27043e3244d24b57d0217f9e5e4e3670c62583`. Raw FIDO2 instructions are 54,452/86,114 (63.232%); branches are 3,333/5,526 (60.315%), 95 more covered branches than the clean pre-batch measurement and 17 above the exact 60% minimum. Repository instructions are 74,125/132,917 (55.768%). All configured hard floors passed without threshold or exclusion changes.
+
+The selection ledger now records the verified local clean checkpoint. No task checkbox changed; T046–T049 remain unchecked, and no protected integration acceptance is claimed.
+
 
 
 
