@@ -7,7 +7,7 @@ description: "Dependency-ordered implementation and verification tasks for cover
 **Input**: Design documents from `specs/058-enforce-coverage-targets/`  
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [workflow contract](contracts/coverage-workflow.md), [validation guide](quickstart.md)  
 **Created**: 2026-10-24  
-**Status**: Implementation in progress (2026-10-26); T104 and T105 are verified complete. T046–T049 are explicitly deferred by the user and remain unchecked; T088, T089, T107, and T108 remain open.
+**Status**: Implementation in progress (2026-10-26); T104 and T105 are verified complete. T046–T049 were resumed by the user on 2026-10-26 and remain open pending live operational provisioning; T088, T089, T107, and T108 remain open.
 
 **Tests**: Explicitly required by this feature. Write decision/contract fixtures before implementing the missing tooling, verify that the missing behavior is detected, then make them pass. Behavioral coverage additions target existing production behavior and may pass without a production change; assert independent expected outcomes and named failure conditions rather than introducing artificial defects to obtain a failing test.
 
@@ -21,7 +21,7 @@ description: "Dependency-ordered implementation and verification tasks for cover
 - Existing threshold/module-list edits are unverified starting work. Preserve existing staged/unstaged user changes, assess them against these tasks, and check an item only after its stated implementation or verification outcome is supported.
 - Hard floors: Tier 1 instruction/branch **60%/60%** where applicable, repository instructions **50%**, existing affected Tier 2 instructions **20%**. Approximately **65%** branches is a reported improvement goal. Risk priority applies across all Tier 1 modules before coverage-deficit ordering.
 - No new Gradle module, coverage engine upgrade, blanket generated-code exclusion, artificial authenticator implementation, or weakening of BRD's separate 100% core-business-logic objective is authorized.
-- T046–T049 are out of scope for the current implementation request; leave them unchecked and do not treat their remote acceptance as complete.
+- T046–T049 resumed on 2026-10-26. Keep them unchecked until the live runner, GitHub App, environment, archive, protection, and controlled-integration evidence required by each task is recorded; local files and fixtures do not establish remote acceptance.
 
 ## Phase 1: Setup — Confirm Scope and Prepare the Work
 

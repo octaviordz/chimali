@@ -690,6 +690,68 @@ The sealed verifier accepted artifact integrity, production inventory/counter/re
 
 The selection ledger now records the verified local clean checkpoint. No task checkbox changed; T046–T049 remain unchecked, and no protected integration acceptance is claimed.
 
+### 11.20 T046–T049 live GitHub provisioning assessment (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | T046–T049: actual disposable device runner, protected reporter/App setup, evidence archive, source-bound required check, and controlled blocking/invalidation demonstrations. |
+| `scope` | Read-only inspection of the public `octaviordz/chimali` repository and its GitHub settings. No App, runner, environment, protection rule, branch, secret, or workflow run was created or changed. |
+| `revision` | GitHub repository metadata reports ID `1085334134`, default branch `lab/or/chimali`, current remote default-branch head `997cc3b3ccab94f1f57f5b9c770e98c5b969118f`, and public visibility. The repository API reports the connected account has admin permission. Local checkout `HEAD` is `37e032608f5060c85fbfeaba696e8f663bf4b469`; it is not the remote default-branch head. |
+| `named_procedure` | GitHub repository metadata, rulesets and branches API reads; signed-in GitHub settings pages for Developer Settings > GitHub Apps, repository Settings > Branches, Actions > Runners, and Environments; Actions workflow-runs API; local `gh auth status`. |
+| `expected_observed_result` | The repository rulesets API returned an empty list. The default branch entry reports `protected=false`; the Branches settings page shows no branch-protection rules. The branch listing contains 62 branches and no `codex/coverage-evidence` branch. The Runners settings page reports no configured runners. Environments reports none for the repository. Developer Settings > GitHub Apps reports “No GitHub Apps” for the account. Actions workflow-runs API returned `total_count=0`. These are confirmed absent controls; they do not prove that no third-party App is installed elsewhere or that no repository-level secrets exist. |
+| `workflow_review` | The two workflow files are present on the current default branch. `coverage.yml` requires labels `[self-hosted, windows, android-device]`, but no runner is registered; its `push.branches` list omits the actual default branch `lab/or/chimali`. Both workflows use `vars.TRUSTED_HARNESS_SHA || '9af4b4ab63d42bc2bc6be703d15dc9d5924fcbc7'`, so the protected pin is not mandatory. `coverage-report.yml` names environment `coverage-reporting`, which is absent, and its default-branch promotion list (`main`, `lab/or/jpc`) omits `lab/or/chimali`. No hosted workflow has run on the remote default branch. |
+| `access` | The GitHub connector's repository metadata reports admin permission, but `gh auth status` reports the local `octaviordz` keyring token is invalid and `gh repo view` returns HTTP 401. The connector's branch-protection endpoint returned HTTP 403; the signed-in GitHub settings page independently confirmed no branch protection rules. |
+| `date` | 2026-10-26 local. |
+| `limitations` | The connected Android device and reproducible local host are verified in §11.19, but this Windows host is not a disposable isolated Actions runner and is not registered. The repository is public; candidate pull-request code would execute on any runner selected by the current capture workflow. Dedicated coverage App/installation IDs and key, exact-ref environment restriction, evidence-branch protection/permissions, required check bound to the App ID, and actual negative/positive/invalidation runs remain unavailable or unverified. No protected default-branch bootstrap or acceptance is claimed. |
+| `status` | T046–T049 resumed; all four remain open. No completion checkbox changed. |
+| `artifact_link` | Repository: `https://github.com/octaviordz/chimali`; default-branch settings observed while signed in; workflow definitions: `.github/workflows/coverage.yml` and `.github/workflows/coverage-report.yml`. |
+
+
+### 11.21 Dedicated coverage App registration and repository installation (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | T046 App identity/installation and least-privilege configuration; T047 reporter check and archive permission provisioning. |
+| `scope` | Registered the dedicated GitHub App and installed it only on `octaviordz/chimali`, after the user confirmed App/key creation. No repository workflow, environment, branch protection, archive branch, or secret was changed. |
+| `named_procedure` | GitHub Developer Settings > Create GitHub App; Credentials > Key pairs; Install App, selecting only `octaviordz/chimali`. |
+| `expected_observed_result` | App `chimali-coverage-integration`, App ID `5488780`; installation ID `175659848`. The App is installable only on the `@octaviordz` account; its installation selects exactly one repository, `octaviordz/chimali`. Installed permissions are repository metadata read, Checks read/write, and Contents read/write; other repository, organization, account, and enterprise permissions were left at none. The App webhook was disabled and no user authorization flow was configured. |
+| `credential_handling` | GitHub generated one App private key. The browser downloaded `chimali-coverage-integration.2026-10-26.private-key.pem` to the local Downloads folder. The key value was not read into the conversation, printed, or added to the repository. It has not been entered into GitHub Actions secrets or transmitted elsewhere. |
+| `date` | 2026-10-26 local. |
+| `limitations` | The App is installed, but the repository has no `coverage-reporting` environment and the default branch is unprotected. The generated key therefore is not yet bound to an exact-ref environment. Repository-wide Contents write is currently part of this installation grant; the trusted publisher environment and protected archive branch still need to constrain its use. No check has been created and no workflow has run. |
+| `status` | App registration, key generation, and single-repository installation verified. T046–T049 remain open; no task checkbox changed. |
+
+Before transmitting the generated private key, review and repair the reporter workflow and mandatory full-SHA harness pin, then create `coverage-reporting` with its deployment branch rule restricted to the exact default branch `lab/or/chimali`. Only then add `COVERAGE_APP_ID=5488780`, `COVERAGE_APP_INSTALLATION_ID=175659848`, and `COVERAGE_APP_PRIVATE_KEY` as environment secrets. The Computer Use skill requires action-time confirmation before editing cloud access controls and before transmitting a sensitive value. Do not fall back to `GITHUB_TOKEN`, a personal access token, or a local workstation runner. The App-bound default-branch ruleset is now active (§11.22), but protected reporter review, the disposable device runner, archive protection/trial retrieval, environment restriction/secrets, and controlled integration checks remain separate unresolved requirements.
+
+### 11.22 App-bound default-branch ruleset activation (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | T048 source-bound required check, strict current-target handling, no accepted bypass; T046 actual integration-target protection. |
+| `scope` | Activated a repository branch ruleset on the confirmed default branch after the user explicitly approved activation. This does not establish a passing coverage report or complete T046–T049. |
+| `revision` | Repository `octaviordz/chimali` (ID `1085334134`); exact target `refs/heads/lab/or/chimali`; current target SHA `997cc3b3ccab94f1f57f5b9c770e98c5b969118f`. Ruleset ID `25926101`, name `coverage-integration-default-branch`. |
+| `named_procedure` | Saved the configured GitHub Settings > Rulesets form; independently read `GET /repos/octaviordz/chimali/rulesets` and `GET /repos/octaviordz/chimali/rulesets/25926101`; read the target commit's check-runs API. |
+| `expected_observed_result` | GitHub API reports `enforcement=active`, exact inclusion `refs/heads/lab/or/chimali`, empty `bypass_actors`, and `current_user_can_bypass=never`. Rules include deletion protection, non-fast-forward (force-push) protection, pull-request requirement, and required `coverage-integration` check with `integration_id=5488780`; `strict_required_status_checks_policy=true` and `do_not_enforce_on_create=false`. The pull-request approval count is `0`; the ruleset requires a PR but does not require a human approval. |
+| `check_probe` | App-authenticated bootstrap probe check ID `121960503455`, name `coverage-integration`, App ID `5488780`, head SHA `997cc3b3ccab94f1f57f5b9c770e98c5b969118f`, conclusion `failure`. Its output explicitly states provisioning is incomplete and grants no coverage acceptance. This intentional failure keeps the required check unsatisfied until the trusted reporter can validate complete current evidence. |
+| `date` | 2026-10-26 local (GitHub API timestamps are 2026-10-27 UTC). |
+| `limitations` | The active ruleset establishes the requested App source binding and branch protections, but the check is intentionally failing. The disposable Android runner, protected reporter review/full-SHA pin, `coverage-reporting` environment and secrets, protected evidence archive, trial publication/retrieval, and controlled negative/forged-success/target-invalidation runs remain incomplete. No run was made passing and no task is complete. |
+| `status` | T048 ruleset/source-binding configuration verified; T046–T049 remain unchecked. PR approval requirement is not enforced (configured count 0). |
+| `artifact_link` | Ruleset: `https://github.com/octaviordz/chimali/rules/25926101`; check probe: `https://github.com/octaviordz/chimali/runs/121960503455`. |
+
+### 11.23 Connected-device and provisioning checkpoint (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | T046 connected Android capability and reproducible host configuration; current T046–T049 operational readiness. |
+| `scope` | Ran the repository's process-scoped host setup and device preflight. This validates the local physical device path; it does not provision or validate an isolated Actions runner. |
+| `revision` | Local working tree based on `37e032608f5060c85fbfeaba696e8f663bf4b469`; setup contract from `tools/coverage/host-profile.json` and `tools/coverage/setup-host.ps1`. |
+| `named_procedure` | `pwsh -NoProfile -File .\tools\coverage\setup-host.ps1 -DeviceSerial R7AIB7002901AZ3`. Bare `adb` is not on the shell's initial PATH; the setup script resolved the pinned SDK's platform-tools and performed the device check. |
+| `environment` | Windows host; JetBrains JDK 21.0.10, Gradle 9.6.0, Android platform 37.0, build-tools 37.0.0, platform-tools 37.0.0. Setup scoped environment changes to its PowerShell process and children. |
+| `expected_observed_result` | Setup exited successfully and reported Android device `R7AIB7002901AZ3` online and authorized at API 35, meeting the configured minimum API 28. |
+| `date` | 2026-10-26 local. |
+| `limitations` | The physical device is attached to this developer host; it is not evidence of a disposable isolated Windows/device Actions worker. No self-hosted runner, environment, environment secret, archive branch, reporter run, or controlled integration test was provisioned. The default branch remains subject to the active App-bound ruleset and its intentional failing probe (§11.22). |
+| `status` | Local device/host capability verified; T046–T049 remain unchecked. |
+| `artifact_link` | `tools/coverage/setup-host.ps1`; `tools/coverage/host-profile.json`; command output in this session. |
+
 
 
 
