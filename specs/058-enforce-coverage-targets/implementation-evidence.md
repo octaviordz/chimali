@@ -939,6 +939,51 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `status` | Current-target clean capture and same-revision compatibility/regression assessment passed. T107 remains open for clean-candidate reranking and changed-Tier-1 comparison. Local T108 remains open for frozen clean candidate measurement, final evidence reconciliation and operational acceptance. Hosted T046–T049 remain waived by the owner (§11.28). |
 | `artifact_link` | `D:/octav/coverage-local-validation/runs/10b510ad-4638-4107-9fe6-91efdbbf9827/manifest.json`; `D:/octav/coverage-local-validation/assessments/fa93-current-target/decision.md`; prior same-revision Initial bundle in §11.32. |
 
+### 11.37 Partially initialized passkey snapshot validation diagnostic (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Validate malformed persisted aggregate snapshots fail closed, erase sensitive owners, and recover authoritative history (T107; FR-009/010/020; SC-005). |
+| `scope` | Added COV-021 in the separate `PasskeyAggregateSnapshotValidationTest.kt` so the existing service test class remains within Detekt's class-size limit. The test creates partial initial-state snapshots by populating each of the 13 persisted state fields independently, confirms replay from the event store returns the authoritative registered state, verifies sensitive character fields are zeroed, and confirms snapshot suffix replay is not used. |
+| `revision` | Commit `94bbdc5de2651e728229b7cf0b115de1da05b204` plus subsequent COV-022 uncommitted test edit. Source changes for COV-021 are committed; no sealed bundle was created for this diagnostic. |
+| `named_procedure` | Focused `:feature:fido2:testAndroidHostTest --tests 'com.chimali.fido2.data.eventsourcing.PasskeyAggregateSnapshotValidationTest'`, `:feature:fido2:ktlintAndroidHostTestSourceSetCheck`, and `:feature:fido2:detekt` passed after the split. Ran `setup-host.ps1 -DeviceSerial R7AIB7002901AZ3` then `hdkHostCoverage hdkCoverageAnalyze hdkCoverageVerify`; exit code 0. The same full run included COV-022 after it was added. |
+| `environment` | Windows 10.0.26300.0; PowerShell 7.6.5; JetBrains Java 21.0.10; Gradle 9.6.0; JaCoCo 0.8.15; Android platform 37.0 revision 2; build-tools 37.0.0; Command-line Tools 22.0; platform-tools 37.0.1; connected ASUS_AI2302, serial `R7AIB7002901AZ3`, API 35, `arm64-v8a`. |
+| `expected_observed_result` | Focused service suite passed 15 tests, zero failures/errors; lint passed. Full connected-device coverage pipeline and `hdkCoverageVerify` passed. Compared with the immediately preceding COV-020 diagnostic, FIDO2 increased by 20 covered branches and 8 covered instructions, to the COV-021 checkpoint of 3,355/5,526 branches. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | The full pipeline ran while COV-021's commit was clean, but it was invoked as a direct Gradle diagnostic and produced no immutable run bundle or target comparison. The current combined diagnostic also contains COV-022; COV-021's interim counters were read before adding that test. |
+| `status` | COV-021 focused behavioral checks, lint, Detekt, and hard coverage gates passed. The case measurably advances FIDO2 protocol-state coverage; clean final candidate capture and changed-module regression remain open. |
+| `artifact_link` | `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateSnapshotValidationTest.kt`; JaCoCo report `feature/fido2/build/reports/hdk-coverage/hdkModuleCoverage.xml`; canonical counters `build/reports/hdk-coverage/counters.json`. |
+
+### 11.38 Mnemonic recovery decoding boundary diagnostic (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Ensure encrypted wallet mnemonic recovery rejects malformed encodings and erases decrypted byte owners on failure (T107; NFR-SEC-041; TR-AUTH-031). |
+| `scope` | Added COV-022 in `WalletMasterSeedProviderTest.kt`: invalid Base64 ciphertext is rejected; empty decrypted plaintext is rejected and erased; malformed UTF-8 is rejected and its returned plaintext buffer is erased. |
+| `revision` | Commit `94bbdc5de2651e728229b7cf0b115de1da05b204` plus the uncommitted COV-022 test. The source identity is not sealed in a bundle. |
+| `named_procedure` | Focused `:feature:fido2:testAndroidHostTest --tests 'com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest'` and `:feature:fido2:ktlintAndroidHostTestSourceSetCheck` passed. Re-ran the full configured host/device pipeline using `hdkHostCoverage hdkCoverageAnalyze hdkCoverageVerify`; exit code 0. |
+| `environment` | Windows 10.0.26300.0; PowerShell 7.6.5; JetBrains Java 21.0.10; Gradle 9.6.0; JaCoCo 0.8.15; Android platform 37.0 revision 2; build-tools 37.0.0; Command-line Tools 22.0; platform-tools 37.0.1; connected ASUS_AI2302, serial `R7AIB7002901AZ3`, API 35, `arm64-v8a`. |
+| `expected_observed_result` | Focused provider suite passed 16 tests, zero failures/errors; lint passed. Full connected-device coverage pipeline and `hdkCoverageVerify` passed. Latest Tier 1 counters: security 3,624/4,452 instructions and 258/386 branches; domain 5,124/7,184 and 412/578; data 1,158/1,333 and 44/60; FIDO2 54,496/86,114 (63.284%) and 3,360/5,526 (60.803%); authenticator 0/0 with verifier-confirmed `AnalyzedZeroProofV1`. Repository 74,210/132,917 instructions (55.825%) and 4,648/8,010 branches. All hard module/repository floors passed. FIDO2 is 232 covered branches below the 65% goal (3,592 required). |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | This is an unsealed dirty-tree diagnostic; COV-022 has not been committed or compared against the clean current-target reference. The 65% goal remains unmet. No causal attribution is claimed beyond the successive diagnostic delta because this is a shared JaCoCo execution-data pipeline. |
+| `status` | COV-022 focused behavioral checks, lint, all hard floors and full host/device coverage gate passed. T107 remains open for complete candidate reranking and changed-Tier 1 regression; local T108 acceptance remains open. |
+| `artifact_link` | `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProviderTest.kt`; JaCoCo report `feature/fido2/build/reports/hdk-coverage/hdkModuleCoverage.xml`; canonical counters `build/reports/hdk-coverage/counters.json`. |
+
+### 11.39 Typed hmac-secret unavailable-seed response diagnostic (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | The CTAP assertion handler must omit the optional `hmac-secret` response extension when no credential seed can produce its output, while retaining the ordinary assertion response (T107; FR-009/010; NFR-SEC-041). |
+| `scope` | Added COV-023 to `Ctap2GetAssertionHandlerTest.kt`. A typed PRF request whose derivation service returns no output produces only authData and signature fields; extension encoding is not invoked. Test-owned buffers are erased after assertions. |
+| `revision` | Based on committed test/document baseline `94bbdc5de2651e728229b7cf0b115de1da05b204` plus uncommitted COV-022 and COV-023 edits and evidence/ledger updates. No sealed bundle exists for this diagnostic. |
+| `named_procedure` | Focused `:feature:fido2:testAndroidHostTest --tests 'com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest'` and `:feature:fido2:ktlintAndroidHostTestSourceSetCheck` passed (15 test cases, zero failures/errors). Then ran the full configured host/device pipeline `hdkHostCoverage hdkCoverageAnalyze hdkCoverageVerify`; exit code 0. Also ran `tools/local-ci.ps1 -NoFix -NoConfigurationCache` after splitting COV-021 into its own test class; all local CI stages passed in 187.14 seconds. |
+| `environment` | Windows 10.0.26300.0; PowerShell 7.6.5; JetBrains Java 21.0.10; Gradle 9.6.0; JaCoCo 0.8.15; Android platform 37.0 revision 2; build-tools 37.0.0; Command-line Tools 22.0; platform-tools 37.0.1; connected ASUS_AI2302, serial `R7AIB7002901AZ3`, API 35, `arm64-v8a`. |
+| `expected_observed_result` | Focused test and lint passed. Full host/device pipeline and `hdkCoverageVerify` passed. Latest Tier 1 counters: security 3,624/4,452 instructions and 258/386 branches; domain 5,124/7,184 and 412/578; data 1,158/1,333 and 44/60; FIDO2 54,508/86,114 (63.298%) and 3,362/5,526 (60.839%); authenticator 0/0 with verifier-confirmed `AnalyzedZeroProofV1`. Repository 74,222/132,917 instructions (55.834%) and 4,650/8,010 branches. All hard floors passed. FIDO2 is 230 covered branches short of 65% (3,592 required). |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | This is a dirty-tree diagnostic without a sealed candidate or current-target regression assessment. The nonbinding 65% branch goal remains unmet. |
+| `status` | COV-023 focused assertion, lint and full coverage gates passed; all fixed floors remain satisfied. T107 is still open for clean-candidate reranking/comparison. T108 is open for local acceptance and final evidence reconciliation. |
+| `artifact_link` | `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`; JaCoCo report `feature/fido2/build/reports/hdk-coverage/hdkModuleCoverage.xml`; canonical counters `build/reports/hdk-coverage/counters.json`. |
+
 
 
 

@@ -2,7 +2,7 @@
 
 **Feature**: 058-enforce-coverage-targets
 **Status**: Active
-**Last Updated**: 2026-10-26
+**Last Updated**: 2026-10-27
 
 ## 0. Coverage Evidence Used for Selection
 
@@ -50,6 +50,18 @@ The current CTAP handler accepts client-data hashes represented as byte arrays o
 | ID | Module | Behavior | Impact | Likelihood | Focused result | Measured contribution |
 |---|---|---|---:|---:|---|---|
 | `COV-020` | `:feature:fido2` | Legacy sensitive-text clientDataHash is decoded to the exact digest for candidate lookup, then RP/hash request owners are erased | 2 | 3 | `Ctap2GetAssertionHandlerTest`: 14 tests, 0 failures/errors; ktlint passed | Full dirty-tree diagnostic: FIDO2 +2 branches and +13 instructions versus §11.34; cumulative case-level attribution was not isolated. |
+
+### FIDO2 recovery and mnemonic decoding boundaries (2026-10-26; diagnostic only)
+
+Missed-branch review identified sensitive state recovery and encrypted mnemonic decoding as security-relevant boundaries in already-tested production services. `COV-021` exercises each individual field that can make a supposedly initial passkey snapshot partially initialized; every such snapshot must be rejected, its owned sensitive metadata erased, and authoritative event history replayed. `COV-022` exercises invalid Base64, empty decrypted plaintext, and malformed UTF-8 during mnemonic recovery, including erasure of plaintext bytes on decode failure.
+
+| ID | Module | Behavior | Impact | Likelihood | Focused result | Measured contribution |
+|---|---|---|---:|---:|---|---|
+| `COV-021` | `:feature:fido2` | Reject partially initialized passkey snapshots across every persisted state field, erase sensitive snapshot owners, and replay event history | 4 | 3 | `PasskeyAggregateSnapshotValidationTest`: 1 test covers 13 corrupted fields; 0 failures/errors, ktlint and Detekt passed | Full diagnostic: FIDO2 +20 branches and +8 instructions versus the COV-020 measurement. |
+| `COV-022` | `:feature:fido2` | Reject malformed Base64, empty decrypted mnemonic plaintext, and malformed UTF-8, erasing returned plaintext owners | 4 | 2 | `WalletMasterSeedProviderTest`: 16 tests, 0 failures/errors; ktlint passed | Full diagnostic: FIDO2 +5 branches and +23 instructions versus COV-021. |
+| `COV-023` | `:feature:fido2` | Omit typed `hmac-secret` response extension when credential seed derivation returns no output | 4 | 3 | `Ctap2GetAssertionHandlerTest`: 15 tests, 0 failures/errors; ktlint passed | Full diagnostic: FIDO2 +2 branches and +12 instructions versus COV-022. |
+
+The full host/device diagnostic after COV-023 passed `hdkCoverageVerify`. FIDO2 measured 3,362/5,526 branches (60.839%), 230 covered branches below the 65% goal; all hard floors remain satisfied. These successive dirty-tree measurements are diagnostic only and are not a sealed candidate capture or changed-module regression decision. See `implementation-evidence.md` §11.37–11.39.
 
 ### Missed-branch report and assertion audit across Tier 1
 

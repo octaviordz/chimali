@@ -482,11 +482,44 @@ class Ctap2GetAssertionHandlerTest {
             assertTrue(signature.all { it == 0.toByte() })
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `typed hmac-secret extension is omitted when credential seed is unavailable`() =
+        runTest {
+            val authData = ByteArray(37) { 0x24 }
+            authData[32] = 0x01
+            val signature = ByteArray(64) { 0x35 }
+            val firstOutput = ByteArray(32) { 0x46 }
+            val secondOutput = ByteArray(32) { 0x57 }
+            configurePrfResponse(firstOutput, secondOutput, authData, signature, derivedOutput = null)
+            var encodedKeys: Set<String>? = null
+            every { cborCodec.encodeToFido2Format(any()) } answers {
+                val fields = firstArg<Map<String, Any>>()
+                encodedKeys = fields.keys
+                (fields["2"] as ByteArray).copyOf()
+            }
+
+            val packet = handler.handle(cid, requestBytes).single()
+
+            assertEquals(setOf("2", "3"), encodedKeys)
+            assertTrue(firstOutput.all { it == 0x46.toByte() })
+            assertTrue(secondOutput.all { it == 0x57.toByte() })
+            coVerify(exactly = 1) { prfKeyDerivation.deriveAll(any(), "synthetic-credential") }
+            coVerify(exactly = 0) { hmacSecretProcessor.buildAuthDataExtensions(any()) }
+            packet.fill(0)
+            firstOutput.fill(0)
+            secondOutput.fill(0)
+            authData.fill(0)
+            signature.fill(0)
+        }
+
     private fun configurePrfResponse(
         firstOutput: ByteArray,
         secondOutput: ByteArray,
         assertionAuthData: ByteArray,
         assertionSignature: ByteArray,
+        derivedOutput: PrfExtensionOutput? = PrfExtensionOutput(firstOutput, secondOutput),
     ): CredentialSummary {
         val salt1 = ByteArray(32) { 0x11 }
         val salt2 = ByteArray(32) { 0x22 }
@@ -513,8 +546,7 @@ class Ctap2GetAssertionHandlerTest {
             )
         coEvery { getAssertionUseCase.findCandidateSummaries(any()) } returns listOf(summary)
         coEvery { getAssertionUseCase.invokeHeadless(any(), listOf(summary)) } returns Outcome.Success(assertion)
-        coEvery { prfKeyDerivation.deriveAll(any(), "synthetic-credential") } returns
-            PrfExtensionOutput(firstOutput, secondOutput)
+        coEvery { prfKeyDerivation.deriveAll(any(), "synthetic-credential") } returns derivedOutput
         every { hmacSecretProcessor.buildAuthDataExtensions(any()) } answers {
             mapOf(HmacSecretProcessor.EXTENSION_KEY to firstArg())
         }

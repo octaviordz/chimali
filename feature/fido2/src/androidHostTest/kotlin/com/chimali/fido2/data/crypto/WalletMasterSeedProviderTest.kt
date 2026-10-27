@@ -128,6 +128,33 @@ class WalletMasterSeedProviderTest {
             }
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `mnemonic recovery rejects malformed ciphertext empty plaintext and invalid UTF8`() =
+        runTest {
+            provider.withSessionOwner { _ ->
+                dataStore.updateData { it.copy(encryptedWalletSeed = "%%%not-base64%%") }
+                assertFailsWith<IllegalArgumentException> { provider.getMnemonic() }
+
+                dataStore.updateData {
+                    it.copy(encryptedWalletSeed = Base64.getEncoder().encodeToString(byteArrayOf(1)))
+                }
+                val emptyPlaintext = byteArrayOf()
+                every { encryption.decrypt(any()) } returns emptyPlaintext
+                assertFailsWith<IllegalArgumentException> { provider.getMnemonic() }
+                assertContentEquals(byteArrayOf(), emptyPlaintext)
+
+                dataStore.updateData {
+                    it.copy(encryptedWalletSeed = Base64.getEncoder().encodeToString(byteArrayOf(2)))
+                }
+                val malformedUtf8 = byteArrayOf(0xC3.toByte())
+                every { encryption.decrypt(any()) } returns malformedUtf8
+                assertFailsWith<java.nio.charset.CharacterCodingException> { provider.getMnemonic() }
+                assertContentEquals(byteArrayOf(0), malformedUtf8)
+            }
+        }
+
     /**
      * @see NFR-SEC-041
      * @see TR-AUTH-031
