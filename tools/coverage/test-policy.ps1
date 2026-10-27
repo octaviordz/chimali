@@ -219,6 +219,27 @@ foreach ($file in $fixtureFiles) {
                         else { $errorMsg = "Expected integration status $($case.expected_integration_status), got $($intEval.IntegrationStatus)" }
                     }
                 }
+                "capture-result.json" {
+                    try {
+                        $captureResult = ConvertFrom-CaptureResultOutput -OutputLines $case.output_lines
+                        if ($case.expected_valid) {
+                            if ($captureResult.run_id -eq $case.expected_run_id -and
+                                $captureResult.run_dir -eq $case.expected_run_dir) {
+                                $casePassed = $true
+                            } else {
+                                $errorMsg = "Capture result identity mismatch: run_id=$($captureResult.run_id), run_dir=$($captureResult.run_dir)"
+                            }
+                        } else {
+                            $errorMsg = "Expected capture result parsing to fail, but it succeeded"
+                        }
+                    } catch {
+                        if (-not $case.expected_valid -and $_.Exception.Message.Contains([string]$case.expected_error)) {
+                            $casePassed = $true
+                        } else {
+                            $errorMsg = $_.Exception.Message
+                        }
+                    }
+                }
                 "comparison.json" {
                     $compEval = Test-ComparisonCase -Case $case
                     if ($case.PSObject.Properties['expected_passed']) {

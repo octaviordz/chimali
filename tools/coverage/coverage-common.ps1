@@ -732,6 +732,41 @@ function Test-IntegrationInvocation {
     }
 }
 
+function ConvertFrom-CaptureResultOutput {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$OutputLines
+    )
+
+    $marker = "[CAPTURE_RESULT]"
+    $payloads = @(
+        foreach ($line in $OutputLines) {
+            $text = [string]$line
+            $index = $text.IndexOf($marker, [System.StringComparison]::Ordinal)
+            if ($index -ge 0) {
+                $text.Substring($index + $marker.Length).Trim()
+            }
+        }
+    )
+
+    if ($payloads.Count -ne 1) {
+        throw "Expected exactly one $marker record; found $($payloads.Count)"
+    }
+
+    try {
+        $result = $payloads[0] | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        throw "Capture result marker contains invalid JSON: $_"
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$result.run_id) -or
+        [string]::IsNullOrWhiteSpace([string]$result.run_dir)) {
+        throw "Capture result JSON must contain non-empty run_id and run_dir"
+    }
+
+    return $result
+}
+
 function Test-ComparisonCase {
     param(
         [Parameter(Mandatory = $true)]$Case

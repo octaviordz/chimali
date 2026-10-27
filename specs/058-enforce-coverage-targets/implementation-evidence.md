@@ -984,6 +984,36 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `status` | COV-023 focused assertion, lint and full coverage gates passed; all fixed floors remain satisfied. T107 is still open for clean-candidate reranking/comparison. T108 is open for local acceptance and final evidence reconciliation. |
 | `artifact_link` | `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt`; JaCoCo report `feature/fido2/build/reports/hdk-coverage/hdkModuleCoverage.xml`; canonical counters `build/reports/hdk-coverage/counters.json`. |
 
+### 11.40 Clean candidate coverage and current-target regression assessment (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Close T107's clean candidate measurement, complete Tier 1/repository floor accounting, and changed-Tier 1 regression assessment; retain the risk-goal shortfall explicitly (FR-006/007/009/010/016/020; SC-001/002/004/005/006). |
+| `scope` | Full `Comparison` candidate capture of all five Tier 1 inventories, configured Tier 2 and repository production scope, host/device tests, JaCoCo reports/execution data, retained artifact hashes, ten-field evidence records, and authenticator zero proof. Candidate compared against the separately captured clean current target; target itself was previously verified compatible with the same-revision Initial run. |
+| `revision` | Candidate/source commit `6a892bc93a9ad62253b3dc2f8da60fe308e86fd1`; source tree `83057f1b146c5d177b2c2847fd8ec9db81e60e1d`; target commit `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`. Clean preflight and postflight both passed. Harness revision/tree matched candidate and was clean. Manifest SHA-256 `faf0b92c0de385d5735b14040d9e6e8f14d8c9b23320142bcb61c826d15db7a9`. |
+| `named_procedure` | Ran `setup-host.ps1 -DeviceSerial R7AIB7002901AZ3`, then `capture.ps1` with `-Purpose Comparison`, exact source SHA, target SHA, clean harness checkout, and external run output root. Ran `verify.ps1` against current-target run `10b510ad-4638-4107-9fe6-91efdbbf9827` and policy `tools/coverage/policy.json`; both commands exited 0. The same source revision had passed `tools/local-ci.ps1 -NoFix -NoConfigurationCache -RunCoverage` before capture (158.47 seconds). |
+| `environment` | Windows 10.0.26300.0; PowerShell 7.6.5; JetBrains Java 21.0.10; Gradle 9.6.0; JaCoCo 0.8.15; Android platform 37.0 revision 2; build-tools 37.0.0; Command-line Tools 22.0; platform-tools 37.0.1; authorized ASUS_AI2302, serial `R7AIB7002901AZ3`, API 35, `arm64-v8a`. |
+| `expected_observed_result` | Run `5d12eb03-7e25-44c1-a10f-bc7c69c461d7`, 2026-10-27 06:12:42–06:14:48 UTC. 203 suites / 1,281 tests; 0 failures, errors, or skips. Verifier overall PASS: collection/tests/floors Passed, compatibility Compatible, regression Passed. Tier 1 raw counters: security 3,624/4,452 instructions and 258/386 branches; domain 5,124/7,184 and 412/578; data 1,158/1,333 and 44/60; FIDO2 54,508/86,114 (63.298%) and 3,362/5,526 (60.839%); authenticator 0/0 with `AnalyzedZeroProofV1`. Repository 74,222/132,917 instructions (55.834%) and 4,650/8,010 branches. All fixed hard floors passed. Versus target, security gained 239 covered instructions and 19 branches; FIDO2 gained 56 instructions and 29 branches; other Tier 1 counters were unchanged. FIDO2 is 46 branches above its fixed 60% floor and 230 below the approximate 65% goal. The external manifest contains nine evidence records with all ten required fields, 3,378 retained artifacts, and one bound zero proof. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | The verifier correctly reports publication Pending and integration Unverified. Hosted T046–T049 are waived by the owner (§11.28); this record claims local collection, floors, compatibility, and regression only. The local integration wrapper attempt on this revision exposed a result-parser bug after capture; that wrapper was corrected separately and still requires a clean-revision rerun. The local pre-push negative checks are recorded in §11.41. |
+| `status` | T107's clean-candidate accounting and changed-Tier 1 regression check pass. All required hard floors pass; the approximate 65% FIDO2 goal remains 230 branches short and is documented without changing thresholds or exclusions. |
+| `artifact_link` | `D:/octav/coverage-local-validation/runs/5d12eb03-7e25-44c1-a10f-bc7c69c461d7/manifest.json`; `D:/octav/coverage-local-validation/assessments/6a892-current-target/decision.md`; target manifest/assessment in §11.36. |
+
+### 11.41 Local pre-push prerequisite negative checks (2026-10-27)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Demonstrate the installed local pre-push path fails closed when no target is configured or a configured target cannot be resolved, without invoking local CI for invalid targets (T108; FR-012/013; SC-003). |
+| `scope` | Executed the real `tools/coverage/pre-push-hook.ps1` from an isolated clone at candidate SHA `6a892bc93a9ad62253b3dc2f8da60fe308e86fd1`. Case 1 removed target-related environment configuration and used an empty global Git config; case 2 configured nonexistent `refs/heads/does-not-exist`, the authorized device serial, and a disposable external evidence path. No remote push was made. |
+| `revision` | Probe clone source commit `6a892bc93a9ad62253b3dc2f8da60fe308e86fd1`; working tree remained the clean committed revision. Clone path `D:/temp/chimali-prepush-probe`. |
+| `named_procedure` | Piped a valid pre-push ref update to `pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/pre-push-hook.ps1` in the isolated clone. Missing-target case exited 1 with `No integration target configured`. Unresolvable-target case exited 1 through `integration-ci.ps1` before `[Step 1/3]` local checks, with target/ref-resolution failure. |
+| `environment` | Windows 10.0.26300.0; PowerShell 7.6.5; Git; isolated local clone; device serial `R7AIB7002901AZ3` configured only for the stale-target case. The disposable evidence path was outside both source checkouts. |
+| `expected_observed_result` | Both negative cases returned exit code 1 before any integration test run. Missing target failed with actionable configuration guidance; stale/unresolvable target failed before candidate local CI. The clone and its config isolated all probe settings from the user's main Git configuration. |
+| `date` | 2026-10-27, America/Mexico_City. |
+| `limitations` | These checks demonstrate fail-closed missing/unresolvable target behavior only; they do not establish hosted protection or publication, and no actual network push was attempted. The wrapper's successful capture-result parsing remains pending a fresh clean commit after its parser fix. |
+| `status` | Two real local pre-push negative cases passed. Hosted publication/protection remains unverified under the owner waiver. |
+| `artifact_link` | `tools/coverage/pre-push-hook.ps1`; `tools/integration-ci.ps1`; `D:/temp/chimali-prepush-probe`; parser regression fixtures in `tools/coverage/fixtures/capture-result.json`. |
+
 
 
 

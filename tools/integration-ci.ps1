@@ -124,18 +124,14 @@ if ($captureExit -ne 0) {
     exit $captureExit
 }
 
-$capturedJson = $null
 foreach ($line in $captureOutput) {
     Write-Host $line
-    if ($line -like "*[CAPTURE_RESULT]*") {
-        $idx = $line.IndexOf("[CAPTURE_RESULT]")
-        $jsonStr = $line.Substring($idx + "[CAPTURE_RESULT]".Length).Trim()
-        $capturedJson = $jsonStr | ConvertFrom-Json
-    }
 }
 
-if (-not $capturedJson -or -not $capturedJson.run_dir) {
-    Write-Error "Failed to parse [CAPTURE_RESULT] structured output from capture.ps1"
+try {
+    $capturedJson = ConvertFrom-CaptureResultOutput -OutputLines $captureOutput
+} catch {
+    Write-Error "Failed to parse [CAPTURE_RESULT] structured output from capture.ps1: $_"
     exit 2
 }
 

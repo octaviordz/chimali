@@ -1,0 +1,42 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Capture result parsing ignores ordinary logs and accepts exactly one complete structured result",
+  "cases": [
+    {
+      "id": "CAPTURE_001_LITERAL_MARKER_AFTER_NOISY_LOGS",
+      "description": "Find the literal marker after ordinary build logs and parse the run identity",
+      "output_lines": [
+        "Gradle build successful",
+        "Coverage run captured to D:\\runs\\run-001",
+        "[CAPTURE_RESULT] {\"run_id\":\"run-001\",\"run_dir\":\"D:\\\\runs\\\\run-001\",\"collection\":\"Complete\",\"tests\":\"Passed\"}"
+      ],
+      "expected_valid": true,
+      "expected_run_id": "run-001",
+      "expected_run_dir": "D:\\runs\\run-001"
+    },
+    {
+      "id": "CAPTURE_002_MISSING_MARKER_REJECTED",
+      "description": "Ordinary output without a capture result marker is rejected",
+      "output_lines": ["big task succeeded", "Coverage run captured to D:\\runs\\run-002"],
+      "expected_valid": false,
+      "expected_error": "Expected exactly one [CAPTURE_RESULT] record; found 0"
+    },
+    {
+      "id": "CAPTURE_003_INVALID_JSON_REJECTED",
+      "description": "A literal marker with invalid JSON is rejected",
+      "output_lines": ["[CAPTURE_RESULT] not-json"],
+      "expected_valid": false,
+      "expected_error": "Capture result marker contains invalid JSON"
+    },
+    {
+      "id": "CAPTURE_004_DUPLICATE_MARKERS_REJECTED",
+      "description": "Multiple capture result records are rejected as ambiguous",
+      "output_lines": [
+        "[CAPTURE_RESULT] {\"run_id\":\"run-001\",\"run_dir\":\"D:\\\\runs\\\\run-001\"}",
+        "[CAPTURE_RESULT] {\"run_id\":\"run-002\",\"run_dir\":\"D:\\\\runs\\\\run-002\"}"
+      ],
+      "expected_valid": false,
+      "expected_error": "Expected exactly one [CAPTURE_RESULT] record; found 2"
+    }
+  ]
+}
