@@ -774,6 +774,22 @@ function Test-ComparisonCase {
     }
 }
 
+function Get-RemoteRefCommit {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Output,
+        [Parameter(Mandatory = $true)][string]$ExpectedRef
+    )
+
+    foreach ($line in $Output) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $parts = $line.Trim() -split '\s+'
+        if ($parts.Count -eq 2 -and $parts[1] -ceq $ExpectedRef -and $parts[0] -match '^[0-9a-fA-F]{40}$') {
+            return $parts[0].ToLowerInvariant()
+        }
+    }
+    return $null
+}
+
 function Test-PublicationCase {
     param(
         [Parameter(Mandatory = $true)]$Case
@@ -789,6 +805,14 @@ function Test-PublicationCase {
         }
         if ($Case.publication.remote_path_exists) {
             $errors += "Cannot overwrite immutable run record: runs/$($Case.publication.run_id) already exists"
+        }
+        if ($Case.publication.remote_ref_output) {
+            $remoteCommit = Get-RemoteRefCommit -Output @($Case.publication.remote_ref_output) -ExpectedRef $Case.publication.expected_ref
+            if (-not $remoteCommit) {
+                $errors += "Remote read-back ref missing or malformed: $($Case.publication.expected_ref)"
+            } elseif ($Case.publication.expected_commit -and $remoteCommit -ne $Case.publication.expected_commit) {
+                $errors += "Remote read-back commit did not match the published commit"
+            }
         }
     }
 

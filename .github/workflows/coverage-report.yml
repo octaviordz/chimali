@@ -6,6 +6,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   checks: write
   contents: read
 
@@ -28,13 +29,13 @@ jobs:
           }
 
       - name: Checkout trusted default-branch harness
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ vars.TRUSTED_HARNESS_SHA || '9af4b4ab63d42bc2bc6be703d15dc9d5924fcbc7' }}
+          ref: 997cc3b3ccab94f1f57f5b9c770e98c5b969118f
           path: trusted-harness
 
       - name: Download capture artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: coverage-bundle
           path: run-bundle
@@ -44,16 +45,22 @@ jobs:
       - name: Generate Coverage Check
         shell: pwsh
         env:
-          APP_ID: ${{ secrets.COVERAGE_APP_ID }}
+          APP_ID: ${{ vars.COVERAGE_APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.COVERAGE_APP_PRIVATE_KEY }}
-          INSTALLATION_ID: ${{ secrets.COVERAGE_APP_INSTALLATION_ID }}
+          INSTALLATION_ID: ${{ vars.COVERAGE_APP_INSTALLATION_ID }}
+          WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
+          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          $headSha = "${{ github.event.workflow_run.head_sha }}"
-          $baseSha = "${{ github.event.workflow_run.pull_requests[0].base.sha }}"
-          if (-not $baseSha) { $baseSha = $headSha }
+          $headSha = $env:WORKFLOW_HEAD_SHA
+          $baseSha = $env:WORKFLOW_BASE_SHA
+          if ([string]::IsNullOrWhiteSpace($baseSha)) { $baseSha = $headSha }
 
           # Strict promotion only on verified post-integration workflow run on default branch
-          $isDefaultBranchPush = ("${{ github.event.workflow_run.event }}" -eq "push" -and "${{ github.event.workflow_run.head_branch }}" -in @("main", "lab/or/jpc"))
+          $isDefaultBranchPush = ($env:WORKFLOW_EVENT -eq "push" -and $env:WORKFLOW_HEAD_BRANCH -eq "lab/or/chimali")
           $promoteArgs = @()
           if ($isDefaultBranchPush) {
               $promoteArgs += "-PromoteIntegration"
@@ -63,7 +70,7 @@ jobs:
 
           pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/report.ps1 `
             -RunBundle (Get-Item run-bundle/* | Select-Object -First 1).FullName `
-            -Repository "${{ github.repository }}" `
+            -Repository $env:REPOSITORY `
             -HeadSha $headSha `
             -BaseSha $baseSha `
             -AppId $env:APP_ID `

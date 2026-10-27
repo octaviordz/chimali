@@ -169,7 +169,28 @@ if (-not $repoRoot) {
 }
 
 # Check if remote branch exists and can be fetched
-$remoteCheck = & git ls-remote --heads $RemoteName $EvidenceBranch 2>&1
+$publishToken = $env:CHIMALI_COVERAGE_PUBLISH_TOKEN
+if ([string]::IsNullOrWhiteSpace($publishToken)) {
+    Write-Error "CHIMALI_COVERAGE_PUBLISH_TOKEN is required for trusted archive publication."
+    exit 2
+}
+
+$remoteUrl = (& git remote get-url $RemoteName 2>$null | Select-Object -First 1)
+try {
+    $remoteUri = [Uri]$remoteUrl
+} catch {
+    Write-Error "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
+    exit 2
+}
+if ($remoteUri.Scheme -ne 'https' -or $remoteUri.Host -ne 'github.com') {
+    Write-Error "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
+    exit 2
+}
+
+$credentialBytes = [System.Text.Encoding]::UTF8.GetBytes("x-access-token:$publishToken")
+$credentialBase64 = [Convert]::ToBase64String($credentialBytes)
+$gitAuthArgs = @('-c', "http.https://github.com/.extraheader=AUTHORIZATION: basic $credentialBase64")
+$remoteCheck = & git @gitAuthArgs ls-remote --heads $RemoteName $EvidenceBranch 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to access remote $RemoteName branch ${EvidenceBranch}: credentials absent or remote unreachable"
     $failReceipt = [PSCustomObject]@{
@@ -198,7 +219,7 @@ try {
         & git checkout --orphan $EvidenceBranch
         & git rm -rf . --quiet 2>$null
     } else {
-        & git fetch $RemoteName "${EvidenceBranch}:${EvidenceBranch}" --quiet 2>$null
+        & git @gitAuthArgs fetch $RemoteName "${EvidenceBranch}:${EvidenceBranch}" --quiet 2>$null
         & git worktree add $tempWorktree $EvidenceBranch --quiet
         Push-Location $tempWorktree
     }
@@ -260,7 +281,7 @@ try {
     $archiveCommit = (git rev-parse HEAD).Trim()
 
     # Push to remote with atomic check and no-verify (evidence branch contains no product build scripts)
-    & git push --no-verify $RemoteName "${EvidenceBranch}:${EvidenceBranch}" 2>&1
+    & git @gitAuthArgs push --no-verify $RemoteName "${EvidenceBranch}:${EvidenceBranch}" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Concurrent publication conflict or push failure to $EvidenceBranch"
         $conflictReceipt = [PSCustomObject]@{
@@ -278,10 +299,40 @@ try {
         exit 1
     }
 
-    # Read-back verification
-    $verifyRef = (git rev-parse HEAD).Trim()
-    if ($verifyRef -ne $archiveCommit) {
-        Write-Error "Read-back verification failed: commit mismatch"
+    # Read-back verification must inspect the remote ref, not only the local worktree.
+    $remoteRef = "refs/heads/$EvidenceBranch"
+    $publishedRef = & git @gitAuthArgs ls-remote --heads $RemoteName $remoteRef 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Archive push succeeded, but remote read-back failed for $remoteRef"
+        $readBackFailure = [PSCustomObject]@{
+            run_id = $runId
+            schema_version = "1.0"
+            publication_purpose = $manifest.purpose
+            published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            archive_branch = $EvidenceBranch
+            archive_commit = $null
+            bundle_digest = $bundleDigest
+            status = "Failed"
+            error = "Remote read-back failed after push"
+        }
+        $readBackFailure | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
+        exit 1
+    }
+    $verifyRef = Get-RemoteRefCommit -Output @($publishedRef) -ExpectedRef $remoteRef
+    if ([string]::IsNullOrWhiteSpace($verifyRef) -or $verifyRef -ne $archiveCommit) {
+        Write-Error "Remote read-back verification failed: expected $archiveCommit, got '$verifyRef'"
+        $readBackFailure = [PSCustomObject]@{
+            run_id = $runId
+            schema_version = "1.0"
+            publication_purpose = $manifest.purpose
+            published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            archive_branch = $EvidenceBranch
+            archive_commit = $null
+            bundle_digest = $bundleDigest
+            status = "Failed"
+            error = "Remote read-back commit did not match the published commit"
+        }
+        $readBackFailure | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8
         exit 1
     }
 
@@ -312,4 +363,8 @@ try {
     if (Test-Path $tempWorktree) {
         Remove-Item -Path $tempWorktree -Recurse -Force -ErrorAction SilentlyContinue
     }
+    $publishToken = $null
+    $credentialBytes = $null
+    $credentialBase64 = $null
+    $gitAuthArgs = $null
 }

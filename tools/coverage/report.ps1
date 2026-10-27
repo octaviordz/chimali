@@ -279,7 +279,16 @@ if ($PromoteIntegration -and $checkConclusion -eq "success") {
         "-IntegratedCommit", $(if ($IntegratedCommit) { $IntegratedCommit } else { $HeadSha }),
         "-IntegratedTree", $(if ($IntegratedTree) { $IntegratedTree } else { $manifest.source_tree })
     )
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File $publishScript @publishArgs
+    $publishTokenVariable = "CHIMALI_COVERAGE_PUBLISH_TOKEN"
+    $previousPublishToken = [Environment]::GetEnvironmentVariable($publishTokenVariable, "Process")
+    try {
+        [Environment]::SetEnvironmentVariable($publishTokenVariable, $installToken, "Process")
+        & pwsh -NoProfile -ExecutionPolicy Bypass -File $publishScript @publishArgs
+    } finally {
+        [Environment]::SetEnvironmentVariable($publishTokenVariable, $previousPublishToken, "Process")
+        $previousPublishToken = $null
+        $publishTokenVariable = $null
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to promote accepted target baseline in publish.ps1"
         exit 1

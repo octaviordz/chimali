@@ -52,6 +52,44 @@
       },
       "expected_valid": false,
       "expected_error": "Capture workflow concluded as skipped; complete required evidence was not produced"
+    },
+    {
+      "id": "PUB_006_REMOTE_READBACK_MATCHES_PUSHED_COMMIT",
+      "description": "Publication read-back accepts only the expected commit at the exact remote evidence ref",
+      "publication": {
+        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_commit": "0123456789abcdef0123456789abcdef01234567",
+        "remote_ref_output": [
+          "0123456789abcdef0123456789abcdef01234567\trefs/heads/codex/coverage-evidence"
+        ]
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "PUB_007_REMOTE_READBACK_MISMATCH_REJECTED",
+      "description": "Publication cannot claim success when the remote ref differs from the pushed commit",
+      "publication": {
+        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_commit": "0123456789abcdef0123456789abcdef01234567",
+        "remote_ref_output": [
+          "fedcba9876543210fedcba9876543210fedcba98\trefs/heads/codex/coverage-evidence"
+        ]
+      },
+      "expected_valid": false,
+      "expected_error": "Remote read-back commit did not match the published commit"
+    },
+    {
+      "id": "PUB_008_REMOTE_READBACK_WRONG_REF_REJECTED",
+      "description": "A commit returned for a different branch cannot satisfy evidence-branch read-back",
+      "publication": {
+        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_commit": "0123456789abcdef0123456789abcdef01234567",
+        "remote_ref_output": [
+          "0123456789abcdef0123456789abcdef01234567\trefs/heads/main"
+        ]
+      },
+      "expected_valid": false,
+      "expected_error": "Remote read-back ref missing or malformed"
     }
   ]
 }
