@@ -1,0 +1,9 @@
+{
+  "run_id": "00000000-0000-4000-8000-000000000456",
+  "purpose": "Initial",
+  "git": {
+    "source_commit": "dee70c0c3d984e5cd586c5a659843717cd7b5a8b",
+    "source_tree": "684b1446d599bc708165c22e293977bdf1111a00"
+  },
+  "artifacts": []
+}
