@@ -783,6 +783,8 @@ Before transmitting the generated private key, review and repair the reporter wo
 
 ### 11.26 App-key removal and runner resumed (2026-10-26)
 
+Historical startup verification; the runner was subsequently disabled at the owner's request in §11.27.
+
 | Evidence field | Verified record |
 | --- | --- |
 | `action` | After the user's explicit confirmation, File Explorer permanently deleted the App PEM from Recycle Bin. The UI showed the exact private-key PEM, 1.63 KB, original location `C:\Users\octav\Downloads`; Recycle Bin then displayed 0 items for the active query. A filesystem path check confirmed the prior Downloads path is absent, and a read-only scan of Recycle Bin metadata found no matching entry. |
@@ -790,6 +792,62 @@ Before transmitting the generated private key, review and repair the reporter wo
 | `credential_boundary` | App credentials remain in the `coverage-reporting` environment, restricted to the exact `lab/or/chimali` branch pattern. No local PEM copy or Recycle Bin metadata entry remains at the checked locations. |
 | `limitations` | The runner is persistent and shares the Windows account/device environment. Workflow changes remain local/uncommitted and have not bootstrapped on the protected default branch. The archive branch and real trial publication/read-back remain absent; T049 controlled missing/failing coverage, forged-success, and target-invalidation runs remain unperformed. |
 | `status` | Key removal and runner online/idle availability are verified. T046–T049 remain unchecked. |
+
+### 11.27 Persistent runner disabled; registration retained (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `owner_decision` | The owner reassessed the exposure of the Windows host and attached Android device and explicitly requested disabling the runner, then clarified that its registration must be retained. Do not re-enable it without explicit owner authorization. |
+| `host_action` | Stopped the interactive runner session. A subsequent process query found 0 `Runner.Listener.exe` and 0 `Runner.Worker.exe` processes. No Windows service named `actions.runner*` or scheduled task with a matching runner/start-script action was found. |
+| `startup_disabled` | In `%LOCALAPPDATA%\GitHubActionsRunner\chimali-coverage-v2.338.0`, preserved `run.cmd` as `run.cmd.disabled-by-owner` and added `.coverage-runner-disabled.json`. The `.runner` registration metadata remains present. `tools/coverage/start-runner.ps1` now rejects startup when that marker exists, before host setup or device access. |
+| `github_state` | Refreshed GitHub Settings > Actions > Runners; `chimali-coverage-device` remained listed at runner ID `2` with status `Offline`. Its registration was not removed. |
+| `validation` | Invoking the start script with the configured device serial was rejected with the owner-disabled message and exit code 1. PowerShell parsing reported 0 errors. A final process query still found 0 runner listener/worker processes. |
+| `status` | This host is disabled for Actions execution and its registration is retained. Device runner availability is unmet. T046–T049 remain unchecked; the required integration gate has no available device runner from this host. |
+
+### 11.28 Owner waiver of T046–T049 (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | T046 runner/reporter bootstrap; T047 trusted publisher/archive provisioning and trial retrieval; T048 App-bound integration protection; T049 controlled negative/forged-success/current-target demonstrations. |
+| `scope` | The owner explicitly waived all four operational tasks. T089 repeats those requirements, so its operational scope is covered by the same exception. The hosted-control/archive/integration demonstrations in T108 are excluded; local tests, coverage floors, complete inventories, regression comparison, evidence retention, and final documentation remain active. |
+| `revision` | Working documentation on `lab/or/chimali`, based on commit `89cd2d9`; no new commit or hosted run was made for the waiver. |
+| `named_procedure` | Record task status as WAIVED, retain the original requirements and partial results, update spec/plan/validation/contract scope, and continue local evidence verification. Do not mark waived tasks as successfully implemented or tested. |
+| `environment` | One available persistent Windows host and attached Android device. The owner reports no spare physical hardware or acceptable disposable Windows worker and disposable Android physical/virtual device; earlier Sandbox/Hyper-V investigations did not yield a usable replacement. |
+| `expected_observed_result` | The owner rejects the attack surface of contributor-controlled code executing against the Windows account/files and connected Android device. The runner stays disabled with registration retained as verified in §11.27. T046–T049 are excluded from current execution under that explicit decision. |
+| `date` | 2026-10-26, America/Mexico_City. |
+| `limitations` | A waiver records accepted non-delivery, not proven hosted enforcement or publication. It supersedes the earlier disposability-only waiver, does not certify isolation, and does not permit a synthetic passing check or automatic runner restart. Local numerical and behavioral requirements remain unchanged. |
+| `status` | T046–T049 WAIVED by owner. Their checkboxes remain unchecked to distinguish waiver from verification. T089 duplicate operational work follows the waiver; T088, T107, and local T108 acceptance remain open. |
+| `artifact_link` | `tasks.md` owner-waiver section; `spec.md`; `plan.md`; `quickstart.md`; `contracts/coverage-workflow.md`; owner messages in this session. |
+
+### 11.29 Coverage requirement removed and owner bypass enabled (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Apply the owner's separate instructions to remove only the coverage requirement and allow the owner's user account to bypass default-branch rules. These are operational policy changes following the T046–T049 waiver, not successful T048 verification. |
+| `scope` | Edited existing ruleset `25926101`, `coverage-integration-default-branch`, applying to exact `refs/heads/lab/or/chimali`. No archive-ruleset change, runner restart, or App credential change was performed. |
+| `revision` | Repository settings were read before and after the edit through GitHub's public ruleset API; saved bypass state was read through authenticated Settings UI after a full reload. |
+| `named_procedure` | Removed the sole required-status-check rule, which required `coverage-integration` from App `5488780`. Added exact user `octaviordz` to the bypass list in `Always allow` mode; saved and reloaded the ruleset. |
+| `environment` | GitHub repository `octaviordz/chimali`; authenticated owner's Edge session. The public read endpoint omits bypass actors, so it was used for rule verification and the authenticated reloaded UI was used for actor/mode verification. |
+| `expected_observed_result` | API read-back shows enforcement `active`, the same exact target ref, and only `deletion`, `non_fast_forward`, and `pull_request` rule types. Pull-request parameters, including zero required approving reviews and allowed merge/squash/rebase methods, match the prior settings. Reloaded UI shows only `octaviordz` / Users / `Always allow` in the bypass list. |
+| `date` | 2026-10-26, America/Mexico_City. |
+| `limitations` | The coverage check is no longer a merge requirement. The owner can bypass all rules in this default-branch ruleset; other contributors remain subject to its PR/deletion/force-push restrictions. This grants no coverage acceptance and does not re-enable the device runner. The archive ruleset remains as previously provisioned. |
+| `status` | Requested settings changes verified by API/UI read-back. T046–T049 remain WAIVED, not passed. |
+| `artifact_link` | `https://github.com/octaviordz/chimali/settings/rules/25926101`; `https://api.github.com/repos/octaviordz/chimali/rulesets/25926101`; retained public API snapshot `D:/octav/coverage-local-validation/assessment-waiver-audit-b8c48f33ec0d4fd6a12d8b630e371c8e/ruleset-25926101-after-waiver.json`. |
+
+### 11.30 Retained local capture revalidation after waiver (2026-10-26)
+
+| Evidence field | Verified record |
+| --- | --- |
+| `requirement` | Continue the local T088/T107/T108 evidence work after the operational waiver; preserve the exact measured revision and distinguish retained measurement from current-candidate integration. |
+| `scope` | Revalidated existing sealed Initial bundle `5fad15f8-0604-46ea-b822-6b0997de4e26`; no candidate/device code or Actions job was executed. |
+| `revision` | Measured source and local harness commit `997cc3b3ccab94f1f57f5b9c770e98c5b969118f`, tree `bc6b6f323d80fd2d8ce6785096b7bd20fe9529c1`; clean preflight/postflight recorded. Manifest SHA-256 remains `708382d35e6c32129e3c303b8e27043e3244d24b57d0217f9e5e4e3670c62583`. |
+| `named_procedure` | Ran current `tools/coverage/verify.ps1` against the retained bundle and canonical policy, writing a new assessment outside the sealed bundle. |
+| `environment` | Trusted local PowerShell execution on this Windows host; registered Actions runner remains disabled. The retained bundle has 2,932 declared artifacts and 200 recorded suites. |
+| `expected_observed_result` | Verifier exit 0; collection Complete, tests Passed, floors Passed, `overall_passed=true`. All eight module decisions passed, including authenticator's inventory/zero-proof disposition. Raw FIDO2 instructions remain 54,452/86,114 and branches 3,333/5,526; repository instructions remain 74,125/132,917. |
+| `date` | 2026-10-26, America/Mexico_City. This is a new assessment of the prior run, not new workload execution. |
+| `limitations` | Comparison compatibility is Missing, regression NotApplicable, publication Pending, and integration Unverified. The local harness has recorded source identity, but no newly established independent/protected review or trusted accepted-target baseline. This audit does not by itself close T088/T107 or establish measurements for the current changed commit/tree. Security and FIDO2 remain below the nonbinding 65% branch goal. |
+| `status` | Retained local evidence integrity and floors revalidated. T088/T107/local T108 remain open pending their full unwaived criteria; hosted criteria remain waived. |
+| `artifact_link` | Bundle: `D:/octav/coverage-local-validation/5fad15f8-0604-46ea-b822-6b0997de4e26`; new assessment: `D:/octav/coverage-local-validation/assessment-waiver-audit-b8c48f33ec0d4fd6a12d8b630e371c8e/decision.json` and `decision.md`. |
 
 
 

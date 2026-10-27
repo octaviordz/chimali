@@ -7,6 +7,8 @@ Use [plan.md](plan.md) for sequencing, [data-model.md](data-model.md) for result
 
 ## 1. Prerequisites and scope
 
+**Current owner waiver (2026-10-26):** T046–T049 and their duplicate operational scope in T089 are waived because acceptable disposable Windows/Android resources are unavailable and the owner rejects malicious-PR exposure of the persistent host/device. The registered runner is disabled; do not start it or execute the hosted provisioning/demonstration steps below without explicit owner authorization. Continue trusted local measurement and tests. Hosted publication/integration outcomes remain unverified; the hosted portion of final acceptance is covered by the exception, while local checks, floors, comparison, retained evidence, and documentation remain required. See `tasks.md` and `implementation-evidence.md` §11.28.
+
 1. Implement the policy, collector, verifier and fixture harness before executing this guide. Synchronize the authorized constitution/BRD/TRD/rules amendment and current instructions. Confirm the hard floors are Tier 1 instructions/branches 60%/60%, repository instructions 50%, and existing affected Tier 2 instructions 20%. The branch improvement goal is approximately 65%.
 2. Use a clean identified candidate commit and a separate reviewed trusted harness revision. Preserve outstanding work before preparing the measured commit; never report HEAD as tested while uncommitted production/test changes are present.
 3. Provide PowerShell 7, Git, the repository-compatible JDK/SDK toolchain, Gradle wrapper dependencies, Android platform tools and a connected authorized device that can execute every required procedure. Select its serial and verified capability profile. Historical Android 10 exclusions are not a default.

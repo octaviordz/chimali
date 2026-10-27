@@ -9,6 +9,10 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $RunnerRoot = [System.IO.Path]::GetFullPath($RunnerRoot)
 
+if (Test-Path -LiteralPath (Join-Path $RunnerRoot '.coverage-runner-disabled.json')) {
+    throw "This runner is disabled by its owner. Startup is blocked until the owner explicitly authorizes re-enabling this host."
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $RunnerRoot '.runner') -PathType Leaf)) {
     throw "The GitHub runner is not registered in '$RunnerRoot'. Configure it using the repository-specific setup instructions first."
 }

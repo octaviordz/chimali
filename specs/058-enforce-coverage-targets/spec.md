@@ -19,6 +19,10 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
+### Owner decision — 2026-10-26
+
+T046–T049 operational runner/reporter/archive/protection/integration acceptance is waived for this delivery. The owner lacks acceptable disposable Windows and Android physical/virtual execution resources and rejects the exposure of the persistent Windows host and attached Android device to malicious PR code. The runner is disabled with registration retained. This exception also covers the duplicate T089 operational scope and hosted demonstrations in T108. Local coverage/test/ratio/regression/evidence requirements remain binding. The original hosted requirements below remain the design for a future authorized rollout; they are not claimed satisfied by this exception. See `tasks.md` and `implementation-evidence.md` §11.28.
+
 ### User Story 1 - Apply Consistent Coverage Requirements (Priority: P1)
 
 As a maintainer, I need every critical module assessed against the same published coverage requirements so an overall repository percentage cannot conceal an under-tested critical module.

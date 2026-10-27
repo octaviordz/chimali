@@ -14,6 +14,12 @@ Use configured production/test inventories, explicit empty/branchless dispositio
 
 ## Technical Context
 
+### Owner-authorized delivery exception (2026-10-26)
+
+The owner waived operational T046–T049 after reassessing malicious-PR exposure of the persistent Windows host and attached Android device. No acceptable disposable Windows worker and disposable Android physical/virtual device are available; the investigated Sandbox/Hyper-V routes did not resolve the hardware constraints. The registered runner is disabled and must remain so until explicitly authorized by the owner. The earlier disposability-only waiver is superseded by this four-task waiver.
+
+The same exception covers the duplicate operational scope in T089 and the hosted-control/archive/integration demonstrations in T108. Continue local baseline, behavior tests, exact hard-floor/regression measurement, retained local evidence, and final documentation. Preserve the original design below as the requirements for any future hosted rollout. Report hosted enforcement, durable hosted publication, and controlled integration as unverified/waived rather than successful. The waiver does not authorize a synthetic passing receipt, a weaker executable policy, runner reactivation, or an unrequested change to existing GitHub protections. See `tasks.md` and `implementation-evidence.md` §11.28 for scope and rationale.
+
 **Language/Version**: Kotlin 2.3.21/JVM target 17 for product/tests; existing Groovy Gradle init script; PowerShell 7.x and JSON for orchestration, evidence and deterministic verification; YAML for the hosted workflow. Use existing Gradle 9.6.0 and AGP 9.4.1. No toolchain or production dependency upgrade.
 
 **Primary Dependencies**: JaCoCo 0.8.15; existing Kotlin test, JUnit 4/5, coroutine test, AndroidX/Compose testing and SQLDelight test drivers. Git/GitHub Actions, a repository-installed dedicated coverage GitHub App, and Android platform tools. Use built-in .NET XML/JSON, hashing and arbitrary-precision integer support; add no Pester dependency or Gradle module. App/environment/protection provisioning remains implementation work, not an assumed existing capability.
@@ -46,7 +52,7 @@ Use configured production/test inventories, explicit empty/branchless dispositio
 | VII: document synchronization | Dated feature-055 evidence and stronger separate BRD objectives already exist. | Preserve historical outcomes/exclusions/deferrals and the BRD 100% core business-logic objective. Update active instructions and clearly distinguish design, measured results and integration acceptance. |
 | VI / VIII: product budgets and platform obligations | Hosted verification does not establish device-class or performance equivalence. | Preserve existing product budgets and platform/device limitations. Coverage suites cannot certify physical Bluetooth interoperability, accessibility or numerical performance without their separate required evidence. |
 
-No unjustified constitutional exception or unresolved design question remains. Unavailable remote credentials, device/runner provisioning and measured class compatibility are execution prerequisites with explicit failing acceptance states, not assumed passes.
+The owner-authorized operational exception above is the current delivery constraint. Unavailable or waived remote execution remains explicitly unverified; local measurement and class compatibility still require evidence and are not assumed passes.
 
 ## Project Structure
 
