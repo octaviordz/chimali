@@ -240,6 +240,18 @@ foreach ($file in $fixtureFiles) {
                         }
                     }
                 }
+                "manifest-identity.json" {
+                    $identity = Test-CandidateManifestIdentity -Manifest $case.manifest -ExpectedSourceCommit $case.expected_source_commit -ExpectedTargetCommit $case.expected_target_commit
+                    if ($identity.IsValid -eq $case.expected_valid) {
+                        if (-not $case.expected_error -or ($identity.Errors -join '; ').Contains([string]$case.expected_error)) {
+                            $casePassed = $true
+                        } else {
+                            $errorMsg = "Expected identity error '$($case.expected_error)', got: $($identity.Errors -join '; ')"
+                        }
+                    } else {
+                        $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($identity.IsValid). Errors: $($identity.Errors -join '; ')"
+                    }
+                }
                 "comparison.json" {
                     $compEval = Test-ComparisonCase -Case $case
                     if ($case.PSObject.Properties['expected_passed']) {

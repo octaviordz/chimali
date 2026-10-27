@@ -1,0 +1,63 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Integration candidate identity checks read exact source and target commits from the manifest git object",
+  "cases": [
+    {
+      "id": "MANIFEST_ID_001_NESTED_GIT_IDENTITY_ACCEPTED",
+      "description": "Accept candidate and target commits from the schema's nested git object",
+      "manifest": {
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "expected_source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": true
+    },
+    {
+      "id": "MANIFEST_ID_002_MISMATCHED_SOURCE_REJECTED",
+      "description": "Reject a captured source revision that differs from the candidate ref",
+      "manifest": {
+        "git": {
+          "source_commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "expected_source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": false,
+      "expected_error": "git.source_commit"
+    },
+    {
+      "id": "MANIFEST_ID_003_MISMATCHED_TARGET_REJECTED",
+      "description": "Reject a captured target revision that differs from the integration target",
+      "manifest": {
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "expected_source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": false,
+      "expected_error": "git.target_commit"
+    },
+    {
+      "id": "MANIFEST_ID_004_TOP_LEVEL_DECOY_REJECTED",
+      "description": "Ignore legacy top-level commit fields when nested git identity disagrees",
+      "manifest": {
+        "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "git": {
+          "source_commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "expected_source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_target_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_valid": false,
+      "expected_error": "git.source_commit"
+    }
+  ]
+}

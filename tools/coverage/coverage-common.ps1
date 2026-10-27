@@ -768,6 +768,32 @@ function ConvertFrom-CaptureResultOutput {
     return $result
 }
 
+function Test-CandidateManifestIdentity {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)][string]$ExpectedSourceCommit,
+        [Parameter(Mandatory = $true)][string]$ExpectedTargetCommit
+    )
+
+    $errors = @()
+    $sourceCommit = [string]$Manifest.git.source_commit
+    $targetCommit = [string]$Manifest.git.target_commit
+
+    if ([string]::IsNullOrWhiteSpace($sourceCommit) -or $sourceCommit -ne $ExpectedSourceCommit) {
+        $errors += "Run bundle git.source_commit ('$sourceCommit') does not match candidate SHA ($ExpectedSourceCommit)"
+    }
+    if ([string]::IsNullOrWhiteSpace($targetCommit) -or $targetCommit -ne $ExpectedTargetCommit) {
+        $errors += "Run bundle git.target_commit ('$targetCommit') does not match target SHA ($ExpectedTargetCommit)"
+    }
+
+    return @{
+        IsValid = ($errors.Count -eq 0)
+        SourceCommit = $sourceCommit
+        TargetCommit = $targetCommit
+        Errors = $errors
+    }
+}
+
 function Test-ComparisonCase {
     param(
         [Parameter(Mandatory = $true)]$Case

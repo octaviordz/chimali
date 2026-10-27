@@ -143,12 +143,9 @@ if (-not (Test-Path $candidateBundlePath)) {
 
 # Validate bundle manifest identities against candidate and target
 $manifest = Read-SafeJson -Path (Join-Path $candidateBundlePath "manifest.json")
-if ($manifest.source_commit -ne $candidateSha) {
-    Write-Error "Run bundle source_commit ($($manifest.source_commit)) does not match candidate SHA ($candidateSha)"
-    exit 2
-}
-if ($manifest.target_commit -and $manifest.target_commit -ne $targetSha) {
-    Write-Error "Run bundle target_commit ($($manifest.target_commit)) does not match target SHA ($targetSha)"
+$identity = Test-CandidateManifestIdentity -Manifest $manifest -ExpectedSourceCommit $candidateSha -ExpectedTargetCommit $targetSha
+if (-not $identity.IsValid) {
+    Write-Error "Run bundle identity validation failed: $($identity.Errors -join '; ')"
     exit 2
 }
 
