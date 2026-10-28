@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "WORKLOAD_INVENTORY_001_EXACT_POLICY_SET_ACCEPTED",
+      "description": "Accepts the exact configured host tasks and required/optional device modules",
+      "expected_valid": true
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_002_OMITTED_HOST_REJECTED",
+      "description": "Rejects a missing configured host task",
+      "mutation": "omit-host",
+      "expected_error": "Host workload task inventory differs",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_003_DUPLICATE_HOST_REJECTED",
+      "description": "Rejects duplicate host task evidence",
+      "mutation": "duplicate-host",
+      "expected_error": "duplicate task records",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_004_HOST_REASSIGNMENT_REJECTED",
+      "description": "Rejects a host task attributed to another configured module",
+      "mutation": "reassign-host",
+      "expected_error": "Host workload task inventory differs",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_005_OMITTED_REQUIRED_DEVICE_REJECTED",
+      "description": "Rejects omission of a configured required device module",
+      "mutation": "omit-device",
+      "expected_error": "required_device_tasks does not exactly match",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_006_BROAD_DEVICE_TASK_REJECTED",
+      "description": "Rejects a broad device task that is not owned by the configured module",
+      "mutation": "broad-device",
+      "expected_error": "unowned or unconfigured task",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_007_BROAD_HOST_ROOT_REJECTED",
+      "description": "Rejects a host JUnit root broader than its configured task output",
+      "mutation": "broad-root",
+      "expected_error": "Host task JUnit root does not match",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_008_ZERO_REQUIRED_DEVICE_TESTS_REJECTED",
+      "description": "Rejects an otherwise complete required device task with no actual testcases",
+      "mutation": "zero-required-device-suite",
+      "expected_error": "no actual testcase outcomes",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_009_ZERO_OPTIONAL_DEVICE_TESTS_ALLOWED",
+      "description": "Allows an explicitly optional device task to have no testcase outcomes",
+      "mutation": "zero-optional-device-suite",
+      "expected_valid": true
+    }
+  ]
+}

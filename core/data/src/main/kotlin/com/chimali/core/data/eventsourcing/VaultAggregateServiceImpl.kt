@@ -47,12 +47,23 @@ class VaultAggregateServiceImpl(
             val snapshot = snapshotResult.getOrNull()
 
             if (snapshot != null) {
-                return eventStoreRepository
-                    .getEventsFrom(
+                return try {
+                    val eventsResult = eventStoreRepository.getEventsFrom(
                         EventKind.VAULT_ENTRY,
                         aggregateId,
                         snapshot.sequenceNumber,
-                    ).map { events -> evolveOwned(snapshot.state, events) }
+                    )
+                    eventsResult.fold(
+                        onSuccess = { events -> Result.success(evolveOwned(snapshot.state, events)) },
+                        onFailure = { failure ->
+                            snapshot.state.clearSensitiveMemory()
+                            Result.failure(failure)
+                        },
+                    )
+                } catch (failure: Throwable) {
+                    snapshot.state.clearSensitiveMemory()
+                    throw failure
+                }
             }
         }
 
@@ -143,16 +154,23 @@ class VaultAggregateServiceImpl(
         events: List<DomainEvent>,
     ): VaultState {
         var state = initial
-        events.forEach { domainEvent ->
-            val event = domainEvent as VaultEvent
-            try {
-                val next = decider.evolve(state, event)
-                if (state !== next) state.clearSensitiveMemory()
-                state = next
-            } finally {
-                event.clearSensitiveMemory()
+        var transferred = false
+        try {
+            events.forEach { domainEvent ->
+                val event = domainEvent as VaultEvent
+                try {
+                    val next = decider.evolve(state, event)
+                    if (state !== next) state.clearSensitiveMemory()
+                    state = next
+                } finally {
+                    event.clearSensitiveMemory()
+                }
             }
+            transferred = true
+            return state
+        } finally {
+            if (!transferred) state.clearSensitiveMemory()
+            events.forEach { (it as? VaultEvent)?.clearSensitiveMemory() }
         }
-        return state
     }
 }

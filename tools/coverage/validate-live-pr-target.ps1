@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ExpectedNumber,
     [Parameter(Mandatory = $true)][string]$ExpectedHeadSha,
     [Parameter(Mandatory = $true)][string]$CapturedBaseSha,
+    [switch]$AllowHeadShaChangePendingTreeVerification,
     [string]$OutputPath
 )
 
@@ -18,8 +19,11 @@ try {
     }
     if (-not (Test-Path -LiteralPath $PullRequestPath -PathType Leaf)) { throw "Live pull request record is missing: $PullRequestPath" }
     $pr = Get-Content -LiteralPath $PullRequestPath -Raw | ConvertFrom-Json -ErrorAction Stop
-    if ([string]$pr.number -cne $ExpectedNumber -or [string]$pr.state -cne 'open' -or
-        [string]$pr.head.sha -cne $ExpectedHeadSha -or [string]$pr.base.sha -cne $CapturedBaseSha -or
+    $liveHeadSha = [string]$pr.head.sha
+    if ($liveHeadSha -notmatch '^[0-9a-fA-F]{40,64}$' -or
+        ($liveHeadSha -cne $ExpectedHeadSha -and -not $AllowHeadShaChangePendingTreeVerification) -or
+        [string]$pr.number -cne $ExpectedNumber -or [string]$pr.state -cne 'open' -or
+        [string]$pr.base.sha -cne $CapturedBaseSha -or
         [string]$pr.head.repo.full_name -cne $ExpectedRepository -or
         [string]$pr.base.repo.full_name -cne $ExpectedRepository) {
         throw 'The live PR head/base or repository changed after capture; a fresh capture is required'
@@ -27,7 +31,8 @@ try {
     $result = [PSCustomObject]@{
         valid = $true
         pull_request_number = $ExpectedNumber
-        head_sha = [string]$pr.head.sha
+        captured_head_sha = $ExpectedHeadSha
+        head_sha = $liveHeadSha
         base_sha = [string]$pr.base.sha
         repository = $ExpectedRepository
     }

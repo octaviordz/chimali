@@ -1,0 +1,10 @@
+{
+  "description": "Offline proof that tested PR/merge-group product trees contain the exact accepted base and bind the check destination.",
+  "cases": [
+    { "id": "CANDIDATE_TREE_001_PR_AHEAD", "mode": "pr-ahead", "expected_valid": true },
+    { "id": "CANDIDATE_TREE_002_PR_BEHIND", "mode": "pr-behind", "expected_valid": false },
+    { "id": "CANDIDATE_TREE_003_MERGE_GROUP", "mode": "merge-group", "expected_valid": true },
+    { "id": "CANDIDATE_TREE_004_MERGE_GROUP_WRONG_BASE", "mode": "merge-group-wrong-base", "expected_valid": false },
+    { "id": "CANDIDATE_TREE_005_TARGET_PUSH", "mode": "target-push", "expected_valid": true }
+  ]
+}

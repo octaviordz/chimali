@@ -152,6 +152,35 @@ function Test-NonnegativeIntegerValue {
     return $isIntegerType -and ([string]$Value -match '^(0|[1-9][0-9]*)$')
 }
 
+function Get-CanonicalCoveragePath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not [System.IO.Path]::IsPathRooted($Path)) { throw "Coverage path must be absolute: $Path" }
+    $canonical = [System.IO.Path]::GetFullPath($Path)
+    $root = [System.IO.Path]::GetPathRoot($canonical)
+    $canonical = $canonical.Replace([System.IO.Path]::AltDirectorySeparatorChar, [System.IO.Path]::DirectorySeparatorChar)
+    while ($canonical.Length -gt $root.Length -and ($canonical.EndsWith('\') -or $canonical.EndsWith('/'))) {
+        $canonical = $canonical.Substring(0, $canonical.Length - 1)
+    }
+    return $canonical
+}
+
+function Test-CoveragePathWithinRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Root
+    )
+    $canonicalPath = Get-CanonicalCoveragePath -Path $Path
+    $canonicalRoot = Get-CanonicalCoveragePath -Path $Root
+    $comparison = if ([System.IO.Path]::DirectorySeparatorChar -eq '\') {
+        [System.StringComparison]::OrdinalIgnoreCase
+    } else {
+        [System.StringComparison]::Ordinal
+    }
+    if ([string]::Equals($canonicalPath, $canonicalRoot, $comparison)) { return $true }
+    $rootPrefix = $canonicalRoot + [System.IO.Path]::DirectorySeparatorChar
+    return $canonicalPath.StartsWith($rootPrefix, $comparison)
+}
+
 function ConvertTo-CoverageBigInteger {
     param(
         [Parameter(Mandatory = $true)]$Value,
@@ -710,7 +739,11 @@ function Test-ExecutionCompatibilityEvidence {
         for ($i = 0; $i -lt $counterFiles.Count; $i++) {
             if ([string]$counterFiles[$i].path -cne [string]$receiptFiles[$i].path -or
                 [string]$counterFiles[$i].repository_path -cne [string]$receiptFiles[$i].repository_path -or
-                [string]$counterFiles[$i].sha256 -cne [string]$receiptFiles[$i].sha256) {
+                [string]$counterFiles[$i].sha256 -cne [string]$receiptFiles[$i].sha256 -or
+                [string]$counterFiles[$i].run_id -cne [string]$receiptFiles[$i].run_id -or
+                [string]$counterFiles[$i].device_serial -cne [string]$receiptFiles[$i].device_serial -or
+                (@($counterFiles[$i].task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique) -join "`n") -cne
+                (@($receiptFiles[$i].task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique) -join "`n")) {
                 $errors += "$Label execution compatibility file binding differs from canonical execution attribution"
                 break
             }
@@ -726,14 +759,17 @@ function Test-ExecutionCompatibilityEvidence {
 
 function Test-ExecutionCompatibilityAttribution {
     param(
-        [Parameter(Mandatory = $true)]$CompatibilityReceipt,
+        [Parameter(Mandatory = $true)][AllowNull()]$CompatibilityReceipt,
         [Parameter(Mandatory = $true)][AllowEmptyCollection()]$ManifestExecutionFiles,
         [Parameter(Mandatory = $true)][string]$Scope,
         [Parameter(Mandatory = $true)][string]$ExpectedVariant,
+        $Workload,
+        [string]$ExpectedRunId,
+        [string]$ExpectedDeviceSerial,
         [string]$Label = 'Module'
     )
     $errors = @()
-    $receiptFiles = if ($null -eq $CompatibilityReceipt.execution_files) { @() } else { @($CompatibilityReceipt.execution_files) }
+    $receiptFiles = if ($null -eq $CompatibilityReceipt -or $null -eq $CompatibilityReceipt.execution_files) { @() } else { @($CompatibilityReceipt.execution_files) }
     $manifestFiles = if ($null -eq $ManifestExecutionFiles) { @() } else { @($ManifestExecutionFiles | Where-Object { [string]$_.scope -ceq $Scope }) }
     if ($receiptFiles.Count -ne $manifestFiles.Count) { $errors += "$Label compatibility execution inputs do not match manifest attribution count" }
     foreach ($executionInput in $receiptFiles) {
@@ -749,6 +785,80 @@ function Test-ExecutionCompatibilityAttribution {
         })
         if ([string]$executionInput.selected_variant -cne $ExpectedVariant) { $errors += "$Label compatibility input is not bound to approved variant $ExpectedVariant" }
         if ($matches.Count -ne 1) { $errors += "$Label compatibility execution input is not bound to exactly one manifest source artifact: $path" }
+        elseif ($Workload -and ($executionInput.run_id -cne $ExpectedRunId -or $matches[0].run_id -cne $ExpectedRunId)) { $errors += "$Label execution input is not bound to this run" }
+        elseif ($Workload -and ($executionInput.device_serial -cne $ExpectedDeviceSerial -or $matches[0].device_serial -cne $ExpectedDeviceSerial)) { $errors += "$Label execution input is not bound to the measured device" }
+        elseif ($Workload) {
+            $expectedTasks = @(Get-ExpectedExecutionTaskPaths -Workload $Workload -Scope $Scope -Kind ([string]$executionInput.kind))
+            $receiptTasks = @($executionInput.task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+            $manifestTasks = @($matches[0].task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+            if (($expectedTasks -join "`n") -cne ($receiptTasks -join "`n") -or ($expectedTasks -join "`n") -cne ($manifestTasks -join "`n")) {
+                $errors += "$Label execution input task attribution does not match the required workload inventory"
+            }
+        }
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Get-ExpectedExecutionTaskPaths {
+    param(
+        [Parameter(Mandatory = $true)]$Workload,
+        [Parameter(Mandatory = $true)][string]$Scope,
+        [Parameter(Mandatory = $true)][ValidateSet('host', 'device')][string]$Kind
+    )
+    $records = @()
+    if ($Kind -eq 'host') {
+        $records = @($Workload.host_test_tasks | Where-Object {
+            $_.executed -eq $true -and ($Scope -eq ':repository' -or ([string]$_.task_path).StartsWith("${Scope}:", [StringComparison]::Ordinal))
+        })
+    } else {
+        $records = @(@($Workload.required_device_tasks) + @($Workload.optional_device_tasks) | Where-Object {
+            $_.executed -eq $true -and ($Scope -eq ':repository' -or [string]$_.module_path -ceq $Scope)
+        })
+    }
+    return @($records | ForEach-Object { [string]$_.task_path } | Sort-Object -Unique)
+}
+
+function Test-RepositoryExecutionAttribution {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$RepositoryExecutionFiles,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$ManifestExecutionFiles,
+        $Workload,
+        [string]$ExpectedRunId,
+        [string]$ExpectedDeviceSerial
+    )
+    $errors = @()
+    $manifestFiles = @($ManifestExecutionFiles | Where-Object { [string]$_.scope -ceq ':repository' })
+    if ($RepositoryExecutionFiles.Count -eq 0) { $errors += 'Repository analysis has no retained execution inputs' }
+    if ($RepositoryExecutionFiles.Count -ne $manifestFiles.Count) {
+        $errors += 'Repository analysis execution inputs do not match manifest attribution count'
+    }
+    foreach ($inputFile in $RepositoryExecutionFiles) {
+        $relativePath = ([string]$inputFile.repository_path).Replace('\', '/')
+        $kind = if ([string]$inputFile.path -match '(?i)\.ec$') { 'device' } else { 'host' }
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or [System.IO.Path]::IsPathRooted($relativePath) -or $relativePath -match '(^|/)\.\.(/|$)') {
+            $errors += 'Repository analysis execution input has an invalid repository-relative source path'
+            continue
+        }
+        $matchingSources = @($manifestFiles | Where-Object {
+            ([string]$_.source_path).Replace('\', '/') -ceq $relativePath -and
+            [string]$_.source_sha256 -ceq [string]$inputFile.sha256 -and
+            [string]$_.kind -ceq $kind
+        })
+        $validDigest = [string]$inputFile.sha256 -match '^[0-9a-fA-F]{64}$'
+        if (-not $validDigest -or $matchingSources.Count -ne 1) {
+            $errors += "Repository analysis execution input is not bound to exactly one retained source artifact: $relativePath"
+        } elseif ($Workload -and ($inputFile.run_id -cne $ExpectedRunId -or $matchingSources[0].run_id -cne $ExpectedRunId)) {
+            $errors += "Repository execution input is not bound to this run: $relativePath"
+        } elseif ($Workload -and ($inputFile.device_serial -cne $ExpectedDeviceSerial -or $matchingSources[0].device_serial -cne $ExpectedDeviceSerial)) {
+            $errors += "Repository execution input is not bound to the measured device: $relativePath"
+        } elseif ($Workload) {
+            $expectedTasks = @(Get-ExpectedExecutionTaskPaths -Workload $Workload -Scope ':repository' -Kind $kind)
+            $counterTasks = @($inputFile.task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+            $manifestTasks = @($matchingSources[0].task_paths | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+            if (($expectedTasks -join "`n") -cne ($counterTasks -join "`n") -or ($expectedTasks -join "`n") -cne ($manifestTasks -join "`n")) {
+                $errors += "Repository execution input task attribution does not match the required workload inventory: $relativePath"
+            }
+        }
     }
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
@@ -763,7 +873,7 @@ function Test-PolicyConfiguration {
     $expectedTier1 = @(':core:security', ':core:domain', ':core:data', ':feature:fido2', ':feature:authenticator')
     $expectedTier2 = @(':core:database', ':core:common', ':app')
     $expectedRoots = @('src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java')
-$expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage-common.ps1', 'tools/integration-ci.ps1', 'tools/local-ci.ps1', 'tools/hdk-coverage.init.gradle', 'tools/coverage/policy.json', 'tools/coverage/validate-policy.ps1', 'tools/coverage/verify.ps1')
+$expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage-common.ps1', 'tools/integration-ci.ps1', 'tools/local-ci.ps1', 'tools/hdk-coverage.init.gradle', 'tools/coverage/policy.json', 'tools/coverage/validate-policy.ps1', 'tools/coverage/verify.ps1', '.github/workflows/coverage.yml', '.github/workflows/coverage-report.yml', 'tools/coverage/report.ps1', 'tools/coverage/validate-candidate-tree.ps1', 'tools/coverage/validate-live-candidate.ps1', 'tools/coverage/validate-live-pr-target.ps1', 'tools/coverage/validate-workflow-run.ps1', 'tools/coverage/validate-integration-event.ps1', 'tools/coverage/resolve-accepted-baseline.ps1', 'tools/coverage/publish.ps1', 'tools/coverage/request-target-recaptures.ps1', 'tools/coverage/validate-dispatched-candidate.ps1')
     $expectedVariants = [ordered]@{
         ':core:security' = 'androidMain'; ':core:domain' = 'androidMain'; ':core:data' = 'release'
         ':core:bluetooth' = 'release'; ':core:database' = 'release'; ':core:common' = 'androidMain'
@@ -771,7 +881,7 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
         ':feature:fido2' = 'androidMain'; ':feature:authenticator' = 'release'
         ':feature:onboarding' = 'release'; ':feature:settings' = 'release'; ':app' = 'shrunkDebug'
     }
-    $expectedTopLevel = @('$schema', 'schema_version', 'policy_id', 'description', 'tier1_modules', 'tier1_instruction_min_percent', 'tier1_branch_min_percent', 'repository_instruction_min_percent', 'tier2_instruction_min_percent', 'tier2_gated_modules', 'branch_improvement_goal_percent', 'metrics', 'counter_normalization', 'measurement_fingerprint', 'production_inventory_rules', 'production_scope', 'generated_exclusion_rules', 'required_workload', 'device_requirements', 'harness_requirements', 'regression_rule')
+    $expectedTopLevel = @('$schema', 'schema_version', 'policy_id', 'description', 'tier1_modules', 'tier1_instruction_min_percent', 'tier1_branch_min_percent', 'repository_instruction_min_percent', 'tier2_instruction_min_percent', 'tier2_gated_modules', 'branch_improvement_goal_percent', 'metrics', 'counter_normalization', 'measurement_fingerprint', 'production_inventory_rules', 'production_scope', 'generated_exclusion_rules', 'required_workload', 'device_requirements', 'harness_requirements', 'runtime_requirements', 'regression_rule')
 
     $checkKeys = {
         param($Object, [string[]]$Expected, [string]$Label)
@@ -827,7 +937,7 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
     if ($Policy.counter_normalization -cne 'AnalyzedZeroProofV1') { $reasons += 'counter_normalization must be AnalyzedZeroProofV1' }
     $reasons += @(& $checkKeys $Policy.measurement_fingerprint @('algorithm', 'included', 'excluded') 'measurement_fingerprint')
     if ($Policy.measurement_fingerprint.algorithm -cne 'sha256_canonical_json_v1') { $reasons += 'measurement_fingerprint.algorithm must be sha256_canonical_json_v1' }
-    $reasons += @(& $checkOrderedStrings $Policy.measurement_fingerprint.included @('metrics', 'counter_normalization', 'production_inventory_rules', 'production_scope', 'generated_exclusion_rules', 'required_workload', 'device_requirements', 'harness.file_sha256', 'toolchain.java', 'toolchain.gradle', 'toolchain.android_gradle_plugin', 'toolchain.kotlin', 'toolchain.jacoco', 'device.api_level', 'device.abi') 'measurement_fingerprint.included')
+    $reasons += @(& $checkOrderedStrings $Policy.measurement_fingerprint.included @('metrics', 'counter_normalization', 'production_inventory_rules', 'production_scope', 'generated_exclusion_rules', 'required_workload', 'device_requirements', 'harness.file_sha256', 'toolchain.java', 'toolchain.gradle', 'toolchain.android_gradle_plugin', 'toolchain.kotlin', 'toolchain.jacoco', 'runtime_requirements', 'toolchain.runtime', 'device.api_level', 'device.abi') 'measurement_fingerprint.included')
     $reasons += @(& $checkOrderedStrings $Policy.measurement_fingerprint.excluded @('source_contents', 'test_contents', 'test_counts', 'test_names', 'class_bytes') 'measurement_fingerprint.excluded')
 
     $reasons += @(& $checkKeys $Policy.production_inventory_rules @('source_sets', 'excluded_source_sets', 'fail_on_unmapped_classes') 'production_inventory_rules')
@@ -879,10 +989,19 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
     $reasons += @(& $checkKeys $Policy.generated_exclusion_rules @('exclude_sqldelight', 'allow_handwritten_exclusions') 'generated_exclusion_rules')
     if ($Policy.generated_exclusion_rules.exclude_sqldelight -isnot [bool] -or -not $Policy.generated_exclusion_rules.exclude_sqldelight) { $reasons += 'SQLDelight generated-code exclusion must remain enabled' }
     if ($Policy.generated_exclusion_rules.allow_handwritten_exclusions -isnot [bool] -or $Policy.generated_exclusion_rules.allow_handwritten_exclusions) { $reasons += 'Handwritten production-code exclusions are prohibited' }
-    $reasons += @(& $checkKeys $Policy.required_workload @('host_unit_tests', 'connected_device_tests', 'required_device_test_modules', 'optional_device_test_modules') 'required_workload')
+    $reasons += @(& $checkKeys $Policy.required_workload @('host_unit_tests', 'connected_device_tests', 'required_device_test_modules', 'optional_device_test_modules', 'device_test_tasks', 'no_source_host_test_proof') 'required_workload')
     if ($Policy.required_workload.host_unit_tests -isnot [bool] -or -not $Policy.required_workload.host_unit_tests -or $Policy.required_workload.connected_device_tests -isnot [bool] -or -not $Policy.required_workload.connected_device_tests) { $reasons += 'Host and connected-device workloads are both mandatory' }
     $reasons += @(& $checkOrderedStrings $Policy.required_workload.required_device_test_modules @(':feature:fido2', ':core:common', ':feature:settings') 'required_workload.required_device_test_modules')
     $reasons += @(& $checkOrderedStrings $Policy.required_workload.optional_device_test_modules @(':app') 'required_workload.optional_device_test_modules')
+    $expectedDeviceTaskModules = @($Policy.required_workload.required_device_test_modules) + @($Policy.required_workload.optional_device_test_modules)
+    $actualDeviceTaskModules = @($Policy.required_workload.device_test_tasks.PSObject.Properties.Name)
+    if ((@($actualDeviceTaskModules | Sort-Object -CaseSensitive) -join "`n") -cne (@($expectedDeviceTaskModules | Sort-Object -CaseSensitive) -join "`n")) { $reasons += 'required_workload.device_test_tasks must name exactly every required and optional device module' }
+    foreach ($deviceModule in $expectedDeviceTaskModules) {
+        if ([string]::IsNullOrWhiteSpace([string]$Policy.required_workload.device_test_tasks.$deviceModule) -or [string]$Policy.required_workload.device_test_tasks.$deviceModule -notmatch '^connected[A-Za-z0-9]+AndroidTest$|^connectedAndroidDeviceTest$') {
+            $reasons += "required_workload.device_test_tasks has an invalid exact task name for $deviceModule"
+        }
+    }
+    if ($Policy.required_workload.no_source_host_test_proof -cne 'GradleNoSourceWithZeroCompiledTestClasses') { $reasons += 'required_workload.no_source_host_test_proof must require Gradle NO-SOURCE plus zero compiled test classes' }
 
     $reasons += @(& $checkKeys $Policy.device_requirements @('serial_source', 'must_be_online_and_authorized', 'minimum_api_level', 'approved_abis') 'device_requirements')
     if ($Policy.device_requirements.serial_source -cne 'explicit_parameter' -or $Policy.device_requirements.must_be_online_and_authorized -isnot [bool] -or -not $Policy.device_requirements.must_be_online_and_authorized) { $reasons += 'Device selection must use an explicit online, authorized device' }
@@ -891,6 +1010,11 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
     $reasons += @(& $checkKeys $Policy.harness_requirements @('must_be_clean', 'must_match_source_revision', 'required_files') 'harness_requirements')
     if ($Policy.harness_requirements.must_be_clean -isnot [bool] -or -not $Policy.harness_requirements.must_be_clean -or $Policy.harness_requirements.must_match_source_revision -isnot [bool] -or -not $Policy.harness_requirements.must_match_source_revision) { $reasons += 'Harness must be clean and match the measured source revision' }
     $reasons += @(& $checkOrderedStrings $Policy.harness_requirements.required_files $expectedHarnessFiles 'harness_requirements.required_files')
+    $reasons += @(& $checkKeys $Policy.runtime_requirements @('gradle_daemon_java_version', 'gradle_daemon_vendor', 'kotlin_execution_strategy', 'java_compiler_version', 'kotlin_compiler_java_version', 'host_test_java_version', 'jacoco_engine') 'runtime_requirements')
+    if ($Policy.runtime_requirements.gradle_daemon_java_version -cne '21' -or $Policy.runtime_requirements.gradle_daemon_vendor -cne 'JetBrains' -or
+        $Policy.runtime_requirements.kotlin_execution_strategy -cne 'in-process' -or $Policy.runtime_requirements.java_compiler_version -cne '21' -or
+        $Policy.runtime_requirements.kotlin_compiler_java_version -cne '21' -or $Policy.runtime_requirements.host_test_java_version -cne '21' -or
+        $Policy.runtime_requirements.jacoco_engine -cne 'jacoco-0.8.15') { $reasons += 'runtime_requirements differs from the approved Gradle/compiler/test JVM and JaCoCo identities' }
     if ($Policy.regression_rule -cne 'nondecreasing_applicable_ratios') { $reasons += 'Unsupported regression rule' }
 
     if ($Arguments) {
@@ -956,12 +1080,14 @@ function Get-MeasurementFingerprint {
         generated_exclusion_rules = $Policy.generated_exclusion_rules
         required_workload = $Policy.required_workload
         device_requirements = $Policy.device_requirements
+        runtime_requirements = $Policy.runtime_requirements
         harness_file_sha256 = $harnessProfile
         analyzer = [string]$Toolchain.jacoco
         gradle = [string]$Toolchain.gradle
         android_gradle_plugin = [string]$Toolchain.android_gradle_plugin
         kotlin = [string]$Toolchain.kotlin
         java = [string]$Toolchain.java
+        toolchain_runtime = $Toolchain.runtime
         device_api = [string]$Device.api_level
         device_abi = [string]$Device.abi
     }
@@ -973,6 +1099,108 @@ function Get-MeasurementFingerprint {
     } finally {
         $sha.Dispose()
     }
+}
+
+function Test-MeasurementRuntime {
+    param(
+        [Parameter(Mandatory = $true)]$Runtime,
+        [Parameter(Mandatory = $true)]$Policy
+    )
+
+    $errors = @()
+    $requirements = $Policy.runtime_requirements
+    if ($null -eq $Runtime -or $Runtime.schema_version -cne '1') {
+        return @{ IsValid = $false; Errors = @('Measured runtime identity is missing or has an unsupported schema') }
+    }
+    $daemon = $Runtime.gradle_daemon
+    foreach ($field in @('java_version', 'java_runtime_version', 'java_vendor', 'vm_name', 'architecture')) {
+        if ([string]::IsNullOrWhiteSpace([string]$daemon.$field) -or [string]$daemon.$field -match '(?i)^unknown$') {
+            $errors += "Gradle daemon runtime is missing a known $field"
+        }
+    }
+    if ([string]$daemon.java_version -cne [string]$requirements.gradle_daemon_java_version -or
+        [string]$daemon.java_vendor -notmatch [string]$requirements.gradle_daemon_vendor) {
+        $errors += 'Gradle daemon JVM does not match the approved runtime requirement'
+    }
+    if ([string]$Runtime.kotlin_execution_strategy -cne [string]$requirements.kotlin_execution_strategy) {
+        $errors += 'Kotlin compiler execution strategy does not match the approved in-process requirement'
+    }
+
+    $expectedCompilerTasks = @()
+    $expectedHostTasks = @()
+    foreach ($moduleProperty in $Policy.production_scope.variants.PSObject.Properties) {
+        $modulePath = [string]$moduleProperty.Name
+        $compilation = $Policy.production_scope.compilations.($moduleProperty.Value)
+        $expectedCompilerTasks += @($compilation.compiler_tasks | ForEach-Object { "$modulePath`:$($_)" })
+        $expectedHostTasks += @($compilation.test_tasks | ForEach-Object { "$modulePath`:$($_)" })
+    }
+    $expectedCompilerTasks = @($expectedCompilerTasks | Sort-Object -Unique)
+    $expectedHostTasks = @($expectedHostTasks | Sort-Object -Unique)
+
+    $javaCompilers = @($Runtime.java_compilers)
+    $kotlinCompilers = @($Runtime.kotlin_compilers)
+    $compilerRecords = @($javaCompilers) + @($kotlinCompilers)
+    $compilerPaths = @($compilerRecords | ForEach-Object { [string]$_.task_path } | Sort-Object -Unique)
+    if (($compilerPaths -join "`n") -cne ($expectedCompilerTasks -join "`n") -or $compilerRecords.Count -ne $expectedCompilerTasks.Count) {
+        $errors += 'Measured compiler JVM records do not exactly cover the configured compiler task inventory'
+    }
+    foreach ($compiler in $javaCompilers) {
+        if ([string]$compiler.java_version -cne [string]$requirements.java_compiler_version -or
+            [string]$compiler.java_runtime_version -notmatch "^$([regex]::Escape([string]$requirements.java_compiler_version))(\.|$)" -or
+            [string]::IsNullOrWhiteSpace([string]$compiler.java_vendor)) {
+            $errors += "Java compiler task has an unknown or unapproved runtime: $($compiler.task_path)"
+        }
+    }
+    foreach ($compiler in $kotlinCompilers) {
+        if ([string]$compiler.execution_strategy -cne [string]$requirements.kotlin_execution_strategy -or
+            [string]$compiler.java_version -cne [string]$requirements.kotlin_compiler_java_version -or
+            [string]$compiler.java_runtime_version -notmatch "^$([regex]::Escape([string]$requirements.kotlin_compiler_java_version))(\.|$)" -or
+            [string]::IsNullOrWhiteSpace([string]$compiler.java_vendor) -or [string]::IsNullOrWhiteSpace([string]$compiler.jvm_target)) {
+            $errors += "Kotlin compiler task has an unknown or unapproved runtime: $($compiler.task_path)"
+        }
+    }
+
+    $hostTests = @($Runtime.host_test_jvms)
+    $hostTestPaths = @($hostTests | ForEach-Object { [string]$_.task_path } | Sort-Object -Unique)
+    if (($hostTestPaths -join "`n") -cne ($expectedHostTasks -join "`n") -or $hostTests.Count -ne $expectedHostTasks.Count) {
+        $errors += 'Measured host-test JVM records do not exactly cover the configured host-test task inventory'
+    }
+    foreach ($hostTest in $hostTests) {
+        if ([string]$hostTest.java_version -cne [string]$requirements.host_test_java_version -or
+            [string]$hostTest.java_runtime_version -notmatch "^$([regex]::Escape([string]$requirements.host_test_java_version))(\.|$)" -or
+            [string]::IsNullOrWhiteSpace([string]$hostTest.java_vendor) -or
+            [string]$hostTest.identity_source -notin @('GradleDaemon', 'JavaLauncher')) {
+            $errors += "Host-test task has an unknown or unapproved JVM: $($hostTest.task_path)"
+        }
+    }
+    $jacoco = $Runtime.jacoco_analyzer
+    if ([string]$jacoco.engine -cne [string]$requirements.jacoco_engine -or
+        [string]$jacoco.java_version -cne [string]$requirements.gradle_daemon_java_version -or
+        [string]$jacoco.java_runtime_version -cne [string]$daemon.java_runtime_version -or
+        [string]$jacoco.java_vendor -cne [string]$daemon.java_vendor) {
+        $errors += 'JaCoCo analyzer identity is missing or differs from the measured Gradle daemon runtime'
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Test-MeasurementRuntimeBinding {
+    param(
+        [Parameter(Mandatory = $true)]$Counters,
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)]$Policy
+    )
+    $errors = @()
+    $counterRuntime = $Counters.measurement_runtime
+    $manifestRuntime = $Manifest.toolchain.runtime
+    if ($null -eq $counterRuntime -or $null -eq $manifestRuntime) {
+        return @{ IsValid = $false; Errors = @('Measured runtime identity is missing from counters or manifest') }
+    }
+    $validation = Test-MeasurementRuntime -Runtime $counterRuntime -Policy $Policy
+    $errors += $validation.Errors
+    $counterJson = ConvertTo-Json -InputObject $counterRuntime -Depth 30 -Compress
+    $manifestJson = ConvertTo-Json -InputObject $manifestRuntime -Depth 30 -Compress
+    if ($counterJson -cne $manifestJson) { $errors += 'Manifest JVM/compiler runtime identity differs from canonical counters' }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
 function Test-ExecutionFileAttribution {
@@ -1063,12 +1291,179 @@ function Get-TaskOwnedJUnitReports {
             $errors += "Executed workload produced no task-owned JUnit XML: $($record.task_path) ($relativeDirectory)"
             continue
         }
+        $actualTests = 0
+        foreach ($ownedFile in $ownedFiles) {
+            $outcome = Get-StrictJUnitOutcome -Path $ownedFile.FullName -ReportIdentity $ownedFile.FullName
+            if (-not $outcome.IsValid) {
+                $errors += "Task-owned JUnit report is invalid for $($record.task_path): $($outcome.Errors -join '; ')"
+                continue
+            }
+            $actualTests += [int]$outcome.Totals.tests
+        }
+        $requiredDevicePaths = @($Workload.required_device_tasks | ForEach-Object { [string]$_.task_path })
+        $requiredTask = ($record.disposition -eq 'Applicable') -or ([string]$record.task_path -in $requiredDevicePaths)
+        if ($requiredTask -and $actualTests -le 0) {
+            $errors += "Required workload task produced zero testcase executions: $($record.task_path)"
+            continue
+        }
         foreach ($file in $ownedFiles) { $filesByPath[$file.FullName] = $file }
     }
 
     return @{
         Files = @($filesByPath.Values | Sort-Object -Property FullName)
         Errors = $errors
+    }
+}
+
+function Test-WorkloadTaskInventory {
+    param(
+        [Parameter(Mandatory = $true)]$Workload,
+        [Parameter(Mandatory = $true)]$Policy
+    )
+
+    $errors = @()
+    $expectedHostPaths = @()
+    foreach ($modulePath in @($Policy.production_scope.variants.PSObject.Properties.Name)) {
+        $variant = [string]$Policy.production_scope.variants.$modulePath
+        $compilation = $Policy.production_scope.compilations.$variant
+        if (-not $compilation -or @($compilation.test_tasks).Count -eq 0) {
+            $errors += "Trusted policy has no configured host test tasks for $modulePath ($variant)"
+            continue
+        }
+        foreach ($taskName in @($compilation.test_tasks)) { $expectedHostPaths += "${modulePath}:$taskName" }
+    }
+    $actualHostPaths = @($Workload.host_test_tasks | ForEach-Object { [string]$_.task_path })
+    if (@($actualHostPaths | Sort-Object -Unique).Count -ne $actualHostPaths.Count) { $errors += 'Host workload contains duplicate task records' }
+    $actualHostKey = (@($actualHostPaths | Sort-Object -CaseSensitive) -join "`n")
+    $expectedHostKey = (@($expectedHostPaths | Sort-Object -CaseSensitive) -join "`n")
+    if ($actualHostKey -cne $expectedHostKey) {
+        $missing = @($expectedHostPaths | Where-Object { $_ -notin $actualHostPaths })
+        $extra = @($actualHostPaths | Where-Object { $_ -notin $expectedHostPaths })
+        $errors += "Host workload task inventory differs from trusted policy (missing: $($missing -join ', '); extra: $($extra -join ', '))"
+    }
+
+    foreach ($category in @(
+        @{ name = 'required_device_tasks'; modules = @($Policy.required_workload.required_device_test_modules); required = $true },
+        @{ name = 'optional_device_tasks'; modules = @($Policy.required_workload.optional_device_test_modules); required = $false }
+    )) {
+        $records = @($Workload.($category.name))
+        $recordModules = @($records | ForEach-Object { [string]$_.module_path })
+        $recordModuleKey = (@($recordModules | Sort-Object -CaseSensitive) -join "`n")
+        $configuredModuleKey = (@($category.modules | Sort-Object -CaseSensitive) -join "`n")
+        if (@($recordModules | Sort-Object -Unique).Count -ne $recordModules.Count -or $recordModuleKey -cne $configuredModuleKey) {
+            $errors += "$($category.name) does not exactly match the trusted configured module set"
+        }
+        foreach ($record in $records) {
+            $modulePath = [string]$record.module_path
+            $taskPath = [string]$record.task_path
+            $expectedTaskName = [string]$Policy.required_workload.device_test_tasks.$modulePath
+            if ([string]::IsNullOrWhiteSpace($modulePath) -or $modulePath -notin $category.modules -or
+                $taskPath -cne "${modulePath}:$expectedTaskName") {
+                $errors += "$($category.name) contains an unowned or unconfigured task: $taskPath"
+            }
+            $junitDirectory = ([string]$record.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+            if (-not [string]::IsNullOrWhiteSpace($junitDirectory)) {
+                $projectDirectory = $modulePath.TrimStart(':').Replace(':', '/')
+                if ($category.required) {
+                    if (-not $junitDirectory.StartsWith("$projectDirectory/build/outputs/androidTest-results/connected/", [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $errors += "Required device task JUnit root is not owned by $modulePath`: $junitDirectory"
+                    }
+                } elseif (-not $junitDirectory.StartsWith("$projectDirectory/build/outputs/androidTest-results/connected/", [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $errors += "Optional device task JUnit root is not owned by $modulePath`: $junitDirectory"
+                }
+            }
+        }
+    }
+    foreach ($record in @($Workload.host_test_tasks)) {
+        $taskPath = [string]$record.task_path
+        $junitDirectory = ([string]$record.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+        if ($record.disposition -eq 'Applicable' -and -not [string]::IsNullOrWhiteSpace($junitDirectory)) {
+            $separator = $taskPath.LastIndexOf(':')
+            $modulePath = if ($separator -gt 0) { $taskPath.Substring(0, $separator) } else { '' }
+            $taskName = if ($separator -ge 0) { $taskPath.Substring($separator + 1) } else { '' }
+            $expectedRoot = "$($modulePath.TrimStart(':').Replace(':', '/'))/build/test-results/$taskName"
+            if ($junitDirectory -cne $expectedRoot) { $errors += "Host task JUnit root does not match its configured task $taskPath`: $junitDirectory" }
+        }
+        if ($record.disposition -eq 'NotApplicable') {
+            $proof = $record.test_scope_proof
+            if ($record.skip_message -cne 'NO-SOURCE' -or -not $proof -or $proof.task_path -cne $taskPath -or $proof.gradle_no_source -ne $true -or
+                ($proof.compiled_test_class_count -isnot [int] -and $proof.compiled_test_class_count -isnot [long]) -or $proof.compiled_test_class_count -ne 0) {
+                $errors += "Non-applicable host task lacks the trusted empty-scope proof required by policy: $taskPath"
+            }
+        }
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Get-StrictJUnitOutcome {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ReportIdentity
+    )
+    try {
+        $document = Read-SafeXml -Path $Path
+        $root = $document.DocumentElement
+        if (-not $root -or $root.LocalName -notin @('testsuite', 'testsuites')) { throw 'JUnit root must be <testsuite> or <testsuites>' }
+        $suiteNodes = @($document.SelectNodes('/testsuite | /testsuites/testsuite'))
+        if ($suiteNodes.Count -eq 0) {
+            if ($root.LocalName -eq 'testsuites' -and $root.ChildNodes.Count -eq 0 -and
+                $root.GetAttribute('tests') -eq '0' -and $root.GetAttribute('failures') -eq '0' -and
+                $root.GetAttribute('errors') -eq '0' -and $root.GetAttribute('skipped') -eq '0') {
+                return @{ IsValid = $true; IsEmpty = $true; Suites = @(); Totals = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }; Errors = @() }
+            }
+            throw 'JUnit report contains no testsuite nodes and is not a canonical empty aggregate'
+        }
+        $suites = @()
+        $totals = @{ tests = 0; failures = 0; errors = 0; skipped = 0 }
+        for ($index = 0; $index -lt $suiteNodes.Count; $index++) {
+            $node = $suiteNodes[$index]
+            $name = $node.GetAttribute('name')
+            if ([string]::IsNullOrWhiteSpace($name)) { throw "JUnit testsuite $index has no name" }
+            $testCases = @($node.SelectNodes('./testcase'))
+            foreach ($testCase in $testCases) {
+                $outcomeCount = @(@('failure', 'error', 'skipped') | ForEach-Object { $testCase.SelectSingleNode("./$_") } | Where-Object { $null -ne $_ }).Count
+                if ($outcomeCount -gt 1) { throw "JUnit testcase '$($testCase.GetAttribute('name'))' declares conflicting failure/error/skip outcomes" }
+            }
+            $counts = @{
+                tests = $testCases.Count
+                failures = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./failure') }).Count
+                errors = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./error') }).Count
+                skipped = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./skipped') }).Count
+            }
+            $counts.executed = $counts.tests - $counts.skipped
+            $counts.successful = $counts.tests - $counts.failures - $counts.errors - $counts.skipped
+            foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) {
+                if ($node.HasAttribute($metric)) {
+                    $declared = [System.Numerics.BigInteger]::Parse($node.GetAttribute($metric), [Globalization.CultureInfo]::InvariantCulture)
+                    if ($declared -lt 0 -or $declared -ne $counts[$metric]) { throw "JUnit suite $name declared $metric=$declared but testcase nodes derive $($counts[$metric])" }
+                }
+                $totals[$metric] += $counts[$metric]
+            }
+            $suites += [PSCustomObject]@{
+                suite_identity = "$ReportIdentity|$index|$name"
+                suite_name = $name
+                tests = $counts.tests
+                executed = $counts.executed
+                successful = $counts.successful
+                failed = $counts.failures
+                failures = $counts.failures
+                errors = $counts.errors
+                skipped = $counts.skipped
+            }
+        }
+        if ($root.LocalName -eq 'testsuites') {
+            foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) {
+                if ($root.HasAttribute($metric)) {
+                    $declared = [System.Numerics.BigInteger]::Parse($root.GetAttribute($metric), [Globalization.CultureInfo]::InvariantCulture)
+                    if ($declared -lt 0 -or $declared -ne $totals[$metric]) { throw "JUnit testsuites declared $metric=$declared but testcase nodes derive $($totals[$metric])" }
+                }
+            }
+        }
+        $totals.executed = $totals.tests - $totals.skipped
+        $totals.successful = $totals.tests - $totals.failures - $totals.errors - $totals.skipped
+        return @{ IsValid = $true; IsEmpty = $false; Suites = $suites; Totals = $totals; Errors = @() }
+    } catch {
+        return @{ IsValid = $false; IsEmpty = $false; Suites = @(); Totals = $null; Errors = @([string]$_.Exception.Message) }
     }
 }
 
@@ -1106,6 +1501,30 @@ function Test-WorkloadJUnitArtifactBinding {
         }
     }
 
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Test-WorkloadSuiteExecutionCounts {
+    param(
+        [Parameter(Mandatory = $true)]$Workload,
+        [Parameter(Mandatory = $true)]$Suites
+    )
+
+    $errors = @()
+    $requiredRecords = @($Workload.host_test_tasks | Where-Object { $_.disposition -eq 'Applicable' }) + @($Workload.required_device_tasks)
+    foreach ($record in $requiredRecords) {
+        $root = ([string]$record.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+        if ([string]::IsNullOrWhiteSpace($root)) { continue }
+        $ownedSuites = @($Suites | Where-Object { ([string]$_.suite_identity).StartsWith("$root/", [System.StringComparison]::OrdinalIgnoreCase) })
+        $testCount = [System.Numerics.BigInteger]::Zero
+        foreach ($suite in $ownedSuites) {
+            try { $testCount += [System.Numerics.BigInteger]::Parse([string]$suite.tests, [Globalization.CultureInfo]::InvariantCulture) }
+            catch { $errors += "Workload suite has invalid test count for $($record.task_path)" }
+        }
+        if ($ownedSuites.Count -eq 0 -or $testCount -le [System.Numerics.BigInteger]::Zero) {
+            $errors += "Required workload task has no actual testcase outcomes: $($record.task_path)"
+        }
+    }
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
@@ -1147,6 +1566,13 @@ function Test-ManifestSchema {
             $errors += 'Measurement fingerprint does not match trusted policy, toolchain, and device capability profile'
         }
     }
+    if ($Manifest.decisions.collection -eq 'Complete' -and $Policy) {
+        $runtimeValidation = Test-MeasurementRuntime -Runtime $Manifest.toolchain.runtime -Policy $Policy
+        $errors += @($runtimeValidation.Errors)
+        if ([string]$Manifest.toolchain.java -cne [string]$Manifest.toolchain.runtime.gradle_daemon.java_runtime_version) {
+            $errors += 'Canonical toolchain Java identity does not match the measured Gradle daemon JVM runtime'
+        }
+    }
 
     try {
         $startedAt = [DateTimeOffset]::Parse($Manifest.timestamps.start_utc, [Globalization.CultureInfo]::InvariantCulture)
@@ -1172,7 +1598,7 @@ function Test-ManifestSchema {
     if (-not (& $isRevision $Manifest.harness.revision) -or -not (& $isRevision $Manifest.harness.tree) -or $Manifest.harness.clean -isnot [bool]) {
         $errors += 'Missing or invalid reviewed harness revision/tree/clean identity'
     }
-    $requiredHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage-common.ps1', 'tools/integration-ci.ps1', 'tools/local-ci.ps1', 'tools/hdk-coverage.init.gradle', 'tools/coverage/policy.json', 'tools/coverage/validate-policy.ps1', 'tools/coverage/verify.ps1')
+    $requiredHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage-common.ps1', 'tools/integration-ci.ps1', 'tools/local-ci.ps1', 'tools/hdk-coverage.init.gradle', 'tools/coverage/policy.json', 'tools/coverage/validate-policy.ps1', 'tools/coverage/verify.ps1', '.github/workflows/coverage.yml', '.github/workflows/coverage-report.yml', 'tools/coverage/report.ps1', 'tools/coverage/validate-candidate-tree.ps1', 'tools/coverage/validate-live-candidate.ps1', 'tools/coverage/validate-live-pr-target.ps1', 'tools/coverage/validate-workflow-run.ps1', 'tools/coverage/validate-integration-event.ps1', 'tools/coverage/resolve-accepted-baseline.ps1', 'tools/coverage/publish.ps1', 'tools/coverage/request-target-recaptures.ps1', 'tools/coverage/validate-dispatched-candidate.ps1')
     foreach ($harnessFile in $requiredHarnessFiles) {
         $hash = if ($Manifest.harness.file_sha256) { $Manifest.harness.file_sha256.$harnessFile } else { $null }
         if (-not (& $isSha256 $hash)) { $errors += "Missing or invalid harness file digest: $harnessFile" }
@@ -1294,15 +1720,38 @@ function Test-ManifestSchema {
     if (-not $Manifest.suites -or @($Manifest.suites).Count -eq 0) {
         $errors += 'Missing expected suite records'
     } else {
+        $suiteIdentities = @()
         foreach ($s in $Manifest.suites) {
             if (-not $s.suite_name) {
                 $errors += "Suite result missing suite_name"
+            }
+            if (-not (& $hasProperty $s 'suite_identity') -or [string]::IsNullOrWhiteSpace([string]$s.suite_identity)) {
+                $errors += "Suite $($s.suite_name) is missing its task/report-specific identity"
+            } elseif ([string]$s.suite_identity -in $suiteIdentities) {
+                $errors += "Suite identity is duplicated: $($s.suite_identity)"
+            } else {
+                $suiteIdentities += [string]$s.suite_identity
             }
             foreach ($countField in @('tests', 'failures', 'errors', 'skipped')) {
                 $countValue = $s.$countField
                 if (-not (& $hasProperty $s $countField) -or $countValue -isnot [int] -and $countValue -isnot [long] -or $countValue -lt 0) {
                     $errors += "Suite $($s.suite_name) has missing/invalid $countField count"
                 }
+            }
+            foreach ($outcomeField in @('executed', 'successful', 'failed')) {
+                $outcomeValue = $s.$outcomeField
+                if (-not (& $hasProperty $s $outcomeField) -or $outcomeValue -isnot [int] -and $outcomeValue -isnot [long] -or $outcomeValue -lt 0) {
+                    $errors += "Suite $($s.suite_name) has missing/invalid $outcomeField outcome count"
+                }
+            }
+            if (($s.executed -is [int] -or $s.executed -is [long]) -and ($s.tests -is [int] -or $s.tests -is [long]) -and ($s.skipped -is [int] -or $s.skipped -is [long]) -and $s.executed -ne ($s.tests - $s.skipped)) {
+                $errors += "Suite $($s.suite_name) executed count does not reconcile with tests and skipped"
+            }
+            if (($s.successful -is [int] -or $s.successful -is [long]) -and ($s.tests -is [int] -or $s.tests -is [long]) -and $s.successful -ne ($s.tests - $s.failures - $s.errors - $s.skipped)) {
+                $errors += "Suite $($s.suite_name) successful count does not reconcile with testcase outcomes"
+            }
+            if (($s.failed -is [int] -or $s.failed -is [long]) -and ($s.failures -is [int] -or $s.failures -is [long]) -and $s.failed -ne $s.failures) {
+                $errors += "Suite $($s.suite_name) failed count does not equal failures"
             }
             if (-not (& $hasProperty $s 'required') -or $s.required -isnot [bool]) { $errors += "Suite $($s.suite_name) is missing its required disposition" }
         }
@@ -1343,9 +1792,16 @@ function Test-ManifestSchema {
     if (-not $Manifest.workload -or @($Manifest.workload.host_test_tasks).Count -eq 0) {
         $errors += 'Missing required host/device workload task evidence'
     } else {
+        if ($Policy) {
+            $taskInventory = Test-WorkloadTaskInventory -Workload $Manifest.workload -Policy $Policy
+            $errors += $taskInventory.Errors
+        }
         foreach ($hostTask in $Manifest.workload.host_test_tasks) {
             $hostSucceeded = $hostTask.disposition -eq 'Applicable' -and $hostTask.executed -and -not $hostTask.skipped -and -not $hostTask.failed
-            $hostNotApplicable = $hostTask.disposition -eq 'NotApplicable' -and $hostTask.skipped -and $hostTask.skip_message -eq 'NO-SOURCE' -and -not $hostTask.failed
+            $scopeProof = $hostTask.test_scope_proof
+            $hostNotApplicable = $hostTask.disposition -eq 'NotApplicable' -and $hostTask.skipped -and $hostTask.skip_message -eq 'NO-SOURCE' -and -not $hostTask.failed -and
+                $scopeProof -and $scopeProof.task_path -ceq [string]$hostTask.task_path -and $scopeProof.gradle_no_source -eq $true -and
+                ($scopeProof.compiled_test_class_count -is [int] -or $scopeProof.compiled_test_class_count -is [long]) -and $scopeProof.compiled_test_class_count -eq 0
             if ([string]::IsNullOrWhiteSpace([string]$hostTask.task_path) -or $hostTask.executed -isnot [bool] -or (-not $hostSucceeded -and -not $hostNotApplicable)) {
                 $errors += 'Host workload task is missing or did not complete successfully'
             }
@@ -1360,6 +1816,8 @@ function Test-ManifestSchema {
         }
         $junitBinding = Test-WorkloadJUnitArtifactBinding -Workload $Manifest.workload -ArtifactPaths @($Manifest.artifacts | ForEach-Object { [string]$_.path })
         $errors += $junitBinding.Errors
+        $suiteExecution = Test-WorkloadSuiteExecutionCounts -Workload $Manifest.workload -Suites @($Manifest.suites)
+        $errors += $suiteExecution.Errors
     }
 
     return @{
@@ -1606,14 +2064,31 @@ function Test-TrustedComparisonManifest {
     param(
         [Parameter(Mandatory = $true)]$CandidateManifest,
         [Parameter(Mandatory = $true)]$BaselineManifest,
+        $AcceptedBaselineIndex,
         $Policy
     )
 
     $errors = @()
     $candidateTarget = [string]$CandidateManifest.git.target_commit
     $baselineSource = [string]$BaselineManifest.git.source_commit
-    if ([string]::IsNullOrWhiteSpace($candidateTarget) -or [string]::IsNullOrWhiteSpace($baselineSource) -or $baselineSource -ne $candidateTarget) {
-        $errors += "Baseline git.source_commit ('$baselineSource') does not match candidate git.target_commit ('$candidateTarget')"
+    if ([string]::IsNullOrWhiteSpace($candidateTarget) -or [string]::IsNullOrWhiteSpace($baselineSource)) {
+        $errors += 'Candidate target and baseline source commits must be present'
+    } elseif ($baselineSource -ne $candidateTarget) {
+        $testedTree = [string]$AcceptedBaselineIndex.tested_tree
+        $targetTree = [string]$AcceptedBaselineIndex.target_tree
+        $promotionBound = $AcceptedBaselineIndex -and
+            $AcceptedBaselineIndex.provenance -ceq 'ArchivedAcceptedRun' -and
+            [string]$AcceptedBaselineIndex.run_id -ceq [string]$BaselineManifest.run_id -and
+            [string]$AcceptedBaselineIndex.tested_commit -ceq $baselineSource -and
+            [string]$AcceptedBaselineIndex.integrated_commit -ceq $candidateTarget -and
+            [string]$AcceptedBaselineIndex.target_commit -ceq $candidateTarget -and
+            $testedTree -match '^[0-9a-fA-F]{40,64}$' -and
+            $targetTree -match '^[0-9a-fA-F]{40,64}$' -and
+            [string]$BaselineManifest.git.source_tree -ceq $testedTree -and
+            $testedTree -ceq $targetTree
+        if (-not $promotionBound) {
+            $errors += "Baseline source commit ('$baselineSource') differs from candidate target ('$candidateTarget') without a trusted same-tree promotion binding"
+        }
     }
     if ($BaselineManifest.decisions.collection -ne 'Complete') {
         $errors += "Baseline collection must be explicitly Complete"
@@ -1755,6 +2230,14 @@ function Test-ComparisonInventoryStructure {
 
     $errors = @()
     $tier1Paths = @($Policy.tier1_modules | ForEach-Object { [string]$_ })
+    $configuredModulePaths = @($Policy.production_scope.variants.PSObject.Properties.Name | ForEach-Object { [string]$_ } | Sort-Object -CaseSensitive)
+    $actualModulePaths = @($InventoryModules | ForEach-Object { [string]$_.module_path } | Sort-Object -CaseSensitive)
+    if (@($actualModulePaths | Select-Object -Unique).Count -ne $actualModulePaths.Count -or
+        (@($actualModulePaths | Select-Object -Unique) -join "`n") -cne (@($configuredModulePaths | Select-Object -Unique) -join "`n")) {
+        $missing = @($configuredModulePaths | Where-Object { $_ -notin $actualModulePaths })
+        $extra = @($actualModulePaths | Where-Object { $_ -notin $configuredModulePaths })
+        $errors += "$Label inventory module ownership differs from reviewed policy (missing: $($missing -join ', '); extra: $($extra -join ', '))"
+    }
     foreach ($module in $InventoryModules) {
         $modulePath = [string]$module.module_path
         if ($modulePath -notmatch '^:([A-Za-z0-9_.-]+(?::[A-Za-z0-9_.-]+)*)$') {
@@ -1771,6 +2254,70 @@ function Test-ComparisonInventoryStructure {
         $actualDirectory = ([string]$module.project_directory).Replace('\\', '/').Trim('/')
         if ([string]::IsNullOrWhiteSpace($actualDirectory) -or $actualDirectory -cne $expectedDirectory) {
             $errors += "$Label inventory module $modulePath has project_directory '$actualDirectory'; reviewed mapping requires '$expectedDirectory'"
+        }
+
+        $expectedVariant = [string]$Policy.production_scope.variants.$modulePath
+        if ([string]::IsNullOrWhiteSpace($expectedVariant) -or [string]$module.selected_variant -cne $expectedVariant) {
+            $errors += "$Label inventory module $modulePath selected variant '$($module.selected_variant)' is not the reviewed variant '$expectedVariant'"
+        }
+        $compilation = $Policy.production_scope.compilations.$expectedVariant
+        $expectedCompilerTasks = @($compilation.compiler_tasks | ForEach-Object { "${modulePath}:$_" } | Sort-Object -CaseSensitive)
+        $actualCompilerTasks = @($module.compiler_tasks | ForEach-Object { [string]$_ } | Sort-Object -CaseSensitive)
+        if ($actualCompilerTasks.Count -eq 0 -or (@($actualCompilerTasks | Select-Object -Unique) -join "`n") -cne (@($expectedCompilerTasks | Select-Object -Unique) -join "`n")) {
+            $errors += "$Label inventory module $modulePath compiler task ownership differs from reviewed variant $expectedVariant"
+        }
+
+        $sourceRoots = @($module.source_roots | ForEach-Object { ([string]$_).Replace('\', '/') })
+        if (@($sourceRoots | Select-Object -Unique).Count -ne $sourceRoots.Count -or
+            @($sourceRoots | Where-Object { $_ -notin @($Policy.production_scope.source_roots | ForEach-Object { ([string]$_).Replace('\', '/') }) -or [System.IO.Path]::IsPathRooted($_) -or $_ -match '(^|/)\.\.(/|$)' }).Count -gt 0) {
+            $errors += "$Label inventory module $modulePath contains source roots outside reviewed production_scope.source_roots"
+        }
+
+        $outputDirectories = @($module.output_directories | ForEach-Object { ([string]$_).Replace('\', '/') })
+        if ($outputDirectories.Count -eq 0 -or @($outputDirectories | Select-Object -Unique).Count -ne $outputDirectories.Count -or
+            @($outputDirectories | Where-Object { -not $_.StartsWith('build/', [System.StringComparison]::OrdinalIgnoreCase) -or [System.IO.Path]::IsPathRooted($_) -or $_ -match '(^|/)\.\.(/|$)' }).Count -gt 0) {
+            $errors += "$Label inventory module $modulePath has compiler outputs outside its project build boundary"
+        }
+
+        $excludedPatterns = @($module.excluded_class_patterns | ForEach-Object { [string]$_ })
+        if (@($excludedPatterns | Select-Object -Unique).Count -ne $excludedPatterns.Count -or
+            @($excludedPatterns | Where-Object { $_ -notmatch '^[A-Za-z0-9_./$-]+(?:\$\*)?\.class$' -or $_ -match '(^|/)\.\.(/|$)' }).Count -gt 0) {
+            $errors += "$Label inventory module $modulePath has unsafe or duplicate generated exclusion patterns"
+        }
+        if ($excludedPatterns.Count -gt 0 -and $Policy.generated_exclusion_rules.exclude_sqldelight -ne $true) {
+            $errors += "$Label inventory module $modulePath uses generated exclusions disabled by reviewed policy"
+        }
+        $exclusionSources = @($module.excluded_class_sources)
+        $sourcePatterns = @()
+        $sourcePathsSeen = @()
+        foreach ($source in $exclusionSources) {
+            $sourcePath = ([string]$source.source_path).Replace('\', '/')
+            if (-not $sourcePath.StartsWith('build/generated/sqldelight/code/', [System.StringComparison]::OrdinalIgnoreCase) -or $sourcePath -match '(^|/)\.\.(/|$)' -or [System.IO.Path]::IsPathRooted($sourcePath)) {
+                $errors += "$Label inventory module $modulePath generated exclusion source is outside the reviewed SQLDelight output"
+                continue
+            }
+            if ($sourcePath -in $sourcePathsSeen) { $errors += "$Label inventory module $modulePath duplicates a generated exclusion source" }
+            $sourcePathsSeen += $sourcePath
+            if ([string]$source.source_sha256 -notmatch '^[0-9a-fA-F]{64}$') { $errors += "$Label inventory module $modulePath generated exclusion source has no content digest" }
+            $relativeSource = $sourcePath.Substring('build/generated/sqldelight/code/'.Length)
+            $segments = @($relativeSource.Split('/') | Where-Object { $_ -ne '' })
+            $patterns = @($source.class_patterns | ForEach-Object { [string]$_ })
+            if (-not $sourcePath.EndsWith('.kt', [System.StringComparison]::OrdinalIgnoreCase) -or $segments.Count -lt 4) {
+                $errors += "$Label inventory module $modulePath generated exclusion source is not a supported Kotlin output"
+                continue
+            }
+            $classPath = ($segments | Select-Object -Skip 2) -join '/'
+            $classPath = $classPath.Substring(0, $classPath.Length - 3)
+            $expectedPatterns = @("$classPath.class", "$classPath`$*.class")
+            $actualPatternKey = (@($patterns | Sort-Object -CaseSensitive) -join "`n")
+            $expectedPatternKey = (@($expectedPatterns | Sort-Object -CaseSensitive) -join "`n")
+            if ($actualPatternKey -cne $expectedPatternKey) {
+                $errors += "$Label inventory module $modulePath exclusion source does not map to its exact generated class patterns"
+            }
+            $sourcePatterns += $patterns
+        }
+        if ((@($sourcePatterns | Sort-Object -CaseSensitive) -join "`n") -cne (@($excludedPatterns | Sort-Object -CaseSensitive) -join "`n")) {
+            $errors += "$Label inventory module $modulePath generated exclusions do not exactly match their retained generated source evidence"
         }
     }
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
@@ -1810,6 +2357,11 @@ function Test-ComparisonBundleEvidence {
     $bundle = [System.IO.Path]::GetFullPath($BundlePath)
     $manifestCheck = Test-ManifestSchema -Manifest $Manifest -Policy $Policy -TrustedHarnessRoot $TrustedHarnessRoot
     if (-not $manifestCheck.IsValid) { $errors += @($manifestCheck.Errors | ForEach-Object { "Baseline manifest: $_" }) }
+    if ($Manifest.git.clean_preflight -isnot [bool] -or -not $Manifest.git.clean_preflight -or
+        $Manifest.git.clean_postflight -isnot [bool] -or -not $Manifest.git.clean_postflight -or
+        $Manifest.harness.clean -isnot [bool] -or -not $Manifest.harness.clean) {
+        $errors += 'Baseline does not prove clean source and reviewed harness state throughout capture'
+    }
 
     $artifactRecords = @($Manifest.artifacts)
     $listed = @()
@@ -1832,6 +2384,8 @@ function Test-ComparisonBundleEvidence {
     $disk = @(Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object { [System.IO.Path]::GetFullPath($_.FullName) -ne $manifestPath } | ForEach-Object { [IO.Path]::GetRelativePath($bundle, $_.FullName).Replace('\', '/') })
     foreach ($path in $disk) { if ($path -notin $listed) { $errors += "Baseline disk artifact is unlisted: $path" } }
     foreach ($path in $listed) { if ($path -notin $disk) { $errors += "Baseline listed artifact is absent: $path" } }
+    $executionFileBinding = Test-ExecutionFileAttribution -ExecutionFiles $Manifest.execution_files -Artifacts $artifactRecords
+    if (-not $executionFileBinding.IsValid) { $errors += @($executionFileBinding.Errors | ForEach-Object { "Baseline $_" }) }
 
     # A manifest's Passed label and suite totals are not sufficient baseline
     # evidence. Reconstruct totals from the retained JUnit reports and require
@@ -1915,6 +2469,45 @@ function Test-ComparisonBundleEvidence {
         }
     }
 
+    $strictActualSuites = @{}
+    foreach ($artifact in $testReportArtifacts) {
+        $reportPath = ([string]$artifact.path).Replace('\', '/')
+        $reportIdentity = $reportPath.Substring('reports/tests/'.Length)
+        $parsedReport = Get-StrictJUnitOutcome -Path (Join-Path $bundle $reportPath) -ReportIdentity $reportIdentity
+        if (-not $parsedReport.IsValid) {
+            $errors += "Baseline JUnit artifact '$reportPath' failed strict outcome parsing: $($parsedReport.Errors -join '; ')"
+            continue
+        }
+        foreach ($suite in $parsedReport.Suites) {
+            if ($strictActualSuites.ContainsKey([string]$suite.suite_identity)) {
+                $errors += "Baseline has a duplicate task/suite identity: $($suite.suite_identity)"
+            } else {
+                $strictActualSuites[[string]$suite.suite_identity] = $suite
+            }
+        }
+    }
+    $strictRecordedSuites = @{}
+    foreach ($suite in @($Manifest.suites)) {
+        $identity = [string]$suite.suite_identity
+        if ([string]::IsNullOrWhiteSpace($identity) -or $strictRecordedSuites.ContainsKey($identity)) {
+            $errors += 'Baseline manifest suite identity is missing or duplicated'
+        } else {
+            $strictRecordedSuites[$identity] = $suite
+        }
+    }
+    foreach ($identity in (@($strictActualSuites.Keys) + @($strictRecordedSuites.Keys) | Sort-Object -Unique)) {
+        if (-not $strictActualSuites.ContainsKey($identity) -or -not $strictRecordedSuites.ContainsKey($identity)) {
+            $errors += "Baseline strict JUnit outcome is missing on one side for '$identity'"
+            continue
+        }
+        foreach ($metric in @('tests', 'executed', 'successful', 'failed', 'failures', 'errors', 'skipped')) {
+            if ([System.Numerics.BigInteger]::Parse([string]$strictActualSuites[$identity].$metric, [Globalization.CultureInfo]::InvariantCulture) -ne
+                [System.Numerics.BigInteger]::Parse([string]$strictRecordedSuites[$identity].$metric, [Globalization.CultureInfo]::InvariantCulture)) {
+                $errors += "Baseline strict JUnit and manifest disagree for '$identity' $metric"
+            }
+        }
+    }
+
     $counterArtifacts = @($artifactRecords | Where-Object { ([string]$_.path).Replace('\', '/') -eq 'counters.json' })
     $inventoryArtifacts = @($artifactRecords | Where-Object { ([string]$_.path).Replace('\', '/') -eq 'inventory.json' })
     if ($counterArtifacts.Count -ne 1 -or $inventoryArtifacts.Count -ne 1) {
@@ -1929,6 +2522,8 @@ function Test-ComparisonBundleEvidence {
         return @{ IsValid = $false; Errors = $errors; Counters = $null }
     }
     $inventoryDigest = Get-FileSha256 -Path (Join-Path $bundle 'inventory.json')
+    $runtimeBinding = Test-MeasurementRuntimeBinding -Counters $counters -Manifest $Manifest -Policy $Policy
+    if (-not $runtimeBinding.IsValid) { $errors += @($runtimeBinding.Errors | ForEach-Object { "Baseline measurement runtime: $_" }) }
     if ($inventoryDigest -ne $counters.inventory_digest -or $Manifest.production_inventory_digest -ne $inventoryDigest) { $errors += 'Baseline inventory file digest does not match canonical counters and manifest' }
     if ($counters.analyzer_identity -ne 'jacoco-0.8.15') { $errors += 'Baseline analyzer identity is missing or unsupported' }
     if ($inventory.analyzer_identity -ne $counters.analyzer_identity) { $errors += 'Baseline inventory analyzer identity does not match canonical counters' }
@@ -1943,6 +2538,14 @@ function Test-ComparisonBundleEvidence {
     $errors += $inventoryStructure.Errors
     $moduleAccounting = Test-ComparisonModuleAccounting -Modules $counters.modules -RequiredModulePaths $requiredModulePaths -Label 'Baseline'
     $errors += $moduleAccounting.Errors
+    [object[]]$repositoryInputs = @()
+    if ($counters.repository -and $null -ne $counters.repository.execution_files) {
+        $repositoryInputs = @($counters.repository.execution_files)
+    }
+    $repositoryExecutionBinding = Test-RepositoryExecutionAttribution `
+        -RepositoryExecutionFiles $repositoryInputs -ManifestExecutionFiles @($Manifest.execution_files) `
+        -Workload $Manifest.workload -ExpectedRunId ([string]$Manifest.run_id) -ExpectedDeviceSerial ([string]$Manifest.device.device_serial)
+    if (-not $repositoryExecutionBinding.IsValid) { $errors += $repositoryExecutionBinding.Errors }
 
     foreach ($modulePath in $requiredModulePaths) {
         $moduleRows = @($counters.modules | Where-Object { $_.module_path -eq $modulePath })
@@ -1951,6 +2554,14 @@ function Test-ComparisonBundleEvidence {
         if ($inventoryRows.Count -ne 1) { $errors += "Baseline inventory must contain exactly one record for $modulePath"; continue }
         $module = $moduleRows[0]
         $inventoryModule = $inventoryRows[0]
+        $compatibilityEvidence = Test-ExecutionCompatibilityEvidence -InventoryModule $inventoryModule -CounterModule $module `
+            -AnalyzerIdentity ([string]$counters.analyzer_identity) -Label "Baseline $modulePath"
+        if (-not $compatibilityEvidence.IsValid) { $errors += $compatibilityEvidence.Errors }
+        $sourceBinding = Test-ExecutionCompatibilityAttribution -CompatibilityReceipt $module.execution_compatibility `
+            -ManifestExecutionFiles $Manifest.execution_files -Scope $modulePath `
+            -ExpectedVariant ([string]$inventoryModule.selected_variant) -Workload $Manifest.workload `
+            -ExpectedRunId ([string]$Manifest.run_id) -ExpectedDeviceSerial ([string]$Manifest.device.device_serial) -Label "Baseline $modulePath"
+        if (-not $sourceBinding.IsValid) { $errors += $sourceBinding.Errors }
         $reportBinding = Test-CanonicalInventoryModuleBinding -InventoryModule $inventoryModule -CounterModule $module -InventoryDigest $inventoryDigest -ExpectedInventoryDigest $counters.inventory_digest -AnalyzerIdentity $counters.analyzer_identity -ReportDigest $module.report_digest
         $errors += @($reportBinding.Reasons | ForEach-Object { "Baseline ${modulePath}: $_" })
         $reportArtifactBinding = Test-ComparisonModuleReportArtifact -ModulePath $modulePath -ExpectedDigest ([string]$module.report_digest) -Artifacts $artifactRecords -Label 'Baseline'
@@ -2184,7 +2795,12 @@ function Test-PromotionReadiness {
         $Decision.decisions.regression -ne 'Passed') {
         $errors += 'Independent coverage assessment is not complete, passing, and promotion-eligible'
     }
-    if ($IntegrationEvent.event_type -cne 'pull_request' -or $IntegrationEvent.merged -isnot [bool] -or -not $IntegrationEvent.merged) { $errors += 'A completed pull-request integration event is required for promotion' }
+    $integrationConfirmed = if ($IntegrationEvent.event_type -ceq 'target_push') {
+        $IntegrationEvent.integration_confirmed -is [bool] -and [bool]$IntegrationEvent.integration_confirmed
+    } else {
+        $IntegrationEvent.event_type -ceq 'pull_request' -and $IntegrationEvent.merged -is [bool] -and [bool]$IntegrationEvent.merged
+    }
+    if (-not $integrationConfirmed) { $errors += 'A verified completed pull-request merge or current target-push integration event is required for promotion' }
     if ($IntegrationEvent.repository -cne $Repository -or $IntegrationEvent.head_sha -cne $HeadSha -or $IntegrationEvent.base_sha -cne $BaseSha) { $errors += 'Integration event repository/head/base does not match the verified run identity' }
     if ($Manifest.git.source_commit -cne $HeadSha -or $Manifest.git.target_commit -cne $BaseSha) { $errors += 'Verified run head/base does not match manifest source/target commits' }
     if ($IntegrationEvent.integration_commit -notmatch '^[0-9a-fA-F]{40,64}$' -or $IntegrationEvent.integration_tree -notmatch '^[0-9a-fA-F]{40,64}$' -or $IntegrationEvent.integration_tree -cne $Manifest.git.source_tree) { $errors += 'Integrated commit/tree must be explicit and retain the exact tested tree' }
@@ -2387,8 +3003,17 @@ function Resolve-ReportLiveConclusion {
 
 function Sort-TestSelectionCandidates {
     param(
-        [Parameter(Mandatory = $true)][array]$Candidates
+        [Parameter(Mandatory = $true)][array]$Candidates,
+        [Parameter(Mandatory = $true)]$Policy
     )
+    if (-not (Test-NonnegativeIntegerValue -Value $Policy.tier1_instruction_min_percent) -or
+        -not (Test-NonnegativeIntegerValue -Value $Policy.tier1_branch_min_percent) -or
+        -not (Test-NonnegativeIntegerValue -Value $Policy.tier2_instruction_min_percent)) {
+        throw 'Selection policy has invalid tier coverage floors'
+    }
+    $knownModules = @($Policy.tier1_modules) + @($Policy.tier2_gated_modules) + @($Policy.production_scope.variants.PSObject.Properties.Name)
+    $knownModules = @($knownModules | ForEach-Object { [string]$_ } | Select-Object -Unique)
+    $candidateIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $augmented = foreach ($c in $Candidates) {
         if ($null -eq $c -or $c -isnot [System.Management.Automation.PSCustomObject]) { throw 'Selection candidate must be a JSON object' }
         if ($c.PSObject.Properties['module_deficit'] -or $c.PSObject.Properties['module_deficit_numerator'] -or $c.PSObject.Properties['module_deficit_denominator']) {
@@ -2397,13 +3022,33 @@ function Sort-TestSelectionCandidates {
         if ([string]$c.candidate_id -notmatch '^COV-[0-9]{3}$' -or [string]$c.module -notmatch '^:[A-Za-z0-9_.-]+(?::[A-Za-z0-9_.-]+)*$') {
             throw 'Selection candidate requires a stable COV-NNN identifier and a Gradle module path'
         }
+        if (-not $candidateIds.Add([string]$c.candidate_id)) { throw "Selection candidate identifier '$($c.candidate_id)' is duplicated" }
+        if ($c.module -notin $knownModules) { throw "Candidate '$($c.candidate_id)' references module '$($c.module)' outside the trusted production inventory" }
         if (-not (Test-NonnegativeIntegerValue -Value $c.impact) -or [int]$c.impact -lt 1 -or [int]$c.impact -gt 4 -or
             -not (Test-NonnegativeIntegerValue -Value $c.likelihood) -or [int]$c.likelihood -lt 1 -or [int]$c.likelihood -gt 3) {
             throw "Candidate '$($c.candidate_id)' has an invalid impact or likelihood rank"
         }
+        if ($null -eq $c.requirement_ids -or @($c.requirement_ids).Count -eq 0 -or
+            @($c.requirement_ids | Where-Object { [string]$_ -notmatch '^(FR|NFR|TR|SC)-[A-Z0-9]+(?:-[A-Z0-9]+)*$' }).Count -gt 0 -or
+            [string]::IsNullOrWhiteSpace([string]$c.risk_rationale) -or
+            [string]::IsNullOrWhiteSpace([string]$c.initial_outcome) -or
+            [string]::IsNullOrWhiteSpace([string]$c.expected_outcome) -or
+            $null -eq $c.forbidden_effects -or @($c.forbidden_effects).Count -eq 0 -or
+            @($c.forbidden_effects | Where-Object { [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0) {
+            throw "Candidate '$($c.candidate_id)' requires stable requirements, risk rationale, initial/expected outcomes, and forbidden effects"
+        }
+        $placement = $c.test_placement
+        $placementPath = [string]$placement.file
+        if ($null -eq $placement -or $placementPath -notmatch '^[A-Za-z0-9_./-]+\.kt$' -or $placementPath.StartsWith('/') -or
+            $placementPath -match '(^|/)\.\.(/|$)' -or [string]::IsNullOrWhiteSpace([string]$placement.class) -or
+            [string]::IsNullOrWhiteSpace([string]$placement.test_name) -or $placement.decision -notin @('Extend', 'New')) {
+            throw "Candidate '$($c.candidate_id)' requires exact safe test-file, class, test-name, and Extend/New placement metadata"
+        }
         $maxNumerator = [System.Numerics.BigInteger]::Zero
         $maxDenominator = [System.Numerics.BigInteger]::One
         $applicableMetricCount = 0
+        $isTier1 = [string]$c.module -cin @($Policy.tier1_modules | ForEach-Object { [string]$_ })
+        $metrics = if ($isTier1) { @('instruction', 'branch') } else { @('instruction') }
         foreach ($metric in @('instruction', 'branch')) {
             $counter = $c.$metric
             if (-not $counter -or -not (Test-NonnegativeIntegerValue -Value $counter.covered) -or -not (Test-NonnegativeIntegerValue -Value $counter.missed) -or -not (Test-NonnegativeIntegerValue -Value $counter.total)) {
@@ -2414,9 +3059,10 @@ function Sort-TestSelectionCandidates {
             $total = ConvertTo-CoverageBigInteger -Value $counter.total -Label "$($c.candidate_id) $metric total"
             if ($total -ne ($covered + $missed)) { throw "Candidate '$($c.candidate_id)' has inconsistent $metric total" }
             if ($metric -eq 'instruction' -and $total -eq 0) { throw "Candidate '$($c.candidate_id)' has no applicable instruction denominator" }
-            if ($metric -eq 'branch' -and $total -eq 0) { continue }
+            if ($metric -notin $metrics -or $total -eq 0) { continue }
             $applicableMetricCount++
-            $gapNumerator = ([System.Numerics.BigInteger]60 * $total) - ([System.Numerics.BigInteger]100 * $covered)
+            $floor = if ($isTier1 -and $metric -eq 'branch') { [int]$Policy.tier1_branch_min_percent } elseif ($isTier1) { [int]$Policy.tier1_instruction_min_percent } else { [int]$Policy.tier2_instruction_min_percent }
+            $gapNumerator = ([System.Numerics.BigInteger]$floor * $total) - ([System.Numerics.BigInteger]100 * $covered)
             if ($gapNumerator -lt 0) { $gapNumerator = [System.Numerics.BigInteger]::Zero }
             if (($gapNumerator * $maxDenominator) -gt ($maxNumerator * $total)) {
                 $maxNumerator = $gapNumerator
@@ -2573,14 +3219,15 @@ function Test-BatchProgression {
 
 function Test-SelectionCase {
     param(
-        [Parameter(Mandatory = $true)]$Case
+        [Parameter(Mandatory = $true)]$Case,
+        [Parameter(Mandatory = $true)]$Policy
     )
 
     $errors = @()
 
     if ($Case.candidates) {
         try {
-            $sorted = Sort-TestSelectionCandidates -Candidates $Case.candidates
+            $sorted = Sort-TestSelectionCandidates -Candidates $Case.candidates -Policy $Policy
             if ($sorted[0].candidate_id -ne $Case.expected_first) {
                 $errors += "Expected first candidate to be '$($Case.expected_first)', but got '$($sorted[0].candidate_id)'"
             }

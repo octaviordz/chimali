@@ -3,9 +3,12 @@
   "description": "Trusted reporter resolves an accepted baseline and changed paths for the exact candidate target",
   "cases": [
     { "id": "BASE_RESOLVE_001_VALID_BINDING", "mutation": "none", "expected_valid": true },
-    { "id": "BASE_RESOLVE_002_TARGET_ADVANCED", "mutation": "target", "expected_valid": false, "expected_error": "does not match" },
+    { "id": "BASE_RESOLVE_002_TARGET_ADVANCED", "mutation": "target", "expected_valid": false, "expected_error": "differs from the exact candidate target" },
     { "id": "BASE_RESOLVE_003_INDEX_DIGEST_TAMPERED", "mutation": "digest", "expected_valid": false, "expected_error": "digest does not match its index" },
     { "id": "BASE_RESOLVE_004_CHANGED_PATH_ARTIFACT_MISSING", "mutation": "changed-paths", "expected_valid": false, "expected_error": "exactly one changed-paths.txt" },
-    { "id": "BASE_RESOLVE_005_BUNDLE_PATH_TRAVERSAL", "mutation": "traversal", "expected_valid": false, "expected_error": "contained relative path" }
+    { "id": "BASE_RESOLVE_005_BUNDLE_PATH_TRAVERSAL", "mutation": "traversal", "expected_valid": false, "expected_error": "contained relative path" },
+    { "id": "BASE_RESOLVE_006_PROMOTED_SAME_TREE", "mutation": "promoted", "expected_valid": true },
+    { "id": "BASE_RESOLVE_007_PROMOTED_TREE_MISMATCH", "mutation": "promoted-tree", "expected_valid": false, "expected_error": "without a trusted same-tree promotion binding" },
+    { "id": "BASE_RESOLVE_008_PROMOTED_IDENTITY_MISMATCH", "mutation": "promoted-identity", "expected_valid": false, "expected_error": "without a trusted same-tree promotion binding" }
   ]
 }

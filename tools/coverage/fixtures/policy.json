@@ -95,7 +95,14 @@
           ],
           "optional_device_test_modules": [
             ":app"
-          ]
+          ],
+          "device_test_tasks": {
+            ":feature:fido2": "connectedAndroidDeviceTest",
+            ":core:common": "connectedAndroidDeviceTest",
+            ":feature:settings": "connectedDebugAndroidTest",
+            ":app": "connectedShrunkDebugAndroidTest"
+          },
+          "no_source_host_test_proof": "GradleNoSourceWithZeroCompiledTestClasses"
         },
         "device_requirements": {
           "serial_source": "explicit_parameter",
@@ -117,8 +124,29 @@
             "tools/hdk-coverage.init.gradle",
             "tools/coverage/policy.json",
             "tools/coverage/validate-policy.ps1",
-            "tools/coverage/verify.ps1"
+            "tools/coverage/verify.ps1",
+            ".github/workflows/coverage.yml",
+            ".github/workflows/coverage-report.yml",
+            "tools/coverage/report.ps1",
+            "tools/coverage/validate-candidate-tree.ps1",
+            "tools/coverage/validate-live-candidate.ps1",
+            "tools/coverage/validate-live-pr-target.ps1",
+            "tools/coverage/validate-workflow-run.ps1",
+            "tools/coverage/validate-integration-event.ps1",
+            "tools/coverage/resolve-accepted-baseline.ps1",
+            "tools/coverage/publish.ps1",
+            "tools/coverage/request-target-recaptures.ps1",
+            "tools/coverage/validate-dispatched-candidate.ps1"
           ]
+        },
+        "runtime_requirements": {
+          "gradle_daemon_java_version": "21",
+          "gradle_daemon_vendor": "JetBrains",
+          "kotlin_execution_strategy": "in-process",
+          "java_compiler_version": "21",
+          "kotlin_compiler_java_version": "21",
+          "host_test_java_version": "21",
+          "jacoco_engine": "jacoco-0.8.15"
         },
         "regression_rule": "nondecreasing_applicable_ratios",
         "measurement_fingerprint": {
@@ -137,6 +165,8 @@
             "toolchain.android_gradle_plugin",
             "toolchain.kotlin",
             "toolchain.jacoco",
+            "runtime_requirements",
+            "toolchain.runtime",
             "device.api_level",
             "device.abi"
           ],

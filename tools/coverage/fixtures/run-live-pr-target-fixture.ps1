@@ -23,16 +23,18 @@ try {
     }
     $input = Join-Path $tmp 'pr.json'; $outputPath = Join-Path $tmp 'identity.json'
     $pr | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $input -Encoding utf8
-    $output = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'tools/coverage/validate-live-pr-target.ps1') `
-        -PullRequestPath $input -ExpectedRepository 'octaviordz/chimali' -ExpectedNumber '17' `
-        -ExpectedHeadSha $head -CapturedBaseSha $base -OutputPath $outputPath 2>&1)
+    $validationArgs = @('-PullRequestPath', $input, '-ExpectedRepository', 'octaviordz/chimali', '-ExpectedNumber', '17',
+        '-ExpectedHeadSha', $head, '-CapturedBaseSha', $base, '-OutputPath', $outputPath)
+    if ($cases[0].allow_head_change) { $validationArgs += '-AllowHeadShaChangePendingTreeVerification' }
+    $output = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'tools/coverage/validate-live-pr-target.ps1') @validationArgs 2>&1)
     $actual = $LASTEXITCODE
     $expected = if ($cases[0].expected_valid) { 0 } else { 1 }
     if ($actual -ne $expected) { throw "$Case expected exit $expected, got $actual`: $($output -join ' ')" }
     if ($expected -eq 0) {
         if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) { throw "$Case did not write validated identity" }
         $identity = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
-        if ($identity.base_sha -cne $base -or $identity.head_sha -cne $head) { throw "$Case returned different PR identity" }
+        $expectedLiveHead = if ($cases[0].mutation -eq 'head-changed') { 'd' * 40 } else { $head }
+        if ($identity.base_sha -cne $base -or $identity.head_sha -cne $expectedLiveHead -or $identity.captured_head_sha -cne $head) { throw "$Case returned different PR identity" }
     } elseif (Test-Path -LiteralPath $outputPath -PathType Leaf) { throw "$Case wrote success output despite rejection" }
     Write-Output "$Case passed (exit $actual)."
 } finally {

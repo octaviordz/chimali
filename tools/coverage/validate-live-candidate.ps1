@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory = $true)][string]$HeadSha,
     [Parameter(Mandatory = $true)][string]$BaseSha,
     [Parameter(Mandatory = $true)][string]$TreeSha,
-    [Parameter(Mandatory = $true)][ValidateSet('pull_request', 'merge_group')][string]$EventName,
+    [string]$CheckDestinationSha,
+    [Parameter(Mandatory = $true)][ValidateSet('pull_request', 'merge_group', 'push')][string]$EventName,
     [int]$PullRequestNumber,
     [string]$TargetRef,
     [string]$ServerUrl = 'https://github.com',
@@ -30,6 +31,8 @@ try {
     Assert-FullSha $HeadSha 'HeadSha'
     Assert-FullSha $BaseSha 'BaseSha'
     Assert-FullSha $TreeSha 'TreeSha'
+    if ([string]::IsNullOrWhiteSpace($CheckDestinationSha)) { $CheckDestinationSha = $HeadSha }
+    Assert-FullSha $CheckDestinationSha 'CheckDestinationSha'
     $fixture = if ($LiveEvidencePath) { Get-Content -LiteralPath $LiveEvidencePath -Raw | ConvertFrom-Json -ErrorAction Stop } else { $null }
     $apiRoot = if ($ServerUrl -eq 'https://github.com') { 'https://api.github.com' } else { "$($ServerUrl.TrimEnd('/'))/api/v3" }
     $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
@@ -41,9 +44,20 @@ try {
     if ($EventName -eq 'pull_request') {
         if ($PullRequestNumber -lt 1) { throw 'A validated pull request number is required' }
         $pr = Get-LiveResponse "pulls/$PullRequestNumber" $fixture 'pull_request' $headers $apiRoot $Repository
-        if ($pr.state -cne 'open' -or [string]$pr.head.sha -cne $HeadSha -or [string]$pr.base.sha -cne $BaseSha -or
+        $livePullRequestHead = [string]$pr.head.sha
+        Assert-FullSha $livePullRequestHead 'Live pull-request head SHA'
+        if ($pr.state -cne 'open' -or [string]$pr.base.sha -cne $BaseSha -or
             [string]$pr.head.repo.full_name -cne $Repository -or [string]$pr.base.repo.full_name -cne $Repository) {
-            throw 'Live pull-request head, base, state, or repository changed after capture'
+            throw 'Live pull-request base, state, or repository changed after capture'
+        }
+        if ($CheckDestinationSha -cne $HeadSha -and $CheckDestinationSha -cne $livePullRequestHead) {
+            throw 'Check destination is not bound to either the captured or current PR head'
+        }
+        $comparison = Get-LiveResponse "compare/$BaseSha...$livePullRequestHead" $fixture 'comparison' $headers $apiRoot $Repository
+        if ([string]$comparison.status -notin @('ahead', 'identical') -or
+            [int]$comparison.behind_by -ne 0 -or [string]$comparison.base_commit.sha -cne $BaseSha -or
+            [string]$comparison.merge_base_commit.sha -cne $BaseSha) {
+            throw 'Pull-request head does not contain the exact accepted base; capture must test an up-to-date integrated product tree'
         }
     } else {
         if ($TargetRef -notmatch '^refs/heads/[A-Za-z0-9._/-]+$' -or $TargetRef -match '(^|/)\.\.(/|$)') {
@@ -51,14 +65,36 @@ try {
         }
         $branchPath = [uri]::EscapeDataString($TargetRef.Substring('refs/heads/'.Length))
         $ref = Get-LiveResponse "git/ref/heads/$branchPath" $fixture 'target_ref' $headers $apiRoot $Repository
-        if ([string]$ref.object.sha -cne $BaseSha) { throw 'Configured integration target advanced after capture' }
+        $expectedRefSha = if ($EventName -eq 'push') { $HeadSha } else { $BaseSha }
+        if ([string]$ref.object.sha -cne $expectedRefSha) { throw 'Configured integration target advanced or differs from the captured target-push commit' }
     }
 
     $commit = Get-LiveResponse "commits/$HeadSha" $fixture 'head_commit' $headers $apiRoot $Repository
     if ([string]$commit.sha -cne $HeadSha -or [string]$commit.commit.tree.sha -cne $TreeSha) {
-        throw 'Live candidate commit/tree does not match the measured candidate'
+        throw 'Live tested-candidate commit/tree does not match the measured product tree'
     }
-    [PSCustomObject]@{ valid = $true; repository = $Repository; head_sha = $HeadSha; base_sha = $BaseSha; tree_sha = $TreeSha; event = $EventName } |
+    if ($EventName -eq 'pull_request') {
+        $liveHeadCommit = if ($livePullRequestHead -ceq $HeadSha) { $commit } else { Get-LiveResponse "commits/$livePullRequestHead" $fixture 'pull_request_head_commit' $headers $apiRoot $Repository }
+        if ([string]$liveHeadCommit.sha -cne $livePullRequestHead -or [string]$liveHeadCommit.commit.tree.sha -cne $TreeSha) {
+            throw 'Current PR head does not preserve the exact tested product tree'
+        }
+    }
+    if ($EventName -eq 'merge_group' -and @($commit.parents | ForEach-Object { [string]$_.sha }) -notcontains $BaseSha) {
+        throw 'Merge-group candidate is not a direct integration of the exact accepted base'
+    }
+    if ($EventName -eq 'push') {
+        $comparison = Get-LiveResponse "compare/$BaseSha...$HeadSha" $fixture 'comparison' $headers $apiRoot $Repository
+        if ([string]$comparison.status -ne 'ahead' -or [int]$comparison.behind_by -ne 0 -or
+            [string]$comparison.base_commit.sha -cne $BaseSha -or [string]$comparison.merge_base_commit.sha -cne $BaseSha) {
+            throw 'Target push does not advance directly from the exact accepted base; the push event must be recaptured against the current accepted baseline'
+        }
+    }
+    [PSCustomObject]@{
+        valid = $true; repository = $Repository; event = $EventName
+        pull_request_head_sha = if ($EventName -eq 'pull_request') { $livePullRequestHead } else { $null }
+        accepted_base_sha = $BaseSha; tested_candidate_sha = $HeadSha; tested_candidate_tree = $TreeSha
+        check_destination_sha = if ($EventName -eq 'pull_request') { $livePullRequestHead } else { $HeadSha }
+    } |
         ConvertTo-Json -Compress
     exit 0
 } catch {

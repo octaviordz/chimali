@@ -8,6 +8,10 @@
     { "id": "WORKFLOW_RUN_004_CROSS_REPOSITORY_HEAD", "mutation": "fork-head", "expected_valid": false },
     { "id": "WORKFLOW_RUN_005_UNTRUSTED_WORKFLOW_REF", "mutation": "workflow-ref", "expected_valid": false },
     { "id": "WORKFLOW_RUN_006_INVALID_PR_BASE", "mutation": "short-base", "expected_valid": false },
-    { "id": "WORKFLOW_RUN_007_VALID_MERGE_GROUP", "mutation": "merge-group", "expected_valid": true }
+    { "id": "WORKFLOW_RUN_007_VALID_MERGE_GROUP", "mutation": "merge-group", "expected_valid": true },
+    { "id": "WORKFLOW_RUN_008_VALID_TARGET_PUSH", "mutation": "target-push", "expected_valid": true },
+    { "id": "WORKFLOW_RUN_009_NON_TARGET_PUSH", "mutation": "other-push-branch", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_010_VALID_RECAPTURE_DISPATCH", "mutation": "recapture-dispatch", "expected_valid": true },
+    { "id": "WORKFLOW_RUN_011_NON_DEFAULT_RECAPTURE_DISPATCH", "mutation": "other-dispatch-branch", "expected_valid": false }
   ]
 }

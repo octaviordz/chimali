@@ -109,7 +109,7 @@
       "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
       "expected_valid": false,
-      "expected_error": "completed pull-request integration"
+      "expected_error": "verified completed pull-request merge"
     },
     {
       "id": "PROMO_004_CHANGED_INTEGRATED_TREE",
@@ -149,7 +149,7 @@
       "expected_error": "exact tested tree"
     },
     {
-      "id": "PROMO_005_UNSUPPORTED_PUSH_EVENT",
+      "id": "PROMO_005_VERIFIED_TARGET_PUSH_EVENT",
       "manifest": {
         "run_id": "00000000-0000-4000-8000-000000000001",
         "git": {
@@ -171,19 +171,19 @@
         }
       },
       "integration_event": {
-        "event_type": "push",
-        "merged": true,
+        "event_type": "target_push",
+        "integration_confirmed": true,
         "repository": "owner/repo",
         "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "target_ref": "refs/heads/main",
         "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "integration_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       },
       "repository": "owner/repo",
       "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
-      "expected_valid": false,
-      "expected_error": "completed pull-request integration"
+      "expected_valid": true
     }
   ]
 }

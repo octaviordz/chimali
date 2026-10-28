@@ -1,0 +1,10 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Comparison accepts an integrated baseline whose commit differs only when the protected promotion index proves the exact tree",
+  "cases": [
+    { "id": "PROMOTED_COMP_001_EQUAL_TREE_ACCEPTED", "mutation": "valid", "expected_valid": true },
+    { "id": "PROMOTED_COMP_002_CHANGED_TREE_REJECTED", "mutation": "tree", "expected_valid": false },
+    { "id": "PROMOTED_COMP_003_WRONG_TESTED_COMMIT_REJECTED", "mutation": "commit", "expected_valid": false },
+    { "id": "PROMOTED_COMP_004_WRONG_RUN_REJECTED", "mutation": "run", "expected_valid": false }
+  ]
+}

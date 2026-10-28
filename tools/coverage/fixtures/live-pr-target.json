@@ -7,6 +7,8 @@
     { "id": "LIVE_PR_TARGET_HEAD_CHANGED", "mutation": "head-changed", "expected_valid": false },
     { "id": "LIVE_PR_TARGET_CLOSED", "mutation": "closed", "expected_valid": false },
     { "id": "LIVE_PR_TARGET_CROSS_REPOSITORY", "mutation": "cross-repository", "expected_valid": false },
-    { "id": "LIVE_PR_TARGET_WRONG_NUMBER", "mutation": "wrong-number", "expected_valid": false }
+    { "id": "LIVE_PR_TARGET_WRONG_NUMBER", "mutation": "wrong-number", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_HEAD_CHANGE_REJECTED_BY_DEFAULT", "mutation": "head-changed", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_METADATA_HEAD_DEFERRED_TO_TREE_BINDING", "mutation": "head-changed", "allow_head_change": true, "expected_valid": true }
   ]
 }

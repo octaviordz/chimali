@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$BaseSha,
     [Parameter(Mandatory = $true)][string]$IntegrationEventPath,
     [int]$PullRequestNumber,
+    [string]$ExpectedTargetRef,
     [string]$Token,
     [string]$ServerUrl = 'https://github.com',
     [string]$LiveEvidencePath
@@ -22,6 +23,34 @@ function Get-Response([string]$Key, [string]$Path, $Fixture, [hashtable]$Headers
 try {
     if ($Repository -notmatch '^[^/]+/[^/]+$' -or $HeadSha -notmatch '^[0-9a-fA-F]{40,64}$' -or $BaseSha -notmatch '^[0-9a-fA-F]{40,64}$') { throw 'Repository/head/base identity is malformed' }
     $event = Get-Content -LiteralPath $IntegrationEventPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    if ([string]$event.event_type -eq 'target_push') {
+        if ([string]$event.repository -cne $Repository -or [string]$event.head_sha -cne $HeadSha -or
+            [string]$event.base_sha -cne $BaseSha -or [string]$event.target_ref -cne $ExpectedTargetRef -or
+            $ExpectedTargetRef -notmatch '^refs/heads/[A-Za-z0-9._/-]+$' -or $ExpectedTargetRef -match '(^|/)\.\.(/|$)') {
+            throw 'Target-push request context does not match the verified repository, target ref, head, and accepted base'
+        }
+        $fixture = if ($LiveEvidencePath) { Get-Content -LiteralPath $LiveEvidencePath -Raw | ConvertFrom-Json -ErrorAction Stop } else { $null }
+        if (-not $fixture -and [string]::IsNullOrWhiteSpace($Token)) { throw 'Authenticated repository API access is required to establish target-push integration metadata' }
+        $apiRoot = if ($ServerUrl -eq 'https://github.com') { 'https://api.github.com' } else { "$($ServerUrl.TrimEnd('/'))/api/v3" }
+        $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+        if (-not $fixture) { $headers.Authorization = "Bearer $Token" }
+        $relativeRef = [uri]::EscapeDataString($ExpectedTargetRef.Substring('refs/heads/'.Length))
+        $ref = Get-Response 'target_ref' "git/ref/heads/$relativeRef" $fixture $headers $apiRoot $Repository
+        if ([string]$ref.object.sha -cne $HeadSha) { throw 'Current integration target no longer points to the exact captured target-push commit' }
+        $commit = Get-Response 'integration_commit' "commits/$HeadSha" $fixture $headers $apiRoot $Repository
+        if ([string]$commit.sha -cne $HeadSha -or [string]$commit.commit.tree.sha -notmatch '^[0-9a-fA-F]{40,64}$') { throw 'Target-push commit/tree metadata is not verifiable' }
+        $comparison = Get-Response 'comparison' "compare/$BaseSha...$HeadSha" $fixture $headers $apiRoot $Repository
+        if ([string]$comparison.status -ne 'ahead' -or [int]$comparison.behind_by -ne 0 -or
+            [string]$comparison.base_commit.sha -cne $BaseSha -or [string]$comparison.merge_base_commit.sha -cne $BaseSha) {
+            throw 'Target-push commit does not advance the exact accepted baseline'
+        }
+        [PSCustomObject]@{
+            valid = $true; event_type = 'target_push'; integration_confirmed = $true; repository = $Repository;
+            head_sha = $HeadSha; base_sha = $BaseSha; target_ref = $ExpectedTargetRef;
+            integration_commit = [string]$commit.sha; integration_tree = [string]$commit.commit.tree.sha
+        } | ConvertTo-Json -Compress
+        exit 0
+    }
     if ($PullRequestNumber -lt 1 -and [string]$event.pull_request_number -match '^[1-9][0-9]*$') { $PullRequestNumber = [int]$event.pull_request_number }
     if ($PullRequestNumber -lt 1 -and [string]$event.number -match '^[1-9][0-9]*$') { $PullRequestNumber = [int]$event.number }
     if ($PullRequestNumber -lt 1) { throw 'A pull request number is required to establish integration' }

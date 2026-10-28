@@ -1,0 +1,12 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "A target-advance dispatch is bound to one live same-repository open PR and its exact candidate tree",
+  "cases": [
+    { "id": "DISPATCH_CANDIDATE_001_VALID_PR", "mutation": "none", "expected_valid": true },
+    { "id": "DISPATCH_CANDIDATE_002_FORK_HEAD", "mutation": "fork", "expected_valid": false },
+    { "id": "DISPATCH_CANDIDATE_003_STALE_BASE", "mutation": "base", "expected_valid": false },
+    { "id": "DISPATCH_CANDIDATE_004_CLOSED_PR", "mutation": "closed", "expected_valid": false },
+    { "id": "DISPATCH_CANDIDATE_005_INVALID_TREE", "mutation": "tree", "expected_valid": false },
+    { "id": "DISPATCH_CANDIDATE_006_AMBIGUOUS_PR", "mutation": "duplicate", "expected_valid": false }
+  ]
+}

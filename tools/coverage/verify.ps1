@@ -47,11 +47,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+function Write-CoverageError {
+    param([Parameter(Mandatory = $true)][object]$Message)
+    [Console]::Error.WriteLine([string]$Message)
+}
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
 
 if (-not (Test-Path $CommonPath)) {
-    Write-Error "Common utilities not found at $CommonPath"
+    Write-CoverageError "Common utilities not found at $CommonPath"
     exit 3
 }
 
@@ -65,48 +69,52 @@ function Write-PreflightFailureReceipt {
 
     $resolvedId = if ($RunId -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') { $RunId } else { "invalid-$([guid]::NewGuid().ToString())" }
     $receiptDirectory = if ($OutputDirectory) { $OutputDirectory } else { Join-Path (Join-Path (Split-Path -Parent $RunBundle) 'assessments') $resolvedId }
-    if (-not [System.IO.Path]::IsPathRooted($receiptDirectory)) { throw 'Failure receipt directory must be an absolute path' }
-    $canonicalRun = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
-    $canonicalReceipt = [System.IO.Path]::GetFullPath($receiptDirectory).TrimEnd('\', '/')
-    if ($canonicalReceipt -eq $canonicalRun -or $canonicalReceipt.StartsWith($canonicalRun + [System.IO.Path]::DirectorySeparatorChar)) {
-        throw 'Failure receipt cannot be written inside the capture bundle'
+    try {
+        if (-not [System.IO.Path]::IsPathRooted($receiptDirectory)) { throw 'Failure receipt directory must be an absolute path' }
+        $canonicalRun = Get-CanonicalCoveragePath -Path $RunBundle
+        $canonicalReceipt = Get-CanonicalCoveragePath -Path $receiptDirectory
+        if (Test-CoveragePathWithinRoot -Path $canonicalReceipt -Root $canonicalRun) {
+            throw 'Failure receipt cannot be written inside the capture bundle'
+        }
+        $decisionPath = Join-Path $receiptDirectory 'decision.json'
+        if (Test-Path -LiteralPath $decisionPath) { throw "Failure receipt already exists and is immutable: $decisionPath" }
+        New-Item -ItemType Directory -Path $receiptDirectory -Force | Out-Null
+        $failure = [PSCustomObject]@{
+            run_id = $resolvedId
+            evaluated_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            decisions = [PSCustomObject]@{ collection = 'Incomplete'; tests = 'Unverified'; floors = 'Unverified'; comparison_compatibility = 'Missing'; regression = 'Unverified'; publication = 'Pending'; integration = 'Failed' }
+            overall_passed = $false
+            unmet_reasons = @($Reason)
+        }
+        $failure | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $decisionPath -Encoding utf8
+        Set-Content -LiteralPath (Join-Path $receiptDirectory 'decision.md') -Value "# Coverage Verification Decision`n`n- Run ID: $resolvedId`n- Overall Result: FAIL`n- Collection: Incomplete`n`n## Unmet Reasons`n- $Reason" -Encoding utf8
+        Write-Host "Preflight failure recorded at $decisionPath" -ForegroundColor Yellow
+    } catch {
+        Write-CoverageError "Could not persist preflight failure receipt; preserving primary verification exit code. $($_.Exception.Message)"
     }
-    $decisionPath = Join-Path $receiptDirectory 'decision.json'
-    if (Test-Path -LiteralPath $decisionPath) { throw "Failure receipt already exists and is immutable: $decisionPath" }
-    New-Item -ItemType Directory -Path $receiptDirectory -Force | Out-Null
-    $failure = [PSCustomObject]@{
-        run_id = $resolvedId
-        evaluated_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-        decisions = [PSCustomObject]@{ collection = 'Incomplete'; tests = 'Unverified'; floors = 'Unverified'; comparison_compatibility = 'Missing'; regression = 'Unverified'; publication = 'Pending'; integration = 'Failed' }
-        overall_passed = $false
-        unmet_reasons = @($Reason)
-    }
-    $failure | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $decisionPath -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $receiptDirectory 'decision.md') -Value "# Coverage Verification Decision`n`n- Run ID: $resolvedId`n- Overall Result: FAIL`n- Collection: Incomplete`n`n## Unmet Reasons`n- $Reason" -Encoding utf8
-    Write-Host "Preflight failure recorded at $decisionPath" -ForegroundColor Yellow
 }
 
 # Validate Paths
 if (-not [System.IO.Path]::IsPathRooted($RunBundle)) {
-    Write-Error "RunBundle must be an absolute path: $RunBundle"
+    Write-CoverageError "RunBundle must be an absolute path: $RunBundle"
     exit 3
 }
 if (-not (Test-Path $RunBundle)) {
-    Write-Error "RunBundle directory not found: $RunBundle"
+    Write-CoverageError "RunBundle directory not found: $RunBundle"
     exit 2
 }
 if (-not [System.IO.Path]::IsPathRooted($PolicyPath)) {
-    Write-Error "PolicyPath must be an absolute path: $PolicyPath"
+    Write-CoverageError "PolicyPath must be an absolute path: $PolicyPath"
     exit 3
 }
 if (-not (Test-Path $PolicyPath)) {
-    Write-Error "PolicyPath file not found: $PolicyPath"
+    Write-CoverageError "PolicyPath file not found: $PolicyPath"
     exit 3
 }
 $expectedPolicyPath = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir 'policy.json'))
 $suppliedPolicyPath = [System.IO.Path]::GetFullPath($PolicyPath)
 if (-not [string]::Equals($expectedPolicyPath, $suppliedPolicyPath, [System.StringComparison]::OrdinalIgnoreCase)) {
-    Write-Error "PolicyPath must resolve to the reviewed harness policy: $expectedPolicyPath"
+    Write-CoverageError "PolicyPath must resolve to the reviewed harness policy: $expectedPolicyPath"
     exit 3
 }
 
@@ -148,7 +156,7 @@ try {
 $bundleParent = Split-Path -Parent $RunBundle
 $targetOutDir = if ($OutputDirectory) {
     if (-not [System.IO.Path]::IsPathRooted($OutputDirectory)) {
-        Write-Error "OutputDirectory must be an absolute path: $OutputDirectory"
+        Write-CoverageError "OutputDirectory must be an absolute path: $OutputDirectory"
         exit 3
     }
     $OutputDirectory
@@ -156,10 +164,10 @@ $targetOutDir = if ($OutputDirectory) {
     Join-Path (Join-Path $bundleParent "assessments") $manifest.run_id
 }
 
-$canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
-$canonicalOut = [System.IO.Path]::GetFullPath($targetOutDir).TrimEnd('\', '/')
-if ($canonicalOut -eq $canonicalBundle -or $canonicalOut.StartsWith($canonicalBundle + [System.IO.Path]::DirectorySeparatorChar)) {
-    Write-Error "Assessment receipts cannot be written inside sealed capture bundle: $RunBundle"
+$canonicalBundle = Get-CanonicalCoveragePath -Path $RunBundle
+$canonicalOut = Get-CanonicalCoveragePath -Path $targetOutDir
+if (Test-CoveragePathWithinRoot -Path $canonicalOut -Root $canonicalBundle) {
+    Write-CoverageError "Assessment receipts cannot be written inside sealed capture bundle: $RunBundle"
     exit 3
 }
 
@@ -169,7 +177,7 @@ if (-not (Test-Path $targetOutDir)) {
 
 $decisionJsonPath = Join-Path $targetOutDir "decision.json"
 if (Test-Path $decisionJsonPath) {
-    Write-Error "Assessment receipt already exists at $decisionJsonPath; assessment receipts are immutable"
+    Write-CoverageError "Assessment receipt already exists at $decisionJsonPath; assessment receipts are immutable"
     exit 3
 }
 
@@ -242,14 +250,6 @@ if (-not $executionMapValidation.IsValid) {
     $bundleEvidenceValid = $false
     $reasons += $executionMapValidation.Errors
 }
-foreach ($counterModule in @($countersData.modules)) {
-    if (-not $counterModule.execution_compatibility) { continue }
-    $sourceBinding = Test-ExecutionCompatibilityAttribution -CompatibilityReceipt $counterModule.execution_compatibility `
-        -ManifestExecutionFiles $manifest.execution_files -Scope ([string]$counterModule.module_path) `
-        -ExpectedVariant ([string]$inventoryModule.selected_variant) -Label ([string]$counterModule.module_path)
-    if (-not $sourceBinding.IsValid) { $bundleEvidenceValid = $false; $reasons += $sourceBinding.Errors }
-}
-
 # 5. Verify Test Suites and Execution Outcomes (Do not trust manifest Passed blindly)
 $suitesPassed = $true
 if ($manifest.suites -and $manifest.suites.Count -gt 0) {
@@ -272,76 +272,49 @@ if ($junitFiles.Count -eq 0) {
     $reasons += 'No retained JUnit XML files are available for independent suite verification'
 }
 foreach ($junitFile in $junitFiles) {
-    try {
-        $junit = Read-SafeXml -Path $junitFile.FullName
-        $nodes = @($junit.SelectNodes('/testsuite | /testsuites/testsuite'))
-        if ($nodes.Count -eq 0) {
-            # A connected Android task can emit a valid empty aggregate when
-            # its module has no device-side test sources. Accept only the
-            # canonical zero-count shape; all other suite-less XML is invalid.
-            $emptyAggregate = $junit.DocumentElement
-            if ($emptyAggregate -and $emptyAggregate.Name -eq 'testsuites' -and
-                $emptyAggregate.GetAttribute('tests') -eq '0' -and
-                $emptyAggregate.GetAttribute('failures') -eq '0' -and
-                $emptyAggregate.GetAttribute('errors') -eq '0' -and
-                $emptyAggregate.GetAttribute('skipped') -eq '0' -and
-                $emptyAggregate.ChildNodes.Count -eq 0) {
-                continue
-            }
-            throw 'JUnit report contains no testsuite nodes and is not a valid zero-test aggregate'
-        }
-        foreach ($node in $nodes) {
-            $name = $node.GetAttribute('name')
-            if ([string]::IsNullOrWhiteSpace($name)) { throw 'JUnit testsuite node has no name' }
-            $suiteCounts = @{}
-            foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) {
-                $attribute = $node.GetAttribute($metric)
-                if ($node.HasAttribute($metric)) {
-                    $suiteCounts[$metric] = [System.Numerics.BigInteger]::Parse($attribute, [Globalization.CultureInfo]::InvariantCulture)
-                } else {
-                    $query = switch ($metric) {
-                        'tests' { 'testcase' }
-                        'failures' { 'testcase/failure' }
-                        'errors' { 'testcase/error' }
-                        'skipped' { 'testcase/skipped' }
-                    }
-                    $suiteCounts[$metric] = [System.Numerics.BigInteger]$node.SelectNodes($query).Count
-                }
-                if ($suiteCounts[$metric] -lt 0) { throw "JUnit suite $name has negative $metric count" }
-            }
-            if (-not $actualSuites.ContainsKey($name)) {
-                $actualSuites[$name] = @{ tests = [System.Numerics.BigInteger]::Zero; failures = [System.Numerics.BigInteger]::Zero; errors = [System.Numerics.BigInteger]::Zero; skipped = [System.Numerics.BigInteger]::Zero }
-            }
-            foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) { $actualSuites[$name][$metric] += $suiteCounts[$metric] }
-        }
-    } catch {
+    $relativeReportPath = [System.IO.Path]::GetRelativePath($junitRoot, $junitFile.FullName).Replace('\', '/')
+    $parsedJUnit = Get-StrictJUnitOutcome -Path $junitFile.FullName -ReportIdentity $relativeReportPath
+    if (-not $parsedJUnit.IsValid) {
         $suitesPassed = $false
         $bundleEvidenceValid = $false
-        $reasons += "Malformed retained JUnit XML $($junitFile.FullName): $_"
+        $reasons += "Malformed retained JUnit XML $($junitFile.FullName): $($parsedJUnit.Errors -join '; ')"
+        continue
+    }
+    foreach ($suite in $parsedJUnit.Suites) {
+        if ($actualSuites.ContainsKey([string]$suite.suite_identity)) {
+            $suitesPassed = $false
+            $bundleEvidenceValid = $false
+            $reasons += "Duplicate retained JUnit suite identity: $($suite.suite_identity)"
+        } else {
+            $actualSuites[[string]$suite.suite_identity] = $suite
+        }
     }
 }
 
 $recordedSuites = @{}
 foreach ($suite in @($manifest.suites)) {
-    if (-not $recordedSuites.ContainsKey([string]$suite.suite_name)) {
-        $recordedSuites[[string]$suite.suite_name] = @{ tests = [System.Numerics.BigInteger]::Zero; failures = [System.Numerics.BigInteger]::Zero; errors = [System.Numerics.BigInteger]::Zero; skipped = [System.Numerics.BigInteger]::Zero }
-    }
-    foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) {
-        $recordedSuites[[string]$suite.suite_name][$metric] += [System.Numerics.BigInteger]::Parse(([string]$suite.$metric), [Globalization.CultureInfo]::InvariantCulture)
-    }
-}
-foreach ($name in (@($actualSuites.Keys) + @($recordedSuites.Keys) | Sort-Object -Unique)) {
-    if (-not $actualSuites.ContainsKey($name) -or -not $recordedSuites.ContainsKey($name)) {
+    $identity = [string]$suite.suite_identity
+    if ([string]::IsNullOrWhiteSpace($identity) -or $recordedSuites.ContainsKey($identity)) {
         $suitesPassed = $false
         $bundleEvidenceValid = $false
-        $reasons += "Required suite record/JUnit report is missing on one side for '$name'"
+        $reasons += 'Manifest JUnit suite identity is missing or duplicated'
         continue
     }
-    foreach ($metric in @('tests', 'failures', 'errors', 'skipped')) {
-        if ($actualSuites[$name][$metric] -ne $recordedSuites[$name][$metric]) {
+    $recordedSuites[$identity] = $suite
+}
+foreach ($identity in (@($actualSuites.Keys) + @($recordedSuites.Keys) | Sort-Object -Unique)) {
+    if (-not $actualSuites.ContainsKey($identity) -or -not $recordedSuites.ContainsKey($identity)) {
+        $suitesPassed = $false
+        $bundleEvidenceValid = $false
+        $reasons += "Required suite record/JUnit report is missing on one side for '$identity'"
+        continue
+    }
+    foreach ($metric in @('tests', 'executed', 'successful', 'failed', 'failures', 'errors', 'skipped')) {
+        if ([System.Numerics.BigInteger]::Parse([string]$actualSuites[$identity].$metric, [Globalization.CultureInfo]::InvariantCulture) -ne
+            [System.Numerics.BigInteger]::Parse([string]$recordedSuites[$identity].$metric, [Globalization.CultureInfo]::InvariantCulture)) {
             $suitesPassed = $false
             $bundleEvidenceValid = $false
-            $reasons += "JUnit and manifest disagree for suite '$name' $metric count"
+            $reasons += "JUnit and manifest disagree for suite '$identity' $metric count"
         }
     }
 }
@@ -365,9 +338,13 @@ $finalCollectionStatus = if ($manifest.decisions -and $manifest.decisions.collec
     "Incomplete"
 }
 
-if ($manifest.git -and ($manifest.git.clean_postflight -eq $false)) {
+$cleanlinessProved = $manifest.git -and
+    $manifest.git.clean_preflight -is [bool] -and $manifest.git.clean_preflight -and
+    $manifest.git.clean_postflight -is [bool] -and $manifest.git.clean_postflight -and
+    $manifest.harness -and $manifest.harness.clean -is [bool] -and $manifest.harness.clean
+if (-not $cleanlinessProved) {
     $finalCollectionStatus = "Incomplete"
-    $reasons += "Working tree was modified during collection (clean_postflight is false)"
+    $reasons += "Source and reviewed harness cleanliness were not proved before and after collection"
 }
 
 if (-not $bundleEvidenceValid) {
@@ -401,6 +378,11 @@ $repositoryCountersValid = $true
 $inventoryFileDigest = ''
 $requiredCounterPaths = @($policy.tier1_modules + $policy.tier2_gated_modules)
 if ($countersData) {
+    $runtimeBinding = Test-MeasurementRuntimeBinding -Counters $countersData -Manifest $manifest -Policy $policy
+    if (-not $runtimeBinding.IsValid) {
+        $canonicalInventoryValid = $false
+        $reasons += @($runtimeBinding.Errors | ForEach-Object { "Run measurement runtime: $_" })
+    }
     $runCounterValidation = Test-ComparisonModuleAccounting -Modules @($countersData.modules) -RequiredModulePaths $requiredCounterPaths -Label 'Run'
     if (-not $runCounterValidation.IsValid) {
         $canonicalInventoryValid = $false
@@ -470,6 +452,11 @@ if ($inventoryData -and $countersData) {
         $canonicalInventoryValid = $false
         $reasons += $moduleSetBinding.Errors
     }
+    $inventoryStructure = Test-ComparisonInventoryStructure -InventoryModules @($inventoryData.modules) -Policy $policy -Label 'Run'
+    if (-not $inventoryStructure.IsValid) {
+        $canonicalInventoryValid = $false
+        $reasons += $inventoryStructure.Errors
+    }
 
     foreach ($inventoryModule in $inventoryData.modules) {
         $classEntries = @($inventoryModule.retained_classes)
@@ -516,6 +503,14 @@ if ($inventoryData -and $countersData) {
             $canonicalInventoryValid = $false
             $reasons += $compatibilityEvidence.Errors
         }
+        $sourceBinding = Test-ExecutionCompatibilityAttribution -CompatibilityReceipt $counterModule.execution_compatibility `
+            -ManifestExecutionFiles $manifest.execution_files -Scope $requiredModule `
+            -ExpectedVariant ([string]$inventoryModule.selected_variant) -Workload $manifest.workload `
+            -ExpectedRunId ([string]$manifest.run_id) -ExpectedDeviceSerial ([string]$manifest.device.device_serial) -Label $requiredModule
+        if (-not $sourceBinding.IsValid) {
+            $canonicalInventoryValid = $false
+            $reasons += $sourceBinding.Errors
+        }
         $safeName = $requiredModule.Replace(':', '_').TrimStart('_')
         $xmlPath = Join-Path (Join-Path $RunBundle 'reports/modules') "$safeName.xml"
         if (-not $counterModule.report_digest -or -not (Test-Path -LiteralPath $xmlPath)) {
@@ -539,6 +534,17 @@ if ($inventoryData -and $countersData) {
                 $reasons += "${requiredModule}: report-level counters are invalid or disagree with canonical evidence: $_"
             }
         }
+    }
+    [object[]]$repositoryInputs = @()
+    if ($countersData.repository -and $null -ne $countersData.repository.execution_files) {
+        $repositoryInputs = @($countersData.repository.execution_files)
+    }
+    $repositoryExecutionBinding = Test-RepositoryExecutionAttribution `
+        -RepositoryExecutionFiles $repositoryInputs -ManifestExecutionFiles @($manifest.execution_files) `
+        -Workload $manifest.workload -ExpectedRunId ([string]$manifest.run_id) -ExpectedDeviceSerial ([string]$manifest.device.device_serial)
+    if (-not $repositoryExecutionBinding.IsValid) {
+        $canonicalInventoryValid = $false
+        $reasons += $repositoryExecutionBinding.Errors
     }
 }
 if (-not $canonicalInventoryValid) {
@@ -817,7 +823,7 @@ if ($manifest.purpose -eq "Comparison" -or $manifest.purpose -eq "Candidate") {
 
 if ($ComparisonBundle) {
     if (-not (Test-Path $ComparisonBundle)) {
-        Write-Error "ComparisonBundle directory not found: $ComparisonBundle"
+        Write-CoverageError "ComparisonBundle directory not found: $ComparisonBundle"
         exit 2
     }
 
@@ -858,7 +864,7 @@ if ($ComparisonBundle) {
         $regressionPassed = $false
         $reasons += "Comparison baseline manifest is missing"
     } else {
-        $baselineValidation = Test-TrustedComparisonManifest -CandidateManifest $manifest -BaselineManifest $compManifest -Policy $policy
+        $baselineValidation = Test-TrustedComparisonManifest -CandidateManifest $manifest -BaselineManifest $compManifest -AcceptedBaselineIndex $acceptedIndex -Policy $policy
         if (-not $baselineValidation.IsValid) {
             $comparisonCompatibility = "Incompatible"
             $regressionPassed = $false

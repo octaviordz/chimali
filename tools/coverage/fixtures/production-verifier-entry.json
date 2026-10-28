@@ -6,12 +6,92 @@
       "description": "Production verifier rejects a sealed run with its host workload evidence omitted."
     },
     {
+      "id": "zero-required-device",
+      "description": "Production verifier rejects an executed required device task whose retained report has zero actual testcase outcomes."
+    },
+    {
+      "id": "inventory-unapproved-variant",
+      "description": "Production verifier rejects a coherent candidate inventory variant and compiler owner outside trusted policy."
+    },
+    {
+      "id": "inventory-omitted-owner",
+      "description": "Production verifier rejects omission of a configured production inventory owner."
+    },
+    {
+      "id": "inventory-compiler-boundary",
+      "description": "Production verifier rejects compiler task ownership outside the reviewed compilation."
+    },
+    {
+      "id": "inventory-output-boundary",
+      "description": "Production verifier rejects production compiler outputs escaping the project build boundary."
+    },
+    {
+      "id": "inventory-unproven-exclusion",
+      "description": "Production verifier rejects an exclusion not bound to generated SQLDelight source evidence."
+    },
+    {
       "id": "unowned-junit-artifact",
       "description": "Production verifier rejects a retained JUnit report outside all recorded workload roots."
     },
     {
+      "id": "dirty-preflight",
+      "description": "Production verifier marks a bundle with false source preflight cleanliness incomplete."
+    },
+    {
+      "id": "dirty-harness",
+      "description": "Production verifier rejects a dirty reviewed harness as compliance evidence."
+    },
+    {
+      "id": "harness-changed-during-capture",
+      "description": "Production verifier rejects harness changes recorded during capture."
+    },
+    {
+      "id": "comparison-valid",
+      "description": "Production verifier continues to accept valid clean same-harness evidence."
+    },
+    {
       "id": "comparison-incompatible-fingerprint",
       "description": "Production verifier rejects an indexed accepted baseline whose measurement fingerprint differs from the candidate."
+    },
+    {
+      "id": "execution-security-file-substitution",
+      "description": "Production verifier rejects a security execution digest substituted coherently across counters, compatibility receipt, and manifest but not bound to retained artifact bytes."
+    },
+    {
+      "id": "junit-hidden-failure",
+      "description": "Production verifier rejects candidate evidence with a hidden testcase failure node."
+    },
+    {
+      "id": "junit-hidden-error",
+      "description": "Production verifier rejects candidate evidence with a hidden testcase error node."
+    },
+    {
+      "id": "junit-hidden-skip",
+      "description": "Production verifier rejects candidate evidence with a hidden testcase skip node."
+    },
+    {
+      "id": "junit-inflated-count",
+      "description": "Production verifier rejects candidate JUnit totals larger than the testcase nodes."
+    },
+    {
+      "id": "junit-contradictory-total",
+      "description": "Production verifier rejects contradictory parent testsuites totals."
+    },
+    {
+      "id": "comparison-failed-junit",
+      "description": "Baseline validation rejects comparison evidence with a hidden testcase failure node."
+    },
+    {
+      "id": "comparison-dirty-preflight",
+      "description": "Baseline validation rejects a comparison target whose measured source preflight was dirty."
+    },
+    {
+      "id": "comparison-dirty-harness",
+      "description": "Baseline validation rejects comparison evidence captured with a dirty harness."
+    },
+    {
+      "id": "comparison-security-file-substitution",
+      "description": "Baseline validation rejects a security execution digest coherently substituted across counters and manifest but not bound to retained artifact bytes."
     }
   ]
 }

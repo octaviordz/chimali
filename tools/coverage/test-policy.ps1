@@ -25,6 +25,44 @@ if (-not (Test-Path $CommonPath)) {
 
 . $CommonPath
 
+function New-FixtureRuntimeIdentity {
+    param([Parameter(Mandatory = $true)]$Policy)
+    $javaCompilers = @()
+    $kotlinCompilers = @()
+    $hostTests = @()
+    foreach ($moduleProperty in $Policy.production_scope.variants.PSObject.Properties) {
+        $modulePath = [string]$moduleProperty.Name
+        $compilation = $Policy.production_scope.compilations.($moduleProperty.Value)
+        foreach ($task in @($compilation.compiler_tasks)) {
+            $record = [PSCustomObject]@{
+                task_path = "$modulePath`:$task"; java_version = '21'; java_runtime_version = '21.0.1+12-LTS'; java_vendor = 'JetBrains s.r.o.'
+            }
+            if ([string]$task -match 'JavaWithJavac$') { $javaCompilers += $record }
+            else { $record | Add-Member -NotePropertyName execution_strategy -NotePropertyValue 'in-process'; $record | Add-Member -NotePropertyName jvm_target -NotePropertyValue '21'; $kotlinCompilers += $record }
+        }
+        foreach ($task in @($compilation.test_tasks)) {
+            $hostTests += [PSCustomObject]@{
+                task_path = "$modulePath`:$task"; java_version = '21'; java_runtime_version = '21.0.1+12-LTS';
+                java_vendor = 'JetBrains s.r.o.'; identity_source = 'GradleDaemon'
+            }
+        }
+    }
+    return [PSCustomObject]@{
+        schema_version = '1'
+        gradle_daemon = [PSCustomObject]@{
+            java_version = '21'; java_runtime_version = '21.0.1+12-LTS'; java_vendor = 'JetBrains s.r.o.';
+            vm_name = 'OpenJDK 64-Bit Server VM'; architecture = 'amd64'
+        }
+        kotlin_execution_strategy = 'in-process'
+        java_compilers = $javaCompilers
+        kotlin_compilers = $kotlinCompilers
+        host_test_jvms = $hostTests
+        jacoco_analyzer = [PSCustomObject]@{
+            engine = 'jacoco-0.8.15'; java_version = '21'; java_runtime_version = '21.0.1+12-LTS'; java_vendor = 'JetBrains s.r.o.'
+        }
+    }
+}
+
 $FixturesDir = if ([string]::IsNullOrWhiteSpace($FixtureRoot)) { Join-Path $ScriptDir "fixtures" } else { [System.IO.Path]::GetFullPath($FixtureRoot) }
 if (-not (Test-Path -LiteralPath $FixturesDir -PathType Container)) {
     Write-Error "FixtureRoot must be an existing directory: $FixturesDir"
@@ -45,6 +83,40 @@ $totalPassed = 0
 $totalFailed = 0
 $results = @()
 
+function New-FixtureMeasurementRuntime {
+    param([Parameter(Mandatory = $true)]$Policy)
+    $daemon = [PSCustomObject]@{
+        java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.'
+        vm_name = 'OpenJDK 64-Bit Server VM'; architecture = 'amd64'
+    }
+    $javaCompilers = @()
+    $kotlinCompilers = @()
+    $hostTests = @()
+    foreach ($moduleProperty in $Policy.production_scope.variants.PSObject.Properties) {
+        $modulePath = [string]$moduleProperty.Name
+        $compilation = $Policy.production_scope.compilations.([string]$moduleProperty.Value)
+        foreach ($taskName in @($compilation.compiler_tasks)) {
+            $record = [PSCustomObject]@{
+                task_path = "${modulePath}:$taskName"; java_version = '21'; java_runtime_version = '21.0.7+9'
+                java_vendor = 'JetBrains s.r.o.'; source_compatibility = '21'; target_compatibility = '21'
+                execution_strategy = 'in-process'; jvm_target = '21'
+            }
+            if ([string]$taskName -match 'JavaWithJavac$') { $javaCompilers += $record } else { $kotlinCompilers += $record }
+        }
+        foreach ($taskName in @($compilation.test_tasks)) {
+            $hostTests += [PSCustomObject]@{
+                task_path = "${modulePath}:$taskName"; identity_source = 'GradleDaemon'; java_version = '21'
+                java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.'
+            }
+        }
+    }
+    return [PSCustomObject]@{
+        schema_version = '1'; gradle_daemon = $daemon; kotlin_execution_strategy = 'in-process'
+        java_compilers = @($javaCompilers); kotlin_compilers = @($kotlinCompilers); host_test_jvms = @($hostTests)
+        jacoco_analyzer = [PSCustomObject]@{ engine = 'jacoco-0.8.15'; java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.' }
+    }
+}
+
 foreach ($file in $fixtureFiles) {
     Write-Host "Running fixtures in $($file.Name)..." -ForegroundColor Cyan
     $content = Get-Content $file.FullName -Raw | ConvertFrom-Json
@@ -64,6 +136,98 @@ foreach ($file in $fixtureFiles) {
 
         try {
             switch -Wildcard ($file.Name) {
+                "inventory-provenance.json" {
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $fixturePolicy = $coveragePolicy | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+                    if ($case.mutation -eq 'valid-custom-scope') {
+                        $customCompilation = [PSCustomObject]@{ compiler_tasks = @('compileFixtureProductionKotlin'); test_tasks = @('testFixtureUnitTest') }
+                        $fixturePolicy.production_scope.compilations | Add-Member -Force -NotePropertyName fixtureProduction -NotePropertyValue $customCompilation
+                        $fixturePolicy.production_scope.variants | Add-Member -Force -NotePropertyName ':feature:fixture' -NotePropertyValue 'fixtureProduction'
+                    }
+                    $inventoryModules = @()
+                    foreach ($modulePath in @($fixturePolicy.production_scope.variants.PSObject.Properties.Name)) {
+                        $variant = [string]$fixturePolicy.production_scope.variants.$modulePath
+                        $compilation = $fixturePolicy.production_scope.compilations.$variant
+                        $module = [PSCustomObject]@{
+                            module_path = [string]$modulePath
+                            tier = if ($modulePath -in $fixturePolicy.tier1_modules) { 1 } else { 2 }
+                            project_directory = $modulePath.TrimStart(':').Replace(':', '/')
+                            selected_variant = $variant
+                            compiler_tasks = @($compilation.compiler_tasks | ForEach-Object { "${modulePath}:$_" } | Sort-Object -CaseSensitive)
+                            source_roots = @('src/main/kotlin')
+                            output_directories = @('build/classes/fixture')
+                            excluded_class_patterns = @()
+                            excluded_class_sources = @()
+                        }
+                        $inventoryModules += $module
+                    }
+                    switch ([string]$case.mutation) {
+                        'unapproved-variant' {
+                            $module = @($inventoryModules | Where-Object { $_.module_path -eq ':app' })[0]
+                            $module.selected_variant = 'release'
+                            $module.compiler_tasks = @(':app:compileReleaseKotlin')
+                        }
+                        'omit-owner' { $inventoryModules = @($inventoryModules | Where-Object { $_.module_path -ne ':core:data' }) }
+                        'compiler-boundary' { $inventoryModules[0].compiler_tasks = @(':app:compileDebugKotlin') }
+                        'output-boundary' { $inventoryModules[0].output_directories = @('../outside/classes') }
+                        'unproven-exclusion' { $inventoryModules[0].excluded_class_patterns = @('com/chimali/HandWritten.class') }
+                    }
+                    $binding = Test-ComparisonInventoryStructure -InventoryModules $inventoryModules -Policy $fixturePolicy -Label 'Candidate'
+                    if ($case.expected_valid -and $binding.IsValid) { $casePassed = $true }
+                    elseif (-not $case.expected_valid -and -not $binding.IsValid -and ($binding.Errors | Where-Object { $_ -like "*$($case.expected_error)*" })) { $casePassed = $true }
+                    else { $errorMsg = "Inventory provenance unexpected result; valid=$($binding.IsValid) errors=$($binding.Errors -join '; ')" }
+                }
+                "workload-inventory.json" {
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $hostTasks = @()
+                    foreach ($modulePath in @($coveragePolicy.production_scope.variants.PSObject.Properties.Name)) {
+                        $variant = [string]$coveragePolicy.production_scope.variants.$modulePath
+                        foreach ($taskName in @($coveragePolicy.production_scope.compilations.$variant.test_tasks)) {
+                            $hostTasks += [PSCustomObject]@{
+                                task_path = "${modulePath}:$taskName"
+                                disposition = 'Applicable'
+                                junit_xml_directory = "$($modulePath.TrimStart(':').Replace(':', '/'))/build/test-results/$taskName"
+                            }
+                        }
+                    }
+                    $workload = [PSCustomObject]@{
+                        host_test_tasks = $hostTasks
+                        required_device_tasks = @($coveragePolicy.required_workload.required_device_test_modules | ForEach-Object {
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/androidMain" }
+                        })
+                        optional_device_tasks = @($coveragePolicy.required_workload.optional_device_test_modules | ForEach-Object {
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/shrunkDebug" }
+                        })
+                    }
+                    switch ([string]$case.mutation) {
+                        'omit-host' { $workload.host_test_tasks = @($workload.host_test_tasks | Select-Object -Skip 1) }
+                        'duplicate-host' { $workload.host_test_tasks += $workload.host_test_tasks[0] }
+                        'reassign-host' { $workload.host_test_tasks[0].task_path = ':feature:settings:testShrunkDebugUnitTest' }
+                        'omit-device' { $workload.required_device_tasks = @($workload.required_device_tasks | Select-Object -Skip 1) }
+                        'broad-device' { $workload.required_device_tasks[0].task_path = ':feature:connectedAndroidTest' }
+                        'broad-root' { $workload.host_test_tasks[0].junit_xml_directory = 'core/build/test-results' }
+                    }
+                    $inventory = Test-WorkloadTaskInventory -Workload $workload -Policy $coveragePolicy
+                    $suiteRecords = @($workload.host_test_tasks | Where-Object { $_.disposition -eq 'Applicable' }) + @($workload.required_device_tasks) + @($workload.optional_device_tasks)
+                    $suites = @()
+                    foreach ($suiteRecord in $suiteRecords) {
+                        $suiteRoot = ([string]$suiteRecord.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                        $suites += [PSCustomObject]@{ suite_identity = "$suiteRoot/TEST-inventory.xml|0|fixture"; tests = 1 }
+                    }
+                    if ($case.mutation -eq 'zero-required-device-suite') {
+                        $requiredRoot = ([string]$workload.required_device_tasks[0].junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                        ($suites | Where-Object { $_.suite_identity.StartsWith("$requiredRoot/", [System.StringComparison]::OrdinalIgnoreCase) })[0].tests = 0
+                    }
+                    if ($case.mutation -eq 'zero-optional-device-suite') {
+                        $optionalRoot = ([string]$workload.optional_device_tasks[0].junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                        ($suites | Where-Object { $_.suite_identity.StartsWith("$optionalRoot/", [System.StringComparison]::OrdinalIgnoreCase) })[0].tests = 0
+                    }
+                    $execution = Test-WorkloadSuiteExecutionCounts -Workload $workload -Suites $suites
+                    $combinedErrors = @($inventory.Errors) + @($execution.Errors)
+                    if ($case.expected_valid -and $combinedErrors.Count -eq 0) { $casePassed = $true }
+                    elseif (-not $case.expected_valid -and ($combinedErrors | Where-Object { $_ -like "*$($case.expected_error)*" })) { $casePassed = $true }
+                    else { $errorMsg = "Workload inventory unexpected result; errors=$($combinedErrors -join '; ')" }
+                }
                 "junit-workload.json" {
                     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-junit-workload-' + [guid]::NewGuid().ToString('N'))
                     try {
@@ -71,8 +235,8 @@ foreach ($file in $fixtureFiles) {
                         $deviceDir = Join-Path $tempRoot 'core/common/build/outputs/androidTest-results/connected/androidMain'
                         $staleDir = Join-Path $tempRoot 'feature/removed/build/test-results/testDebugUnitTest'
                         New-Item -ItemType Directory -Path $hostDir,$deviceDir,$staleDir -Force | Out-Null
-                        Set-Content -LiteralPath (Join-Path $hostDir 'TEST-host.xml') -Value '<testsuite name="host" tests="1" />'
-                        Set-Content -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') -Value '<testsuite name="device" tests="1" />'
+                        Set-Content -LiteralPath (Join-Path $hostDir 'TEST-host.xml') -Value '<testsuite name="host" tests="1"><testcase name="host-case" /></testsuite>'
+                        Set-Content -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') -Value '<testsuite name="device" tests="1"><testcase name="device-case" /></testsuite>'
                         Set-Content -LiteralPath (Join-Path $staleDir 'TEST-stale.xml') -Value '<testsuite name="stale" tests="99" />'
                         $workload = [PSCustomObject]@{
                             host_test_tasks = @([PSCustomObject]@{ task_path = ':core:domain:testDebugUnitTest'; disposition = 'Applicable'; executed = $true; junit_xml_directory = 'core/domain/build/test-results/testDebugUnitTest' })
@@ -82,6 +246,12 @@ foreach ($file in $fixtureFiles) {
                         if ($case.mode -eq 'missing-file') { Remove-Item -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') }
                         if ($case.mode -eq 'missing-directory') { Remove-Item -LiteralPath $deviceDir -Recurse -Force }
                         if ($case.mode -eq 'traversal') { $workload.required_device_tasks[0].junit_xml_directory = '../outside/test-results' }
+                        if ($case.mode -eq 'zero-required-device') { Set-Content -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') -Value '<testsuite name="device" tests="0" failures="0" errors="0" skipped="0" />' }
+                        if ($case.mode -eq 'optional-empty') {
+                            $workload.optional_device_tasks = @($workload.required_device_tasks)
+                            $workload.required_device_tasks = @()
+                            Set-Content -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') -Value '<testsuite name="device" tests="0" failures="0" errors="0" skipped="0" />'
+                        }
                         $result = Get-TaskOwnedJUnitReports -RepositoryRoot $tempRoot -Workload $workload
                         if ($case.binding_mode) {
                             $artifactPaths = @(
@@ -98,6 +268,9 @@ foreach ($file in $fixtureFiles) {
                             $names = @($result.Files | ForEach-Object { $_.Name } | Sort-Object)
                             if ($result.Errors.Count -eq 0 -and $names.Count -eq 2 -and 'TEST-stale.xml' -notin $names) { $casePassed = $true }
                             else { $errorMsg = "Expected only the two workload-owned reports; got files=$($names -join ',') errors=$($result.Errors -join '; ')" }
+                        } elseif ($case.mode -eq 'optional-empty') {
+                            if ($result.Errors.Count -eq 0 -and $result.Files.Count -eq 2) { $casePassed = $true }
+                            else { $errorMsg = "Expected explicitly optional zero-test report to remain valid; errors=$($result.Errors -join '; ')" }
                         } elseif ($result.Errors | Where-Object { $_ -like "*$($case.expected_error)*" }) { $casePassed = $true }
                         else { $errorMsg = "Expected an error matching '$($case.expected_error)', got: $($result.Errors -join '; ')" }
                     } finally {
@@ -145,6 +318,14 @@ foreach ($file in $fixtureFiles) {
                     $fixtureExit = $LASTEXITCODE
                     if ($fixtureExit -eq 0) { $casePassed = $true }
                     else { $errorMsg = "Offline production live-binding case failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                }
+                "candidate-tree.json" {
+                    $fixtureScript = Join-Path $FixturesDir 'run-candidate-tree-fixture.ps1'
+                    $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript `
+                        -Case ([string]$case.id) -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                    $fixtureExit = $LASTEXITCODE
+                    if ($fixtureExit -eq 0) { $casePassed = $true }
+                    else { $errorMsg = "Offline product-tree identity case failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
                 }
                 "integration-event-validation.json" {
                     $fixtureScript = Join-Path $FixturesDir 'run-integration-event-validation-fixture.ps1'
@@ -216,15 +397,29 @@ foreach ($file in $fixtureFiles) {
                     $baselineRoot = Join-Path $evidenceRoot 'runs/accepted'
                     $candidateRoot = Join-Path $tempRoot 'candidate'
                     $target = 'b' * 40
+                    $baselineSource = $target
                     if ($case.mutation -eq 'target') { $target = 'c' * 40 }
+                    if ($case.mutation -like 'promoted*') { $target = 'd' * 40; $baselineSource = 'b' * 40 }
                     New-Item -ItemType Directory -Path (Join-Path $evidenceRoot 'baselines'),$baselineRoot,$candidateRoot -Force | Out-Null
                     try {
                         $baselineRun = '00000000-0000-4000-8000-000000000901'
                         [System.IO.File]::WriteAllText((Join-Path $baselineRoot 'payload.txt'), 'accepted baseline fixture', [System.Text.UTF8Encoding]::new($false))
-                        $baselineManifest = [PSCustomObject]@{ run_id = $baselineRun; purpose = 'Comparison'; git = [PSCustomObject]@{ source_commit = $target } }
+                        $baselineTree = if ($case.mutation -like 'promoted*') { 'e' * 40 } else { $null }
+                        $baselineManifest = [PSCustomObject]@{ run_id = $baselineRun; purpose = 'Comparison'; git = [PSCustomObject]@{ source_commit = $baselineSource; source_tree = $baselineTree } }
                         $baselineManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $baselineRoot 'manifest.json') -Encoding utf8
                         $bundleDigest = Get-CoverageBundleDigest -BundlePath $baselineRoot
-                        $index = [PSCustomObject]@{ provenance = 'MeasuredAcceptedTarget'; target_commit = if ($case.mutation -eq 'target') { 'd' * 40 } else { $target }; run_id = $baselineRun; bundle_path = if ($case.mutation -eq 'traversal') { '../escape' } else { 'runs/accepted' }; bundle_digest = if ($case.mutation -eq 'digest') { 'f' * 64 } else { $bundleDigest } }
+                        $indexTarget = if ($case.mutation -eq 'target') { 'd' * 40 } else { $target }
+                        $index = [PSCustomObject]@{
+                            provenance = if ($case.mutation -like 'promoted*') { 'ArchivedAcceptedRun' } else { 'MeasuredAcceptedTarget' }
+                            target_commit = $indexTarget
+                            tested_commit = if ($case.mutation -like 'promoted*') { if ($case.mutation -eq 'promoted-identity') { 'f' * 40 } else { $baselineSource } } else { $null }
+                            integrated_commit = if ($case.mutation -like 'promoted*') { $target } else { $null }
+                            tested_tree = if ($case.mutation -like 'promoted*') { $baselineTree } else { $null }
+                            target_tree = if ($case.mutation -like 'promoted-tree') { 'f' * 40 } elseif ($case.mutation -like 'promoted*') { $baselineTree } else { $null }
+                            run_id = $baselineRun
+                            bundle_path = if ($case.mutation -eq 'traversal') { '../escape' } else { 'runs/accepted' }
+                            bundle_digest = if ($case.mutation -eq 'digest') { 'f' * 64 } else { $bundleDigest }
+                        }
                         $indexPath = Join-Path (Join-Path $evidenceRoot 'baselines') 'current.json'
                         $index | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $indexPath -Encoding utf8
                         $changedPaths = Join-Path $candidateRoot 'changed-paths.txt'
@@ -254,6 +449,15 @@ foreach ($file in $fixtureFiles) {
                     $fixtureExit = $LASTEXITCODE
                     if ($fixtureExit -eq 0) { $casePassed = $true }
                     else { $errorMsg = "Offline integration wrapper case failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                }
+                "cli-exit-taxonomy.json" {
+                    $fixtureScript = Join-Path $FixturesDir 'run-cli-exit-taxonomy-fixture.ps1'
+                    $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))
+                    $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript `
+                        -RepositoryRoot $repositoryRoot -Case ([string]$case.id) 2>&1)
+                    $fixtureExit = $LASTEXITCODE
+                    if ($fixtureExit -eq 0) { $casePassed = $true }
+                    else { $errorMsg = "Production CLI exit taxonomy case failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
                 }
                 "report-lifecycle.json" {
                     if ($case.id -eq 'REPORT_002_FAILED_VERIFICATION_REMAINS_UNVERIFIED') {
@@ -362,12 +566,13 @@ foreach ($file in $fixtureFiles) {
                         $fixtureExit = $LASTEXITCODE
                         if ($fixtureExit -eq 0) { $casePassed = $true }
                         else { $errorMsg = "Production publisher failure lifecycle ($mode) failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
-                    } elseif ($case.id -in @('PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX', 'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE')) {
+                    } elseif ($case.id -in @('PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX', 'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_011_TARGET_PUSH_PROMOTION')) {
                         $fixtureScript = Join-Path $FixturesDir 'run-publisher-promotion-fixture.ps1'
                         $mode = switch ($case.id) {
                             'PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX' { 'success' }
                             'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE' { 'unsupported-event' }
                             'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE' { 'stale-base' }
+                            'PUBLISH_011_TARGET_PUSH_PROMOTION' { 'target-push' }
                         }
                         $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) -Mode $mode 2>&1)
                         $fixtureExit = $LASTEXITCODE
@@ -384,7 +589,7 @@ foreach ($file in $fixtureFiles) {
                             $publishOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ScriptDir 'publish.ps1') -RunBundle $bundle -OutputReceiptPath $receiptPath -PromoteAsAcceptedTarget 2>&1)
                             $publishExit = $LASTEXITCODE
                             $outputText = $publishOutput -join ' '
-                            if ($publishExit -eq 1 -and $outputText -match 'Promotion requires an assessment' -and -not (Test-Path -LiteralPath $receiptPath)) { $casePassed = $true }
+                            if ($publishExit -eq 3 -and $outputText -match 'Promotion requires an assessment' -and -not (Test-Path -LiteralPath $receiptPath)) { $casePassed = $true }
                             else { $errorMsg = "Expected incomplete promotion request to fail before creating a receipt; exit=$publishExit, receiptExists=$(Test-Path -LiteralPath $receiptPath), output=$outputText" }
                         } finally {
                             $canonicalTemp = [System.IO.Path]::GetFullPath($tempRoot)
@@ -496,6 +701,10 @@ foreach ($file in $fixtureFiles) {
                     } else {
                         $manifestToValidate = $case.manifest | ConvertTo-Json -Depth 100 | ConvertFrom-Json
                     }
+                    if ($manifestToValidate.toolchain) {
+                        $manifestToValidate.toolchain | Add-Member -Force -NotePropertyName runtime -NotePropertyValue (New-FixtureMeasurementRuntime -Policy $coveragePolicy)
+                        $manifestToValidate.toolchain.java = '21.0.7+9'
+                    }
                     $trustedHarnessRoot = $null
                     if ($case.collection_error_mutation) {
                         $validTemplate = @($content.cases | Where-Object { $_.id -eq 'SCHEMA_001_VALID_INITIAL' })[0].manifest
@@ -518,6 +727,8 @@ foreach ($file in $fixtureFiles) {
                             $actualHarnessHashes[$harnessPath] = Get-FileSha256 -Path $fullHarnessPath
                         }
                         $manifestToValidate.harness.file_sha256 = [PSCustomObject]$actualHarnessHashes
+                        $manifestToValidate.toolchain | Add-Member -Force -NotePropertyName runtime -NotePropertyValue (New-FixtureMeasurementRuntime -Policy $coveragePolicy)
+                        $manifestToValidate.toolchain.java = '21.0.7+9'
                         $manifestToValidate.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $manifestToValidate.toolchain -Device $manifestToValidate.device -HarnessFileDigests $manifestToValidate.harness.file_sha256
                         if ($case.tamper_trusted_harness) {
                             $firstHarnessPath = [string]$coveragePolicy.harness_requirements.required_files[0]
@@ -530,19 +741,40 @@ foreach ($file in $fixtureFiles) {
                             ':core:common' = 'core/common/build/outputs/androidTest-results/connected/androidMain'
                             ':feature:settings' = 'feature/settings/build/outputs/androidTest-results/connected/debug'
                         }
-                        foreach ($hostTask in $manifestToValidate.workload.host_test_tasks) {
-                            $hostTask | Add-Member -Force -NotePropertyName junit_xml_directory -NotePropertyValue 'core/domain/build/test-results/testAndroidHostTest'
+                        $hostRecords = @()
+                        $hostDirectoriesForArtifacts = @()
+                        foreach ($modulePath in @($coveragePolicy.production_scope.variants.PSObject.Properties.Name)) {
+                            $variant = [string]$coveragePolicy.production_scope.variants.$modulePath
+                            $projectDirectory = $modulePath.TrimStart(':').Replace(':', '/')
+                            foreach ($taskName in @($coveragePolicy.production_scope.compilations.$variant.test_tasks)) {
+                                $directory = "$projectDirectory/build/test-results/$taskName"
+                                $notApplicable = ($case.id -eq 'SCHEMA_018_VALID_APPROVED_NO_SOURCE_HOST_TASK' -and $modulePath -eq ':core:bluetooth') -or
+                                    ($case.id -eq 'SCHEMA_019_INVALID_UNAPPROVED_HOST_SKIP' -and $modulePath -eq ':core:domain')
+                                if (-not $notApplicable) { $hostDirectoriesForArtifacts += $directory }
+                                $hostRecords += [PSCustomObject]@{
+                                    task_path = "${modulePath}:$taskName"
+                                    disposition = if ($notApplicable) { 'NotApplicable' } else { 'Applicable' }
+                                    executed = -not $notApplicable; skipped = $notApplicable; failed = $false
+                                    skip_message = if ($notApplicable) { if ($case.id -eq 'SCHEMA_018_VALID_APPROVED_NO_SOURCE_HOST_TASK') { 'NO-SOURCE' } else { 'UP-TO-DATE' } } else { $null }
+                                    test_scope_proof = if ($case.id -eq 'SCHEMA_018_VALID_APPROVED_NO_SOURCE_HOST_TASK' -and $modulePath -eq ':core:bluetooth') {
+                                        [PSCustomObject]@{ task_path = "${modulePath}:$taskName"; gradle_no_source = $true; compiled_test_class_count = 0 }
+                                    } else { $null }
+                                    junit_xml_directory = if ($notApplicable) { $null } else { $directory }
+                                }
+                            }
                         }
-                        foreach ($deviceTask in $manifestToValidate.workload.required_device_tasks) {
-                            $deviceTask | Add-Member -Force -NotePropertyName junit_xml_directory -NotePropertyValue $junitDirectoryByTask[[string]$deviceTask.module_path]
-                        }
-                        foreach ($deviceTask in $manifestToValidate.workload.optional_device_tasks) {
-                            $deviceTask | Add-Member -Force -NotePropertyName junit_xml_directory -NotePropertyValue 'app/build/outputs/androidTest-results/connected/shrunkDebug'
-                        }
+                        $manifestToValidate.workload.host_test_tasks = @($hostRecords)
+                        $manifestToValidate.workload.required_device_tasks = @($coveragePolicy.required_workload.required_device_test_modules | ForEach-Object {
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; junit_xml_directory = $junitDirectoryByTask[[string]$_] }
+                        })
+                        $manifestToValidate.workload.optional_device_tasks = @($coveragePolicy.required_workload.optional_device_test_modules | ForEach-Object {
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; junit_xml_directory = 'app/build/outputs/androidTest-results/connected/shrunkDebug' }
+                        })
                         $hostJUnitArtifact = 'reports/tests/core/domain/build/test-results/testAndroidHostTest/TEST-fixture.xml'
                         if ($null -ne $manifestToValidate.artifacts) {
                             $manifestToValidate.artifacts = @($manifestToValidate.artifacts | Where-Object { $_.path -notlike 'reports/tests/*.xml' })
-                            foreach ($directory in @($junitDirectoryByTask.Values) + @('core/domain/build/test-results/testAndroidHostTest')) {
+                            $allDirectories = @($hostDirectoriesForArtifacts) + @($junitDirectoryByTask.Values) + @('app/build/outputs/androidTest-results/connected/shrunkDebug')
+                            foreach ($directory in $allDirectories | Select-Object -Unique) {
                                 $manifestToValidate.artifacts += [PSCustomObject]@{ path = "reports/tests/$directory/TEST-fixture.xml"; sha256 = ('f' * 64) }
                             }
                         }
@@ -555,8 +787,36 @@ foreach ($file in $fixtureFiles) {
                         'unowned-report' { $manifestToValidate.artifacts += [PSCustomObject]@{ path = 'reports/tests/feature/removed/build/test-results/testDebugUnitTest/TEST-stale.xml'; sha256 = ('e' * 64) } }
                         'missing-device-report' { $manifestToValidate.artifacts = @($manifestToValidate.artifacts | Where-Object { $_.path -notlike 'reports/tests/core/common/build/outputs/androidTest-results/*' }) }
                     }
+                    if ($manifestToValidate.harness.file_sha256) {
+                        foreach ($harnessPath in @($coveragePolicy.harness_requirements.required_files)) {
+                            if ($null -eq $manifestToValidate.harness.file_sha256.PSObject.Properties[$harnessPath]) {
+                                $manifestToValidate.harness.file_sha256 | Add-Member -NotePropertyName $harnessPath -NotePropertyValue ('f' * 64)
+                            }
+                        }
+                    }
                     if ($case.expected_valid -and $manifestToValidate.harness.file_sha256) {
+                        if ($manifestToValidate.toolchain) {
+                            $manifestToValidate.toolchain | Add-Member -Force -NotePropertyName runtime -NotePropertyValue (New-FixtureMeasurementRuntime -Policy $coveragePolicy)
+                            $manifestToValidate.toolchain.java = '21.0.7+9'
+                        }
                         $manifestToValidate.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $manifestToValidate.toolchain -Device $manifestToValidate.device -HarnessFileDigests $manifestToValidate.harness.file_sha256
+                    }
+                    if ($manifestToValidate.suites) {
+                        $syntheticSuites = @()
+                        $suiteIndex = 0
+                        $suiteTasks = @($manifestToValidate.workload.host_test_tasks | Where-Object { $_.disposition -eq 'Applicable' }) +
+                            @($manifestToValidate.workload.required_device_tasks) + @($manifestToValidate.workload.optional_device_tasks)
+                        foreach ($suiteTask in $suiteTasks) {
+                            $root = ([string]$suiteTask.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                            if ([string]::IsNullOrWhiteSpace($root)) { continue }
+                            $suiteName = "fixture.task.$suiteIndex"
+                            $syntheticSuites += [PSCustomObject]@{
+                                suite_identity = "$root/TEST-fixture.xml|0|$suiteName"; suite_name = $suiteName
+                                tests = 1; executed = 1; successful = 1; failed = 0; failures = 0; errors = 0; skipped = 0; required = $true
+                            }
+                            $suiteIndex++
+                        }
+                        $manifestToValidate.suites = @($syntheticSuites)
                     }
                     $validation = Test-ManifestSchema -Manifest $manifestToValidate -Policy $coveragePolicy -TrustedHarnessRoot $trustedHarnessRoot
                     if ($case.expected_valid) {
@@ -865,11 +1125,44 @@ foreach ($file in $fixtureFiles) {
                 "execution-attribution.json" {
                     $attribution = Test-ExecutionCompatibilityAttribution -CompatibilityReceipt $case.compatibility_receipt `
                         -ManifestExecutionFiles $case.manifest_execution_files -Scope ([string]$case.scope) `
-                        -ExpectedVariant ([string]$case.expected_variant) -Label ([string]$case.scope)
+                        -ExpectedVariant ([string]$case.expected_variant) -Workload $case.workload `
+                        -ExpectedRunId ([string]$case.expected_run_id) -ExpectedDeviceSerial ([string]$case.expected_device_serial) -Label ([string]$case.scope)
                     if ($attribution.IsValid -eq $case.expected_valid) {
                         if (-not $case.expected_error -or ($attribution.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
                         else { $errorMsg = "Expected attribution error '$($case.expected_error)', got: $($attribution.Errors -join '; ')" }
                     } else { $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($attribution.IsValid). Errors: $($attribution.Errors -join '; ')" }
+                }
+                "repository-execution-attribution.json" {
+                    $attribution = Test-RepositoryExecutionAttribution -RepositoryExecutionFiles $case.repository_execution_files `
+                        -ManifestExecutionFiles $case.manifest_execution_files
+                    if ($attribution.IsValid -eq $case.expected_valid) {
+                        if (-not $case.expected_error -or ($attribution.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
+                        else { $errorMsg = "Expected repository attribution error '$($case.expected_error)', got: $($attribution.Errors -join '; ')" }
+                    } else { $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($attribution.IsValid). Errors: $($attribution.Errors -join '; ')" }
+                }
+                "junit-outcome.json" {
+                    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-junit-outcome-' + [guid]::NewGuid().ToString('N'))
+                    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+                    try {
+                        $reportPath = Join-Path $tempRoot 'report.xml'
+                        [IO.File]::WriteAllText($reportPath, [string]$case.xml, [Text.UTF8Encoding]::new($false))
+                        $result = Get-StrictJUnitOutcome -Path $reportPath -ReportIdentity ([string]$case.report_identity)
+                        if ($case.related_xml) {
+                            $relatedPath = Join-Path $tempRoot 'related.xml'
+                            [IO.File]::WriteAllText($relatedPath, [string]$case.related_xml, [Text.UTF8Encoding]::new($false))
+                            $related = Get-StrictJUnitOutcome -Path $relatedPath -ReportIdentity ([string]$case.related_identity)
+                            if (-not $result.IsValid -or -not $related.IsValid -or
+                                [string]$result.Suites[0].suite_name -cne [string]$related.Suites[0].suite_name -or
+                                [string]$result.Suites[0].suite_identity -ceq [string]$related.Suites[0].suite_identity) {
+                                $errorMsg = 'Repeated suite names across task/device reports were merged or parsed incorrectly'
+                            } else { $casePassed = $true }
+                        } elseif ($result.IsValid -eq $case.expected_valid) {
+                            if (-not $case.expected_error -or ($result.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
+                            else { $errorMsg = "Expected JUnit error '$($case.expected_error)', got: $($result.Errors -join '; ')" }
+                        } else { $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($result.IsValid). Errors: $($result.Errors -join '; ')" }
+                    } finally {
+                        Remove-Item -LiteralPath $tempRoot -Recurse -Force
+                    }
                 }
                 "comparison-module-reports.json" {
                     $reportBinding = Test-ComparisonModuleReportArtifact -ModulePath ([string]$case.module_path) `
@@ -887,6 +1180,7 @@ foreach ($file in $fixtureFiles) {
                     else { $errorMsg = "JaCoCo runtime probe compatibility fixture failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
                 }
                 "selection.json" {
+                    $selectionPolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
                     $receiptRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-selection-fixture-' + [guid]::NewGuid().ToString('N'))
                     try {
                         if ($case.batch_state.receipts) {
@@ -939,7 +1233,7 @@ foreach ($file in $fixtureFiles) {
                             if ($case.tamper_receipt_sha256 -and $case.batch_state.receipts.focused_result) { $case.batch_state.receipts.focused_result.sha256 = ('0' * 64) }
                             if ($case.tamper_measurement_digest -and $measurement) { $measurement.bundle_digest = ('0' * 64) }
                         }
-                        $selEval = Test-SelectionCase -Case $case
+                        $selEval = Test-SelectionCase -Case $case -Policy $selectionPolicy
                     } finally {
                         if (Test-Path -LiteralPath $receiptRoot) { Remove-Item -LiteralPath $receiptRoot -Recurse -Force }
                     }
@@ -955,6 +1249,36 @@ foreach ($file in $fixtureFiles) {
                             $casePassed = $true
                         } else {
                             $errorMsg = "Selection case mismatch: $($selEval.Errors -join '; ')"
+                        }
+                    }
+                }
+                "path-containment.json" {
+                    if ($case.production_entry_fixture) {
+                        $fixtureScript = Join-Path $FixturesDir 'run-path-containment-fixture.ps1'
+                        $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                        if ($LASTEXITCODE -eq 0) { $casePassed = $true }
+                        else { $errorMsg = "Production path-containment entry fixture failed with exit $LASTEXITCODE`: $($fixtureOutput -join ' ')" }
+                    } else {
+                        $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-path-containment-' + [guid]::NewGuid().ToString('N'))
+                        try {
+                            New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+                            $parent = Split-Path -Parent $tempRoot
+                            $bundlePath = Join-Path $parent 'SealedBundle'
+                            $candidatePath = switch ([string]$case.path_case) {
+                                'case-insensitive-descendant' { Join-Path $parent 'sealedbundle/ASSESSMENTS' }
+                                'exact-parent' { Join-Path $parent 'sealedbundle' }
+                                'sibling-directory' { Join-Path $parent 'SealedBundle-assessments' }
+                                'normalized-traversal' { Join-Path $parent 'outside/../SealedBundle/assessments' }
+                                default { throw "Unknown path containment case: $($case.path_case)" }
+                            }
+                            $isWithin = Test-CoveragePathWithinRoot -Path $candidatePath -Root $bundlePath
+                            if ($isWithin -eq [bool]$case.expected_within) { $casePassed = $true }
+                            else { $errorMsg = "Expected containment=$($case.expected_within), got $isWithin for '$candidatePath' under '$bundlePath'" }
+                        } finally {
+                            $canonicalTemp = [System.IO.Path]::GetFullPath($tempRoot)
+                            $canonicalTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\', '/')
+                            if ([System.IO.Path]::GetDirectoryName($canonicalTemp) -ne $canonicalTempRoot -or [System.IO.Path]::GetFileName($canonicalTemp) -notlike 'coverage-path-containment-*') { throw "Refusing unsafe path fixture cleanup target: $canonicalTemp" }
+                            if (Test-Path -LiteralPath $canonicalTemp) { [System.IO.Directory]::Delete($canonicalTemp, $true) }
                         }
                     }
                 }
@@ -974,17 +1298,61 @@ foreach ($file in $fixtureFiles) {
                 }
                 "trusted-comparison.json" {
                     $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $fixtureRuntime = New-FixtureRuntimeIdentity -Policy $coveragePolicy
                     if ($case.expected_valid) {
+                        $case.candidate.toolchain | Add-Member -NotePropertyName runtime -NotePropertyValue $fixtureRuntime -Force
+                        $case.baseline.toolchain | Add-Member -NotePropertyName runtime -NotePropertyValue $fixtureRuntime -Force
+                        $harnessDigests = @{}
+                        foreach ($harnessFile in @($coveragePolicy.harness_requirements.required_files)) { $harnessDigests[$harnessFile] = 'f' * 64 }
+                        $case.candidate.harness.file_sha256 = [PSCustomObject]$harnessDigests
+                        $case.baseline.harness.file_sha256 = [PSCustomObject]$harnessDigests
                         $case.candidate.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $case.candidate.toolchain -Device $case.candidate.device -HarnessFileDigests $case.candidate.harness.file_sha256
                         $case.baseline.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $case.baseline.toolchain -Device $case.baseline.device -HarnessFileDigests $case.baseline.harness.file_sha256
                     }
-                    $comparison = Test-TrustedComparisonManifest -CandidateManifest $case.candidate -BaselineManifest $case.baseline -Policy $coveragePolicy
+                    $comparison = Test-TrustedComparisonManifest -CandidateManifest $case.candidate -BaselineManifest $case.baseline -AcceptedBaselineIndex $case.accepted_baseline_index -Policy $coveragePolicy
                     if ($comparison.IsValid -eq $case.expected_valid) {
                         if (-not $case.expected_error -or ($comparison.Errors -join '; ').Contains([string]$case.expected_error)) { $casePassed = $true }
                         else { $errorMsg = "Expected error '$($case.expected_error)', got: $($comparison.Errors -join '; ')" }
                     } else {
                         $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($comparison.IsValid). Errors: $($comparison.Errors -join '; ')"
                     }
+                }
+                "promoted-comparison-binding.json" {
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $templatePath = Join-Path $FixturesDir 'trusted-comparison.json'
+                    $template = Read-SafeJson -Path $templatePath
+                    $validTemplate = @($template.cases | Where-Object { $_.id -eq 'TRUSTED_COMP_001_VALID_BASELINE' })[0]
+                    $candidate = $validTemplate.candidate | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+                    $baseline = $validTemplate.baseline | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+                    $candidateTarget = 'c' * 40
+                    $testedCommit = 'b' * 40
+                    $testedTree = 'd' * 40
+                    $runId = '00000000-0000-4000-8000-000000000761'
+                    $candidate.git.target_commit = $candidateTarget
+                    $baseline.git.source_commit = $testedCommit
+                    $baseline.git | Add-Member -NotePropertyName source_tree -NotePropertyValue $testedTree -Force
+                    $baseline | Add-Member -NotePropertyName run_id -NotePropertyValue $runId -Force
+                    $fixtureRuntime = New-FixtureRuntimeIdentity -Policy $coveragePolicy
+                    $candidate.toolchain | Add-Member -NotePropertyName runtime -NotePropertyValue $fixtureRuntime -Force
+                    $baseline.toolchain | Add-Member -NotePropertyName runtime -NotePropertyValue $fixtureRuntime -Force
+                    $harnessDigests = @{}
+                    foreach ($harnessFile in @($coveragePolicy.harness_requirements.required_files)) { $harnessDigests[$harnessFile] = 'f' * 64 }
+                    $candidate.harness.file_sha256 = [PSCustomObject]$harnessDigests
+                    $baseline.harness.file_sha256 = [PSCustomObject]$harnessDigests
+                    $index = [PSCustomObject]@{
+                        provenance = 'ArchivedAcceptedRun';
+                        target_commit = $candidateTarget;
+                        tested_commit = if ($case.mutation -eq 'commit') { 'e' * 40 } else { $testedCommit };
+                        integrated_commit = $candidateTarget;
+                        tested_tree = $testedTree;
+                        target_tree = if ($case.mutation -eq 'tree') { 'f' * 40 } else { $testedTree };
+                        run_id = if ($case.mutation -eq 'run') { '00000000-0000-4000-8000-000000000762' } else { $runId }
+                    }
+                    $candidate.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $candidate.toolchain -Device $candidate.device -HarnessFileDigests $candidate.harness.file_sha256
+                    $baseline.measurement_fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $baseline.toolchain -Device $baseline.device -HarnessFileDigests $baseline.harness.file_sha256
+                    $comparison = Test-TrustedComparisonManifest -CandidateManifest $candidate -BaselineManifest $baseline -AcceptedBaselineIndex $index -Policy $coveragePolicy
+                    if ($comparison.IsValid -eq $case.expected_valid) { $casePassed = $true }
+                    else { $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($comparison.IsValid). Errors: $($comparison.Errors -join '; ')" }
                 }
                 "comparison-bundle-junit.json" {
                     $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
@@ -1078,11 +1446,25 @@ foreach ($file in $fixtureFiles) {
                 }
                 "comparison-inventory-structure.json" {
                     $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $coveragePolicy = $coveragePolicy | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+                    $caseModulePaths = @($case.inventory_modules | ForEach-Object { [string]$_.module_path })
+                    foreach ($configuredModule in @($coveragePolicy.production_scope.variants.PSObject.Properties.Name)) {
+                        if ($configuredModule -notin $caseModulePaths) { $coveragePolicy.production_scope.variants.PSObject.Properties.Remove($configuredModule) }
+                    }
                     $inventoryModules = @($case.inventory_modules | ForEach-Object {
+                        $modulePath = [string]$_.module_path
+                        $variant = [string]$coveragePolicy.production_scope.variants.$modulePath
+                        $compilation = $coveragePolicy.production_scope.compilations.$variant
                         [PSCustomObject]@{
-                            module_path = [string]$_.module_path
+                            module_path = $modulePath
                             tier = $_.tier
                             project_directory = [string]$_.project_directory
+                            selected_variant = $variant
+                            compiler_tasks = @($compilation.compiler_tasks | ForEach-Object { "${modulePath}:$_" })
+                            source_roots = @('src/main/kotlin')
+                            output_directories = @('build/classes/fixture')
+                            excluded_class_patterns = @()
+                            excluded_class_sources = @()
                         }
                     })
                     $binding = Test-ComparisonInventoryStructure -InventoryModules $inventoryModules -Policy $coveragePolicy -Label 'Baseline'
@@ -1154,6 +1536,20 @@ foreach ($file in $fixtureFiles) {
                         $errorMsg = "Expected promotion ready=$($case.expected_valid), got ready=$($promotion.IsValid). Errors: $($promotion.Errors -join '; ')"
                     }
                 }
+                "target-recapture.json" {
+                    $fixtureScript = Join-Path $FixturesDir 'run-target-recapture-fixture.ps1'
+                    $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                    $fixtureExit = $LASTEXITCODE
+                    if ($fixtureExit -eq 0) { $casePassed = $true }
+                    else { $errorMsg = "Protected target recapture fixture failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                }
+                "dispatched-candidate.json" {
+                    $fixtureScript = Join-Path $FixturesDir 'run-dispatched-candidate-fixture.ps1'
+                    $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -Case ([string]$case.id) -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                    $fixtureExit = $LASTEXITCODE
+                    if ($fixtureExit -eq 0) { $casePassed = $true }
+                    else { $errorMsg = "Dispatched candidate binding fixture failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                }
                 "remote-target-ref.json" {
                     $targetRef = ConvertTo-RemoteTargetRef -TargetRef $case.target_ref -RemoteName $case.remote_name
                     if ($targetRef.IsValid -eq $case.expected_valid -and $targetRef.Ref -eq $case.expected_ref) {
@@ -1185,6 +1581,31 @@ foreach ($file in $fixtureFiles) {
                         } else {
                             $errorMsg = "Expected promotion_allowed=$($case.expected_promotion_allowed), got $($archEval.PromotionAllowed)"
                         }
+                    }
+                }
+                "measurement-runtime.json" {
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $runtime = New-FixtureMeasurementRuntime -Policy $coveragePolicy
+                    $runtimeCheck = Test-MeasurementRuntime -Runtime $runtime -Policy $coveragePolicy
+                    $harnessDigests = [ordered]@{}
+                    foreach ($harnessPath in @($coveragePolicy.harness_requirements.required_files)) { $harnessDigests[$harnessPath] = 'f' * 64 }
+                    $toolchain = [PSCustomObject]@{
+                        java = $runtime.gradle_daemon.java_runtime_version; gradle = '9.6.0'; android_gradle_plugin = '9.4.1'
+                        kotlin = '2.3.21'; jacoco = '0.8.15'; runtime = $runtime; launcher_java = '25.0.5'
+                    }
+                    $device = [PSCustomObject]@{ api_level = '35'; abi = 'x86_64' }
+                    $fingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $toolchain -Device $device -HarnessFileDigests ([PSCustomObject]$harnessDigests)
+                    $toolchain.launcher_java = '17.0.12'
+                    $launcherOnlyFingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $toolchain -Device $device -HarnessFileDigests ([PSCustomObject]$harnessDigests)
+                    $runtime.host_test_jvms[0].java_version = '22'
+                    $changedRuntimeCheck = Test-MeasurementRuntime -Runtime $runtime -Policy $coveragePolicy
+                    $toolchain.runtime = $runtime
+                    $changedRuntimeFingerprint = Get-MeasurementFingerprint -Policy $coveragePolicy -Toolchain $toolchain -Device $device -HarnessFileDigests ([PSCustomObject]$harnessDigests)
+                    if ($runtimeCheck.IsValid -and $fingerprint -ceq $launcherOnlyFingerprint -and
+                        -not $changedRuntimeCheck.IsValid -and $fingerprint -cne $changedRuntimeFingerprint) {
+                        $casePassed = $true
+                    } else {
+                        $errorMsg = 'Launcher-only changes must preserve fingerprint; changed measured JVM identity must fail policy validation and change fingerprint'
                     }
                 }
                 default {

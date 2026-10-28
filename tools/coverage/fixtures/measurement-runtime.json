@@ -1,0 +1,9 @@
+{
+  "description": "Actual JVM and compiler runtime measurement and fingerprint fixtures",
+  "cases": [
+    {
+      "id": "RUNTIME_001_LAUNCHER_IDENTITY_EXCLUDED",
+      "description": "Different shell launcher versions preserve a fingerprint when the measured Gradle, compiler, and test runtimes are identical."
+    }
+  ]
+}

@@ -3,13 +3,14 @@ name: Coverage Capture
 on:
   pull_request:
     branches: ["**"]
-    # Target-branch pushes do not fire pull_request. When freshness rejects a
-    # stale PR base, updating the PR branch emits synchronize and recaptures it.
+    # Synchronize recaptures a PR after its owner incorporates the latest target.
     types: [opened, reopened, synchronize]
   push:
-    branches: ["lab/or/chimali", "codex/*"]
+    branches: ["**"]
   merge_group:
     types: [checks_requested]
+  repository_dispatch:
+    types: [coverage-target-advanced]
 
 permissions:
   contents: read
@@ -21,6 +22,7 @@ concurrency:
 
 jobs:
   capture:
+    if: ${{ github.event_name != 'push' || github.ref == format('refs/heads/{0}', vars.COVERAGE_TARGET_REF) || github.ref == vars.COVERAGE_TARGET_REF || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/heads/codex/') || github.ref == 'refs/heads/lab/or/chimali' }}
     name: Unprivileged Coverage Capture
     runs-on: [self-hosted, windows, android-device]
     timeout-minutes: 60
@@ -47,7 +49,7 @@ jobs:
       - name: Checkout candidate source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          ref: ${{ github.event.client_payload.pull_request_head_sha || github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
           path: candidate
           fetch-depth: 0
 
@@ -104,6 +106,13 @@ jobs:
           MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
           MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           PUSH_SHA: ${{ github.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_REF: ${{ github.ref }}
+          TARGET_REF: ${{ vars.COVERAGE_TARGET_REF || github.event.repository.default_branch }}
+          DISPATCH_HEAD_SHA: ${{ github.event.client_payload.pull_request_head_sha }}
+          DISPATCH_BASE_SHA: ${{ github.event.client_payload.accepted_base_sha }}
+          DISPATCH_PR_NUMBER: ${{ github.event.client_payload.pull_request_number }}
+          DISPATCH_TARGET_REF: ${{ github.event.client_payload.target_ref }}
           COVERAGE_DEVICE_SERIAL: ${{ vars.COVERAGE_DEVICE_SERIAL }}
           TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
           TRUSTED_REPORTER_WORKFLOW_SHA: ${{ vars.COVERAGE_REPORTER_SHA }}
@@ -113,6 +122,8 @@ jobs:
           $purpose = "Initial"
           $headSha = $env:PUSH_SHA
           $baseSha = ""
+          $targetBranch = $env:TARGET_REF
+          if ($targetBranch -match '^refs/heads/') { $targetBranch = $targetBranch.Substring('refs/heads/'.Length) }
           switch ($env:EVENT_NAME) {
             "pull_request" {
               $purpose = "Candidate"
@@ -124,7 +135,26 @@ jobs:
               $headSha = $env:MERGE_GROUP_HEAD_SHA
               $baseSha = $env:MERGE_GROUP_BASE_SHA
             }
-            "push" { }
+            "push" {
+              if ($env:PUSH_REF -ceq "refs/heads/$targetBranch" -and $env:PUSH_BEFORE_SHA -match '^[0-9a-fA-F]{40,64}$') {
+                $purpose = "Candidate"
+                $baseSha = $env:PUSH_BEFORE_SHA
+              }
+            }
+            "repository_dispatch" {
+              $dispatchTarget = $env:DISPATCH_TARGET_REF
+              if ($dispatchTarget -match '^refs/heads/') { $dispatchTarget = $dispatchTarget.Substring('refs/heads/'.Length) }
+              if ($env:DISPATCH_PR_NUMBER -notmatch '^[1-9][0-9]*$' -or
+                  $env:DISPATCH_HEAD_SHA -notmatch '^[0-9a-fA-F]{40,64}$' -or
+                  $env:DISPATCH_BASE_SHA -notmatch '^[0-9a-fA-F]{40,64}$' -or
+                  $dispatchTarget -cne $targetBranch) {
+                Write-Error "Target-advance dispatch has malformed PR, candidate, accepted-base, or target identity."
+                exit 2
+              }
+              $purpose = "Candidate"
+              $headSha = $env:DISPATCH_HEAD_SHA
+              $baseSha = $env:DISPATCH_BASE_SHA
+            }
             default {
               Write-Error "Unsupported capture event: $env:EVENT_NAME"
               exit 3
@@ -142,6 +172,21 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $checkedOutSha -ne $headSha) {
             Write-Error "Candidate checkout $checkedOutSha does not match the event source $headSha."
             exit 2
+          }
+          if ($purpose -eq 'Candidate') {
+            $candidateTreeEvent = if ($env:EVENT_NAME -eq 'repository_dispatch') { 'pull_request' } else { $env:EVENT_NAME }
+            $treeIdentityOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-candidate-tree.ps1 `
+              -RepositoryPath (Get-Item candidate).FullName -SourceSha $headSha -AcceptedBaseSha $baseSha -EventName $candidateTreeEvent 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Candidate does not prove the exact integrated product tree: $($treeIdentityOutput -join ' ')"
+              exit 2
+            }
+            $treeIdentity = ($treeIdentityOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+            if (-not $treeIdentity.valid -or $treeIdentity.tested_candidate_sha -cne $headSha -or
+                $treeIdentity.accepted_base_sha -cne $baseSha -or $treeIdentity.check_destination_sha -cne $headSha) {
+              Write-Error "Candidate-tree identity does not match the event head, accepted base, and check destination."
+              exit 2
+            }
           }
 
           $device = $env:COVERAGE_DEVICE_SERIAL

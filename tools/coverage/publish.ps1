@@ -66,6 +66,9 @@ param(
     [int]$PullRequestNumber,
 
     [Parameter(Mandatory = $false)]
+    [string]$IntegrationTargetRef,
+
+    [Parameter(Mandatory = $false)]
     [string]$ComparisonBundle,
 
     [Parameter(Mandatory = $false)]
@@ -78,24 +81,28 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+function Write-CoverageError {
+    param([Parameter(Mandatory = $true)][object]$Message)
+    [Console]::Error.WriteLine([string]$Message)
+}
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
 
 if (-not (Test-Path $CommonPath)) {
-    Write-Error "Common utilities not found at $CommonPath"
+    Write-CoverageError "Common utilities not found at $CommonPath"
     exit 3
 }
 
 . $CommonPath
 
 if (-not (Test-Path $RunBundle)) {
-    Write-Error "RunBundle directory not found: $RunBundle"
+    Write-CoverageError "RunBundle directory not found: $RunBundle"
     exit 2
 }
 
 $manifestPath = Join-Path $RunBundle "manifest.json"
 if (-not (Test-Path $manifestPath)) {
-    Write-Error "manifest.json not found in RunBundle: $manifestPath"
+    Write-CoverageError "manifest.json not found in RunBundle: $manifestPath"
     exit 2
 }
 
@@ -110,21 +117,21 @@ $testedTree = [string]$manifest.git.source_tree
 $bundleParent = Split-Path -Parent $RunBundle
 $receiptTarget = if ($OutputReceiptPath) {
     if (-not [System.IO.Path]::IsPathRooted($OutputReceiptPath)) {
-        Write-Error "OutputReceiptPath must be an absolute path: $OutputReceiptPath"
+        Write-CoverageError "OutputReceiptPath must be an absolute path: $OutputReceiptPath"
         exit 3
     }
     $OutputReceiptPath
 } else {
     Join-Path (Join-Path $bundleParent "assessments") (Join-Path $runId "publication-receipt.json")
 }
-$canonicalBundle = [System.IO.Path]::GetFullPath($RunBundle).TrimEnd('\', '/')
-$canonicalReceipt = [System.IO.Path]::GetFullPath($receiptTarget)
-if ($canonicalReceipt.StartsWith($canonicalBundle + [System.IO.Path]::DirectorySeparatorChar) -or $canonicalReceipt -eq $canonicalBundle) {
-    Write-Error "Publication receipt cannot be written inside sealed capture bundle: $RunBundle"
+$canonicalBundle = Get-CanonicalCoveragePath -Path $RunBundle
+$canonicalReceipt = Get-CanonicalCoveragePath -Path $receiptTarget
+if (Test-CoveragePathWithinRoot -Path $canonicalReceipt -Root $canonicalBundle) {
+    Write-CoverageError "Publication receipt cannot be written inside sealed capture bundle: $RunBundle"
     exit 3
 }
 if (Test-Path -LiteralPath $receiptTarget) {
-    Write-Error "Publication receipt is immutable and already exists: $receiptTarget"
+    Write-CoverageError "Publication receipt is immutable and already exists: $receiptTarget"
     exit 1
 }
 $receiptDir = Split-Path -Parent $receiptTarget
@@ -133,7 +140,7 @@ if (-not (Test-Path $receiptDir)) {
 }
 
 if (-not $runId) {
-    Write-Error "manifest.json is missing run_id"
+    Write-CoverageError "manifest.json is missing run_id"
     exit 2
 }
 
@@ -142,7 +149,7 @@ if ($PromoteAsAcceptedTarget) {
         -not $IntegrationEventPath -or -not (Test-Path -LiteralPath $IntegrationEventPath -PathType Leaf) -or
         -not $ExpectedRepository -or -not $ExpectedHeadSha -or -not $ExpectedBaseSha -or
         -not $ComparisonBundle -or -not $AcceptedBaselineIndexPath -or -not $ChangedPathsFile) {
-        Write-Error 'Promotion requires an assessment, explicit integration-event evidence, expected repository/head/base identities, and the exact accepted baseline/index and sealed changed paths.'
+        Write-CoverageError 'Promotion requires an assessment, explicit integration-event evidence, expected repository/head/base identities, and the exact accepted baseline/index and sealed changed paths.'
         exit 3
     }
     $trustedVerificationAttempted = $false
@@ -213,6 +220,7 @@ if ($PromoteAsAcceptedTarget) {
         if (-not (Test-Path -LiteralPath $eventValidator -PathType Leaf)) { throw 'Trusted integration-event validator is missing beside the publisher' }
         $eventArgs = @('-Repository', $ExpectedRepository, '-HeadSha', $ExpectedHeadSha, '-BaseSha', $ExpectedBaseSha,
             '-IntegrationEventPath', $IntegrationEventPath, '-PullRequestNumber', [string]$PullRequestNumber, '-Token', $publishToken)
+        if ($IntegrationTargetRef) { $eventArgs += @('-ExpectedTargetRef', $IntegrationTargetRef) }
         $eventOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $eventValidator @eventArgs 2>&1)
         if ($LASTEXITCODE -ne 0) { throw "Independent integration-event validation failed: $($eventOutput -join ' ')" }
         $verifiedEvent = ($eventOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
@@ -221,7 +229,7 @@ if ($PromoteAsAcceptedTarget) {
         if ([string]::IsNullOrWhiteSpace($apiIntegratedCommit) -or [string]::IsNullOrWhiteSpace($apiIntegratedTree)) { throw 'Trusted integration-event validator omitted actual commit/tree metadata' }
         if ($IntegratedCommit -and $IntegratedCommit -cne $apiIntegratedCommit) { throw 'Caller integrated commit disagrees with repository API metadata' }
         if ($IntegratedTree -and $IntegratedTree -cne $apiIntegratedTree) { throw 'Caller integrated tree disagrees with repository API metadata' }
-        foreach ($field in @('event_type', 'merged', 'repository', 'head_sha', 'base_sha', 'integration_commit', 'integration_tree')) { $integrationEvent | Add-Member -NotePropertyName $field -NotePropertyValue $verifiedEvent.$field -Force }
+        foreach ($field in @('event_type', 'merged', 'integration_confirmed', 'target_ref', 'repository', 'head_sha', 'base_sha', 'integration_commit', 'integration_tree')) { $integrationEvent | Add-Member -NotePropertyName $field -NotePropertyValue $verifiedEvent.$field -Force }
         $readiness = Test-PromotionReadiness -Manifest $manifest -Decision $assessment -IntegrationEvent $integrationEvent -Repository $ExpectedRepository -HeadSha $ExpectedHeadSha -BaseSha $ExpectedBaseSha
         if (-not $readiness.IsValid) { throw ($readiness.Errors -join '; ') }
         $IntegratedCommit = $readiness.IntegratedCommit
@@ -254,7 +262,7 @@ if ($PromoteAsAcceptedTarget) {
                 Write-Warning "Could not retain the trusted-verification failure receipt: $_"
             }
         }
-        Write-Error "Promotion readiness validation failed: $_"
+        Write-CoverageError "Promotion readiness validation failed: $_"
         exit 1
     }
 }
@@ -283,11 +291,11 @@ if ($manifest.artifacts) {
             $normPath = $art.path.Replace("\", "/")
             if ($payloadHashes.ContainsKey($normPath)) {
                 if ($payloadHashes[$normPath] -ne $art.sha256.ToLower()) {
-                    Write-Error "Artifact SHA256 digest mismatch: expected $($art.sha256), actual $($payloadHashes[$normPath])"
+                    Write-CoverageError "Artifact SHA256 digest mismatch: expected $($art.sha256), actual $($payloadHashes[$normPath])"
                     exit 1
                 }
             } else {
-                Write-Error "Artifact declared in manifest missing from bundle payload: $($art.path)"
+                Write-CoverageError "Artifact declared in manifest missing from bundle payload: $($art.path)"
                 exit 1
             }
         }
@@ -321,13 +329,13 @@ if ($DryRun) {
 # Verify git remote
 $repoRoot = (git rev-parse --show-toplevel 2>$null)
 if (-not $repoRoot) {
-    Write-Error "Current directory is not inside a git repository"
+    Write-CoverageError "Current directory is not inside a git repository"
     exit 2
 }
 # Check if remote branch exists and can be fetched
 $publishToken = $env:CHIMALI_COVERAGE_PUBLISH_TOKEN
 if ([string]::IsNullOrWhiteSpace($publishToken)) {
-    Write-Error "CHIMALI_COVERAGE_PUBLISH_TOKEN is required for trusted archive publication."
+    Write-CoverageError "CHIMALI_COVERAGE_PUBLISH_TOKEN is required for trusted archive publication."
     exit 2
 }
 
@@ -335,11 +343,11 @@ $remoteUrl = (& git remote get-url $RemoteName 2>$null | Select-Object -First 1)
 try {
     $remoteUri = [Uri]$remoteUrl
 } catch {
-    Write-Error "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
+    Write-CoverageError "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
     exit 2
 }
 if ($remoteUri.Scheme -ne 'https' -or $remoteUri.Host -ne 'github.com') {
-    Write-Error "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
+    Write-CoverageError "Remote '$RemoteName' must use an HTTPS GitHub URL for trusted archive publication."
     exit 2
 }
 
@@ -351,23 +359,23 @@ if ($PromoteAsAcceptedTarget) {
     # exact API-confirmed SHA before verifying the object, tree, and ancestry.
     & git @gitAuthArgs fetch --no-tags $RemoteName $IntegratedCommit --quiet 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error 'Unable to retrieve the API-confirmed integrated commit from the trusted repository remote.'
+        Write-CoverageError 'Unable to retrieve the API-confirmed integrated commit from the trusted repository remote.'
         exit 1
     }
     $resolvedIntegratedCommit = (& git -C $repoRoot rev-parse --verify "$IntegratedCommit^{commit}" 2>$null).Trim()
     $resolvedIntegratedTree = if ($resolvedIntegratedCommit) { (& git -C $repoRoot rev-parse "$resolvedIntegratedCommit^{tree}" 2>$null).Trim() } else { '' }
     if ($resolvedIntegratedCommit -cne $IntegratedCommit -or $resolvedIntegratedTree -cne $IntegratedTree) {
-        Write-Error 'Integrated commit is not locally retrievable or its actual tree differs from the tested tree.'
+        Write-CoverageError 'Integrated commit is not locally retrievable or its actual tree differs from the tested tree.'
         exit 1
     }
     & git -C $repoRoot merge-base --is-ancestor $ExpectedBaseSha $IntegratedCommit 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error 'Integrated commit is not descended from the expected target base.'
+        Write-CoverageError 'Integrated commit is not descended from the expected target base.'
         exit 1
     }
     & git -C $repoRoot merge-base --is-ancestor $testedCommit $IntegratedCommit 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error 'Integrated commit does not contain the tested candidate commit.'
+        Write-CoverageError 'Integrated commit does not contain the tested candidate commit.'
         exit 1
     }
 }
@@ -409,7 +417,7 @@ try {
     # normalization in the temporary archive worktree before staging the bundle.
     & git config core.autocrlf false
     if ($LASTEXITCODE -ne 0) {
-        Write-Error 'Unable to disable line-ending normalization in the temporary archive worktree.'
+        Write-CoverageError 'Unable to disable line-ending normalization in the temporary archive worktree.'
         exit 1
     }
 
@@ -418,14 +426,14 @@ try {
     # is short, so opt into long-path support for this isolated archive worktree.
     & git config core.longpaths true
     if ($LASTEXITCODE -ne 0) {
-        Write-Error 'Unable to enable long-path support in the temporary archive worktree.'
+        Write-CoverageError 'Unable to enable long-path support in the temporary archive worktree.'
         exit 1
     }
 
     # Atomic Conflict Detection: Check if runs/<runId> already exists
     $targetRunDir = Join-Path (Join-Path $tempWorktree "runs") $runId
     if (Test-Path $targetRunDir) {
-        Write-Error "Cannot overwrite immutable run record: runs/$runId already exists in $EvidenceBranch"
+        Write-CoverageError "Cannot overwrite immutable run record: runs/$runId already exists in $EvidenceBranch"
         exit 1
     }
 
@@ -436,12 +444,12 @@ try {
     # If promoting as accepted target, verify tree and update index
     if ($PromoteAsAcceptedTarget) {
         if (-not $IntegratedTree) {
-            Write-Error "IntegratedTree is required when promoting as accepted target"
+            Write-CoverageError "IntegratedTree is required when promoting as accepted target"
             exit 1
         }
         $promotionIdentity = Test-PromotionIdentity -Manifest $manifest -IntegratedTree $IntegratedTree -IntegratedCommit $IntegratedCommit
         if (-not $promotionIdentity.IsValid) {
-            Write-Error "Promotion identity validation failed: $($promotionIdentity.Errors -join '; ')"
+            Write-CoverageError "Promotion identity validation failed: $($promotionIdentity.Errors -join '; ')"
             exit 1
         }
         $testedCommit = $promotionIdentity.TestedCommit
@@ -625,7 +633,7 @@ try {
             error = "Remote content read-back failed: $($_.Exception.Message)"
         }
         $readBackFailure | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $receiptTarget -Encoding utf8
-        Write-Error $readBackFailure.error
+        Write-CoverageError $readBackFailure.error
         exit 1
     }
 

@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
     [Parameter(Mandatory = $true)][string]$SourceBundle,
-    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'missing-workload-task', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch')]
+    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-failed-junit', 'comparison-dirty-preflight', 'comparison-dirty-harness', 'comparison-security-file-substitution', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'dirty-preflight', 'dirty-harness', 'harness-changed-during-capture', 'junit-hidden-failure', 'junit-hidden-error', 'junit-hidden-skip', 'junit-inflated-count', 'junit-contradictory-total', 'missing-workload-task', 'zero-required-device', 'inventory-unapproved-variant', 'inventory-omitted-owner', 'inventory-compiler-boundary', 'inventory-output-boundary', 'inventory-unproven-exclusion', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch', 'execution-security-file-substitution')]
     [string]$Case = 'negative-tier2'
 )
 
@@ -29,11 +29,36 @@ try {
     $policy = Read-SafeJson -Path (Join-Path $repository 'tools/coverage/policy.json')
     $manifestPath = Join-Path $bundle 'manifest.json'
     $manifest = Read-SafeJson -Path $manifestPath
+    function New-FixtureMeasurementRuntime {
+        param([Parameter(Mandatory = $true)]$Policy)
+        $daemon = [PSCustomObject]@{ java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.'; vm_name = 'OpenJDK 64-Bit Server VM'; architecture = 'amd64' }
+        $javaCompilers = @(); $kotlinCompilers = @(); $hostTests = @()
+        foreach ($moduleProperty in $Policy.production_scope.variants.PSObject.Properties) {
+            $modulePath = [string]$moduleProperty.Name
+            $compilation = $Policy.production_scope.compilations.([string]$moduleProperty.Value)
+            foreach ($taskName in @($compilation.compiler_tasks)) {
+                $record = [PSCustomObject]@{ task_path = "${modulePath}:$taskName"; java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.'; source_compatibility = '21'; target_compatibility = '21'; execution_strategy = 'in-process'; jvm_target = '21' }
+                if ([string]$taskName -match 'JavaWithJavac$') { $javaCompilers += $record } else { $kotlinCompilers += $record }
+            }
+            foreach ($taskName in @($compilation.test_tasks)) {
+                $hostTests += [PSCustomObject]@{ task_path = "${modulePath}:$taskName"; identity_source = 'GradleDaemon'; java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.' }
+            }
+        }
+        return [PSCustomObject]@{
+            schema_version = '1'; gradle_daemon = $daemon; kotlin_execution_strategy = 'in-process'
+            java_compilers = @($javaCompilers); kotlin_compilers = @($kotlinCompilers); host_test_jvms = @($hostTests)
+            jacoco_analyzer = [PSCustomObject]@{ engine = 'jacoco-0.8.15'; java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.' }
+        }
+    }
     $comparisonCase = $Case.StartsWith('comparison-', [System.StringComparison]::Ordinal)
     $manifest.purpose = if ($Case -eq 'comparison-candidate-below-floor') { 'Candidate' } elseif ($comparisonCase) { 'Comparison' } else { 'Initial' }
     $manifest.git.target_commit = if ($comparisonCase) { [string]$manifest.git.source_commit } else { $null }
     $manifest.git.clean_preflight = $true
     $manifest.git.clean_postflight = $true
+    $manifest.harness.clean = $true
+    if ($Case -eq 'dirty-preflight') { $manifest.git.clean_preflight = $false }
+    if ($Case -eq 'dirty-harness') { $manifest.harness.clean = $false }
+    if ($Case -eq 'harness-changed-during-capture') { $manifest.harness.clean = $false }
     $manifest.decisions.collection = if ($Case -eq 'incomplete-collection-error') { 'Incomplete' } else { 'Complete' }
     $manifest.decisions.tests = 'Passed'
     $manifest.decisions.floors = 'Unverified'
@@ -43,7 +68,8 @@ try {
         $manifest | Add-Member -NotePropertyName collection_errors -NotePropertyValue @('Required device workload failed during capture') -Force
     }
     $manifest | Add-Member -NotePropertyName toolchain -NotePropertyValue ([PSCustomObject]@{
-        java = '17'; gradle = '8.13'; android_gradle_plugin = '8.13.0'; kotlin = '2.2.0'; jacoco = '0.8.15'
+        java = '21.0.7+9'; gradle = '8.13'; android_gradle_plugin = '8.13.0'; kotlin = '2.2.0'; jacoco = '0.8.15'
+        runtime = (New-FixtureMeasurementRuntime -Policy $policy); launcher_java = '25.0.5'
     }) -Force
 
     $harnessDigests = [ordered]@{}
@@ -64,11 +90,12 @@ try {
     $assignedDeviceDirectories = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $requiredDeviceTasks = foreach ($modulePath in $policy.required_workload.required_device_test_modules) {
         $projectDirectory = ([string]$modulePath).TrimStart(':').Replace(':', '/')
+        $configuredDeviceTask = [string]$policy.required_workload.device_test_tasks.PSObject.Properties[[string]$modulePath].Value
         $deviceDirectory = $deviceDirectories | Where-Object { $_ -like "$projectDirectory/*" -and -not $assignedDeviceDirectories.Contains($_) } | Select-Object -First 1
         if (-not $deviceDirectory) { throw "Source bundle has no uniquely owned connected JUnit output for required device module $modulePath" }
         $null = $assignedDeviceDirectories.Add([string]$deviceDirectory)
         [PSCustomObject]@{
-            module_path = [string]$modulePath; task_path = "$($modulePath):connectedAndroidDeviceTest"; executed = $true; skipped = $false; failed = $false
+            module_path = [string]$modulePath; task_path = "${modulePath}:$configuredDeviceTask"; executed = $true; skipped = $false; failed = $false
             junit_xml_directory = [string]$deviceDirectory
         }
     }
@@ -77,25 +104,85 @@ try {
         $projectDirectory = ([string]$deviceDirectory -split '/build/outputs/androidTest-results/connected/')[0]
         if ([string]::IsNullOrWhiteSpace($projectDirectory)) { throw "Cannot bind connected JUnit directory to a project: $deviceDirectory" }
         $modulePath = ':' + $projectDirectory.Replace('/', ':')
+        $configuredDeviceTask = [string]$policy.required_workload.device_test_tasks.PSObject.Properties[$modulePath].Value
         [PSCustomObject]@{
-            module_path = $modulePath; task_path = "$modulePath`:connectedAndroidDeviceTest"; executed = $true; skipped = $false; failed = $false
+            module_path = $modulePath; task_path = "${modulePath}:$configuredDeviceTask"; executed = $true; skipped = $false; failed = $false
             junit_xml_directory = [string]$deviceDirectory
         }
     }
-    $workload = [PSCustomObject]@{
-        host_test_tasks = @($hostDirectories | ForEach-Object -Begin { $index = 0 } -Process {
-            [PSCustomObject]@{
-                task_path = ":fixture:hostTest$index"; executed = $true; skipped = $false; failed = $false
-                disposition = 'Applicable'; skip_message = $null; junit_xml_directory = $_
+    $configuredHostTasks = @()
+    foreach ($modulePath in @($policy.production_scope.variants.PSObject.Properties.Name)) {
+        $variant = [string]$policy.production_scope.variants.$modulePath
+        $projectDirectory = ([string]$modulePath).TrimStart(':').Replace(':', '/')
+        $moduleJUnitDirectory = $hostDirectories | Where-Object { $_ -like "$projectDirectory/build/test-results/*" } | Select-Object -First 1
+        foreach ($taskName in @($policy.production_scope.compilations.$variant.test_tasks)) {
+            $notApplicable = -not $moduleJUnitDirectory
+            $configuredHostTasks += [PSCustomObject]@{
+                task_path = "${modulePath}:$taskName"; executed = -not $notApplicable; skipped = $notApplicable; failed = $false
+                disposition = if ($notApplicable) { 'NotApplicable' } else { 'Applicable' }
+                skip_message = if ($notApplicable) { 'NO-SOURCE' } else { $null }
+                test_scope_proof = if ($notApplicable) { [PSCustomObject]@{ task_path = "${modulePath}:$taskName"; gradle_no_source = $true; compiled_test_class_count = 0 } } else { $null }
+                junit_xml_directory = if ($notApplicable) { $null } else { [string]$moduleJUnitDirectory }
             }
-            $null = $index++
-        })
+        }
+    }
+    $workload = [PSCustomObject]@{
+        host_test_tasks = @($configuredHostTasks)
         required_device_tasks = @($requiredDeviceTasks)
         optional_device_tasks = @($optionalDeviceTasks)
     }
     $manifest | Add-Member -NotePropertyName workload -NotePropertyValue $workload -Force
+    foreach ($executionInput in @($manifest.execution_files)) {
+        $taskKind = [string]$executionInput.kind
+        $taskPaths = @(Get-ExpectedExecutionTaskPaths -Workload $workload -Scope ([string]$executionInput.scope) -Kind $taskKind)
+        $executionInput | Add-Member -Force -NotePropertyName run_id -NotePropertyValue ([string]$manifest.run_id)
+        $executionInput | Add-Member -Force -NotePropertyName device_serial -NotePropertyValue ([string]$manifest.device.device_serial)
+        $executionInput | Add-Member -Force -NotePropertyName task_paths -NotePropertyValue $taskPaths
+    }
+    $strictSuites = @()
+    foreach ($testArtifact in @($manifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' })) {
+        $testArtifactPath = ([string]$testArtifact.path).Replace('\', '/')
+        $testIdentity = $testArtifactPath.Substring('reports/tests/'.Length)
+        $strictOutcome = Get-StrictJUnitOutcome -Path (Join-Path $bundle $testArtifactPath) -ReportIdentity $testIdentity
+        if (-not $strictOutcome.IsValid) { throw "Source bundle JUnit report is not valid under the current strict parser: $testArtifactPath ($($strictOutcome.Errors -join '; '))" }
+        foreach ($suite in $strictOutcome.Suites) {
+            $strictSuites += [PSCustomObject]@{
+                suite_identity = $suite.suite_identity; suite_name = $suite.suite_name
+                executed = $suite.executed; successful = $suite.successful; failed = $suite.failed
+                tests = $suite.tests; failures = $suite.failures; errors = $suite.errors; skipped = $suite.skipped; required = $true
+            }
+        }
+    }
+    $manifest.suites = $strictSuites
+    if ($Case -like 'junit-*') {
+        $testArtifact = @($manifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' } | Select-Object -First 1)[0]
+        if (-not $testArtifact) { throw 'Source bundle has no JUnit artifact to mutate' }
+        $mutationXml = switch ($Case) {
+            'junit-hidden-failure' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><failure message="injected"/></testcase></testsuite>' }
+            'junit-hidden-error' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><error message="injected"/></testcase></testsuite>' }
+            'junit-hidden-skip' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><skipped/></testcase></testsuite>' }
+            'junit-inflated-count' { '<testsuite name="hidden" tests="2" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite>' }
+            'junit-contradictory-total' { '<testsuites tests="2" failures="0" errors="0" skipped="0"><testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite></testsuites>' }
+        }
+        [IO.File]::WriteAllText((Join-Path $bundle ([string]$testArtifact.path)), $mutationXml, [Text.UTF8Encoding]::new($false))
+    }
     if ($Case -eq 'missing-workload-task') {
-        $workload.host_test_tasks = @()
+        $workload.host_test_tasks = @($workload.host_test_tasks | Select-Object -Skip 1)
+    } elseif ($Case -eq 'zero-required-device') {
+        $deviceRecord = @($workload.required_device_tasks | Select-Object -First 1)[0]
+        $reportPrefix = "reports/tests/$($deviceRecord.junit_xml_directory)/"
+        $deviceArtifact = @($manifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/').StartsWith($reportPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and [string]$_.path -match '\.xml$' } | Select-Object -First 1)[0]
+        if (-not $deviceArtifact) { throw "Required device task has no report artifact to mutate: $($deviceRecord.task_path)" }
+        [IO.File]::WriteAllText((Join-Path $bundle ([string]$deviceArtifact.path)), '<testsuite name="zero-required" tests="0" failures="0" errors="0" skipped="0" />', [Text.UTF8Encoding]::new($false))
+        $reportIdentity = ([string]$deviceArtifact.path).Substring('reports/tests/'.Length)
+        $zeroOutcome = Get-StrictJUnitOutcome -Path (Join-Path $bundle ([string]$deviceArtifact.path)) -ReportIdentity $reportIdentity
+        $manifest.suites = @($manifest.suites | Where-Object { -not ([string]$_.suite_identity).StartsWith("$($deviceRecord.junit_xml_directory)/", [System.StringComparison]::OrdinalIgnoreCase) })
+        foreach ($suite in $zeroOutcome.Suites) {
+            $manifest.suites += [PSCustomObject]@{
+                suite_identity = $suite.suite_identity; suite_name = $suite.suite_name; tests = $suite.tests; executed = $suite.executed
+                successful = $suite.successful; failed = $suite.failed; failures = $suite.failures; errors = $suite.errors; skipped = $suite.skipped; required = $true
+            }
+        }
     } elseif ($Case -eq 'unowned-junit-artifact') {
         $unownedPath = 'reports/tests/feature/removed/build/test-results/testDebugUnitTest/TEST-unowned.xml'
         $unownedFile = Join-Path $bundle $unownedPath
@@ -108,19 +195,68 @@ try {
 
     $countersPath = Join-Path $bundle 'counters.json'
     $counters = Read-SafeJson -Path $countersPath
-    if ($Case -in @('changed-tier2-missing-counter', 'changed-tier2-below-floor')) {
-        $inventoryPath = Join-Path $bundle 'inventory.json'
-        $inventory = Read-SafeJson -Path $inventoryPath
-        foreach ($inventoryModule in $inventory.modules) {
-            $projectDirectory = ([string]$inventoryModule.module_path).TrimStart(':').Replace(':', '/')
-            $inventoryModule | Add-Member -NotePropertyName project_directory -NotePropertyValue $projectDirectory -Force
+    $counters | Add-Member -Force -NotePropertyName measurement_runtime -NotePropertyValue $manifest.toolchain.runtime
+    foreach ($module in @($counters.modules)) {
+        foreach ($inputSet in @(@($module.execution_files), @($module.execution_compatibility.execution_files))) {
+            foreach ($inputFile in @($inputSet)) {
+                if ($null -eq $inputFile) { continue }
+                $kind = [string]$inputFile.kind
+                if (-not $kind) { $kind = if ([string]$inputFile.path -match '(?i)\.ec$') { 'device' } else { 'host' } }
+                $inputFile | Add-Member -Force -NotePropertyName run_id -NotePropertyValue ([string]$manifest.run_id)
+                $inputFile | Add-Member -Force -NotePropertyName device_serial -NotePropertyValue ([string]$manifest.device.device_serial)
+                $inputFile | Add-Member -Force -NotePropertyName task_paths -NotePropertyValue @(Get-ExpectedExecutionTaskPaths -Workload $workload -Scope ([string]$module.module_path) -Kind $kind)
+            }
         }
-        $inventory | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $inventoryPath -Encoding utf8
-        $inventoryDigest = Get-FileSha256 -Path $inventoryPath
-        $counters.inventory_digest = $inventoryDigest
-        foreach ($proof in @($counters.zero_count_proofs)) { $proof.inventory_digest = $inventoryDigest }
-        $manifest.production_inventory_digest = $inventoryDigest
     }
+    if ($counters.repository -and $null -eq $counters.repository.execution_files) {
+        $repositoryInputs = @($manifest.execution_files | Where-Object { [string]$_.scope -ceq ':repository' } | ForEach-Object {
+            [PSCustomObject]@{
+                path = [string]$_.source_path; repository_path = [string]$_.source_path; sha256 = [string]$_.source_sha256
+                run_id = [string]$_.run_id; device_serial = [string]$_.device_serial; task_paths = @($_.task_paths)
+            }
+        })
+        $counters.repository | Add-Member -Force -NotePropertyName execution_files -NotePropertyValue $repositoryInputs
+    }
+    $inventoryPath = Join-Path $bundle 'inventory.json'
+    $inventory = Read-SafeJson -Path $inventoryPath
+    foreach ($inventoryModule in $inventory.modules) {
+        $projectDirectory = ([string]$inventoryModule.module_path).TrimStart(':').Replace(':', '/')
+        $inventoryModule | Add-Member -NotePropertyName project_directory -NotePropertyValue $projectDirectory -Force
+        if ($null -eq $inventoryModule.PSObject.Properties['excluded_class_sources']) {
+            $exclusionSources = @()
+            $basePatterns = @($inventoryModule.excluded_class_patterns | Where-Object { [string]$_ -notmatch '\$\*\.class$' })
+            foreach ($pattern in $basePatterns) {
+                $classPath = ([string]$pattern).Substring(0, ([string]$pattern).Length - '.class'.Length)
+                $exclusionSources += [PSCustomObject]@{
+                    source_path = "build/generated/sqldelight/code/fixture/source/$classPath.kt"
+                    source_sha256 = ('a' * 64)
+                    class_patterns = @("$classPath.class", "$classPath`$*.class")
+                }
+            }
+            $inventoryModule | Add-Member -NotePropertyName excluded_class_sources -NotePropertyValue @($exclusionSources) -Force
+        }
+    }
+    switch ($Case) {
+        'inventory-unapproved-variant' {
+            $appInventory = @($inventory.modules | Where-Object { $_.module_path -eq ':app' })[0]
+            $appInventory.selected_variant = 'release'
+            $appInventory.compiler_tasks = @($policy.production_scope.compilations.release.compiler_tasks | ForEach-Object { ":app:$_" } | Sort-Object -CaseSensitive)
+            $appCounter = @($counters.modules | Where-Object { $_.module_path -eq ':app' })[0]
+            $appCounter.execution_compatibility | Add-Member -Force -NotePropertyName selected_variant -NotePropertyValue 'release'
+            foreach ($inputFile in @($appCounter.execution_files) + @($appCounter.execution_compatibility.execution_files)) { $inputFile | Add-Member -Force -NotePropertyName selected_variant -NotePropertyValue 'release' }
+            foreach ($inputFile in @($manifest.execution_files | Where-Object { $_.scope -ceq ':app' })) { $inputFile | Add-Member -Force -NotePropertyName selected_variant -NotePropertyValue 'release' }
+        }
+        'inventory-omitted-owner' { $inventory.modules = @($inventory.modules | Where-Object { $_.module_path -cne ':core:data' }) }
+        'inventory-compiler-boundary' { (@($inventory.modules | Where-Object { $_.module_path -eq ':app' })[0]).compiler_tasks = @(':app:compileDebugKotlin') }
+        'inventory-output-boundary' { (@($inventory.modules | Where-Object { $_.module_path -eq ':app' })[0]).output_directories = @('../outside/classes') }
+        'inventory-unproven-exclusion' { (@($inventory.modules | Where-Object { $_.module_path -eq ':app' })[0]).excluded_class_patterns += 'com/chimali/HandWritten.class' }
+    }
+    $inventory | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $inventoryPath -Encoding utf8
+    $inventoryDigest = Get-FileSha256 -Path $inventoryPath
+    $counters.inventory_digest = $inventoryDigest
+    foreach ($proof in @($counters.zero_count_proofs)) { $proof.inventory_digest = $inventoryDigest }
+    foreach ($proof in @($manifest.zero_count_proofs)) { $proof.inventory_digest = $inventoryDigest }
+    $manifest.production_inventory_digest = $inventoryDigest
     foreach ($module in $counters.modules) {
         foreach ($metricName in @('instruction', 'branch')) {
             $metric = $module.$metricName
@@ -172,6 +308,18 @@ try {
         $deviceInput = @($counterModule[0].execution_compatibility.execution_files | Where-Object { $_.kind -ceq 'device' })
         if ($deviceInput.Count -ne 1) { throw 'Source bundle must contain one :core:common device compatibility input' }
         $deviceInput[0].sha256 = 'f' * 64
+    } elseif ($Case -eq 'execution-security-file-substitution') {
+        $securityCounter = @($counters.modules | Where-Object { $_.module_path -eq ':core:security' })
+        $securityManifestInput = @($manifest.execution_files | Where-Object { $_.scope -eq ':core:security' } | Select-Object -First 1)
+        if ($securityCounter.Count -ne 1 -or -not $securityCounter[0].execution_compatibility -or $securityManifestInput.Count -ne 1) {
+            throw 'Source bundle must contain one :core:security counter, compatibility receipt, and manifest execution input'
+        }
+        $securityManifestInput = $securityManifestInput[0]
+        $substitutedDigest = if ($securityManifestInput.source_sha256 -ceq ('a' * 64)) { 'b' * 64 } else { 'a' * 64 }
+        $securityManifestInput.source_sha256 = $substitutedDigest
+        foreach ($fileInput in @($securityCounter[0].execution_files) + @($securityCounter[0].execution_compatibility.execution_files)) {
+            if ([string]$fileInput.repository_path -ceq [string]$securityManifestInput.source_path) { $fileInput.sha256 = $substitutedDigest }
+        }
     }
     foreach ($metricName in @('instruction', 'branch')) {
         $metric = $counters.repository.$metricName
@@ -440,6 +588,33 @@ try {
                 if ($requiredSuite.Count -ne 1) { throw 'Baseline fixture has no required suite to mutate' }
                 $requiredSuite[0].failures = 1
             }
+            'comparison-failed-junit' {
+                $testArtifact = @($baselineManifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' } | Select-Object -First 1)[0]
+                if (-not $testArtifact) { throw 'Baseline fixture has no JUnit artifact to mutate' }
+                [IO.File]::WriteAllText((Join-Path $baseline ([string]$testArtifact.path)), '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><failure message="injected"/></testcase></testsuite>', [Text.UTF8Encoding]::new($false))
+                $testArtifact.sha256 = Get-FileSha256 -Path (Join-Path $baseline ([string]$testArtifact.path))
+            }
+            'comparison-dirty-preflight' { $baselineManifest.git.clean_preflight = $false }
+            'comparison-dirty-harness' { $baselineManifest.harness.clean = $false }
+            'comparison-security-file-substitution' {
+                $baselineCountersPath = Join-Path $baseline 'counters.json'
+                $baselineCounters = Read-SafeJson -Path $baselineCountersPath
+                $securityModule = @($baselineCounters.modules | Where-Object { $_.module_path -eq ':core:security' })
+                $securityManifestInput = @($baselineManifest.execution_files | Where-Object { $_.scope -eq ':core:security' } | Select-Object -First 1)
+                if ($securityModule.Count -ne 1 -or -not $securityModule[0].execution_compatibility -or $securityManifestInput.Count -ne 1) {
+                    throw 'Baseline bundle must contain one :core:security counter, compatibility receipt, and manifest execution input'
+                }
+                $securityManifestInput = $securityManifestInput[0]
+                $substitutedDigest = if ($securityManifestInput.source_sha256 -ceq ('a' * 64)) { 'b' * 64 } else { 'a' * 64 }
+                $securityManifestInput.source_sha256 = $substitutedDigest
+                foreach ($fileInput in @($securityModule[0].execution_files) + @($securityModule[0].execution_compatibility.execution_files)) {
+                    if ([string]$fileInput.repository_path -ceq [string]$securityManifestInput.source_path) { $fileInput.sha256 = $substitutedDigest }
+                }
+                $baselineCounters | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $baselineCountersPath -Encoding utf8
+                foreach ($artifactRecord in $baselineManifest.artifacts) {
+                    if ([string]$artifactRecord.path -ceq 'counters.json') { $artifactRecord.sha256 = Get-FileSha256 -Path $baselineCountersPath }
+                }
+            }
             'comparison-missing-suite' { $baselineManifest.suites = @() }
             'comparison-incompatible-fingerprint' {
                 $baselineManifest.device.abi = 'x86_64'
@@ -483,7 +658,7 @@ try {
         Write-Output 'Verifier exit: 0'
         return
     }
-    $expectedExit = if ($Case -in @('missing-workload-task', 'unowned-junit-artifact')) { 3 } else { 1 }
+    $expectedExit = if ($Case -in @('missing-workload-task', 'zero-required-device', 'unowned-junit-artifact')) { 3 } else { 1 }
     if ($verifyExit -ne $expectedExit -or -not (Test-Path -LiteralPath $decisionPath -PathType Leaf)) {
         $preflightReasons = if (Test-Path -LiteralPath $decisionPath -PathType Leaf) { (Read-SafeJson -Path $decisionPath).unmet_reasons -join '; ' } else { 'no decision receipt' }
         throw "Expected verifier rejection exit $expectedExit with a decision receipt; observed exit $verifyExit. Verifier output: $($verifyOutput -join ' '); reasons: $preflightReasons"
@@ -529,13 +704,32 @@ try {
         'changed-tier2-missing-counter' { 'Run production inventory must contain exactly one counter record for :core:bluetooth' }
         'changed-tier2-below-floor' { ':core:bluetooth: Tier 2 instruction.*below.*20%' }
         'incomplete-collection-error' { 'Capture collection error: Required device workload failed during capture' }
-        'missing-workload-task' { 'Missing required host/device workload task evidence' }
+        'dirty-preflight' { 'Source and reviewed harness cleanliness were not proved before and after collection' }
+        'dirty-harness' { 'Source and reviewed harness cleanliness were not proved before and after collection' }
+        'harness-changed-during-capture' { 'Source and reviewed harness cleanliness were not proved before and after collection' }
+        'missing-workload-task' { 'Host workload task inventory differs from trusted policy' }
+        'zero-required-device' { 'Required workload task has no actual testcase outcomes' }
+        'inventory-unapproved-variant' { 'selected variant .* is not the reviewed variant|selected variant mismatch' }
+        'inventory-omitted-owner' { 'inventory module ownership differs from reviewed policy' }
+        'inventory-compiler-boundary' { 'compiler task ownership differs from reviewed variant' }
+        'inventory-output-boundary' { 'compiler outputs outside its project build boundary' }
+        'inventory-unproven-exclusion' { 'generated exclusions do not exactly match their retained generated source evidence' }
         'unowned-junit-artifact' { 'Retained JUnit artifact is not owned by a recorded workload' }
         'extra-counter-scope' { 'Run counter module :feature:unaccounted is absent from production inventory' }
         'missing-inventory-counter' { 'Run production inventory module .* has no canonical counter record' }
         'contradictory-applicability' { ':core:common: inventory and canonical counter dispositions disagree' }
         'execution-class-mismatch' { ':core:common execution compatibility analyzed class is absent from retained inventory: fixture/not-retained.class' }
         'execution-device-file-mismatch' { ':core:common execution compatibility file binding differs from canonical execution attribution' }
+        'execution-security-file-substitution' { 'Execution-file attribution has invalid scope, relative paths, kind, or source/bundle digest binding' }
+        'junit-hidden-failure' { 'declared failures=0 but testcase nodes derive 1' }
+        'junit-hidden-error' { 'declared errors=0 but testcase nodes derive 1' }
+        'junit-hidden-skip' { 'declared skipped=0 but testcase nodes derive 1' }
+        'junit-inflated-count' { 'declared tests=2 but testcase nodes derive 1' }
+        'junit-contradictory-total' { 'testsuites declared tests=2 but testcase nodes derive 1' }
+        'comparison-failed-junit' { 'declared failures=0 but contains 1' }
+        'comparison-dirty-preflight' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
+        'comparison-dirty-harness' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
+        'comparison-security-file-substitution' { 'Baseline Execution-file attribution has invalid scope, relative paths, kind, or source/bundle digest binding' }
     }
     $expectedReason = @($decision.unmet_reasons | Where-Object { $_ -match $reasonPattern })
     if ($expectedReason.Count -eq 0) {

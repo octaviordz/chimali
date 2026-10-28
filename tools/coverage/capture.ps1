@@ -63,11 +63,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+function Write-CoverageError {
+    param([Parameter(Mandatory = $true)][object]$Message)
+    [Console]::Error.WriteLine([string]$Message)
+}
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
 
-$javaVersionOutput = (& java -version 2>&1 | Select-Object -First 1)
-$javaRuntime = if ($javaVersionOutput -match '"([^"]+)"') { $Matches[1] } else { "unknown" }
+$javaCommand = Get-Command java -ErrorAction SilentlyContinue
+$javaVersionOutput = if ($javaCommand) { (& $javaCommand.Source -version 2>&1 | Select-Object -First 1) } else { '' }
+$javaRuntime = if ($javaVersionOutput -match '"([^"]+)"') { $Matches[1] } else { "unavailable" }
 $androidSdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
 $androidPlatforms = @()
 if ($androidSdkRoot -and (Test-Path (Join-Path $androidSdkRoot "platforms"))) {
@@ -76,7 +81,7 @@ if ($androidSdkRoot -and (Test-Path (Join-Path $androidSdkRoot "platforms"))) {
 $environmentDescription = "Windows $([Environment]::OSVersion.Version) / JVM $javaRuntime / Android SDK platforms $($androidPlatforms -join ',') / Device $DeviceSerial"
 
 if (-not (Test-Path $CommonPath)) {
-    Write-Error "Common utilities not found at $CommonPath"
+    Write-CoverageError "Common utilities not found at $CommonPath"
     exit 3
 }
 
@@ -88,7 +93,7 @@ if (@($trustedReporterValues | Where-Object { -not [string]::IsNullOrWhiteSpace(
         $TrustedReporterSha -notmatch '^[0-9a-fA-F]{40}$' -or
         $TrustedRepositoryId -notmatch '^[0-9]+$' -or
         $TrustedCoverageAppId -notmatch '^[0-9]+$') {
-        Write-Error 'Trusted reporter binding requires full reporter/harness SHAs and numeric repository/App IDs.'
+        Write-CoverageError 'Trusted reporter binding requires full reporter/harness SHAs and numeric repository/App IDs.'
         exit 3
     }
 }
@@ -107,7 +112,7 @@ try {
 }
 
 if (-not [System.IO.Path]::IsPathRooted($HarnessRoot) -or -not (Test-Path -LiteralPath $HarnessRoot)) {
-    Write-Error "HarnessRoot must be an existing absolute path: $HarnessRoot"
+    Write-CoverageError "HarnessRoot must be an existing absolute path: $HarnessRoot"
     exit 2
 }
 $harnessScriptPaths = @($policy.harness_requirements.required_files | ForEach-Object {
@@ -115,14 +120,14 @@ $harnessScriptPaths = @($policy.harness_requirements.required_files | ForEach-Ob
 })
 foreach ($harnessScriptPath in $harnessScriptPaths) {
     if (-not (Test-Path -LiteralPath $harnessScriptPath -PathType Leaf)) {
-        Write-Error "Harness checkout is missing required file: $harnessScriptPath"
+        Write-CoverageError "Harness checkout is missing required file: $harnessScriptPath"
         exit 2
     }
 }
 $harnessRevision = (& git -C $HarnessRoot rev-parse HEAD 2>$null).Trim()
 $harnessTree = (& git -C $HarnessRoot rev-parse 'HEAD^{tree}' 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or -not $harnessRevision -or -not $harnessTree) {
-    Write-Error "HarnessRoot is not a readable Git checkout: $HarnessRoot"
+    Write-CoverageError "HarnessRoot is not a readable Git checkout: $HarnessRoot"
     exit 2
 }
 $harnessClean = [string]::IsNullOrEmpty((& git -C $HarnessRoot status --porcelain))
@@ -134,27 +139,32 @@ foreach ($harnessScriptPath in $harnessScriptPaths) {
 
 # 1. Path and Argument Validation
 if (-not [System.IO.Path]::IsPathRooted($RepositoryRoot)) {
-    Write-Error "RepositoryRoot must be an absolute path: $RepositoryRoot"
+    Write-CoverageError "RepositoryRoot must be an absolute path: $RepositoryRoot"
     exit 3
 }
 if (-not (Test-Path $RepositoryRoot)) {
-    Write-Error "RepositoryRoot does not exist: $RepositoryRoot"
+    Write-CoverageError "RepositoryRoot does not exist: $RepositoryRoot"
     exit 2
 }
 if (-not [System.IO.Path]::IsPathRooted($OutputRoot)) {
-    Write-Error "OutputRoot must be an absolute path: $OutputRoot"
+    Write-CoverageError "OutputRoot must be an absolute path: $OutputRoot"
     exit 3
 }
-$normRepo = $RepositoryRoot.Replace("\", "/").TrimEnd("/")
-$normOut = $OutputRoot.Replace("\", "/").TrimEnd("/")
-if ($normOut.StartsWith($normRepo)) {
-    Write-Error "OutputRoot cannot be inside the measured repository tree: $OutputRoot"
+$normRepo = Get-CanonicalCoveragePath -Path $RepositoryRoot
+$normOut = Get-CanonicalCoveragePath -Path $OutputRoot
+if (Test-CoveragePathWithinRoot -Path $normOut -Root $normRepo) {
+    Write-CoverageError "OutputRoot cannot be inside the measured repository tree: $OutputRoot"
     exit 3
 }
 
 if ($Purpose -ne "Initial" -and [string]::IsNullOrEmpty($TargetRevision)) {
-    Write-Error "TargetRevision is required when Purpose is not Initial"
+    Write-CoverageError "TargetRevision is required when Purpose is not Initial"
     exit 3
+}
+
+if (-not $javaCommand) {
+    Write-CoverageError 'Java runtime is required for coverage capture but was not found on PATH.'
+    exit 2
 }
 
 # 2. Preflight: Git clean tree & HEAD verification
@@ -162,12 +172,12 @@ Push-Location $RepositoryRoot
 try {
     $currentHead = (git rev-parse HEAD).Trim()
     if ($currentHead -ne $SourceRevision) {
-        Write-Error "SourceRevision '$SourceRevision' does not match checkout HEAD '$currentHead'"
+        Write-CoverageError "SourceRevision '$SourceRevision' does not match checkout HEAD '$currentHead'"
         exit 2
     }
     $statusOutput = (git status --porcelain)
     if ($statusOutput) {
-        Write-Error "Repository tree is dirty; clean tree required for coverage capture:`n$statusOutput"
+        Write-CoverageError "Repository tree is dirty; clean tree required for coverage capture:`n$statusOutput"
         exit 2
     }
     $sourceTree = (git rev-parse 'HEAD^{tree}').Trim()
@@ -245,12 +255,12 @@ try {
 }
 
 if (-not $deviceOnline) {
-    Write-Error "Target device '$DeviceSerial' is not attached, online, or authorized"
+    Write-CoverageError "Target device '$DeviceSerial' is not attached, online, or authorized"
     exit 2
 }
 $deviceCapabilities = Test-DeviceCapabilities -Policy $policy -ApiLevel $deviceApi -Abi $deviceAbi
 if (-not $deviceCapabilities.IsValid) {
-    Write-Error "Target device '$DeviceSerial' does not meet coverage capability requirements: $($deviceCapabilities.Errors -join '; ')"
+    Write-CoverageError "Target device '$DeviceSerial' does not meet coverage capability requirements: $($deviceCapabilities.Errors -join '; ')"
     exit 2
 }
 
@@ -258,7 +268,7 @@ if (-not $deviceCapabilities.IsValid) {
 $runId = [System.Guid]::NewGuid().ToString()
 $runDir = Join-Path $OutputRoot $runId
 if (Test-Path $runDir) {
-    Write-Error "Run directory $runDir already exists; cannot overwrite"
+    Write-CoverageError "Run directory $runDir already exists; cannot overwrite"
     exit 3
 }
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
@@ -274,7 +284,7 @@ if (-not [string]::IsNullOrWhiteSpace($TargetRevision)) {
     Push-Location $RepositoryRoot
     try {
         $changedPaths = @(git diff --name-only $TargetRevision $SourceRevision)
-        if ($LASTEXITCODE -ne 0) { Write-Error 'Could not derive changed paths from the exact target and source commits'; exit 2 }
+        if ($LASTEXITCODE -ne 0) { Write-CoverageError 'Could not derive changed paths from the exact target and source commits'; exit 2 }
         $changedPathsContent = [string]::Join([Environment]::NewLine, $changedPaths)
         [System.IO.File]::WriteAllText($changedPathsFile, $changedPathsContent, [System.Text.UTF8Encoding]::new($false))
     } finally { Pop-Location }
@@ -289,6 +299,7 @@ if (-not $SkipExecution) {
         $initScript = Join-Path $HarnessRoot "tools/hdk-coverage.init.gradle"
         $gradleArgs = @('--no-configuration-cache', '-I', $initScript)
         $gradleArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
+        $gradleArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
         if ($changedPathsFile) { $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile") }
         $gradleArgs += @('hdkHostCoverage', 'hdkCoverageAnalyze')
         Write-Host "Executing Gradle workload with the pinned coverage harness and exact changed-path set..." -ForegroundColor Cyan
@@ -311,6 +322,31 @@ New-Item -ItemType Directory -Path $modulesDir -Force | Out-Null
 # Check if Gradle canonical counters were emitted
 $gradleCountersFile = Join-Path $RepositoryRoot "build/reports/hdk-coverage/counters.json"
 $gradleCanonicalCounters = if (Test-Path $gradleCountersFile) { Read-SafeJson -Path $gradleCountersFile } else { $null }
+$workloadIdentity = if ($gradleCanonicalCounters) { $gradleCanonicalCounters.workload } else { $null }
+if ($workloadIdentity) {
+    foreach ($counterModule in @($gradleCanonicalCounters.modules)) {
+        $scope = [string]$counterModule.module_path
+        $inputSets = @(@($counterModule.execution_files))
+        if ($counterModule.execution_compatibility) { $inputSets += ,@($counterModule.execution_compatibility.execution_files) }
+        foreach ($inputSet in $inputSets) {
+            foreach ($inputFile in @($inputSet)) {
+                if ($null -eq $inputFile) { continue }
+                $kind = if ([string]$inputFile.path -match '(?i)\.ec$') { 'device' } else { 'host' }
+                $taskPaths = @(Get-ExpectedExecutionTaskPaths -Workload $workloadIdentity -Scope $scope -Kind $kind)
+                $inputFile | Add-Member -Force -NotePropertyName run_id -NotePropertyValue $runId
+                $inputFile | Add-Member -Force -NotePropertyName device_serial -NotePropertyValue $DeviceSerial
+                $inputFile | Add-Member -Force -NotePropertyName task_paths -NotePropertyValue $taskPaths
+            }
+        }
+    }
+    foreach ($inputFile in @($gradleCanonicalCounters.repository.execution_files)) {
+        $kind = if ([string]$inputFile.path -match '(?i)\.ec$') { 'device' } else { 'host' }
+        $taskPaths = @(Get-ExpectedExecutionTaskPaths -Workload $workloadIdentity -Scope ':repository' -Kind $kind)
+        $inputFile | Add-Member -Force -NotePropertyName run_id -NotePropertyValue $runId
+        $inputFile | Add-Member -Force -NotePropertyName device_serial -NotePropertyValue $DeviceSerial
+        $inputFile | Add-Member -Force -NotePropertyName task_paths -NotePropertyValue $taskPaths
+    }
+}
 $gradleInventoryFile = Join-Path $RepositoryRoot "build/reports/hdk-coverage/production-inventory.json"
 $gradleProductionInventory = if (Test-Path $gradleInventoryFile) { Read-SafeJson -Path $gradleInventoryFile } else { $null }
 $modulePathsToCapture = @($policy.tier1_modules + $policy.tier2_gated_modules)
@@ -324,6 +360,12 @@ if (-not $gradleCanonicalCounters) { $canonicalEvidenceErrors += "Gradle canonic
 if (-not $gradleProductionInventory) { $canonicalEvidenceErrors += "Gradle production inventory is missing: $gradleInventoryFile" }
 if ($gradleCanonicalCounters) {
     $workloadEvidence = $gradleCanonicalCounters.workload
+    if ($null -ne $workloadEvidence) {
+        $workloadInventory = Test-WorkloadTaskInventory -Workload $workloadEvidence -Policy $policy
+        $canonicalEvidenceErrors += $workloadInventory.Errors
+    } else {
+        $canonicalEvidenceErrors += 'Canonical counters do not contain workload task inventory'
+    }
     foreach ($requiredDeviceModule in $policy.required_workload.required_device_test_modules) {
         $records = @($workloadEvidence.required_device_tasks | Where-Object { $_.module_path -eq $requiredDeviceModule })
         if ($records.Count -ne 1 -or -not $records[0].executed -or $records[0].skipped -or $records[0].failed) {
@@ -388,12 +430,15 @@ foreach ($modPath in $modulePathsToCapture) {
     $projectRootFull = $null
     if (-not [string]::IsNullOrWhiteSpace($projRel) -and -not [System.IO.Path]::IsPathRooted($projRel) -and $projRel.Replace('\', '/') -notmatch '(^|/)\.\.(/|$)') {
         $projectRootFull = [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $projRel))
-        $repositoryPrefix = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-        if (-not $projectRootFull.StartsWith($repositoryPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $projectRootFull -PathType Container)) {
+        $repositoryFull = Get-CanonicalCoveragePath -Path $RepositoryRoot
+        if ([string]::Equals((Get-CanonicalCoveragePath -Path $projectRootFull), $repositoryFull, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-CoveragePathWithinRoot -Path $projectRootFull -Root $repositoryFull) -or
+            -not (Test-Path -LiteralPath $projectRootFull -PathType Container)) {
             $projectRootFull = $null
         } else {
-            $resolvedProjectRoot = (Resolve-Path -LiteralPath $projectRootFull).Path
-            if (-not $resolvedProjectRoot.StartsWith($repositoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { $projectRootFull = $null }
+            $resolvedProjectRoot = Get-CanonicalCoveragePath -Path (Resolve-Path -LiteralPath $projectRootFull).Path
+            if ([string]::Equals($resolvedProjectRoot, $repositoryFull, [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not (Test-CoveragePathWithinRoot -Path $resolvedProjectRoot -Root $repositoryFull)) { $projectRootFull = $null }
         }
     }
     if ($inventoryRows.Count -ne 1 -or -not $projectRootFull) {
@@ -658,6 +703,9 @@ foreach ($executionInput in $executionInputs) {
     $executionFilesEvidence += [PSCustomObject]@{
         scope = $executionInput.scope
         kind = $kind
+        run_id = $runId
+        device_serial = $DeviceSerial
+        task_paths = @($executionInput.file.task_paths)
         source_path = $sourceRelative
         source_sha256 = $sourceHash
         bundle_path = $bundleRelative
@@ -669,6 +717,7 @@ foreach ($counterModule in @($moduleCountersList)) {
     $sourceBinding = Test-ExecutionCompatibilityAttribution -CompatibilityReceipt $counterModule.execution_compatibility `
         -ManifestExecutionFiles $executionFilesEvidence -Scope ([string]$counterModule.module_path) `
         -ExpectedVariant ([string]$gradleProductionInventory.modules.Where({ $_.module_path -eq $counterModule.module_path }).selected_variant) `
+        -Workload $workloadIdentity -ExpectedRunId $runId -ExpectedDeviceSerial $DeviceSerial `
         -Label "Captured $($counterModule.module_path)"
     if (-not $sourceBinding.IsValid) { $canonicalEvidenceErrors += $sourceBinding.Errors; $canonicalEvidenceValid = $false }
 }
@@ -692,31 +741,6 @@ $junitParseFailures = @()
 $junitParseFailureRecords = @()
 foreach ($jf in $junitFiles) {
     try {
-        $jDoc = Read-SafeXml -Path $jf.FullName
-        $testSuiteNodes = $jDoc.SelectNodes("/testsuite | /testsuites/testsuite")
-        if ($null -eq $testSuiteNodes -or $testSuiteNodes.Count -eq 0) {
-            # Some connected Android tasks produce a valid zero-test aggregate
-            # report when the module has no device-side test sources. Retain
-            # that task-owned report as evidence without inventing a suite.
-            $emptyAggregate = $jDoc.DocumentElement
-            if ($emptyAggregate -and $emptyAggregate.Name -eq 'testsuites' -and
-                $emptyAggregate.GetAttribute('tests') -eq '0' -and
-                $emptyAggregate.GetAttribute('failures') -eq '0' -and
-                $emptyAggregate.GetAttribute('errors') -eq '0' -and
-                $emptyAggregate.GetAttribute('skipped') -eq '0' -and
-                $emptyAggregate.ChildNodes.Count -eq 0) {
-                $relativeJUnitPath = [System.IO.Path]::GetRelativePath($RepositoryRoot, $jf.FullName)
-                if ([System.IO.Path]::IsPathRooted($relativeJUnitPath) -or $relativeJUnitPath.Replace("\", "/") -match '(^|/)\.\.(/|$)') {
-                    throw "JUnit XML path is outside the repository root: $($jf.FullName)"
-                }
-                $destXml = Join-Path $testsReportsDir $relativeJUnitPath
-                New-Item -ItemType Directory -Path (Split-Path -Parent $destXml) -Force | Out-Null
-                Copy-Item -LiteralPath $jf.FullName -Destination $destXml -Force
-                continue
-            }
-            throw "JUnit XML contains no test suites: $($jf.FullName)"
-        }
-
         $relativeJUnitPath = [System.IO.Path]::GetRelativePath($RepositoryRoot, $jf.FullName)
         if ([System.IO.Path]::IsPathRooted($relativeJUnitPath) -or $relativeJUnitPath.Replace("\", "/") -match '(^|/)\.\.(/|$)') {
             throw "JUnit XML path is outside the repository root: $($jf.FullName)"
@@ -726,20 +750,19 @@ foreach ($jf in $junitFiles) {
         $destXmlParent = Split-Path -Parent $destXml
         New-Item -ItemType Directory -Path $destXmlParent -Force | Out-Null
         Copy-Item -Path $jf.FullName -Destination $destXml -Force
-
-        foreach ($testSuiteNode in $testSuiteNodes) {
-            $sName = $testSuiteNode.GetAttribute("name")
-            $sTests = if ($testSuiteNode.HasAttribute("tests")) { [int]$testSuiteNode.GetAttribute("tests") } else { $testSuiteNode.SelectNodes("testcase").Count }
-            $sFailures = if ($testSuiteNode.HasAttribute("failures")) { [int]$testSuiteNode.GetAttribute("failures") } else { $testSuiteNode.SelectNodes("testcase/failure").Count }
-            $sErrors = if ($testSuiteNode.HasAttribute("errors")) { [int]$testSuiteNode.GetAttribute("errors") } else { $testSuiteNode.SelectNodes("testcase/error").Count }
-            $sSkipped = if ($testSuiteNode.HasAttribute("skipped")) { [int]$testSuiteNode.GetAttribute("skipped") } else { $testSuiteNode.SelectNodes("testcase/skipped").Count }
-
+        $parsedJUnit = Get-StrictJUnitOutcome -Path $jf.FullName -ReportIdentity $relativeJUnitPath.Replace('\', '/')
+        if (-not $parsedJUnit.IsValid) { throw ($parsedJUnit.Errors -join '; ') }
+        foreach ($suite in $parsedJUnit.Suites) {
             $suitesList += [PSCustomObject]@{
-                suite_name = $sName
-                tests = $sTests
-                failures = $sFailures
-                errors = $sErrors
-                skipped = $sSkipped
+                suite_identity = $suite.suite_identity
+                suite_name = $suite.suite_name
+                tests = $suite.tests
+                executed = $suite.executed
+                successful = $suite.successful
+                failed = $suite.failed
+                failures = $suite.failures
+                errors = $suite.errors
+                skipped = $suite.skipped
                 required = $true
             }
         }
@@ -822,6 +845,17 @@ try {
     Pop-Location
 }
 
+$harnessPostflightClean = [string]::IsNullOrEmpty((& git -C $HarnessRoot status --porcelain))
+$harnessFilesStable = $true
+foreach ($harnessScriptPath in $harnessScriptPaths) {
+    $relativeHarnessPath = [System.IO.Path]::GetRelativePath($HarnessRoot, $harnessScriptPath).Replace('\', '/')
+    try { $currentHash = Get-FileSha256 -Path $harnessScriptPath } catch { $currentHash = $null }
+    if (-not $currentHash -or $currentHash -cne [string]$harnessFileHashes[$relativeHarnessPath]) {
+        $harnessFilesStable = $false
+    }
+}
+$harnessClean = $harnessClean -and $harnessPostflightClean -and $harnessFilesStable
+
 $suiteFailures = @()
 foreach ($s in $suitesList) {
     $eval = Test-SuiteOutcome -SuiteResult $s
@@ -830,7 +864,9 @@ foreach ($s in $suitesList) {
     }
 }
 
-$isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and (Test-Path $repoDstXml) -and $canonicalEvidenceValid -and $suitesList.Count -gt 0 -and $junitParseFailures.Count -eq 0
+$measurementRuntime = if ($gradleCanonicalCounters) { $gradleCanonicalCounters.measurement_runtime } else { $null }
+$runtimeCheck = if ($measurementRuntime) { Test-MeasurementRuntime -Runtime $measurementRuntime -Policy $policy } else { @{ IsValid = $false; Errors = @('Executed workload did not report its measured JVM/compiler runtime identities') } }
+$isCollectionComplete = $gradleSuccess -and (-not $SkipExecution) -and $cleanPostflight -and $harnessClean -and $harnessFilesStable -and (Test-Path $repoDstXml) -and $canonicalEvidenceValid -and $runtimeCheck.IsValid -and $suitesList.Count -gt 0 -and $junitParseFailures.Count -eq 0
 $collectionStatus = if ($isCollectionComplete) { "Complete" } else { "Incomplete" }
 
 $testStatus = if ($SkipExecution) {
@@ -842,9 +878,12 @@ $testStatus = if ($SkipExecution) {
 }
 
 $collectionErrors = @($canonicalEvidenceErrors + $junitParseFailures + $suiteFailures | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+$collectionErrors += @($runtimeCheck.Errors)
 if ($SkipExecution) { $collectionErrors += 'Execution was skipped; pre-existing report data is diagnostic and cannot establish a complete capture' }
 if (-not $gradleSuccess) { $collectionErrors += 'Gradle coverage workload failed' }
 if (-not $cleanPostflight) { $collectionErrors += 'Repository was dirty or HEAD changed after coverage collection' }
+if (-not $harnessClean) { $collectionErrors += 'Harness was dirty or changed during coverage collection' }
+if (-not $harnessFilesStable) { $collectionErrors += 'One or more measured harness files changed during coverage collection' }
 if ($suitesList.Count -eq 0) { $collectionErrors += 'No JUnit test suite results were captured' }
 $collectionErrors = @($collectionErrors | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
 
@@ -884,11 +923,13 @@ $gradleVersion = if ($wrapperProperties -match '(?m)^distributionUrl=.*gradle-([
 $agpVersion = if ($catalogVersions -match '(?m)^agp\s*=\s*"([^"]+)"') { $Matches[1] } else { 'unknown' }
 $kotlinVersion = if ($catalogVersions -match '(?m)^kotlin\s*=\s*"([^"]+)"') { $Matches[1] } else { 'unknown' }
 $toolchainIdentity = [PSCustomObject]@{
-    java = $javaRuntime
+    java = if ($measurementRuntime -and $measurementRuntime.gradle_daemon) { [string]$measurementRuntime.gradle_daemon.java_runtime_version } else { 'unknown' }
     gradle = $gradleVersion
     android_gradle_plugin = $agpVersion
     kotlin = $kotlinVersion
     jacoco = '0.8.15'
+    runtime = $measurementRuntime
+    launcher_java = $javaRuntime
 }
 $measurementDevice = [PSCustomObject]@{ api_level = $deviceApi; abi = $deviceAbi }
 $measurementFingerprint = Get-MeasurementFingerprint -Policy $policy -Toolchain $toolchainIdentity -Device $measurementDevice -HarnessFileDigests ([PSCustomObject]$harnessFileHashes)

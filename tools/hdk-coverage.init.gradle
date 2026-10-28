@@ -1,6 +1,7 @@
 // Scoped and whole-repository JaCoCo coverage for Spec 058.
 // Run: .\gradlew.bat --no-configuration-cache -I tools/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -143,10 +144,9 @@ gradle.projectsEvaluated {
     def deviceTaskForModule = { String modulePath ->
         def module = root.findProject(modulePath)
         if (module == null) throw new GradleException("Required device test module is missing: ${modulePath}")
-        def candidates = modulePath == ':app'
-            ? ['connectedShrunkDebugAndroidTest', 'connectedAndroidTest', 'connectedDebugAndroidTest']
-            : ['connectedAndroidDeviceTest', 'connectedDebugAndroidTest', 'connectedAndroidTest']
-        candidates.collect { module.tasks.findByName(it) }.find { it != null }
+        def configuredName = policy.required_workload.device_test_tasks[modulePath]?.toString()
+        if (configuredName == null) throw new GradleException("No exact device test task is configured for ${modulePath}")
+        module.tasks.findByName(configuredName)
     }
     def requiredDeviceModules = policy.required_workload.required_device_test_modules.collect { it.toString() }
     def optionalDeviceModules = policy.required_workload.optional_device_test_modules.collect { it.toString() }
@@ -197,6 +197,18 @@ gradle.projectsEvaluated {
         task.mustRunAfter(coveragePrepare)
     }
 
+    // Declare hashing closures before any deferred/task-action closures capture them.
+    // Groovy otherwise resolves these later declarations as dynamic Gradle properties
+    // when generated-source evidence is evaluated from hdkCoverageAnalyze.doLast.
+    def sha256Hex = { byte[] bytes ->
+        MessageDigest.getInstance("SHA-256").digest(bytes).encodeHex().toString()
+    }
+
+    def fileSha256 = { File file ->
+        if (!file.exists()) return ""
+        sha256Hex(file.bytes)
+    }
+
     def generatedSqlDelightExcludes = { project ->
         def generatedRoot = project.layout.buildDirectory.dir('generated/sqldelight/code').get().asFile
         if (!generatedRoot.exists()) return []
@@ -216,6 +228,28 @@ gradle.projectsEvaluated {
         patterns.unique()
     }
 
+    def generatedSqlDelightExclusionEvidence = { project ->
+        def generatedRoot = project.layout.buildDirectory.dir('generated/sqldelight/code').get().asFile
+        if (!generatedRoot.exists()) return []
+        def evidence = []
+        generatedRoot.eachFileRecurse { generatedFile ->
+            if (generatedFile.isFile() && generatedFile.name.endsWith('.kt')) {
+                def relativePath = generatedRoot.toPath().relativize(generatedFile.toPath()).toString().replace(File.separator, '/')
+                def segments = relativePath.split('/')
+                if (segments.length >= 4) {
+                    def generatedClassPath = segments.drop(2).join('/')
+                    generatedClassPath = generatedClassPath.substring(0, generatedClassPath.length() - '.kt'.length())
+                    evidence.add([
+                        source_path: "build/generated/sqldelight/code/${relativePath}".toString(),
+                        source_sha256: sha256Hex(generatedFile.bytes),
+                        class_patterns: ["${generatedClassPath}.class".toString(), "${generatedClassPath}\$*.class".toString()].sort()
+                    ])
+                }
+            }
+        }
+        evidence.sort { left, right -> left.source_path <=> right.source_path }
+    }
+
     def coverageClassTrees = { project, classDirectories, includePatterns = null ->
         root.providers.provider {
             def generatedExcludes = generatedSqlDelightExcludes(project)
@@ -229,15 +263,6 @@ gradle.projectsEvaluated {
                 tree
             }
         }
-    }
-
-    def sha256Hex = { byte[] bytes ->
-        MessageDigest.getInstance("SHA-256").digest(bytes).encodeHex().toString()
-    }
-
-    def fileSha256 = { File file ->
-        if (!file.exists()) return ""
-        sha256Hex(file.bytes)
     }
 
     // Analyze JaCoCo execution data against the same filtered class file collection as each report,
@@ -661,6 +686,7 @@ gradle.projectsEvaluated {
                     selected_variant: workload.variant,
                     output_directories: outputPaths,
                     excluded_class_patterns: generatedSqlDelightExcludes(targetProject).sort(),
+                    excluded_class_sources: generatedSqlDelightExclusionEvidence(targetProject),
                     retained_classes: entries,
                     class_inventory_digest: classInventoryDigest(entries)
                 ]
@@ -802,6 +828,67 @@ gradle.projectsEvaluated {
             def repoInst = repositoryCoverage.INSTRUCTION
             def repoBranch = repositoryCoverage.BRANCH
 
+            def daemonJvm = [
+                java_version: System.getProperty('java.specification.version'),
+                java_runtime_version: System.getProperty('java.runtime.version'),
+                java_vendor: System.getProperty('java.vendor'),
+                vm_name: System.getProperty('java.vm.name'),
+                architecture: System.getProperty('os.arch')
+            ]
+            def kotlinExecutionStrategy = gradle.startParameter.projectProperties['kotlin.compiler.execution.strategy']?.toString()
+            if (kotlinExecutionStrategy != 'in-process') {
+                throw new GradleException("Kotlin compiler execution strategy must be measured in-process; found '${kotlinExecutionStrategy ?: 'unknown'}'")
+            }
+            def javaCompilerRuntimes = []
+            def kotlinCompilerRuntimes = []
+            repositoryCompilerTasks.unique { it.path }.sort { it.path }.each { compilerTask ->
+                if (compilerTask instanceof JavaCompile) {
+                    def metadata = compilerTask.javaCompiler.get().metadata
+                    javaCompilerRuntimes.add([
+                        task_path: compilerTask.path,
+                        java_version: metadata.languageVersion.asInt().toString(),
+                        java_runtime_version: metadata.javaRuntimeVersion.toString(),
+                        java_vendor: metadata.vendor.toString(),
+                        source_compatibility: compilerTask.sourceCompatibility,
+                        target_compatibility: compilerTask.targetCompatibility
+                    ])
+                } else if (compilerTask.class.name.toLowerCase(Locale.ROOT).contains('kotlin')) {
+                    def jvmTarget = null
+                    try { jvmTarget = compilerTask.compilerOptions.jvmTarget.orNull?.target } catch (ignored) {}
+                    kotlinCompilerRuntimes.add([
+                        task_path: compilerTask.path,
+                        execution_strategy: kotlinExecutionStrategy,
+                        java_version: daemonJvm.java_version,
+                        java_runtime_version: daemonJvm.java_runtime_version,
+                        java_vendor: daemonJvm.java_vendor,
+                        jvm_target: jvmTarget
+                    ])
+                } else {
+                    throw new GradleException("Cannot identify the runtime used by configured compiler task ${compilerTask.path} (${compilerTask.class.name})")
+                }
+            }
+            def hostTestRuntimes = repositoryTestTasks.unique { it.path }.sort { it.path }.collect { testTask ->
+                def launcher = testTask.javaLauncher.orNull
+                def metadata = launcher == null ? null : launcher.metadata
+                [
+                    task_path: testTask.path,
+                    identity_source: metadata == null ? 'GradleDaemon' : 'JavaLauncher',
+                    java_version: metadata == null ? daemonJvm.java_version : metadata.languageVersion.asInt().toString(),
+                    java_runtime_version: metadata == null ? daemonJvm.java_runtime_version : metadata.javaRuntimeVersion.toString(),
+                    java_vendor: metadata == null ? daemonJvm.java_vendor : metadata.vendor.toString()
+                ]
+            }
+            def measurementRuntime = [
+                schema_version: '1',
+                gradle_daemon: daemonJvm,
+                kotlin_execution_strategy: kotlinExecutionStrategy,
+                java_compilers: javaCompilerRuntimes,
+                kotlin_compilers: kotlinCompilerRuntimes,
+                host_test_jvms: hostTestRuntimes,
+                jacoco_analyzer: [engine: 'jacoco-0.8.15', java_version: daemonJvm.java_version,
+                    java_runtime_version: daemonJvm.java_runtime_version, java_vendor: daemonJvm.java_vendor]
+            ]
+
             def inventoryFile = root.layout.buildDirectory.file('reports/hdk-coverage/production-inventory.json').get().asFile
             inventoryFile.parentFile.mkdirs()
             def inventoryDocument = [
@@ -825,16 +912,25 @@ gradle.projectsEvaluated {
                     report_digest: repoRepDigest,
                     execution_files: repositoryAnalysis.execution_files
                 ],
+                measurement_runtime: measurementRuntime,
                 workload: [
                     required_device_tasks: requiredDeviceTaskEvidence,
                     optional_device_tasks: optionalDeviceTaskEvidence,
                     host_test_tasks: repositoryTestTasks.collect { testTask ->
                         def state = testTask.state
                         def noSource = state != null && state.skipped && state.skipMessage == 'NO-SOURCE'
+                        def compiledTestClassCount = testTask.testClassesDirs.files.sum { classDirectory ->
+                            if (!classDirectory.isDirectory()) return 0
+                            def count = 0
+                            classDirectory.eachFileRecurse { compiledFile -> if (compiledFile.isFile() && compiledFile.name.endsWith('.class')) count++ }
+                            count
+                        } ?: 0
                         [task_path: testTask.path, disposition: noSource ? 'NotApplicable' : 'Applicable',
                             executed: state != null && state.executed && !state.skipped && state.failure == null,
                             skipped: state != null && state.skipped, skip_message: state != null ? state.skipMessage : null,
                             failed: state != null && state.failure != null,
+                            test_scope_proof: noSource ? [task_path: testTask.path, gradle_no_source: true,
+                                compiled_test_class_count: compiledTestClassCount] : null,
                             junit_xml_directory: relativeJUnitXmlDirectory(testTask, false)]
                     }
                 ],

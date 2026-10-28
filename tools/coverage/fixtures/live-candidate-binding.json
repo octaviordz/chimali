@@ -10,6 +10,15 @@
     { "id": "LIVE_BIND_006_TESTED_TREE_CHANGED", "mutation": "tree", "event": "pull_request", "target_ref": "", "expected_valid": false },
     { "id": "LIVE_BIND_007_VALID_MERGE_TARGET", "mutation": "none", "event": "merge_group", "target_ref": "refs/heads/main", "expected_valid": true },
     { "id": "LIVE_BIND_008_MERGE_TARGET_ADVANCED", "mutation": "target-advanced", "event": "merge_group", "target_ref": "refs/heads/main", "expected_valid": false },
-    { "id": "LIVE_BIND_009_MERGE_TARGET_GUESS_REJECTED", "mutation": "none", "event": "merge_group", "target_ref": "main", "expected_valid": false }
+    { "id": "LIVE_BIND_009_MERGE_TARGET_GUESS_REJECTED", "mutation": "none", "event": "merge_group", "target_ref": "main", "expected_valid": false },
+    { "id": "LIVE_BIND_010_PR_HEAD_BEHIND_BASE", "mutation": "behind", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_011_PR_HEAD_DIVERGED", "mutation": "diverged", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_012_MERGE_GROUP_OMITS_BASE_PARENT", "mutation": "merge-base-parent", "event": "merge_group", "target_ref": "refs/heads/main", "expected_valid": false },
+    { "id": "LIVE_BIND_013_CHECK_DESTINATION_MISMATCH", "mutation": "check-destination", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_014_METADATA_ONLY_HEAD_CHANGE", "mutation": "metadata-head", "event": "pull_request", "target_ref": "", "expected_valid": true },
+    { "id": "LIVE_BIND_015_PRODUCT_TREE_CHANGED_WITH_HEAD", "mutation": "metadata-tree", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_016_VALID_TARGET_PUSH", "mutation": "none", "event": "push", "target_ref": "refs/heads/main", "expected_valid": true },
+    { "id": "LIVE_BIND_017_TARGET_PUSH_REF_ADVANCED", "mutation": "target-advanced", "event": "push", "target_ref": "refs/heads/main", "expected_valid": false },
+    { "id": "LIVE_BIND_018_TARGET_PUSH_STALE_BASE", "mutation": "behind", "event": "push", "target_ref": "refs/heads/main", "expected_valid": false }
   ]
 }

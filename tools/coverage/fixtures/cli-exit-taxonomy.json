@@ -1,0 +1,10 @@
+{
+  "description": "Exact exit-code assertions against production coverage PowerShell entry points.",
+  "cases": [
+    { "id": "CLI_EXIT_001_VERIFY_INVALID_RELATIVE_BUNDLE", "description": "verify.ps1 returns 3 for an invalid relative RunBundle path." },
+    { "id": "CLI_EXIT_002_VERIFY_MISSING_BUNDLE", "description": "verify.ps1 returns 2 for an absent absolute RunBundle prerequisite." },
+    { "id": "CLI_EXIT_003_PUBLISH_MISSING_BUNDLE", "description": "publish.ps1 returns 2 for an absent absolute RunBundle prerequisite." },
+    { "id": "CLI_EXIT_004_REPORT_MISSING_MANIFEST", "description": "report.ps1 returns 2 when the bundle manifest is absent." },
+    { "id": "CLI_EXIT_005_CAPTURE_INVALID_REPOSITORY_PATH", "description": "capture.ps1 returns 3 for a relative RepositoryRoot argument." }
+  ]
+}

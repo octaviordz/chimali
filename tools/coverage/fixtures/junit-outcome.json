@@ -1,0 +1,60 @@
+{
+  "description": "Strict testcase-node JUnit outcome parsing and report-specific suite identity.",
+  "cases": [
+    {
+      "id": "JUNIT_OUTCOME_001_HIDDEN_FAILURE_REJECTED",
+      "description": "A failure node cannot be hidden by a suite declaring zero failures.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-same.xml",
+      "xml": "<testsuite name=\"same\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"fails\"><failure message=\"bad\"/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "declared failures=0"
+    },
+    {
+      "id": "JUNIT_OUTCOME_002_HIDDEN_ERROR_REJECTED",
+      "description": "An error node cannot be hidden by a suite declaring zero errors.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-error.xml",
+      "xml": "<testsuite name=\"same\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"errors\"><error message=\"bad\"/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "declared errors=0"
+    },
+    {
+      "id": "JUNIT_OUTCOME_003_HIDDEN_SKIP_REJECTED",
+      "description": "A skipped node cannot be hidden by a suite declaring zero skips.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-skip.xml",
+      "xml": "<testsuite name=\"same\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"skipped\"><skipped/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "declared skipped=0"
+    },
+    {
+      "id": "JUNIT_OUTCOME_004_INFLATED_COUNT_REJECTED",
+      "description": "Declared test totals must equal actual testcase nodes.",
+      "report_identity": "feature/fido2/device/TEST-count.xml",
+      "xml": "<testsuite name=\"parameterized\" tests=\"3\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case[0]\"/><testcase name=\"case[1]\"/></testsuite>",
+      "expected_valid": false,
+      "expected_error": "declared tests=3"
+    },
+    {
+      "id": "JUNIT_OUTCOME_005_CONTRADICTORY_PARENT_TOTAL_REJECTED",
+      "description": "Parent testsuites totals must reconcile with child testcase outcomes.",
+      "report_identity": "feature/fido2/device/TEST-parent.xml",
+      "xml": "<testsuites tests=\"2\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"suite\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"one\"/></testsuite></testsuites>",
+      "expected_valid": false,
+      "expected_error": "testsuites declared tests=2"
+    },
+    {
+      "id": "JUNIT_OUTCOME_006_DISTINCT_TASK_DEVICE_IDENTITIES",
+      "description": "Equal suite names from distinct task/device report paths retain separate identities.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-same.xml",
+      "xml": "<testsuite name=\"same\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case[0]\"/></testsuite>",
+      "related_identity": "feature/fido2/device/TEST-same.xml",
+      "related_xml": "<testsuite name=\"same\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case[1]\"/></testsuite>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_007_VALID_PARAMETERIZED_CASES",
+      "description": "Valid parameterized testcase nodes are counted individually.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-parameterized.xml",
+      "xml": "<testsuite name=\"parameterized\" tests=\"2\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case[0]\"/><testcase name=\"case[1]\"/></testsuite>",
+      "expected_valid": true
+    }
+  ]
+}

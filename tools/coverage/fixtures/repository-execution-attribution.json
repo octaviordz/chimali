@@ -1,0 +1,40 @@
+{
+  "description": "Repository JaCoCo inputs must match the exact retained :repository execution attribution.",
+  "cases": [
+    {
+      "id": "REPO_EXEC_001_EXACT_SOURCE_BOUND",
+      "description": "Repository source path, digest, and execution kind bind to one retained artifact.",
+      "repository_execution_files": [
+        { "path": "D:/repo/build/jacoco/test.exec", "repository_path": "build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ],
+      "manifest_execution_files": [
+        { "scope": ":repository", "kind": "host", "source_path": "build/jacoco/test.exec", "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ],
+      "expected_valid": true
+    },
+    {
+      "id": "REPO_EXEC_002_DIGEST_SUBSTITUTION_REJECTED",
+      "description": "A coherent substituted source digest is rejected against retained run attribution.",
+      "repository_execution_files": [
+        { "path": "D:/repo/build/jacoco/test.exec", "repository_path": "build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ],
+      "manifest_execution_files": [
+        { "scope": ":repository", "kind": "host", "source_path": "build/jacoco/test.exec", "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+      ],
+      "expected_valid": false,
+      "expected_error": "not bound"
+    },
+    {
+      "id": "REPO_EXEC_003_EXTRA_SCOPE_IGNORED_REJECTED",
+      "description": "A module-scoped file cannot substitute for the required repository input.",
+      "repository_execution_files": [
+        { "path": "D:/repo/build/jacoco/test.exec", "repository_path": "build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ],
+      "manifest_execution_files": [
+        { "scope": ":core:data", "kind": "host", "source_path": "build/jacoco/test.exec", "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ],
+      "expected_valid": false,
+      "expected_error": "attribution count"
+    }
+  ]
+}

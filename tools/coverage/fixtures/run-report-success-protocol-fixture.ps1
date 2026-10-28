@@ -49,6 +49,7 @@ try {
     $head = [string]$manifest.git.source_commit
     $base = [string]$manifest.git.target_commit
     $tree = [string]$manifest.git.source_tree
+    $liveHead = 'd' * 40
     $workflowSha = [string]$manifest.trusted_reporter_binding.workflow_commit
     $reporterSha = [string]$manifest.trusted_reporter_binding.reporter_sha
     $repositoryId = [string]$manifest.trusted_reporter_binding.repository_id
@@ -84,10 +85,16 @@ exit /b %ERRORLEVEL%
     $live = [PSCustomObject]@{
         pull_request = [PSCustomObject]@{
             number = 17; state = 'open'
-            head = [PSCustomObject]@{ sha = $head; repo = [PSCustomObject]@{ full_name = 'octaviordz/chimali' } }
+            head = [PSCustomObject]@{ sha = $liveHead; repo = [PSCustomObject]@{ full_name = 'octaviordz/chimali' } }
             base = [PSCustomObject]@{ sha = $base; repo = [PSCustomObject]@{ full_name = 'octaviordz/chimali' } }
         }
         head_commit = [PSCustomObject]@{ sha = $head; commit = [PSCustomObject]@{ tree = [PSCustomObject]@{ sha = $tree } } }
+        pull_request_head_commit = [PSCustomObject]@{ sha = $liveHead; commit = [PSCustomObject]@{ tree = [PSCustomObject]@{ sha = $tree } } }
+        comparison = [PSCustomObject]@{
+            status = 'ahead'; ahead_by = 2; behind_by = 0
+            base_commit = [PSCustomObject]@{ sha = $base }
+            merge_base_commit = [PSCustomObject]@{ sha = $base }
+        }
     }
     $live | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $livePath -Encoding utf8
 
@@ -153,7 +160,11 @@ try {
     if ($publication.status -cne 'Published' -or $publication.publication_purpose -cne 'Candidate' -or
         $publication.content_readback_verified -ne $true -or $publication.bundle_digest -ne (Get-CoverageBundleDigest -BundlePath $bundle) -or
         $reporter.status -cne 'Published' -or $reporter.conclusion -cne 'success' -or $reporter.check_id -ne $checkId -or
-        $reporter.run_id -cne $runId -or $payload.conclusion -cne 'success' -or $payload.head_sha -cne $head -or
+        $reporter.pull_request_head_sha -cne $liveHead -or $reporter.accepted_base_sha -cne $base -or
+        $reporter.tested_candidate_sha -cne $head -or $reporter.tested_candidate_tree -cne $tree -or
+        $reporter.check_destination_sha -cne $liveHead -or -not $reporter.live_candidate_binding.valid -or
+        $reporter.live_candidate_binding.pull_request_head_sha -cne $liveHead -or
+        $reporter.run_id -cne $runId -or $payload.conclusion -cne 'success' -or $payload.head_sha -cne $liveHead -or
         $payload.output.summary -match 'changed after capture') {
         throw 'Published archive/check did not bind the passing success to the verified candidate run and head'
     }

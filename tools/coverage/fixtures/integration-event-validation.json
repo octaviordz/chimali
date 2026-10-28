@@ -7,6 +7,10 @@
     { "id": "INTEGRATION_EVENT_WRONG_HEAD", "mutation": "wrong-head", "expected_valid": false },
     { "id": "INTEGRATION_EVENT_STALE_BASE_CONTEXT", "mutation": "stale-base-context", "expected_valid": false },
     { "id": "INTEGRATION_EVENT_MISSING_MERGE_SHA", "mutation": "missing-merge-sha", "expected_valid": false },
-    { "id": "INTEGRATION_EVENT_MISSING_TREE", "mutation": "missing-tree", "expected_valid": false }
+    { "id": "INTEGRATION_EVENT_MISSING_TREE", "mutation": "missing-tree", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_VALID_TARGET_PUSH", "mutation": "target-push", "expected_valid": true },
+    { "id": "INTEGRATION_EVENT_MOVED_TARGET_PUSH_REF", "mutation": "target-push-ref-moved", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_STALE_TARGET_PUSH_BASE", "mutation": "target-push-stale-base", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_TARGET_PUSH_INVALID_TREE", "mutation": "target-push-invalid-tree", "expected_valid": false }
   ]
 }

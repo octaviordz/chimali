@@ -10,6 +10,7 @@ $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-integration-event-
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 try {
     $head='a'*40; $base='b'*40; $merge='c'*40; $tree='d'*40
+    $isTargetPush = [string]$caseData[0].mutation -like 'target-push*'
     $event = [ordered]@{ repository='octaviordz/chimali'; head_sha=$head; base_sha=$base; pull_request_number=17 }
     $pr = [ordered]@{
         state='closed'; merged=$true; merged_at='2026-10-27T10:00:00Z'; merge_commit_sha=$merge
@@ -24,14 +25,28 @@ try {
         'missing-merge-sha' { $pr.merge_commit_sha=$null }
         'missing-tree' { $commit.commit.tree.sha=$null }
     }
+    $liveEvidence = @{ pull_request=$pr; integration_commit=$commit }
+    if ($isTargetPush) {
+        $event.event_type='target_push'; $event.target_ref='refs/heads/main'
+        $liveEvidence = @{
+            target_ref = [ordered]@{ object=[ordered]@{ sha=$head } }
+            integration_commit = [ordered]@{ sha=$head; commit=[ordered]@{ tree=[ordered]@{ sha=$tree } } }
+            comparison = [ordered]@{ status='ahead'; behind_by=0; base_commit=[ordered]@{sha=$base}; merge_base_commit=[ordered]@{sha=$base} }
+        }
+        switch ($caseData[0].mutation) {
+            'target-push-ref-moved' { $liveEvidence.target_ref.object.sha='e'*40 }
+            'target-push-stale-base' { $liveEvidence.comparison.merge_base_commit.sha='e'*40 }
+            'target-push-invalid-tree' { $liveEvidence.integration_commit.commit.tree.sha=$null }
+        }
+    }
     $eventPath=Join-Path $tmp 'event.json'; $livePath=Join-Path $tmp 'api.json'
     $event | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $eventPath -Encoding utf8
-    @{ pull_request=$pr; integration_commit=$commit } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $livePath -Encoding utf8
-    $output=@(& pwsh -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Repository 'octaviordz/chimali' -HeadSha $head -BaseSha $base -IntegrationEventPath $eventPath -ServerUrl 'https://github.com' -LiveEvidencePath $livePath 2>&1)
+    $liveEvidence | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $livePath -Encoding utf8
+    $output=@(& pwsh -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Repository 'octaviordz/chimali' -HeadSha $head -BaseSha $base -IntegrationEventPath $eventPath -ExpectedTargetRef 'refs/heads/main' -ServerUrl 'https://github.com' -LiveEvidencePath $livePath 2>&1)
     $exit=$LASTEXITCODE
     $expected=if($caseData[0].expected_valid){0}else{1}
     if($exit -ne $expected){throw "$Case expected exit $expected, got $exit`: $($output -join ' ')"}
-    if($expected -eq 0){$result=($output -join "`n")|ConvertFrom-Json;if($result.integration_commit -cne $merge -or $result.integration_tree -cne $tree){throw "$Case did not return API-provided commit/tree"}}
+    if($expected -eq 0){$result=($output -join "`n")|ConvertFrom-Json;$expectedCommit=if($isTargetPush){$head}else{$merge};if($result.integration_commit -cne $expectedCommit -or $result.integration_tree -cne $tree){throw "$Case did not return API-provided commit/tree"}}
     Write-Output "$Case passed (exit $exit)."
 } finally {
     $resolved=[System.IO.Path]::GetFullPath($tmp);$tempRoot=[System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')

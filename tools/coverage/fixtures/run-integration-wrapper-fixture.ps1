@@ -94,6 +94,7 @@ exit [int]$env:COVERAGE_WRAPPER_TEST_VERIFY_EXIT
 '@
         } else {
             $source = Join-Path $RepositoryRoot $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
             Copy-Item -LiteralPath $source -Destination $destination -Force
         }
     }

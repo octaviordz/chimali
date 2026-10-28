@@ -51,6 +51,11 @@
       "id": "PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE",
       "description": "A passing candidate with an integration base different from its measured target cannot write a publication receipt or advance the accepted index",
       "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_011_TARGET_PUSH_PROMOTION",
+      "description": "The trusted publisher promotes an already integrated target-push measurement without requiring an open pull request",
+      "expected_valid": true
     }
   ]
 }

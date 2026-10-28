@@ -28,6 +28,19 @@
       "expected_valid": false
     },
     {
+      "id": "JUNIT_WORKLOAD_005_ZERO_REQUIRED_DEVICE_REJECTED",
+      "description": "An executed required device task cannot pass with zero testcase executions",
+      "mode": "zero-required-device",
+      "expected_error": "zero testcase executions",
+      "expected_valid": false
+    },
+    {
+      "id": "JUNIT_WORKLOAD_006_OPTIONAL_EMPTY_ALLOWED",
+      "description": "A zero-test device result is accepted only when its task is explicitly optional",
+      "mode": "optional-empty",
+      "expected_valid": true
+    },
+    {
       "id": "JUNIT_BIND_001_TASK_ROOTS_MATCH",
       "description": "Retained JUnit XML artifacts bind to each executed workload task output",
       "binding_mode": "valid",

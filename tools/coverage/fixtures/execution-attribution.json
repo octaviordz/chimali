@@ -47,6 +47,75 @@
       "compatibility_receipt": { "execution_files": null },
       "manifest_execution_files": [],
       "expected_valid": true
+    },
+    {
+      "id": "EXEC_ATTR_006_RUN_DEVICE_TASK_BINDING",
+      "description": "A module execution input binds to the current run, measured device, scope, and exact executed task.",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "expected_run_id": "run-123",
+      "expected_device_serial": "device-35",
+      "workload": {
+        "host_test_tasks": [{ "task_path": ":core:data:testDebugUnitTest", "executed": true }],
+        "required_device_tasks": [{ "module_path": ":core:data", "task_path": ":core:data:connectedAndroidDeviceTest", "executed": true }],
+        "optional_device_tasks": []
+      },
+      "compatibility_receipt": { "execution_files": [{
+        "repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kind": "host", "selected_variant": "release", "run_id": "run-123", "device_serial": "device-35", "task_paths": [":core:data:testDebugUnitTest"]
+      }] },
+      "manifest_execution_files": [{
+        "scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-123",
+        "device_serial": "device-35", "task_paths": [":core:data:testDebugUnitTest"]
+      }],
+      "expected_valid": true
+    },
+    {
+      "id": "EXEC_ATTR_007_WRONG_TASK_BINDING_REJECTED",
+      "description": "A report cannot reassign an input to another task in the same module.",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "expected_run_id": "run-123",
+      "expected_device_serial": "device-35",
+      "workload": {
+        "host_test_tasks": [{ "task_path": ":core:data:testDebugUnitTest", "executed": true }],
+        "required_device_tasks": [], "optional_device_tasks": []
+      },
+      "compatibility_receipt": { "execution_files": [{
+        "repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kind": "host", "selected_variant": "release", "run_id": "run-123", "device_serial": "device-35", "task_paths": [":core:data:otherTask"]
+      }] },
+      "manifest_execution_files": [{
+        "scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "run-123",
+        "device_serial": "device-35", "task_paths": [":core:data:otherTask"]
+      }],
+      "expected_valid": false,
+      "expected_error": "task attribution"
+    },
+    {
+      "id": "EXEC_ATTR_008_WRONG_RUN_DEVICE_REJECTED",
+      "description": "An execution receipt cannot be reused from another run or device.",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "expected_run_id": "run-123",
+      "expected_device_serial": "device-35",
+      "workload": {
+        "host_test_tasks": [{ "task_path": ":core:data:testDebugUnitTest", "executed": true }],
+        "required_device_tasks": [], "optional_device_tasks": []
+      },
+      "compatibility_receipt": { "execution_files": [{
+        "repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kind": "host", "selected_variant": "release", "run_id": "old-run", "device_serial": "other-device", "task_paths": [":core:data:testDebugUnitTest"]
+      }] },
+      "manifest_execution_files": [{
+        "scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "run_id": "old-run",
+        "device_serial": "other-device", "task_paths": [":core:data:testDebugUnitTest"]
+      }],
+      "expected_valid": false,
+      "expected_error": "not bound to this run"
     }
   ]
 }

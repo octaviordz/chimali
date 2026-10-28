@@ -1,0 +1,11 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Windows canonical path-boundary rules for sealed bundles, repository output, and production evidence entries",
+  "cases": [
+    { "id": "PATH_CONTAIN_001_CASE_INSENSITIVE_DESCENDANT", "description": "Treat differently cased Windows descendants as contained", "path_case": "case-insensitive-descendant", "expected_within": true },
+    { "id": "PATH_CONTAIN_002_EXACT_PARENT", "description": "Treat the exact sealed bundle directory as contained", "path_case": "exact-parent", "expected_within": true },
+    { "id": "PATH_CONTAIN_003_SIBLING_DIRECTORY", "description": "Allow a sibling directory whose name shares the bundle prefix", "path_case": "sibling-directory", "expected_within": false },
+    { "id": "PATH_CONTAIN_004_NORMALIZED_TRAVERSAL", "description": "Normalize parent segments before determining containment", "path_case": "normalized-traversal", "expected_within": true },
+    { "id": "PATH_CONTAIN_005_PRODUCTION_ENTRIES_REFUSE_MUTATION", "description": "Capture, verification, and publication entry points reject contained destinations before mutating source or sealed bundle bytes", "production_entry_fixture": true }
+  ]
+}

@@ -37,6 +37,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$BaseSha,
 
+    [string]$PullRequestHeadSha,
+    [string]$TestedCandidateSha,
+    [string]$TestedCandidateTreeSha,
+    [string]$CheckDestinationSha,
+
     [Parameter(Mandatory = $false)]
     [string]$AppId,
 
@@ -67,7 +72,7 @@ param(
     [string]$ChangedPathsFile,
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet('pull_request', 'merge_group')]
+    [ValidateSet('pull_request', 'merge_group', 'push')]
     [string]$LiveEventName,
 
     [Parameter(Mandatory = $false)]
@@ -107,12 +112,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+function Write-CoverageError {
+    param([Parameter(Mandatory = $true)][object]$Message)
+    [Console]::Error.WriteLine([string]$Message)
+}
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
 $ApiRoot = if ($ServerUrl -eq 'https://github.com') { 'https://api.github.com' } else { "$($ServerUrl.TrimEnd('/'))/api/v3" }
 
 if (-not (Test-Path $CommonPath)) {
-    Write-Error "Common utilities not found at $CommonPath"
+    Write-CoverageError "Common utilities not found at $CommonPath"
     exit 3
 }
 
@@ -123,11 +132,22 @@ Write-Host "Evaluating coverage report for check-run creation on $HeadSha (Base:
 # 1. Read and validate manifest
 $manifestPath = Join-Path $RunBundle "manifest.json"
 if (-not (Test-Path $manifestPath)) {
-    Write-Error "manifest.json not found in RunBundle: $RunBundle"
+    Write-CoverageError "manifest.json not found in RunBundle: $RunBundle"
     exit 2
 }
 
 $manifest = Read-SafeJson -Path $manifestPath
+$PullRequestHeadSha = if ($PullRequestHeadSha) { $PullRequestHeadSha } elseif ($LiveEventName -eq 'pull_request') { $HeadSha } else { '' }
+$TestedCandidateSha = if ($TestedCandidateSha) { $TestedCandidateSha } else { [string]$manifest.git.source_commit }
+$TestedCandidateTreeSha = if ($TestedCandidateTreeSha) { $TestedCandidateTreeSha } else { [string]$manifest.git.source_tree }
+$CheckDestinationSha = if ($CheckDestinationSha) { $CheckDestinationSha } else { $HeadSha }
+if ($CheckDestinationSha -cne $HeadSha -or
+    ($PullRequestHeadSha -and $PullRequestHeadSha -cne $HeadSha) -or
+    $TestedCandidateSha -cne [string]$manifest.git.source_commit -or
+    $TestedCandidateTreeSha -cne [string]$manifest.git.source_tree) {
+    [Console]::Error.WriteLine('PR head, tested candidate commit/tree, and check destination identities are inconsistent.')
+    exit 1
+}
 $verifiedManifestDigest = Get-FileSha256 -Path $manifestPath
 $verifiedBundleDigest = Get-CoverageBundleDigest -BundlePath $RunBundle
 $policyPath = Join-Path $ScriptDir "policy.json"
@@ -135,9 +155,9 @@ $verifyScript = Join-Path $ScriptDir "verify.ps1"
 $trustedHarnessRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))
 
 # Validate candidate/target bindings using the canonical nested schema.
-$identity = Test-CandidateManifestIdentity -Manifest $manifest -ExpectedSourceCommit $HeadSha -ExpectedTargetCommit $BaseSha
+$identity = Test-CandidateManifestIdentity -Manifest $manifest -ExpectedSourceCommit $TestedCandidateSha -ExpectedTargetCommit $BaseSha
 if (-not $identity.IsValid) {
-    Write-Error "RunBundle identity validation failed: $($identity.Errors -join '; ')"
+    Write-CoverageError "RunBundle identity validation failed: $($identity.Errors -join '; ')"
     exit 1
 }
 # 2. Execute verification using trusted verify.ps1
@@ -169,8 +189,10 @@ $verifyCode = $LASTEXITCODE
 $decision = if (Test-Path $decisionJsonPath) { Read-SafeJson -Path $decisionJsonPath } else { $null }
 
 if ($PromoteIntegration -and $verifyCode -eq 0 -and $decision -and $decision.overall_passed -and
-    ($PullRequestNumber -lt 1 -or -not $IntegrationEventPath -or -not (Test-Path -LiteralPath $IntegrationEventPath -PathType Leaf))) {
-    Write-Error 'Promotion requires a pull request number and integration-event request context; the trusted publisher resolves merged commit/tree metadata from the repository API.'
+    (($LiveEventName -eq 'pull_request' -and $PullRequestNumber -lt 1) -or
+     ($LiveEventName -notin @('pull_request', 'push')) -or
+     -not $IntegrationEventPath -or -not (Test-Path -LiteralPath $IntegrationEventPath -PathType Leaf))) {
+    Write-CoverageError 'Promotion requires a validated merged-PR or target-push integration event; the trusted publisher resolves integrated commit/tree metadata from the repository API.'
     exit 3
 }
 
@@ -191,7 +213,8 @@ function Test-LiveCandidateNow {
         '-Repository', $Repository,
         '-HeadSha', $HeadSha,
         '-BaseSha', $BaseSha,
-        '-TreeSha', [string]$manifest.git.source_tree,
+        '-TreeSha', $TestedCandidateTreeSha,
+        '-CheckDestinationSha', $CheckDestinationSha,
         '-EventName', $LiveEventName,
         '-ServerUrl', $ServerUrl
     )
@@ -201,6 +224,17 @@ function Test-LiveCandidateNow {
     if ($LiveEvidencePath) { $liveArgs += @('-LiveEvidencePath', $LiveEvidencePath) }
     $liveOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $liveValidator @liveArgs 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "Live candidate revalidation failed $Phase`: $($liveOutput -join ' ')" }
+    $liveIdentity = ($liveOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    if (-not $liveIdentity.valid -or $liveIdentity.accepted_base_sha -cne $BaseSha -or
+        $liveIdentity.tested_candidate_sha -cne $TestedCandidateSha -or
+        $liveIdentity.tested_candidate_tree -cne $TestedCandidateTreeSha -or
+        $liveIdentity.check_destination_sha -cne $CheckDestinationSha -or
+        ($PullRequestHeadSha -and $liveIdentity.check_destination_sha -cne $liveIdentity.pull_request_head_sha)) {
+        throw "Live candidate validator returned an identity different from the reviewed report context $Phase"
+    }
+    if ($PullRequestHeadSha) { $script:PullRequestHeadSha = [string]$liveIdentity.pull_request_head_sha }
+    $script:CheckDestinationSha = [string]$liveIdentity.check_destination_sha
+    $script:LiveCandidateBinding = $liveIdentity
 }
 
 # Recheck after the independent assessment and immediately before minting an
@@ -292,8 +326,14 @@ if ($DryRun -or [string]::IsNullOrWhiteSpace($AppId) -or [string]::IsNullOrWhite
         run_id = [string]$manifest.run_id
         app_id = if ($AppId) { $AppId } else { "unconfigured" }
         repository = $Repository
-        head_sha = $HeadSha
+        head_sha = $CheckDestinationSha
         base_sha = $BaseSha
+        pull_request_head_sha = $PullRequestHeadSha
+        accepted_base_sha = $BaseSha
+        tested_candidate_sha = $TestedCandidateSha
+        tested_candidate_tree = $TestedCandidateTreeSha
+        check_destination_sha = $CheckDestinationSha
+        live_candidate_binding = $null
         conclusion = "unverified"
         status = if ($DryRun) { "DryRun" } else { "MissingCredentials" }
         evaluated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -327,7 +367,7 @@ while ($attempt -lt $maxRetries) {
     } catch {
         Write-Warning "Attempt $attempt to obtain installation token failed: $($_.Exception.Message)"
         if ($attempt -ge $maxRetries) {
-            Write-Error "Failed to obtain GitHub App installation token after $maxRetries attempts"
+            Write-CoverageError "Failed to obtain GitHub App installation token after $maxRetries attempts"
             exit 1
         }
         Start-Sleep -Seconds 2
@@ -348,6 +388,7 @@ if ($PromoteIntegration -and $checkConclusion -eq "success") {
         "-ExpectedBaseSha", $BaseSha,
         "-PullRequestNumber", [string]$PullRequestNumber
     )
+    if ($IntegrationTargetRef) { $publishArgs += @('-IntegrationTargetRef', $IntegrationTargetRef) }
     if ($ComparisonBundle) { $publishArgs += @('-ComparisonBundle', $ComparisonBundle) }
     if ($AcceptedBaselineIndexPath) { $publishArgs += @('-AcceptedBaselineIndexPath', $AcceptedBaselineIndexPath) }
     if ($ChangedPathsFile) { $publishArgs += @('-ChangedPathsFile', $ChangedPathsFile) }
@@ -378,13 +419,37 @@ if ($checkConclusion -eq "success") {
     }
 }
 
+$targetRecaptureResult = $null
+if ($LiveEventName -eq 'push') {
+    try {
+        if ($IntegrationTargetRef -notmatch '^refs/heads/[A-Za-z0-9._/-]+$' -or [string]::IsNullOrWhiteSpace($ActionsToken)) {
+            throw 'Target-push recapture requires the configured target ref and Actions dispatch token'
+        }
+        $recaptureScript = Join-Path $ScriptDir 'request-target-recaptures.ps1'
+        if (-not (Test-Path -LiteralPath $recaptureScript -PathType Leaf)) { throw 'Trusted target-push invalidation/recapture handler is missing' }
+        $recaptureArgs = @('-Repository', $Repository, '-TargetRef', $IntegrationTargetRef,
+            '-PreviousTargetSha', $BaseSha, '-CurrentTargetSha', $HeadSha,
+            '-CoverageAppId', $ExpectedCoverageAppId, '-AppToken', $installToken,
+            '-ActionsToken', $ActionsToken, '-ServerUrl', $ServerUrl)
+        if ($PromoteIntegration -and $checkConclusion -eq 'success' -and $publishCode -eq 0) { $recaptureArgs += '-RequestCaptures' }
+        $recaptureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $recaptureScript `
+            @recaptureArgs 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "Target-push invalidation/recapture failed: $($recaptureOutput -join ' ')" }
+        $targetRecaptureResult = ($recaptureOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        $checkConclusion = 'failure'
+        if ($decision) { $decision.unmet_reasons += [string]$_; $decision.overall_passed = $false; $decision.decisions.integration = 'Failed'; $decision | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $decisionJsonPath -Encoding utf8 }
+        Write-Warning "Coverage success is blocked because target-push PR invalidation/recapture could not be completed: $_"
+    }
+}
+
 # Create Check Run via GitHub API
 if ($checkConclusion -eq 'success') {
     try {
         $currentManifestDigest = Get-FileSha256 -Path $manifestPath
         $currentBundleDigest = Get-CoverageBundleDigest -BundlePath $RunBundle
         $currentManifest = Read-SafeJson -Path $manifestPath
-        $currentIdentity = Test-CandidateManifestIdentity -Manifest $currentManifest -ExpectedSourceCommit $HeadSha -ExpectedTargetCommit $BaseSha
+        $currentIdentity = Test-CandidateManifestIdentity -Manifest $currentManifest -ExpectedSourceCommit $TestedCandidateSha -ExpectedTargetCommit $BaseSha
         $currentReporterBinding = Test-TrustedReporterBinding -Manifest $currentManifest `
             -WorkflowCommit $ExpectedReporterWorkflowSha `
             -ReporterSha $ExpectedReporterSha `
@@ -428,18 +493,18 @@ $summaryText = if ($summaryReasons.Count -gt 0) { $summaryReasons -join "`n" } e
 
 $checkPayload = @{
     name = "coverage-integration"
-    head_sha = $HeadSha
+    head_sha = $CheckDestinationSha
     status = "completed"
     conclusion = $checkConclusion
     completed_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     output = @{
         title = "Coverage Integration Gate: $checkConclusion"
         summary = $summaryText
-        text = "Run ID: $($manifest.run_id)`nTarget Base: $BaseSha`nHead SHA: $HeadSha"
+        text = "Run ID: $($manifest.run_id)`nAccepted Base SHA: $BaseSha`nPR Head SHA: $(if ($PullRequestHeadSha) { $PullRequestHeadSha } else { 'N/A (merge group)' })`nTested Candidate SHA: $TestedCandidateSha`nTested Product Tree: $TestedCandidateTreeSha`nCheck Destination SHA: $CheckDestinationSha"
     }
 } | ConvertTo-Json -Depth 5
 
-Write-Host "Creating/updating 'coverage-integration' check run on $Repository ($HeadSha) with conclusion '$checkConclusion'..." -ForegroundColor Cyan
+Write-Host "Creating/updating 'coverage-integration' check run on $Repository ($CheckDestinationSha) with conclusion '$checkConclusion'..." -ForegroundColor Cyan
 
 $createdCheck = $null
 $attempt = 0
@@ -451,7 +516,7 @@ while ($attempt -lt $maxRetries) {
     } catch {
         Write-Warning "Attempt $attempt to create check-run failed: $($_.Exception.Message)"
         if ($attempt -ge $maxRetries) {
-            Write-Error "Failed to create check run via GitHub API after $maxRetries attempts"
+            Write-CoverageError "Failed to create check run via GitHub API after $maxRetries attempts"
             exit 1
         }
         Start-Sleep -Seconds 2
@@ -467,14 +532,21 @@ $reporterReceipt = [PSCustomObject]@{
     artifact_id = $ArtifactId
     artifact_digest = $ArtifactDigest
     repository = $Repository
-    head_sha = $HeadSha
+    head_sha = $CheckDestinationSha
     base_sha = $BaseSha
+    pull_request_head_sha = $PullRequestHeadSha
+    accepted_base_sha = $BaseSha
+    tested_candidate_sha = $TestedCandidateSha
+    tested_candidate_tree = $TestedCandidateTreeSha
+    check_destination_sha = $CheckDestinationSha
+    live_candidate_binding = $script:LiveCandidateBinding
     conclusion = $checkConclusion
     check_url = $createdCheck.html_url
     publication_status = if ($publicationReceipt) { $publicationReceipt.status } else { "Missing" }
     publication_bundle_digest = if ($publicationReceipt) { $publicationReceipt.bundle_digest } else { $null }
     publication_archive_ref = if ($publicationReceipt) { $publicationReceipt.archive_ref } else { $null }
     publication_archive_commit = if ($publicationReceipt) { $publicationReceipt.archive_commit } else { $null }
+    target_recapture = $targetRecaptureResult
     published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     status = "Published"
 }

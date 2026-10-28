@@ -1,0 +1,50 @@
+{
+  "cases": [
+    {
+      "id": "INVENTORY_PROVENANCE_001_POLICY_BOUND_INVENTORY_ACCEPTED",
+      "description": "Accepts complete inventory metadata produced from the trusted variant/compiler policy",
+      "expected_valid": true
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_002_COHERENT_UNAPPROVED_VARIANT_REJECTED",
+      "description": "Rejects an internally consistent app variant and compiler owner that differ from reviewed policy",
+      "mutation": "unapproved-variant",
+      "expected_error": "selected variant",
+      "expected_valid": false
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_003_OMITTED_CONFIGURED_OWNER_REJECTED",
+      "description": "Rejects omission of a configured production module owner",
+      "mutation": "omit-owner",
+      "expected_error": "module ownership differs",
+      "expected_valid": false
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_004_COMPILER_BOUNDARY_REJECTED",
+      "description": "Rejects compiler task metadata outside the configured variant task set",
+      "mutation": "compiler-boundary",
+      "expected_error": "compiler task ownership differs",
+      "expected_valid": false
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_005_OUTPUT_BOUNDARY_REJECTED",
+      "description": "Rejects compiler output directories escaping the module build boundary",
+      "mutation": "output-boundary",
+      "expected_error": "compiler outputs outside",
+      "expected_valid": false
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_006_UNPROVEN_GENERATED_EXCLUSION_REJECTED",
+      "description": "Rejects generated exclusions without matching SQLDelight source evidence",
+      "mutation": "unproven-exclusion",
+      "expected_error": "do not exactly match",
+      "expected_valid": false
+    },
+    {
+      "id": "INVENTORY_PROVENANCE_007_CONFIGURED_CUSTOM_SCOPE_ACCEPTED",
+      "description": "Accepts an added production owner when variant and compilation task ownership are explicitly configured",
+      "mutation": "valid-custom-scope",
+      "expected_valid": true
+    }
+  ]
+}

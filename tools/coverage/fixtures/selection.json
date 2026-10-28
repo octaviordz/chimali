@@ -20,6 +20,20 @@
             "covered": 72,
             "missed": 28,
             "total": 100
+          },
+          "requirement_ids": "NFR-SEC-041",
+          "risk_rationale": "Fixture candidate COV-002 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/domain/src/androidHostTest/kotlin/com/chimali/core/domain/SensitiveTextTest.kt",
+            "class": "SensitiveTextTest",
+            "test_name": "selection fixture COV-002"
           }
         },
         {
@@ -36,6 +50,20 @@
             "covered": 80,
             "missed": 20,
             "total": 100
+          },
+          "requirement_ids": "NFR-SEC-041",
+          "risk_rationale": "Fixture candidate COV-001 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/security/src/androidHostTest/kotlin/com/chimali/core/security/AesGcmEncryptedMetadataServiceTest.kt",
+            "class": "AesGcmEncryptedMetadataServiceTest",
+            "test_name": "selection fixture COV-001"
           }
         }
       ],
@@ -59,6 +87,20 @@
             "covered": 66,
             "missed": 34,
             "total": 100
+          },
+          "requirement_ids": "NFR-SEC-041",
+          "risk_rationale": "Fixture candidate COV-003 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/domain/src/androidHostTest/kotlin/com/chimali/core/domain/SensitiveTextTest.kt",
+            "class": "SensitiveTextTest",
+            "test_name": "selection fixture COV-003"
           }
         },
         {
@@ -75,6 +117,23 @@
             "covered": 95,
             "missed": 105,
             "total": 200
+          },
+          "requirement_ids": [
+            "NFR-ARCH-050",
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Fixture candidate COV-004 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-004"
           }
         }
       ],
@@ -123,6 +182,23 @@
             "covered": 80,
             "missed": 20,
             "total": 100
+          },
+          "requirement_ids": [
+            "NFR-ARCH-050",
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Fixture candidate COV-004 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-004"
           }
         },
         {
@@ -139,6 +215,20 @@
             "covered": 80,
             "missed": 20,
             "total": 100
+          },
+          "requirement_ids": "NFR-SEC-041",
+          "risk_rationale": "Fixture candidate COV-005 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/domain/src/androidHostTest/kotlin/com/chimali/core/domain/SensitiveTextTest.kt",
+            "class": "SensitiveTextTest",
+            "test_name": "selection fixture COV-005"
           }
         }
       ],
@@ -163,6 +253,23 @@
             "covered": 60,
             "missed": 40,
             "total": 100
+          },
+          "requirement_ids": [
+            "NFR-ARCH-050",
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Fixture candidate COV-006 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-006"
           }
         }
       ],
@@ -274,6 +381,23 @@
             "covered": 60,
             "missed": 40,
             "total": 100
+          },
+          "requirement_ids": [
+            "NFR-ARCH-050",
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Fixture candidate COV-010 retains its declared impact and likelihood while exact trusted floors determine the coverage tie-break.",
+          "initial_outcome": "The current selection record identifies a measurable behavior candidate using raw counters.",
+          "expected_outcome": "The candidate rank follows the applicable module floor and the test verifies the stated requirement.",
+          "forbidden_effects": [
+            "Do not change behavior outside the selected requirement.",
+            "Do not substitute branch coverage when the module policy has no branch floor."
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-010"
           }
         }
       ],
@@ -555,6 +679,222 @@
       },
       "expected_progression_allowed": false,
       "expected_error": "post-measurement reranking receipt is missing or unbound"
+    },
+    {
+      "id": "SEL_018_TIER2_INSTRUCTION_ONLY_DEFICIT",
+      "description": "A Tier 2 owner above 20% instructions has zero deficit and its branch rate does not apply; Tier 1 domain at 50% instructions has a 10-point deficit",
+      "expected_first": "COV-982",
+      "candidates": [
+        {
+          "instruction": {
+            "total": 100,
+            "covered": 30,
+            "missed": 70
+          },
+          "candidate_id": "COV-981",
+          "impact": 4,
+          "module": ":core:bluetooth",
+          "likelihood": 2,
+          "branch": {
+            "total": 100,
+            "covered": 90,
+            "missed": 10
+          },
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Equal impact and likelihood expose whether a Tier 2 branch rate is incorrectly treated as a gated metric.",
+          "initial_outcome": "Raw counters show the candidate instruction and branch totals at the current measurement.",
+          "expected_outcome": "Tier 1 domain ranks first because its instruction rate is ten points below its 60% floor while the Tier 2 instruction rate exceeds its 20% floor.",
+          "forbidden_effects": [
+            "Do not rank a Tier 2 candidate by branch coverage.",
+            "Do not allow coverage deficit to override impact or likelihood."
+          ],
+          "test_placement": {
+            "file": "core/bluetooth/src/test/kotlin/com/chimali/core/bluetooth/BluetoothDeviceHandlerTest.kt",
+            "class": "BluetoothDeviceHandlerTest",
+            "test_name": "selection fixture COV-981",
+            "decision": "Extend"
+          }
+        },
+        {
+          "instruction": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "candidate_id": "COV-982",
+          "impact": 4,
+          "module": ":core:domain",
+          "likelihood": 2,
+          "branch": {
+            "total": 100,
+            "covered": 100,
+            "missed": 0
+          },
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "risk_rationale": "Equal impact and likelihood expose whether a Tier 2 branch rate is incorrectly treated as a gated metric.",
+          "initial_outcome": "Raw counters show the candidate instruction and branch totals at the current measurement.",
+          "expected_outcome": "Tier 1 domain ranks first because its instruction rate is ten points below its 60% floor while the Tier 2 instruction rate exceeds its 20% floor.",
+          "forbidden_effects": [
+            "Do not rank a Tier 2 candidate by branch coverage.",
+            "Do not allow coverage deficit to override impact or likelihood."
+          ],
+          "test_placement": {
+            "file": "core/domain/src/androidHostTest/kotlin/com/chimali/core/domain/SensitiveTextTest.kt",
+            "class": "SensitiveTextTest",
+            "test_name": "selection fixture COV-982",
+            "decision": "Extend"
+          }
+        }
+      ]
+    },
+    {
+      "id": "SEL_019_INCOMPLETE_BEHAVIOR_RECORD_REJECTED",
+      "description": "Selection candidates must include stable requirement, rationale, outcomes, forbidden effects, and exact test placement",
+      "expected_first": "COV-983",
+      "expected_error": "requires stable requirements",
+      "candidates": [
+        {
+          "branch": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "risk_rationale": "A valid impact rationale.",
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-983"
+          },
+          "candidate_id": "COV-983",
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "instruction": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "initial_outcome": "Observed gap.",
+          "impact": 4,
+          "expected_outcome": "Desired result.",
+          "module": ":core:data",
+          "likelihood": 2
+        }
+      ]
+    },
+    {
+      "id": "SEL_020_DUPLICATE_CANDIDATE_ID_REJECTED",
+      "description": "Candidate IDs are unique within a selection batch",
+      "expected_first": "COV-983",
+      "expected_error": "identifier 'COV-983' is duplicated",
+      "candidates": [
+        {
+          "branch": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "risk_rationale": "A valid impact rationale.",
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-983"
+          },
+          "candidate_id": "COV-983",
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "forbidden_effects": [
+            "No persistence."
+          ],
+          "instruction": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "initial_outcome": "Observed gap.",
+          "impact": 4,
+          "expected_outcome": "Desired result.",
+          "module": ":core:data",
+          "likelihood": 2
+        },
+        {
+          "candidate_id": "COV-983",
+          "branch": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-983"
+          },
+          "forbidden_effects": [
+            "No persistence."
+          ],
+          "instruction": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "likelihood": 2,
+          "module": ":core:data",
+          "impact": 4,
+          "risk_rationale": "A valid impact rationale.",
+          "initial_outcome": "Observed gap.",
+          "expected_outcome": "Desired result."
+        }
+      ]
+    },
+    {
+      "id": "SEL_021_UNKNOWN_MODULE_REJECTED",
+      "description": "Selection candidates must name a module in the trusted production inventory",
+      "expected_first": "COV-983",
+      "expected_error": "outside the trusted production inventory",
+      "candidates": [
+        {
+          "branch": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "risk_rationale": "A valid impact rationale.",
+          "test_placement": {
+            "decision": "Extend",
+            "file": "core/data/src/test/kotlin/com/chimali/core/data/eventsourcing/VaultAggregateServiceImplTest.kt",
+            "class": "VaultAggregateServiceImplTest",
+            "test_name": "selection fixture COV-983"
+          },
+          "candidate_id": "COV-983",
+          "requirement_ids": [
+            "NFR-SEC-041"
+          ],
+          "forbidden_effects": [
+            "No persistence."
+          ],
+          "instruction": {
+            "total": 100,
+            "covered": 50,
+            "missed": 50
+          },
+          "initial_outcome": "Observed gap.",
+          "impact": 4,
+          "expected_outcome": "Desired result.",
+          "module": ":unknown:module",
+          "likelihood": 2
+        }
+      ]
     }
   ]
 }

@@ -273,7 +273,7 @@
         }
       },
       "expected_valid": false,
-      "expected_error": "does not match candidate git.target_commit"
+      "expected_error": "differs from candidate target"
     },
     {
       "id": "TRUSTED_COMP_003_FAILED_TESTS",

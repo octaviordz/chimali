@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
-    [ValidateSet('success', 'unsupported-event', 'stale-base')][string]$Mode = 'success'
+[ValidateSet('success', 'unsupported-event', 'stale-base', 'target-push')][string]$Mode = 'success'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -82,9 +82,9 @@ try {
     $eventBase = if ($Mode -eq 'stale-base') { 'e' * 40 } else { $baseCommit }
     $event = [PSCustomObject]@{ repository = 'octaviordz/chimali'; head_sha = $testedCommit; base_sha = $eventBase; pull_request_number = 17 }
     $event | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $eventPath -Encoding utf8
-    $verifiedEventType = if ($Mode -eq 'unsupported-event') { 'push' } else { 'pull_request' }
+    $verifiedEventType = if ($Mode -eq 'unsupported-event') { 'push' } elseif ($Mode -eq 'target-push') { 'target_push' } else { 'pull_request' }
     $verifiedEvent = [PSCustomObject]@{
-        valid = $true; event_type = $verifiedEventType; merged = $true; repository = 'octaviordz/chimali'
+        valid = $true; event_type = $verifiedEventType; merged = ($verifiedEventType -eq 'pull_request'); integration_confirmed = ($verifiedEventType -eq 'target_push'); repository = 'octaviordz/chimali'
         head_sha = $testedCommit; base_sha = $baseCommit; integration_commit = $integratedCommit; integration_tree = $integratedTree
     }
     $verifiedEvent | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verifiedEventPath -Encoding utf8
@@ -156,7 +156,7 @@ try {
     $publishExit = $LASTEXITCODE
     $archiveRef = "refs/heads/$branch"
     $publishedCommit = (& $realGit --git-dir=$bareRemote rev-parse --verify $archiveRef 2>$null).Trim()
-    if ($Mode -eq 'success') {
+    if ($Mode -in @('success', 'target-push')) {
         if ($publishExit -ne 0 -or -not (Test-Path -LiteralPath $receiptPath -PathType Leaf) -or $publishedCommit -eq $initialArchiveCommit) {
             throw "Expected production publisher promotion to succeed; exit=$publishExit; archive=$publishedCommit"
         }

@@ -8,13 +8,13 @@ on:
 permissions:
   actions: read
   checks: write
-  contents: read
+  contents: write
   pull-requests: read
 
 jobs:
   report:
     name: Protected Check Reporter
-    if: ${{ github.event.workflow_run.event != 'push' }}
+    if: ${{ github.event.workflow_run.event != 'push' || github.event.workflow_run.head_branch == github.event.repository.default_branch }}
     runs-on: windows-latest
     environment: coverage-reporting
     steps:
@@ -80,6 +80,10 @@ jobs:
           $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json -ErrorAction Stop
           "head_sha=$($identity.head_sha)" >> $env:GITHUB_OUTPUT
           "base_sha=$($identity.base_sha)" >> $env:GITHUB_OUTPUT
+          "pull_request_head_sha=$($identity.pull_request_head_sha)" >> $env:GITHUB_OUTPUT
+          "accepted_base_sha=$($identity.accepted_base_sha)" >> $env:GITHUB_OUTPUT
+          "tested_candidate_sha=$($identity.tested_candidate_sha)" >> $env:GITHUB_OUTPUT
+          "check_destination_sha=$($identity.check_destination_sha)" >> $env:GITHUB_OUTPUT
           "event=$($identity.event)" >> $env:GITHUB_OUTPUT
           "run_id=$($identity.run_id)" >> $env:GITHUB_OUTPUT
           "run_attempt=$($identity.run_attempt)" >> $env:GITHUB_OUTPUT
@@ -141,6 +145,8 @@ jobs:
           BUNDLE: ${{ steps.artifact.outputs.bundle }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SERVER_URL: ${{ github.server_url }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CONFIGURED_TARGET_REF: ${{ vars.COVERAGE_TARGET_REF }}
         run: |
           $headSha = $env:RUN_HEAD_SHA
           $candidateHead = (git -C tested-commit rev-parse HEAD).Trim()
@@ -148,10 +154,17 @@ jobs:
             Write-Error "Checked out commit does not match the completed capture run head."
             exit 1
           }
+          $manifestPath = Join-Path $env:BUNDLE 'manifest.json'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Write-Error "Verified artifact bundle manifest is missing."; exit 1 }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+          $integrationEventPath = ''
+          $liveEvent = $env:RUN_EVENT
+          $resolvedPrNumber = $env:PR_NUMBER
+          $dispatchTree = ''
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
           if ($env:RUN_EVENT -eq 'pull_request') {
             if ($env:PR_NUMBER -notmatch '^[1-9][0-9]*$') { Write-Error "Expected a validated PR number."; exit 1 }
             $number = [int]$env:PR_NUMBER
-            $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
             $uri = "$($env:SERVER_URL)/api/v3/repos/$($env:REPOSITORY)/pulls/$number"
             if ($env:SERVER_URL -eq 'https://github.com') { $uri = "https://api.github.com/repos/$($env:REPOSITORY)/pulls/$number" }
             $livePr = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
@@ -160,30 +173,74 @@ jobs:
             $prIdentityPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/live-pr-identity.json'
             pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-live-pr-target.ps1 `
               -PullRequestPath $prPath -ExpectedRepository $env:REPOSITORY -ExpectedNumber $env:PR_NUMBER `
-              -ExpectedHeadSha $headSha -CapturedBaseSha $env:RUN_BASE_SHA -OutputPath $prIdentityPath
+              -ExpectedHeadSha $headSha -CapturedBaseSha $env:RUN_BASE_SHA `
+              -AllowHeadShaChangePendingTreeVerification -OutputPath $prIdentityPath
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             $baseSha = [string](Get-Content -LiteralPath $prIdentityPath -Raw | ConvertFrom-Json -ErrorAction Stop).base_sha
-          } else {
+          } elseif ($env:RUN_EVENT -eq 'repository_dispatch') {
+            $candidateSha = [string]$manifest.git.source_commit
+            $baseSha = [string]$manifest.git.target_commit
+            if ($candidateSha -notmatch '^[0-9a-fA-F]{40,64}$' -or $baseSha -notmatch '^[0-9a-fA-F]{40,64}$') {
+              Write-Error "Dispatched candidate manifest is missing full source/accepted-base identities."; exit 1
+            }
+            $targetName = if ($env:CONFIGURED_TARGET_REF) { $env:CONFIGURED_TARGET_REF } else { $env:DEFAULT_BRANCH }
+            if ($targetName -match '^refs/heads/') { $targetName = $targetName.Substring('refs/heads/'.Length) }
+            if ($targetName -cne $env:DEFAULT_BRANCH) { Write-Error "Configured dispatch target differs from the repository default branch."; exit 1 }
+            $dispatchIdentityPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/dispatched-candidate.json'
+            $dispatchIdentityOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-dispatched-candidate.ps1 `
+              -Repository $env:REPOSITORY -CandidateSha $candidateSha -AcceptedBaseSha $baseSha `
+              -ExpectedTargetRef "refs/heads/$targetName" -ServerUrl $env:SERVER_URL -Token $env:GITHUB_TOKEN -OutputPath $dispatchIdentityPath 2>&1)
+            if ($LASTEXITCODE -ne 0) { Write-Error ($dispatchIdentityOutput -join ' '); exit 1 }
+            $dispatchIdentity = Get-Content -LiteralPath $dispatchIdentityPath -Raw | ConvertFrom-Json -ErrorAction Stop
+            $resolvedPrNumber = [string]$dispatchIdentity.pull_request_number
+            $dispatchTree = [string]$dispatchIdentity.tree_sha
+            $prPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/live-pr.json'
+            $dispatchIdentity.pull_request | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $prPath -Encoding utf8
+            $prIdentityPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/live-pr-identity.json'
+            pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-live-pr-target.ps1 `
+              -PullRequestPath $prPath -ExpectedRepository $env:REPOSITORY -ExpectedNumber $resolvedPrNumber `
+              -ExpectedHeadSha $candidateSha -CapturedBaseSha $baseSha -AllowHeadShaChangePendingTreeVerification -OutputPath $prIdentityPath
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $headSha = $candidateSha
+            $baseSha = [string](Get-Content -LiteralPath $prIdentityPath -Raw | ConvertFrom-Json -ErrorAction Stop).base_sha
+            $liveEvent = 'pull_request'
+          } elseif ($env:RUN_EVENT -eq 'merge_group') {
             $parents = @((git -C tested-commit show -s --format=%P $headSha).Trim() -split '\s+' | Where-Object { $_ })
             if ($LASTEXITCODE -ne 0 -or $parents.Count -lt 2) {
               Write-Error "Merge-group head does not contain a verifiable base and merged head parent list."
               exit 1
             }
             $baseSha = [string]$parents[0]
+          } else {
+            if ([string]$env:DEFAULT_BRANCH -cne [string](Get-Content (Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/event.json') -Raw | ConvertFrom-Json).workflow_run.head_branch) {
+              Write-Error "Target-push run did not originate on the configured default branch."; exit 1
+            }
+            $targetName = if ($env:CONFIGURED_TARGET_REF) { $env:CONFIGURED_TARGET_REF } else { $env:DEFAULT_BRANCH }
+            if ($targetName -match '^refs/heads/') { $targetName = $targetName.Substring('refs/heads/'.Length) }
+            if ($targetName -cne $env:DEFAULT_BRANCH) { Write-Error "Configured target ref differs from the repository default branch."; exit 1 }
+            $baseSha = [string]$manifest.git.target_commit
+            if ($baseSha -notmatch '^[0-9a-fA-F]{40,64}$') { Write-Error "Target-push capture is missing its exact previous accepted target."; exit 1 }
+            $integrationEventPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/target-push-event.json'
+            [PSCustomObject]@{ event_type = 'target_push'; repository = $env:REPOSITORY; head_sha = $headSha; base_sha = $baseSha; target_ref = "refs/heads/$targetName" } |
+              ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $integrationEventPath -Encoding utf8
           }
-          $manifestPath = Join-Path $env:BUNDLE 'manifest.json'
-          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Write-Error "Verified artifact bundle manifest is missing."; exit 1 }
           $bundle = $env:BUNDLE
-          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
           if ($manifest.git.source_commit -cne $headSha -or $manifest.git.target_commit -cne $baseSha) {
             Write-Error "Sealed capture source/target does not match the workflow event identity."
             exit 1
           }
           $expectedTree = (git -C tested-commit rev-parse "$headSha^{tree}").Trim()
-          if ($LASTEXITCODE -ne 0 -or $manifest.git.source_tree -cne $expectedTree) {
+          if ($env:RUN_EVENT -eq 'repository_dispatch') {
+            $expectedTree = $dispatchTree
+          }
+          if (($env:RUN_EVENT -ne 'repository_dispatch' -and $LASTEXITCODE -ne 0) -or $manifest.git.source_tree -cne $expectedTree) {
             Write-Error "Sealed capture tree does not match the tested commit tree."
             exit 1
           }
+          $testedCandidateSha = [string]$manifest.git.source_commit
+          $testedCandidateTree = [string]$manifest.git.source_tree
+          $checkDestinationSha = $headSha
+          $pullRequestHeadSha = if ($liveEvent -eq 'pull_request') { $headSha } else { '' }
           $baselineOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/resolve-accepted-baseline.ps1 `
             -EvidenceRoot (Get-Item accepted-evidence).FullName `
             -CandidateBundle $bundle `
@@ -193,6 +250,15 @@ jobs:
           "bundle=$bundle" >> $env:GITHUB_OUTPUT
           "head_sha=$headSha" >> $env:GITHUB_OUTPUT
           "base_sha=$baseSha" >> $env:GITHUB_OUTPUT
+          "pull_request_head_sha=$pullRequestHeadSha" >> $env:GITHUB_OUTPUT
+          "accepted_base_sha=$baseSha" >> $env:GITHUB_OUTPUT
+          "tested_candidate_sha=$testedCandidateSha" >> $env:GITHUB_OUTPUT
+          "tested_candidate_tree=$testedCandidateTree" >> $env:GITHUB_OUTPUT
+          "check_destination_sha=$checkDestinationSha" >> $env:GITHUB_OUTPUT
+          "integration_event_path=$integrationEventPath" >> $env:GITHUB_OUTPUT
+          "live_event=$liveEvent" >> $env:GITHUB_OUTPUT
+          "pull_request_number=$resolvedPrNumber" >> $env:GITHUB_OUTPUT
+          "target_ref=$(if ($integrationEventPath) { "refs/heads/$targetName" } else { '' })" >> $env:GITHUB_OUTPUT
           "comparison_bundle=$($baseline.comparison_bundle)" >> $env:GITHUB_OUTPUT
           "accepted_baseline_index=$($baseline.accepted_baseline_index)" >> $env:GITHUB_OUTPUT
           "changed_paths=$($baseline.changed_paths)" >> $env:GITHUB_OUTPUT
@@ -205,16 +271,22 @@ jobs:
           INSTALLATION_ID: ${{ vars.COVERAGE_APP_INSTALLATION_ID }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ steps.binding.outputs.head_sha }}
+          PULL_REQUEST_HEAD_SHA: ${{ steps.binding.outputs.pull_request_head_sha }}
           BASE_SHA: ${{ steps.binding.outputs.base_sha }}
+          ACCEPTED_BASE_SHA: ${{ steps.binding.outputs.accepted_base_sha }}
+          TESTED_CANDIDATE_SHA: ${{ steps.binding.outputs.tested_candidate_sha }}
+          TESTED_CANDIDATE_TREE: ${{ steps.binding.outputs.tested_candidate_tree }}
+          CHECK_DESTINATION_SHA: ${{ steps.binding.outputs.check_destination_sha }}
           BUNDLE: ${{ steps.binding.outputs.bundle }}
           COMPARISON_BUNDLE: ${{ steps.binding.outputs.comparison_bundle }}
           ACCEPTED_BASELINE_INDEX: ${{ steps.binding.outputs.accepted_baseline_index }}
           CHANGED_PATHS: ${{ steps.binding.outputs.changed_paths }}
           ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
           ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact_digest }}
-          LIVE_EVENT: ${{ steps.run-identity.outputs.event }}
-          PR_NUMBER: ${{ steps.run-identity.outputs.pull_request_number }}
-          TARGET_REF: ${{ vars.COVERAGE_TARGET_REF }}
+          LIVE_EVENT: ${{ steps.binding.outputs.live_event }}
+          PR_NUMBER: ${{ steps.binding.outputs.pull_request_number }}
+          INTEGRATION_EVENT_PATH: ${{ steps.binding.outputs.integration_event_path }}
+          TARGET_REF: ${{ steps.binding.outputs.target_ref }}
           SERVER_URL: ${{ github.server_url }}
           ACTIONS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_REPORTER_WORKFLOW_SHA: ${{ github.workflow_sha }}
@@ -227,6 +299,10 @@ jobs:
             '-Repository', $env:REPOSITORY,
             '-HeadSha', $env:HEAD_SHA,
             '-BaseSha', $env:BASE_SHA,
+            '-PullRequestHeadSha', $env:PULL_REQUEST_HEAD_SHA,
+            '-TestedCandidateSha', $env:TESTED_CANDIDATE_SHA,
+            '-TestedCandidateTreeSha', $env:TESTED_CANDIDATE_TREE,
+            '-CheckDestinationSha', $env:CHECK_DESTINATION_SHA,
             '-ComparisonBundle', $env:COMPARISON_BUNDLE,
             '-AcceptedBaselineIndexPath', $env:ACCEPTED_BASELINE_INDEX,
             '-ChangedPathsFile', $env:CHANGED_PATHS,
@@ -245,5 +321,6 @@ jobs:
           )
           if ($env:PR_NUMBER -match '^[1-9][0-9]*$') { $reportArgs += @('-PullRequestNumber', $env:PR_NUMBER) }
           if (-not [string]::IsNullOrWhiteSpace($env:TARGET_REF)) { $reportArgs += @('-IntegrationTargetRef', $env:TARGET_REF) }
+          if ($env:LIVE_EVENT -eq 'push') { $reportArgs += @('-PromoteIntegration', '-IntegrationEventPath', $env:INTEGRATION_EVENT_PATH) }
           pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/report.ps1 @reportArgs
         working-directory: trusted-harness

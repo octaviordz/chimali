@@ -33,7 +33,19 @@ try {
     $baselineManifest = Read-SafeJson -Path $baselineManifestPath
     $candidateManifest = Read-SafeJson -Path $candidateManifestPath
     if ([string]$index.run_id -cne [string]$baselineManifest.run_id) { throw 'Accepted baseline index run_id does not match its bundle manifest' }
-    if ([string]$baselineManifest.git.source_commit -cne $ExpectedTargetCommit) { throw 'Accepted baseline source commit does not match the exact candidate target' }
+    $baselineSourceCommit = [string]$baselineManifest.git.source_commit
+    if ($baselineSourceCommit -cne $ExpectedTargetCommit) {
+        $sameTreePromotion = [string]$index.provenance -ceq 'ArchivedAcceptedRun' -and
+            [string]$index.tested_commit -ceq $baselineSourceCommit -and
+            [string]$index.integrated_commit -ceq $ExpectedTargetCommit -and
+            [string]$index.target_commit -ceq $ExpectedTargetCommit -and
+            [string]$index.run_id -ceq [string]$baselineManifest.run_id -and
+            [string]$index.tested_tree -match '^[0-9a-fA-F]{40,64}$' -and
+            [string]$index.target_tree -match '^[0-9a-fA-F]{40,64}$' -and
+            [string]$baselineManifest.git.source_tree -ceq [string]$index.tested_tree -and
+            [string]$index.tested_tree -ceq [string]$index.target_tree
+        if (-not $sameTreePromotion) { throw 'Accepted baseline source commit differs from the exact candidate target without a trusted same-tree promotion binding' }
+    }
     if ([string]$candidateManifest.purpose -cne 'Candidate' -or [string]$candidateManifest.git.target_commit -cne $ExpectedTargetCommit) {
         throw 'Candidate bundle is not bound to the exact expected target commit'
     }

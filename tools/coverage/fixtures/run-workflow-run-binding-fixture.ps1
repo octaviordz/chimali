@@ -22,7 +22,7 @@ try {
     $eventRun = [PSCustomObject]@{
         id = 12345; name = 'Coverage Capture'; workflow_id = 67890
         path = '.github/workflows/coverage.yml@main'; event = 'pull_request'; conclusion = 'success'
-        run_attempt = 2; head_sha = $shaHead
+        run_attempt = 2; head_sha = $shaHead; head_branch = 'main'
         repository = [PSCustomObject]@{ full_name = 'octaviordz/chimali' }
         head_repository = [PSCustomObject]@{ full_name = 'octaviordz/chimali' }
         pull_requests = @([PSCustomObject]@{
@@ -34,7 +34,7 @@ try {
     $event = [PSCustomObject]@{ repository = [PSCustomObject]@{ full_name = 'octaviordz/chimali' }; workflow_run = $eventRun }
     $authoritative = [PSCustomObject]@{
         id = 12345; run_attempt = 2; workflow_id = 67890; head_sha = $shaHead
-        event = 'pull_request'; conclusion = 'success'; path = '.github/workflows/coverage.yml@main'
+        event = 'pull_request'; conclusion = 'success'; path = '.github/workflows/coverage.yml@main'; head_branch = 'main'
         repository = [PSCustomObject]@{ full_name = 'octaviordz/chimali' }
     }
     switch ($caseData.mutation) {
@@ -47,6 +47,22 @@ try {
             $eventRun.event = 'merge_group'
             $eventRun.pull_requests = @()
             $authoritative.event = 'merge_group'
+        }
+        'target-push' {
+            $eventRun.event = 'push'; $eventRun.pull_requests = @()
+            $authoritative.event = 'push'
+        }
+        'other-push-branch' {
+            $eventRun.event = 'push'; $eventRun.head_branch = 'codex/untrusted'; $eventRun.pull_requests = @()
+            $authoritative.event = 'push'; $authoritative.head_branch = 'codex/untrusted'
+        }
+        'recapture-dispatch' {
+            $eventRun.event = 'repository_dispatch'; $eventRun.pull_requests = @()
+            $authoritative.event = 'repository_dispatch'
+        }
+        'other-dispatch-branch' {
+            $eventRun.event = 'repository_dispatch'; $eventRun.head_branch = 'codex/untrusted'; $eventRun.pull_requests = @()
+            $authoritative.event = 'repository_dispatch'; $authoritative.head_branch = 'codex/untrusted'
         }
         'none' { }
         default { throw "Unsupported fixture mutation '$($caseData.mutation)'" }
@@ -67,6 +83,19 @@ try {
         if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) { throw "$Case did not write a validated identity record" }
         $identity = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
         if (-not $identity.valid -or $identity.head_sha -ne $shaHead) { throw "$Case output identity did not preserve the validated candidate SHA" }
+        if ($caseData.mutation -eq 'merge-group') {
+            if ($identity.tested_candidate_sha -cne $shaHead -or $identity.check_destination_sha -cne $shaHead -or $identity.pull_request_head_sha) {
+                throw "$Case did not distinguish merge-group candidate/check identity from PR-head identity"
+            }
+        } elseif ($caseData.mutation -in @('target-push', 'recapture-dispatch')) {
+            $expectedEvent = if ($caseData.mutation -eq 'target-push') { 'push' } else { 'repository_dispatch' }
+            if ($identity.event -cne $expectedEvent -or $identity.base_sha -or $identity.tested_candidate_sha -cne $shaHead -or $identity.check_destination_sha -cne $shaHead) {
+                throw "$Case did not accept only a trusted default-branch event without inventing PR/base identity"
+            }
+        } elseif ($identity.pull_request_head_sha -cne $shaHead -or $identity.tested_candidate_sha -cne $shaHead -or
+            $identity.accepted_base_sha -cne $shaBase -or $identity.check_destination_sha -cne $shaHead) {
+            throw "$Case did not preserve separate PR-head/base/tested-candidate/check-destination identities"
+        }
     } elseif (Test-Path -LiteralPath $outputPath -PathType Leaf) {
         throw "$Case wrote a success identity despite rejection"
     }

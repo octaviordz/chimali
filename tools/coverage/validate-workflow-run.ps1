@@ -31,9 +31,12 @@ try {
         [string]$run.head_repository.full_name -cne $ExpectedRepository) {
         throw 'Cross-repository or mismatched workflow run is not accepted'
     }
-    if ([string]$run.event -notin @('pull_request', 'merge_group') -or
+    if ([string]$run.event -notin @('pull_request', 'merge_group', 'push', 'repository_dispatch') -or
         [string]$run.conclusion -notin @('success', 'failure')) {
         throw 'Unsupported workflow event or incomplete run conclusion'
+    }
+    if ($run.event -in @('push', 'repository_dispatch') -and [string]$run.head_branch -cne $DefaultBranch) {
+        throw 'Target advancement capture must run on the configured default branch'
     }
     if ([string]$run.id -notmatch '^[0-9]+$' -or [string]$run.run_attempt -notmatch '^[1-9][0-9]*$' -or
         [string]$run.head_sha -notmatch '^[0-9a-fA-F]{40,64}$') {
@@ -48,7 +51,7 @@ try {
         $headers = @{ Authorization = "Bearer $Token"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
         $authoritative = Invoke-RestMethod -Uri "$apiRoot/repos/$ExpectedRepository/actions/runs/$($run.id)" -Headers $headers -Method Get
     }
-    foreach ($field in @('id', 'run_attempt', 'workflow_id', 'head_sha', 'event', 'conclusion', 'path')) {
+    foreach ($field in @('id', 'run_attempt', 'workflow_id', 'head_sha', 'event', 'conclusion', 'path', 'head_branch')) {
         if ([string]$authoritative.$field -cne [string]$run.$field) { throw "GitHub run record does not match event field '$field'" }
     }
     if ([string]$authoritative.repository.full_name -cne $ExpectedRepository) { throw "GitHub run record belongs to another repository" }
@@ -76,6 +79,10 @@ try {
         conclusion = [string]$run.conclusion
         head_sha = [string]$run.head_sha
         base_sha = $baseSha
+        pull_request_head_sha = if ($run.event -eq 'pull_request') { [string]$run.head_sha } else { $null }
+        accepted_base_sha = $baseSha
+        tested_candidate_sha = [string]$run.head_sha
+        check_destination_sha = [string]$run.head_sha
         pull_request_number = $pullRequestNumber
         workflow_path = [string]$run.path
         valid = $true
