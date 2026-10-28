@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {
+      "id": "HARNESS_BYTE_POLICY_001_REQUIRED_FILES_USE_LF_BYTES",
+      "description": "Every trusted harness file has an explicit LF checkout policy and LF working-tree bytes",
+      "expected_valid": true
+    }
+  ]
+}

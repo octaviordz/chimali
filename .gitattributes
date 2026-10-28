@@ -1,2 +1,12 @@
+# Coverage evidence hashes harness files as raw bytes. Keep Windows checkouts
+# byte-identical to the LF-normalized Git blobs, regardless of core.autocrlf.
+.gitattributes text eol=lf
+tools/coverage/*.ps1 text eol=lf
+tools/integration-ci.ps1 text eol=lf
+tools/local-ci.ps1 text eol=lf
+tools/hdk-coverage.init.gradle text eol=lf
+tools/coverage/policy.json text eol=lf
+.github/workflows/coverage.yml text eol=lf
+.github/workflows/coverage-report.yml text eol=lf
 tools/coverage/fixtures/exporter/branchless.xml -text
 tools/coverage/fixtures/exporter/empty.xml -text

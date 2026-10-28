@@ -136,6 +136,94 @@ foreach ($file in $fixtureFiles) {
 
         try {
             switch -Wildcard ($file.Name) {
+                "harness-byte-policy.json" {
+                    $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))
+                    $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
+                    $requiredFiles = @($coveragePolicy.harness_requirements.required_files)
+                    $gitArguments = @('-C', $repositoryRoot, 'check-attr', 'eol', '--') + $requiredFiles
+                    $attributeLines = @(& git @gitArguments 2>&1)
+                    if ($LASTEXITCODE -ne 0) { throw "git check-attr failed: $($attributeLines -join '; ')" }
+
+                    $eolByPath = @{}
+                    foreach ($line in $attributeLines) {
+                        if ([string]$line -notmatch '^(?<path>.+): eol: (?<value>.+)$') {
+                            throw "Unexpected git check-attr output: $line"
+                        }
+                        $eolByPath[$Matches.path] = $Matches.value
+                    }
+
+                    foreach ($relativePath in $requiredFiles) {
+                        if ($eolByPath[[string]$relativePath] -ne 'lf') {
+                            throw "Required harness file does not declare eol=lf: $relativePath"
+                        }
+                        $absolutePath = Join-Path $repositoryRoot ([string]$relativePath).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                        if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) {
+                            throw "Required harness file is missing: $relativePath"
+                        }
+                        $fileBytes = [System.IO.File]::ReadAllBytes($absolutePath)
+                        if ($fileBytes -contains [byte]13) {
+                            throw "Required harness file contains a carriage-return byte: $relativePath"
+                        }
+                    }
+
+                    $fixtureId = [Guid]::NewGuid().ToString('N')
+                    $fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) "hdk-harness-byte-policy-$fixtureId"
+                    $sourceRoot = Join-Path $fixtureRoot 'source'
+                    $cloneRoot = Join-Path $fixtureRoot 'clone'
+                    try {
+                        New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
+                        Copy-Item -LiteralPath (Join-Path $repositoryRoot '.gitattributes') -Destination $sourceRoot
+                        foreach ($relativePath in $requiredFiles) {
+                            $sourcePath = Join-Path $repositoryRoot ([string]$relativePath).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                            $destinationPath = Join-Path $sourceRoot ([string]$relativePath).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                            $destinationDirectory = Split-Path -Parent $destinationPath
+                            New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+                            Copy-Item -LiteralPath $sourcePath -Destination $destinationPath
+                        }
+
+                        $gitOutput = @(& git -C $sourceRoot init --quiet 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture git init failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $sourceRoot config user.name 'Coverage Fixture' 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture git identity setup failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $sourceRoot config user.email 'coverage-fixture@example.invalid' 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture git identity setup failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $sourceRoot config core.autocrlf false 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture Git configuration failed: $($gitOutput -join '; ')" }
+                        $gitAddPaths = @('.gitattributes') + $requiredFiles
+                        $gitOutput = @(& git -C $sourceRoot add -- @gitAddPaths 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture git add failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $sourceRoot commit --quiet -m 'fixture: retain LF harness bytes' 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture git commit failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -c core.autocrlf=true clone --quiet --no-checkout $sourceRoot $cloneRoot 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture clone failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $cloneRoot config core.autocrlf true 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture clone configuration failed: $($gitOutput -join '; ')" }
+                        $gitOutput = @(& git -C $cloneRoot checkout --quiet HEAD 2>&1)
+                        if ($LASTEXITCODE -ne 0) { throw "Fixture checkout failed: $($gitOutput -join '; ')" }
+
+                        foreach ($relativePath in $requiredFiles) {
+                            $sourcePath = Join-Path $sourceRoot ([string]$relativePath).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                            $clonePath = Join-Path $cloneRoot ([string]$relativePath).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                            $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+                            $cloneHash = (Get-FileHash -LiteralPath $clonePath -Algorithm SHA256).Hash
+                            if ($sourceHash -ne $cloneHash) { throw "Harness byte hash changed after a core.autocrlf=true clone: $relativePath" }
+                            if ([System.IO.File]::ReadAllBytes($clonePath) -contains [byte]13) {
+                                throw "Fresh core.autocrlf=true clone contains a carriage-return byte: $relativePath"
+                            }
+                        }
+                    } finally {
+                        if (Test-Path -LiteralPath $fixtureRoot -PathType Container) {
+                            $resolvedFixtureRoot = [System.IO.Path]::GetFullPath($fixtureRoot)
+                            $resolvedTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+                            if (-not $resolvedFixtureRoot.StartsWith($resolvedTempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                throw "Refusing to remove fixture directory outside the system temp root: $resolvedFixtureRoot"
+                            }
+                            Remove-Item -LiteralPath $resolvedFixtureRoot -Recurse -Force
+                        }
+                    }
+
+                    if ($case.expected_valid) { $casePassed = $true }
+                }
                 "inventory-provenance.json" {
                     $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
                     $fixturePolicy = $coveragePolicy | ConvertTo-Json -Depth 100 | ConvertFrom-Json
