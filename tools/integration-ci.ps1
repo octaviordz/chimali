@@ -266,18 +266,23 @@ if (-not $baselineIdentity.IsValid -or $baselineManifest.run_id -ne $curr.run_id
 }
 
 $changedPathsFile = Join-Path $candidateBundlePath 'changed-paths.txt'
-Push-Location $RepositoryRoot
 try {
-    $computedChangedPaths = @(git diff --name-only $targetSha $candidateSha)
-    if ($LASTEXITCODE -ne 0) { throw 'Unable to compute target-to-candidate changed paths.' }
-} finally { Pop-Location }
+    $computedChangedPaths = @(Get-GitChangedPaths -RepositoryRoot $RepositoryRoot -TargetRevision $targetSha -SourceRevision $candidateSha)
+} catch { [Console]::Error.WriteLine("Unable to compute target-to-candidate changed paths: $_"); exit 2 }
 if (-not (Test-Path -LiteralPath $changedPathsFile -PathType Leaf)) {
     [Console]::Error.WriteLine("Candidate bundle is missing its sealed changed-path receipt: $changedPathsFile")
     exit 2
 }
-$capturedChangedPaths = @(Get-Content -LiteralPath $changedPathsFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-if (($capturedChangedPaths -join "`n") -cne ($computedChangedPaths -join "`n")) {
+$changedReceipt = Read-ChangedPathReceipt -Path $changedPathsFile -ExpectedTargetCommit $targetSha -ExpectedSourceCommit $candidateSha
+$changedPathsDiffer = $changedReceipt.Paths.Count -ne $computedChangedPaths.Count
+if (-not $changedPathsDiffer) {
+    for ($i = 0; $i -lt $computedChangedPaths.Count; $i++) {
+        if ([string]$changedReceipt.Paths[$i] -cne [string]$computedChangedPaths[$i]) { $changedPathsDiffer = $true; break }
+    }
+}
+if (-not $changedReceipt.IsValid -or $changedPathsDiffer) {
     [Console]::Error.WriteLine('Sealed changed-path receipt does not match the exact target-to-candidate Git diff.')
+    if ($changedReceipt.Errors.Count -gt 0) { [Console]::Error.WriteLine($changedReceipt.Errors -join '; ') }
     exit 2
 }
 

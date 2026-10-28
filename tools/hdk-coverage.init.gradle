@@ -133,7 +133,31 @@ gradle.projectsEvaluated {
     if (changedPathsProvided && (!changedPathsFile.isFile() || !changedPathsFile.isAbsolute())) {
         throw new GradleException("coverageChangedPathsFile must name an existing changed-path receipt; resolved '${changedPathsFile.absolutePath}' (exists=${changedPathsFile.isFile()})")
     }
-    def changedPaths = changedPathsProvided ? changedPathsFile.readLines('UTF-8').collect { it.trim().replace('\\', '/') }.findAll { !it.isEmpty() } : []
+    def changedPaths = []
+    if (changedPathsProvided) {
+        def receipt = new groovy.json.JsonSlurper().parse(changedPathsFile, 'UTF-8')
+        def expectedTarget = root.findProperty('coverageChangedPathsTarget')?.toString()?.toLowerCase(Locale.ROOT)
+        def expectedSource = root.findProperty('coverageChangedPathsSource')?.toString()?.toLowerCase(Locale.ROOT)
+        if (!(receipt instanceof Map) || receipt.format != 'chimali.changed-paths' || receipt.schema_version != 1 ||
+            receipt.target_commit != expectedTarget || receipt.source_commit != expectedSource ||
+            !(receipt.paths instanceof List)) {
+            throw new GradleException('coverageChangedPathsFile has an unsupported format/schema or mismatched target/source commit binding')
+        }
+        def seenChangedPaths = new HashSet<String>()
+        receipt.paths.each { rawPath ->
+            if (!(rawPath instanceof String) || rawPath.isEmpty()) {
+                throw new GradleException('coverageChangedPathsFile paths must be nonempty strings')
+            }
+            def path = rawPath.toString()
+            def segments = path.split('/', -1)
+            if (path.startsWith('/') || path.contains('\\') || path.indexOf('\u0000') >= 0 ||
+                path ==~ /^[A-Za-z]:.*/ || segments.any { it.isEmpty() || it == '.' || it == '..' }) {
+                throw new GradleException("coverageChangedPathsFile contains a malformed repository-relative path: ${path}")
+            }
+            if (!seenChangedPaths.add(path)) throw new GradleException("coverageChangedPathsFile contains a duplicate path: ${path}")
+            changedPaths.add(path)
+        }
+    }
     def sharedChange = changedPaths.any { path ->
         path ==~ /^(build\.gradle\.kts|settings\.gradle\.kts|gradle\/.*|tools\/.*|\.github\/.*|\.agents\/.*|\.specify\/.*|buildSrc\/.*|gradle\.properties|gradlew|gradlew\.bat|\.gitconfig)$/
     }

@@ -39,6 +39,14 @@ This directory contains deterministic test fixtures for validating the coverage 
 ## Sealed-Bundle Verifier Scenarios
 `run-verifier-counter-fixture.ps1` exercises the production `verify.ps1` entry point by mutating a copy of a complete sealed source bundle. It requires a current-schema bundle with the exact workload and harness evidence required by the repository policy; historical bundles are unsuitable because the production verifier binds acceptance to the current harness. The `comparison-candidate-below-floor` scenario builds a digest-consistent accepted target whose `:core:security` instruction coverage is below 60%, then verifies a candidate against its indexed target with changed Tier 1 paths. `execution-device-file-mismatch` tampers with a device execution-input hash in a module's sealed compatibility receipt and confirms the verifier rejects that receipt against canonical manifest attribution. These are verifier behavior tests, not baseline evidence.
 
+## Changed-Path Receipt Scenarios
+Changed-path receipts remain named `changed-paths.txt` for bundle compatibility, but their contents are UTF-8 JSON with `format: chimali.changed-paths`, `schema_version: 1`, exact `target_commit` and `source_commit` bindings, and an array of repository-relative `paths`. Git collection uses NUL-delimited output with rename detection disabled, so old and new paths both remain visible and whitespace/Unicode are never interpreted as Git's display quoting. Capture, Gradle selection, integration validation, and the production verifier all consume the same receipt; the bundle manifest artifact digest seals its bytes. Unsupported versions, mismatched commits, duplicates, traversal, absolute paths, and malformed entries fail closed. `run-changed-paths-fixture.ps1` exercises the actual collector and owner resolvers against a temporary Git history containing Unicode, spaces, deletions, cross-owner moves, and unaffected paths.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/test-policy.ps1 `
+  -FixturePattern changed-paths.json
+```
+
 Run it after producing a current-schema bundle:
 
 ```powershell

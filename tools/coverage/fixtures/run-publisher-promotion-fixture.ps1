@@ -96,7 +96,8 @@ try {
     $decision | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $decisionPath -Encoding utf8
     '{}' | Set-Content -LiteralPath (Join-Path $tempRoot 'comparison-bundle.json') -Encoding utf8
     '{}' | Set-Content -LiteralPath (Join-Path $tempRoot 'accepted-index.json') -Encoding utf8
-    [System.IO.File]::WriteAllText((Join-Path $tempRoot 'changed-paths.txt'), 'product.txt', [System.Text.UTF8Encoding]::new($false))
+    . (Join-Path $repository 'tools/coverage/coverage-common.ps1')
+    Write-ChangedPathReceipt -Path (Join-Path $tempRoot 'changed-paths.txt') -TargetCommit $baseCommit -SourceCommit $testedCommit -ChangedPaths @('product.txt')
 
     Copy-Item -LiteralPath (Join-Path $repository 'tools/coverage/publish.ps1') -Destination (Join-Path $harness 'publish.ps1')
     Copy-Item -LiteralPath (Join-Path $repository 'tools/coverage/coverage-common.ps1') -Destination (Join-Path $harness 'coverage-common.ps1')

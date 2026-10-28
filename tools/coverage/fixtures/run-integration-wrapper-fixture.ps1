@@ -72,10 +72,10 @@ $fingerprint = Get-MeasurementFingerprint -Policy $policy -Toolchain $toolchain 
 $runId = 'candidate-' + [guid]::NewGuid().ToString('N')
 $runDir = Join-Path (Join-Path $OutputRoot 'runs') $runId
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
-$changedPaths = @(git -C $RepositoryRoot diff --name-only $TargetRevision $SourceRevision)
-if ($LASTEXITCODE -ne 0) { exit 3 }
+. (Join-Path $PSScriptRoot 'coverage-common.ps1')
+$changedPaths = @(Get-GitChangedPaths -RepositoryRoot $RepositoryRoot -TargetRevision $TargetRevision -SourceRevision $SourceRevision)
 $changedPathsFile = Join-Path $runDir 'changed-paths.txt'
-$changedPaths | Set-Content -LiteralPath $changedPathsFile -Encoding utf8
+Write-ChangedPathReceipt -Path $changedPathsFile -TargetCommit $TargetRevision -SourceCommit $SourceRevision -ChangedPaths $changedPaths
 $manifest = [PSCustomObject]@{ run_id = $runId; policy_id = $policy.policy_id; git = [PSCustomObject]@{ source_commit = $SourceRevision; target_commit = $TargetRevision }; measurement_fingerprint = $fingerprint; toolchain = $toolchain; device = $device; harness = [PSCustomObject]@{ file_sha256 = [PSCustomObject]$hashes }; artifacts = @([PSCustomObject]@{ path = 'changed-paths.txt'; sha256 = Get-FileSha256 -Path $changedPathsFile }) }
 $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $runDir 'manifest.json') -Encoding utf8
 Write-Output ('[CAPTURE_RESULT]' + (@{ run_id = $runId; run_dir = $runDir } | ConvertTo-Json -Compress))

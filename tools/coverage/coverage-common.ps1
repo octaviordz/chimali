@@ -1404,6 +1404,11 @@ function Get-StrictJUnitOutcome {
         $document = Read-SafeXml -Path $Path
         $root = $document.DocumentElement
         if (-not $root -or $root.LocalName -notin @('testsuite', 'testsuites')) { throw 'JUnit root must be <testsuite> or <testsuites>' }
+        # This parser intentionally supports only the flat JUnit shape emitted
+        # by our Gradle test tasks. Nested suites and testcases hidden inside
+        # wrappers would otherwise be omitted by the direct-child accounting.
+        $nestedSuites = @($root.SelectNodes('.//testsuite') | Where-Object { $root.LocalName -eq 'testsuite' -or $_.ParentNode -ne $root })
+        if ($nestedSuites.Count -gt 0) { throw 'JUnit report contains unsupported nested <testsuite> elements' }
         $suiteNodes = @($document.SelectNodes('/testsuite | /testsuites/testsuite'))
         if ($suiteNodes.Count -eq 0) {
             if ($root.LocalName -eq 'testsuites' -and $root.ChildNodes.Count -eq 0 -and
@@ -1420,6 +1425,8 @@ function Get-StrictJUnitOutcome {
             $name = $node.GetAttribute('name')
             if ([string]::IsNullOrWhiteSpace($name)) { throw "JUnit testsuite $index has no name" }
             $testCases = @($node.SelectNodes('./testcase'))
+            $misplacedTestCases = @($node.SelectNodes('.//testcase') | Where-Object { $_.ParentNode -ne $node })
+            if ($misplacedTestCases.Count -gt 0) { throw "JUnit suite $name contains testcase elements outside its direct children" }
             foreach ($testCase in $testCases) {
                 $outcomeCount = @(@('failure', 'error', 'skipped') | ForEach-Object { $testCase.SelectSingleNode("./$_") } | Where-Object { $null -ne $_ }).Count
                 if ($outcomeCount -gt 1) { throw "JUnit testcase '$($testCase.GetAttribute('name'))' declares conflicting failure/error/skip outcomes" }
@@ -2682,6 +2689,115 @@ function ConvertTo-RemoteTargetRef {
     return @{ IsValid = $true; Ref = "refs/heads/$TargetRef"; Error = $null }
 }
 
+function Get-GitChangedPaths {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [Parameter(Mandatory = $true)][string]$TargetRevision,
+        [Parameter(Mandatory = $true)][string]$SourceRevision
+    )
+    $root = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw "Changed-path repository root does not exist: $root" }
+    foreach ($revision in @($TargetRevision, $SourceRevision)) {
+        if ([string]::IsNullOrWhiteSpace($revision) -or $revision -match '[\x00-\x20]') { throw 'Changed-path revisions must be nonempty, whitespace-free Git revisions' }
+    }
+    $gitCommand = Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $start = [System.Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $gitCommand.Source
+    $start.WorkingDirectory = $root
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false, $true)
+    $start.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false, $true)
+    foreach ($argument in @('diff', '--no-ext-diff', '--no-renames', '--name-only', '-z', $TargetRevision, $SourceRevision, '--')) {
+        $start.ArgumentList.Add($argument)
+    }
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $start
+    try {
+        if (-not $process.Start()) { throw 'Git changed-path process could not be started' }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $raw = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        if ($process.ExitCode -ne 0) { throw "Git could not compute exact changed paths (exit $($process.ExitCode)): $stderr" }
+    } finally { $process.Dispose() }
+    if ($raw.Length -eq 0) { return @() }
+    if ($raw[$raw.Length - 1] -ne [char]0) { throw 'Git -z changed-path output is not NUL-terminated' }
+    $parts = $raw.Split([char[]]@([char]0), [System.StringSplitOptions]::None)
+    $paths = @($parts | Select-Object -First ($parts.Length - 1))
+    $validation = Test-ChangedPathRecords -Paths $paths
+    if (-not $validation.IsValid) { throw "Git returned invalid changed-path records: $($validation.Errors -join '; ')" }
+    return $paths
+}
+
+function Test-ChangedPathRecords {
+    param([Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][object[]]$Paths)
+    $errors = @()
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($item in $Paths) {
+        if ($item -isnot [string] -or [string]::IsNullOrEmpty([string]$item)) { $errors += 'Changed-path entries must be nonempty strings'; continue }
+        $path = [string]$item
+        if ($path.StartsWith('/') -or $path -match '^[A-Za-z]:' -or $path.Contains([char]92) -or $path.Contains([char]0) -or
+            @($path.Split('/') | Where-Object { $_ -in @('', '.', '..') }).Count -gt 0) {
+            $errors += "Changed path is not a canonical repository-relative Git path: $path"
+            continue
+        }
+        if (-not $seen.Add($path)) { $errors += "Changed-path receipt contains a duplicate path: $path" }
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
+}
+
+function Write-ChangedPathReceipt {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$TargetCommit,
+        [Parameter(Mandatory = $true)][string]$SourceCommit,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$ChangedPaths
+    )
+    if ($TargetCommit -notmatch '^[0-9a-fA-F]{40,64}$' -or $SourceCommit -notmatch '^[0-9a-fA-F]{40,64}$') {
+        throw 'Changed-path receipt target and source bindings must be full commit SHAs'
+    }
+    $validation = Test-ChangedPathRecords -Paths @($ChangedPaths)
+    if (-not $validation.IsValid) { throw "Cannot write changed-path receipt: $($validation.Errors -join '; ')" }
+    $receipt = [PSCustomObject]@{
+        format = 'chimali.changed-paths'
+        schema_version = 1
+        target_commit = $TargetCommit.ToLowerInvariant()
+        source_commit = $SourceCommit.ToLowerInvariant()
+        paths = @($ChangedPaths)
+    }
+    $json = ConvertTo-Json -InputObject $receipt -Depth 5 -Compress
+    [System.IO.File]::WriteAllText([System.IO.Path]::GetFullPath($Path), $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Read-ChangedPathReceipt {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedTargetCommit,
+        [Parameter(Mandatory = $true)][string]$ExpectedSourceCommit
+    )
+    $errors = @()
+    try { $receipt = Read-SafeJson -Path $Path } catch { return @{ IsValid = $false; Paths = @(); Receipt = $null; Errors = @("Changed-path receipt is invalid JSON: $_") } }
+    if ($receipt.format -cne 'chimali.changed-paths' -or
+        ($receipt.schema_version -isnot [int] -and $receipt.schema_version -isnot [long]) -or $receipt.schema_version -ne 1) {
+        $errors += 'Changed-path receipt format or schema_version is unsupported'
+    }
+    if ([string]$receipt.target_commit -cne $ExpectedTargetCommit.ToLowerInvariant() -or
+        [string]$receipt.source_commit -cne $ExpectedSourceCommit.ToLowerInvariant()) {
+        $errors += 'Changed-path receipt target/source commit binding does not match the run manifest'
+    }
+    if ($null -eq $receipt.paths -or $receipt.paths -is [string]) {
+        $errors += 'Changed-path receipt paths must be a JSON array'
+        $paths = @()
+    } else { $paths = @($receipt.paths) }
+    $validation = Test-ChangedPathRecords -Paths $paths
+    $errors += $validation.Errors
+    return @{ IsValid = ($errors.Count -eq 0); Paths = $paths; Receipt = $receipt; Errors = $errors }
+}
+
 function Get-AffectedTier1Modules {
     param(
         [Parameter(Mandatory = $true)]$Policy,
@@ -2690,11 +2806,12 @@ function Get-AffectedTier1Modules {
     )
 
     if (-not $ChangedPathsProvided) { return @($Policy.tier1_modules) }
+    $validation = Test-ChangedPathRecords -Paths @($ChangedPaths)
+    if (-not $validation.IsValid) { throw ($validation.Errors -join '; ') }
     $sharedChange = $false
     $affected = @()
     foreach ($line in $ChangedPaths) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $path = $line.Trim().Replace('\', '/')
+        $path = [string]$line
         if ($path -match '^(build\.gradle\.kts|settings\.gradle\.kts|gradle/|tools/|\.github/|\.agents/|\.specify/|buildSrc/)' -or $path -in @('gradle.properties', 'gradlew', 'gradlew.bat')) {
             $sharedChange = $true
             break
@@ -2747,9 +2864,11 @@ function Get-AffectedTier2Modules {
         return @($affected | Sort-Object -CaseSensitive)
     }
 
+    $validation = Test-ChangedPathRecords -Paths @($ChangedPaths)
+    if (-not $validation.IsValid) { throw ($validation.Errors -join '; ') }
+
     foreach ($line in $ChangedPaths) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $path = $line.Trim().Replace('\', '/')
+        $path = [string]$line
         if ($sharedChangePatterns | Where-Object { $path -match $_ }) {
             foreach ($owner in $owners) { $null = $affected.Add([string]$owner.module_path) }
             break

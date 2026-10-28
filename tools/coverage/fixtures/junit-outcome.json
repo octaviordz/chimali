@@ -55,6 +55,38 @@
       "report_identity": "feature/fido2/testDebugUnitTest/TEST-parameterized.xml",
       "xml": "<testsuite name=\"parameterized\" tests=\"2\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case[0]\"/><testcase name=\"case[1]\"/></testsuite>",
       "expected_valid": true
+    },
+    {
+      "id": "JUNIT_OUTCOME_008_NESTED_FAILURE_REJECTED",
+      "description": "A nested suite cannot hide a failed testcase from direct-child totals.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-nested-failure.xml",
+      "xml": "<testsuite name=\"outer\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"visible-pass\"/><testsuite name=\"inner\" tests=\"1\" failures=\"1\" errors=\"0\" skipped=\"0\"><testcase name=\"hidden-failure\"><failure/></testcase></testsuite></testsuite>",
+      "expected_valid": false,
+      "expected_error": "unsupported nested <testsuite>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_009_NESTED_ERROR_REJECTED",
+      "description": "A nested suite cannot hide an errored testcase from direct-child totals.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-nested-error.xml",
+      "xml": "<testsuites tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"outer\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"visible-pass\"/><testsuite name=\"inner\" tests=\"1\" failures=\"0\" errors=\"1\" skipped=\"0\"><testcase name=\"hidden-error\"><error/></testcase></testsuite></testsuite></testsuites>",
+      "expected_valid": false,
+      "expected_error": "unsupported nested <testsuite>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_010_NESTED_SKIP_REJECTED",
+      "description": "A nested suite cannot hide a skipped testcase from direct-child totals.",
+      "report_identity": "feature/fido2/device/TEST-nested-skip.xml",
+      "xml": "<testsuites tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"outer\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"visible-pass\"/><testsuite name=\"inner\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"1\"><testcase name=\"hidden-skip\"><skipped/></testcase></testsuite></testsuite></testsuites>",
+      "expected_valid": false,
+      "expected_error": "unsupported nested <testsuite>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_011_WRAPPED_TESTCASE_REJECTED",
+      "description": "A testcase hidden below an unsupported wrapper cannot be omitted.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-wrapped.xml",
+      "xml": "<testsuite name=\"wrapped\" tests=\"0\" failures=\"0\" errors=\"0\" skipped=\"0\"><wrapper><testcase name=\"hidden\"><failure/></testcase></wrapper></testsuite>",
+      "expected_valid": false,
+      "expected_error": "testcase elements outside its direct children"
     }
   ]
 }

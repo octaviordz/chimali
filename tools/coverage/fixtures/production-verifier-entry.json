@@ -82,6 +82,38 @@
       "description": "Baseline validation rejects comparison evidence with a hidden testcase failure node."
     },
     {
+      "id": "junit-nested-failure",
+      "description": "Production candidate verification rejects a nested suite containing a hidden failure."
+    },
+    {
+      "id": "junit-nested-error",
+      "description": "Production candidate verification rejects a nested suite containing a hidden error."
+    },
+    {
+      "id": "junit-nested-skip",
+      "description": "Production candidate verification rejects a nested suite containing a hidden skipped testcase."
+    },
+    {
+      "id": "comparison-nested-failure",
+      "description": "Accepted-baseline verification rejects a nested suite containing a hidden failure."
+    },
+    {
+      "id": "comparison-nested-error",
+      "description": "Accepted-baseline verification rejects a nested suite containing a hidden error."
+    },
+    {
+      "id": "comparison-nested-skip",
+      "description": "Accepted-baseline verification rejects a nested suite containing a hidden skipped testcase."
+    },
+    {
+      "id": "comparison-tier1-regression",
+      "description": "Production comparison blocks a changed Tier 1 decrease from 70% to 69% while both revisions remain above the 60% floor."
+    },
+    {
+      "id": "changed-tier2-below-floor",
+      "description": "Production verifier applies the 20% instruction floor to an affected Tier 2 module selected by its sealed changed-path receipt."
+    },
+    {
       "id": "comparison-dirty-preflight",
       "description": "Baseline validation rejects a comparison target whose measured source preflight was dirty."
     },

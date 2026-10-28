@@ -410,9 +410,9 @@ if (-not (Test-Path -LiteralPath $inventoryPath)) {
 }
 $effectiveTier2Paths = @($policy.tier2_gated_modules)
 $tier2OwnerSelectionValid = $true
+$selectionChangedPaths = @()
+$selectionChangedPathsProvided = $false
 try {
-    $selectionChangedPaths = @()
-    $selectionChangedPathsProvided = $false
     if ($ChangedPathsFile) {
         $canonicalChangedPaths = [System.IO.Path]::GetFullPath($ChangedPathsFile)
         $expectedChangedPaths = [System.IO.Path]::GetFullPath((Join-Path $RunBundle 'changed-paths.txt'))
@@ -423,7 +423,10 @@ try {
         if ($changedPathArtifact.Count -ne 1 -or (Get-FileSha256 -Path $expectedChangedPaths) -cne [string]$changedPathArtifact[0].sha256) {
             throw 'Sealed changed-paths.txt is missing, duplicated, or has an invalid artifact digest'
         }
-        $selectionChangedPaths = @(Get-Content -LiteralPath $expectedChangedPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $receiptValidation = Read-ChangedPathReceipt -Path $expectedChangedPaths `
+            -ExpectedTargetCommit ([string]$manifest.git.target_commit) -ExpectedSourceCommit ([string]$manifest.git.source_commit)
+        if (-not $receiptValidation.IsValid) { throw ($receiptValidation.Errors -join '; ') }
+        $selectionChangedPaths = @($receiptValidation.Paths)
         $selectionChangedPathsProvided = $true
     }
     $affectedTier2 = @(Get-AffectedTier2Modules -Policy $policy -Inventory $inventoryData -ChangedPaths $selectionChangedPaths -ChangedPathsProvided $selectionChangedPathsProvided)
@@ -911,9 +914,7 @@ if ($ComparisonBundle) {
     }
 
     # Derive affected Tier 1 modules based on the verified changed-path set.
-    $changedPathsProvided = [bool]($ChangedPathsFile -and (Test-Path $ChangedPathsFile))
-    $changedLines = if ($changedPathsProvided) { @(Get-Content -Path $ChangedPathsFile | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { @() }
-    $affectedTier1 = Get-AffectedTier1Modules -Policy $policy -ChangedPaths $changedLines -ChangedPathsProvided $changedPathsProvided
+    $affectedTier1 = Get-AffectedTier1Modules -Policy $policy -ChangedPaths $selectionChangedPaths -ChangedPathsProvided $selectionChangedPathsProvided
 
     $regressionStatus = if ($regressionPassed) { "Passed" } else { "Failed" }
 

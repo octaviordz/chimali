@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
     [Parameter(Mandatory = $true)][string]$SourceBundle,
-    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-failed-junit', 'comparison-dirty-preflight', 'comparison-dirty-harness', 'comparison-security-file-substitution', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'dirty-preflight', 'dirty-harness', 'harness-changed-during-capture', 'junit-hidden-failure', 'junit-hidden-error', 'junit-hidden-skip', 'junit-inflated-count', 'junit-contradictory-total', 'missing-workload-task', 'zero-required-device', 'inventory-unapproved-variant', 'inventory-omitted-owner', 'inventory-compiler-boundary', 'inventory-output-boundary', 'inventory-unproven-exclusion', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch', 'execution-security-file-substitution')]
+    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-failed-junit', 'comparison-nested-failure', 'comparison-nested-error', 'comparison-nested-skip', 'comparison-dirty-preflight', 'comparison-dirty-harness', 'comparison-security-file-substitution', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-tier1-regression', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'dirty-preflight', 'dirty-harness', 'harness-changed-during-capture', 'junit-hidden-failure', 'junit-hidden-error', 'junit-hidden-skip', 'junit-inflated-count', 'junit-contradictory-total', 'junit-nested-failure', 'junit-nested-error', 'junit-nested-skip', 'missing-workload-task', 'zero-required-device', 'inventory-unapproved-variant', 'inventory-omitted-owner', 'inventory-compiler-boundary', 'inventory-output-boundary', 'inventory-unproven-exclusion', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch', 'execution-security-file-substitution')]
     [string]$Case = 'negative-tier2'
 )
 
@@ -50,9 +50,62 @@ try {
             jacoco_analyzer = [PSCustomObject]@{ engine = 'jacoco-0.8.15'; java_version = '21'; java_runtime_version = '21.0.7+9'; java_vendor = 'JetBrains s.r.o.' }
         }
     }
+    function Set-FixtureSecurityInstructionRate {
+        param([Parameter(Mandatory = $true)][string]$BundlePath, [Parameter(Mandatory = $true)][int]$Percent)
+        $bundleManifestPath = Join-Path $BundlePath 'manifest.json'
+        $bundleManifest = Read-SafeJson -Path $bundleManifestPath
+        $bundleCountersPath = Join-Path $BundlePath 'counters.json'
+        $bundleCounters = Read-SafeJson -Path $bundleCountersPath
+        $security = @($bundleCounters.modules | Where-Object { $_.module_path -eq ':core:security' })
+        if ($security.Count -ne 1) { throw "Fixture bundle must contain exactly one :core:security record (found $($security.Count))" }
+        $oldCovered = [System.Numerics.BigInteger]::Parse([string]$security[0].instruction.covered, [Globalization.CultureInfo]::InvariantCulture)
+        $oldMissed = [System.Numerics.BigInteger]::Parse([string]$security[0].instruction.missed, [Globalization.CultureInfo]::InvariantCulture)
+        $oldTotal = $oldCovered + $oldMissed
+        if ($oldTotal -le [System.Numerics.BigInteger]::Zero) { throw 'Fixture security denominator must be positive' }
+        $total = [System.Numerics.BigInteger]1000
+        $covered = [System.Numerics.BigInteger]($Percent * 10)
+        $missed = $total - $covered
+        $delta = $covered - $oldCovered
+        $security[0].instruction.covered = $covered
+        $security[0].instruction.missed = $missed
+        $security[0].instruction.total = $total
+        $securityReportPath = Join-Path $BundlePath 'reports/modules/core_security.xml'
+        $securityXml = [System.Xml.XmlDocument]::new()
+        $securityXml.Load($securityReportPath)
+        $securityInstruction = $securityXml.SelectSingleNode('/report/counter[@type="INSTRUCTION"]')
+        if (-not $securityInstruction) { throw 'Fixture security report has no report-level INSTRUCTION counter' }
+        $securityInstruction.SetAttribute('covered', $covered.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $securityInstruction.SetAttribute('missed', $missed.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $securityXml.Save($securityReportPath)
+        $securityDigest = Get-FileSha256 -Path $securityReportPath
+        $security[0].report_digest = $securityDigest
+        if ($security[0].execution_compatibility) { $security[0].execution_compatibility.report_digest = $securityDigest }
+
+        $repoMetric = $bundleCounters.repository.instruction
+        $repoMetric.covered = [System.Numerics.BigInteger]::Parse([string]$repoMetric.covered, [Globalization.CultureInfo]::InvariantCulture) + $delta
+        $repoMetric.missed = [System.Numerics.BigInteger]::Parse([string]$repoMetric.missed, [Globalization.CultureInfo]::InvariantCulture) - $delta
+        $repoMetric.total = [System.Numerics.BigInteger]::Parse([string]$repoMetric.covered, [Globalization.CultureInfo]::InvariantCulture) + [System.Numerics.BigInteger]::Parse([string]$repoMetric.missed, [Globalization.CultureInfo]::InvariantCulture)
+        $repoReportPath = Join-Path $BundlePath 'reports/repository.xml'
+        $repoXml = [System.Xml.XmlDocument]::new()
+        $repoXml.Load($repoReportPath)
+        $repoInstruction = $repoXml.SelectSingleNode('/report/counter[@type="INSTRUCTION"]')
+        if (-not $repoInstruction) { throw 'Fixture repository report has no report-level INSTRUCTION counter' }
+        $repoInstruction.SetAttribute('covered', [string]$repoMetric.covered)
+        $repoInstruction.SetAttribute('missed', [string]$repoMetric.missed)
+        $repoXml.Save($repoReportPath)
+        $bundleCounters.repository.report_digest = Get-FileSha256 -Path $repoReportPath
+        $bundleCounters | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $bundleCountersPath -Encoding utf8
+        foreach ($artifact in $bundleManifest.artifacts) {
+            $artifactPath = Join-Path $BundlePath ([string]$artifact.path)
+            if ([string]$artifact.path -ceq 'counters.json' -or [string]$artifact.path -ceq 'reports/modules/core_security.xml' -or [string]$artifact.path -ceq 'reports/repository.xml') {
+                $artifact.sha256 = Get-FileSha256 -Path $artifactPath
+            }
+        }
+        $bundleManifest | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $bundleManifestPath -Encoding utf8
+    }
     $comparisonCase = $Case.StartsWith('comparison-', [System.StringComparison]::Ordinal)
-    $manifest.purpose = if ($Case -eq 'comparison-candidate-below-floor') { 'Candidate' } elseif ($comparisonCase) { 'Comparison' } else { 'Initial' }
-    $manifest.git.target_commit = if ($comparisonCase) { [string]$manifest.git.source_commit } else { $null }
+    $manifest.purpose = if ($Case -in @('comparison-candidate-below-floor', 'comparison-tier1-regression')) { 'Candidate' } elseif ($comparisonCase) { 'Comparison' } else { 'Initial' }
+    $manifest.git.target_commit = if ($comparisonCase -or $Case -in @('changed-tier2-missing-counter', 'changed-tier2-below-floor')) { [string]$manifest.git.source_commit } else { $null }
     $manifest.git.clean_preflight = $true
     $manifest.git.clean_postflight = $true
     $manifest.harness.clean = $true
@@ -161,6 +214,9 @@ try {
             'junit-hidden-failure' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><failure message="injected"/></testcase></testsuite>' }
             'junit-hidden-error' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><error message="injected"/></testcase></testsuite>' }
             'junit-hidden-skip' { '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><skipped/></testcase></testsuite>' }
+            'junit-nested-failure' { '<testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="1" errors="0" skipped="0"><testcase name="hidden-failure"><failure/></testcase></testsuite></testsuite>' }
+            'junit-nested-error' { '<testsuites tests="1" failures="0" errors="0" skipped="0"><testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="0" errors="1" skipped="0"><testcase name="hidden-error"><error/></testcase></testsuite></testsuite></testsuites>' }
+            'junit-nested-skip' { '<testsuites tests="1" failures="0" errors="0" skipped="0"><testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="0" errors="0" skipped="1"><testcase name="hidden-skip"><skipped/></testcase></testsuite></testsuite></testsuites>' }
             'junit-inflated-count' { '<testsuite name="hidden" tests="2" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite>' }
             'junit-contradictory-total' { '<testsuites tests="2" failures="0" errors="0" skipped="0"><testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite></testsuites>' }
         }
@@ -329,21 +385,14 @@ try {
     }
 
     if ($Case -eq 'changed-tier2-below-floor') {
-        $sourceModule = @($counters.modules | Where-Object { $_.module_path -eq ':core:common' })
+        $targetModule = @($counters.modules | Where-Object { $_.module_path -eq ':core:bluetooth' })
         $inventory = Read-SafeJson -Path (Join-Path $bundle 'inventory.json')
         $inventoryModule = @($inventory.modules | Where-Object { $_.module_path -eq ':core:bluetooth' })
-        if ($sourceModule.Count -ne 1 -or $inventoryModule.Count -ne 1) { throw 'Source bundle must contain one source counter and one :core:bluetooth inventory entry' }
-        $dynamicModule = $sourceModule[0] | ConvertTo-Json -Depth 30 | ConvertFrom-Json
-        $dynamicModule.module_path = ':core:bluetooth'
-        $dynamicModule.tier = 2
-        $dynamicModule.disposition = 'Applicable'
-        $dynamicModule.instruction.covered = [System.Numerics.BigInteger]::Zero
-        $dynamicModule.instruction.missed = [System.Numerics.BigInteger]100
-        $dynamicModule.instruction.total = [System.Numerics.BigInteger]100
-        $dynamicModule.class_inventory_digest = [string]$inventoryModule[0].class_inventory_digest
-        $sourceReportPath = Join-Path $bundle 'reports/modules/core_common.xml'
+        if ($targetModule.Count -ne 1 -or $inventoryModule.Count -ne 1) { throw 'Source bundle must contain exactly one :core:bluetooth counter and inventory entry' }
+        $targetModule[0].instruction.covered = [System.Numerics.BigInteger]::Zero
+        $targetModule[0].instruction.missed = [System.Numerics.BigInteger]100
+        $targetModule[0].instruction.total = [System.Numerics.BigInteger]100
         $dynamicReportPath = Join-Path $bundle 'reports/modules/core_bluetooth.xml'
-        Copy-Item -LiteralPath $sourceReportPath -Destination $dynamicReportPath -Force
         $dynamicXml = [System.Xml.XmlDocument]::new()
         $dynamicXml.Load($dynamicReportPath)
         $dynamicInstruction = $dynamicXml.SelectSingleNode('/report/counter[@type="INSTRUCTION"]')
@@ -351,9 +400,10 @@ try {
         $dynamicInstruction.SetAttribute('covered', '0')
         $dynamicInstruction.SetAttribute('missed', '100')
         $dynamicXml.Save($dynamicReportPath)
-        $dynamicModule.report_digest = Get-FileSha256 -Path $dynamicReportPath
-        $counters.modules = @($counters.modules) + @($dynamicModule)
-        $manifest.artifacts = @($manifest.artifacts | Where-Object { $_.path -cne 'reports/modules/core_bluetooth.xml' }) + @([PSCustomObject]@{ path = 'reports/modules/core_bluetooth.xml'; sha256 = Get-FileSha256 -Path $dynamicReportPath })
+        $targetModule[0].report_digest = Get-FileSha256 -Path $dynamicReportPath
+        foreach ($artifact in @($manifest.artifacts | Where-Object { $_.path -ceq 'reports/modules/core_bluetooth.xml' })) {
+            $artifact.sha256 = Get-FileSha256 -Path $dynamicReportPath
+        }
     }
 
     $repositoryReportPath = Join-Path $bundle 'reports/repository.xml'
@@ -463,10 +513,10 @@ try {
         [System.IO.File]::WriteAllText($countersPath, $json, [System.Text.UTF8Encoding]::new($false))
     }
 
-    if ($Case -in @('changed-tier2-missing-counter', 'changed-tier2-below-floor', 'comparison-candidate-below-floor')) {
+    if ($Case -in @('changed-tier2-missing-counter', 'changed-tier2-below-floor', 'comparison-candidate-below-floor', 'comparison-tier1-regression')) {
         $changedPathsPath = Join-Path $bundle 'changed-paths.txt'
-        $changedPathText = if ($Case -eq 'comparison-candidate-below-floor') { "core/security/src/androidMain/kotlin/com/chimali/security/Changed.kt`n" } else { "core/bluetooth/src/main/kotlin/com/chimali/bluetooth/Changed.kt`n" }
-        [System.IO.File]::WriteAllText($changedPathsPath, $changedPathText, [System.Text.UTF8Encoding]::new($false))
+        $changedPathRecords = if ($Case -in @('comparison-candidate-below-floor', 'comparison-tier1-regression')) { @('core/security/src/androidMain/kotlin/com/chimali/security/Changed.kt') } else { @('core/bluetooth/src/main/kotlin/com/chimali/bluetooth/Changed.kt') }
+        Write-ChangedPathReceipt -Path $changedPathsPath -TargetCommit ([string]$manifest.git.target_commit) -SourceCommit ([string]$manifest.git.source_commit) -ChangedPaths $changedPathRecords
         $manifest.artifacts = @($manifest.artifacts | Where-Object { $_.path -cne 'changed-paths.txt' }) + @([PSCustomObject]@{ path = 'changed-paths.txt'; sha256 = Get-FileSha256 -Path $changedPathsPath })
     }
 
@@ -480,9 +530,10 @@ try {
         $manifest.artifacts = @($manifest.artifacts) + @([PSCustomObject]@{ path = 'summary.md'; sha256 = Get-FileSha256 -Path (Join-Path $bundle 'summary.md') })
     }
     $manifest | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    if ($Case -eq 'comparison-tier1-regression') { Set-FixtureSecurityInstructionRate -BundlePath $bundle -Percent 69 }
 
     $verifyArgs = @('-RunBundle', $bundle, '-PolicyPath', (Join-Path $repository 'tools/coverage/policy.json'), '-OutputDirectory', $assessment)
-    if ($Case -in @('changed-tier2-missing-counter', 'comparison-candidate-below-floor')) {
+    if ($Case -in @('changed-tier2-missing-counter', 'changed-tier2-below-floor', 'comparison-candidate-below-floor', 'comparison-tier1-regression')) {
         $verifyArgs += @('-ChangedPathsFile', (Join-Path $bundle 'changed-paths.txt'))
     }
     if ($comparisonCase) {
@@ -543,6 +594,11 @@ try {
                 }
                 $baselineManifest.purpose = 'Comparison'
             }
+            'comparison-tier1-regression' {
+                Set-FixtureSecurityInstructionRate -BundlePath $baseline -Percent 70
+                $baselineManifest = Read-SafeJson -Path $baselineManifestPath
+                $baselineManifest.purpose = 'Comparison'
+            }
             'comparison-altered-counters' {
                 $baselineCountersPath = Join-Path $baseline 'counters.json'
                 $baselineCounters = Read-SafeJson -Path $baselineCountersPath
@@ -593,6 +649,18 @@ try {
                 if (-not $testArtifact) { throw 'Baseline fixture has no JUnit artifact to mutate' }
                 [IO.File]::WriteAllText((Join-Path $baseline ([string]$testArtifact.path)), '<testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"><failure message="injected"/></testcase></testsuite>', [Text.UTF8Encoding]::new($false))
                 $testArtifact.sha256 = Get-FileSha256 -Path (Join-Path $baseline ([string]$testArtifact.path))
+            }
+            { $_ -in @('comparison-nested-failure', 'comparison-nested-error', 'comparison-nested-skip') } {
+                $testArtifact = @($baselineManifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' } | Select-Object -First 1)[0]
+                if (-not $testArtifact) { throw 'Baseline fixture has no JUnit report artifact to mutate' }
+                $nestedMutation = switch ($Case) {
+                    'comparison-nested-failure' { '<testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="1" errors="0" skipped="0"><testcase name="hidden-failure"><failure/></testcase></testsuite></testsuite>' }
+                    'comparison-nested-error' { '<testsuites tests="1" failures="0" errors="0" skipped="0"><testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="0" errors="1" skipped="0"><testcase name="hidden-error"><error/></testcase></testsuite></testsuite></testsuites>' }
+                    'comparison-nested-skip' { '<testsuites tests="1" failures="0" errors="0" skipped="0"><testsuite name="outer" tests="1" failures="0" errors="0" skipped="0"><testcase name="visible-pass"/><testsuite name="inner" tests="1" failures="0" errors="0" skipped="1"><testcase name="hidden-skip"><skipped/></testcase></testsuite></testsuite></testsuites>' }
+                }
+                $testArtifactPath = Join-Path $baseline ([string]$testArtifact.path)
+                [IO.File]::WriteAllText($testArtifactPath, $nestedMutation, [Text.UTF8Encoding]::new($false))
+                $testArtifact.sha256 = Get-FileSha256 -Path $testArtifactPath
             }
             'comparison-dirty-preflight' { $baselineManifest.git.clean_preflight = $false }
             'comparison-dirty-harness' { $baselineManifest.harness.clean = $false }
@@ -664,6 +732,16 @@ try {
         throw "Expected verifier rejection exit $expectedExit with a decision receipt; observed exit $verifyExit. Verifier output: $($verifyOutput -join ' '); reasons: $preflightReasons"
     }
     $decision = Read-SafeJson -Path $decisionPath
+    if ($Case -eq 'comparison-tier1-regression') {
+        $candidateSecurity = @($decision.modules | Where-Object { $_.Module -eq ':core:security' }) | Select-Object -First 1
+        if (-not $candidateSecurity -or [string]$candidateSecurity.Instruction.Percent -cne '69' -or
+            $decision.decisions.floors -cne 'Passed' -or $decision.decisions.regression -cne 'Failed' -or $decision.overall_passed) {
+            throw "Production verifier did not block the changed 70%-to-69% Tier 1 regression with floors passing. Observed security=$($candidateSecurity.Instruction.Percent), floors=$($decision.decisions.floors), regression=$($decision.decisions.regression), overall=$($decision.overall_passed); reasons: $($decision.unmet_reasons -join '; ')"
+        }
+        Write-Output 'Production verifier blocked the changed :core:security instruction regression from the indexed 70% target to the 69% candidate.'
+        Write-Output "Verifier exit: $verifyExit"
+        return
+    }
     if ($Case -eq 'large-tier2-counter') {
         $largeCountText = '9223372036854775808'
         $decisionModule = @($decision.modules | Where-Object { $_.Module -eq ':core:common' }) | Select-Object -First 1
@@ -727,6 +805,13 @@ try {
         'junit-inflated-count' { 'declared tests=2 but testcase nodes derive 1' }
         'junit-contradictory-total' { 'testsuites declared tests=2 but testcase nodes derive 1' }
         'comparison-failed-junit' { 'declared failures=0 but contains 1' }
+        'comparison-tier1-regression' { ':core:security: instruction.*regress|:core:security.*instruction.*decreas' }
+        'junit-nested-failure' { 'unsupported nested <testsuite>' }
+        'junit-nested-error' { 'unsupported nested <testsuite>' }
+        'junit-nested-skip' { 'unsupported nested <testsuite>' }
+        'comparison-nested-failure' { 'unsupported nested <testsuite>' }
+        'comparison-nested-error' { 'unsupported nested <testsuite>' }
+        'comparison-nested-skip' { 'unsupported nested <testsuite>' }
         'comparison-dirty-preflight' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
         'comparison-dirty-harness' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
         'comparison-security-file-substitution' { 'Baseline Execution-file attribution has invalid scope, relative paths, kind, or source/bundle digest binding' }

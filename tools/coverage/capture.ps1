@@ -281,13 +281,10 @@ Write-Host "Starting coverage capture run $runId (Purpose: $Purpose) at $startTi
 $changedPathsFile = $null
 if (-not [string]::IsNullOrWhiteSpace($TargetRevision)) {
     $changedPathsFile = Join-Path $runDir 'changed-paths.txt'
-    Push-Location $RepositoryRoot
     try {
-        $changedPaths = @(git diff --name-only $TargetRevision $SourceRevision)
-        if ($LASTEXITCODE -ne 0) { Write-CoverageError 'Could not derive changed paths from the exact target and source commits'; exit 2 }
-        $changedPathsContent = [string]::Join([Environment]::NewLine, $changedPaths)
-        [System.IO.File]::WriteAllText($changedPathsFile, $changedPathsContent, [System.Text.UTF8Encoding]::new($false))
-    } finally { Pop-Location }
+        $changedPaths = @(Get-GitChangedPaths -RepositoryRoot $RepositoryRoot -TargetRevision $TargetRevision -SourceRevision $SourceRevision)
+        Write-ChangedPathReceipt -Path $changedPathsFile -TargetCommit $TargetRevision -SourceCommit $SourceRevision -ChangedPaths $changedPaths
+    } catch { Write-CoverageError "Could not create exact changed-path receipt: $_"; exit 2 }
 }
 
 # 5. Execute Gradle Workload (if not skipped)
@@ -300,7 +297,11 @@ if (-not $SkipExecution) {
         $gradleArgs = @('--no-configuration-cache', '-I', $initScript)
         $gradleArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
         $gradleArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
-        if ($changedPathsFile) { $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile") }
+        if ($changedPathsFile) {
+            $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile")
+            $gradleArgs += @('--project-prop', "coverageChangedPathsTarget=$TargetRevision")
+            $gradleArgs += @('--project-prop', "coverageChangedPathsSource=$SourceRevision")
+        }
         $gradleArgs += @('hdkHostCoverage', 'hdkCoverageAnalyze')
         Write-Host "Executing Gradle workload with the pinned coverage harness and exact changed-path set..." -ForegroundColor Cyan
         & .\gradlew.bat @gradleArgs

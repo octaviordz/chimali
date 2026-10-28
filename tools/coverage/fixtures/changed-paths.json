@@ -86,6 +86,10 @@
       "expected_tier2_modules": [],
       "unsafe_owner_directory": true,
       "expect_error": "unsafe project_directory"
+    },
+    {
+      "id": "CHANGED_PATHS_001_COLLECTOR_RECEIPT_AND_OWNER_RESOLUTION",
+      "description": "Preserve Unicode, whitespace, deletions, cross-owner moves, ordinary paths, and unaffected changes from Git through the sealed receipt and tier selectors."
     }
   ]
 }

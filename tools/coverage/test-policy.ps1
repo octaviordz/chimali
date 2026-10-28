@@ -1573,6 +1573,14 @@ foreach ($file in $fixtureFiles) {
                     }
                 }
                 "changed-paths.json" {
+                    if ($case.id -eq 'CHANGED_PATHS_001_COLLECTOR_RECEIPT_AND_OWNER_RESOLUTION') {
+                        $fixtureScript = Join-Path $FixturesDir 'run-changed-paths-fixture.ps1'
+                        $fixtureOutput = @(& pwsh -NoProfile -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                        $fixtureExit = $LASTEXITCODE
+                        if ($fixtureExit -eq 0) { $casePassed = $true }
+                        else { $errorMsg = "Lossless changed-path collector/resolver fixture failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                        break
+                    }
                     $coveragePolicy = Read-SafeJson -Path (Join-Path $ScriptDir 'policy.json')
                     $pathsProvided = [bool]$case.paths_provided
                     [string[]]$changed = @()
