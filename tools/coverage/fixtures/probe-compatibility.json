@@ -1,0 +1,11 @@
+{
+  "cases": [
+    {
+      "id": "PROBE_RUNTIME_001_HOST_DEVICE_MERGE_AND_MISMATCH_REJECTION",
+      "description": "Production JaCoCo module report rejects class-ID and probe-length mismatches and counts matching host/device data once",
+      "execution_mode": "runtime",
+      "requires": ["compiled :core:security production classes", "retained :core:security JaCoCo host execution data", "pinned JaCoCo 0.8.15 cache"],
+      "expected_valid": true
+    }
+  ]
+}

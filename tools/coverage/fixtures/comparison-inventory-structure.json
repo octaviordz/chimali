@@ -1,0 +1,42 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Accepted baselines must preserve reviewed Gradle module tier and directory mappings",
+  "cases": [
+    {
+      "id": "BASE_STRUCTURE_001_REVIEWED_MAPPINGS_ACCEPTED",
+      "description": "Tier 1 and Tier 2 inventory records follow their canonical project paths",
+      "inventory_modules": [
+        { "module_path": ":core:security", "tier": 1, "project_directory": "core/security" },
+        { "module_path": ":core:database", "tier": 2, "project_directory": "core/database" }
+      ],
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_STRUCTURE_002_TIER1_RECLASSIFICATION_REJECTED",
+      "description": "A Tier 1 module cannot be relabeled Tier 2 in baseline inventory",
+      "inventory_modules": [
+        { "module_path": ":core:security", "tier": 2, "project_directory": "core/security" }
+      ],
+      "expected_valid": false,
+      "expected_error": "reviewed classification requires Tier 1"
+    },
+    {
+      "id": "BASE_STRUCTURE_003_PROJECT_DIRECTORY_SUBSTITUTION_REJECTED",
+      "description": "An inventoried module cannot be redirected to another project directory",
+      "inventory_modules": [
+        { "module_path": ":core:security", "tier": 1, "project_directory": "core/other" }
+      ],
+      "expected_valid": false,
+      "expected_error": "reviewed mapping requires 'core/security'"
+    },
+    {
+      "id": "BASE_STRUCTURE_004_NONCANONICAL_MODULE_PATH_REJECTED",
+      "description": "Malformed Gradle module identities cannot establish baseline structure",
+      "inventory_modules": [
+        { "module_path": "../security", "tier": 2, "project_directory": "core/security" }
+      ],
+      "expected_valid": false,
+      "expected_error": "not a canonical Gradle project path"
+    }
+  ]
+}

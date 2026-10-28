@@ -1,0 +1,17 @@
+{
+  "description": "Current-schema production verifier lifecycle and workload binding regressions. Run with -CurrentSchemaBundle pointing to a complete sealed bundle.",
+  "cases": [
+    {
+      "id": "missing-workload-task",
+      "description": "Production verifier rejects a sealed run with its host workload evidence omitted."
+    },
+    {
+      "id": "unowned-junit-artifact",
+      "description": "Production verifier rejects a retained JUnit report outside all recorded workload roots."
+    },
+    {
+      "id": "comparison-incompatible-fingerprint",
+      "description": "Production verifier rejects an indexed accepted baseline whose measurement fingerprint differs from the candidate."
+    }
+  ]
+}

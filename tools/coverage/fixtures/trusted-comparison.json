@@ -4,30 +4,952 @@
   "cases": [
     {
       "id": "TRUSTED_COMP_001_VALID_BASELINE",
-      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
-      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Complete", "tests": "Passed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 0, "errors": 0 } ] },
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
       "expected_valid": true
     },
     {
       "id": "TRUSTED_COMP_002_WRONG_SOURCE_COMMIT",
-      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
-      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }, "decisions": { "collection": "Complete", "tests": "Passed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 0, "errors": 0 } ] },
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
       "expected_valid": false,
       "expected_error": "does not match candidate git.target_commit"
     },
     {
       "id": "TRUSTED_COMP_003_FAILED_TESTS",
-      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
-      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Complete", "tests": "Failed" }, "suites": [ { "suite_name": "required", "required": true, "tests": 3, "skipped": 0, "failures": 1, "errors": 0 } ] },
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Failed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 1,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
       "expected_valid": false,
       "expected_error": "Baseline tests must be explicitly Passed"
     },
     {
       "id": "TRUSTED_COMP_004_INCOMPLETE_BASELINE",
-      "candidate": { "policy_id": "chimali-coverage-v1", "git": { "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
-      "baseline": { "policy_id": "chimali-coverage-v1", "git": { "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "decisions": { "collection": "Incomplete", "tests": "Passed" }, "suites": [] },
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Incomplete",
+          "tests": "Passed"
+        },
+        "suites": [],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
       "expected_valid": false,
       "expected_error": "collection must be explicitly Complete"
+    },
+    {
+      "id": "TRUSTED_COMP_005_TOOLCHAIN_FINGERPRINT_MISMATCH",
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "abd9debb35e518f515c5d7de6f98fd8040df511cdbac77f7d8d6f237613fbcaa",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.20",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "measurement compatibility fingerprints differ"
+    },
+    {
+      "id": "TRUSTED_COMP_006_CANDIDATE_HARNESS_HASH_TAMPER",
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/coverage/coverage-common.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/integration-ci.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/local-ci.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Candidate measurement fingerprint does not match"
+    },
+    {
+      "id": "TRUSTED_COMP_007_BASELINE_HARNESS_HASH_TAMPER",
+      "candidate": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "target_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "baseline": {
+        "policy_id": "chimali-coverage-v1",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed"
+        },
+        "suites": [
+          {
+            "suite_name": "required",
+            "required": true,
+            "tests": 3,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          }
+        ],
+        "measurement_fingerprint": "bc197c3f241d960e5844f18b3b14cf6abb540184f518c967ba39703c64231544",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "device": {
+          "api_level": "35",
+          "abi": "arm64-v8a"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:common:testAndroidHostTest",
+              "disposition": "Applicable",
+              "executed": true,
+              "skipped": false,
+              "skip_message": null,
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        },
+        "harness": {
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/coverage/coverage-common.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/integration-ci.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/local-ci.ps1": "0000000000000000000000000000000000000000000000000000000000000000",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Baseline measurement fingerprint does not match"
     }
   ]
 }

@@ -1,0 +1,29 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Shared capture/verifier module report validation rejects malformed XML counters",
+  "cases": [
+    {
+      "id": "MODULE_REPORT_VALID_COUNTERS",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"40\" covered=\"60\"/><counter type=\"BRANCH\" missed=\"3\" covered=\"7\"/></report>",
+      "expected_valid": true
+    },
+    {
+      "id": "MODULE_REPORT_PLUS_SIGN_REJECTED",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"40\" covered=\"+60\"/><counter type=\"BRANCH\" missed=\"3\" covered=\"7\"/></report>",
+      "expected_valid": false,
+      "expected_error": "must be a nonnegative integer"
+    },
+    {
+      "id": "MODULE_REPORT_DUPLICATE_COUNTER_REJECTED",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"40\" covered=\"60\"/><counter type=\"INSTRUCTION\" missed=\"40\" covered=\"60\"/><counter type=\"BRANCH\" missed=\"3\" covered=\"7\"/></report>",
+      "expected_valid": false,
+      "expected_error": "duplicate INSTRUCTION counters"
+    },
+    {
+      "id": "MODULE_REPORT_COUNTER_MISMATCH_REJECTED",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"40\" covered=\"59\"/><counter type=\"BRANCH\" missed=\"3\" covered=\"7\"/></report>",
+      "expected_valid": false,
+      "expected_error": "INSTRUCTION XML counts disagree"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Require exact inventory-to-counter accounting across every retained baseline module",
+  "cases": [
+    {
+      "id": "BASE_MODULE_001_VALID_TIER1_AND_TIER2_BINDING",
+      "description": "A fully accounted baseline includes every critical module and an inventoried Tier 2 module",
+      "inventory_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth"],
+      "counter_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth"],
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_MODULE_002_MISSING_TIER2_COUNTER_REJECTED",
+      "description": "An inventoried Tier 2 module cannot be omitted from baseline counters",
+      "inventory_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth"],
+      "counter_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"],
+      "expected_valid": false,
+      "expected_error": "production inventory module :core:bluetooth has no canonical counter record"
+    },
+    {
+      "id": "BASE_MODULE_003_UNINVENTORIED_COUNTER_REJECTED",
+      "description": "A canonical counter cannot introduce a module absent from the retained inventory",
+      "inventory_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"],
+      "counter_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth"],
+      "expected_valid": false,
+      "expected_error": "counter module :core:bluetooth is absent from production inventory"
+    },
+    {
+      "id": "BASE_MODULE_004_DUPLICATE_INVENTORY_REJECTED",
+      "description": "Duplicate inventory identities cannot make an incomplete baseline appear complete",
+      "inventory_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth", ":core:bluetooth"],
+      "counter_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator", ":core:bluetooth"],
+      "expected_valid": false,
+      "expected_error": "production inventory contains duplicate module identities"
+    },
+    {
+      "id": "BASE_MODULE_005_REQUIRED_TIER1_MISSING_REJECTED",
+      "description": "A critical module cannot be omitted from both baseline inventory and counters",
+      "inventory_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2"],
+      "counter_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2"],
+      "expected_valid": false,
+      "expected_error": "production inventory is missing required module :feature:authenticator"
+    }
+  ]
+}

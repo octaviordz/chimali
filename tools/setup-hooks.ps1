@@ -30,5 +30,6 @@ if ([string]::IsNullOrWhiteSpace($currentTarget)) {
 }
 
 Write-Host "Done: Repository configured to include .gitconfig for shared hooks." -ForegroundColor Green
-Write-Host "NOTE: Local hook bypass (e.g. git push --no-verify) does NOT grant remote merge approval; remote GitHub branch protection strictly enforces the dedicated App coverage check." -ForegroundColor Yellow
+Write-Host "Local hook configuration does not configure or prove any remote merge gate. Hosted coverage enforcement remains unavailable until separately provisioned and verified." -ForegroundColor Yellow
+Write-Host "Configure the local pre-push inputs explicitly: coverage.targetRef, coverage.deviceSerial, coverage.evidenceRoot, and coverage.harnessRoot." -ForegroundColor Cyan
 Write-Host "`nGit hooks setup complete!" -ForegroundColor Cyan

@@ -1,0 +1,39 @@
+{
+  "cases": [
+    {
+      "id": "BIGINT_001_ABOVE_INT64",
+      "description": "Preserves a coverage count larger than Int64",
+      "label": "fixture count",
+      "value": "92233720368547758081234567890",
+      "expected_value": "92233720368547758081234567890"
+    },
+    {
+      "id": "BIGINT_002_ZERO",
+      "description": "Accepts zero coverage count",
+      "label": "fixture count",
+      "value": "0",
+      "expected_value": "0"
+    },
+    {
+      "id": "BIGINT_003_NEGATIVE",
+      "description": "Rejects negative coverage count",
+      "label": "fixture count",
+      "value": "-1",
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "BIGINT_004_FRACTIONAL",
+      "description": "Rejects fractional coverage count",
+      "label": "fixture count",
+      "value": "1.5",
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "BIGINT_005_NONCANONICAL",
+      "description": "Rejects noncanonical leading zeroes",
+      "label": "fixture count",
+      "value": "01",
+      "expected_error": "nonnegative integer"
+    }
+  ]
+}

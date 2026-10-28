@@ -90,6 +90,275 @@
       },
       "expected_valid": false,
       "expected_error": "Remote read-back ref missing or malformed"
+    },
+    {
+      "id": "PUB_009_SUCCESS_REQUIRES_RETRIEVABLE_ARCHIVE",
+      "description": "Passing assessment and exact retrievable publication permit a success conclusion",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "publication_purpose": "Candidate",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "PUB_010_DRY_RUN_CANNOT_PASS",
+      "description": "Dry-run receipt cannot authorize success",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "status": "DryRun",
+          "retrievable": false,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111"
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "not successfully retrievable"
+    },
+    {
+      "id": "PUB_011_STALE_BUNDLE_RECEIPT_REJECTED",
+      "description": "Publication receipt for another bundle cannot authorize success",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "does not bind the exact verified bundle digest"
+    },
+    {
+      "id": "PUB_012_FAILED_ASSESSMENT_CANNOT_PASS",
+      "description": "Failed verification cannot be repaired by a published archive",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": false,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "not complete, passing, compatible"
+    },
+    {
+      "id": "PUB_013_SUCCESS_REQUIRES_CONTENT_READBACK",
+      "description": "A visible remote ref without verified archived bundle content cannot authorize success",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": false
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "does not prove archived bundle content was read back and verified"
+    },
+    {
+      "id": "PUB_014_FAILED_PUBLICATION_CANNOT_PASS",
+      "description": "A failed archive publication cannot authorize an authoritative success check",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "status": "Failed",
+          "retrievable": false,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": null,
+          "read_back_commit": null,
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": null,
+          "archived_bundle_path": null,
+          "content_readback_verified": false
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "not successfully retrievable"
+    },
+    {
+      "id": "PUB_015_WRONG_ARCHIVE_BRANCH_CANNOT_PASS",
+      "description": "A self-consistent publication on an untrusted branch cannot authorize success",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": { "collection": "Complete", "tests": "Passed", "floors": "Passed", "comparison_compatibility": "Compatible", "regression": "Passed" },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "publication_purpose": "Candidate",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "refs-like-product",
+          "archive_ref": "refs/heads/refs-like-product",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "trusted coverage evidence branch"
+    },
+    {
+      "id": "PUB_016_NON_CANDIDATE_ARCHIVE_CANNOT_PASS",
+      "description": "An Initial run archive cannot authorize a Candidate integration success check",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "overall_passed": true,
+          "decisions": { "collection": "Complete", "tests": "Passed", "floors": "Passed", "comparison_compatibility": "Compatible", "regression": "Passed" },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000111",
+          "publication_purpose": "Initial",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "codex/coverage-evidence",
+          "archive_ref": "refs/heads/codex/coverage-evidence",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000111",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": false,
+      "expected_error": "purpose is not Candidate"
     }
   ]
 }

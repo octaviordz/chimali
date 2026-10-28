@@ -31,6 +31,61 @@
       "paths_provided": false,
       "paths": [],
       "expected_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"]
+    },
+    {
+      "id": "CHANGED_PATH_006_TIER2_OWNER_FROM_INVENTORY",
+      "paths_provided": true,
+      "paths": ["core/bluetooth/src/main/kotlin/Example.kt"],
+      "expected_modules": [],
+      "expected_tier2_modules": [":core:bluetooth"]
+    },
+    {
+      "id": "CHANGED_PATH_007_SHARED_CHANGE_EXPANDS_TIER2_OWNERS",
+      "paths_provided": true,
+      "paths": ["tools/coverage/verify.ps1"],
+      "expected_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"],
+      "expected_tier2_modules": [":app", ":core:bluetooth", ":core:common", ":core:database", ":core:ui"]
+    },
+    {
+      "id": "CHANGED_PATH_008_EMPTY_TIER2_CHANGESET_GATES_NONE",
+      "paths_provided": true,
+      "paths": [],
+      "expected_modules": [],
+      "expected_tier2_modules": []
+    },
+    {
+      "id": "CHANGED_PATH_009_MISSING_CHANGESET_EXPANDS_TIER2_OWNERS",
+      "paths_provided": false,
+      "paths": [],
+      "expected_modules": [":core:security", ":core:domain", ":core:data", ":feature:fido2", ":feature:authenticator"],
+      "expected_tier2_modules": [":app", ":core:bluetooth", ":core:common", ":core:database", ":core:ui"]
+    },
+    {
+      "id": "CHANGED_PATH_010_MISSING_CONFIGURED_TIER2_OWNER_REJECTED",
+      "paths_provided": true,
+      "paths": ["core/bluetooth/src/main/kotlin/Example.kt"],
+      "expected_modules": [],
+      "expected_tier2_modules": [],
+      "omit_configured_owner": true,
+      "expect_error": "Configured Tier 2 owner ':app' is missing from production inventory"
+    },
+    {
+      "id": "CHANGED_PATH_011_DUPLICATE_TIER2_OWNER_REJECTED",
+      "paths_provided": true,
+      "paths": ["core/bluetooth/src/main/kotlin/Example.kt"],
+      "expected_modules": [],
+      "expected_tier2_modules": [],
+      "duplicate_owner": true,
+      "expect_error": "duplicate Tier 2 module owners"
+    },
+    {
+      "id": "CHANGED_PATH_012_UNSAFE_TIER2_DIRECTORY_REJECTED",
+      "paths_provided": true,
+      "paths": ["core/bluetooth/src/main/kotlin/Example.kt"],
+      "expected_modules": [],
+      "expected_tier2_modules": [],
+      "unsafe_owner_directory": true,
+      "expect_error": "unsafe project_directory"
     }
   ]
 }

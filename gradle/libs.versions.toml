@@ -36,6 +36,7 @@ mlkit-barcode = "17.3.0"
 qrose = "1.1.2"
 javax-inject = "1"
 androidx-test-ext-junit = "1.2.1"
+androidx-test-runner = "1.6.1"
 espresso = "3.6.1"
 timber = "5.0.1"
 kermit = "2.0.4"
@@ -121,6 +122,7 @@ camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
 qrose = { group = "io.github.alexzhirkevich", name = "qrose", version.ref = "qrose" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }
 androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 compose-ui-test = { group = "androidx.compose.ui", name = "ui-test" }

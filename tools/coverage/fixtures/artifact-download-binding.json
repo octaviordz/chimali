@@ -1,0 +1,13 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Verified workflow artifact identity and archive digest requirements",
+  "cases": [
+    { "id": "ARTIFACT_BIND_001_VALID", "mutation": "none", "expected_valid": true },
+    { "id": "ARTIFACT_BIND_002_DIGEST_MISMATCH", "mutation": "digest", "expected_valid": false },
+    { "id": "ARTIFACT_BIND_003_WRONG_RUN", "mutation": "run", "expected_valid": false },
+    { "id": "ARTIFACT_BIND_004_WRONG_HEAD", "mutation": "head", "expected_valid": false },
+    { "id": "ARTIFACT_BIND_005_WRONG_REPOSITORY", "mutation": "repo", "expected_valid": false },
+    { "id": "ARTIFACT_BIND_006_EXPIRED", "mutation": "expired", "expected_valid": false },
+    { "id": "ARTIFACT_BIND_007_DUPLICATE_NAME", "mutation": "duplicate", "expected_valid": false }
+  ]
+}

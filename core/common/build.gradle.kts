@@ -23,7 +23,9 @@ kotlin {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
         withHostTest {}
-        withDeviceTest {}
+        withDeviceTest {
+            enableCoverage = true
+        }
     }
 
     iosArm64()
@@ -65,6 +67,7 @@ kotlin {
         val androidDeviceTest by getting {
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
+                implementation(libs.androidx.test.runner)
                 implementation(libs.kotlin.test)
             }
         }

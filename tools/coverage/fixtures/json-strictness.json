@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {
+      "id": "JSON_STRICT_001_DUPLICATE_COUNTER_PROPERTY_REJECTED",
+      "description": "Rejects duplicate counter properties instead of accepting an ambiguous last value",
+      "raw_json": "{\"instruction\":{\"covered\":1,\"covered\":2}}",
+      "expected_error": "Duplicate JSON property 'covered'"
+    },
+    {
+      "id": "JSON_STRICT_002_INVALID_JSON_REJECTED",
+      "description": "Rejects malformed JSON rather than retrying a permissive parser",
+      "raw_json": "{\"value\":1,}",
+      "expected_error": "Invalid or ambiguous JSON"
+    },
+    {
+      "id": "JSON_STRICT_003_VALID_BIG_INTEGER_PRESERVED",
+      "description": "Preserves valid integer JSON larger than Int64 through the shared reader",
+      "raw_json": "{\"value\":92233720368547758081234567890}",
+      "expected_value": "92233720368547758081234567890"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "description": "Promotion requires independently passing assessment and verified integration-event identity",
+  "cases": [
+    {
+      "id": "PROMO_001_VALID_INTEGRATION",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "decision": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "overall_passed": true,
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed"
+        }
+      },
+      "integration_event": {
+        "event_type": "pull_request",
+        "merged": true,
+        "repository": "owner/repo",
+        "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "integration_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "repository": "owner/repo",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": true
+    },
+    {
+      "id": "PROMO_002_FAILED_ASSESSMENT",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "decision": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "overall_passed": false,
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed"
+        }
+      },
+      "integration_event": {
+        "event_type": "pull_request",
+        "merged": true,
+        "repository": "owner/repo",
+        "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "integration_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "repository": "owner/repo",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": false,
+      "expected_error": "not complete, passing"
+    },
+    {
+      "id": "PROMO_003_UNMERGED_EVENT",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "decision": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "overall_passed": true,
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed"
+        }
+      },
+      "integration_event": {
+        "event_type": "pull_request",
+        "merged": false,
+        "repository": "owner/repo",
+        "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "integration_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "repository": "owner/repo",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": false,
+      "expected_error": "completed pull-request integration"
+    },
+    {
+      "id": "PROMO_004_CHANGED_INTEGRATED_TREE",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "decision": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "overall_passed": true,
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed"
+        }
+      },
+      "integration_event": {
+        "event_type": "pull_request",
+        "merged": true,
+        "repository": "owner/repo",
+        "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "integration_tree": "ffffffffffffffffffffffffffffffffffffffff"
+      },
+      "repository": "owner/repo",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": false,
+      "expected_error": "exact tested tree"
+    },
+    {
+      "id": "PROMO_005_UNSUPPORTED_PUSH_EVENT",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "git": {
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "target_commit": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "decision": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "overall_passed": true,
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Compatible",
+          "regression": "Passed"
+        }
+      },
+      "integration_event": {
+        "event_type": "push",
+        "merged": true,
+        "repository": "owner/repo",
+        "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "integration_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "integration_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "repository": "owner/repo",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "base_sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "expected_valid": false,
+      "expected_error": "completed pull-request integration"
+    }
+  ]
+}

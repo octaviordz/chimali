@@ -34,4 +34,13 @@ dependencies {
     // Koin (replaces Hilt)
     implementation(libs.koin.core)
     implementation(libs.koin.android)
+
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.mockk)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

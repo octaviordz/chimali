@@ -1,5 +1,6 @@
 package com.chimali.core.data.eventsourcing
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.eventsourcing.AggregateService
 import com.chimali.core.domain.eventsourcing.DomainEvent
 import com.chimali.core.domain.eventsourcing.EventKind
@@ -35,6 +36,7 @@ class VaultAggregateServiceImpl(
      *
      * Traceability: NFR-ARCH-050 (Deterministic Decider fold reconstruction, snapshot acceleration, full fold fallback)
      */
+    @Req("NFR-ARCH-050")
     override suspend fun getState(
         aggregateId: String,
         asOf: Instant?,
@@ -67,6 +69,7 @@ class VaultAggregateServiceImpl(
      * Traceability: NFR-ARCH-050 (Append-only commit, bounded optimistic concurrency retry, snapshot generation)
      * Traceability: NFR-SEC-041 (Sensitive memory zeroization on state transition)
      */
+    @Req("NFR-ARCH-050", "NFR-SEC-041", "TR-AUTH-031")
     override suspend fun execute(
         aggregateId: String,
         command: VaultCommand,
@@ -79,40 +82,47 @@ class VaultAggregateServiceImpl(
                 if (currentStateResult.isFailure) return currentStateResult
 
                 val currentState = currentStateResult.getOrThrow()
-                val events = decider.decide(currentState, command)
-
-                if (events.isEmpty()) return Result.success(currentState)
-
+                var ownedState = currentState
+                var events: List<VaultEvent> = emptyList()
+                var stateTransferred = false
                 try {
-                    val appendResult: Result<Unit> = eventStoreRepository.append(EventKind.VAULT_ENTRY, events)
-                    if (appendResult.isSuccess) {
-                        var state = currentState
-                        events.forEach { event ->
-                            val next = decider.evolve(state, event)
-                            if (state !== next) state.clearSensitiveMemory()
-                            state = next
-                        }
-
-                        // Check if we should take a snapshot (threshold: 20 events)
-                        if (state.sequenceNumber % SNAPSHOT_THRESHOLD == 0L) {
-                            snapshotRepository.save(
-                                EventKind.VAULT_ENTRY,
-                                Snapshot(
-                                    aggregateId = aggregateId,
-                                    sequenceNumber = state.sequenceNumber,
-                                    state = state,
-                                    timestamp =
-                                        kotlinx.datetime.Clock.System
-                                            .now(),
-                                ),
-                            )
-                        }
-
-                        return Result.success(state)
+                    events = decider.decide(currentState, command)
+                    if (events.isEmpty()) {
+                        stateTransferred = true
+                        return Result.success(currentState)
                     }
-                    currentState.clearSensitiveMemory()
-                    lastResult = appendResult
+
+                    val appendResult: Result<Unit> = eventStoreRepository.append(EventKind.VAULT_ENTRY, events)
+                    if (appendResult.isFailure) {
+                        lastResult = appendResult
+                        return@repeat
+                    }
+
+                    events.forEach { event ->
+                        val previousState = ownedState
+                        ownedState = decider.evolve(previousState, event)
+                        if (previousState !== ownedState) previousState.clearSensitiveMemory()
+                    }
+
+                    // Check if we should take a snapshot (threshold: 20 events)
+                    if (ownedState.sequenceNumber % SNAPSHOT_THRESHOLD == 0L) {
+                        snapshotRepository.save(
+                            EventKind.VAULT_ENTRY,
+                            Snapshot(
+                                aggregateId = aggregateId,
+                                sequenceNumber = ownedState.sequenceNumber,
+                                state = ownedState,
+                                timestamp =
+                                    kotlinx.datetime.Clock.System
+                                        .now(),
+                            ),
+                        )
+                    }
+
+                    stateTransferred = true
+                    return Result.success(ownedState)
                 } finally {
+                    if (!stateTransferred) ownedState.clearSensitiveMemory()
                     events.forEach { it.clearSensitiveMemory() }
                 }
             }

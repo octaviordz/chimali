@@ -13,8 +13,14 @@
       "counters": {
         "module_path": ":core:security",
         "tier": 1,
-        "instruction": { "covered": 60, "missed": 40 },
-        "branch": { "covered": 30, "missed": 20 }
+        "instruction": {
+          "covered": 60,
+          "missed": 40
+        },
+        "branch": {
+          "covered": 30,
+          "missed": 20
+        }
       },
       "expected_pass": true
     },
@@ -28,8 +34,14 @@
       "counters": {
         "module_path": ":core:security",
         "tier": 1,
-        "instruction": { "covered": 59996, "missed": 40004 },
-        "branch": { "covered": 60, "missed": 40 }
+        "instruction": {
+          "covered": 59996,
+          "missed": 40004
+        },
+        "branch": {
+          "covered": 60,
+          "missed": 40
+        }
       },
       "expected_pass": false
     },
@@ -44,8 +56,14 @@
       "counters": {
         "module_path": ":core:data",
         "tier": 1,
-        "instruction": { "covered": 55, "missed": 45 },
-        "branch": { "covered": 60, "missed": 40 }
+        "instruction": {
+          "covered": 55,
+          "missed": 45
+        },
+        "branch": {
+          "covered": 60,
+          "missed": 40
+        }
       },
       "expected_pass": false
     },
@@ -59,8 +77,14 @@
       "counters": {
         "module_path": ":core:domain",
         "tier": 1,
-        "instruction": { "covered": "3000000000", "missed": "2000000000" },
-        "branch": { "covered": "6000000000", "missed": "4000000000" }
+        "instruction": {
+          "covered": 30000000000000000000,
+          "missed": 20000000000000000000
+        },
+        "branch": {
+          "covered": 60000000000000000000,
+          "missed": 40000000000000000000
+        }
       },
       "expected_pass": true
     },
@@ -73,8 +97,14 @@
       "counters": {
         "module_path": ":core:database",
         "tier": 2,
-        "instruction": { "covered": 20, "missed": 80 },
-        "branch": { "covered": 5, "missed": 95 }
+        "instruction": {
+          "covered": 20,
+          "missed": 80
+        },
+        "branch": {
+          "covered": 5,
+          "missed": 95
+        }
       },
       "expected_pass": true
     },
@@ -87,8 +117,14 @@
       "counters": {
         "module_path": ":core:database",
         "tier": 2,
-        "instruction": { "covered": 199, "missed": 801 },
-        "branch": { "covered": 50, "missed": 50 }
+        "instruction": {
+          "covered": 199,
+          "missed": 801
+        },
+        "branch": {
+          "covered": 50,
+          "missed": 50
+        }
       },
       "expected_pass": false
     },
@@ -103,8 +139,14 @@
       "counters": {
         "module_path": ":feature:fido2",
         "tier": 1,
-        "instruction": { "covered": 70, "missed": 30 },
-        "branch": { "covered": 62, "missed": 38 }
+        "instruction": {
+          "covered": 70,
+          "missed": 30
+        },
+        "branch": {
+          "covered": 62,
+          "missed": 38
+        }
       },
       "expected_pass": true
     },
@@ -118,10 +160,72 @@
       "counters": {
         "module_path": ":core:security",
         "tier": 1,
-        "instruction": { "covered": 80, "missed": 20 },
-        "branch": { "covered": 0, "missed": 0 }
+        "instruction": {
+          "covered": 80,
+          "missed": 20
+        },
+        "branch": {
+          "covered": 0,
+          "missed": 0
+        }
       },
       "expected_pass": true
+    },
+    {
+      "id": "FLOOR_009_NEGATIVE_COUNTER_REJECTED",
+      "description": "Negative coverage counts are invalid",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60
+      },
+      "counters": {
+        "module_path": ":core:data",
+        "tier": 1,
+        "instruction": {
+          "covered": 60,
+          "missed": -1
+        },
+        "branch": {
+          "covered": 60,
+          "missed": 40
+        }
+      },
+      "expected_pass": false,
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "FLOOR_010_FRACTIONAL_COUNTER_REJECTED",
+      "description": "Fractional coverage counts are invalid",
+      "policy": {
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60
+      },
+      "counters": {
+        "module_path": ":core:data",
+        "tier": 1,
+        "instruction": {
+          "covered": 60.5,
+          "missed": 39.5
+        },
+        "branch": {
+          "covered": 60,
+          "missed": 40
+        }
+      },
+      "expected_pass": false,
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "FLOOR_011_ZERO_REPOSITORY_DENOMINATOR_REJECTED",
+      "description": "A zero repository aggregate cannot satisfy the floor",
+      "policy": {},
+      "counters": {
+        "repository": {
+          "covered": 0,
+          "missed": 0
+        }
+      },
+      "expected_pass": false
     }
   ]
 }

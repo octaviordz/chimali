@@ -7,11 +7,42 @@
       "description": "All five Tier 1 modules are explicitly accounted for in inventory",
       "inventory": {
         "modules": [
-          { "path": ":core:security", "source_roots": ["src/commonMain/kotlin"], "class_count": 15 },
-          { "path": ":core:domain", "source_roots": ["src/commonMain/kotlin"], "class_count": 25 },
-          { "path": ":core:data", "source_roots": ["src/commonMain/kotlin"], "class_count": 30 },
-          { "path": ":feature:fido2", "source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin"], "class_count": 40 },
-          { "path": ":feature:authenticator", "source_roots": ["src/commonMain/kotlin"], "class_count": 0 }
+          {
+            "path": ":core:security",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 15
+          },
+          {
+            "path": ":core:domain",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 25
+          },
+          {
+            "path": ":core:data",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 30
+          },
+          {
+            "path": ":feature:fido2",
+            "source_roots": [
+              "src/commonMain/kotlin",
+              "src/androidMain/kotlin"
+            ],
+            "class_count": 40
+          },
+          {
+            "path": ":feature:authenticator",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 0
+          }
         ]
       },
       "expected_valid": true
@@ -21,11 +52,42 @@
       "description": "Custom source root correctly recognized in module inventory",
       "inventory": {
         "modules": [
-          { "path": ":core:security", "source_roots": ["src/commonMain/kotlin", "src/jvmMain/kotlin"], "class_count": 20 },
-          { "path": ":core:domain", "source_roots": ["src/commonMain/kotlin"], "class_count": 25 },
-          { "path": ":core:data", "source_roots": ["src/commonMain/kotlin"], "class_count": 30 },
-          { "path": ":feature:fido2", "source_roots": ["src/commonMain/kotlin"], "class_count": 40 },
-          { "path": ":feature:authenticator", "source_roots": ["src/commonMain/kotlin"], "class_count": 0 }
+          {
+            "path": ":core:security",
+            "source_roots": [
+              "src/commonMain/kotlin",
+              "src/jvmMain/kotlin"
+            ],
+            "class_count": 20
+          },
+          {
+            "path": ":core:domain",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 25
+          },
+          {
+            "path": ":core:data",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 30
+          },
+          {
+            "path": ":feature:fido2",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 40
+          },
+          {
+            "path": ":feature:authenticator",
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
+            "class_count": 0
+          }
         ]
       },
       "expected_valid": true
@@ -37,7 +99,9 @@
         "modules": [
           {
             "path": ":core:security",
-            "source_roots": ["src/commonMain/kotlin"],
+            "source_roots": [
+              "src/commonMain/kotlin"
+            ],
             "classes": [
               "com.chimali.core.security.Cipher",
               "com.chimali.core.security.Cipher"
@@ -56,7 +120,57 @@
       },
       "xml_file": "exporter/branchless.xml",
       "proof_file": "exporter/branchless_proof.json",
-      "expected_valid": true
+      "expected_valid": true,
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:fido2",
+          "disposition": "Applicable",
+          "retained_classes": [
+            {
+              "class_id": "com/chimali/fido2/domain/model/PublicKeyCredentialType.class",
+              "sha256": "ff199d488965fcc46359cf36d9d1af6acccdf092b4f006a1618efcd903a144be"
+            }
+          ],
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
+          "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+          "instruction": {
+            "missed": 19,
+            "covered": 0
+          },
+          "branch": {
+            "missed": 0,
+            "covered": 0
+          }
+        },
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "expected_inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+        "proof": {
+          "normalization_rule": "AnalyzedZeroProofV1",
+          "module_path": ":feature:fido2",
+          "analyzer_identity": "jacoco-0.8.15",
+          "report_file": "branchless.xml",
+          "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+          "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
+          "counters": {
+            "INSTRUCTION": {
+              "covered": 0,
+              "missed": 19,
+              "total": 19
+            },
+            "BRANCH": {
+              "covered": 0,
+              "missed": 0,
+              "total": 0
+            }
+          }
+        }
+      }
     },
     {
       "id": "INV_005_BRANCHLESS_MISSING_PROOF_FAILS",
@@ -83,7 +197,11 @@
         "report_file": "branchless.xml",
         "report_digest": "0000000000000000000000000000000000000000000000000000000000000000",
         "counters": {
-          "BRANCH": { "covered": 0, "missed": 0, "total": 0 }
+          "BRANCH": {
+            "covered": 0,
+            "missed": 0,
+            "total": 0
+          }
         }
       },
       "expected_valid": false,
@@ -98,7 +216,52 @@
       },
       "xml_file": "exporter/empty.xml",
       "proof_file": "exporter/empty_proof.json",
-      "expected_valid": true
+      "expected_valid": true,
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "retained_classes": [],
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+          "instruction": {
+            "missed": 0,
+            "covered": 0
+          },
+          "branch": {
+            "missed": 0,
+            "covered": 0
+          }
+        },
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "expected_inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+        "proof": {
+          "normalization_rule": "AnalyzedZeroProofV1",
+          "module_path": ":feature:authenticator",
+          "analyzer_identity": "jacoco-0.8.15",
+          "report_file": "empty.xml",
+          "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+          "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "counters": {
+            "INSTRUCTION": {
+              "covered": 0,
+              "missed": 0,
+              "total": 0
+            },
+            "BRANCH": {
+              "covered": 0,
+              "missed": 0,
+              "total": 0
+            }
+          }
+        }
+      }
     },
     {
       "id": "INV_008_NONZERO_PROOF_FOR_OMITTED_COUNTER_FAILS",
@@ -109,21 +272,84 @@
       "xml_file": "exporter/branchless.xml",
       "proof": {
         "normalization_rule": "AnalyzedZeroProofV1",
-        "module_path": ":core:security",
+        "module_path": ":feature:fido2",
         "analyzer_identity": "jacoco-0.8.15",
         "report_file": "branchless.xml",
-        "report_digest": "61f04d3c0b40a9fd2b60427c8fb6f7f5416e6b8c27c675e3a88eb07adb0b5594",
+        "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
         "counters": {
-          "BRANCH": { "covered": 5, "missed": 5, "total": 10 }
+          "INSTRUCTION": {
+            "covered": 0,
+            "missed": 19,
+            "total": 19
+          },
+          "BRANCH": {
+            "covered": 1,
+            "missed": 1,
+            "total": 2
+          }
         }
       },
       "expected_valid": false,
-      "expected_error": "Contradictory zero proof: canonical total 10 is nonzero for omitted XML counter"
+      "expected_error": "Contradictory zero proof: canonical total 2 is nonzero for omitted XML counter",
+      "canonical_binding": {
+        "inventory_module": {
+          "module_path": ":feature:fido2",
+          "disposition": "Applicable",
+          "retained_classes": [
+            {
+              "class_id": "com/chimali/fido2/domain/model/PublicKeyCredentialType.class",
+              "sha256": "ff199d488965fcc46359cf36d9d1af6acccdf092b4f006a1618efcd903a144be"
+            }
+          ],
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7"
+        },
+        "counter_module": {
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
+          "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+          "instruction": {
+            "missed": 19,
+            "covered": 0
+          },
+          "branch": {
+            "missed": 1,
+            "covered": 1
+          }
+        },
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "expected_inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "analyzer_identity": "jacoco-0.8.15",
+        "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+        "proof": {
+          "normalization_rule": "AnalyzedZeroProofV1",
+          "module_path": ":feature:fido2",
+          "analyzer_identity": "jacoco-0.8.15",
+          "report_file": "branchless.xml",
+          "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+          "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+          "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
+          "counters": {
+            "INSTRUCTION": {
+              "covered": 0,
+              "missed": 19,
+              "total": 19
+            },
+            "BRANCH": {
+              "covered": 1,
+              "missed": 1,
+              "total": 2
+            }
+          }
+        }
+      }
     },
     {
       "id": "INV_009_EMPTY_INVENTORY_REPORT_COUNTER_AND_PROOF_BIND",
       "description": "Empty module has matching retained-class, report, inventory-file, analyzer, and zero-proof bindings",
-      "inventory": { "module_path": ":feature:authenticator" },
+      "inventory": {
+        "module_path": ":feature:authenticator"
+      },
       "canonical_binding": {
         "inventory_module": {
           "module_path": ":feature:authenticator",
@@ -133,7 +359,15 @@
         },
         "counter_module": {
           "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": {
+            "covered": 0,
+            "missed": 0
+          },
+          "branch": {
+            "covered": 0,
+            "missed": 0
+          }
         },
         "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "expected_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -145,7 +379,18 @@
           "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "counters": { "INSTRUCTION": { "total": 0 }, "BRANCH": { "total": 0 } }
+          "counters": {
+            "INSTRUCTION": {
+              "total": 0,
+              "covered": 0,
+              "missed": 0
+            },
+            "BRANCH": {
+              "total": 0,
+              "covered": 0,
+              "missed": 0
+            }
+          }
         }
       },
       "expected_valid": true
@@ -153,7 +398,11 @@
     {
       "id": "INV_010_INVENTORY_FILE_DIGEST_MISMATCH_FAILS",
       "description": "Counter cannot bind to a different production-inventory file digest",
-      "inventory": { "module_path": ":feature:authenticator" },
+      "inventory": {
+        "module_path": ":feature:authenticator"
+      },
+      "expected_valid": false,
+      "expected_error": "Inventory file digest mismatch",
       "canonical_binding": {
         "inventory_module": {
           "module_path": ":feature:authenticator",
@@ -163,20 +412,30 @@
         },
         "counter_module": {
           "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+          "instruction": {
+            "missed": 0,
+            "covered": 0
+          },
+          "branch": {
+            "missed": 0,
+            "covered": 0
+          }
         },
-        "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "expected_inventory_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "expected_inventory_digest": "bcd1bddf823a8e46c8471b3413f4f64d99b3137a2b443a27be7b47f0339d12e2",
         "analyzer_identity": "jacoco-0.8.15",
-        "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-      },
-      "expected_valid": false,
-      "expected_error": "Inventory file digest mismatch"
+        "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02"
+      }
     },
     {
       "id": "INV_011_ZERO_PROOF_INVENTORY_MISMATCH_FAILS",
       "description": "Zero proof cannot be replayed against a different inventory file",
-      "inventory": { "module_path": ":feature:authenticator" },
+      "inventory": {
+        "module_path": ":feature:authenticator"
+      },
+      "expected_valid": false,
+      "expected_error": "Zero proof inventory digest mismatch",
       "canonical_binding": {
         "inventory_module": {
           "module_path": ":feature:authenticator",
@@ -186,23 +445,42 @@
         },
         "counter_module": {
           "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+          "instruction": {
+            "missed": 0,
+            "covered": 0
+          },
+          "branch": {
+            "missed": 0,
+            "covered": 0
+          }
         },
-        "inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "expected_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+        "expected_inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
         "analyzer_identity": "jacoco-0.8.15",
-        "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
         "proof": {
           "normalization_rule": "AnalyzedZeroProofV1",
+          "module_path": ":feature:authenticator",
           "analyzer_identity": "jacoco-0.8.15",
-          "inventory_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "report_file": "empty.xml",
+          "report_digest": "13bd65cb89379eb20d75313de2e500a0dd71e99db255a601b4e7fd7e65bf0a02",
+          "inventory_digest": "2864378e71a0b0c2a706ed9c9f2fe1b5f305827eb36f3d2ba675c207821c9471",
           "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "report_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "counters": { "INSTRUCTION": { "total": 0 }, "BRANCH": { "total": 0 } }
+          "counters": {
+            "INSTRUCTION": {
+              "covered": 0,
+              "missed": 0,
+              "total": 0
+            },
+            "BRANCH": {
+              "covered": 0,
+              "missed": 0,
+              "total": 0
+            }
+          }
         }
-      },
-      "expected_valid": false,
-      "expected_error": "Zero proof inventory digest mismatch"
+      }
     }
   ]
 }

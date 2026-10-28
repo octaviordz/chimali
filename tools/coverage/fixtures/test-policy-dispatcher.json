@@ -1,0 +1,16 @@
+{
+  "$schema": "./schema.json",
+  "description": "The policy fixture harness must fail unknown fixture suites instead of silently skipping them",
+  "cases": [
+    {
+      "id": "DISPATCH_001_UNKNOWN_SUITE_FAILS",
+      "description": "A fixture file with cases but no dispatcher handler is reported as a failure",
+      "expected_valid": true
+    },
+    {
+      "id": "DISPATCH_002_ZERO_SELECTION_FAILS",
+      "description": "A filtered invocation that selects no cases exits nonzero",
+      "expected_valid": true
+    }
+  ]
+}

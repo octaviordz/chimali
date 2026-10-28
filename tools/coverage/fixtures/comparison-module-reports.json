@@ -1,0 +1,42 @@
+{
+  "cases": [
+    {
+      "id": "BASE_REPORT_001_EXACT_MODULE_REPORT_ACCEPTED",
+      "description": "Baseline module counters bind to that module's canonical report path and digest",
+      "module_path": ":core:data",
+      "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifacts": [{"path": "reports/modules/core_data.xml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_REPORT_002_OTHER_MODULE_REPORT_REJECTED",
+      "description": "A different module's report cannot stand in for the required baseline module report",
+      "module_path": ":core:data",
+      "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifacts": [{"path": "reports/modules/core_security.xml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+      "expected_valid": false,
+      "expected_error": "exactly one module report"
+    },
+    {
+      "id": "BASE_REPORT_003_REPORT_DIGEST_SUBSTITUTION_REJECTED",
+      "description": "The expected module report path cannot bind a digest different from canonical counters",
+      "module_path": ":core:data",
+      "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifacts": [{"path": "reports/modules/core_data.xml", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}],
+      "expected_valid": false,
+      "expected_error": "digest does not match"
+    },
+    {
+      "id": "BASE_REPORT_004_DUPLICATE_MODULE_REPORT_REJECTED",
+      "description": "Duplicate manifest records for the canonical module report are ambiguous",
+      "module_path": ":core:data",
+      "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifacts": [
+        {"path": "reports/modules/core_data.xml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        {"path": "reports/modules/core_data.xml", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+      ],
+      "expected_valid": false,
+      "expected_error": "exactly one module report"
+    }
+  ]
+}

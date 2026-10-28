@@ -1,0 +1,24 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Retained baseline JUnit evidence must agree with testcase contents and manifest suite records",
+  "cases": [
+    {
+      "id": "BASE_JUNIT_001_DECLARED_PASS_WITH_FAILURE_NODE_REJECTED",
+      "xml": "<testsuite name=\"ForgedSuite\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"bad\"><failure message=\"actual failure\" /></testcase></testsuite>",
+      "suite": { "suite_name": "ForgedSuite", "required": true, "tests": 1, "failures": 0, "errors": 0, "skipped": 0 },
+      "expected_error": "declared failures=0 but contains 1"
+    },
+    {
+      "id": "BASE_JUNIT_002_FAILED_REQUIRED_SUITE_REJECTED",
+      "xml": "<testsuite name=\"FailedSuite\" tests=\"1\" failures=\"1\" errors=\"0\" skipped=\"0\"><testcase name=\"bad\"><failure message=\"failure\" /></testcase></testsuite>",
+      "suite": { "suite_name": "FailedSuite", "required": true, "tests": 1, "failures": 1, "errors": 0, "skipped": 0 },
+      "expected_error": "Baseline suite 'FailedSuite' is not Passed"
+    },
+    {
+      "id": "BASE_JUNIT_003_MISSING_REPORT_REJECTED",
+      "missing_report": true,
+      "suite": { "suite_name": "MissingSuite", "required": true, "tests": 1, "failures": 0, "errors": 0, "skipped": 0 },
+      "expected_error": "Baseline artifact is missing: reports/tests/TEST-missing.xml"
+    }
+  ]
+}

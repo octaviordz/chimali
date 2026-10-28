@@ -175,3 +175,9 @@ Record actual results in `implementation-evidence.md` using the exact ten TRD ke
 Preserve any 65% goal shortfall, stronger business-logic coverage objectives, native-platform exclusions, instrumentation limitations and prior feature-055 performance/device deferrals. Do not rewrite October 18 observations to appear current.
 
 The planning output has not satisfied any of these execution checks. Feature completion requires measured SC-001 through SC-008 outcomes and retrievable supporting artifacts.
+
+## 8. Current T130 local acceptance record (2026-10-28)
+
+The local final acceptance run is complete. Candidate `2c74996a0d449ad0ef291ab14eb45c0d70d423f6` was captured with the connected ASUS_AI2302 (API 35) and compared to the indexed accepted target `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2` using the same measurement fingerprint. The production verifier passed all applicable module floors, the 50% repository instruction floor, and changed Tier 1 non-regression. The real local `tools/integration-ci.ps1` wrapper exited successfully. See `implementation-evidence.md` §11.134 for raw counters, exact test totals, run IDs and retained artifacts.
+
+Hosted publication and required-check acceptance remain `Unverified` under the documented owner waiver; no hosted result is implied by local success. The original clean pre-remediation capture is unrecoverable. The retained pre-final-remediation candidate checkpoint and the historical dirty diagnostic are labeled as such and are not represented as that original capture. The optional FIDO2 65% branch goal remains separate from the passing 60% hard floor.

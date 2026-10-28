@@ -58,7 +58,50 @@ param(
     [string]$ComparisonBundle,
 
     [Parameter(Mandatory = $false)]
+    [string]$AcceptedBaselineIndexPath,
+
+    [Parameter(Mandatory = $false)]
+    [string]$IntegrationEventPath,
+
+    [Parameter(Mandatory = $false)]
     [string]$ChangedPathsFile,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('pull_request', 'merge_group')]
+    [string]$LiveEventName,
+
+    [Parameter(Mandatory = $false)]
+    [int]$PullRequestNumber,
+
+    [Parameter(Mandatory = $false)]
+    [string]$IntegrationTargetRef,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ActionsToken,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ServerUrl = 'https://github.com',
+
+    [Parameter(Mandatory = $false)]
+    [string]$LiveEvidencePath,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ExpectedReporterWorkflowSha,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ExpectedReporterSha,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ExpectedRepositoryId,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ExpectedCoverageAppId,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ArtifactId,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ArtifactDigest,
 
     [switch]$DryRun
 )
@@ -66,6 +109,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $CommonPath = Join-Path $ScriptDir "coverage-common.ps1"
+$ApiRoot = if ($ServerUrl -eq 'https://github.com') { 'https://api.github.com' } else { "$($ServerUrl.TrimEnd('/'))/api/v3" }
 
 if (-not (Test-Path $CommonPath)) {
     Write-Error "Common utilities not found at $CommonPath"
@@ -84,8 +128,11 @@ if (-not (Test-Path $manifestPath)) {
 }
 
 $manifest = Read-SafeJson -Path $manifestPath
+$verifiedManifestDigest = Get-FileSha256 -Path $manifestPath
+$verifiedBundleDigest = Get-CoverageBundleDigest -BundlePath $RunBundle
 $policyPath = Join-Path $ScriptDir "policy.json"
 $verifyScript = Join-Path $ScriptDir "verify.ps1"
+$trustedHarnessRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))
 
 # Validate candidate/target bindings using the canonical nested schema.
 $identity = Test-CandidateManifestIdentity -Manifest $manifest -ExpectedSourceCommit $HeadSha -ExpectedTargetCommit $BaseSha
@@ -93,10 +140,14 @@ if (-not $identity.IsValid) {
     Write-Error "RunBundle identity validation failed: $($identity.Errors -join '; ')"
     exit 1
 }
-
 # 2. Execute verification using trusted verify.ps1
 $bundleParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($RunBundle))
 $assessmentsDir = Join-Path (Join-Path $bundleParent "assessments") $manifest.run_id
+$decisionJsonPath = Join-Path $assessmentsDir "decision.json"
+if (Test-Path -LiteralPath $decisionJsonPath -PathType Leaf) {
+    [Console]::Error.WriteLine("Refusing to reuse an existing assessment for run $($manifest.run_id): $decisionJsonPath")
+    exit 3
+}
 if (-not (Test-Path $assessmentsDir)) {
     New-Item -ItemType Directory -Path $assessmentsDir -Force | Out-Null
 }
@@ -108,14 +159,20 @@ $verifyArgs = @(
 )
 if ($manifest.purpose -eq "Comparison" -or $manifest.purpose -eq "Candidate") {
     if ($ComparisonBundle) { $verifyArgs += @("-ComparisonBundle", $ComparisonBundle) }
+    if ($AcceptedBaselineIndexPath) { $verifyArgs += @("-AcceptedBaselineIndexPath", $AcceptedBaselineIndexPath) }
 }
 if ($ChangedPathsFile) { $verifyArgs += @("-ChangedPathsFile", $ChangedPathsFile) }
 
 $verifyOutput = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verifyScript @verifyArgs
 $verifyCode = $LASTEXITCODE
 
-$decisionJsonPath = Join-Path $assessmentsDir "decision.json"
 $decision = if (Test-Path $decisionJsonPath) { Read-SafeJson -Path $decisionJsonPath } else { $null }
+
+if ($PromoteIntegration -and $verifyCode -eq 0 -and $decision -and $decision.overall_passed -and
+    ($PullRequestNumber -lt 1 -or -not $IntegrationEventPath -or -not (Test-Path -LiteralPath $IntegrationEventPath -PathType Leaf))) {
+    Write-Error 'Promotion requires a pull request number and integration-event request context; the trusted publisher resolves merged commit/tree metadata from the repository API.'
+    exit 3
+}
 
 $checkConclusion = if ($verifyCode -eq 0 -and $decision -and $decision.overall_passed) {
     "success"
@@ -124,6 +181,63 @@ $checkConclusion = if ($verifyCode -eq 0 -and $decision -and $decision.overall_p
 }
 
 Write-Host "Derived check-run conclusion: $checkConclusion" -ForegroundColor $(if ($checkConclusion -eq "success") { "Green" } else { "Red" })
+
+function Test-LiveCandidateNow {
+    param([Parameter(Mandatory = $true)][string]$Phase)
+    if (-not $LiveEventName) { throw "Live candidate event metadata is required before $Phase" }
+    $liveValidator = Join-Path $ScriptDir 'validate-live-candidate.ps1'
+    if (-not (Test-Path -LiteralPath $liveValidator -PathType Leaf)) { throw 'Trusted live candidate validator is missing' }
+    $liveArgs = @(
+        '-Repository', $Repository,
+        '-HeadSha', $HeadSha,
+        '-BaseSha', $BaseSha,
+        '-TreeSha', [string]$manifest.git.source_tree,
+        '-EventName', $LiveEventName,
+        '-ServerUrl', $ServerUrl
+    )
+    if ($PullRequestNumber -gt 0) { $liveArgs += @('-PullRequestNumber', [string]$PullRequestNumber) }
+    if ($IntegrationTargetRef) { $liveArgs += @('-TargetRef', $IntegrationTargetRef) }
+    if ($ActionsToken) { $liveArgs += @('-Token', $ActionsToken) }
+    if ($LiveEvidencePath) { $liveArgs += @('-LiveEvidencePath', $LiveEvidencePath) }
+    $liveOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $liveValidator @liveArgs 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Live candidate revalidation failed $Phase`: $($liveOutput -join ' ')" }
+}
+
+# Recheck after the independent assessment and immediately before minting an
+# installation token; the earlier workflow preflight can become stale.
+if (-not $DryRun -and -not [string]::IsNullOrWhiteSpace($AppId) -and
+    -not [string]::IsNullOrWhiteSpace($AppPrivateKey) -and -not [string]::IsNullOrWhiteSpace($InstallationId)) {
+    if ($AppId -cne $ExpectedCoverageAppId -or
+        [string]::IsNullOrWhiteSpace($ExpectedReporterWorkflowSha) -or
+        [string]::IsNullOrWhiteSpace($ExpectedReporterSha) -or
+        [string]::IsNullOrWhiteSpace($ExpectedRepositoryId) -or
+        $ArtifactId -notmatch '^[0-9]+$' -or $ArtifactDigest -notmatch '^sha256:[0-9a-fA-F]{64}$') {
+        [Console]::Error.WriteLine('Protected reporter workflow/App identity configuration is missing or inconsistent.')
+        exit 3
+    }
+    $reporterBinding = Test-TrustedReporterBinding -Manifest $manifest `
+        -WorkflowCommit $ExpectedReporterWorkflowSha `
+        -ReporterSha $ExpectedReporterSha `
+        -RepositoryId $ExpectedRepositoryId `
+        -AppId $ExpectedCoverageAppId
+    if (-not $reporterBinding.IsValid) {
+        [Console]::Error.WriteLine("Capture reporter binding rejected: $($reporterBinding.Errors -join '; ')")
+        exit 1
+    }
+    try { Test-LiveCandidateNow -Phase 'before App authentication' }
+    catch {
+        $liveAdmission = Resolve-ReportLiveConclusion -CurrentConclusion $checkConclusion -LiveCandidateValidation @{
+            IsValid = $false
+            Errors = @([string]$_)
+        }
+        $checkConclusion = $liveAdmission.Conclusion
+        if ($decision) {
+            if (-not $decision.unmet_reasons) { $decision | Add-Member -NotePropertyName unmet_reasons -NotePropertyValue @() }
+            $decision.unmet_reasons += $liveAdmission.Errors
+        }
+        Write-Warning "Live candidate metadata rejected before App authentication; publishing a failure check for the trusted capture identity: $($liveAdmission.Errors -join '; ')"
+    }
+}
 
 # Helper to mint JWT for GitHub App
 function New-GitHubAppJwtInternal {
@@ -168,12 +282,14 @@ function New-GitHubAppJwtInternal {
 }
 
 # 3. Dedicated GitHub App Check-run publication
-$reporterReceiptPath = Join-Path $assessmentsDir "reporter-receipt.json"
+$receiptNonce = [guid]::NewGuid().ToString('N')
+$reporterReceiptPath = Join-Path $assessmentsDir "reporter-receipt-$receiptNonce.json"
 
 if ($DryRun -or [string]::IsNullOrWhiteSpace($AppId) -or [string]::IsNullOrWhiteSpace($AppPrivateKey) -or [string]::IsNullOrWhiteSpace($InstallationId)) {
     Write-Warning "Dedicated GitHub App credentials not provided or DryRun specified; check-run cannot be authorized via API."
     $unverifiedReceipt = [PSCustomObject]@{
         check_name = "coverage-integration"
+        run_id = [string]$manifest.run_id
         app_id = if ($AppId) { $AppId } else { "unconfigured" }
         repository = $Repository
         head_sha = $HeadSha
@@ -190,7 +306,7 @@ if ($DryRun -or [string]::IsNullOrWhiteSpace($AppId) -or [string]::IsNullOrWhite
 
 # Mint installation access token
 $jwt = New-GitHubAppJwtInternal -AppIdVal $AppId -PrivateKeyPemVal $AppPrivateKey
-$tokenUrl = "https://api.github.com/app/installations/$InstallationId/access_tokens"
+    $tokenUrl = "$ApiRoot/app/installations/$InstallationId/access_tokens"
 $headers = @{
     "Authorization" = "Bearer $jwt"
     "Accept" = "application/vnd.github+json"
@@ -218,8 +334,85 @@ while ($attempt -lt $maxRetries) {
     }
 }
 
+# Archive the exact run bundle and read it back before creating an App success check.
+$publishScript = Join-Path $ScriptDir "publish.ps1"
+$publicationReceiptPath = Join-Path $assessmentsDir "publication-receipt-$receiptNonce.json"
+$publishArgs = @("-RunBundle", $RunBundle, "-OutputReceiptPath", $publicationReceiptPath)
+if ($PromoteIntegration -and $checkConclusion -eq "success") {
+    $publishArgs += @(
+        "-PromoteAsAcceptedTarget",
+        "-AssessmentPath", $decisionJsonPath,
+        "-IntegrationEventPath", $IntegrationEventPath,
+        "-ExpectedRepository", $Repository,
+        "-ExpectedHeadSha", $HeadSha,
+        "-ExpectedBaseSha", $BaseSha,
+        "-PullRequestNumber", [string]$PullRequestNumber
+    )
+    if ($ComparisonBundle) { $publishArgs += @('-ComparisonBundle', $ComparisonBundle) }
+    if ($AcceptedBaselineIndexPath) { $publishArgs += @('-AcceptedBaselineIndexPath', $AcceptedBaselineIndexPath) }
+    if ($ChangedPathsFile) { $publishArgs += @('-ChangedPathsFile', $ChangedPathsFile) }
+}
+$publishTokenVariable = "CHIMALI_COVERAGE_PUBLISH_TOKEN"
+$previousPublishToken = [Environment]::GetEnvironmentVariable($publishTokenVariable, "Process")
+try {
+    [Environment]::SetEnvironmentVariable($publishTokenVariable, $installToken, "Process")
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File $publishScript @publishArgs
+    $publishCode = $LASTEXITCODE
+} finally {
+    [Environment]::SetEnvironmentVariable($publishTokenVariable, $previousPublishToken, "Process")
+}
+$publicationReceipt = if (Test-Path -LiteralPath $publicationReceiptPath) { Read-SafeJson -Path $publicationReceiptPath } else { $null }
+if ($checkConclusion -eq "success") {
+    $publicationEligible = $false
+    if ($publishCode -eq 0 -and $publicationReceipt) {
+        $expectedBundleDigest = Get-CoverageBundleDigest -BundlePath $RunBundle
+        $currentManifestDigest = Get-FileSha256 -Path $manifestPath
+        $publicationGate = Test-ReportSuccessEligibility -Decision $decision -Receipt $publicationReceipt -ExpectedRunId ([string]$manifest.run_id) -ExpectedManifestDigest $currentManifestDigest -ExpectedBundleDigest $expectedBundleDigest
+        $publicationEligible = $publicationGate.IsEligible
+        if (-not $publicationEligible) { $decision.unmet_reasons += $publicationGate.Errors }
+    }
+    if (-not $publicationEligible) {
+        $checkConclusion = "failure"
+        if (-not $publicationReceipt) { Write-Warning "No retrievable publication receipt was produced; coverage success is blocked." }
+        elseif ($publishCode -ne 0) { Write-Warning "Coverage bundle publication failed with exit code $publishCode; coverage success is blocked." }
+    }
+}
+
 # Create Check Run via GitHub API
-$checkUrl = "https://api.github.com/repos/$Repository/check-runs"
+if ($checkConclusion -eq 'success') {
+    try {
+        $currentManifestDigest = Get-FileSha256 -Path $manifestPath
+        $currentBundleDigest = Get-CoverageBundleDigest -BundlePath $RunBundle
+        $currentManifest = Read-SafeJson -Path $manifestPath
+        $currentIdentity = Test-CandidateManifestIdentity -Manifest $currentManifest -ExpectedSourceCommit $HeadSha -ExpectedTargetCommit $BaseSha
+        $currentReporterBinding = Test-TrustedReporterBinding -Manifest $currentManifest `
+            -WorkflowCommit $ExpectedReporterWorkflowSha `
+            -ReporterSha $ExpectedReporterSha `
+            -RepositoryId $ExpectedRepositoryId `
+            -AppId $ExpectedCoverageAppId
+        $currentManifestValidation = Test-ManifestSchema -Manifest $currentManifest -Policy (Read-SafeJson -Path $policyPath) -TrustedHarnessRoot $trustedHarnessRoot
+        $finalBinding = Test-ReportFinalBinding `
+            -VerifiedManifestDigest $verifiedManifestDigest `
+            -CurrentManifestDigest $currentManifestDigest `
+            -VerifiedBundleDigest $verifiedBundleDigest `
+            -CurrentBundleDigest $currentBundleDigest `
+            -CandidateIdentity $currentIdentity `
+            -ReporterBinding $currentReporterBinding `
+            -ManifestValidation $currentManifestValidation `
+            -PublicationReceipt $publicationReceipt
+        if (-not $finalBinding.IsValid) {
+            throw "Final trusted reporter binding rejected: $($finalBinding.Errors -join '; ')"
+        }
+
+        Test-LiveCandidateNow -Phase 'before success check creation'
+    }
+    catch {
+        $checkConclusion = 'failure'
+        if ($decision) { $decision.unmet_reasons += [string]$_ }
+        Write-Warning "Coverage success is blocked because a live run, reporter, harness, or candidate binding changed: $_"
+    }
+}
+$checkUrl = "$ApiRoot/repos/$Repository/check-runs"
 $checkHeaders = @{
     "Authorization" = "token $installToken"
     "Accept" = "application/vnd.github+json"
@@ -227,7 +420,11 @@ $checkHeaders = @{
     "X-GitHub-Api-Version" = "2022-11-28"
 }
 
-$summaryText = if ($decision -and $decision.reasons) { ($decision.reasons -join "`n") } else { "Coverage evaluation completed with conclusion: $checkConclusion" }
+$summaryReasons = @()
+if ($decision) {
+    $summaryReasons = @((@($decision.reasons) + @($decision.unmet_reasons)) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+}
+$summaryText = if ($summaryReasons.Count -gt 0) { $summaryReasons -join "`n" } else { "Coverage evaluation completed with conclusion: $checkConclusion" }
 
 $checkPayload = @{
     name = "coverage-integration"
@@ -264,43 +461,24 @@ while ($attempt -lt $maxRetries) {
 $reporterReceipt = [PSCustomObject]@{
     check_name = "coverage-integration"
     check_id = $createdCheck.id
+    run_id = $manifest.run_id
     app_id = $AppId
     installation_id = $InstallationId
+    artifact_id = $ArtifactId
+    artifact_digest = $ArtifactDigest
     repository = $Repository
     head_sha = $HeadSha
     base_sha = $BaseSha
     conclusion = $checkConclusion
     check_url = $createdCheck.html_url
+    publication_status = if ($publicationReceipt) { $publicationReceipt.status } else { "Missing" }
+    publication_bundle_digest = if ($publicationReceipt) { $publicationReceipt.bundle_digest } else { $null }
+    publication_archive_ref = if ($publicationReceipt) { $publicationReceipt.archive_ref } else { $null }
+    publication_archive_commit = if ($publicationReceipt) { $publicationReceipt.archive_commit } else { $null }
     published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     status = "Published"
 }
 $reporterReceipt | ConvertTo-Json -Depth 5 | Set-Content -Path $reporterReceiptPath -Encoding utf8
 Write-Host "Check run created successfully: ID $($createdCheck.id), conclusion $checkConclusion" -ForegroundColor Green
-
-# 4. Promotion lifecycle if requested and passing
-if ($PromoteIntegration -and $checkConclusion -eq "success") {
-    $publishScript = Join-Path $ScriptDir "publish.ps1"
-    Write-Host "Integration succeeded. Promoting run bundle as accepted comparison target..." -ForegroundColor Cyan
-    $publishArgs = @(
-        "-RunBundle", $RunBundle,
-        "-PromoteAsAcceptedTarget",
-        "-IntegratedCommit", $(if ($IntegratedCommit) { $IntegratedCommit } else { $HeadSha }),
-        "-IntegratedTree", $(if ($IntegratedTree) { $IntegratedTree } else { $manifest.git.source_tree })
-    )
-    $publishTokenVariable = "CHIMALI_COVERAGE_PUBLISH_TOKEN"
-    $previousPublishToken = [Environment]::GetEnvironmentVariable($publishTokenVariable, "Process")
-    try {
-        [Environment]::SetEnvironmentVariable($publishTokenVariable, $installToken, "Process")
-        & pwsh -NoProfile -ExecutionPolicy Bypass -File $publishScript @publishArgs
-    } finally {
-        [Environment]::SetEnvironmentVariable($publishTokenVariable, $previousPublishToken, "Process")
-        $previousPublishToken = $null
-        $publishTokenVariable = $null
-    }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to promote accepted target baseline in publish.ps1"
-        exit 1
-    }
-}
 
 exit $(if ($checkConclusion -eq "success") { 0 } else { 1 })

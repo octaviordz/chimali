@@ -1,0 +1,13 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Offline production validator checks for protected workflow-run identity binding",
+  "cases": [
+    { "id": "WORKFLOW_RUN_001_VALID_PR", "mutation": "none", "expected_valid": true },
+    { "id": "WORKFLOW_RUN_002_AUTHORITATIVE_HEAD_MISMATCH", "mutation": "authoritative-head", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_003_WRONG_WORKFLOW_ID", "mutation": "workflow-id", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_004_CROSS_REPOSITORY_HEAD", "mutation": "fork-head", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_005_UNTRUSTED_WORKFLOW_REF", "mutation": "workflow-ref", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_006_INVALID_PR_BASE", "mutation": "short-base", "expected_valid": false },
+    { "id": "WORKFLOW_RUN_007_VALID_MERGE_GROUP", "mutation": "merge-group", "expected_valid": true }
+  ]
+}

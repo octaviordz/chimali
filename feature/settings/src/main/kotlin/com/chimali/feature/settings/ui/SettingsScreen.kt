@@ -31,6 +31,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val selectionLabels = settingsSelectionLabels(vaultEnabled, passkeyEnabled)
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -55,8 +56,8 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontFamily = LegibilityType.AtkinsonFontFamily,
                     )
-                    Text(text = "Vault: ${if (vaultEnabled) "Enabled" else "Disabled"}")
-                    Text(text = "Passkey Authenticator: ${if (passkeyEnabled) "Enabled" else "Disabled"}")
+                    Text(text = selectionLabels.vault)
+                    Text(text = selectionLabels.passkey)
                 }
             }
 

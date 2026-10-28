@@ -1,0 +1,88 @@
+{
+  "$schema": "./schema.json",
+  "description": "Retained repository report and canonical aggregate counter binding for accepted baselines",
+  "cases": [
+    {
+      "id": "BASE_REPO_001_VALID_BOUND_REPORT",
+      "description": "Repository JaCoCo XML counters agree with the retained canonical counters and digests",
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_REPO_002_ALTERED_XML_COUNTER_REJECTED",
+      "description": "A baseline repository report with counters different from canonical counters is rejected",
+      "xml_instruction_covered": 7,
+      "expected_valid": false,
+      "expected_error": "disagree between JaCoCo XML and canonical counters"
+    },
+    {
+      "id": "BASE_REPO_003_MISSING_REPORT_REJECTED",
+      "description": "A baseline without its retained repository report is rejected",
+      "missing_report": true,
+      "expected_valid": false,
+      "expected_error": "repository JaCoCo report is missing"
+    },
+    {
+      "id": "BASE_REPO_004_MISSING_REPORT_ARTIFACT_REJECTED",
+      "description": "A baseline whose repository report is absent from the artifact manifest is rejected",
+      "missing_artifact": true,
+      "expected_valid": false,
+      "expected_error": "must retain exactly one reports/repository.xml artifact"
+    },
+    {
+      "id": "BASE_REPO_005_COUNTER_DIGEST_MISMATCH_REJECTED",
+      "description": "A canonical repository counter digest that does not match the retained report is rejected",
+      "bad_counter_report_digest": true,
+      "expected_valid": false,
+      "expected_error": "report digest does not match"
+    },
+    {
+      "id": "BASE_REPO_006_INCONSISTENT_TOTAL_REJECTED",
+      "description": "A baseline aggregate total that differs from covered plus missed is rejected",
+      "counter_instruction_total": 9,
+      "expected_valid": false,
+      "expected_error": "total does not equal covered + missed"
+    },
+    {
+      "id": "BASE_REPO_007_NEGATIVE_COUNTER_REJECTED",
+      "description": "Negative baseline repository counters are rejected",
+      "counter_instruction_covered": -1,
+      "expected_valid": false,
+      "expected_error": "covered must be a nonnegative integer"
+    },
+    {
+      "id": "BASE_REPO_008_ZERO_INSTRUCTION_DENOMINATOR_REJECTED",
+      "description": "A repository with no executable instruction denominator cannot be baseline evidence",
+      "xml_instruction_covered": 0,
+      "xml_instruction_missed": 0,
+      "counter_instruction_covered": 0,
+      "counter_instruction_missed": 0,
+      "counter_instruction_total": 0,
+      "expected_valid": false,
+      "expected_error": "instruction aggregate denominator is zero"
+    },
+    {
+      "id": "BASE_REPO_009_LARGE_COUNTERS_PRESERVED",
+      "description": "Repository evidence retains exact aggregate counters above Int64",
+      "xml_instruction_covered": 92233720368547758081234567890,
+      "xml_instruction_missed": 12,
+      "counter_instruction_covered": 92233720368547758081234567890,
+      "counter_instruction_missed": 12,
+      "counter_instruction_total": 92233720368547758081234567902,
+      "expected_valid": true
+    },
+    {
+      "id": "BASE_REPO_010_ALTERED_XML_BRANCH_COUNTER_REJECTED",
+      "description": "Repository branch counters must reconcile with canonical counters as strictly as instruction counters",
+      "xml_branch_covered": 2,
+      "expected_valid": false,
+      "expected_error": "branch counts disagree between JaCoCo XML and canonical counters"
+    },
+    {
+      "id": "BASE_REPO_011_MISSING_CANONICAL_REPOSITORY_REJECTED",
+      "description": "The shared capture/verifier binding rejects a missing canonical repository counter object",
+      "missing_canonical_repository": true,
+      "expected_valid": false,
+      "expected_error": "canonical repository counters are missing"
+    }
+  ]
+}

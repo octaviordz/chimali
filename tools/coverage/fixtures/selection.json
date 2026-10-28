@@ -11,14 +11,32 @@
           "module": ":core:domain",
           "impact": 3,
           "likelihood": 3,
-          "module_deficit": 15.0
+          "instruction": {
+            "covered": 35,
+            "missed": 65,
+            "total": 100
+          },
+          "branch": {
+            "covered": 72,
+            "missed": 28,
+            "total": 100
+          }
         },
         {
           "candidate_id": "COV-001",
           "module": ":core:security",
           "impact": 4,
           "likelihood": 2,
-          "module_deficit": 0.0
+          "instruction": {
+            "covered": 75,
+            "missed": 25,
+            "total": 100
+          },
+          "branch": {
+            "covered": 80,
+            "missed": 20,
+            "total": 100
+          }
         }
       ],
       "expected_first": "COV-001"
@@ -32,14 +50,32 @@
           "module": ":core:domain",
           "impact": 3,
           "likelihood": 2,
-          "module_deficit": 5.0
+          "instruction": {
+            "covered": 55,
+            "missed": 45,
+            "total": 100
+          },
+          "branch": {
+            "covered": 66,
+            "missed": 34,
+            "total": 100
+          }
         },
         {
           "candidate_id": "COV-004",
           "module": ":core:data",
           "impact": 3,
           "likelihood": 2,
-          "module_deficit": 12.5
+          "instruction": {
+            "covered": 70,
+            "missed": 30,
+            "total": 100
+          },
+          "branch": {
+            "covered": 95,
+            "missed": 105,
+            "total": 200
+          }
         }
       ],
       "expected_first": "COV-004"
@@ -49,9 +85,11 @@
       "description": "Failed test in Impact 4 batch blocks advancing to Impact 3 batch until repaired and verified",
       "batch_state": {
         "current_rank": 4,
+        "current_likelihood": 3,
         "selected_case": "COV-001",
         "test_status": "Failed",
-        "attempted_next_rank": 3
+        "attempted_next_rank": 3,
+        "attempted_next_likelihood": 3
       },
       "expected_progression_allowed": false,
       "expected_error": "Cannot advance to lower risk rank while higher rank test COV-001 is Failed or Unverified"
@@ -66,6 +104,457 @@
       },
       "expected_aggregate_shortfall": true,
       "expected_action": "Extend test-selection.md with AggregateFloor candidates in remaining production modules"
+    },
+    {
+      "id": "SEL_005_EXACT_SUBMICROPOINT_DEFICIT_ORDERING",
+      "description": "Raw counters distinguish deficits smaller than the former six-decimal rounding precision",
+      "candidates": [
+        {
+          "candidate_id": "COV-004",
+          "module": ":core:data",
+          "impact": 4,
+          "likelihood": 3,
+          "instruction": {
+            "covered": 599999999,
+            "missed": 400000001,
+            "total": 1000000000
+          },
+          "branch": {
+            "covered": 80,
+            "missed": 20,
+            "total": 100
+          }
+        },
+        {
+          "candidate_id": "COV-005",
+          "module": ":core:domain",
+          "impact": 4,
+          "likelihood": 3,
+          "instruction": {
+            "covered": 599999996,
+            "missed": 400000004,
+            "total": 1000000000
+          },
+          "branch": {
+            "covered": 80,
+            "missed": 20,
+            "total": 100
+          }
+        }
+      ],
+      "expected_first": "COV-005"
+    },
+    {
+      "id": "SEL_006_SUPPLIED_DEFICIT_REJECTED",
+      "description": "Candidate cannot replace raw counters with a caller-supplied rounded deficit",
+      "candidates": [
+        {
+          "candidate_id": "COV-006",
+          "module": ":core:data",
+          "impact": 4,
+          "likelihood": 3,
+          "module_deficit": 99.0,
+          "instruction": {
+            "covered": 60,
+            "missed": 40,
+            "total": 100
+          },
+          "branch": {
+            "covered": 60,
+            "missed": 40,
+            "total": 100
+          }
+        }
+      ],
+      "expected_error": "must not supply a derived module deficit"
+    },
+    {
+      "id": "SEL_007_SAME_IMPACT_LOWER_LIKELIHOOD_REQUIRES_RECEIPTS",
+      "description": "Progression to lower likelihood within the same impact rank requires auditable proofs",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-007",
+        "test_status": "Passed"
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "focused-pass receipt is missing"
+    },
+    {
+      "id": "SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS",
+      "description": "Allows lower-risk progression only with focused, repair, clean-measurement, and reranking receipts",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": true
+    },
+    {
+      "id": "SEL_009_REQUIRED_REPAIR_RECEIPT_MISSING",
+      "description": "Rejects a Passed label when the required repair receipt is absent",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 3,
+        "attempted_next_likelihood": 3,
+        "selected_case": "COV-009",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-009",
+            "artifact_path": "receipts/COV-009-focused.json",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "NotRequired"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-009",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_009_REQUIRED_REPAIR_RECEIPT_MISSING-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "required repair receipt is missing"
+    },
+    {
+      "id": "SEL_010_INCONSISTENT_RAW_COUNTER_REJECTED",
+      "description": "Rejects candidate counters whose total disagrees with covered plus missed",
+      "candidates": [
+        {
+          "candidate_id": "COV-010",
+          "module": ":core:data",
+          "impact": 4,
+          "likelihood": 3,
+          "instruction": {
+            "covered": 60,
+            "missed": 39,
+            "total": 100
+          },
+          "branch": {
+            "covered": 60,
+            "missed": 40,
+            "total": 100
+          }
+        }
+      ],
+      "expected_error": "inconsistent instruction total"
+    },
+    {
+      "id": "SEL_011_TAMPERED_FOCUSED_RECEIPT_REJECTED",
+      "description": "Rejects a focused-pass receipt whose recorded digest does not match its artifact",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "tamper_receipt_sha256": true,
+      "expected_error": "focused-pass receipt artifact SHA-256 mismatch"
+    },
+    {
+      "id": "SEL_012_TAMPERED_MEASUREMENT_BUNDLE_REJECTED",
+      "description": "Rejects a fresh measurement bundle whose digest differs from its sealed files",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "Fresh measurement bundle digest mismatch",
+      "tamper_measurement_digest": true
+    },
+    {
+      "id": "SEL_013_MEASUREMENT_SOURCE_MISMATCH",
+      "description": "Rejects measurement manifest mutation: wrong-source",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "does not prove a clean, complete, passing run",
+      "measurement_manifest_mutation": "wrong-source"
+    },
+    {
+      "id": "SEL_014_MEASUREMENT_DIRTY_POSTFLIGHT",
+      "description": "Rejects measurement manifest mutation: dirty-postflight",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "does not prove a clean, complete, passing run",
+      "measurement_manifest_mutation": "dirty-postflight"
+    },
+    {
+      "id": "SEL_015_MEASUREMENT_MISSING_TEST_SUITE",
+      "description": "Rejects measurement manifest mutation: missing-required-suite",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "missing or failing required test suites",
+      "measurement_manifest_mutation": "missing-required-suite"
+    },
+    {
+      "id": "SEL_016_MEASUREMENT_FAILED_TESTS",
+      "description": "Rejects measurement manifest mutation: failed-tests",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true,
+            "artifact_path": "receipts/SEL_008_VALID_BATCH_PROGRESSION_RECEIPTS-reranking.json",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "does not prove a clean, complete, passing run",
+      "measurement_manifest_mutation": "failed-tests"
+    },
+    {
+      "id": "SEL_017_MISSING_RERANKING_RECEIPT",
+      "description": "Rejects a Passed case when no post-measurement reranking artifact is present",
+      "batch_state": {
+        "current_rank": 4,
+        "current_likelihood": 3,
+        "attempted_next_rank": 4,
+        "attempted_next_likelihood": 2,
+        "selected_case": "COV-008",
+        "test_status": "Passed",
+        "receipts": {
+          "focused_result": {
+            "status": "Passed",
+            "receipt_id": "focused-008",
+            "artifact_path": "receipts/COV-008-focused.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "repair_required": true,
+          "repair_result": {
+            "status": "Completed",
+            "receipt_id": "repair-008",
+            "artifact_path": "receipts/COV-008-repair.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "measurement": {
+            "clean": true,
+            "run_id": "run-008",
+            "candidate_sha": "0123456789abcdef0123456789abcdef01234567"
+          },
+          "reranking": {
+            "performed": true
+          }
+        }
+      },
+      "expected_progression_allowed": false,
+      "expected_error": "post-measurement reranking receipt is missing or unbound"
     }
   ]
 }

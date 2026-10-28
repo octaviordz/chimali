@@ -1,0 +1,52 @@
+{
+  "cases": [
+    {
+      "id": "EXEC_ATTR_001_RECEIPT_BINDS_MANIFEST_SOURCE",
+      "description": "JaCoCo compatibility receipt source and digest match the exact scoped manifest input",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "compatibility_receipt": {"execution_files": [{"repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "host", "selected_variant": "release"}]},
+      "manifest_execution_files": [{"scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec", "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bundle_path": "execution-data/core/data/host/test.exec", "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+      "expected_valid": true
+    },
+    {
+      "id": "EXEC_ATTR_002_SOURCE_DIGEST_SUBSTITUTION_REJECTED",
+      "description": "A manifest input with a substituted digest cannot satisfy JaCoCo compatibility attribution",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "compatibility_receipt": {"execution_files": [{"repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "host", "selected_variant": "release"}]},
+      "manifest_execution_files": [{"scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec", "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bundle_path": "execution-data/core/data/host/test.exec", "bundle_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}],
+      "expected_valid": false,
+      "expected_error": "not bound"
+    },
+    {
+      "id": "EXEC_ATTR_003_MISSING_SCOPED_INPUT_REJECTED",
+      "description": "Compatibility inputs cannot be omitted from the sealed execution attribution map",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "compatibility_receipt": {"execution_files": [{"repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "host", "selected_variant": "release"}]},
+      "manifest_execution_files": [],
+      "expected_valid": false,
+      "expected_error": "attribution count"
+    },
+    {
+      "id": "EXEC_ATTR_004_UNAPPROVED_INPUT_VARIANT_REJECTED",
+      "description": "An execution input cannot claim a variant other than the one selected by production inventory",
+      "scope": ":core:data",
+      "expected_variant": "release",
+      "compatibility_receipt": {"execution_files": [{"repository_path": "core/data/build/jacoco/test.exec", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "host", "selected_variant": "debug"}]},
+      "manifest_execution_files": [{"scope": ":core:data", "kind": "host", "source_path": "core/data/build/jacoco/test.exec", "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bundle_path": "execution-data/core/data/host/test.exec", "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+      "expected_valid": false,
+      "expected_error": "approved variant"
+    },
+    {
+      "id": "EXEC_ATTR_005_NULL_EMPTY_RECEIPT_ACCEPTED",
+      "description": "A null serialized execution list for a non-applicable module is equivalent to no execution files when the sealed manifest also has none",
+      "scope": ":feature:authenticator",
+      "expected_variant": "release",
+      "compatibility_receipt": { "execution_files": null },
+      "manifest_execution_files": [],
+      "expected_valid": true
+    }
+  ]
+}

@@ -21,14 +21,80 @@
   ],
   "branch_improvement_goal_percent": 65,
   "metrics": {
-    "primary": ["INSTRUCTION", "BRANCH"],
-    "diagnostic": ["LINE"],
+    "primary": [
+      "INSTRUCTION",
+      "BRANCH"
+    ],
+    "diagnostic": [
+      "LINE"
+    ],
     "arithmetic": "arbitrary_precision_integer"
   },
   "counter_normalization": "AnalyzedZeroProofV1",
   "production_inventory_rules": {
-    "source_sets": ["commonMain", "androidMain", "main"],
+    "source_sets": [
+      "commonMain",
+      "androidMain",
+      "main"
+    ],
+    "excluded_source_sets": [
+      "iosMain",
+      "macrobenchmark"
+    ],
     "fail_on_unmapped_classes": true
+  },
+  "production_scope": {
+    "selection_mode": "configured_compiler_outputs",
+    "compilations": {
+      "shrunkDebug": {
+        "compiler_tasks": [
+          "compileShrunkDebugKotlin",
+          "compileShrunkDebugJavaWithJavac"
+        ],
+        "test_tasks": [
+          "testShrunkDebugUnitTest"
+        ]
+      },
+      "androidMain": {
+        "compiler_tasks": [
+          "compileAndroidMain"
+        ],
+        "test_tasks": [
+          "testAndroidHostTest"
+        ]
+      },
+      "release": {
+        "compiler_tasks": [
+          "compileReleaseKotlin",
+          "compileReleaseJavaWithJavac"
+        ],
+        "test_tasks": [
+          "testDebugUnitTest"
+        ]
+      }
+    },
+    "source_roots": [
+      "src/commonMain/kotlin",
+      "src/androidMain/kotlin",
+      "src/main/kotlin",
+      "src/main/java"
+    ],
+    "variants": {
+      ":core:security": "androidMain",
+      ":core:domain": "androidMain",
+      ":core:data": "release",
+      ":core:bluetooth": "release",
+      ":core:database": "release",
+      ":core:common": "androidMain",
+      ":core:ui": "release",
+      ":feature:vault": "release",
+      ":feature:editor": "release",
+      ":feature:fido2": "androidMain",
+      ":feature:authenticator": "release",
+      ":feature:onboarding": "release",
+      ":feature:settings": "release",
+      ":app": "shrunkDebug"
+    }
   },
   "generated_exclusion_rules": {
     "exclude_sqldelight": true,
@@ -36,7 +102,65 @@
   },
   "required_workload": {
     "host_unit_tests": true,
-    "connected_device_tests": true
+    "connected_device_tests": true,
+    "required_device_test_modules": [
+      ":feature:fido2",
+      ":core:common",
+      ":feature:settings"
+    ],
+    "optional_device_test_modules": [
+      ":app"
+    ]
   },
-  "regression_rule": "nondecreasing_applicable_ratios"
+  "device_requirements": {
+    "serial_source": "explicit_parameter",
+    "must_be_online_and_authorized": true,
+    "minimum_api_level": 35,
+    "approved_abis": [
+      "arm64-v8a",
+      "x86_64"
+    ]
+  },
+  "harness_requirements": {
+    "must_be_clean": true,
+    "must_match_source_revision": true,
+    "required_files": [
+      "tools/coverage/capture.ps1",
+      "tools/coverage/coverage-common.ps1",
+      "tools/integration-ci.ps1",
+      "tools/local-ci.ps1",
+      "tools/hdk-coverage.init.gradle",
+      "tools/coverage/policy.json",
+      "tools/coverage/validate-policy.ps1",
+      "tools/coverage/verify.ps1"
+    ]
+  },
+  "regression_rule": "nondecreasing_applicable_ratios",
+  "measurement_fingerprint": {
+    "algorithm": "sha256_canonical_json_v1",
+    "included": [
+      "metrics",
+      "counter_normalization",
+      "production_inventory_rules",
+      "production_scope",
+      "generated_exclusion_rules",
+      "required_workload",
+      "device_requirements",
+      "harness.file_sha256",
+      "toolchain.java",
+      "toolchain.gradle",
+      "toolchain.android_gradle_plugin",
+      "toolchain.kotlin",
+      "toolchain.jacoco",
+      "device.api_level",
+      "device.abi"
+    ],
+    "excluded": [
+      "source_contents",
+      "test_contents",
+      "test_counts",
+      "test_names",
+      "class_bytes"
+    ]
+  }
 }

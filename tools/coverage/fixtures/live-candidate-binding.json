@@ -1,0 +1,15 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Offline live PR and integration-target freshness bindings",
+  "cases": [
+    { "id": "LIVE_BIND_001_VALID_PR", "mutation": "none", "event": "pull_request", "target_ref": "", "expected_valid": true },
+    { "id": "LIVE_BIND_002_PR_HEAD_ADVANCED", "mutation": "pr-head", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_003_PR_BASE_ADVANCED", "mutation": "pr-base", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_004_PR_CLOSED", "mutation": "closed", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_005_PR_REPOSITORY_CHANGED", "mutation": "repo", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_006_TESTED_TREE_CHANGED", "mutation": "tree", "event": "pull_request", "target_ref": "", "expected_valid": false },
+    { "id": "LIVE_BIND_007_VALID_MERGE_TARGET", "mutation": "none", "event": "merge_group", "target_ref": "refs/heads/main", "expected_valid": true },
+    { "id": "LIVE_BIND_008_MERGE_TARGET_ADVANCED", "mutation": "target-advanced", "event": "merge_group", "target_ref": "refs/heads/main", "expected_valid": false },
+    { "id": "LIVE_BIND_009_MERGE_TARGET_GUESS_REJECTED", "mutation": "none", "event": "merge_group", "target_ref": "main", "expected_valid": false }
+  ]
+}

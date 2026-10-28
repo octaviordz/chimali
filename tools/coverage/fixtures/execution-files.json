@@ -1,0 +1,107 @@
+{
+  "cases": [
+    {
+      "id": "EXEC_FILES_001_VALID_ATTRIBUTION",
+      "description": "Module scoped host/device inputs map bijectively to sealed artifact paths",
+      "execution_files": [
+        {
+          "scope": ":core:data",
+          "kind": "host",
+          "source_path": "core/data/build/jacoco/hdk/test.exec",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bundle_path": "execution-data/core/data/host/a-source-test.exec",
+          "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "scope": ":core:data",
+          "kind": "device",
+          "source_path": "core/data/build/outputs/code_coverage/device/coverage.ec",
+          "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "bundle_path": "execution-data/core/data/device/b-device-coverage.ec",
+          "bundle_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "execution-data/core/data/host/a-source-test.exec",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "path": "execution-data/core/data/device/b-device-coverage.ec",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "expected_valid": true
+    },
+    {
+      "id": "EXEC_FILES_002_DIGEST_MISMATCH",
+      "description": "Attribution cannot bind a different digest than the sealed file",
+      "execution_files": [
+        {
+          "scope": ":core:data",
+          "kind": "host",
+          "source_path": "core/data/build/jacoco/hdk/test.exec",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bundle_path": "execution-data/core/data/host/a-source-test.exec",
+          "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "execution-data/core/data/host/a-source-test.exec",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "expected_valid": false,
+      "expected_error": "does not bind exactly one sealed artifact"
+    },
+    {
+      "id": "EXEC_FILES_003_UNMAPPED_EXTRA_REJECTED",
+      "description": "Unattributed retained execution artifacts are rejected",
+      "execution_files": [
+        {
+          "scope": ":core:data",
+          "kind": "host",
+          "source_path": "core/data/build/jacoco/hdk/test.exec",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bundle_path": "execution-data/core/data/host/a-source-test.exec",
+          "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "execution-data/core/data/host/a-source-test.exec",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "path": "execution-data/stale.exec",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "expected_valid": false,
+      "expected_error": "do not exactly match"
+    },
+    {
+      "id": "EXEC_FILES_004_TRAVERSAL_REJECTED",
+      "description": "Source and bundle attribution paths cannot escape their roots",
+      "execution_files": [
+        {
+          "scope": ":core:data",
+          "kind": "host",
+          "source_path": "../outside/test.exec",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bundle_path": "execution-data/core/data/host/a-source-test.exec",
+          "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "execution-data/core/data/host/a-source-test.exec",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "expected_valid": false,
+      "expected_error": "invalid scope, relative paths"
+    }
+  ]
+}

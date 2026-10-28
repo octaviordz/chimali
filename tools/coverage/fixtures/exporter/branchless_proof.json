@@ -1,13 +1,21 @@
 {
   "normalization_rule": "AnalyzedZeroProofV1",
-  "module_path": ":core:security",
+  "module_path": ":feature:fido2",
   "analyzer_identity": "jacoco-0.8.15",
   "report_file": "branchless.xml",
-  "report_digest": "61f04d3c0b40a9fd2b60427c8fb6f7f5416e6b8c27c675e3a88eb07adb0b5594",
-  "retained_inventory_digest": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+  "report_digest": "1ae4fc3237ac931dc66c1bf5b96cdb2b167bf51f86a069ccbd72165cb468e826",
+  "inventory_digest": "5f14a8738a4ab5acab4d0134eacbd0555a6c082048e1aa9dcf0579662e348b58",
+  "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7",
   "counters": {
-    "INSTRUCTION": { "covered": 3, "missed": 0, "total": 3 },
-    "BRANCH": { "covered": 0, "missed": 0, "total": 0 },
-    "LINE": { "covered": 1, "missed": 0, "total": 1 }
+    "INSTRUCTION": {
+      "covered": 0,
+      "missed": 19,
+      "total": 19
+    },
+    "BRANCH": {
+      "covered": 0,
+      "missed": 0,
+      "total": 0
+    }
   }
 }

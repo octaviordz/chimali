@@ -83,6 +83,98 @@
         "instruction": { "covered": 60, "missed": 40 }
       },
       "expected_passed": true
+    },
+    {
+      "id": "COMP_008_MISSING_BASELINE_MODULE_REJECTED",
+      "description": "An absent affected baseline module cannot be treated as a first-applicability exemption",
+      "required_module_paths": [":core:security", ":core:data"],
+      "module_records": [
+        {
+          "module_path": ":core:security",
+          "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 70, "missed": 30 },
+          "branch": { "covered": 60, "missed": 40 }
+        }
+      ],
+      "expected_passed": false,
+      "expected_error": "must contain exactly one counter record for :core:data"
+    },
+    {
+      "id": "COMP_009_DUPLICATE_BASELINE_MODULE_REJECTED",
+      "description": "Duplicate baseline records are ambiguous and cannot establish comparison evidence",
+      "required_module_paths": [":core:security"],
+      "module_records": [
+        {
+          "module_path": ":core:security",
+          "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 70, "missed": 30 },
+          "branch": { "covered": 60, "missed": 40 }
+        },
+        {
+          "module_path": ":core:security",
+          "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 70, "missed": 30 },
+          "branch": { "covered": 60, "missed": 40 }
+        }
+      ],
+      "expected_passed": false,
+      "expected_error": "must contain exactly one counter record"
+    },
+    {
+      "id": "COMP_010_EXPLICIT_EMPTY_BASELINE_RECORD_ACCEPTED",
+      "description": "A zero-scope baseline is structurally distinct from a missing module record",
+      "required_module_paths": [":feature:authenticator"],
+      "module_records": [
+        {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "instruction": { "covered": 0, "missed": 0, "total": 0 },
+          "branch": { "covered": 0, "missed": 0, "total": 0 }
+        }
+      ],
+      "expected_passed": true
+    },
+    {
+      "id": "COMP_011_NOT_APPLICABLE_WITH_EXECUTABLE_COUNTERS_REJECTED",
+      "description": "A NotApplicable module cannot conceal nonzero instruction or branch counters",
+      "required_module_paths": [":feature:authenticator"],
+      "module_records": [
+        {
+          "module_path": ":feature:authenticator",
+          "disposition": "NotApplicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 1, "missed": 0, "total": 1 },
+          "branch": { "covered": 0, "missed": 0, "total": 0 }
+        }
+      ],
+      "expected_passed": false,
+      "expected_error": "NotApplicable but has nonzero executable counters"
+    },
+    {
+      "id": "COMP_012_APPLICABLE_WITHOUT_INSTRUCTION_DENOMINATOR_REJECTED",
+      "description": "An Applicable module must have an executable instruction denominator",
+      "required_module_paths": [":core:security"],
+      "module_records": [
+        {
+          "module_path": ":core:security",
+          "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 0, "missed": 0, "total": 0 },
+          "branch": { "covered": 0, "missed": 0, "total": 0 }
+        }
+      ],
+      "expected_passed": false,
+      "expected_error": "Applicable but has no executable instruction denominator"
     }
   ]
 }

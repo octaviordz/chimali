@@ -1,6 +1,6 @@
 [hook "local-ci-lint"]
 	event = pre-commit
-	command = pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 -SkipTests
+	command = pwsh -NoProfile -ExecutionPolicy Bypass -File ./tools/local-ci.ps1 -NoFix -NoConfigurationCache
 
 [hook "integration-ci"]
 	event = pre-push

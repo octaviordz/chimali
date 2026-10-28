@@ -1,0 +1,11 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "The Gradle collector must fail closed when a production module has no reviewed compilation ownership",
+  "cases": [
+    {
+      "id": "UNMAPPED_PROD_001_NEW_SOURCE_MODULE_REJECTED",
+      "description": "An included project with a production source root absent from production_scope.variants is rejected during coverage configuration",
+      "expected_error": "Unmapped production modules have no reviewed production_scope.variants ownership"
+    }
+  ]
+}

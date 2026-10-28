@@ -1,0 +1,56 @@
+{
+  "$schema": "./schema.json",
+  "description": "Publisher independently invokes trusted verification before promotion and retains verifier failure evidence",
+  "cases": [
+    {
+      "id": "PUBLISH_001_FORGED_PASSING_ASSESSMENT_REJECTED",
+      "description": "The production publisher rejects a forged passing decision using the real trusted verifier and retains a Failed receipt bound to the run, manifest, and bundle",
+      "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_002_LOCAL_ARCHIVE_READBACK_SUCCESS",
+      "description": "The production publisher creates an immutable run and verifies exact content read-back against an isolated local bare Git remote",
+      "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_003_INCOMPLETE_PROMOTION_INPUTS_REJECTED",
+      "description": "Promotion without the complete trusted verification and integration evidence is rejected before writing any publication receipt",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_004_ARCHIVE_PUSH_FAILURE_REMAINS_FAILED",
+      "description": "A rejected archive push leaves a Failed receipt and cannot claim publication success",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_005_REMOTE_READBACK_FAILURE_REMAINS_FAILED",
+      "description": "A successful archive push followed by remote read-back failure leaves a Failed receipt and cannot claim retrievable success",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_006_REMOTE_UNAVAILABLE_RETAINS_FAILURE",
+      "description": "An unreachable archive remote retains a Failed receipt before publisher exit",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_007_ARCHIVE_COMMIT_FAILURE_RETAINS_FAILURE",
+      "description": "Failure to create the immutable archive commit retains a Failed receipt and cannot claim success",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX",
+      "description": "Trusted verifier and integration metadata authorize the production publisher to archive a candidate and advance the accepted index in the same retrievable archive commit",
+      "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE",
+      "description": "A passing candidate with an unsupported push event cannot write a publication receipt or advance the accepted index",
+      "expected_valid": false
+    },
+    {
+      "id": "PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE",
+      "description": "A passing candidate with an integration base different from its measured target cannot write a publication receipt or advance the accepted index",
+      "expected_valid": false
+    }
+  ]
+}

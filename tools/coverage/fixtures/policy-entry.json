@@ -1,0 +1,36 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "The canonical policy validator entry point enforces fixed policy and exit semantics",
+  "cases": [
+    {
+      "id": "POL_ENTRY_001_VALID_CANONICAL_POLICY",
+      "description": "The actual validator accepts the reviewed policy at its canonical path",
+      "runner_case": "valid"
+    },
+    {
+      "id": "POL_ENTRY_002_WEAKENED_TIER2_FLOOR_EXIT_3",
+      "description": "The actual validator rejects a weakened Tier 2 floor with configuration exit 3",
+      "runner_case": "weakened-tier2"
+    },
+    {
+      "id": "POL_ENTRY_003_UNKNOWN_SCHEMA_EXIT_3",
+      "description": "The actual validator rejects an unsupported policy schema version with exit 3",
+      "runner_case": "unknown-schema"
+    },
+    {
+      "id": "POL_ENTRY_004_EXTERNAL_POLICY_SUBSTITUTION_EXIT_3",
+      "description": "The actual validator rejects a caller-supplied policy outside the reviewed harness path with exit 3",
+      "runner_case": "external-policy-path"
+    },
+    {
+      "id": "POL_ENTRY_005_CAPTURE_REJECTS_WEAK_POLICY_EXIT_3",
+      "description": "Capture rejects a weakened Tier 2 floor with configuration exit 3 before device and harness checks",
+      "runner_case": "capture-weakened-tier2"
+    },
+    {
+      "id": "POL_ENTRY_006_VERIFY_REJECTS_WEAK_POLICY_EXIT_3",
+      "description": "Verification rejects a weakened Tier 2 floor with configuration exit 3 before manifest checks",
+      "runner_case": "verify-weakened-tier2"
+    }
+  ]
+}

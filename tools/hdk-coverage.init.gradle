@@ -3,9 +3,23 @@
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 
 gradle.beforeProject { project ->
     project.pluginManager.apply('jacoco')
+    project.pluginManager.withPlugin('com.android.library') {
+        if (project.path == ':feature:settings') {
+            def androidComponents = project.extensions.findByName('androidComponents')
+            if (androidComponents == null) throw new GradleException('Android Components API is unavailable for :feature:settings coverage test compatibility')
+            androidComponents.beforeVariants(androidComponents.selector().all()) { variantBuilder ->
+                if (variantBuilder.name == 'debug') {
+                    // DEX versions below 040 reject spaces in JVM method names. This test-only debug variant
+                    // uses a legacy backtick-named @Test method and runs only on the authorized API 35 device.
+                    variantBuilder.minSdk = 30
+                }
+            }
+        }
+    }
     project.extensions.configure(org.gradle.testing.jacoco.plugins.JacocoPluginExtension) { jacocoExtension ->
         jacocoExtension.toolVersion = '0.8.15'
     }
@@ -19,12 +33,104 @@ gradle.beforeProject { project ->
 
 gradle.projectsEvaluated {
     def root = gradle.rootProject
-    def selectedPaths = [
-        ':core:security', ':core:domain', ':core:data', ':feature:fido2', ':feature:authenticator',
-        ':core:database', ':core:common', ':app'
-    ]
-    def tier1Paths = [':core:security', ':core:domain', ':core:data', ':feature:fido2', ':feature:authenticator']
-    def tier2Paths = [':core:database', ':core:common', ':app']
+    def configuredHarnessRoot = gradle.startParameter.projectProperties.get('coverageHarnessRoot')
+    def harnessRoot = configuredHarnessRoot
+        ? new File(configuredHarnessRoot).canonicalFile
+        : root.projectDir
+    if (!harnessRoot.isDirectory()) throw new GradleException("Coverage harness root is missing: ${harnessRoot}")
+    def policyFile = new File(harnessRoot, 'tools/coverage/policy.json')
+    if (!policyFile.isFile()) throw new GradleException("Authoritative coverage policy is missing: ${policyFile}")
+    def policyValidator = new File(harnessRoot, 'tools/coverage/validate-policy.ps1')
+    if (!policyValidator.isFile()) throw new GradleException("Authoritative coverage policy validator is missing: ${policyValidator}")
+    def validationProcess
+    try {
+        validationProcess = new ProcessBuilder('pwsh', '-NoLogo', '-NoProfile', '-File', policyValidator.absolutePath, '-PolicyPath', policyFile.absolutePath)
+            .directory(harnessRoot).redirectErrorStream(true).start()
+        if (!validationProcess.waitFor(30, TimeUnit.SECONDS)) {
+            validationProcess.destroyForcibly()
+            throw new GradleException('Authoritative PowerShell policy validation exceeded 30 seconds')
+        }
+        def validationOutput = validationProcess.inputStream.getText('UTF-8').trim()
+        if (validationProcess.exitValue() != 0) {
+            throw new GradleException("Authoritative coverage policy validation failed: ${validationOutput}")
+        }
+    } catch (GradleException exception) {
+        throw exception
+    } catch (Exception exception) {
+        throw new GradleException('Could not run the shared PowerShell coverage policy validator (pwsh is required for coverage tasks)', exception)
+    }
+    def policy = new groovy.json.JsonSlurper().parse(policyFile)
+    def tier1Paths = policy.tier1_modules.collect { it.toString() }
+    def tier2Paths = policy.tier2_gated_modules.collect { it.toString() }
+    def tier1InstructionFloor = policy.tier1_instruction_min_percent as int
+    def tier1BranchFloor = policy.tier1_branch_min_percent as int
+    def tier2InstructionFloor = policy.tier2_instruction_min_percent as int
+    def repositoryInstructionFloor = policy.repository_instruction_min_percent as int
+    def productionSourceRoots = policy.production_scope.source_roots.collect { it.toString() }
+    def configuredVariantPaths = policy.production_scope.variants.keySet().collect { it.toString() } as Set
+    def unknownConfiguredProjects = configuredVariantPaths.findAll { root.findProject(it) == null }.sort()
+    if (!unknownConfiguredProjects.isEmpty()) {
+        throw new GradleException("Configured production ownership references projects that are not included by settings.gradle.kts: ${unknownConfiguredProjects.join(', ')}")
+    }
+    def configuredSourceRootSet = productionSourceRoots.collect { it.replace('\\', '/') } as Set
+    def explicitlyExcludedSourceSets = policy.production_inventory_rules.excluded_source_sets.collect { it.toString() } as Set
+    def isTestSourceSet = { String sourceSet ->
+        def normalized = sourceSet.toLowerCase(Locale.ROOT)
+        normalized in ['test', 'androidtest', 'commontest', 'androidhosttest', 'androiddevicetest', 'iossimulatortest', 'nativetest'] || normalized.endsWith('test') || normalized.startsWith('testfixtures')
+    }
+    def discoverProductionSourceRoots = { project ->
+        def discovered = new TreeSet<String>()
+        def srcDirectory = project.file('src')
+        if (srcDirectory.isDirectory()) {
+            project.fileTree(dir: srcDirectory, includes: ['**/*.kt', '**/*.java']).files.each { sourceFile ->
+                def relative = project.projectDir.toPath().relativize(sourceFile.toPath()).toString().replace(File.separator, '/')
+                def parts = relative.split('/')
+                if (parts.length >= 4 && parts[0] == 'src' && !isTestSourceSet(parts[1]) && !(parts[1] in explicitlyExcludedSourceSets) && parts[2] in ['kotlin', 'java']) {
+                    discovered.add(parts[0..2].join('/'))
+                }
+            }
+        }
+        discovered
+    }
+    def unconfiguredProductionRoots = []
+    root.allprojects.findAll { it != root }.each { project ->
+        discoverProductionSourceRoots(project).each { sourceRoot ->
+            if (!(sourceRoot in configuredSourceRootSet)) unconfiguredProductionRoots.add("${project.path}:${sourceRoot}")
+        }
+    }
+    if (!unconfiguredProductionRoots.isEmpty()) {
+        throw new GradleException("Unconfigured production source roots were found; add each reviewed root to policy.production_scope.source_roots before collecting coverage: ${unconfiguredProductionRoots.sort().join(', ')}")
+    }
+    def allProductionProjects = root.allprojects.findAll { project ->
+        project != root && (project.path in configuredVariantPaths || !discoverProductionSourceRoots(project).isEmpty() || productionSourceRoots.any { sourceRoot -> project.file(sourceRoot).exists() })
+    }.sort { it.path }
+    def productionProjectsWithoutOwnership = allProductionProjects.findAll { project -> !(project.path in configuredVariantPaths) }.collect { project ->
+        def roots = discoverProductionSourceRoots(project)
+        "${project.path} [${roots.join(', ')}]"
+    }.sort()
+    if (!productionProjectsWithoutOwnership.isEmpty()) {
+        throw new GradleException("Unmapped production modules have no reviewed production_scope.variants ownership: ${productionProjectsWithoutOwnership.join('; ')}")
+    }
+    def changedPathsFileValue = root.findProperty('coverageChangedPathsFile')?.toString()
+    def changedPathsProvided = changedPathsFileValue != null
+    def changedPathsFile = changedPathsProvided ? new File(changedPathsFileValue) : null
+    if (changedPathsProvided && !changedPathsFile.isAbsolute()) changedPathsFile = new File(root.projectDir, changedPathsFileValue)
+    if (changedPathsProvided && (!changedPathsFile.isFile() || !changedPathsFile.isAbsolute())) {
+        throw new GradleException("coverageChangedPathsFile must name an existing changed-path receipt; resolved '${changedPathsFile.absolutePath}' (exists=${changedPathsFile.isFile()})")
+    }
+    def changedPaths = changedPathsProvided ? changedPathsFile.readLines('UTF-8').collect { it.trim().replace('\\', '/') }.findAll { !it.isEmpty() } : []
+    def sharedChange = changedPaths.any { path ->
+        path ==~ /^(build\.gradle\.kts|settings\.gradle\.kts|gradle\/.*|tools\/.*|\.github\/.*|\.agents\/.*|\.specify\/.*|buildSrc\/.*|gradle\.properties|gradlew|gradlew\.bat|\.gitconfig)$/
+    }
+    def affectedTier2Paths = []
+    allProductionProjects.findAll { it.path !in tier1Paths }.each { project ->
+        def relativeProjectDir = root.projectDir.toPath().relativize(project.projectDir.toPath()).toString().replace(File.separator, '/')
+        if (!changedPathsProvided || sharedChange || changedPaths.any { path -> path == relativeProjectDir || path.startsWith(relativeProjectDir + '/') }) {
+            affectedTier2Paths.add(project.path)
+        }
+    }
+    def effectiveTier2Paths = (tier2Paths + affectedTier2Paths).unique().sort()
+    def selectedPaths = tier1Paths + effectiveTier2Paths
 
     def selectedProjects = selectedPaths.collect { path ->
         def candidate = root.findProject(path)
@@ -34,15 +140,42 @@ gradle.projectsEvaluated {
         candidate
     }
 
-    def fido2DeviceTask = root.project(':feature:fido2').tasks.findByName('connectedAndroidDeviceTest') ?: root.project(':feature:fido2').tasks.findByName('connectedDebugAndroidTest')
-    if (fido2DeviceTask == null) {
-        throw new GradleException("Required device test task for :feature:fido2 not found")
+    def deviceTaskForModule = { String modulePath ->
+        def module = root.findProject(modulePath)
+        if (module == null) throw new GradleException("Required device test module is missing: ${modulePath}")
+        def candidates = modulePath == ':app'
+            ? ['connectedShrunkDebugAndroidTest', 'connectedAndroidTest', 'connectedDebugAndroidTest']
+            : ['connectedAndroidDeviceTest', 'connectedDebugAndroidTest', 'connectedAndroidTest']
+        candidates.collect { module.tasks.findByName(it) }.find { it != null }
     }
-    def appDeviceTask = root.project(':app').tasks.findByName('connectedShrunkDebugAndroidTest') ?: root.project(':app').tasks.findByName('connectedAndroidTest') ?: root.project(':app').tasks.findByName('connectedDebugAndroidTest')
-
-    def deviceCoverageTasks = [fido2DeviceTask]
-    if (appDeviceTask != null) {
-        deviceCoverageTasks.add(appDeviceTask)
+    def requiredDeviceModules = policy.required_workload.required_device_test_modules.collect { it.toString() }
+    def optionalDeviceModules = policy.required_workload.optional_device_test_modules.collect { it.toString() }
+    def requiredDeviceTaskRecords = requiredDeviceModules.collect { modulePath ->
+        def task = deviceTaskForModule(modulePath)
+        if (task == null) throw new GradleException("Required device test task for ${modulePath} not found")
+        [module_path: modulePath, task: task]
+    }
+    def optionalDeviceTaskRecords = []
+    optionalDeviceModules.each { modulePath ->
+        def task = deviceTaskForModule(modulePath)
+        if (task != null) optionalDeviceTaskRecords.add([module_path: modulePath, task: task])
+    }
+    def deviceCoverageTasks = (requiredDeviceTaskRecords + optionalDeviceTaskRecords).collect { it.task }
+    def rootPath = root.projectDir.toPath().toAbsolutePath().normalize()
+    def relativeJUnitXmlDirectory = { task, boolean deviceTask ->
+        def directory = null
+        if (deviceTask) {
+            directory = task.outputs.files.files.find { output ->
+                output.isDirectory() && output.toPath().toAbsolutePath().normalize().startsWith(rootPath) &&
+                    output.toPath().toString().replace('\\', '/').contains('/outputs/androidTest-results/connected/')
+            }
+        } else {
+            directory = task.reports.junitXml.outputLocation.get().asFile
+        }
+        if (directory == null) return null
+        def normalized = directory.toPath().toAbsolutePath().normalize()
+        if (!normalized.startsWith(rootPath)) return null
+        rootPath.relativize(normalized).toString().replace(File.separator, '/')
     }
 
     def coveragePrepare = root.tasks.register('hdkCoveragePrepare') {
@@ -62,12 +195,6 @@ gradle.projectsEvaluated {
     deviceCoverageTasks.each { task ->
         task.outputs.upToDateWhen { false }
         task.mustRunAfter(coveragePrepare)
-    }
-
-    def allProductionProjects = root.allprojects.findAll { project ->
-        project != root && project.tasks.findAll { task ->
-            task.name ==~ /compile[A-Za-z0-9]*(AndroidMain|MainKotlin|DebugKotlin|DebugJavaWithJavac|ShrunkDebugKotlin|ShrunkDebugJavaWithJavac)/
-        }
     }
 
     def generatedSqlDelightExcludes = { project ->
@@ -113,6 +240,84 @@ gradle.projectsEvaluated {
         sha256Hex(file.bytes)
     }
 
+    // Analyze JaCoCo execution data against the same filtered class file collection as each report,
+    // before the JacocoReport task serializes its XML. Reflection keeps the init script independent
+    // of the buildscript's JaCoCo classpath while still using the pinned 0.8.15 analyzer classes.
+    def analyzeJaCoCoReport = { JacocoReport reportTask ->
+        def jacocoUrls = reportTask.jacocoClasspath.files.collect { it.toURI().toURL() } as URL[]
+        if (jacocoUrls.length == 0) throw new GradleException('Pinned JaCoCo analyzer classpath is empty')
+        // Do not inherit JaCoCo from the Gradle/plugin parent classloader: it can contain an
+        // older analyzer (the app report previously resolved 0.8.14 while security resolved
+        // 0.8.15). A platform parent keeps Java APIs available while forcing JaCoCo and ASM to
+        // resolve from the report task's explicitly configured, pinned analyzer classpath.
+        def jacocoLoader = new URLClassLoader(jacocoUrls, ClassLoader.getPlatformClassLoader())
+        def loaderClass = jacocoLoader.loadClass('org.jacoco.core.tools.ExecFileLoader')
+        def analyzerJar = new File(loaderClass.protectionDomain.codeSource.location.toURI())
+        if (analyzerJar.name != 'org.jacoco.core-0.8.15.jar') {
+            throw new GradleException("Coverage analyzer must load pinned JaCoCo 0.8.15, but resolved ${analyzerJar.name}")
+        }
+        def storeClass = jacocoLoader.loadClass('org.jacoco.core.data.ExecutionDataStore')
+        def visitorClass = jacocoLoader.loadClass('org.jacoco.core.analysis.ICoverageVisitor')
+        def builderClass = jacocoLoader.loadClass('org.jacoco.core.analysis.CoverageBuilder')
+        def analyzerClass = jacocoLoader.loadClass('org.jacoco.core.analysis.Analyzer')
+        def executionLoader = loaderClass.getDeclaredConstructor().newInstance()
+        def executionFiles = reportTask.executionData.files.findAll { it.isFile() && it.length() > 0L }.sort { it.absolutePath }
+        executionFiles.each { loaderClass.getMethod('load', File).invoke(executionLoader, it) }
+        def coverageBuilder = builderClass.getDeclaredConstructor().newInstance()
+        def executionStore = loaderClass.getMethod('getExecutionDataStore').invoke(executionLoader)
+        def analyzer = analyzerClass.getConstructor(storeClass, visitorClass).newInstance(executionStore, coverageBuilder)
+        def classTree = reportTask.classDirectories.asFileTree
+        classTree.visit { details ->
+            if (!details.directory && details.file.name.endsWith('.class')) {
+                try {
+                    analyzerClass.getMethod('analyzeAll', File).invoke(analyzer, details.file)
+                } catch (java.lang.reflect.InvocationTargetException exception) {
+                    def cause = exception.targetException ?: exception
+                    throw new GradleException("JaCoCo rejected incompatible execution data for production class file ${details.file}: ${cause.message}", cause)
+                }
+            }
+        }
+        def classes = builderClass.getMethod('getClasses').invoke(coverageBuilder)
+        def noMatchClasses = builderClass.getMethod('getNoMatchClasses').invoke(coverageBuilder)
+        if (!noMatchClasses.isEmpty()) {
+            def mismatches = noMatchClasses.collect { clazz ->
+                "${clazz.name} (classId=${Long.toUnsignedString(clazz.id)})"
+            }.sort()
+            throw new GradleException("JaCoCo execution data contains class-ID mismatches for measured production classes: ${mismatches.join(', ')}")
+        }
+        def totals = [INSTRUCTION: [covered: java.math.BigInteger.ZERO, missed: java.math.BigInteger.ZERO], BRANCH: [covered: java.math.BigInteger.ZERO, missed: java.math.BigInteger.ZERO]]
+        classes.each { clazz ->
+            ['INSTRUCTION': 'getInstructionCounter', 'BRANCH': 'getBranchCounter'].each { metric, getter ->
+                def counter = clazz.class.getMethod(getter).invoke(clazz)
+                totals[metric].covered = totals[metric].covered.add(java.math.BigInteger.valueOf(counter.coveredCount))
+                totals[metric].missed = totals[metric].missed.add(java.math.BigInteger.valueOf(counter.missedCount))
+            }
+        }
+        def result = [counters: totals, execution_files: executionFiles.collect { [path: it.absolutePath,
+            repository_path: root.projectDir.toPath().relativize(it.toPath()).toString().replace(File.separator, '/'), sha256: fileSha256(it)] },
+            classes: classes.size(), class_names: classes.collect { it.name.toString() }.sort()]
+        jacocoLoader.close()
+        result
+    }
+
+    def reconcileReportAndAnalysis = { Map xmlCoverage, Map analysis, String label ->
+        def result = [present: xmlCoverage.present]
+        ['INSTRUCTION', 'BRANCH'].each { metric ->
+            def analyzed = analysis.counters[metric]
+            def analyzedTotal = analyzed.covered.add(analyzed.missed)
+            def reported = xmlCoverage[metric]
+            if (reported == null) {
+                if (analyzedTotal.signum() != 0) {
+                    throw new GradleException("${label}: JaCoCo XML omitted nonzero ${metric} count from canonical analysis")
+                }
+            } else if (reported.covered != analyzed.covered || reported.missed != analyzed.missed) {
+                throw new GradleException("${label}: JaCoCo XML ${metric} counts disagree with canonical analysis")
+            }
+            result[metric] = [covered: analyzed.covered, missed: analyzed.missed, total: analyzedTotal]
+        }
+        result
+    }
+
     def retainedClassEntries = { project, targetDirs ->
         def excludes = generatedSqlDelightExcludes(project)
         def entries = []
@@ -141,58 +346,65 @@ gradle.projectsEvaluated {
         sha256Hex(canonical.getBytes('UTF-8'))
     }
 
-    def variantFor = { compilerTasks ->
-        def taskNames = compilerTasks.collect { it.name }
-        if (taskNames.any { it.toLowerCase().contains('shrunkdebug') }) return 'shrunkDebug'
-        if (taskNames.any { it.toLowerCase().contains('androidmain') }) return 'androidMain'
-        if (taskNames.any { it.toLowerCase().contains('debug') }) return 'debug'
-        if (taskNames.any { it.toLowerCase().contains('release') }) return 'release'
-        taskNames.isEmpty() ? 'none' : taskNames.sort().join(',')
+    def emptyExecutionInputs = [:]
+    def ensureEmptyExecutionInput = { project ->
+        def existing = emptyExecutionInputs[project.path]
+        if (existing != null) return existing
+        def emptyExecFile = project.layout.buildDirectory.file("jacoco/hdk/empty-${project.name}.exec").get().asFile
+        def prepareTask = project.tasks.register('hdkPrepareEmptyCoverageData') {
+            group = 'verification'
+            description = 'Provides a valid empty JaCoCo execution input when this module produced no host execution file.'
+            dependsOn(coveragePrepare)
+            mustRunAfter(coveragePrepare)
+            outputs.file(emptyExecFile)
+            doLast {
+                if (!emptyExecFile.exists()) {
+                    emptyExecFile.parentFile.mkdirs()
+                    emptyExecFile.bytes = new byte[0]
+                }
+            }
+        }
+        existing = [file: emptyExecFile, task: prepareTask]
+        emptyExecutionInputs[project.path] = existing
+        existing
     }
 
     def reportTasks = []
     def moduleData = []
+    def pinnedJacocoClasspathFor = { project ->
+        project.configurations.detachedConfiguration(
+            project.dependencies.create('org.jacoco:org.jacoco.ant:0.8.15')
+        )
+    }
 
     def resolveProjectWorkload = { targetProject ->
-        def compilers = []
-        def tests = []
-        def shrunkKotlin = targetProject.tasks.findByName('compileShrunkDebugKotlin')
-        if (shrunkKotlin != null) {
-            compilers.add(shrunkKotlin)
-            def shrunkJava = targetProject.tasks.findByName('compileShrunkDebugJavaWithJavac')
-            if (shrunkJava != null) compilers.add(shrunkJava)
-            def shrunkTest = targetProject.tasks.findByName('testShrunkDebugUnitTest')
-            if (shrunkTest != null) tests.add(shrunkTest)
-            return [compilers: compilers, tests: tests]
+        def configuredVariant = policy.production_scope.variants[targetProject.path]?.toString()
+        if (configuredVariant == null) {
+            throw new GradleException("No reviewed production variant is configured for ${targetProject.path}")
         }
-        def androidMain = targetProject.tasks.findByName('compileAndroidMain')
-        if (androidMain != null) {
-            compilers.add(androidMain)
-            def kmpHostTest = targetProject.tasks.findByName('testAndroidHostTest')
-            if (kmpHostTest != null) tests.add(kmpHostTest)
-            def kmpUnitTest = targetProject.tasks.findByName('testDebugUnitTest')
-            if (kmpUnitTest != null && !tests.contains(kmpUnitTest)) tests.add(kmpUnitTest)
-            return [compilers: compilers, tests: tests]
+        def compilation = policy.production_scope.compilations[configuredVariant]
+        if (compilation == null) {
+            throw new GradleException("${targetProject.path}: variant '${configuredVariant}' has no configured compilation ownership")
         }
-        def debugKotlin = targetProject.tasks.findByName('compileDebugKotlin')
-        if (debugKotlin != null) {
-            compilers.add(debugKotlin)
-            def debugJava = targetProject.tasks.findByName('compileDebugJavaWithJavac')
-            if (debugJava != null) compilers.add(debugJava)
-            def unitTest = targetProject.tasks.findByName('testDebugUnitTest')
-            if (unitTest != null) tests.add(unitTest)
-            return [compilers: compilers, tests: tests]
+        def resolveOwnedTasks = { taskNames, String role ->
+            def resolved = []
+            def missing = []
+            taskNames.each { name ->
+                def task = targetProject.tasks.findByName(name.toString())
+                if (task == null) missing.add(name.toString())
+                else resolved.add(task)
+            }
+            if (!missing.isEmpty()) {
+                throw new GradleException("${targetProject.path}: configured ${configuredVariant} ${role} task(s) do not exist: ${missing.join(', ')}")
+            }
+            resolved.unique { it.path }
         }
-        def releaseKotlin = targetProject.tasks.findByName('compileReleaseKotlin')
-        if (releaseKotlin != null) {
-            compilers.add(releaseKotlin)
-            def releaseJava = targetProject.tasks.findByName('compileReleaseJavaWithJavac')
-            if (releaseJava != null) compilers.add(releaseJava)
-            def unitTest = targetProject.tasks.findByName('testReleaseUnitTest')
-            if (unitTest != null) tests.add(unitTest)
-            return [compilers: compilers, tests: tests]
+        def compilers = resolveOwnedTasks(compilation.compiler_tasks, 'compiler')
+        def tests = resolveOwnedTasks(compilation.test_tasks, 'host-test')
+        if (compilers.isEmpty()) {
+            throw new GradleException("${targetProject.path}: configured '${configuredVariant}' compilation has no production compiler tasks (${compilation.compiler_tasks.join(', ')})")
         }
-        return [compilers: compilers, tests: tests]
+        [variant: configuredVariant, compilers: compilers, tests: tests]
     }
 
     def registerReport = { project, String reportName, boolean scoped ->
@@ -210,9 +422,10 @@ gradle.projectsEvaluated {
         }
 
         def deviceExecutionFiles = project.fileTree(dir: project.layout.buildDirectory, includes: ['outputs/code_coverage/**/*.ec'])
+        def emptyExecutionInput = ensureEmptyExecutionInput(project)
 
         def classDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
-        def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
+        def sourceRoots = productionSourceRoots
             .collect { project.file(it) }.findAll { it.exists() }
 
         def isExecutable = {
@@ -221,9 +434,17 @@ gradle.projectsEvaluated {
         }
 
         def task = project.tasks.register(reportName, JacocoReport) {
-            dependsOn(compilerTasks)
+            // Applying the JaCoCo plugin can leave a task bound to an older default classpath
+            // when another plugin configured it first. Bind both XML reporting and canonical
+            // analysis to the exact policy version for every module report.
+            jacocoClasspath = pinnedJacocoClasspathFor(project)
+            // Canonical counters and execution-file attribution are produced from this report
+            // task's live execution data in doFirst. Do not skip that analysis when XML outputs
+            // happen to be up-to-date from an earlier run.
+            outputs.upToDateWhen { false }
+            dependsOn(compilerTasks + [emptyExecutionInput.task])
             mustRunAfter(testTasks + deviceCoverageTasks)
-            executionData.from(executionFiles, deviceExecutionFiles)
+            executionData.from(executionFiles, deviceExecutionFiles, emptyExecutionInput.file)
             sourceDirectories.from(sourceRoots)
             if (scoped) {
                 classDirectories.from(coverageClassTrees(project, classDirs, ['com/chimali/core/security/hdkeys/**']))
@@ -238,23 +459,8 @@ gradle.projectsEvaluated {
                 html.outputLocation = project.layout.buildDirectory.dir("reports/hdk-coverage/${reportName}")
                 csv.outputLocation = project.layout.buildDirectory.file("reports/hdk-coverage/${reportName}.csv")
             }
-        }
-        if (project.path == ':feature:authenticator') {
-            def emptyExecFile = project.layout.buildDirectory.file('jacoco/hdk/empty-authenticator.exec').get().asFile
-            def prepareEmptyExec = project.tasks.register('hdkPrepareEmptyCoverageData') {
-                group = 'verification'
-                description = 'Creates an empty JaCoCo execution stream so JaCoCo emits the authenticator empty-scope report.'
-                dependsOn(coveragePrepare)
-                mustRunAfter(coveragePrepare)
-                outputs.file(emptyExecFile)
-                doLast {
-                    emptyExecFile.parentFile.mkdirs()
-                    emptyExecFile.bytes = new byte[0]
-                }
-            }
-            task.configure {
-                dependsOn(prepareEmptyExec)
-                executionData.from(emptyExecFile)
+            doFirst { reportTask ->
+                reportTask.extensions.extraProperties.set('hdkCanonicalAnalysis', analyzeJaCoCoReport(reportTask))
             }
         }
         reportTasks.add(task)
@@ -269,7 +475,9 @@ gradle.projectsEvaluated {
         task
     }
 
-    selectedProjects.each { project ->
+    // Keep canonical report and counter evidence aligned with the complete production
+    // inventory. Tier 2 floor enforcement remains scoped to effectiveTier2Paths below.
+    allProductionProjects.each { project ->
         registerReport(project, 'hdkModuleCoverage', false)
     }
     def securityProject = root.project(':core:security')
@@ -277,6 +485,7 @@ gradle.projectsEvaluated {
 
     def repositoryTestTasks = []
     def repositoryCompilerTasks = []
+    def repositoryEmptyExecTasks = []
     def repositoryExecFiles = []
     def repositoryClassDirs = []
     def repositorySourceRoots = []
@@ -285,6 +494,9 @@ gradle.projectsEvaluated {
         def workload = resolveProjectWorkload(project)
         def tests = workload.tests
         def compilers = workload.compilers
+        def emptyExecutionInput = ensureEmptyExecutionInput(project)
+        repositoryEmptyExecTasks.add(emptyExecutionInput.task)
+        repositoryExecFiles.add(emptyExecutionInput.file)
         if (compilers.isEmpty() && project.path != ':feature:authenticator') {
             throw new GradleException("Repository aggregate cannot omit ${project.path}: no production compilations discovered")
         }
@@ -295,14 +507,25 @@ gradle.projectsEvaluated {
         if (!compilers.isEmpty()) {
             repositoryClassDirs.add([project: project, directories: compilers.collectMany { it.outputs.files.files.toList() }.unique()])
         }
-        ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java'].each { path ->
+        productionSourceRoots.each { path ->
             def sourceRoot = project.file(path)
             if (sourceRoot.exists()) repositorySourceRoots.add(sourceRoot)
         }
     }
 
+    // The repository aggregate includes host suites from modules outside the selected
+    // per-module gate set as well. Run all of them for every capture so workload evidence
+    // and JaCoCo execution data are from this run, never a cached prior test result.
+    repositoryTestTasks.unique().each { testTask ->
+        testTask.outputs.upToDateWhen { false }
+        testTask.mustRunAfter(coveragePrepare)
+    }
+
     def repositoryReport = root.tasks.register('hdkRepositoryCoverage', JacocoReport) {
-        dependsOn(repositoryCompilerTasks)
+        jacocoClasspath = pinnedJacocoClasspathFor(root)
+        // See the module reports above: canonical analysis must run for every coverage capture.
+        outputs.upToDateWhen { false }
+        dependsOn(repositoryCompilerTasks + repositoryEmptyExecTasks)
         mustRunAfter(repositoryTestTasks + deviceCoverageTasks)
         executionData.from(repositoryExecFiles.unique())
         sourceDirectories.from(repositorySourceRoots.unique())
@@ -316,6 +539,9 @@ gradle.projectsEvaluated {
             xml.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml')
             html.outputLocation = root.layout.buildDirectory.dir('reports/hdk-coverage/repository')
             csv.outputLocation = root.layout.buildDirectory.file('reports/hdk-coverage/repository.csv')
+        }
+        doFirst { reportTask ->
+            reportTask.extensions.extraProperties.set('hdkCanonicalAnalysis', analyzeJaCoCoReport(reportTask))
         }
     }
 
@@ -332,26 +558,66 @@ gradle.projectsEvaluated {
     root.tasks.register('hdkCoverageAnalyze') {
         group = 'verification'
         description = 'Creates canonical Spec 058 counters and retained production inventories after the required workload.'
-        dependsOn(root.tasks.named('hdkHostCoverage'))
+        dependsOn(root.tasks.named('hdkHostCoverage'), reportTasks, repositoryReport)
+        mustRunAfter(reportTasks + [repositoryReport])
         doLast {
             def failures = []
+            def requiredDeviceTaskEvidence = requiredDeviceTaskRecords.collect { record ->
+                def state = record.task.state
+                def executed = state != null && state.executed && !state.skipped && state.failure == null
+                if (!executed) failures.add("${record.module_path}: required device test task did not complete successfully: ${record.task.path}")
+                [module_path: record.module_path, task_path: record.task.path, executed: executed,
+                    skipped: state != null && state.skipped, failed: state != null && state.failure != null,
+                    junit_xml_directory: relativeJUnitXmlDirectory(record.task, true)]
+            }
+            def optionalDeviceTaskEvidence = optionalDeviceTaskRecords.collect { record ->
+                def state = record.task.state
+                [module_path: record.module_path, task_path: record.task.path,
+                    executed: state != null && state.executed && !state.skipped && state.failure == null,
+                    skipped: state != null && state.skipped, failed: state != null && state.failure != null,
+                    junit_xml_directory: relativeJUnitXmlDirectory(record.task, true)]
+            }
             def summarize = { File reportFile ->
-                if (!reportFile.isFile()) return [INSTRUCTION: [covered: 0L, missed: 0L], BRANCH: [covered: 0L, missed: 0L], LINE: [covered: 0L, missed: 0L], present: false]
-                def xml = reportFile.getText('UTF-8')
+                if (!reportFile.isFile()) throw new GradleException("Required JaCoCo XML report is missing: ${reportFile}")
+                // Read a stable snapshot instead of asking the parser to reopen the report
+                // path. On Windows, report replacement can briefly expose a zero-length file
+                // to a dependent task even after the report task has completed.
+                byte[] reportBytes = new byte[0]
+                for (int attempt = 0; attempt < 5; attempt++) {
+                    reportBytes = java.nio.file.Files.readAllBytes(reportFile.toPath())
+                    if (reportBytes.length > 0) break
+                    if (attempt < 4) Thread.sleep(100L)
+                }
+                if (reportBytes.length == 0) throw new GradleException("Required JaCoCo XML report is empty: ${reportFile}")
+                def factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                factory.setFeature('http://apache.org/xml/features/nonvalidating/load-external-dtd', false)
+                factory.setFeature('http://xml.org/sax/features/external-general-entities', false)
+                factory.setFeature('http://xml.org/sax/features/external-parameter-entities', false)
+                factory.setXIncludeAware(false)
+                factory.setExpandEntityReferences(false)
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, '')
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, '')
+                def builder = factory.newDocumentBuilder()
+                builder.setEntityResolver({ publicId, systemId -> new org.xml.sax.InputSource(new java.io.StringReader('')) } as org.xml.sax.EntityResolver)
+                def document = builder.parse(new java.io.ByteArrayInputStream(reportBytes))
+                def reportRoot = document.documentElement
+                if (reportRoot == null || reportRoot.nodeName != 'report') throw new GradleException("Malformed JaCoCo report root: ${reportFile}")
                 def counts = [present: true]
                 ['INSTRUCTION', 'LINE', 'BRANCH'].each { type ->
-                    def pattern = java.util.regex.Pattern.compile('<counter\\b(?=[^>]*\\btype="' + type + '")(?=[^>]*\\bmissed="(\\d+)")(?=[^>]*\\bcovered="(\\d+)")[^>]*/>')
-                    def matcher = pattern.matcher(xml)
-                    def missed = null
-                    def covered = null
-                    while (matcher.find()) {
-                        missed = matcher.group(1).toLong()
-                        covered = matcher.group(2).toLong()
+                    def nodes = []
+                    def children = reportRoot.childNodes
+                    for (int index = 0; index < children.length; index++) {
+                        def child = children.item(index)
+                        if (child.nodeType == org.w3c.dom.Node.ELEMENT_NODE && child.nodeName == 'counter' && child.getAttribute('type') == type) nodes.add(child)
                     }
-                    if (missed == null) {
+                    if (nodes.size() > 1) throw new GradleException("Duplicate JaCoCo report-level ${type} counters in ${reportFile}")
+                    if (nodes.isEmpty()) {
                         counts[type] = null
                     } else {
-                        counts[type] = [covered: covered, missed: missed, total: covered + missed]
+                        def covered = new java.math.BigInteger(nodes[0].getAttribute('covered'))
+                        def missed = new java.math.BigInteger(nodes[0].getAttribute('missed'))
+                        if (covered.signum() < 0 || missed.signum() < 0) throw new GradleException("Negative JaCoCo ${type} count in ${reportFile}")
+                        counts[type] = [covered: covered, missed: missed, total: covered.add(missed)]
                     }
                 }
                 counts
@@ -377,7 +643,7 @@ gradle.projectsEvaluated {
                 def compilerTasks = workload.compilers
                 def outputDirs = compilerTasks.collectMany { task -> task.outputs.files.files.toList() }.unique()
                 def entries = retainedClassEntries(targetProject, outputDirs)
-                def sourceRoots = ['src/commonMain/kotlin', 'src/androidMain/kotlin', 'src/main/kotlin', 'src/main/java']
+                def sourceRoots = productionSourceRoots
                     .findAll { targetProject.file(it).exists() }
                     .collect { it.replace('\\', '/') }
                     .sort()
@@ -387,11 +653,12 @@ gradle.projectsEvaluated {
                 def disposition = entries.isEmpty() ? 'NotApplicable' : 'Applicable'
                 [
                     module_path: targetProject.path,
+                    project_directory: root.projectDir.toPath().relativize(targetProject.projectDir.toPath()).toString().replace(File.separator, '/'),
                     tier: (targetProject.path in tier1Paths) ? 1 : 2,
                     disposition: disposition,
                     source_roots: sourceRoots,
                     compiler_tasks: compilerTasks.collect { it.path }.sort(),
-                    selected_variant: variantFor(compilerTasks),
+                    selected_variant: workload.variant,
                     output_directories: outputPaths,
                     excluded_class_patterns: generatedSqlDelightExcludes(targetProject).sort(),
                     retained_classes: entries,
@@ -407,12 +674,44 @@ gradle.projectsEvaluated {
                 if (inventoryEntry == null) throw new GradleException("Missing production inventory for ${modPath}")
                 def isExec = !inventoryEntry.retained_classes.isEmpty()
                 def reportFile = entry.reportFile.get().asFile
-                def coverage = summarize(reportFile)
+                def reportTask = entry.report.get()
+                def analysis = reportTask.extensions.extraProperties.has('hdkCanonicalAnalysis')
+                    ? reportTask.extensions.extraProperties.get('hdkCanonicalAnalysis') : null
+                if (analysis == null) {
+                    if (isExec) throw new GradleException("${modPath}: JaCoCo analysis result was not captured for executable production classes")
+                    // Gradle skips JacocoReport when its class tree is empty. Replace any stale
+                    // report output with a deterministic empty report and bind zero counters to
+                    // the independently empty retained-class inventory below.
+                    reportFile.parentFile.mkdirs()
+                    reportFile.setText('<?xml version="1.0" encoding="UTF-8"?><report name="' + modPath + '"></report>', 'UTF-8')
+                    analysis = [counters: [INSTRUCTION: [covered: java.math.BigInteger.ZERO, missed: java.math.BigInteger.ZERO],
+                        BRANCH: [covered: java.math.BigInteger.ZERO, missed: java.math.BigInteger.ZERO]], execution_files: [], classes: 0, class_names: []]
+                }
+                def xmlCoverage = summarize(reportFile)
+                def coverage = reconcileReportAndAnalysis(xmlCoverage, analysis, modPath)
                 def repDigest = fileSha256(reportFile)
                 def invDigest = inventoryEntry.class_inventory_digest
 
-                def modInst = coverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
-                def modBranch = coverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
+                def compatibility = [
+                    status: isExec ? 'Compatible' : 'NotApplicable',
+                    analyzer_identity: 'jacoco-0.8.15',
+                    selected_variant: inventoryEntry.selected_variant,
+                    report_digest: repDigest,
+                    class_inventory_digest: invDigest,
+                    retained_class_count: inventoryEntry.retained_classes.size(),
+                    analyzed_class_count: analysis.classes,
+                    analyzed_class_ids: analysis.class_names,
+                    unmatched_class_count: 0,
+                    unmatched_class_ids: [],
+                    execution_files: analysis.execution_files.collect { input ->
+                        [path: input.path, repository_path: input.repository_path, sha256: input.sha256,
+                         kind: input.path.toLowerCase(Locale.ROOT).endsWith('.ec') ? 'device' : 'host',
+                         selected_variant: inventoryEntry.selected_variant]
+                    }
+                ]
+
+                def modInst = coverage.INSTRUCTION
+                def modBranch = coverage.BRANCH
                 def modTier = (modPath in tier1Paths) ? 1 : 2
                 def disposition = isExec ? "Applicable" : "NotApplicable"
 
@@ -423,7 +722,9 @@ gradle.projectsEvaluated {
                     instruction: [covered: modInst.covered, missed: modInst.missed, total: modInst.covered + modInst.missed],
                     branch: [covered: modBranch.covered, missed: modBranch.missed, total: modBranch.covered + modBranch.missed],
                     report_digest: repDigest,
-                    class_inventory_digest: invDigest
+                    class_inventory_digest: invDigest,
+                    execution_files: analysis.execution_files,
+                    execution_compatibility: compatibility
                 ])
 
                 if (!isExec || modBranch.total == 0L) {
@@ -446,7 +747,8 @@ gradle.projectsEvaluated {
                     return
                 }
 
-                def testsRun = entry.tests.sum { testTask ->
+                def hostTestTasksWithSources = entry.tests.findAll { testTask -> !testTask.state.noSource }
+                def testsRun = hostTestTasksWithSources.sum { testTask ->
                     def resultDir = testTask.reports.junitXml.outputLocation.get().asFile
                     if (!resultDir.isDirectory()) return 0
                     testTask.project.fileTree(resultDir).matching { include '**/*.xml' }.files.sum { xmlFile ->
@@ -458,11 +760,11 @@ gradle.projectsEvaluated {
                     } ?: 0
                 } ?: 0
 
-                if (testsRun <= 0) {
+                if (!hostTestTasksWithSources.isEmpty() && testsRun <= 0) {
                     failures.add("${entry.project.path}: discovered tests produced zero executions")
                 }
 
-                entry.tests.each { testTask ->
+                hostTestTasksWithSources.each { testTask ->
                     def executionFile = testTask.extensions.getByType(org.gradle.testing.jacoco.plugins.JacocoTaskExtension).destinationFile
                     if (!executionFile.isFile() || executionFile.length() == 0) {
                         failures.add("${entry.project.path}: missing or empty current-run JaCoCo execution data: ${executionFile}")
@@ -482,7 +784,7 @@ gradle.projectsEvaluated {
                             root.logger.lifecycle("Coverage floor failure: ${entry.project.path} branch coverage ${pct} is below 60%")
                         }
                     }
-                } else if (entry.project.path in tier2Paths) {
+                } else if (entry.project.path in effectiveTier2Paths) {
                     def inst = coverage.INSTRUCTION
                     if (inst == null || !exactFloorPass(inst.covered, inst.missed, 20)) {
                         def pct = (inst == null || inst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * inst.covered / inst.total))
@@ -492,10 +794,13 @@ gradle.projectsEvaluated {
             }
 
             def repoReportFile = root.layout.buildDirectory.file('reports/hdk-coverage/repository.xml').get().asFile
-            def repositoryCoverage = summarize(repoReportFile)
+            def repositoryXmlCoverage = summarize(repoReportFile)
+            def repositoryAnalysis = repositoryReport.get().extensions.extraProperties.get('hdkCanonicalAnalysis')
+            if (repositoryAnalysis == null) throw new GradleException('Repository JaCoCo analysis result was not captured before XML serialization')
+            def repositoryCoverage = reconcileReportAndAnalysis(repositoryXmlCoverage, repositoryAnalysis, ':repository')
             def repoRepDigest = fileSha256(repoReportFile)
-            def repoInst = repositoryCoverage.INSTRUCTION ?: [covered: 0L, missed: 0L, total: 0L]
-            def repoBranch = repositoryCoverage.BRANCH ?: [covered: 0L, missed: 0L, total: 0L]
+            def repoInst = repositoryCoverage.INSTRUCTION
+            def repoBranch = repositoryCoverage.BRANCH
 
             def inventoryFile = root.layout.buildDirectory.file('reports/hdk-coverage/production-inventory.json').get().asFile
             inventoryFile.parentFile.mkdirs()
@@ -517,7 +822,21 @@ gradle.projectsEvaluated {
                 repository: [
                     instruction: [covered: repoInst.covered, missed: repoInst.missed, total: repoInst.covered + repoInst.missed],
                     branch: [covered: repoBranch.covered, missed: repoBranch.missed, total: repoBranch.covered + repoBranch.missed],
-                    report_digest: repoRepDigest
+                    report_digest: repoRepDigest,
+                    execution_files: repositoryAnalysis.execution_files
+                ],
+                workload: [
+                    required_device_tasks: requiredDeviceTaskEvidence,
+                    optional_device_tasks: optionalDeviceTaskEvidence,
+                    host_test_tasks: repositoryTestTasks.collect { testTask ->
+                        def state = testTask.state
+                        def noSource = state != null && state.skipped && state.skipMessage == 'NO-SOURCE'
+                        [task_path: testTask.path, disposition: noSource ? 'NotApplicable' : 'Applicable',
+                            executed: state != null && state.executed && !state.skipped && state.failure == null,
+                            skipped: state != null && state.skipped, skip_message: state != null ? state.skipMessage : null,
+                            failed: state != null && state.failure != null,
+                            junit_xml_directory: relativeJUnitXmlDirectory(testTask, false)]
+                    }
                 ],
                 zero_count_proofs: proofsJsonList
             ]
@@ -528,9 +847,9 @@ gradle.projectsEvaluated {
             root.logger.lifecycle("Canonical counters written to ${countersOutFile}")
             root.logger.lifecycle("Production inventory written to ${inventoryFile}")
 
-            if (repoInst == null || !exactFloorPass(repoInst.covered, repoInst.missed, 50)) {
+            if (repoInst == null || !exactFloorPass(repoInst.covered, repoInst.missed, repositoryInstructionFloor)) {
                 def pct = (repoInst == null || repoInst.total == 0L) ? "0.0%" : String.format("%.3f%%", (100.0 * repoInst.covered / repoInst.total))
-                root.logger.lifecycle("Coverage floor failure: repository instruction coverage ${pct} is below 50%")
+                root.logger.lifecycle("Coverage floor failure: repository instruction coverage ${pct} is below ${repositoryInstructionFloor}%")
             }
 
             if (!failures.isEmpty()) {
@@ -560,22 +879,22 @@ gradle.projectsEvaluated {
                 if (result == null) {
                     failures.add("${modulePath}: canonical module counters missing")
                 } else if ((result.instruction.covered + result.instruction.missed) > 0 &&
-                    !exactFloorPass(result.instruction.covered, result.instruction.missed, 60)) {
-                    failures.add("${modulePath}: instruction coverage is below 60%")
+                    !exactFloorPass(result.instruction.covered, result.instruction.missed, tier1InstructionFloor)) {
+                    failures.add("${modulePath}: instruction coverage is below ${tier1InstructionFloor}%")
                 } else if ((result.branch.covered + result.branch.missed) > 0 &&
-                    !exactFloorPass(result.branch.covered, result.branch.missed, 60)) {
-                    failures.add("${modulePath}: branch coverage is below 60%")
+                    !exactFloorPass(result.branch.covered, result.branch.missed, tier1BranchFloor)) {
+                    failures.add("${modulePath}: branch coverage is below ${tier1BranchFloor}%")
                 }
             }
-            tier2Paths.each { modulePath ->
+            effectiveTier2Paths.each { modulePath ->
                 def result = counters.modules.find { it.module_path == modulePath }
-                if (result == null || !exactFloorPass(result.instruction.covered, result.instruction.missed, 20)) {
-                    failures.add("${modulePath}: Tier 2 instruction coverage is below 20% or counters are missing")
+                if (result == null || !exactFloorPass(result.instruction.covered, result.instruction.missed, tier2InstructionFloor)) {
+                    failures.add("${modulePath}: Tier 2 instruction coverage is below ${tier2InstructionFloor}% or counters are missing")
                 }
             }
             def repository = counters.repository.instruction
-            if (!exactFloorPass(repository.covered, repository.missed, 50)) {
-                failures.add('repository instruction coverage is below 50% or counters are missing')
+            if (!exactFloorPass(repository.covered, repository.missed, repositoryInstructionFloor)) {
+                failures.add("repository instruction coverage is below ${repositoryInstructionFloor}% or counters are missing")
             }
             if (!failures.isEmpty()) throw new GradleException('HDK coverage floors failed:\n - ' + failures.join('\n - '))
         }

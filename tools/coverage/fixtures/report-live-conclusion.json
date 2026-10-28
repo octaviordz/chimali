@@ -1,0 +1,11 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Stale live candidate bindings publish a trusted failure check rather than exiting before invalidating prior success",
+  "cases": [
+    { "id": "REPORT_LIVE_001_VALID_CANDIDATE_RETAINS_SUCCESS", "current_conclusion": "success", "mutation": "none", "expected_conclusion": "success" },
+    { "id": "REPORT_LIVE_002_BASE_ADVANCED_PUBLISHES_FAILURE", "current_conclusion": "success", "mutation": "base-advanced", "expected_conclusion": "failure" },
+    { "id": "REPORT_LIVE_003_HEAD_CHANGED_PUBLISHES_FAILURE", "current_conclusion": "success", "mutation": "head-changed", "expected_conclusion": "failure" },
+    { "id": "REPORT_LIVE_004_CLOSED_PR_PUBLISHES_FAILURE", "current_conclusion": "success", "mutation": "closed", "expected_conclusion": "failure" },
+    { "id": "REPORT_LIVE_005_ALREADY_FAILED_STAYS_FAILED", "current_conclusion": "failure", "mutation": "base-advanced", "expected_conclusion": "failure" }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "description": "Offline production-entry-point checks for integration-ci trusted path and prerequisite behavior",
+  "cases": [
+    {
+      "id": "INTEGRATION_WRAPPER_001_SEPARATE_ROOTS_AND_LOCAL_CHECK_ARGS",
+      "description": "Runs local checks and capture from a clean harness against a separate candidate while invoked from a separate caller directory"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_002_MISSING_REQUIRED_LOCAL_CHECK",
+      "description": "Fails configuration when the required HarnessRoot local-ci script is missing"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_003_DIRTY_HARNESS",
+      "description": "Fails configuration when the selected harness checkout is dirty"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_004_STALE_LIVE_TARGET",
+      "description": "Fails unavailable-evidence exit when the local and live target refs differ"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_005_DIRTY_CANDIDATE_REACHES_CAPTURE_FROM_HARNESS",
+      "description": "The selected local checks and capture receive the separate candidate root and capture failure is propagated"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_006_VERIFIER_EXIT_CODE_PROPAGATION",
+      "description": "Passes candidate identity and accepted baseline validation, then propagates verifier exits 0, 1, 2, and 3"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_007_REJECTS_CANDIDATE_DIRTYING_DURING_VERIFY",
+      "description": "Rejects a verifier that returns success after the candidate, trusted harness, or live target changes during verification"
+    }
+  ]
+}

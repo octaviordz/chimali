@@ -1,0 +1,12 @@
+{
+  "$schema": "./schema.json",
+  "description": "Promotion derives merge metadata from independent repository API evidence",
+  "cases": [
+    { "id": "INTEGRATION_EVENT_VALID_MERGE", "mutation": "none", "expected_valid": true },
+    { "id": "INTEGRATION_EVENT_NOT_MERGED", "mutation": "not-merged", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_WRONG_HEAD", "mutation": "wrong-head", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_STALE_BASE_CONTEXT", "mutation": "stale-base-context", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_MISSING_MERGE_SHA", "mutation": "missing-merge-sha", "expected_valid": false },
+    { "id": "INTEGRATION_EVENT_MISSING_TREE", "mutation": "missing-tree", "expected_valid": false }
+  ]
+}

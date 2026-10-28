@@ -43,6 +43,144 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": true
@@ -67,7 +205,6 @@
           "clean_preflight": true,
           "clean_postflight": true
         },
-        "evidence_records": [],
         "decisions": {
           "collection": "Complete",
           "tests": "Passed",
@@ -76,6 +213,154 @@
           "regression": "Passed",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "1111111111111111111111111111111111111111",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": true
@@ -101,7 +386,6 @@
           "clean_preflight": true,
           "clean_postflight": true
         },
-        "evidence_records": [],
         "decisions": {
           "collection": "Complete",
           "tests": "Passed",
@@ -110,6 +394,154 @@
           "regression": "Passed",
           "publication": "Published",
           "integration": "Passed"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "4444444444444444444444444444444444444444",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": true
@@ -124,9 +556,166 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
-        "decisions": { "collection": "Complete" }
+        "decisions": {
+          "collection": "Complete"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
       },
       "expected_valid": false,
       "expected_error": "Unsupported schema version: 99.0"
@@ -141,9 +730,166 @@
         "purpose": "AdHocExploratory",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
-        "decisions": { "collection": "Complete" }
+        "decisions": {
+          "collection": "Complete"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
       },
       "expected_valid": false,
       "expected_error": "Invalid purpose: AdHocExploratory"
@@ -158,7 +904,9 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "decisions": {
           "collection": "AlmostDone",
@@ -168,6 +916,159 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
@@ -183,7 +1084,9 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "evidence_records": [
           {
@@ -207,6 +1110,145 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
@@ -222,7 +1264,9 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "evidence_records": [
           {
@@ -245,6 +1289,149 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
@@ -260,11 +1447,19 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "module_results": [
-          { "module_path": ":core:security", "disposition": "Applicable" },
-          { "module_path": ":core:security", "disposition": "Applicable" }
+          {
+            "module_path": ":core:security",
+            "disposition": "Applicable"
+          },
+          {
+            "module_path": ":core:security",
+            "disposition": "Applicable"
+          }
         ],
         "decisions": {
           "collection": "Complete",
@@ -274,6 +1469,159 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
@@ -289,7 +1637,9 @@
         "purpose": "Initial",
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
-          "source_tree": "fedcba9876543210fedcba9876543210fedcba98"
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "zero_count_proofs": [
           {
@@ -305,6 +1655,159 @@
           "regression": "NotApplicable",
           "publication": "Pending",
           "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
@@ -321,7 +1824,9 @@
         "git": {
           "source_commit": "0123456789abcdef0123456789abcdef01234567",
           "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
-          "target_commit": "fedcba9876543210fedcba9876543210fedcba98"
+          "target_commit": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
         },
         "trusted_reporter_binding": {
           "workflow_commit": "abcdef1234567890abcdef1234567890abcdef12",
@@ -336,10 +1841,1588 @@
           "regression": "Passed",
           "publication": "Published",
           "integration": "Passed"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "fixture",
+            "environment": "synthetic",
+            "expected_observed_result": "synthetic valid record",
+            "date": "2026-10-24",
+            "limitations": "synthetic",
+            "status": "Passed",
+            "artifact_link": "reports/tests/fixture.xml"
+          }
+        ],
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
         }
       },
       "expected_valid": false,
       "expected_error": "Missing required field in TrustedReporterBinding: app_id"
+    },
+    {
+      "id": "SCHEMA_012_MISSING_SUITES",
+      "description": "Missing required suites identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing expected suite records"
+    },
+    {
+      "id": "SCHEMA_013_MISSING_EVIDENCE",
+      "description": "Missing required evidence_records identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing required ten-field evidence records"
+    },
+    {
+      "id": "SCHEMA_014_MISSING_ARTIFACTS",
+      "description": "Missing required artifacts identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing complete artifact manifest"
+    },
+    {
+      "id": "SCHEMA_015_MISSING_DEVICE",
+      "description": "Missing required device identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "2e151572904d660a7fb9ee89f39aec8df497566a210425ba1d0dd93688d00c27",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing device identity"
+    },
+    {
+      "id": "SCHEMA_016_MISSING_HARNESS",
+      "description": "Missing required harness identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "dde517f82717a853b27f70d38be98654d69f46028aac6601e84097b997ae2ff0",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing or invalid reviewed harness"
+    },
+    {
+      "id": "SCHEMA_017_MISSING_TIMESTAMP",
+      "description": "Missing required timestamps identity is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Missing or invalid capture timestamps"
+    },
+    {
+      "id": "SCHEMA_018_VALID_APPROVED_NO_SOURCE_HOST_TASK",
+      "description": "Host task with explicit Gradle NO-SOURCE disposition is accepted",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false,
+              "disposition": "Applicable",
+              "skip_message": null
+            },
+            {
+              "task_path": ":core:bluetooth:testDebugUnitTest",
+              "disposition": "NotApplicable",
+              "executed": false,
+              "skipped": true,
+              "skip_message": "NO-SOURCE",
+              "failed": false
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_019_INVALID_UNAPPROVED_HOST_SKIP",
+      "description": "A skipped host task without NO-SOURCE disposition is rejected",
+      "manifest": {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "purpose": "Initial",
+        "timestamps": {
+          "start_utc": "2026-10-24T20:00:00Z",
+          "end_utc": "2026-10-24T20:05:00Z",
+          "display_date": "2026-10-24 14:00:00 -06:00"
+        },
+        "git": {
+          "source_commit": "0123456789abcdef0123456789abcdef01234567",
+          "source_tree": "fedcba9876543210fedcba9876543210fedcba98",
+          "clean_preflight": true,
+          "clean_postflight": true
+        },
+        "evidence_records": [
+          {
+            "requirement": "FR-006",
+            "scope": ":core:security",
+            "revision": "0123456789abcdef0123456789abcdef01234567",
+            "named_procedure": "hdkHostCoverage",
+            "environment": "Windows 11 / JVM 25 / Android SDK 37",
+            "expected_observed_result": "Expected host tests execution; observed 100% test pass",
+            "date": "2026-10-24",
+            "limitations": "Host tests only; device tests run separately",
+            "status": "Passed",
+            "artifact_link": "reports/tests/testDebugUnitTest/index.html"
+          }
+        ],
+        "decisions": {
+          "collection": "Complete",
+          "tests": "Passed",
+          "floors": "Passed",
+          "comparison_compatibility": "Missing",
+          "regression": "NotApplicable",
+          "publication": "Pending",
+          "integration": "Unverified"
+        },
+        "harness": {
+          "revision": "cccccccccccccccccccccccccccccccccccccccc",
+          "tree": "dddddddddddddddddddddddddddddddddddddddd",
+          "clean": true,
+          "file_sha256": {
+            "tools/coverage/capture.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/coverage-common.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/integration-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/local-ci.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/hdk-coverage.init.gradle": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/policy.json": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/validate-policy.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "tools/coverage/verify.ps1": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        },
+        "device": {
+          "device_serial": "fixture-device",
+          "device_online": true,
+          "model": "synthetic",
+          "api_level": "35",
+          "abi": "x86_64"
+        },
+        "suites": [
+          {
+            "suite_name": "fixture.required.Suite",
+            "tests": 1,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "required": true
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "counters.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "inventory.json",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "summary.md",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/repository.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_security.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_domain.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_data.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_fido2.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/feature_authenticator.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_database.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/core_common.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/modules/app.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/fixture.xml",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "execution-data/fixture.exec",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "path": "reports/tests/testDebugUnitTest/index.html",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "measurement_fingerprint": "1daf89600078b512eeae9ad99917ae9676ea81258438529f6a12c53f785eff5e",
+        "toolchain": {
+          "java": "25",
+          "gradle": "9.6.0",
+          "android_gradle_plugin": "9.4.1",
+          "kotlin": "2.3.21",
+          "jacoco": "0.8.15"
+        },
+        "workload": {
+          "host_test_tasks": [
+            {
+              "task_path": ":core:domain:testAndroidHostTest",
+              "executed": false,
+              "skipped": true,
+              "failed": false,
+              "disposition": "NotApplicable",
+              "skip_message": "UP-TO-DATE"
+            }
+          ],
+          "required_device_tasks": [
+            {
+              "module_path": ":feature:fido2",
+              "task_path": ":feature:fido2:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":core:common",
+              "task_path": ":core:common:connectedAndroidDeviceTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            },
+            {
+              "module_path": ":feature:settings",
+              "task_path": ":feature:settings:connectedDebugAndroidTest",
+              "executed": true,
+              "skipped": false,
+              "failed": false
+            }
+          ],
+          "optional_device_tasks": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "Host workload task is missing"
+    },
+    {
+      "id": "SCHEMA_020_CURRENT_TRUSTED_HARNESS_ACCEPTED",
+      "verify_trusted_harness": true,
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_021_TAMPERED_TRUSTED_HARNESS_HASH_REJECTED",
+      "verify_trusted_harness": true,
+      "tamper_trusted_harness": true,
+      "expected_valid": false,
+      "expected_error": "does not match the trusted harness file"
+    },
+    {
+      "id": "SCHEMA_022_INCOMPLETE_COLLECTION_REQUIRES_ERRORS",
+      "collection_error_mutation": "missing",
+      "expected_valid": false,
+      "expected_error": "Incomplete collection must retain at least one collection_errors reason"
+    },
+    {
+      "id": "SCHEMA_023_INCOMPLETE_COLLECTION_REJECTS_EMPTY_ERRORS",
+      "collection_error_mutation": "empty",
+      "expected_valid": false,
+      "expected_error": "Incomplete collection must retain at least one collection_errors reason"
+    },
+    {
+      "id": "SCHEMA_024_COLLECTION_ERRORS_REJECT_BLANK_REASON",
+      "collection_error_mutation": "blank",
+      "expected_valid": false,
+      "expected_error": "collection_errors must contain only nonempty strings"
+    },
+    {
+      "id": "SCHEMA_025_COLLECTION_ERRORS_REJECT_SCALAR",
+      "collection_error_mutation": "wrong-type",
+      "expected_valid": false,
+      "expected_error": "collection_errors must be an array of nonempty strings"
+    },
+    {
+      "id": "SCHEMA_026_INCOMPLETE_COLLECTION_RETAINS_REASON",
+      "collection_error_mutation": "valid",
+      "expected_valid": true
+    },
+    {
+      "id": "SCHEMA_027_EXECUTED_HOST_WITHOUT_JUNIT_ROOT_REJECTED",
+      "junit_mutation": "missing-host-directory",
+      "expected_valid": false,
+      "expected_error": "no safe task-owned JUnit artifact directory"
+    },
+    {
+      "id": "SCHEMA_028_UNOWNED_JUNIT_REPORT_REJECTED",
+      "junit_mutation": "unowned-report",
+      "expected_valid": false,
+      "expected_error": "not owned by a recorded workload"
+    },
+    {
+      "id": "SCHEMA_029_EXECUTED_DEVICE_WITHOUT_JUNIT_ARTIFACT_REJECTED",
+      "junit_mutation": "missing-device-report",
+      "expected_valid": false,
+      "expected_error": "No retained JUnit artifact is bound"
     }
   ]
 }

@@ -1,0 +1,116 @@
+{
+  "cases": [
+    {
+      "id": "EXEC_COMPAT_001_MATCHED_CLASS_SET_ACCEPTED",
+      "description": "Compatible JaCoCo receipt binds analyzer, selected variant, and every retained class",
+      "inventory_module": {
+        "module_path": ":core:data",
+        "selected_variant": "release",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "retained_classes": [{"class_id": "com/chimali/DataOne.class"}, {"class_id": "com/chimali/DataTwo.class"}]
+      },
+      "counter_module": {
+        "module_path": ":core:data",
+        "disposition": "Applicable",
+        "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "execution_files": [{"path": "D:/workspace/core/data/build/jacoco/test.exec", "repository_path": "core/data/build/jacoco/test.exec", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}],
+        "execution_compatibility": {
+          "status": "Compatible",
+          "analyzer_identity": "jacoco-0.8.15",
+          "selected_variant": "release",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "retained_class_count": 2,
+          "analyzed_class_count": 2,
+          "analyzed_class_ids": ["com/chimali/DataOne", "com/chimali/DataTwo"],
+          "unmatched_class_count": 0,
+          "unmatched_class_ids": [],
+          "execution_files": [{"path": "D:/workspace/core/data/build/jacoco/test.exec", "repository_path": "core/data/build/jacoco/test.exec", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "kind": "host", "selected_variant": "release"}]
+        }
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "EXEC_COMPAT_002_UNMATCHED_CLASS_REJECTED",
+      "description": "A reported unmatched class makes compatibility incomplete",
+      "inventory_module": {
+        "module_path": ":core:data",
+        "selected_variant": "release",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "retained_classes": [{"class_id": "com/chimali/DataOne.class"}, {"class_id": "com/chimali/DataTwo.class"}]
+      },
+      "counter_module": {
+        "module_path": ":core:data",
+        "disposition": "Applicable",
+        "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "execution_files": [],
+        "execution_compatibility": {
+          "status": "Compatible",
+          "analyzer_identity": "jacoco-0.8.15",
+          "selected_variant": "release",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "retained_class_count": 2,
+          "analyzed_class_count": 1,
+          "analyzed_class_ids": ["com/chimali/DataOne"],
+          "unmatched_class_count": 1,
+          "unmatched_class_ids": ["com/chimali/DataTwo (classId=2)"],
+          "execution_files": []
+        }
+      },
+      "expected_valid": false,
+      "expected_error": "unmatched"
+    },
+    {
+      "id": "EXEC_COMPAT_003_MISSING_RECEIPT_REJECTED",
+      "description": "Counters without a compatibility receipt are not acceptable for production scope",
+      "inventory_module": {
+        "module_path": ":core:data",
+        "selected_variant": "release",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "retained_classes": [{"class_id": "com/chimali/DataOne.class"}]
+      },
+      "counter_module": {
+        "module_path": ":core:data",
+        "disposition": "Applicable",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "execution_files": []
+      },
+      "expected_valid": false,
+      "expected_error": "receipt is missing"
+    },
+    {
+      "id": "EXEC_COMPAT_004_NULL_EMPTY_EXECUTION_LISTS_ACCEPTED",
+      "description": "A null canonical execution list for an inventory-proven empty module is equivalent to an empty compatibility list",
+      "inventory_module": {
+        "module_path": ":feature:authenticator",
+        "selected_variant": "release",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "retained_classes": []
+      },
+      "counter_module": {
+        "module_path": ":feature:authenticator",
+        "disposition": "NotApplicable",
+        "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "execution_files": null,
+        "execution_compatibility": {
+          "status": "NotApplicable",
+          "analyzer_identity": "jacoco-0.8.15",
+          "selected_variant": "release",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "retained_class_count": 0,
+          "analyzed_class_count": 0,
+          "analyzed_class_ids": [],
+          "unmatched_class_count": 0,
+          "unmatched_class_ids": [],
+          "execution_files": []
+        }
+      },
+      "expected_valid": true
+    }
+  ]
+}

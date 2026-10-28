@@ -3,6 +3,9 @@ name: Coverage Capture
 on:
   pull_request:
     branches: ["**"]
+    # Target-branch pushes do not fire pull_request. When freshness rejects a
+    # stale PR base, updating the PR branch emits synchronize and recaptures it.
+    types: [opened, reopened, synchronize]
   push:
     branches: ["lab/or/chimali", "codex/*"]
   merge_group:
@@ -22,17 +25,48 @@ jobs:
     runs-on: [self-hosted, windows, android-device]
     timeout-minutes: 60
     steps:
+      - name: Validate trusted harness pin
+        shell: pwsh
+        env:
+          TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
+          TRUSTED_REPORTER_WORKFLOW_SHA: ${{ vars.COVERAGE_REPORTER_SHA }}
+          TRUSTED_COVERAGE_APP_ID: ${{ vars.COVERAGE_APP_ID }}
+          TRUSTED_REPOSITORY_ID: ${{ github.repository_id }}
+        run: |
+          if ($env:TRUSTED_HARNESS_SHA -notmatch '^[0-9a-fA-F]{40}$') {
+            Write-Error "COVERAGE_HARNESS_SHA must be configured as a reviewed full commit SHA."
+            exit 3
+          }
+          if ($env:TRUSTED_REPORTER_WORKFLOW_SHA -notmatch '^[0-9a-fA-F]{40}$' -or
+              $env:TRUSTED_COVERAGE_APP_ID -notmatch '^[0-9]+$' -or
+              $env:TRUSTED_REPOSITORY_ID -notmatch '^[0-9]+$') {
+            Write-Error "Protected reporter SHA, Coverage App ID, and repository ID must be configured before capture."
+            exit 3
+          }
+
       - name: Checkout candidate source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
           path: candidate
           fetch-depth: 0
 
       - name: Checkout trusted measurement harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: 997cc3b3ccab94f1f57f5b9c770e98c5b969118f
+          ref: ${{ vars.COVERAGE_HARNESS_SHA }}
           path: trusted-harness
+
+      - name: Verify trusted harness checkout
+        shell: pwsh
+        env:
+          TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
+        run: |
+          $actual = (git -C trusted-harness rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:TRUSTED_HARNESS_SHA) {
+            Write-Error "Checked out measurement harness does not match the configured full-SHA pin."
+            exit 3
+          }
 
       - name: Set up JDK 17
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
@@ -42,24 +76,82 @@ jobs:
 
       - name: Preflight device check
         shell: pwsh
+        env:
+          COVERAGE_DEVICE_SERIAL: ${{ vars.COVERAGE_DEVICE_SERIAL }}
         run: |
-          adb devices
-          $online = (adb devices) | Select-String -Pattern "\bdevice\b"
-          if (-not $online) {
-            Write-Error "No connected Android test device found online."
+          $serial = $env:COVERAGE_DEVICE_SERIAL
+          if ([string]::IsNullOrWhiteSpace($serial)) {
+            Write-Error "COVERAGE_DEVICE_SERIAL must identify the configured Android test device."
+            exit 2
+          }
+          $devices = @(adb devices | Select-String -Pattern "^$([regex]::Escape($serial))\s+device$")
+          if ($LASTEXITCODE -ne 0 -or $devices.Count -ne 1) {
+            Write-Error "The configured Android test device is not uniquely online and authorized."
+            exit 2
+          }
+          $state = (adb -s $serial get-state).Trim()
+          if ($LASTEXITCODE -ne 0 -or $state -ne "device") {
+            Write-Error "The configured Android test device failed its state check."
             exit 2
           }
 
       - name: Run Coverage Capture
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          PUSH_SHA: ${{ github.sha }}
+          COVERAGE_DEVICE_SERIAL: ${{ vars.COVERAGE_DEVICE_SERIAL }}
+          TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
+          TRUSTED_REPORTER_WORKFLOW_SHA: ${{ vars.COVERAGE_REPORTER_SHA }}
+          TRUSTED_COVERAGE_APP_ID: ${{ vars.COVERAGE_APP_ID }}
+          TRUSTED_REPOSITORY_ID: ${{ github.repository_id }}
         run: |
-          $headSha = "${{ github.event.pull_request.head.sha || github.sha }}"
-          $baseSha = "${{ github.event.pull_request.base.sha || github.event.before || '' }}"
-          $purpose = if ("${{ github.event_name }}" -eq "pull_request" -or "${{ github.event_name }}" -eq "merge_group") { "Candidate" } else { "Initial" }
+          $purpose = "Initial"
+          $headSha = $env:PUSH_SHA
+          $baseSha = ""
+          switch ($env:EVENT_NAME) {
+            "pull_request" {
+              $purpose = "Candidate"
+              $headSha = $env:PR_HEAD_SHA
+              $baseSha = $env:PR_BASE_SHA
+            }
+            "merge_group" {
+              $purpose = "Candidate"
+              $headSha = $env:MERGE_GROUP_HEAD_SHA
+              $baseSha = $env:MERGE_GROUP_BASE_SHA
+            }
+            "push" { }
+            default {
+              Write-Error "Unsupported capture event: $env:EVENT_NAME"
+              exit 3
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($headSha)) {
+            Write-Error "Event $env:EVENT_NAME did not provide the exact source commit SHA."
+            exit 2
+          }
+          if ($purpose -eq "Candidate" -and [string]::IsNullOrWhiteSpace($baseSha)) {
+            Write-Error "Event $env:EVENT_NAME did not provide the exact comparison base SHA."
+            exit 2
+          }
+          $checkedOutSha = (git -C candidate rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $checkedOutSha -ne $headSha) {
+            Write-Error "Candidate checkout $checkedOutSha does not match the event source $headSha."
+            exit 2
+          }
 
-          $device = (adb devices | Select-String -Pattern "(\S+)\s+device\b").Matches.Groups[1].Value | Select-Object -First 1
-          if (-not $device) {
-            Write-Error "No connected capable Android device found online."
+          $device = $env:COVERAGE_DEVICE_SERIAL
+          if ([string]::IsNullOrWhiteSpace($device)) {
+            Write-Error "COVERAGE_DEVICE_SERIAL must identify the configured Android test device."
+            exit 2
+          }
+          $deviceRows = @(adb devices | Select-String -Pattern "^$([regex]::Escape($device))\s+device$")
+          if ($LASTEXITCODE -ne 0 -or $deviceRows.Count -ne 1) {
+            Write-Error "The configured Android test device is not uniquely online and authorized."
             exit 2
           }
 
@@ -69,7 +161,11 @@ jobs:
             "-Purpose", $purpose,
             "-HarnessRoot", (Get-Item trusted-harness).FullName,
             "-DeviceSerial", $device,
-            "-OutputRoot", "$env:RUNNER_TEMP/coverage-runs"
+            "-OutputRoot", "$env:RUNNER_TEMP/coverage-runs",
+            "-TrustedReporterWorkflowSha", $env:TRUSTED_REPORTER_WORKFLOW_SHA,
+            "-TrustedReporterSha", $env:TRUSTED_HARNESS_SHA,
+            "-TrustedRepositoryId", $env:TRUSTED_REPOSITORY_ID,
+            "-TrustedCoverageAppId", $env:TRUSTED_COVERAGE_APP_ID
           )
           if ($purpose -eq "Candidate" -and $baseSha) {
             $captureArgs += @("-TargetRevision", $baseSha)
@@ -81,6 +177,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: coverage-bundle
+          name: coverage-bundle-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/coverage-runs/*
           retention-days: 14

@@ -9,38 +9,193 @@ permissions:
   actions: read
   checks: write
   contents: read
+  pull-requests: read
 
 jobs:
   report:
     name: Protected Check Reporter
+    if: ${{ github.event.workflow_run.event != 'push' }}
     runs-on: windows-latest
     environment: coverage-reporting
     steps:
-      - name: Validate workflow run provenance
+      - name: Validate trusted workflow and harness pins
         shell: pwsh
+        env:
+          EXPECTED_REPORTER_SHA: ${{ vars.COVERAGE_REPORTER_SHA }}
+          REPORTER_SHA: ${{ github.workflow_sha }}
+          TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
         run: |
-          if ("${{ github.event.workflow_run.event }}" -notin @("pull_request", "merge_group", "push")) {
-            Write-Error "Unsupported triggering event: ${{ github.event.workflow_run.event }}"
-            exit 1
-          }
-          if ("${{ github.event.workflow_run.conclusion }}" -ne "success" -and "${{ github.event.workflow_run.conclusion }}" -ne "failure") {
-            Write-Error "Workflow run conclusion must be completed execution: ${{ github.event.workflow_run.conclusion }}"
-            exit 1
+          if ($env:EXPECTED_REPORTER_SHA -notmatch '^[0-9a-fA-F]{40}$' -or
+              $env:REPORTER_SHA -cne $env:EXPECTED_REPORTER_SHA -or
+              $env:TRUSTED_HARNESS_SHA -notmatch '^[0-9a-fA-F]{40}$') {
+            Write-Error "Protected reporter and measurement harness must match configured reviewed full-SHA pins."
+            exit 3
           }
 
-      - name: Checkout trusted default-branch harness
+      - name: Checkout trusted measurement harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: 997cc3b3ccab94f1f57f5b9c770e98c5b969118f
+          ref: ${{ vars.COVERAGE_HARNESS_SHA }}
           path: trusted-harness
+          persist-credentials: false
 
-      - name: Download capture artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Verify trusted harness checkout
+        shell: pwsh
+        env:
+          TRUSTED_HARNESS_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
+        run: |
+          $actual = (git -C trusted-harness rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:TRUSTED_HARNESS_SHA) {
+            Write-Error "Checked out reporter harness does not match the configured full-SHA pin."
+            exit 3
+          }
+
+      - name: Validate triggering run identity
+        id: run-identity
+        shell: pwsh
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RUN_JSON: ${{ toJSON(github.event.workflow_run) }}
+          EXPECTED_WORKFLOW_ID: ${{ vars.COVERAGE_CAPTURE_WORKFLOW_ID }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          $identityDirectory = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity'
+          New-Item -ItemType Directory -Path $identityDirectory -Force | Out-Null
+          $eventPath = Join-Path $identityDirectory 'event.json'
+          $identityPath = Join-Path $identityDirectory 'identity.json'
+          $eventRun = $env:RUN_JSON | ConvertFrom-Json -ErrorAction Stop
+          @{ repository = @{ full_name = $env:REPOSITORY }; workflow_run = $eventRun } |
+            ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $eventPath -Encoding utf8
+          pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-workflow-run.ps1 `
+            -EventPath $eventPath `
+            -ExpectedRepository $env:REPOSITORY `
+            -ExpectedWorkflowId $env:EXPECTED_WORKFLOW_ID `
+            -DefaultBranch $env:DEFAULT_BRANCH `
+            -ServerUrl $env:SERVER_URL `
+            -Token $env:GITHUB_TOKEN `
+            -OutputPath $identityPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json -ErrorAction Stop
+          "head_sha=$($identity.head_sha)" >> $env:GITHUB_OUTPUT
+          "base_sha=$($identity.base_sha)" >> $env:GITHUB_OUTPUT
+          "event=$($identity.event)" >> $env:GITHUB_OUTPUT
+          "run_id=$($identity.run_id)" >> $env:GITHUB_OUTPUT
+          "run_attempt=$($identity.run_attempt)" >> $env:GITHUB_OUTPUT
+          "pull_request_number=$($identity.pull_request_number)" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout tested commit for identity inspection only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          name: coverage-bundle
-          path: run-bundle
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: tested-commit
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download and verify this run attempt's artifact digest
+        id: artifact
+        shell: pwsh
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          RUN_ID: ${{ steps.run-identity.outputs.run_id }}
+          RUN_ATTEMPT: ${{ steps.run-identity.outputs.run_attempt }}
+          HEAD_SHA: ${{ steps.run-identity.outputs.head_sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          $artifactName = "coverage-bundle-$($env:RUN_ID)-$($env:RUN_ATTEMPT)"
+          $downloadOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/download-verified-artifact.ps1 `
+            -Repository $env:REPOSITORY -RunId $env:RUN_ID -RunAttempt $env:RUN_ATTEMPT `
+            -HeadSha $env:HEAD_SHA -RepositoryId $env:REPOSITORY_ID -ArtifactName $artifactName `
+            -OutputDirectory (Join-Path $env:RUNNER_TEMP 'coverage-run-artifact') `
+            -ServerUrl $env:SERVER_URL -Token $env:GITHUB_TOKEN)
+          if ($LASTEXITCODE -ne 0) { Write-Error ($downloadOutput -join ' '); exit 1 }
+          $download = ($downloadOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+          "bundle=$($download.bundle_path)" >> $env:GITHUB_OUTPUT
+          "artifact_id=$($download.artifact_id)" >> $env:GITHUB_OUTPUT
+          "artifact_digest=$($download.digest)" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout trusted accepted coverage evidence
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ github.repository }}
+          ref: refs/heads/codex/coverage-evidence
+          path: accepted-evidence
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            baselines
+            runs
+
+      - name: Bind artifact and recheck live PR target
+        id: binding
+        shell: pwsh
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RUN_EVENT: ${{ steps.run-identity.outputs.event }}
+          RUN_HEAD_SHA: ${{ steps.run-identity.outputs.head_sha }}
+          RUN_BASE_SHA: ${{ steps.run-identity.outputs.base_sha }}
+          PR_NUMBER: ${{ steps.run-identity.outputs.pull_request_number }}
+          BUNDLE: ${{ steps.artifact.outputs.bundle }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          $headSha = $env:RUN_HEAD_SHA
+          $candidateHead = (git -C tested-commit rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $candidateHead -cne $headSha) {
+            Write-Error "Checked out commit does not match the completed capture run head."
+            exit 1
+          }
+          if ($env:RUN_EVENT -eq 'pull_request') {
+            if ($env:PR_NUMBER -notmatch '^[1-9][0-9]*$') { Write-Error "Expected a validated PR number."; exit 1 }
+            $number = [int]$env:PR_NUMBER
+            $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+            $uri = "$($env:SERVER_URL)/api/v3/repos/$($env:REPOSITORY)/pulls/$number"
+            if ($env:SERVER_URL -eq 'https://github.com') { $uri = "https://api.github.com/repos/$($env:REPOSITORY)/pulls/$number" }
+            $livePr = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+            $prPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/live-pr.json'
+            $livePr | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $prPath -Encoding utf8
+            $prIdentityPath = Join-Path $env:RUNNER_TEMP 'coverage-reporter-identity/live-pr-identity.json'
+            pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/validate-live-pr-target.ps1 `
+              -PullRequestPath $prPath -ExpectedRepository $env:REPOSITORY -ExpectedNumber $env:PR_NUMBER `
+              -ExpectedHeadSha $headSha -CapturedBaseSha $env:RUN_BASE_SHA -OutputPath $prIdentityPath
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $baseSha = [string](Get-Content -LiteralPath $prIdentityPath -Raw | ConvertFrom-Json -ErrorAction Stop).base_sha
+          } else {
+            $parents = @((git -C tested-commit show -s --format=%P $headSha).Trim() -split '\s+' | Where-Object { $_ })
+            if ($LASTEXITCODE -ne 0 -or $parents.Count -lt 2) {
+              Write-Error "Merge-group head does not contain a verifiable base and merged head parent list."
+              exit 1
+            }
+            $baseSha = [string]$parents[0]
+          }
+          $manifestPath = Join-Path $env:BUNDLE 'manifest.json'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Write-Error "Verified artifact bundle manifest is missing."; exit 1 }
+          $bundle = $env:BUNDLE
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+          if ($manifest.git.source_commit -cne $headSha -or $manifest.git.target_commit -cne $baseSha) {
+            Write-Error "Sealed capture source/target does not match the workflow event identity."
+            exit 1
+          }
+          $expectedTree = (git -C tested-commit rev-parse "$headSha^{tree}").Trim()
+          if ($LASTEXITCODE -ne 0 -or $manifest.git.source_tree -cne $expectedTree) {
+            Write-Error "Sealed capture tree does not match the tested commit tree."
+            exit 1
+          }
+          $baselineOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/resolve-accepted-baseline.ps1 `
+            -EvidenceRoot (Get-Item accepted-evidence).FullName `
+            -CandidateBundle $bundle `
+            -ExpectedTargetCommit $baseSha 2>&1)
+          if ($LASTEXITCODE -ne 0) { Write-Error "Trusted accepted baseline is unavailable or stale: $($baselineOutput -join ' ')"; exit 1 }
+          $baseline = ($baselineOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+          "bundle=$bundle" >> $env:GITHUB_OUTPUT
+          "head_sha=$headSha" >> $env:GITHUB_OUTPUT
+          "base_sha=$baseSha" >> $env:GITHUB_OUTPUT
+          "comparison_bundle=$($baseline.comparison_bundle)" >> $env:GITHUB_OUTPUT
+          "accepted_baseline_index=$($baseline.accepted_baseline_index)" >> $env:GITHUB_OUTPUT
+          "changed_paths=$($baseline.changed_paths)" >> $env:GITHUB_OUTPUT
 
       - name: Generate Coverage Check
         shell: pwsh
@@ -48,32 +203,47 @@ jobs:
           APP_ID: ${{ vars.COVERAGE_APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.COVERAGE_APP_PRIVATE_KEY }}
           INSTALLATION_ID: ${{ vars.COVERAGE_APP_INSTALLATION_ID }}
-          WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
-          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          WORKFLOW_BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
-          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.binding.outputs.head_sha }}
+          BASE_SHA: ${{ steps.binding.outputs.base_sha }}
+          BUNDLE: ${{ steps.binding.outputs.bundle }}
+          COMPARISON_BUNDLE: ${{ steps.binding.outputs.comparison_bundle }}
+          ACCEPTED_BASELINE_INDEX: ${{ steps.binding.outputs.accepted_baseline_index }}
+          CHANGED_PATHS: ${{ steps.binding.outputs.changed_paths }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact_digest }}
+          LIVE_EVENT: ${{ steps.run-identity.outputs.event }}
+          PR_NUMBER: ${{ steps.run-identity.outputs.pull_request_number }}
+          TARGET_REF: ${{ vars.COVERAGE_TARGET_REF }}
+          SERVER_URL: ${{ github.server_url }}
+          ACTIONS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_REPORTER_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EXPECTED_REPORTER_SHA: ${{ vars.COVERAGE_HARNESS_SHA }}
+          EXPECTED_REPOSITORY_ID: ${{ github.repository_id }}
+          EXPECTED_APP_ID: ${{ vars.COVERAGE_APP_ID }}
         run: |
-          $headSha = $env:WORKFLOW_HEAD_SHA
-          $baseSha = $env:WORKFLOW_BASE_SHA
-          if ([string]::IsNullOrWhiteSpace($baseSha)) { $baseSha = $headSha }
-
-          # Strict promotion only on verified post-integration workflow run on default branch
-          $isDefaultBranchPush = ($env:WORKFLOW_EVENT -eq "push" -and $env:WORKFLOW_HEAD_BRANCH -eq "lab/or/chimali")
-          $promoteArgs = @()
-          if ($isDefaultBranchPush) {
-              $promoteArgs += "-PromoteIntegration"
-              $promoteArgs += "-IntegratedCommit"
-              $promoteArgs += $headSha
-          }
-
-          pwsh -NoProfile -ExecutionPolicy Bypass -File trusted-harness/tools/coverage/report.ps1 `
-            -RunBundle (Get-Item run-bundle/* | Select-Object -First 1).FullName `
-            -Repository $env:REPOSITORY `
-            -HeadSha $headSha `
-            -BaseSha $baseSha `
-            -AppId $env:APP_ID `
-            -AppPrivateKey $env:APP_PRIVATE_KEY `
-            -InstallationId $env:INSTALLATION_ID `
-            @promoteArgs
+          $reportArgs = @(
+            '-RunBundle', $env:BUNDLE,
+            '-Repository', $env:REPOSITORY,
+            '-HeadSha', $env:HEAD_SHA,
+            '-BaseSha', $env:BASE_SHA,
+            '-ComparisonBundle', $env:COMPARISON_BUNDLE,
+            '-AcceptedBaselineIndexPath', $env:ACCEPTED_BASELINE_INDEX,
+            '-ChangedPathsFile', $env:CHANGED_PATHS,
+            '-ArtifactId', $env:ARTIFACT_ID,
+            '-ArtifactDigest', $env:ARTIFACT_DIGEST,
+            '-LiveEventName', $env:LIVE_EVENT,
+            '-ServerUrl', $env:SERVER_URL,
+            '-ActionsToken', $env:ACTIONS_TOKEN,
+            '-ExpectedReporterWorkflowSha', $env:EXPECTED_REPORTER_WORKFLOW_SHA,
+            '-ExpectedReporterSha', $env:EXPECTED_REPORTER_SHA,
+            '-ExpectedRepositoryId', $env:EXPECTED_REPOSITORY_ID,
+            '-ExpectedCoverageAppId', $env:EXPECTED_APP_ID,
+            '-AppId', $env:APP_ID,
+            '-AppPrivateKey', $env:APP_PRIVATE_KEY,
+            '-InstallationId', $env:INSTALLATION_ID
+          )
+          if ($env:PR_NUMBER -match '^[1-9][0-9]*$') { $reportArgs += @('-PullRequestNumber', $env:PR_NUMBER) }
+          if (-not [string]::IsNullOrWhiteSpace($env:TARGET_REF)) { $reportArgs += @('-IntegrationTargetRef', $env:TARGET_REF) }
+          pwsh -NoProfile -ExecutionPolicy Bypass -File tools/coverage/report.ps1 @reportArgs
+        working-directory: trusted-harness

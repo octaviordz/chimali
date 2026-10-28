@@ -1,0 +1,13 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Capture-to-protected-reporter identity bindings",
+  "cases": [
+    { "id": "TRUSTED_REPORTER_001_VALID_BINDING", "mutation": "none", "expected_valid": true },
+    { "id": "TRUSTED_REPORTER_002_MISSING_BINDING", "mutation": "missing", "expected_valid": false },
+    { "id": "TRUSTED_REPORTER_003_WORKFLOW_CHANGED", "mutation": "workflow", "expected_valid": false },
+    { "id": "TRUSTED_REPORTER_004_REPORTER_SHA_CHANGED", "mutation": "reporter", "expected_valid": false },
+    { "id": "TRUSTED_REPORTER_005_CROSS_REPOSITORY", "mutation": "repository", "expected_valid": false },
+    { "id": "TRUSTED_REPORTER_006_DIFFERENT_APP", "mutation": "app", "expected_valid": false },
+    { "id": "TRUSTED_REPORTER_007_MALFORMED_SHA", "mutation": "malformed", "expected_valid": false }
+  ]
+}

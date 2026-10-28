@@ -1,0 +1,43 @@
+{
+  "cases": [
+    {
+      "id": "REPORT_COUNTER_001_LARGE",
+      "description": "Parses report counters larger than Int64 without narrowing",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"12\" covered=\"92233720368547758081234567890\"/><counter type=\"BRANCH\" missed=\"0\" covered=\"3\"/></report>",
+      "expected_instruction_covered": "92233720368547758081234567890",
+      "expected_instruction_missed": "12",
+      "expected_branch_covered": "3",
+      "expected_branch_missed": "0"
+    },
+    {
+      "id": "REPORT_COUNTER_002_DUPLICATE_INSTRUCTION",
+      "description": "Rejects duplicate report-level instruction counters",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"0\" covered=\"1\"/><counter type=\"INSTRUCTION\" missed=\"0\" covered=\"2\"/><counter type=\"BRANCH\" missed=\"0\" covered=\"0\"/></report>",
+      "expected_error": "exactly one report-level INSTRUCTION"
+    },
+    {
+      "id": "REPORT_COUNTER_003_MISSING_BRANCH",
+      "description": "Rejects missing report-level branch counters",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"0\" covered=\"1\"/></report>",
+      "expected_error": "exactly one report-level BRANCH"
+    },
+    {
+      "id": "REPORT_COUNTER_004_NEGATIVE",
+      "description": "Rejects negative report counters",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"-1\" covered=\"2\"/><counter type=\"BRANCH\" missed=\"0\" covered=\"0\"/></report>",
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "REPORT_COUNTER_005_FRACTIONAL",
+      "description": "Rejects fractional report counters",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"0.5\" covered=\"2\"/><counter type=\"BRANCH\" missed=\"0\" covered=\"0\"/></report>",
+      "expected_error": "nonnegative integer"
+    },
+    {
+      "id": "REPORT_COUNTER_006_ZERO_DENOMINATOR",
+      "description": "Rejects a zero repository instruction denominator",
+      "xml": "<report><counter type=\"INSTRUCTION\" missed=\"0\" covered=\"0\"/><counter type=\"BRANCH\" missed=\"0\" covered=\"0\"/></report>",
+      "expected_error": "instruction aggregate denominator is zero"
+    }
+  ]
+}

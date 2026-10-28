@@ -1,0 +1,51 @@
+{
+  "cases": [
+    {
+      "id": "JUNIT_WORKLOAD_001_STALE_REPORT_EXCLUDED",
+      "description": "Collects reports only from the executed Gradle workload output directories",
+      "mode": "success",
+      "expected_valid": true
+    },
+    {
+      "id": "JUNIT_WORKLOAD_002_EXECUTED_TASK_WITHOUT_XML_REJECTED",
+      "description": "Rejects an executed workload that produced no JUnit XML",
+      "mode": "missing-file",
+      "expected_error": "produced no task-owned JUnit XML",
+      "expected_valid": false
+    },
+    {
+      "id": "JUNIT_WORKLOAD_003_MISSING_OUTPUT_DIRECTORY_REJECTED",
+      "description": "Rejects an executed workload whose declared output directory is absent",
+      "mode": "missing-directory",
+      "expected_error": "output directory is missing",
+      "expected_valid": false
+    },
+    {
+      "id": "JUNIT_WORKLOAD_004_TRAVERSAL_REJECTED",
+      "description": "Rejects a task-owned JUnit directory that escapes the repository",
+      "mode": "traversal",
+      "expected_error": "no safe task-owned JUnit output directory",
+      "expected_valid": false
+    },
+    {
+      "id": "JUNIT_BIND_001_TASK_ROOTS_MATCH",
+      "description": "Retained JUnit XML artifacts bind to each executed workload task output",
+      "binding_mode": "valid",
+      "expected_valid": true
+    },
+    {
+      "id": "JUNIT_BIND_002_UNOWNED_STALE_ARTIFACT_REJECTED",
+      "description": "A retained JUnit report outside all recorded workload roots is rejected",
+      "binding_mode": "unowned",
+      "expected_valid": false,
+      "expected_error": "not owned by a recorded workload"
+    },
+    {
+      "id": "JUNIT_BIND_003_MISSING_TASK_ARTIFACT_REJECTED",
+      "description": "Every executed workload must have a retained JUnit report",
+      "binding_mode": "missing-device",
+      "expected_valid": false,
+      "expected_error": "No retained JUnit artifact is bound"
+    }
+  ]
+}

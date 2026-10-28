@@ -1,0 +1,13 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Final report success revalidates the exact assessed run, trusted reporter, harness, and published bundle",
+  "cases": [
+    { "id": "REPORT_FINAL_001_ALL_BINDINGS_STABLE", "mutation": "none", "expected_valid": true },
+    { "id": "REPORT_FINAL_002_MANIFEST_CHANGED", "mutation": "manifest", "expected_valid": false },
+    { "id": "REPORT_FINAL_003_BUNDLE_CHANGED", "mutation": "bundle", "expected_valid": false },
+    { "id": "REPORT_FINAL_004_CANDIDATE_IDENTITY_CHANGED", "mutation": "candidate", "expected_valid": false },
+    { "id": "REPORT_FINAL_005_REPORTER_IDENTITY_CHANGED", "mutation": "reporter", "expected_valid": false },
+    { "id": "REPORT_FINAL_006_HARNESS_CHANGED", "mutation": "harness", "expected_valid": false },
+    { "id": "REPORT_FINAL_007_PUBLISHED_DIGEST_CHANGED", "mutation": "publication", "expected_valid": false }
+  ]
+}

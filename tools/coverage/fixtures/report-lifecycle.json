@@ -1,0 +1,21 @@
+{
+  "$schema": "./schema.json",
+  "description": "Trusted reporter assessment lifecycle protections",
+  "cases": [
+    {
+      "id": "REPORT_001_STALE_ASSESSMENT_NOT_REUSED",
+      "description": "A pre-existing passing assessment for the same run ID cannot be reused to authorize a new report",
+      "expected_valid": true
+    },
+    {
+      "id": "REPORT_002_FAILED_VERIFICATION_REMAINS_UNVERIFIED",
+      "description": "Failed independent verification produces only an unverified dry-run receipt and no authorized success claim",
+      "expected_valid": true
+    },
+    {
+      "id": "REPORT_003_STALE_LIVE_TARGET_PUBLISHES_FAILURE",
+      "description": "A stale live PR target still publishes an App failure check on the trusted captured head so an older success is challenged",
+      "expected_valid": true
+    }
+  ]
+}

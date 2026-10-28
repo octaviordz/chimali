@@ -13,7 +13,7 @@ class SettingsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `retake onboarding button invokes callback`() {
+    fun retakeOnboardingButtonInvokesCallback() {
         var invoked = false
 
         composeRule.setContent {
@@ -28,5 +28,35 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Re-take Onboarding").assertIsDisplayed().performClick()
 
         assertTrue(invoked)
+    }
+
+    @Test
+    fun screenDisplaysEnabledAndDisabledFeatureSelections() {
+        composeRule.setContent {
+            SettingsScreen(
+                vaultEnabled = true,
+                passkeyEnabled = false,
+                onRetakeOnboarding = {},
+                onBack = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Vault: Enabled").assertIsDisplayed()
+        composeRule.onNodeWithText("Passkey Authenticator: Disabled").assertIsDisplayed()
+    }
+
+    @Test
+    fun screenDisplaysBothFeaturesEnabled() {
+        composeRule.setContent {
+            SettingsScreen(
+                vaultEnabled = true,
+                passkeyEnabled = true,
+                onRetakeOnboarding = {},
+                onBack = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Vault: Enabled").assertIsDisplayed()
+        composeRule.onNodeWithText("Passkey Authenticator: Enabled").assertIsDisplayed()
     }
 }

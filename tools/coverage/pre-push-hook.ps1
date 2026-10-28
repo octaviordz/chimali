@@ -1,113 +1,131 @@
 <#
 .SYNOPSIS
-    Git pre-push hook for verifying proposed candidates before push.
+    Verifies each non-deletion commit in Git's native pre-push update stream.
 .DESCRIPTION
-    Reads stdin for ref updates (<local_ref> <local_sha> <remote_ref> <remote_sha>),
-    resolves explicit integration target and online device, and invokes integration-ci.ps1.
-    Fails closed with actionable guidance if prerequisites are missing.
+    Uses only explicit coverage.targetRef, coverage.deviceSerial,
+    coverage.evidenceRoot, and coverage.harnessRoot settings (or their named
+    CHIMALI_* environment equivalents). coverage.evidenceRef, when configured,
+    exempts only that exact remote ref from product integration verification.
 #>
-$ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$RepoRoot = Split-Path -Parent $ScriptDir
+[CmdletBinding()]
+param()
 
-# 1. Read pre-push updates from standard input
-$stdinLines = @($input)
+$ErrorActionPreference = 'Stop'
+$scriptPath = [System.IO.Path]::GetFullPath($MyInvocation.MyCommand.Definition)
+$ScriptDir = Split-Path -Parent $scriptPath
+$RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))
 
-if ($stdinLines.Count -eq 0) {
-    # No ref updates provided (e.g. dry-run or empty push)
-    exit 0
+function Stop-Hook {
+    param([string]$Message, [int]$ExitCode = 1)
+    [Console]::Error.WriteLine("Pre-push verification blocked: $Message")
+    exit $ExitCode
 }
 
-# 2. Resolve explicit integration target
-$targetRef = (git config --get coverage.targetRef)
-if ([string]::IsNullOrWhiteSpace($targetRef)) {
-    $targetRef = $env:CHIMALI_INTEGRATION_TARGET
+function Get-ConfiguredValue {
+    param([string]$Name, [string]$EnvironmentName)
+    $value = (& git -C $RepoRoot config --get $Name 2>$null | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        $value = [Environment]::GetEnvironmentVariable($EnvironmentName, 'Process')
+    }
+    return ([string]$value).Trim()
 }
-if ([string]::IsNullOrWhiteSpace($targetRef)) {
-    # Check if origin/main exists
-    git rev-parse --verify origin/main 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        $targetRef = "origin/main"
+
+function Resolve-ConfiguredPath {
+    param([string]$Value, [string]$Name, [switch]$MustExist)
+    if ([string]::IsNullOrWhiteSpace($Value)) { Stop-Hook "$Name is required (git config coverage.$Name or its documented CHIMALI_* environment variable)." 3 }
+    $path = if ([System.IO.Path]::IsPathRooted($Value)) { $Value } else { Join-Path $RepoRoot $Value }
+    $path = [System.IO.Path]::GetFullPath($path)
+    if ($MustExist -and -not (Test-Path -LiteralPath $path -PathType Container)) { Stop-Hook "$Name directory does not exist: $path" 3 }
+    return $path
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.git'))) {
+    # Worktrees use a .git file rather than a directory.
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.git') -PathType Leaf)) { Stop-Hook "Could not resolve repository root from hook path '$scriptPath'." 3 }
+}
+
+$targetRef = Get-ConfiguredValue -Name 'coverage.targetRef' -EnvironmentName 'CHIMALI_INTEGRATION_TARGET'
+if ([string]::IsNullOrWhiteSpace($targetRef)) { Stop-Hook 'coverage.targetRef must be configured explicitly; no inferred target is used.' 3 }
+$deviceSerial = Get-ConfiguredValue -Name 'coverage.deviceSerial' -EnvironmentName 'ANDROID_SERIAL'
+if ([string]::IsNullOrWhiteSpace($deviceSerial)) { Stop-Hook 'coverage.deviceSerial or ANDROID_SERIAL must name the authorized test device explicitly.' 3 }
+$evidenceValue = Get-ConfiguredValue -Name 'coverage.evidenceRoot' -EnvironmentName 'CHIMALI_EVIDENCE_ROOT'
+$harnessValue = Get-ConfiguredValue -Name 'coverage.harnessRoot' -EnvironmentName 'CHIMALI_HARNESS_ROOT'
+$evidenceRoot = Resolve-ConfiguredPath -Value $evidenceValue -Name 'evidenceRoot'
+$harnessRoot = Resolve-ConfiguredPath -Value $harnessValue -Name 'harnessRoot' -MustExist
+$harnessIntegrationPath = Join-Path $harnessRoot 'tools/integration-ci.ps1'
+if (-not (Test-Path -LiteralPath $harnessIntegrationPath -PathType Leaf)) { Stop-Hook "Trusted harness is missing tools/integration-ci.ps1: $harnessIntegrationPath" 3 }
+
+$repoPrefix = $RepoRoot.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+$evidenceNormalized = $evidenceRoot.TrimEnd('\', '/')
+if ([string]::Equals($evidenceNormalized, $RepoRoot.TrimEnd('\', '/'), [System.StringComparison]::OrdinalIgnoreCase) -or
+    $evidenceNormalized.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Stop-Hook "coverage.evidenceRoot must be outside the product checkout: $evidenceRoot" 3
+}
+if (-not (Test-Path -LiteralPath $evidenceRoot -PathType Container)) { New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null }
+
+$evidenceRef = Get-ConfiguredValue -Name 'coverage.evidenceRef' -EnvironmentName 'CHIMALI_COVERAGE_EVIDENCE_REF'
+if (-not [string]::IsNullOrWhiteSpace($evidenceRef)) {
+    & git -C $RepoRoot check-ref-format $evidenceRef 2>$null
+    $evidenceRefValid = $LASTEXITCODE -eq 0
+    if (-not $evidenceRef.StartsWith('refs/heads/', [System.StringComparison]::Ordinal) -or -not $evidenceRefValid) {
+        Stop-Hook "coverage.evidenceRef must be one exact full refs/heads/... ref: $evidenceRef" 3
     }
 }
 
-if ([string]::IsNullOrWhiteSpace($targetRef)) {
-    Write-Error "Pre-push verification blocked: No integration target configured.`nSet via: git config coverage.targetRef <target-branch-or-sha>`nExample: git config coverage.targetRef origin/main"
-    exit 1
+$updates = [System.Collections.Generic.List[object]]::new()
+while ($null -ne ($line = [Console]::In.ReadLine())) {
+    if ([string]::IsNullOrWhiteSpace($line)) { Stop-Hook 'Malformed empty pre-push update line.' 3 }
+    $parts = @($line.Trim() -split '\s+')
+    if ($parts.Count -ne 4) { Stop-Hook "Malformed pre-push update (expected four fields): $line" 3 }
+    $updates.Add([PSCustomObject]@{ LocalRef = $parts[0]; LocalSha = $parts[1]; RemoteRef = $parts[2]; RemoteSha = $parts[3] })
 }
+if ($updates.Count -eq 0) { exit 0 }
 
-# 3. Resolve device serial
-$deviceSerial = (git config --get coverage.deviceSerial)
-if ([string]::IsNullOrWhiteSpace($deviceSerial)) {
-    $deviceSerial = $env:ANDROID_SERIAL
-}
-if ([string]::IsNullOrWhiteSpace($deviceSerial)) {
-    # Auto-detect online adb device
-    $adbDevices = @(adb devices 2>$null | Select-String -Pattern "(\S+)\s+device\b")
-    if ($adbDevices.Count -gt 0) {
-        $deviceSerial = $adbDevices[0].Matches.Groups[1].Value
+$zeroShaPattern = '^(0{40}|0{64})$'
+$shaPattern = '^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$'
+$remoteName = Get-ConfiguredValue -Name 'coverage.remoteName' -EnvironmentName 'CHIMALI_COVERAGE_REMOTE'
+if ([string]::IsNullOrWhiteSpace($remoteName)) { $remoteName = 'origin' }
+$pwshCommand = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $pwshCommand) { Stop-Hook 'PowerShell 7 (pwsh) is required.' 3 }
+
+foreach ($update in $updates) {
+    if ($update.LocalSha -notmatch $shaPattern -or $update.RemoteSha -notmatch $shaPattern) {
+        Stop-Hook "Malformed object ID in update '$($update.LocalRef)' -> '$($update.RemoteRef)'." 3
     }
-}
+    if ($update.LocalSha -match $zeroShaPattern) { continue }
+    if ($update.LocalRef -ne '(delete)') {
+        & git -C $RepoRoot check-ref-format $update.LocalRef 2>$null
+        if ($LASTEXITCODE -ne 0) { Stop-Hook "Invalid local ref name '$($update.LocalRef)'." 3 }
+    }
+    & git -C $RepoRoot check-ref-format $update.RemoteRef 2>$null
+    $remoteRefValid = $LASTEXITCODE -eq 0
+    if (-not $update.RemoteRef.StartsWith('refs/', [System.StringComparison]::Ordinal) -or -not $remoteRefValid) {
+        Stop-Hook "Invalid remote ref name '$($update.RemoteRef)'." 3
+    }
 
-if ([string]::IsNullOrWhiteSpace($deviceSerial)) {
-    Write-Error "Pre-push verification blocked: No online authorized Android test device found.`nConnect a device, start an emulator, or specify serial via: git config coverage.deviceSerial <serial>"
-    exit 1
-}
-
-# 4. Resolve evidence root outside checkout
-$evidenceRoot = (git config --get coverage.evidenceRoot)
-if ([string]::IsNullOrWhiteSpace($evidenceRoot)) {
-    $evidenceRoot = $env:CHIMALI_EVIDENCE_ROOT
-}
-if ([string]::IsNullOrWhiteSpace($evidenceRoot)) {
-    $evidenceRoot = Join-Path ([System.IO.Path]::GetTempPath()) "chimali-coverage-runs"
-}
-
-if (-not (Test-Path $evidenceRoot)) {
-    New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
-}
-
-$integrationCiPath = Join-Path $ScriptDir "../integration-ci.ps1"
-if (-not (Test-Path $integrationCiPath)) {
-    Write-Error "integration-ci.ps1 not found at $integrationCiPath"
-    exit 1
-}
-
-# 5. Process ref updates
-foreach ($line in $stdinLines) {
-    $parts = $line.Trim().Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
-    if ($parts.Length -lt 4) { continue }
-
-    $localRef = $parts[0]
-    $localSha = $parts[1]
-    $remoteRef = $parts[2]
-    $remoteSha = $parts[3]
-
-    # Deletion of remote ref
-    if ($localSha -match '^0+$') {
+    if (-not [string]::IsNullOrWhiteSpace($evidenceRef) -and $update.RemoteRef -ceq $evidenceRef) {
+        Write-Host "Configured evidence ref update '$($update.RemoteRef)' is exempt from product integration checks." -ForegroundColor DarkGray
         continue
     }
 
-    # Evidence branch push (contains only archive artifacts, skip product CI)
-    if ($remoteRef -like "*coverage-evidence*" -or $localRef -like "*coverage-evidence*") {
-        Write-Host "Evidence branch push detected ($remoteRef); skipping integration gate." -ForegroundColor DarkGray
-        continue
-    }
+    $commitSpec = "$($update.LocalSha)^{commit}"
+    & git -C $RepoRoot cat-file -e $commitSpec 2>$null
+    if ($LASTEXITCODE -ne 0) { Stop-Hook "Pushed object $($update.LocalSha) is not a locally resolvable commit." 2 }
 
-    Write-Host "Verifying candidate $localSha for push to $remoteRef (Target: $targetRef)..." -ForegroundColor Cyan
-
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File $integrationCiPath `
+    Write-Host "Verifying pushed commit $($update.LocalSha) from $($update.LocalRef) to $($update.RemoteRef) against $targetRef..." -ForegroundColor Cyan
+    & $pwshCommand.Source -NoProfile -ExecutionPolicy Bypass -File $harnessIntegrationPath `
         -RepositoryRoot $RepoRoot `
-        -CandidateRef $localSha `
+        -CandidateRef $update.LocalSha `
         -TargetRef $targetRef `
+        -HarnessRoot $harnessRoot `
         -DeviceSerial $deviceSerial `
-        -EvidenceRoot $evidenceRoot
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Pre-push integration check failed for candidate $localSha against target $targetRef (exit code $LASTEXITCODE)"
-        exit $LASTEXITCODE
+        -EvidenceRoot $evidenceRoot `
+        -RemoteName $remoteName
+    $integrationExit = $LASTEXITCODE
+    if ($integrationExit -ne 0) {
+        Stop-Hook "Integration check rejected pushed commit $($update.LocalSha) from $($update.LocalRef) to $($update.RemoteRef) (exit $integrationExit)." $integrationExit
     }
 }
 
-Write-Host "Pre-push verification passed for all pushed refs." -ForegroundColor Green
+Write-Host 'Pre-push verification passed for all pushed refs.' -ForegroundColor Green
 exit 0

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "generated_from": "JaCoCo 0.8.15 Analyzer + XMLFormatter",
+  "modules": [
+    {
+      "module_path": ":feature:fido2",
+      "project_directory": "feature/fido2",
+      "disposition": "Applicable",
+      "retained_classes": [
+        {
+          "class_id": "com/chimali/fido2/domain/model/PublicKeyCredentialType.class",
+          "sha256": "ff199d488965fcc46359cf36d9d1af6acccdf092b4f006a1618efcd903a144be"
+        }
+      ],
+      "class_inventory_digest": "e045f86d4466bf189f804a66fda47ea90f85873612ea6edf2cdc63e1abf7d5c7"
+    },
+    {
+      "module_path": ":feature:authenticator",
+      "project_directory": "feature/authenticator",
+      "disposition": "NotApplicable",
+      "retained_classes": [],
+      "class_inventory_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

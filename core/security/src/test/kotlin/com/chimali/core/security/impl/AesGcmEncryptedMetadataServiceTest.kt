@@ -1,5 +1,7 @@
 package com.chimali.core.security.impl
 
+import com.chimali.core.common.annotation.Req
+
 import com.chimali.core.security.api.EncryptedMetadataService
 import java.security.SecureRandom
 import kotlin.test.assertFailsWith

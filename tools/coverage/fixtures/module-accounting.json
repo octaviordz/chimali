@@ -1,0 +1,89 @@
+{
+  "cases": [
+    {
+      "id": "MODULE_ACCOUNTING_001_VALID_LARGE",
+      "description": "Accepts arbitrary-precision module counters with consistent totals",
+      "required_module": ":core:security",
+      "expected_valid": true,
+      "modules": [
+        {
+          "module_path": ":core:security",
+          "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 92233720368547758081234567890, "missed": 12, "total": 92233720368547758081234567902 },
+          "branch": { "covered": 3, "missed": 2, "total": 5 }
+        }
+      ]
+    },
+    {
+      "id": "MODULE_ACCOUNTING_002_DUPLICATE_EXTRA_SCOPE",
+      "description": "Rejects duplicated identities even when the duplicate is not a required gate",
+      "required_module": ":core:security",
+      "expected_valid": false,
+      "expected_error": "duplicate module counter identities",
+      "modules": [
+        {
+          "module_path": ":core:security", "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 9, "missed": 1, "total": 10 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        },
+        {
+          "module_path": ":core:common", "disposition": "Applicable",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "instruction": { "covered": 9, "missed": 1, "total": 10 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        },
+        {
+          "module_path": ":core:common", "disposition": "Applicable",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "instruction": { "covered": 9, "missed": 1, "total": 10 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        }
+      ]
+    },
+    {
+      "id": "MODULE_ACCOUNTING_003_NEGATIVE_EXTRA_SCOPE",
+      "description": "Rejects negative counters in an otherwise non-required module",
+      "required_module": ":core:security",
+      "expected_valid": false,
+      "expected_error": "nonnegative JSON integer",
+      "modules": [
+        {
+          "module_path": ":core:security", "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 9, "missed": 1, "total": 10 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        },
+        {
+          "module_path": ":core:common", "disposition": "Applicable",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "instruction": { "covered": -1, "missed": 2, "total": 1 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        }
+      ]
+    },
+    {
+      "id": "MODULE_ACCOUNTING_004_INCONSISTENT_EXTRA_TOTAL",
+      "description": "Rejects a mismatched derived total in an otherwise non-required module",
+      "required_module": ":core:security",
+      "expected_valid": false,
+      "expected_error": "inconsistent total",
+      "modules": [
+        {
+          "module_path": ":core:security", "disposition": "Applicable",
+          "report_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "class_inventory_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "instruction": { "covered": 9, "missed": 1, "total": 10 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        },
+        {
+          "module_path": ":core:common", "disposition": "Applicable",
+          "report_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "class_inventory_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "instruction": { "covered": 9, "missed": 1, "total": 9 }, "branch": { "covered": 3, "missed": 2, "total": 5 }
+        }
+      ]
+    }
+  ]
+}

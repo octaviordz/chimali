@@ -1,0 +1,12 @@
+{
+  "$schema": "./schema.json",
+  "description": "Offline production validator checks for live PR head/base freshness",
+  "cases": [
+    { "id": "LIVE_PR_TARGET_VALID", "mutation": "none", "expected_valid": true },
+    { "id": "LIVE_PR_TARGET_BASE_ADVANCED", "mutation": "base-advanced", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_HEAD_CHANGED", "mutation": "head-changed", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_CLOSED", "mutation": "closed", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_CROSS_REPOSITORY", "mutation": "cross-repository", "expected_valid": false },
+    { "id": "LIVE_PR_TARGET_WRONG_NUMBER", "mutation": "wrong-number", "expected_valid": false }
+  ]
+}

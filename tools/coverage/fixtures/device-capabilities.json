@@ -1,0 +1,37 @@
+{
+  "$schema": "./schema-fixture.json",
+  "description": "Device preflight enforces minimum Android API level and the reviewed ABI allowlist",
+  "cases": [
+    {
+      "id": "DEVICE_001_REVIEWED_API_AND_ABI_PASS",
+      "policy": { "device_requirements": { "minimum_api_level": 35, "approved_abis": ["arm64-v8a", "x86_64"] } },
+      "api_level": "35",
+      "abi": "arm64-v8a",
+      "expected_valid": true
+    },
+    {
+      "id": "DEVICE_002_BELOW_MINIMUM_API_REJECTED",
+      "policy": { "device_requirements": { "minimum_api_level": 35, "approved_abis": ["arm64-v8a", "x86_64"] } },
+      "api_level": "34",
+      "abi": "arm64-v8a",
+      "expected_valid": false,
+      "expected_error": "below minimum"
+    },
+    {
+      "id": "DEVICE_003_UNAPPROVED_ABI_REJECTED",
+      "policy": { "device_requirements": { "minimum_api_level": 35, "approved_abis": ["arm64-v8a", "x86_64"] } },
+      "api_level": "35",
+      "abi": "armeabi-v7a",
+      "expected_valid": false,
+      "expected_error": "not approved"
+    },
+    {
+      "id": "DEVICE_004_MALFORMED_API_REJECTED",
+      "policy": { "device_requirements": { "minimum_api_level": 35, "approved_abis": ["arm64-v8a", "x86_64"] } },
+      "api_level": "35-preview",
+      "abi": "arm64-v8a",
+      "expected_valid": false,
+      "expected_error": "malformed"
+    }
+  ]
+}

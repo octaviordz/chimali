@@ -6,8 +6,10 @@
       "id": "POL_001_VALID_POLICY",
       "description": "Canonical policy with exact five Tier 1 paths and 60/60/50 thresholds",
       "policy": {
+        "$schema": "./fixtures/schema-fixture.json",
         "schema_version": "1.0",
         "policy_id": "chimali-coverage-v1",
+        "description": "Authoritative coverage thresholds, critical module classifications, and verification rules",
         "tier1_modules": [
           ":core:security",
           ":core:domain",
@@ -19,9 +21,133 @@
         "tier1_branch_min_percent": 60,
         "repository_instruction_min_percent": 50,
         "tier2_instruction_min_percent": 20,
-        "tier2_gated_modules": [":core:database", ":core:common", ":app"],
+        "tier2_gated_modules": [
+          ":core:database",
+          ":core:common",
+          ":app"
+        ],
         "branch_improvement_goal_percent": 65,
-        "counter_normalization": "AnalyzedZeroProofV1"
+        "metrics": {
+          "primary": [
+            "INSTRUCTION",
+            "BRANCH"
+          ],
+          "diagnostic": [
+            "LINE"
+          ],
+          "arithmetic": "arbitrary_precision_integer"
+        },
+        "counter_normalization": "AnalyzedZeroProofV1",
+        "production_inventory_rules": {
+          "source_sets": [
+            "commonMain",
+            "androidMain",
+            "main"
+          ],
+          "excluded_source_sets": [
+            "iosMain",
+            "macrobenchmark"
+          ],
+          "fail_on_unmapped_classes": true
+        },
+        "production_scope": {
+          "selection_mode": "configured_compiler_outputs",
+          "compilations": {
+            "shrunkDebug": { "compiler_tasks": ["compileShrunkDebugKotlin", "compileShrunkDebugJavaWithJavac"], "test_tasks": ["testShrunkDebugUnitTest"] },
+            "androidMain": { "compiler_tasks": ["compileAndroidMain"], "test_tasks": ["testAndroidHostTest", "testDebugUnitTest"] },
+            "release": { "compiler_tasks": ["compileReleaseKotlin", "compileReleaseJavaWithJavac"], "test_tasks": ["testReleaseUnitTest"] }
+          },
+          "source_roots": [
+            "src/commonMain/kotlin",
+            "src/androidMain/kotlin",
+            "src/main/kotlin",
+            "src/main/java"
+          ],
+          "variants": {
+            ":core:security": "androidMain",
+            ":core:domain": "androidMain",
+            ":core:data": "release",
+            ":core:database": "release",
+            ":core:common": "androidMain",
+            ":feature:fido2": "androidMain",
+            ":feature:authenticator": "release",
+            ":app": "shrunkDebug"
+,
+            ":core:bluetooth": "release",
+            ":core:ui": "release",
+            ":feature:vault": "release",
+            ":feature:editor": "release",
+            ":feature:onboarding": "release",
+            ":feature:settings": "release"
+          }
+        },
+        "generated_exclusion_rules": {
+          "exclude_sqldelight": true,
+          "allow_handwritten_exclusions": false
+        },
+        "required_workload": {
+          "host_unit_tests": true,
+          "connected_device_tests": true,
+          "required_device_test_modules": [
+            ":feature:fido2",
+            ":core:common",
+            ":feature:settings"
+          ],
+          "optional_device_test_modules": [
+            ":app"
+          ]
+        },
+        "device_requirements": {
+          "serial_source": "explicit_parameter",
+          "must_be_online_and_authorized": true,
+          "minimum_api_level": 35,
+          "approved_abis": [
+            "arm64-v8a",
+            "x86_64"
+          ]
+        },
+        "harness_requirements": {
+          "must_be_clean": true,
+          "must_match_source_revision": true,
+          "required_files": [
+            "tools/coverage/capture.ps1",
+            "tools/coverage/coverage-common.ps1",
+            "tools/integration-ci.ps1",
+            "tools/local-ci.ps1",
+            "tools/hdk-coverage.init.gradle",
+            "tools/coverage/policy.json",
+            "tools/coverage/validate-policy.ps1",
+            "tools/coverage/verify.ps1"
+          ]
+        },
+        "regression_rule": "nondecreasing_applicable_ratios",
+        "measurement_fingerprint": {
+          "algorithm": "sha256_canonical_json_v1",
+          "included": [
+            "metrics",
+            "counter_normalization",
+            "production_inventory_rules",
+            "production_scope",
+            "generated_exclusion_rules",
+            "required_workload",
+            "device_requirements",
+            "harness.file_sha256",
+            "toolchain.java",
+            "toolchain.gradle",
+            "toolchain.android_gradle_plugin",
+            "toolchain.kotlin",
+            "toolchain.jacoco",
+            "device.api_level",
+            "device.abi"
+          ],
+          "excluded": [
+            "source_contents",
+            "test_contents",
+            "test_counts",
+            "test_names",
+            "class_bytes"
+          ]
+        }
       },
       "expected_valid": true
     },
@@ -127,6 +253,457 @@
       },
       "expected_valid": false,
       "expected_error": "OutputRoot cannot be located inside measured source tree"
+    },
+    {
+      "id": "POL_007_WEAK_TIER2_FLOOR",
+      "description": "A disabled Tier 2 gate is rejected",
+      "policy": {
+        "$schema": "./fixtures/schema-fixture.json",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "description": "Authoritative coverage thresholds, critical module classifications, and verification rules",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50,
+        "tier2_instruction_min_percent": 0,
+        "tier2_gated_modules": [
+          ":core:database",
+          ":core:common",
+          ":app"
+        ],
+        "branch_improvement_goal_percent": 65,
+        "metrics": {
+          "primary": [
+            "INSTRUCTION",
+            "BRANCH"
+          ],
+          "diagnostic": [
+            "LINE"
+          ],
+          "arithmetic": "arbitrary_precision_integer"
+        },
+        "counter_normalization": "AnalyzedZeroProofV1",
+        "production_inventory_rules": {
+          "source_sets": [
+            "commonMain",
+            "androidMain",
+            "main"
+          ],
+          "fail_on_unmapped_classes": true
+        },
+        "production_scope": {
+          "selection_mode": "configured_compiler_outputs",
+          "compilations": {
+            "shrunkDebug": { "compiler_tasks": ["compileShrunkDebugKotlin", "compileShrunkDebugJavaWithJavac"], "test_tasks": ["testShrunkDebugUnitTest"] },
+            "androidMain": { "compiler_tasks": ["compileAndroidMain"], "test_tasks": ["testAndroidHostTest", "testDebugUnitTest"] },
+            "release": { "compiler_tasks": ["compileReleaseKotlin", "compileReleaseJavaWithJavac"], "test_tasks": ["testReleaseUnitTest"] }
+          },
+          "source_roots": [
+            "src/commonMain/kotlin",
+            "src/androidMain/kotlin",
+            "src/main/kotlin",
+            "src/main/java"
+          ],
+          "variants": {
+            ":core:security": "androidMain",
+            ":core:domain": "androidMain",
+            ":core:data": "release",
+            ":core:database": "release",
+            ":core:common": "androidMain",
+            ":feature:fido2": "androidMain",
+            ":feature:authenticator": "release",
+            ":app": "shrunkDebug"
+,
+            ":core:bluetooth": "release",
+            ":core:ui": "release",
+            ":feature:vault": "release",
+            ":feature:editor": "release",
+            ":feature:onboarding": "release",
+            ":feature:settings": "release"
+          }
+        },
+        "generated_exclusion_rules": {
+          "exclude_sqldelight": true,
+          "allow_handwritten_exclusions": false
+        },
+        "required_workload": {
+          "host_unit_tests": true,
+          "connected_device_tests": true,
+          "required_device_test_modules": [
+            ":feature:fido2"
+          ],
+          "optional_device_test_modules": [
+            ":app"
+          ]
+        },
+        "device_requirements": {
+          "serial_source": "explicit_parameter",
+          "must_be_online_and_authorized": true,
+          "minimum_api_level": 35,
+          "approved_abis": [
+            "arm64-v8a",
+            "x86_64"
+          ]
+        },
+        "harness_requirements": {
+          "must_be_clean": true,
+          "must_match_source_revision": true,
+          "required_files": [
+            "tools/coverage/capture.ps1",
+            "tools/coverage/coverage-common.ps1",
+            "tools/integration-ci.ps1",
+            "tools/local-ci.ps1",
+            "tools/hdk-coverage.init.gradle",
+            "tools/coverage/policy.json",
+            "tools/coverage/validate-policy.ps1",
+            "tools/coverage/verify.ps1"
+          ]
+        },
+        "regression_rule": "nondecreasing_applicable_ratios"
+      },
+      "expected_valid": false,
+      "expected_error": "Policy tier2_instruction_min_percent must be the reviewed integer value 20"
+    },
+    {
+      "id": "POL_008_FRACTIONAL_REPOSITORY_FLOOR",
+      "description": "Coverage floors must be integers",
+      "policy": {
+        "$schema": "./fixtures/schema-fixture.json",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "description": "Authoritative coverage thresholds, critical module classifications, and verification rules",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50.5,
+        "tier2_instruction_min_percent": 20,
+        "tier2_gated_modules": [
+          ":core:database",
+          ":core:common",
+          ":app"
+        ],
+        "branch_improvement_goal_percent": 65,
+        "metrics": {
+          "primary": [
+            "INSTRUCTION",
+            "BRANCH"
+          ],
+          "diagnostic": [
+            "LINE"
+          ],
+          "arithmetic": "arbitrary_precision_integer"
+        },
+        "counter_normalization": "AnalyzedZeroProofV1",
+        "production_inventory_rules": {
+          "source_sets": [
+            "commonMain",
+            "androidMain",
+            "main"
+          ],
+          "fail_on_unmapped_classes": true
+        },
+        "production_scope": {
+          "selection_mode": "configured_compiler_outputs",
+          "compilations": {
+            "shrunkDebug": { "compiler_tasks": ["compileShrunkDebugKotlin", "compileShrunkDebugJavaWithJavac"], "test_tasks": ["testShrunkDebugUnitTest"] },
+            "androidMain": { "compiler_tasks": ["compileAndroidMain"], "test_tasks": ["testAndroidHostTest", "testDebugUnitTest"] },
+            "release": { "compiler_tasks": ["compileReleaseKotlin", "compileReleaseJavaWithJavac"], "test_tasks": ["testReleaseUnitTest"] }
+          },
+          "source_roots": [
+            "src/commonMain/kotlin",
+            "src/androidMain/kotlin",
+            "src/main/kotlin",
+            "src/main/java"
+          ],
+          "variants": {
+            ":core:security": "androidMain",
+            ":core:domain": "androidMain",
+            ":core:data": "release",
+            ":core:database": "release",
+            ":core:common": "androidMain",
+            ":feature:fido2": "androidMain",
+            ":feature:authenticator": "release",
+            ":app": "shrunkDebug"
+,
+            ":core:bluetooth": "release",
+            ":core:ui": "release",
+            ":feature:vault": "release",
+            ":feature:editor": "release",
+            ":feature:onboarding": "release",
+            ":feature:settings": "release"
+          }
+        },
+        "generated_exclusion_rules": {
+          "exclude_sqldelight": true,
+          "allow_handwritten_exclusions": false
+        },
+        "required_workload": {
+          "host_unit_tests": true,
+          "connected_device_tests": true,
+          "required_device_test_modules": [
+            ":feature:fido2"
+          ],
+          "optional_device_test_modules": [
+            ":app"
+          ]
+        },
+        "device_requirements": {
+          "serial_source": "explicit_parameter",
+          "must_be_online_and_authorized": true,
+          "minimum_api_level": 35,
+          "approved_abis": [
+            "arm64-v8a",
+            "x86_64"
+          ]
+        },
+        "harness_requirements": {
+          "must_be_clean": true,
+          "must_match_source_revision": true,
+          "required_files": [
+            "tools/coverage/capture.ps1",
+            "tools/coverage/coverage-common.ps1",
+            "tools/integration-ci.ps1",
+            "tools/local-ci.ps1",
+            "tools/hdk-coverage.init.gradle",
+            "tools/coverage/policy.json",
+            "tools/coverage/validate-policy.ps1",
+            "tools/coverage/verify.ps1"
+          ]
+        },
+        "regression_rule": "nondecreasing_applicable_ratios"
+      },
+      "expected_valid": false,
+      "expected_error": "Policy repository_instruction_min_percent must be the reviewed integer value 50"
+    },
+    {
+      "id": "POL_009_UNKNOWN_POLICY_FIELD",
+      "description": "Unknown policy keys are rejected",
+      "policy": {
+        "$schema": "./fixtures/schema-fixture.json",
+        "schema_version": "1.0",
+        "policy_id": "chimali-coverage-v1",
+        "description": "Authoritative coverage thresholds, critical module classifications, and verification rules",
+        "tier1_modules": [
+          ":core:security",
+          ":core:domain",
+          ":core:data",
+          ":feature:fido2",
+          ":feature:authenticator"
+        ],
+        "tier1_instruction_min_percent": 60,
+        "tier1_branch_min_percent": 60,
+        "repository_instruction_min_percent": 50,
+        "tier2_instruction_min_percent": 20,
+        "tier2_gated_modules": [
+          ":core:database",
+          ":core:common",
+          ":app"
+        ],
+        "branch_improvement_goal_percent": 65,
+        "metrics": {
+          "primary": [
+            "INSTRUCTION",
+            "BRANCH"
+          ],
+          "diagnostic": [
+            "LINE"
+          ],
+          "arithmetic": "arbitrary_precision_integer"
+        },
+        "counter_normalization": "AnalyzedZeroProofV1",
+        "production_inventory_rules": {
+          "source_sets": [
+            "commonMain",
+            "androidMain",
+            "main"
+          ],
+          "fail_on_unmapped_classes": true
+        },
+        "production_scope": {
+          "selection_mode": "configured_compiler_outputs",
+          "compilations": {
+            "shrunkDebug": { "compiler_tasks": ["compileShrunkDebugKotlin", "compileShrunkDebugJavaWithJavac"], "test_tasks": ["testShrunkDebugUnitTest"] },
+            "androidMain": { "compiler_tasks": ["compileAndroidMain"], "test_tasks": ["testAndroidHostTest", "testDebugUnitTest"] },
+            "release": { "compiler_tasks": ["compileReleaseKotlin", "compileReleaseJavaWithJavac"], "test_tasks": ["testReleaseUnitTest"] }
+          },
+          "source_roots": [
+            "src/commonMain/kotlin",
+            "src/androidMain/kotlin",
+            "src/main/kotlin",
+            "src/main/java"
+          ],
+          "variants": {
+            ":core:security": "androidMain",
+            ":core:domain": "androidMain",
+            ":core:data": "release",
+            ":core:database": "release",
+            ":core:common": "androidMain",
+            ":feature:fido2": "androidMain",
+            ":feature:authenticator": "release",
+            ":app": "shrunkDebug"
+,
+            ":core:bluetooth": "release",
+            ":core:ui": "release",
+            ":feature:vault": "release",
+            ":feature:editor": "release",
+            ":feature:onboarding": "release",
+            ":feature:settings": "release"
+          }
+        },
+        "generated_exclusion_rules": {
+          "exclude_sqldelight": true,
+          "allow_handwritten_exclusions": false
+        },
+        "required_workload": {
+          "host_unit_tests": true,
+          "connected_device_tests": true,
+          "required_device_test_modules": [
+            ":feature:fido2"
+          ],
+          "optional_device_test_modules": [
+            ":app"
+          ]
+        },
+        "device_requirements": {
+          "serial_source": "explicit_parameter",
+          "must_be_online_and_authorized": true,
+          "minimum_api_level": 35,
+          "approved_abis": [
+            "arm64-v8a",
+            "x86_64"
+          ]
+        },
+        "harness_requirements": {
+          "must_be_clean": true,
+          "must_match_source_revision": true,
+          "required_files": [
+            "tools/coverage/capture.ps1",
+            "tools/coverage/coverage-common.ps1",
+            "tools/integration-ci.ps1",
+            "tools/local-ci.ps1",
+            "tools/hdk-coverage.init.gradle",
+            "tools/coverage/policy.json",
+            "tools/coverage/validate-policy.ps1",
+            "tools/coverage/verify.ps1"
+          ]
+        },
+        "regression_rule": "nondecreasing_applicable_ratios",
+        "unreviewed_override": true
+      },
+      "expected_valid": false,
+      "expected_error": "Policy contains unknown field 'unreviewed_override'"
+    },
+    {
+      "id": "POL_010_UNKNOWN_POLICY_SCHEMA_REJECTED",
+      "description": "An unknown policy schema cannot be accepted by any coverage entry point",
+      "mutations": { "schema_version": "99.0" },
+      "expected_valid": false,
+      "expected_error": "Unsupported or missing policy schema_version"
+    },
+    {
+      "id": "POL_011_EMPTY_TIER2_CLASSIFICATION_REJECTED",
+      "description": "An empty Tier 2 classification cannot silently disable configured gates",
+      "mutations": { "tier2_gated_modules": [] },
+      "expected_valid": false,
+      "expected_error": "Tier 2 modules must be exactly the three classified paths"
+    },
+    {
+      "id": "POL_012_DISABLED_ZERO_NORMALIZATION_REJECTED",
+      "description": "A policy cannot disable canonical proof-bound zero normalization",
+      "mutations": { "counter_normalization": "Disabled" },
+      "expected_valid": false,
+      "expected_error": "counter_normalization must be AnalyzedZeroProofV1"
+    },
+    {
+      "id": "POL_013_MISSING_SCOPE_VARIANTS_REJECTED",
+      "description": "A missing reviewed production-variant map cannot weaken measurement scope",
+      "mutations": { "production_scope": { "selection_mode": "configured_compiler_outputs", "source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin", "src/main/kotlin", "src/main/java"] } },
+      "expected_valid": false,
+      "expected_error": "production_scope is missing required field 'variants'"
+    },
+    {
+      "id": "POL_014_DEVICE_REQUIREMENT_WEAKENING_REJECTED",
+      "description": "A policy cannot permit unapproved or unauthorized devices",
+      "mutations": { "device_requirements": { "serial_source": "implicit", "must_be_online_and_authorized": false, "minimum_api_level": 21, "approved_abis": ["x86"] } },
+      "expected_valid": false,
+      "expected_error": "Device selection must use an explicit online, authorized device"
+    },
+    {
+      "id": "POL_015_REVIEWED_CUSTOM_SOURCE_ROOT_ACCEPTED",
+      "description": "A custom production source root can be explicitly configured and included in the measurement fingerprint",
+      "mutations": { "production_scope.source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin", "src/main/kotlin", "src/main/java", "src/legacyMain/kotlin"] },
+      "expected_valid": true
+    },
+    {
+      "id": "POL_016_UNSAFE_CUSTOM_SOURCE_ROOT_REJECTED",
+      "description": "A custom production root cannot escape the repository or bypass production-root conventions",
+      "mutations": { "production_scope.source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin", "src/main/kotlin", "src/main/java", "../src/legacyMain/kotlin"] },
+      "expected_valid": false,
+      "expected_error": "contains an invalid source root"
+    },
+    {
+      "id": "POL_017_DUPLICATE_CUSTOM_SOURCE_ROOT_REJECTED",
+      "description": "A custom source root cannot be mapped more than once",
+      "mutations": { "production_scope.source_roots": ["src/commonMain/kotlin", "src/androidMain/kotlin", "src/main/kotlin", "src/main/java", "src/legacyMain/kotlin", "src/legacyMain/kotlin"] },
+      "expected_valid": false,
+      "expected_error": "contains duplicate entries"
+    },
+    {
+      "id": "POL_018_MISSING_EXCLUDED_SOURCE_SETS_REJECTED",
+      "description": "Source-set exclusions must remain explicit policy inputs",
+      "mutations": { "production_inventory_rules.excluded_source_sets": "__REMOVE__" },
+      "expected_valid": false,
+      "expected_error": "production_inventory_rules is missing required field 'excluded_source_sets'"
+    },
+    {
+      "id": "POL_019_UNREVIEWED_SOURCE_SET_EXCLUSION_REJECTED",
+      "description": "An unreviewed source set cannot be silently removed from production accounting",
+      "mutations": { "production_inventory_rules.excluded_source_sets": ["iosMain", "macrobenchmark", "legacyMain"] },
+      "expected_valid": false,
+      "expected_error": "production_inventory_rules.excluded_source_sets does not match the reviewed value"
+    },
+    {
+      "id": "POL_020_CONFIGURED_CUSTOM_COMPILATION_OWNER_ACCEPTED",
+      "description": "A newly configured Tier 2 production module can bind a custom compilation and its compiler and test tasks",
+      "mutations": {
+        "production_scope.compilations.legacyMain": { "compiler_tasks": ["compileLegacyMainKotlin"], "test_tasks": ["testLegacyMainUnitTest"] },
+        "production_scope.variants.:feature:legacy": "legacyMain"
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "POL_021_UNBOUND_CUSTOM_COMPILATION_REJECTED",
+      "description": "A module cannot select a compilation absent from the explicit compiler/test task ownership table",
+      "mutations": { "production_scope.variants.:feature:legacy": "legacyMain" },
+      "expected_valid": false,
+      "expected_error": "references an unconfigured compilation"
+    },
+    {
+      "id": "POL_022_INVALID_CONFIGURED_TASK_NAME_REJECTED",
+      "description": "Configured Gradle task names cannot contain path traversal or task selectors",
+      "mutations": { "production_scope.compilations.release.compiler_tasks": ["../compileReleaseKotlin"] },
+      "expected_valid": false,
+      "expected_error": "contains invalid task name"
+    },
+    {
+      "id": "POL_023_COMPILATION_WITHOUT_TEST_OWNER_REJECTED",
+      "description": "A production compilation cannot be configured without any host-test task ownership",
+      "mutations": { "production_scope.compilations.release.test_tasks": [] },
+      "expected_valid": false,
+      "expected_error": "test_tasks must not be empty"
     }
   ]
 }
