@@ -8,8 +8,7 @@ internal data class SettingsSelectionLabels(
 internal fun settingsSelectionLabels(
     vaultEnabled: Boolean,
     passkeyEnabled: Boolean,
-) =
-    SettingsSelectionLabels(
-        vault = "Vault: ${if (vaultEnabled) "Enabled" else "Disabled"}",
-        passkey = "Passkey Authenticator: ${if (passkeyEnabled) "Enabled" else "Disabled"}",
-    )
+) = SettingsSelectionLabels(
+    vault = "Vault: ${if (vaultEnabled) "Enabled" else "Disabled"}",
+    passkey = "Passkey Authenticator: ${if (passkeyEnabled) "Enabled" else "Disabled"}",
+)

@@ -3,13 +3,13 @@ package com.chimali.feature.onboarding.presentation.viewmodel
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.core.common.datastore.createUserPreferencesDataStore
 import com.chimali.feature.onboarding.presentation.model.OnboardingStep
-import java.nio.file.Files
 import java.io.IOException
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import java.nio.file.Files
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest

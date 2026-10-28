@@ -47,22 +47,25 @@ class VaultAggregateServiceImpl(
             val snapshot = snapshotResult.getOrNull()
 
             if (snapshot != null) {
-                return try {
-                    val eventsResult = eventStoreRepository.getEventsFrom(
-                        EventKind.VAULT_ENTRY,
-                        aggregateId,
-                        snapshot.sequenceNumber,
-                    )
-                    eventsResult.fold(
-                        onSuccess = { events -> Result.success(evolveOwned(snapshot.state, events)) },
-                        onFailure = { failure ->
-                            snapshot.state.clearSensitiveMemory()
-                            Result.failure(failure)
-                        },
-                    )
-                } catch (failure: Throwable) {
-                    snapshot.state.clearSensitiveMemory()
-                    throw failure
+                var replaySucceeded = false
+                try {
+                    val eventsResult =
+                        eventStoreRepository.getEventsFrom(
+                            EventKind.VAULT_ENTRY,
+                            aggregateId,
+                            snapshot.sequenceNumber,
+                        )
+                    val replayResult =
+                        eventsResult.fold(
+                            onSuccess = { events -> Result.success(evolveOwned(snapshot.state, events)) },
+                            onFailure = { failure -> Result.failure(failure) },
+                        )
+                    replaySucceeded = replayResult.isSuccess
+                    return replayResult
+                } finally {
+                    if (!replaySucceeded) {
+                        snapshot.state.clearSensitiveMemory()
+                    }
                 }
             }
         }
