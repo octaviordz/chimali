@@ -38,6 +38,20 @@ gradle.projectsEvaluated {
     def harnessRoot = configuredHarnessRoot
         ? new File(configuredHarnessRoot).canonicalFile
         : root.projectDir
+    def commonProject = root.findProject(':core:common')
+    if (commonProject != null) {
+        // Keep the common device-test workload executable on historical target
+        // revisions that predate the runner declaration in core/common/build.gradle.kts.
+        // The candidate may declare the same catalog dependency; Gradle resolves it once.
+        def catalogFile = new File(harnessRoot, 'gradle/libs.versions.toml')
+        def catalogText = catalogFile.isFile() ? catalogFile.getText('UTF-8') : ''
+        def runnerVersion = (catalogText =~ /(?m)^androidx-test-runner\s*=\s*"([^"]+)"\s*$/)
+        if (!runnerVersion.find()) throw new GradleException('The reviewed harness catalog must pin androidx-test-runner for :core:common device tests')
+        if (!commonProject.configurations.findByName('androidDeviceTestImplementation')) {
+            throw new GradleException(':core:common androidDeviceTestImplementation configuration is unavailable')
+        }
+        commonProject.dependencies.add('androidDeviceTestImplementation', "androidx.test:runner:${runnerVersion.group(1)}")
+    }
     if (!harnessRoot.isDirectory()) throw new GradleException("Coverage harness root is missing: ${harnessRoot}")
     def policyFile = new File(harnessRoot, 'tools/coverage/policy.json')
     if (!policyFile.isFile()) throw new GradleException("Authoritative coverage policy is missing: ${policyFile}")

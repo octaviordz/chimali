@@ -37,6 +37,40 @@
       ],
       "expected_valid": false,
       "expected_error": "not a canonical Gradle project path"
+    },
+    {
+      "id": "BASE_STRUCTURE_005_VARIANT_DUPLICATE_GENERATED_EXCLUSIONS_ACCEPTED",
+      "description": "Generated classes from debug and release variants may prove the same deduplicated JaCoCo exclusion patterns",
+      "inventory_modules": [
+        {
+          "module_path": ":core:database",
+          "tier": 2,
+          "project_directory": "core/database",
+          "excluded_class_patterns": [
+            "com/chimali/core/database/Event_store.class",
+            "com/chimali/core/database/Event_store$*.class"
+          ],
+          "excluded_class_sources": [
+            {
+              "source_path": "build/generated/sqldelight/code/VaultDatabase/debug/com/chimali/core/database/Event_store.kt",
+              "source_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "class_patterns": [
+                "com/chimali/core/database/Event_store.class",
+                "com/chimali/core/database/Event_store$*.class"
+              ]
+            },
+            {
+              "source_path": "build/generated/sqldelight/code/VaultDatabase/release/com/chimali/core/database/Event_store.kt",
+              "source_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+              "class_patterns": [
+                "com/chimali/core/database/Event_store.class",
+                "com/chimali/core/database/Event_store$*.class"
+              ]
+            }
+          ]
+        }
+      ],
+      "expected_valid": true
     }
   ]
 }

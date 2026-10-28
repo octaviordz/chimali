@@ -814,7 +814,20 @@ $countersData = [PSCustomObject]@{
             total = [System.Numerics.BigInteger]::Parse(([string]$repoBranchCov), [Globalization.CultureInfo]::InvariantCulture) + [System.Numerics.BigInteger]::Parse(([string]$repoBranchMis), [Globalization.CultureInfo]::InvariantCulture)
         }
         report_digest = $repoReportDigest
+        execution_files = @(
+            foreach ($executionFile in @($executionFilesEvidence | Where-Object { [string]$_.scope -ceq ':repository' })) {
+                [PSCustomObject]@{
+                    path = [string]$executionFile.source_path
+                    repository_path = [string]$executionFile.source_path
+                    sha256 = [string]$executionFile.source_sha256
+                    run_id = [string]$executionFile.run_id
+                    device_serial = [string]$executionFile.device_serial
+                    task_paths = @($executionFile.task_paths)
+                }
+            }
+        )
     }
+    measurement_runtime = if ($gradleCanonicalCounters) { $gradleCanonicalCounters.measurement_runtime } else { $null }
     zero_count_proofs = $zeroCountProofs
 }
 

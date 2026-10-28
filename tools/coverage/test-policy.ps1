@@ -1463,8 +1463,8 @@ foreach ($file in $fixtureFiles) {
                             compiler_tasks = @($compilation.compiler_tasks | ForEach-Object { "${modulePath}:$_" })
                             source_roots = @('src/main/kotlin')
                             output_directories = @('build/classes/fixture')
-                            excluded_class_patterns = @()
-                            excluded_class_sources = @()
+                            excluded_class_patterns = if ($_.PSObject.Properties['excluded_class_patterns']) { @($_.excluded_class_patterns) } else { @() }
+                            excluded_class_sources = if ($_.PSObject.Properties['excluded_class_sources']) { @($_.excluded_class_sources) } else { @() }
                         }
                     })
                     $binding = Test-ComparisonInventoryStructure -InventoryModules $inventoryModules -Policy $coveragePolicy -Label 'Baseline'

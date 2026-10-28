@@ -2316,7 +2316,12 @@ function Test-ComparisonInventoryStructure {
             }
             $sourcePatterns += $patterns
         }
-        if ((@($sourcePatterns | Sort-Object -CaseSensitive) -join "`n") -cne (@($excludedPatterns | Sort-Object -CaseSensitive) -join "`n")) {
+        # Multiple generated source variants can produce the same SQLDelight
+        # class pattern. JaCoCo exclusions are a set, so compare distinct
+        # patterns while retaining and validating every source record above.
+        $distinctSourcePatterns = @($sourcePatterns | Sort-Object -CaseSensitive -Unique)
+        $distinctExcludedPatterns = @($excludedPatterns | Sort-Object -CaseSensitive -Unique)
+        if (($distinctSourcePatterns -join "`n") -cne ($distinctExcludedPatterns -join "`n")) {
             $errors += "$Label inventory module $modulePath generated exclusions do not exactly match their retained generated source evidence"
         }
     }
