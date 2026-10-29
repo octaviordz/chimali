@@ -2,7 +2,7 @@
 
 - **Slug**: jacoco-evaluation
 - **Created**: 2026-10-28
-- **Source**: docs/backlog/jacoco-coverage-tool-evaluation.md
+- **Source**: Completed backlog request, now documented in [the feature 059 recommendation](../../../specs/059-coverage-tool-evaluation/evaluation/recommendation.md) and [feature 058 research](../../../specs/058-enforce-coverage-targets/research.md). The original backlog file was removed after completion.
 - **Type**: exploration
 
 ## Idea (as captured)
@@ -13,7 +13,7 @@
 > **Created**: 2026-10-28
 > **Origin**: Feature 058 coverage-tool selection rationale
 > **Related plan**: [Coverage enforcement plan](../../specs/058-enforce-coverage-targets/plan.md)
-> **Related evidence**: JaCoCo first appears in repository history in commit `ed90e9cf` (2026-09-09), which added scoped Vault coverage measurement. The available records explain the need for critical-code coverage, but do not document why JaCoCo was selected over alternatives.
+> **Related evidence**: The repository first mentions JaCoCo in commit `ed90e9c` (2026-09-09); the first located project coverage-tool setup is commit `2e8a1bd` (2026-10-24). The original comparative selection rationale remains undocumented.
 > 
 > ## Evaluation scope
 > 

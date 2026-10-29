@@ -83,7 +83,7 @@ These are comparison subjects, not selected approaches. No hosted reporting serv
 
 Local references are repository evidence, not external fetches:
 
-- **L1**: [Backlog](../../../docs/backlog/jacoco-coverage-tool-evaluation.md).
+- **L1**: [Completed evaluation recommendation](../../../specs/059-coverage-tool-evaluation/evaluation/recommendation.md); the original backlog request was removed after its completion criteria were met.
 - **L2**: [Feature 058 research](../../../specs/058-enforce-coverage-targets/research.md).
 - **L3**: [Collector](../../../tools/hdk-coverage.init.gradle) and [shared verifier](../../../tools/coverage/coverage-common.ps1).
 - **L4**: [Coverage policy](../../../tools/coverage/policy.json).

@@ -64,7 +64,7 @@ description: "Tasks for a bounded coverage tool evaluation"
 
 - [X] T017 [US3] Write a retain, replace or defer recommendation with trade-offs, evidence links, uncertainty and consequences of missing data in `specs/059-coverage-tool-evaluation/evaluation/recommendation.md` using T009 and T016; do not assume migration approval.
 - [X] T018 [US3] Record the comparison, recommendation and limitations in `specs/058-enforce-coverage-targets/research.md`, preserving existing historical decisions and identifying hosted acceptance as waived/unverified.
-- [X] T019 [US3] Assess the completion criteria in `docs/backlog/jacoco-coverage-tool-evaluation.md` and record the disposition in `specs/059-coverage-tool-evaluation/evaluation/recommendation.md`; if migration follow-up is separately approved, capture it as a separate `docs/backlog/` item, otherwise explicitly record that approval and follow-up are outstanding or unnecessary as appropriate.
+- [X] T019 [US3] Assess the original evaluation request and its completion criteria from the feature 059 specification, and record the disposition in `specs/059-coverage-tool-evaluation/evaluation/recommendation.md`; if migration follow-up is separately approved, capture it as a separate `docs/backlog/` item, otherwise explicitly record that approval and follow-up are outstanding or unnecessary as appropriate.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
