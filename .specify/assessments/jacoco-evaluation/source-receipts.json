@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-29T04:15:10.656Z",
+  "assessment_slug": "jacoco-evaluation",
+  "connection_policy": {
+    "host": "github.com",
+    "policy": "allowlisted",
+    "resolved_public_ipv4": "140.82.113.3",
+    "connection_pinned": true,
+    "follow_redirects": false
+  },
+  "sources": [
+    {
+      "url": "https://github.com/JetBrains/intellij-coverage",
+      "status": 200,
+      "body_sha256": "c7f2e35c934782a12d55a6a39cf0536f564392bc3fd4d001595c12bbec7af404",
+      "body_utf8_bytes": 273638
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/tree/main/docs",
+      "status": 200,
+      "body_sha256": "1559a49f96d39c59a5916d29645766e41c0e5fc7908c9ba735f9dc33dc7b4045",
+      "body_utf8_bytes": 172514
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/releases",
+      "status": 200,
+      "body_sha256": "b3442270293f03e36d1bcd1dbe065ec582b5f579e797479a0ac415a58075848d",
+      "body_utf8_bytes": 380774
+    },
+    {
+      "url": "https://github.com/jacoco/jacoco/releases",
+      "status": 200,
+      "body_sha256": "7b1f4bdc60cc68eb05babbc12f63524af73549d2b374c7080d04c3c8ab59032f",
+      "body_utf8_bytes": 475117
+    },
+    {
+      "url": "https://github.com/jacoco/jacoco/releases/tag/v0.8.15",
+      "status": 200,
+      "body_sha256": "38324267c278e4f27ccf005ce7eabdde225a6b2bfc7f353ece6d6180067f6ca4",
+      "body_utf8_bytes": 171830
+    },
+    {
+      "url": "https://github.com/JetBrains/intellij-coverage/blob/master/README.md",
+      "status": 200,
+      "body_sha256": "1389120300e0d0323bd9f22a05902ffac4a9056cd108331826004c3b84a14191",
+      "body_utf8_bytes": 189800
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/releases/tag/v0.9.11",
+      "status": 200,
+      "body_sha256": "4ce94267987cc25362576428ef2c4944f2661e7f463fd2acf06cc74b1fd7c203",
+      "body_utf8_bytes": 153633
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover",
+      "status": 200,
+      "body_sha256": "0224563e6266ae63b102fb3140a07dc48f96e9c7772bf0ba96239d83cb891733",
+      "body_utf8_bytes": 303221
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/releases/tag/v0.9.10",
+      "status": 200,
+      "body_sha256": "c1b668f73c7fd7ea22224055d4ad6f5b4252389a6f6f233e7cceb82e3692d7d2",
+      "body_utf8_bytes": 155072
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/releases/tag/v0.9.9",
+      "status": 200,
+      "body_sha256": "a8090d943e3e04bfc1dd209761e49a2ca33f9e6268bb0fac9538c0dc76d78a1e",
+      "body_utf8_bytes": 154741
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/tree/main/kover-gradle-plugin",
+      "status": 200,
+      "body_sha256": "59bd76e0d5ce4b7d5e5fef52ea2e47d1d597fe462bef985dd3b2465c356d1b46",
+      "body_utf8_bytes": 181431
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/tree/v0.9.11/kover-gradle-plugin/api",
+      "status": 200,
+      "body_sha256": "e0c75f1eb2282ef1a0394da5196c4351aa4a7ea2238f1aa374b0de098b157148",
+      "body_utf8_bytes": 171820
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/tree/v0.9.11/kover-gradle-plugin/docs",
+      "status": 200,
+      "body_sha256": "a4a2ab4401107897c0438f1915d8d0f658b3c14d856605ced9f2dc01b2e10516",
+      "body_utf8_bytes": 181364
+    },
+    {
+      "url": "https://github.com/jacoco/jacoco/blob/v0.8.15/org.jacoco.doc/docroot/doc/counters.html",
+      "status": 200,
+      "body_sha256": "433af15abc592b32e5568fc86ef3bccf1c90bcf8c74dc601ba7f5598421d0fc1",
+      "body_utf8_bytes": 272803
+    },
+    {
+      "url": "https://github.com/jacoco/jacoco/blob/v0.8.15/org.jacoco.doc/docroot/doc/classids.html",
+      "status": 200,
+      "body_sha256": "d45ad6755b4205d04f7ed5a0b28bb74e58a4d789036863396e72a742e85d8e92",
+      "body_utf8_bytes": 285915
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/blob/v0.9.11/kover-gradle-plugin/docs/index.md",
+      "status": 200,
+      "body_sha256": "0236759a72ea4d01e54d3b36ae4b4387e6f9b8d8670fbc0508afc23c33ba85c0",
+      "body_utf8_bytes": 638024
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/blob/v0.9.11/kover-gradle-plugin/build.gradle.kts",
+      "status": 200,
+      "body_sha256": "450f6589e3383256c7e6994cae783fdc2e86eadf546940c2b1eaed4f06589f98",
+      "body_utf8_bytes": 298730
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/blob/v0.9.11/README.md",
+      "status": 200,
+      "body_sha256": "367eef789818b992d67121900143b471f7f15bf8dd21e475e44e3118da9d49dd",
+      "body_utf8_bytes": 241767
+    },
+    {
+      "url": "https://github.com/Kotlin/kotlinx-kover/blob/v0.9.11/CHANGELOG.md",
+      "status": 200,
+      "body_sha256": "3cce0a32be632f69680d1d063e9ea0290065cef6f415c2b7f4582de01b945c56",
+      "body_utf8_bytes": 836826
+    }
+  ]
+}
