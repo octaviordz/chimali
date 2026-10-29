@@ -124,6 +124,14 @@
     {
       "id": "comparison-security-file-substitution",
       "description": "Baseline validation rejects a security execution digest coherently substituted across counters and manifest but not bound to retained artifact bytes."
+    },
+    {
+      "id": "junit-structure-batch",
+      "description": "Production candidate verifier rejects all nine orphaned, wrapped, and namespaced failure, error, and skipped outcome structures."
+    },
+    {
+      "id": "comparison-structure-batch",
+      "description": "Accepted-baseline verifier rejects all nine orphaned, wrapped, and namespaced failure, error, and skipped outcome structures."
     }
   ]
 }

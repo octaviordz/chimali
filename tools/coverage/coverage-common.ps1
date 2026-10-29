@@ -1395,6 +1395,36 @@ function Test-WorkloadTaskInventory {
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
+function Assert-StrictJUnitChildContent {
+    param(
+        [Parameter(Mandatory = $true)][System.Xml.XmlElement]$Element,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$AllowedElementNames,
+        [Parameter(Mandatory = $true)][string]$Context,
+        [switch]$AllowTextContent
+    )
+
+    foreach ($child in $Element.ChildNodes) {
+        if ($child.NodeType -eq [System.Xml.XmlNodeType]::Element) {
+            if ($child.NamespaceURI) { throw "JUnit report contains unsupported XML namespace '$($child.NamespaceURI)' on <$($child.LocalName)>" }
+            if ($child.LocalName -cnotin $AllowedElementNames) {
+                throw "$Context contains unsupported child <$($child.LocalName)>"
+            }
+            continue
+        }
+        if ($child.NodeType -in @([System.Xml.XmlNodeType]::Text, [System.Xml.XmlNodeType]::CDATA)) {
+            if (-not $AllowTextContent -and -not [string]::IsNullOrWhiteSpace([string]$child.Value)) {
+                throw "$Context contains unsupported non-whitespace text"
+            }
+            continue
+        }
+        if ($child.NodeType -in @([System.Xml.XmlNodeType]::Whitespace, [System.Xml.XmlNodeType]::SignificantWhitespace,
+                [System.Xml.XmlNodeType]::Comment, [System.Xml.XmlNodeType]::ProcessingInstruction)) {
+            continue
+        }
+        throw "$Context contains unsupported XML node type '$($child.NodeType)'"
+    }
+}
+
 function Get-StrictJUnitOutcome {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -1403,13 +1433,23 @@ function Get-StrictJUnitOutcome {
     try {
         $document = Read-SafeXml -Path $Path
         $root = $document.DocumentElement
-        if (-not $root -or $root.LocalName -notin @('testsuite', 'testsuites')) { throw 'JUnit root must be <testsuite> or <testsuites>' }
-        # This parser intentionally supports only the flat JUnit shape emitted
-        # by our Gradle test tasks. Nested suites and testcases hidden inside
-        # wrappers would otherwise be omitted by the direct-child accounting.
-        $nestedSuites = @($root.SelectNodes('.//testsuite') | Where-Object { $root.LocalName -eq 'testsuite' -or $_.ParentNode -ne $root })
+        if (-not $root -or $root.LocalName -cnotin @('testsuite', 'testsuites')) { throw 'JUnit root must be <testsuite> or <testsuites>' }
+        # The supported Gradle JUnit format is namespace-free and structurally
+        # flat. Validate the complete element tree before deriving any counts
+        # so unsupported/orphan nodes cannot disappear from direct-child totals.
+        foreach ($element in $document.GetElementsByTagName('*')) {
+            if ($element.NamespaceURI) { throw "JUnit report contains unsupported XML namespace '$($element.NamespaceURI)' on <$($element.LocalName)>" }
+        }
+        $nestedSuites = @($document.GetElementsByTagName('testsuite') | Where-Object {
+            $_ -ne $root -and ($root.LocalName -ceq 'testsuite' -or $_.ParentNode -ne $root)
+        })
         if ($nestedSuites.Count -gt 0) { throw 'JUnit report contains unsupported nested <testsuite> elements' }
-        $suiteNodes = @($document.SelectNodes('/testsuite | /testsuites/testsuite'))
+        if ($root.LocalName -eq 'testsuites') {
+            Assert-StrictJUnitChildContent -Element $root -AllowedElementNames @('testsuite') -Context 'JUnit testsuites'
+            $suiteNodes = @($root.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })
+        } else {
+            $suiteNodes = @($root)
+        }
         if ($suiteNodes.Count -eq 0) {
             if ($root.LocalName -eq 'testsuites' -and $root.ChildNodes.Count -eq 0 -and
                 $root.GetAttribute('tests') -eq '0' -and $root.GetAttribute('failures') -eq '0' -and
@@ -1424,18 +1464,42 @@ function Get-StrictJUnitOutcome {
             $node = $suiteNodes[$index]
             $name = $node.GetAttribute('name')
             if ([string]::IsNullOrWhiteSpace($name)) { throw "JUnit testsuite $index has no name" }
-            $testCases = @($node.SelectNodes('./testcase'))
-            $misplacedTestCases = @($node.SelectNodes('.//testcase') | Where-Object { $_.ParentNode -ne $node })
+            $misplacedTestCases = @($node.GetElementsByTagName('testcase') | Where-Object { $_.ParentNode -ne $node })
             if ($misplacedTestCases.Count -gt 0) { throw "JUnit suite $name contains testcase elements outside its direct children" }
+            Assert-StrictJUnitChildContent -Element $node -AllowedElementNames @('properties', 'testcase', 'system-out', 'system-err') -Context "JUnit suite $name"
+            $testCases = @($node.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -eq 'testcase' })
+            $suiteChildren = @($node.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })
+            foreach ($suiteChild in $suiteChildren) {
+                switch ($suiteChild.LocalName) {
+                    'properties' {
+                        Assert-StrictJUnitChildContent -Element $suiteChild -AllowedElementNames @('property') -Context "JUnit suite $name properties"
+                        foreach ($property in @($suiteChild.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })) {
+                            Assert-StrictJUnitChildContent -Element $property -AllowedElementNames @() -Context "JUnit suite $name property"
+                        }
+                    }
+                    'system-out' { Assert-StrictJUnitChildContent -Element $suiteChild -AllowedElementNames @() -Context "JUnit suite $name system-out" -AllowTextContent }
+                    'system-err' { Assert-StrictJUnitChildContent -Element $suiteChild -AllowedElementNames @() -Context "JUnit suite $name system-err" -AllowTextContent }
+                    'testcase' {
+                        Assert-StrictJUnitChildContent -Element $suiteChild -AllowedElementNames @('failure', 'error', 'skipped', 'system-out', 'system-err') -Context "JUnit testcase '$($suiteChild.GetAttribute('name'))'"
+                        foreach ($testCaseChild in @($suiteChild.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })) {
+                            if ($testCaseChild.LocalName -cin @('system-out', 'system-err')) {
+                                Assert-StrictJUnitChildContent -Element $testCaseChild -AllowedElementNames @() -Context "JUnit testcase '$($suiteChild.GetAttribute('name'))' $($testCaseChild.LocalName)" -AllowTextContent
+                            } else {
+                                Assert-StrictJUnitChildContent -Element $testCaseChild -AllowedElementNames @() -Context "JUnit testcase '$($suiteChild.GetAttribute('name'))' $($testCaseChild.LocalName)" -AllowTextContent
+                            }
+                        }
+                    }
+                }
+            }
             foreach ($testCase in $testCases) {
-                $outcomeCount = @(@('failure', 'error', 'skipped') | ForEach-Object { $testCase.SelectSingleNode("./$_") } | Where-Object { $null -ne $_ }).Count
+                $outcomeCount = @($testCase.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -in @('failure', 'error', 'skipped') }).Count
                 if ($outcomeCount -gt 1) { throw "JUnit testcase '$($testCase.GetAttribute('name'))' declares conflicting failure/error/skip outcomes" }
             }
             $counts = @{
                 tests = $testCases.Count
-                failures = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./failure') }).Count
-                errors = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./error') }).Count
-                skipped = @($testCases | Where-Object { $null -ne $_.SelectSingleNode('./skipped') }).Count
+                failures = @($testCases | Where-Object { @($_.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -eq 'failure' }).Count -gt 0 }).Count
+                errors = @($testCases | Where-Object { @($_.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -eq 'error' }).Count -gt 0 }).Count
+                skipped = @($testCases | Where-Object { @($_.ChildNodes | Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -eq 'skipped' }).Count -gt 0 }).Count
             }
             $counts.executed = $counts.tests - $counts.skipped
             $counts.successful = $counts.tests - $counts.failures - $counts.errors - $counts.skipped

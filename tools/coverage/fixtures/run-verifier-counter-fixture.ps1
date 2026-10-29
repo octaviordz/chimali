@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
     [Parameter(Mandatory = $true)][string]$SourceBundle,
-    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-failed-junit', 'comparison-nested-failure', 'comparison-nested-error', 'comparison-nested-skip', 'comparison-dirty-preflight', 'comparison-dirty-harness', 'comparison-security-file-substitution', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-tier1-regression', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'dirty-preflight', 'dirty-harness', 'harness-changed-during-capture', 'junit-hidden-failure', 'junit-hidden-error', 'junit-hidden-skip', 'junit-inflated-count', 'junit-contradictory-total', 'junit-nested-failure', 'junit-nested-error', 'junit-nested-skip', 'missing-workload-task', 'zero-required-device', 'inventory-unapproved-variant', 'inventory-omitted-owner', 'inventory-compiler-boundary', 'inventory-output-boundary', 'inventory-unproven-exclusion', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch', 'execution-security-file-substitution')]
+    [ValidateSet('negative-tier2', 'tier2-xml-mismatch', 'zero-repository', 'repository-xml-mismatch', 'fractional-tier2', 'large-tier2-counter', 'negative-branch', 'missing-tier2', 'duplicate-counter-field', 'module-report-digest-mismatch', 'inventory-digest-mismatch', 'class-inventory-digest-mismatch', 'duplicate-tier2-xml-counter', 'malformed-tier2-xml-counter', 'malformed-secondary-xml-counter', 'noncanonical-tier2-xml-counter', 'noncanonical-repository-xml-counter', 'comparison-valid', 'comparison-no-index', 'comparison-altered-counters', 'comparison-missing-module', 'comparison-missing-report', 'comparison-failed-suite', 'comparison-failed-junit', 'comparison-nested-failure', 'comparison-nested-error', 'comparison-nested-skip', 'comparison-structure-batch', 'comparison-dirty-preflight', 'comparison-dirty-harness', 'comparison-security-file-substitution', 'comparison-missing-suite', 'comparison-candidate-below-floor', 'comparison-tier1-regression', 'comparison-incompatible-fingerprint', 'changed-tier2-missing-counter', 'changed-tier2-below-floor', 'incomplete-collection-error', 'dirty-preflight', 'dirty-harness', 'harness-changed-during-capture', 'junit-hidden-failure', 'junit-hidden-error', 'junit-hidden-skip', 'junit-inflated-count', 'junit-contradictory-total', 'junit-nested-failure', 'junit-nested-error', 'junit-nested-skip', 'junit-structure-batch', 'missing-workload-task', 'zero-required-device', 'inventory-unapproved-variant', 'inventory-omitted-owner', 'inventory-compiler-boundary', 'inventory-output-boundary', 'inventory-unproven-exclusion', 'unowned-junit-artifact', 'extra-counter-scope', 'missing-inventory-counter', 'contradictory-applicability', 'execution-class-mismatch', 'execution-device-file-mismatch', 'execution-security-file-substitution')]
     [string]$Case = 'negative-tier2'
 )
 
@@ -220,7 +220,42 @@ try {
             'junit-inflated-count' { '<testsuite name="hidden" tests="2" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite>' }
             'junit-contradictory-total' { '<testsuites tests="2" failures="0" errors="0" skipped="0"><testsuite name="hidden" tests="1" failures="0" errors="0" skipped="0"><testcase name="hidden"/></testsuite></testsuites>' }
         }
-        [IO.File]::WriteAllText((Join-Path $bundle ([string]$testArtifact.path)), $mutationXml, [Text.UTF8Encoding]::new($false))
+        if ($Case -match '^junit-(orphan|wrapped|namespaced)-(failure|error|skip)$') {
+            $shape = $Matches[1]; $kind = $Matches[2]
+            $outcome = if ($kind -ceq 'skip') { '<skipped/>' } else { "<$kind/>" }
+            if ($shape -ceq 'orphan') {
+                $mutationXml = "<testsuites tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testsuite name=`"valid`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"pass`"/></testsuite><testcase name=`"orphan`">$outcome</testcase></testsuites>"
+            } elseif ($shape -ceq 'wrapped') {
+                $mutationXml = "<testsuite name=`"wrapped`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"wrapped`"><wrapper>$outcome</wrapper></testcase></testsuite>"
+            } else {
+                $qualifiedOutcome = if ($kind -ceq 'skip') { '<skipped xmlns="urn:unrecognized"/>' } else { "<$kind xmlns=`"urn:unrecognized`"/>" }
+                $mutationXml = "<testsuite name=`"namespaced`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"namespaced`">$qualifiedOutcome</testcase></testsuite>"
+            }
+        }
+        if ($Case -eq 'junit-structure-batch') {
+            $reportArtifacts = @($manifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' } | Select-Object -First 9)
+            if ($reportArtifacts.Count -lt 9) { throw "Batch fixture requires nine distinct JUnit artifacts (found $($reportArtifacts.Count))" }
+            $shapes = @('orphan', 'wrapped', 'namespaced')
+            $kinds = @('failure', 'error', 'skip')
+            for ($index = 0; $index -lt 9; $index++) {
+                $shape = $shapes[[int][Math]::Floor($index / 3)]
+                $kind = $kinds[$index % 3]
+                $outcome = if ($kind -ceq 'skip') { '<skipped/>' } else { "<$kind/>" }
+                if ($shape -ceq 'orphan') {
+                    $batchXml = "<testsuites tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testsuite name=`"valid`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"pass`"/></testsuite><testcase name=`"orphan`">$outcome</testcase></testsuites>"
+                } elseif ($shape -ceq 'wrapped') {
+                    $batchXml = "<testsuite name=`"wrapped`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"wrapped`"><wrapper>$outcome</wrapper></testcase></testsuite>"
+                } else {
+                    $qualifiedOutcome = if ($kind -ceq 'skip') { '<skipped xmlns="urn:unrecognized"/>' } else { "<$kind xmlns=`"urn:unrecognized`"/>" }
+                    $batchXml = "<testsuite name=`"namespaced`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"namespaced`">$qualifiedOutcome</testcase></testsuite>"
+                }
+                [IO.File]::WriteAllText((Join-Path $bundle ([string]$reportArtifacts[$index].path)), $batchXml, [Text.UTF8Encoding]::new($false))
+            }
+            $mutationXml = '<testsuite name="batch-placeholder" tests="1" failures="0" errors="0" skipped="0"><testcase name="pass"/></testsuite>'
+        }
+        if ($Case -ne 'junit-structure-batch') {
+            [IO.File]::WriteAllText((Join-Path $bundle ([string]$testArtifact.path)), $mutationXml, [Text.UTF8Encoding]::new($false))
+        }
     }
     if ($Case -eq 'missing-workload-task') {
         $workload.host_test_tasks = @($workload.host_test_tasks | Select-Object -Skip 1)
@@ -662,6 +697,43 @@ try {
                 [IO.File]::WriteAllText($testArtifactPath, $nestedMutation, [Text.UTF8Encoding]::new($false))
                 $testArtifact.sha256 = Get-FileSha256 -Path $testArtifactPath
             }
+            'comparison-structure-batch' {
+                $reportArtifacts = @($baselineManifest.artifacts | Where-Object { ([string]$_.path).Replace('\', '/') -match '^reports/tests/.+\.xml$' } | Select-Object -First 9)
+                if ($reportArtifacts.Count -lt 9) { throw "Baseline batch fixture requires nine distinct JUnit artifacts (found $($reportArtifacts.Count))" }
+                $shapes = @('orphan', 'wrapped', 'namespaced')
+                $kinds = @('failure', 'error', 'skip')
+                for ($index = 0; $index -lt 9; $index++) {
+                    $shape = $shapes[[int][Math]::Floor($index / 3)]
+                    $kind = $kinds[$index % 3]
+                    $outcome = if ($kind -ceq 'skip') { '<skipped/>' } else { "<$kind/>" }
+                    if ($shape -ceq 'orphan') {
+                        $strictMutation = "<testsuites tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testsuite name=`"valid`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"pass`"/></testsuite><testcase name=`"orphan`">$outcome</testcase></testsuites>"
+                    } elseif ($shape -ceq 'wrapped') {
+                        $strictMutation = "<testsuite name=`"wrapped`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"wrapped`"><wrapper>$outcome</wrapper></testcase></testsuite>"
+                    } else {
+                        $qualifiedOutcome = if ($kind -ceq 'skip') { '<skipped xmlns="urn:unrecognized"/>' } else { "<$kind xmlns=`"urn:unrecognized`"/>" }
+                        $strictMutation = "<testsuite name=`"namespaced`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"namespaced`">$qualifiedOutcome</testcase></testsuite>"
+                    }
+                    $strictArtifactPath = Join-Path $baseline ([string]$reportArtifacts[$index].path)
+                    [IO.File]::WriteAllText($strictArtifactPath, $strictMutation, [Text.UTF8Encoding]::new($false))
+                    $reportArtifacts[$index].sha256 = Get-FileSha256 -Path $strictArtifactPath
+                }
+            }
+            { $_ -match '^comparison-(orphan|wrapped|namespaced)-(failure|error|skip)$' } {
+                $shape = $Matches[1]; $kind = $Matches[2]
+                $outcome = if ($kind -ceq 'skip') { '<skipped/>' } else { "<$kind/>" }
+                if ($shape -ceq 'orphan') {
+                    $strictMutation = "<testsuites tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testsuite name=`"valid`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"pass`"/></testsuite><testcase name=`"orphan`">$outcome</testcase></testsuites>"
+                } elseif ($shape -ceq 'wrapped') {
+                    $strictMutation = "<testsuite name=`"wrapped`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"wrapped`"><wrapper>$outcome</wrapper></testcase></testsuite>"
+                } else {
+                    $qualifiedOutcome = if ($kind -ceq 'skip') { '<skipped xmlns="urn:unrecognized"/>' } else { "<$kind xmlns=`"urn:unrecognized`"/>" }
+                    $strictMutation = "<testsuite name=`"namespaced`" tests=`"1`" failures=`"0`" errors=`"0`" skipped=`"0`"><testcase name=`"namespaced`">$qualifiedOutcome</testcase></testsuite>"
+                }
+                $strictArtifactPath = Join-Path $baseline ([string]$testArtifact.path)
+                [IO.File]::WriteAllText($strictArtifactPath, $strictMutation, [Text.UTF8Encoding]::new($false))
+                $testArtifact.sha256 = Get-FileSha256 -Path $strictArtifactPath
+            }
             'comparison-dirty-preflight' { $baselineManifest.git.clean_preflight = $false }
             'comparison-dirty-harness' { $baselineManifest.harness.clean = $false }
             'comparison-security-file-substitution' {
@@ -755,6 +827,18 @@ try {
         Write-Output "Verifier exit: $verifyExit (unrelated bundle decisions may still fail)"
         return
     }
+    if ($Case -in @('junit-structure-batch', 'comparison-structure-batch')) {
+        $strictErrors = @($decision.unmet_reasons | Where-Object { $_ -match 'unsupported child <testcase>|unsupported child <wrapper>|unsupported XML namespace' })
+        $orphanErrors = @($strictErrors | Where-Object { $_ -match 'unsupported child <testcase>' })
+        $wrappedErrors = @($strictErrors | Where-Object { $_ -match 'unsupported child <wrapper>' })
+        $namespaceErrors = @($strictErrors | Where-Object { $_ -match 'unsupported XML namespace' })
+        if ($strictErrors.Count -lt 9 -or $orphanErrors.Count -lt 3 -or $wrappedErrors.Count -lt 3 -or $namespaceErrors.Count -lt 3) {
+            throw "Verifier did not report all nine hidden JUnit outcome defects (orphan=$($orphanErrors.Count), wrapped=$($wrappedErrors.Count), namespaced=$($namespaceErrors.Count)). Reasons: $($decision.unmet_reasons -join '; ')"
+        }
+        Write-Output "Production verifier rejected all nine $Case JUnit defects (three orphaned, three wrapped, three namespaced outcomes across failure/error/skip)."
+        Write-Output "Verifier exit: $verifyExit"
+        return
+    }
     $reasonPattern = switch ($Case) {
         'negative-tier2' { ':core:common.*instruction covered must be a nonnegative JSON integer' }
         'tier2-xml-mismatch' { ':core:common.*INSTRUCTION XML counts disagree with canonical covered/missed counts' }
@@ -812,8 +896,28 @@ try {
         'comparison-nested-failure' { 'unsupported nested <testsuite>' }
         'comparison-nested-error' { 'unsupported nested <testsuite>' }
         'comparison-nested-skip' { 'unsupported nested <testsuite>' }
+        'junit-orphan-failure' { 'testsuites contains unsupported child <testcase>' }
+        'junit-orphan-error' { 'testsuites contains unsupported child <testcase>' }
+        'junit-orphan-skip' { 'testsuites contains unsupported child <testcase>' }
+        'comparison-orphan-failure' { 'testsuites contains unsupported child <testcase>' }
+        'comparison-orphan-error' { 'testsuites contains unsupported child <testcase>' }
+        'comparison-orphan-skip' { 'testsuites contains unsupported child <testcase>' }
+        'junit-wrapped-failure' { 'contains unsupported child <wrapper>' }
+        'junit-wrapped-error' { 'contains unsupported child <wrapper>' }
+        'junit-wrapped-skip' { 'contains unsupported child <wrapper>' }
+        'comparison-wrapped-failure' { 'contains unsupported child <wrapper>' }
+        'comparison-wrapped-error' { 'contains unsupported child <wrapper>' }
+        'comparison-wrapped-skip' { 'contains unsupported child <wrapper>' }
+        'junit-namespaced-failure' { 'unsupported XML namespace' }
+        'junit-namespaced-error' { 'unsupported XML namespace' }
+        'junit-namespaced-skip' { 'unsupported XML namespace' }
+        'comparison-namespaced-failure' { 'unsupported XML namespace' }
+        'comparison-namespaced-error' { 'unsupported XML namespace' }
+        'comparison-namespaced-skip' { 'unsupported XML namespace' }
         'comparison-dirty-preflight' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
         'comparison-dirty-harness' { 'Baseline does not prove clean source and reviewed harness state throughout capture' }
+        'junit-structure-batch' { 'Malformed retained JUnit XML' }
+        'comparison-structure-batch' { 'Baseline JUnit artifact .* failed strict outcome parsing' }
         'comparison-security-file-substitution' { 'Baseline Execution-file attribution has invalid scope, relative paths, kind, or source/bundle digest binding' }
     }
     $expectedReason = @($decision.unmet_reasons | Where-Object { $_ -match $reasonPattern })

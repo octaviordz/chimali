@@ -87,6 +87,85 @@
       "xml": "<testsuite name=\"wrapped\" tests=\"0\" failures=\"0\" errors=\"0\" skipped=\"0\"><wrapper><testcase name=\"hidden\"><failure/></testcase></wrapper></testsuite>",
       "expected_valid": false,
       "expected_error": "testcase elements outside its direct children"
+    },
+    {
+      "id": "JUNIT_OUTCOME_012_ORPHAN_FAILURE_REJECTED",
+      "description": "An orphan failed testcase under testsuites cannot be omitted beside a valid suite.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-orphan-failure.xml",
+      "xml": "<testsuites tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"visible\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"pass\"/></testsuite><testcase name=\"orphan\"><failure/></testcase></testsuites>",
+      "expected_valid": false,
+      "expected_error": "testsuites contains unsupported child <testcase>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_013_ORPHAN_ERROR_REJECTED",
+      "description": "An orphan errored testcase under testsuites cannot be omitted beside a valid suite.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-orphan-error.xml",
+      "xml": "<testsuites tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"visible\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"pass\"/></testsuite><testcase name=\"orphan\"><error/></testcase></testsuites>",
+      "expected_valid": false,
+      "expected_error": "testsuites contains unsupported child <testcase>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_014_ORPHAN_SKIP_REJECTED",
+      "description": "An orphan skipped testcase under testsuites cannot be omitted beside a valid suite.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-orphan-skip.xml",
+      "xml": "<testsuites tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testsuite name=\"visible\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"pass\"/></testsuite><testcase name=\"orphan\"><skipped/></testcase></testsuites>",
+      "expected_valid": false,
+      "expected_error": "testsuites contains unsupported child <testcase>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_015_WRAPPED_FAILURE_REJECTED",
+      "description": "A failure below a testcase wrapper cannot be counted as a pass.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-wrapped-failure.xml",
+      "xml": "<testsuite name=\"wrapped\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><wrapper><failure/></wrapper></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "contains unsupported child <wrapper>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_016_WRAPPED_ERROR_REJECTED",
+      "description": "An error below a testcase wrapper cannot be counted as a pass.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-wrapped-error.xml",
+      "xml": "<testsuite name=\"wrapped\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><wrapper><error/></wrapper></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "contains unsupported child <wrapper>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_017_WRAPPED_SKIP_REJECTED",
+      "description": "A skip below a testcase wrapper cannot be counted as a pass.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-wrapped-skip.xml",
+      "xml": "<testsuite name=\"wrapped\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><wrapper><skipped/></wrapper></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "contains unsupported child <wrapper>"
+    },
+    {
+      "id": "JUNIT_OUTCOME_018_NAMESPACED_FAILURE_REJECTED",
+      "description": "A failure in an unsupported namespace cannot be ignored as a successful testcase.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-namespaced-failure.xml",
+      "xml": "<testsuite name=\"namespace\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><failure xmlns=\"urn:unrecognized\"/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "unsupported XML namespace"
+    },
+    {
+      "id": "JUNIT_OUTCOME_019_NAMESPACED_ERROR_REJECTED",
+      "description": "An error in an unsupported namespace cannot be ignored as a successful testcase.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-namespaced-error.xml",
+      "xml": "<testsuite name=\"namespace\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><error xmlns=\"urn:unrecognized\"/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "unsupported XML namespace"
+    },
+    {
+      "id": "JUNIT_OUTCOME_020_NAMESPACED_SKIP_REJECTED",
+      "description": "A skip in an unsupported namespace cannot be ignored as a successful testcase.",
+      "report_identity": "feature/fido2/testDebugUnitTest/TEST-namespaced-skip.xml",
+      "xml": "<testsuite name=\"namespace\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><testcase name=\"case\"><skipped xmlns=\"urn:unrecognized\"/></testcase></testsuite>",
+      "expected_valid": false,
+      "expected_error": "unsupported XML namespace"
+    },
+    {
+      "id": "JUNIT_OUTCOME_021_VALID_PROPERTIES_OUTPUT_AND_TOTALS",
+      "description": "Supported suite properties and system output text remain valid while testcase totals reconcile exactly.",
+      "report_identity": "core/data/testDebugUnitTest/TEST-properties-output.xml",
+      "xml": "<testsuite name=\"supported\" tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"0\"><properties><property name=\"runner\" value=\"gradle\"/></properties><testcase name=\"pass\"/><system-out>ordinary test output</system-out><system-err>ordinary diagnostic output</system-err></testsuite>",
+      "expected_valid": true
     }
   ]
 }
