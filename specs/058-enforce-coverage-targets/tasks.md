@@ -28,7 +28,7 @@ Existing GitHub App, environment, and archive ruleset settings are partial histo
 - Paths are relative to the repository root unless explicitly identified as archive paths. Run directories and external settings are recorded through the named scripts/evidence files; do not fabricate an actual run ID, device identity, remote authorization or completed result.
 - Existing threshold/module-list edits are unverified starting work. Preserve existing staged/unstaged user changes, assess them against these tasks, and check an item only after its stated implementation or verification outcome is supported.
 - Hard floors: Tier 1 instruction/branch **60%/60%** where applicable, repository instructions **50%**, existing affected Tier 2 instructions **20%**. Approximately **65%** branches is a reported improvement goal. Risk priority applies across all Tier 1 modules before coverage-deficit ordering.
-- No new Gradle module, coverage engine upgrade, blanket generated-code exclusion, artificial authenticator implementation, or weakening of BRD's separate 100% core-business-logic objective is authorized.
+- No new Gradle module, coverage engine upgrade, blanket generated-code exclusion, artificial authenticator implementation, or weakening of BRD's separate 100% core-business-logic objective is authorized. **Later owner decision (2026-10-28):** The separate BRD §9 100% objective was removed; this historical constraint is superseded for that objective. The remaining constraints continue to apply.
 - T046–T049 are WAIVED under the owner decision above. Keep their checkboxes unchecked and their verification outcomes unverified; skip the waived operational work when choosing the next executable task.
 
 ## Phase 1: Setup — Confirm Scope and Prepare the Work

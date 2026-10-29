@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD) - Chimali
 
 **Project Name**: Chimali
-**Version**: 0.2.0
+**Version**: 0.2.1
 **Project Type**: Android Native Application
 **Technology Stack**: Kotlin + Jetpack Compose Multiplatform
 
@@ -175,4 +175,4 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
 ## 9. Development & Testing Methodology
 - **Test-Driven Development (TDD)**: Implementation should follow TDD principles where feasible to ensure high code quality and reliability.
 - **Integration Testing**: Integration verification MUST cover distinct Bluetooth relying party (`FR-HID-010`) and Android Credential Manager (`FR-PASS-010`) entry-path journeys across registration, encrypted persistence, restart/reconstruction, and authentication/retrieval, including the 12 failure categories specified in [TRD](trd.md) §9.4 and `.agents/rules/specify-rules.md` §1. Verification evidence must strictly differentiate host/component test double substitutes from physical device and transport execution, in alignment with the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0).
-- **Unit Testing**: 100% coverage of core business logic (encryption, validation). Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.
+- **Unit Testing**: Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.

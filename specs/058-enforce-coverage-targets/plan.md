@@ -6,6 +6,8 @@
 
 **Planning status**: Phase 0 research and Phase 1 design complete. Existing threshold/module-list edits are partial, unverified implementation. No fresh baseline, product test run, device run, hosted check, or protection change has been performed in this planning workflow.
 
+**Later policy change (2026-10-28)**: The owner directed removal of the separate BRD §9 100% core-business-logic coverage requirement. References below to preserving that objective record the earlier plan and are superseded by the current BRD. Coverage floors and the hosted-work waiver are unchanged.
+
 ## Summary
 
 Keep the current JaCoCo toolchain and make its results complete, exact and enforceable. Every executable Tier 1 module must independently meet 60% instruction and 60% applicable branch coverage; repository aggregate instructions must meet 50%. Preserve existing Tier 2 instruction floors of 20%. Approximately 65% branch coverage is the remediation goal, not a second acceptance floor.
