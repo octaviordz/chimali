@@ -3,6 +3,7 @@
 **Branch**: `codex/057-improve-verification-contracts`  
 **Date**: 2026-10-23  
 **Status**: Active Follow-Up Tracking  
+**Last Reviewed**: 2026-10-28
 **Lifecycle Stages**: `Identified → Assigned → Separately authorized → Completed with evidence`
 
 ---
@@ -41,7 +42,7 @@ Existing implementation deferrals (e.g., BRD `FR-UI-011`), historical security r
 - **Mapped Feature Requirements**: FR-003, FR-004, FR-005
 - **Excluded Work**: Writing and executing unit/integration negative test suites covering distinct invalid input classes, boundary values, parameterless authorization checks, and forbidden side effects.
 - **Reason Excluded**: Feature 057 defines documentation contracts and rules; test implementation and execution are excluded. "Runtime compliance remains a separate assessment with its own dated evidence."
-- **Current Verification Status**: `Unverified` (Policy documented; test suite not yet implemented)
+- **Current Verification Status**: `Unverified` for the complete contract. Feature 058 implemented and executed selected negative and cleanup cases, including COV-021 and COV-022; see [test-selection.md](../058-enforce-coverage-targets/test-selection.md) and [implementation-evidence.md](../058-enforce-coverage-targets/implementation-evidence.md). A complete constraint-to-test mapping and execution evidence for all applicable boundaries remain outstanding.
 - **Lifecycle Status**: `Assigned`
 - **Preserved Authorization / Deferral Reference**: Constitution Principle V testing gates; rules §5.2.
 - **Responsible Role**: Core Domain / Security Engineer
@@ -104,10 +105,10 @@ Existing implementation deferrals (e.g., BRD `FR-UI-011`), historical security r
 ### FUP-GOV-001: Unit Test Coverage Policy Discrepancy Reconciliation
 - **Governing Area**: DO-178B Testing Gates & Governance (Constitution Principle V, Rules §1, BRD §9)
 - **Mapped Feature Requirements**: FR-001, FR-019, FR-020
-- **Excluded Work**: Amending BRD §9 or Constitution Principle V to align the "100% coverage of core business logic" statement with the constitutional tier gates (Tier 1 ≥ 40%, Tier 2 ≥ 20%, global floor ≥ 20%).
+- **Excluded Work at feature 057**: Amending BRD §9 or Constitution Principle V to align the "100% coverage of core business logic" statement with the constitutional tier gates (Tier 1 ≥ 40%, Tier 2 ≥ 20%, global floor ≥ 20%).
 - **Reason Excluded**: Pre-existing discrepancy noted in research; this feature does not silently alter established coverage floors.
-- **Current Verification Status**: `Unverified` (Policy discrepancy identified; amendment pending)
+- **Current Verification Status**: `Unverified` for closure of this follow-up. Constitution 5.0.0 and feature 058 raised the Tier 1 and repository floors and retained the separate BRD 100% core business-logic objective; see [feature 058 plan](../058-enforce-coverage-targets/plan.md). The earlier 40%/20% figures describe the feature 057 baseline, not current policy. This update does not assert that the 100% objective is met or that a governance review has closed the follow-up.
 - **Lifecycle Status**: `Identified`
-- **Preserved Authorization / Deferral Reference**: Constitution Principle V (Constitution 4.1.0); Rules §1 Tiered Test Coverage Targets.
+- **Preserved Authorization / Deferral Reference**: Constitution Principle V (current Constitution 5.0.0); Rules §1 Tiered Test Coverage Targets; BRD §9 retains the separate 100% core business-logic objective.
 - **Responsible Role**: Lead Architect / Governance Committee
 - **Needed Completion Evidence**: Synchronized wording amendment between BRD §9 and Constitution Principle V clarifying tier coverage floors versus unit testing scope.

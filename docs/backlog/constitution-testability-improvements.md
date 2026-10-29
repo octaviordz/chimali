@@ -6,9 +6,9 @@
 
 **Date Created**: 2026-09-23
 
-**Last Reviewed**: 2026-10-23
+**Last Reviewed**: 2026-10-28
 
-**Review Baseline**: Constitution 4.1.0, last amended 2026-10-23 (Ratified 2026-02-19).
+**Review Baseline**: Constitution 5.0.0, last amended 2026-10-24 (ratified 2026-02-19). Feature 057 adopted these verification contracts in version 4.1.0; feature 058 subsequently amended the coverage floors.
 
 ---
 
@@ -16,7 +16,7 @@
 
 These proposals address ambiguous requirements, incomplete verification criteria, and scattered security boundary evidence. The October constitution refactor relocated engineering standards to [specify-rules.md](../../.agents/rules/specify-rules.md). References below use their current locations.
 
-This backlog tracks the specification of testability requirements and the subsequent implementation of runtime tests and benchmarks. **Documentary completion of verification policies, schemas, and matrices under feature `057-improve-verification-contracts` DOES NOT close the runtime backlog items.** Each item remains open until its governing references, verification method, evidence location, and completion criteria are satisfied by executed runtime evidence. Missing thresholds, hardware selections, or unexecuted tests MUST NOT be interpreted as passing results.
+This backlog tracks the specification of testability requirements and the subsequent implementation of runtime tests and benchmarks. **Documentary completion of verification policies, schemas, and matrices under feature `057-improve-verification-contracts` DOES NOT close the runtime backlog items.** Each item remains open until its governing references, verification method, evidence location, and completion criteria are satisfied by executed runtime evidence. Missing thresholds, hardware selections, or unexecuted tests MUST NOT be interpreted as passing results. The [feature 057 follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) tracks the associated work and must be read alongside later feature evidence.
 
 ## Recommended Sequence
 
@@ -39,7 +39,7 @@ This backlog tracks the specification of testability requirements and the subseq
 **Documentary Delivery & Policy Status**:
 - **Delivery Status**: Policy and contracts delivered and adopted into Constitution 4.1.0; runtime implementation open.
 - **Governing Contracts**: BRD `NFR-PERF-020` retains full 60 FPS / <1% slow / 0 frozen frame budgets and designates vault list scrolling (`JRN-PERF-LIST`) and password detail inspection (`JRN-PERF-DETAIL`) as minimum journeys. TRD §9.6 establishes the 12-field measurement contract and execution integrity rules; Rules §1 enforces benchmark execution proof.
-- **Follow-Up Work**: Tracked in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-PERF-001`).
+- **Follow-Up Work**: Tracked in the [follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) (`FUP-PERF-001`).
 - **Runtime Execution Status**: `Deferred` / `Unverified`. Feature-055 performance deferrals remain intact. Hardware selection, benchmark fixes, and execution remain open.
 
 **Current evidence**: [CredentialListScrollBenchmark.kt](../../feature/fido2/src/macrobenchmark/kotlin/com/chimali/fido2/performance/CredentialListScrollBenchmark.kt) targets `com.chimali.app`, while the base application ID is `com.chimali`. Its conditional navigation/scrolling can skip the intended workload. The FIDO2 build file does not explicitly configure `src/macrobenchmark` as a runnable source set. The file is a starting point, not execution evidence.
@@ -63,8 +63,8 @@ This backlog tracks the specification of testability requirements and the subseq
 **Documentary Delivery & Policy Status**:
 - **Delivery Status**: Policy and contracts delivered and adopted into Constitution 4.1.0; runtime implementation open.
 - **Governing Contracts**: Rules §5.2 rewritten to require typed `Outcome.Failure` or wire mapping for external rejection while reserving `require()` / `check()` for internal invariants, strictly preserving §3.5 encapsulation. TRD §9.3 defines 4 boundaries, 6 constraint classes, parameterless rules, and negative test criteria; Rules §1 synchronizes negative-testing obligations.
-- **Follow-Up Work**: Tracked in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-SEC-002`).
-- **Runtime Execution Status**: `Unverified`. Negative test suites have not yet been implemented or executed.
+- **Follow-Up Work**: Tracked in the [follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) (`FUP-SEC-002`).
+- **Runtime Execution Status**: `Unverified` for the complete contract; partial negative tests have been implemented and executed. Feature 058 records, for example, invalid Base64, empty plaintext, malformed UTF-8 and cleanup assertions (COV-022), and corrupted snapshot rejection, cleanup and replay (COV-021). See its [test selection](../../specs/058-enforce-coverage-targets/test-selection.md) and [implementation evidence](../../specs/058-enforce-coverage-targets/implementation-evidence.md). These selected cases do not establish the complete boundary and constraint mapping or close FUP-SEC-002.
 
 **Current evidence**: [CredentialId.kt](../../core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/CredentialId.kt) validates encoding and decoded length; [PasskeyDecider.kt](../../core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/PasskeyDecider.kt) asserts supported algorithm/profile pairs. Clarify their boundary contracts rather than mechanically replacing assertions or duplicating validators.
 
@@ -85,7 +85,7 @@ This backlog tracks the specification of testability requirements and the subseq
 **Documentary Delivery & Policy Status**:
 - **Delivery Status**: Canonical registers delivered and linked under Constitution 4.1.0; runtime release audit open.
 - **Governing Contracts**: Created `docs/security/data-classification.md` (12 records) and `docs/security/platform-text-boundaries.md` (8 records). Linked bidirectionally from BRD §5.1, TRD §5.1, and Rules §5.5. Consolidated historical scopes (2026-09-09 Vault and 2026-10-14..16 feature-055).
-- **Follow-Up Work**: Tracked in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-SEC-001`).
+- **Follow-Up Work**: Tracked in the [follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) (`FUP-SEC-001`).
 - **Runtime Execution Status**: `Unverified`. Registers document historical findings; current release branch static and runtime memory audit remains open.
 
 **Verification and evidence location**: Store canonical entries in the two proposed registers. Cross-reference assessed source usages and ownership/cleanup tests or manual evidence; retain detailed run records in the relevant feature evidence. Mark unassessed usages explicitly open.
@@ -105,7 +105,7 @@ This backlog tracks the specification of testability requirements and the subseq
 **Documentary Delivery & Policy Status**:
 - **Delivery Status**: Matrices and contracts delivered and adopted under Constitution 4.1.0; runtime test implementation open.
 - **Governing Contracts**: TRD §9.4 establishes independent lifecycle matrices for Bluetooth relying party (`JRN-BLE-*`) and Android Credential Manager (`JRN-PASS-*`), and specifies all 12 failure-category decisions with append-only history preservation. BRD §9 and Rules §1 synchronized with explicit scopes and host vs. device evidence distinctions.
-- **Follow-Up Work**: Tracked in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-INT-001`, `FUP-INT-002`).
+- **Follow-Up Work**: Tracked in the [follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) (`FUP-INT-001`, `FUP-INT-002`).
 - **Runtime Execution Status**: `Unverified`. Physical Bluetooth hardware runs and on-device Credential Manager test execution remain open.
 
 **Verification and evidence location**: Maintain a journey-to-requirement/test matrix and named run reports in the implementing feature's evidence record, linked from the TRD. Record environment, restart strategy, substitutions, and unresolved limitations.
@@ -125,7 +125,7 @@ This backlog tracks the specification of testability requirements and the subseq
 **Documentary Delivery & Policy Status**:
 - **Delivery Status**: Policy and contracts delivered and adopted into Constitution 4.1.0; runtime implementation open.
 - **Governing Contracts**: TRD §6 blanket rule replaced with Compose semantics naming, roles, grouping, and decorative graphic exemptions. TRD §9.5 defines 4 task categories (`ACC-TASK-001..004`), 200% font scaling criteria, WCAG 2.1 AAA contrast ratios, and a 7-step TalkBack walkthrough protocol. Rules §1 and §5.4 synchronized.
-- **Follow-Up Work**: Tracked in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-ACC-001`).
+- **Follow-Up Work**: Tracked in the [follow-up register](../../specs/057-improve-verification-contracts/follow-ups.md) (`FUP-ACC-001`).
 - **Runtime Execution Status**: `Deferred`. BRD `FR-UI-011` implementation deferral remains strictly active; full UI rollout and TalkBack audits remain deferred.
 
 **Verification and evidence location**: Retain Compose semantics/layout results, contrast measurements, and manual TalkBack reports in the implementing feature's accessibility evidence record, linked from the TRD. Include journey, device/OS, TalkBack version, theme, font scale, results, and unresolved defects.
