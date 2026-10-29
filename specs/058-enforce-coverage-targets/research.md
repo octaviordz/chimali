@@ -106,3 +106,11 @@
 ## Research disposition
 
 All design choices needed for Phase 1 are resolved. Actual task-model execution, class/probe compatibility, device capabilities, remote provisioning, and measured deficits remain mandatory implementation verification. No fresh compliance or integration-enforcement claim is made by this research.
+
+## Coverage-tool evaluation (feature 059)
+
+Feature 059 completed the bounded JaCoCo tool evaluation on the inspected repository revision `eebc391bbe1956a325a95bcc6b2e401607e72ce7`. The comparison included JaCoCo 0.8.15 and Kover 0.9.11, with no third candidate qualifying in the bounded primary-source search. Kover's Gradle plugin documentation explicitly excludes Android device-test coverage, which is required by the current policy; its embedded and JaCoCo-backed configurations therefore do not establish a complete replacement. Exact Kover toolchain compatibility and counter, inventory, class/probe and accepted-baseline equivalence remain unverified.
+
+**Recommendation**: Retain the current JaCoCo workflow for the configured workloads and defer any replacement decision. The existing pipeline has historical local acceptance for a recorded complete host/device run; this is not a comparative measurement or proof of universal superiority. No comparative build, host/device test, benchmark or new coverage measurement was run because a host-only result could not answer complete-workload eligibility, while a separate device integration is outside scope and hosted device access remains waived. Runtime, maintenance and migration savings remain unknown. The original contemporaneous selection rationale remains undocumented.
+
+Hosted integration and live runner state remain waived/unverified. This evaluation changed no engine, thresholds, workloads, generated-code rules, verifier, hosted controls or runner state. No migration follow-up was proposed because no replacement is recommended. See [feature 059 evaluation](../059-coverage-tool-evaluation/evaluation/recommendation.md) and its [comparison](../059-coverage-tool-evaluation/evaluation/comparison.md).
