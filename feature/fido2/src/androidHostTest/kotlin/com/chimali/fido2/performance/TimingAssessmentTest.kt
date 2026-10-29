@@ -75,12 +75,88 @@ class TimingAssessmentTest {
     }
 
     @Test
-    fun `real monotonic measurement reports ordered interval`() {
-        val start = MonotonicMeasurement.nowNanos()
-        val end = MonotonicMeasurement.nowNanos()
+    fun `real monotonic measurement reports ordered interval and checks continuity`() {
+        val start = MonotonicMeasurement.begin()
+        Thread.sleep(25L)
+        val end = MonotonicMeasurement.end()
         val interval = MonotonicMeasurement.interval(start, end)
         assertEquals(MonotonicMeasurement.CLOCK_DOMAIN, interval.clockDomain)
         assertTrue((interval.elapsedNanos ?: -1L) >= 0L)
+        if (System.getProperty("os.name").orEmpty().contains("Windows", ignoreCase = true)) {
+            assertTrue(interval.suspendAwareElapsedNanos != null)
+            assertTrue(
+                interval.continuity == ClockContinuity.VERIFIED ||
+                    interval.continuity == ClockContinuity.SUSPEND_DETECTED ||
+                    interval.continuity == ClockContinuity.CLOCK_DISCONTINUITY,
+            )
+            if (interval.continuity == ClockContinuity.VERIFIED) {
+                assertTrue(kotlin.math.abs(requireNotNull(interval.clockDivergenceNanos)) <= 5_000_000L)
+            } else {
+                assertTrue(kotlin.math.abs(requireNotNull(interval.clockDivergenceNanos)) > 5_000_000L)
+            }
+        } else {
+            assertEquals(ClockContinuity.UNAVAILABLE, interval.continuity)
+        }
+    }
+
+    @Test
+    fun `suspend or clock discontinuity evidence makes real-clock operation incomplete`() {
+        val interval =
+            MonotonicInterval(
+                startNanos = 1_000L,
+                endNanos = 20_000_000L,
+                clockDomain = MonotonicMeasurement.CLOCK_DOMAIN,
+                continuity = ClockContinuity.SUSPEND_DETECTED,
+                suspendAwareElapsedNanos = 5_000L,
+                clockDivergenceNanos = 18_994_000L,
+            )
+
+        val result = TimingAssessment.assess(operation(interval = interval), emptyList())
+
+        assertEquals(OperationDecision.INCOMPLETE, result.decision)
+        assertNull(result.assessedDurationNanos)
+        assertEquals("host suspend detected during interval", result.reason)
+    }
+
+    @Test
+    fun `native suspend clock failures are retained as incomplete measurement evidence`() {
+        val loadFailure = readSuspendClockNanosOrNull { throw UnsatisfiedLinkError("native clock unavailable") }
+        val invocationFailure = readSuspendClockNanosOrNull { throw IllegalStateException("native query failed") }
+        val interval =
+            MonotonicMeasurement.interval(
+                MonotonicMeasurement.Reading(1_000L, loadFailure),
+                MonotonicMeasurement.Reading(20_000L, invocationFailure),
+            )
+        val result =
+            TimingAssessment.assess(
+                operation(interval = interval),
+                emptyList(),
+            )
+        val report =
+            MeasurementReport.create(
+                SimulatedWorkload(
+                    version = "clock-failure-test",
+                    warmupCount = 0,
+                    repetitionCount = 1,
+                    summary = "clock failure handling",
+                    eligibleAfterWarmup = true,
+                    operationTypes = setOf("makeCredential"),
+                    exercisedOperationTypes = setOf("makeCredential"),
+                    host = "host-test",
+                    runtime = "JVM",
+                    sourceRevision = "synthetic-test-revision",
+                    realComponents = setOf("operation calculator"),
+                    simulatedComponents = setOf("RP", "transport", "verification"),
+                ),
+                emptyList(),
+                listOf(result),
+            )
+
+        assertEquals(ClockContinuity.UNAVAILABLE, interval.continuity)
+        assertEquals(OperationDecision.INCOMPLETE, result.decision)
+        assertEquals("suspend detection is unavailable on this host", result.reason)
+        assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
+        assertTrue(report.reasons.any { it.contains("insufficient eligible measured") })
     }
 
     @Test

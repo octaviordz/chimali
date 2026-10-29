@@ -42,6 +42,7 @@ timber = "5.0.1"
 kermit = "2.0.4"
 okio = "3.9.0"
 kotlinx-datetime = "0.8.0"
+jna = "5.19.1"
 slf4j = "2.0.16"
 kmpworkmanager = "2.3.9"
 guava = "31.1-android"
@@ -51,6 +52,7 @@ protobuf = "3.25.3"
 protobuf-plugin = "0.9.4"
 
 [libraries]
+jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-ktx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "androidx-activity" }

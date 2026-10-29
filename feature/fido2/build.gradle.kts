@@ -163,6 +163,7 @@ kotlin {
                 implementation(libs.slf4j.simple)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.jna)
             }
         }
 

@@ -75,7 +75,7 @@ if (-not $SkipTests) {
 # Coverage includes connected Android suites, so keep it opt-in for the pre-commit path.
 # Run explicitly with -RunCoverage when a connected device is available.
 if ($RunCoverage) {
-    Run-Task "Coverage Gate (host and connected device suites)" "./gradlew --no-configuration-cache -I tools/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify"
+    Run-Task "Coverage Gate (host and connected device suites)" "./gradlew --no-configuration-cache '-Pkotlin.compiler.execution.strategy=in-process' -I tools/hdk-coverage.init.gradle hdkHostCoverage hdkCoverageVerify"
 }
 
 $TotalDuration = (Get-Date) - $StartTime

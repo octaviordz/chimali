@@ -40,7 +40,7 @@ data class SimulatedWorkload(
         get() = operationTypes - exercisedOperationTypes
 }
 
-enum class CeremonyKind { REGISTRATION, AUTHENTICATION, OPERATION_PROBE }
+enum class CeremonyKind { REGISTRATION, AUTHENTICATION }
 
 enum class CeremonyOutcome { VERIFIED, REJECTED, CANCELLED, FAILED, TIMED_OUT, INCOMPLETE }
 
@@ -54,6 +54,9 @@ data class MonotonicInterval(
     val startNanos: Long,
     val endNanos: Long,
     val clockDomain: String,
+    val continuity: ClockContinuity = ClockContinuity.NOT_MONITORED,
+    val suspendAwareElapsedNanos: Long? = null,
+    val clockDivergenceNanos: Long? = null,
 ) {
     init {
         require(clockDomain.isNotBlank())
@@ -62,6 +65,9 @@ data class MonotonicInterval(
     val elapsedNanos: Long?
         get() = (endNanos - startNanos).takeIf { it >= 0L }
 }
+
+/** Independent evidence that a real monotonic interval did not span system suspend or clock divergence. */
+enum class ClockContinuity { NOT_MONITORED, VERIFIED, SUSPEND_DETECTED, CLOCK_DISCONTINUITY, UNAVAILABLE }
 
 @Req("TR-PERF-010")
 data class OperationRecord(

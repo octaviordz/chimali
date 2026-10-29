@@ -104,19 +104,25 @@ object MeasurementReport {
             }
             val verifiedKinds =
                 attempts
-                    .mapNotNull { attempt ->
-                        attempt.kind.takeIf {
-                            attempt.kind != CeremonyKind.OPERATION_PROBE &&
-                                attempt.attemptKind == AttemptKind.MEASURED &&
-                                attempt.verifiedResponse
-                        }
-                    }.toSet()
+                    .filter { it.attemptKind == AttemptKind.MEASURED && it.verifiedResponse }
+                    .map { it.kind }
+                    .toSet()
             val missingKinds = setOf(CeremonyKind.REGISTRATION, CeremonyKind.AUTHENTICATION) - verifiedKinds
             if (missingKinds.isNotEmpty()) {
                 add("no verified ceremony for: ${missingKinds.sortedBy { it.name }.joinToString()}")
             }
             if (workload.unmeasuredOperationTypes.isNotEmpty()) {
                 add("unmeasured operation types: ${workload.unmeasuredOperationTypes.sorted().joinToString()}")
+            }
+            workload.operationTypes.forEach { type ->
+                val count =
+                    eligibleAssessments.count {
+                        it.operation.type == type &&
+                            it.decision != OperationDecision.INCOMPLETE
+                    }
+                if (count < workload.repetitionCount) {
+                    add("insufficient eligible measured $type operations: $count/${workload.repetitionCount}")
+                }
             }
             val seen = eligibleAssessments.map { it.operation.type }.toSet()
             val missing = workload.operationTypes - seen
@@ -127,6 +133,9 @@ object MeasurementReport {
             if (attempts.any { it.attemptKind == AttemptKind.MEASURED && it.outcome == CeremonyOutcome.INCOMPLETE }) {
                 add("one or more measured ceremony attempts are incomplete")
             }
+            if (attempts.any { it.attemptKind == AttemptKind.MEASURED && it.outcome != CeremonyOutcome.VERIFIED }) {
+                add("one or more measured actions failed, were rejected, or were interrupted")
+            }
             if (attempts.any {
                     it.attemptKind == AttemptKind.MEASURED &&
                         it.verifiedResponse &&
@@ -135,7 +144,18 @@ object MeasurementReport {
             ) {
                 add("one or more verified measured ceremony intervals are invalid")
             }
+            if (attempts.any {
+                    it.attemptKind == AttemptKind.MEASURED &&
+                        it.verifiedResponse &&
+                        it.ceremonyInterval?.let(::hasInvalidContinuityEvidence) == true
+                }
+            ) {
+                add("one or more verified measured ceremony intervals lack valid suspend-continuity evidence")
+            }
         }
+
+    private fun hasInvalidContinuityEvidence(interval: MonotonicInterval): Boolean =
+        interval.clockDomain == MonotonicMeasurement.CLOCK_DOMAIN && interval.continuity != ClockContinuity.VERIFIED
 
     private fun identityReasons(
         attempts: List<CeremonyAttempt>,
@@ -166,6 +186,6 @@ object MeasurementReport {
         operationsById: Map<String, OperationRecord>,
     ): Boolean {
         val source = operationsById[assessment.operation.operationId] ?: return false
-        return source.actionId != assessment.operation.actionId || source.type != assessment.operation.type
+        return source != assessment.operation
     }
 }

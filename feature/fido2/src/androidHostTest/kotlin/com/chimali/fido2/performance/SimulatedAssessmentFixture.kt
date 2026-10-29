@@ -106,6 +106,7 @@ internal class SimulatedAssessmentFixture {
         actionId: String,
         kind: AttemptKind,
         repetition: Int,
+        verificationOutcome: VerificationOutcome = VerificationOutcome.SUCCESS,
     ): CeremonyAttempt {
         val requestHash = syntheticHash("registration-$repetition")
         val request = SimulatedRelyingParty.Request(relyingPartyId, relyingPartyId, requestHash, requestHash.copyOf())
@@ -135,9 +136,20 @@ internal class SimulatedAssessmentFixture {
                 attemptKind = kind,
                 issueRequest = { request },
                 execute = {
-                    userVerification(VerificationOutcome.SUCCESS)
+                    val verification = requireSuccessfulUserVerification(verificationOutcome)
+                    operation("GetInfo") {
+                        getInfoDispatcher().handleGetInfo(byteArrayOf(1, 2, 3, 4)).also { packets ->
+                            check(isSuccessfulGetInfo(packets)) { "GetInfo returned an invalid CTAP response" }
+                        }
+                    }
                     operation("MakeCredential") {
-                        when (val result = registrationUseCase(options, userVerificationPerformed = true)) {
+                        when (
+                            val result =
+                                registrationUseCase(
+                                    options,
+                                    userVerificationPerformed = verification.outcome == VerificationOutcome.SUCCESS,
+                                )
+                        ) {
                             is Outcome.Success ->
                                 result.data.also { makeResult ->
                                     currentSummary?.let { old ->
@@ -191,6 +203,7 @@ internal class SimulatedAssessmentFixture {
         actionId: String,
         kind: AttemptKind,
         repetition: Int,
+        verificationOutcome: VerificationOutcome = VerificationOutcome.SUCCESS,
     ): CeremonyAttempt {
         val requestHash = syntheticHash("authentication-$repetition")
         val request = SimulatedRelyingParty.Request(relyingPartyId, relyingPartyId, requestHash, requestHash.copyOf())
@@ -217,13 +230,30 @@ internal class SimulatedAssessmentFixture {
                 attemptKind = kind,
                 issueRequest = { request },
                 execute = {
-                    userVerification(VerificationOutcome.SUCCESS)
-                    operation("GetAssertion") {
-                        when (val result = assertionUseCase(options, userVerificationPerformed = true)) {
-                            is Outcome.Success -> result.data
-                            is Outcome.Error -> error("synthetic assertion failed: ${result.error::class.simpleName}")
+                    val verification = requireSuccessfulUserVerification(verificationOutcome)
+                    val assertion =
+                        operation("GetAssertion") {
+                            when (
+                                val result =
+                                    assertionUseCase(
+                                        options,
+                                        userVerificationPerformed =
+                                            verification.outcome == VerificationOutcome.SUCCESS,
+                                    )
+                            ) {
+                                is Outcome.Success -> result.data
+                                is Outcome.Error ->
+                                    error(
+                                        "synthetic assertion failed: ${result.error::class.simpleName}",
+                                    )
+                            }
                         }
+                    operation("ResetAuthenticator") {
+                        Ctap2ResetAuthenticatorHandler(ResetAuthenticatorUseCase(repository))
+                            .handle(byteArrayOf())
+                            .also { status -> check(status.contentEquals(byteArrayOf(0))) }
                     }
+                    assertion
                 },
                 verify = { rpRequest, response ->
                     try {
@@ -244,79 +274,21 @@ internal class SimulatedAssessmentFixture {
     }
 
     /** Runs the production GetInfo dispatcher, capability provider and CTAP response encoder. */
-    suspend fun getInfoProbe(
-        runId: String,
-        attemptId: String,
-        actionId: String,
-        kind: AttemptKind,
-        repetition: Int,
-    ): CeremonyAttempt {
-        val requestHash = syntheticHash("get-info-$repetition")
-        val request = SimulatedRelyingParty.Request(relyingPartyId, relyingPartyId, requestHash, requestHash.copyOf())
+    private fun getInfoDispatcher(): CtapHidCommandDispatcher {
         val parser = HidReportParser()
         val responseBuilder = Ctap2ResponseBuilder(cbor, parser)
-        val dispatcher =
-            CtapHidCommandDispatcher(
-                hidReportParser = parser,
-                responseBuilder = responseBuilder,
-                getAssertionHandler = mockk<Ctap2GetAssertionHandler>(relaxed = true),
-                authenticatorInfoProvider = AuthenticatorInfoProvider(),
-                cborRequestOwner = mockk<CtapHidRequestOwner>(relaxed = true),
-                u2fApduCommandHandler = mockk<U2fApduCommandHandler>(relaxed = true),
-                isCurrentSession = { true },
-                isChannelRegistered = { _, _ -> true },
-                allocateCid = { null },
-                sendPackets = { _, _ -> },
-            )
-        val cid = byteArrayOf(1, 2, 3, 4)
-        return try {
-            ceremony.run(
-                runId = runId,
-                attemptId = attemptId,
-                actionId = actionId,
-                kind = CeremonyKind.OPERATION_PROBE,
-                attemptKind = kind,
-                issueRequest = { request },
-                execute = {
-                    operation("GetInfo") { dispatcher.handleGetInfo(cid) }
-                },
-                verify = { _, packets -> packets.isNotEmpty() && packets.all { it.size == 62 } },
-            )
-        } finally {
-            requestHash.fill(0)
-            request.challenge.fill(0)
-            request.clientDataHash.fill(0)
-            cid.fill(0)
-        }
-    }
-
-    /** Runs the production reset handler/use case against an isolated synthetic repository. */
-    suspend fun resetProbe(
-        runId: String,
-        attemptId: String,
-        actionId: String,
-        kind: AttemptKind,
-        repetition: Int,
-    ): CeremonyAttempt {
-        val requestHash = syntheticHash("reset-$repetition")
-        val request = SimulatedRelyingParty.Request(relyingPartyId, relyingPartyId, requestHash, requestHash.copyOf())
-        val handler = Ctap2ResetAuthenticatorHandler(ResetAuthenticatorUseCase(repository))
-        return try {
-            ceremony.run(
-                runId = runId,
-                attemptId = attemptId,
-                actionId = actionId,
-                kind = CeremonyKind.OPERATION_PROBE,
-                attemptKind = kind,
-                issueRequest = { request },
-                execute = { operation("ResetAuthenticator") { handler.handle(byteArrayOf()) } },
-                verify = { _, response -> response.contentEquals(byteArrayOf(0x00)) },
-            )
-        } finally {
-            requestHash.fill(0)
-            request.challenge.fill(0)
-            request.clientDataHash.fill(0)
-        }
+        return CtapHidCommandDispatcher(
+            hidReportParser = parser,
+            responseBuilder = responseBuilder,
+            getAssertionHandler = mockk<Ctap2GetAssertionHandler>(relaxed = true),
+            authenticatorInfoProvider = AuthenticatorInfoProvider(),
+            cborRequestOwner = mockk<CtapHidRequestOwner>(relaxed = true),
+            u2fApduCommandHandler = mockk<U2fApduCommandHandler>(relaxed = true),
+            isCurrentSession = { true },
+            isChannelRegistered = { _, _ -> true },
+            allocateCid = { null },
+            sendPackets = { _, _ -> },
+        )
     }
 
     fun dispose() {

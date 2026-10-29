@@ -139,7 +139,10 @@ internal object MeasurementReportJson {
             append("{\"start_ns\":").append(interval.startNanos)
             append(",\"end_ns\":").append(interval.endNanos)
             append(",\"elapsed_ns\":").append(interval.elapsedNanos ?: "null")
-            append(",\"clock_domain\":").append(quoted(interval.clockDomain)).append("}")
+            append(",\"clock_domain\":").append(quoted(interval.clockDomain))
+            append(",\"clock_continuity\":").append(quoted(interval.continuity.name))
+            append(",\"suspend_aware_elapsed_ns\":").append(interval.suspendAwareElapsedNanos ?: "null")
+            append(",\"clock_divergence_ns\":").append(interval.clockDivergenceNanos ?: "null").append("}")
         }
 
     private fun number(value: Long?): String = value?.toString() ?: "null"

@@ -51,7 +51,17 @@ class SimulatedCeremonyTest {
                 ) >= 0L,
             )
             assertNotNull(attempt.verification.interval)
-            assertEquals(OperationDecision.PASS, attempt.operationAssessments.single().decision)
+            val operationAssessment = attempt.operationAssessments.single()
+            assertTrue(
+                operationAssessment.decision == OperationDecision.PASS ||
+                    operationAssessment.decision == OperationDecision.INCOMPLETE,
+            )
+            if (operationAssessment.decision == OperationDecision.INCOMPLETE) {
+                assertTrue(
+                    operationAssessment.reason?.contains("suspend") == true ||
+                        operationAssessment.reason?.contains("discontinuity") == true,
+                )
+            }
             assertEquals(
                 ExclusionRecord.Kind.USER_VERIFICATION,
                 attempt.operationAssessments
@@ -106,7 +116,22 @@ class SimulatedCeremonyTest {
             assertEquals("completed", attempt.operations.single().terminalOutcome)
             assertEquals(OperationDecision.INCOMPLETE, attempt.operationAssessments.single().decision)
             assertEquals(false, attempt.operationAssessments.single().eligibleForDecision)
-            assertTrue(attempt.operationAssessments.single().rawDurationNanos != null)
+            if (attempt.operationAssessments.single().decision == OperationDecision.INCOMPLETE &&
+                (
+                    attempt.operationAssessments
+                        .single()
+                        .reason
+                        ?.contains("suspend") == true ||
+                        attempt.operationAssessments
+                            .single()
+                            .reason
+                            ?.contains("discontinuity") == true
+                )
+            ) {
+                assertEquals(null, attempt.operationAssessments.single().rawDurationNanos)
+            } else {
+                assertTrue(attempt.operationAssessments.single().rawDurationNanos != null)
+            }
         }
 
     @Test
@@ -191,29 +216,37 @@ class SimulatedCeremonyTest {
         }
 
     @Test
-    fun `verification denial is recorded and cannot become a verified sample`() =
+    fun `verification outcomes govern whether the operation workflow can continue`() =
         runBlocking {
-            val attempt =
-                SimulatedCeremony(SimulatedUserVerification()).run(
-                    runId = "synthetic-run",
-                    attemptId = "denied",
-                    actionId = "action-denied",
-                    kind = CeremonyKind.REGISTRATION,
-                    attemptKind = AttemptKind.MEASURED,
-                    issueRequest = { request() },
-                    execute = {
-                        val result = userVerification(VerificationOutcome.DENIAL)
-                        check(result.outcome == VerificationOutcome.SUCCESS)
-                        operation("MakeCredential") { "unreachable" }
-                    },
-                    verify = { _, _ -> false },
+            val cases =
+                mapOf(
+                    VerificationOutcome.DENIAL to CeremonyOutcome.FAILED,
+                    VerificationOutcome.CANCELLED to CeremonyOutcome.CANCELLED,
+                    VerificationOutcome.TIMEOUT to CeremonyOutcome.TIMED_OUT,
+                    VerificationOutcome.ERROR to CeremonyOutcome.FAILED,
                 )
+            cases.forEach { (verificationOutcome, expectedOutcome) ->
+                val attempt =
+                    SimulatedCeremony(SimulatedUserVerification()).run(
+                        runId = "synthetic-run",
+                        attemptId = verificationOutcome.name,
+                        actionId = "action-${verificationOutcome.name}",
+                        kind = CeremonyKind.REGISTRATION,
+                        attemptKind = AttemptKind.MEASURED,
+                        issueRequest = { request() },
+                        execute = {
+                            requireSuccessfulUserVerification(verificationOutcome)
+                            operation("MakeCredential") { "reachable only after success" }
+                        },
+                        verify = { _, _ -> false },
+                    )
 
-            assertEquals(CeremonyOutcome.FAILED, attempt.outcome)
-            assertEquals(VerificationOutcome.DENIAL, attempt.verification.outcome)
-            assertTrue((attempt.verification.interval?.elapsedNanos ?: -1L) >= 0L)
-            assertTrue(attempt.operations.isEmpty())
-            assertEquals(false, attempt.verifiedResponse)
+                assertEquals(expectedOutcome, attempt.outcome)
+                assertEquals(verificationOutcome, attempt.verification.outcome)
+                assertTrue((attempt.verification.interval?.elapsedNanos ?: -1L) >= 0L)
+                assertTrue(attempt.operations.isEmpty())
+                assertEquals(false, attempt.verifiedResponse)
+            }
         }
 
     private fun request() =

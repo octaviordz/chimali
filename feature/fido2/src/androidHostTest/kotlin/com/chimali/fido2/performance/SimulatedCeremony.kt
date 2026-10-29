@@ -4,6 +4,7 @@ import com.chimali.core.common.annotation.Req
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 
 /** Runs one host-side RP action while retaining its raw request-to-verification interval and nested app spans. */
 @Req("TR-PERF-010")
@@ -30,7 +31,7 @@ class SimulatedCeremony(
             work: suspend () -> T,
         ): T {
             val id = UUID.randomUUID().toString()
-            val start = MonotonicMeasurement.nowNanos()
+            val start = MonotonicMeasurement.begin()
             var outcome = "completed"
             try {
                 return work()
@@ -44,7 +45,7 @@ class SimulatedCeremony(
                 outcome = "failed:${failure::class.simpleName ?: "unknown"}"
                 throw failure
             } finally {
-                val end = MonotonicMeasurement.nowNanos()
+                val end = MonotonicMeasurement.end()
                 val record =
                     OperationRecord(
                         operationId = id,
@@ -60,6 +61,21 @@ class SimulatedCeremony(
         fun userVerification(outcome: VerificationOutcome): VerificationRecord {
             check(verificationRecord == null) { "only one user-verification invocation is supported per attempt" }
             return verificationDouble.provide(outcome).also { verificationRecord = it }
+        }
+
+        /** Records the test-double outcome and permits the production operation only on success. */
+        @Suppress("ThrowsCount")
+        suspend fun requireSuccessfulUserVerification(outcome: VerificationOutcome): VerificationRecord {
+            val record = userVerification(outcome)
+            when (record.outcome) {
+                VerificationOutcome.SUCCESS -> Unit
+                VerificationOutcome.DENIAL -> throw SecurityException("simulated user verification denied")
+                VerificationOutcome.CANCELLED -> throw CancellationException("simulated user verification cancelled")
+                VerificationOutcome.TIMEOUT -> withTimeout(0) { Unit }
+                VerificationOutcome.ERROR -> error("simulated user verification failed")
+                VerificationOutcome.NOT_INVOKED -> error("NOT_INVOKED must use notInvoked()")
+            }
+            return record
         }
 
         fun notInvoked(): VerificationRecord {
@@ -86,7 +102,7 @@ class SimulatedCeremony(
     ): CeremonyAttempt {
         require(runId.isNotBlank() && attemptId.isNotBlank() && actionId.isNotBlank())
         val trace = ActionTrace(actionId, verificationDouble)
-        val start = MonotonicMeasurement.nowNanos()
+        val start = MonotonicMeasurement.begin()
         var outcome = CeremonyOutcome.FAILED
         var reason: String? = null
         try {
@@ -104,7 +120,7 @@ class SimulatedCeremony(
             outcome = CeremonyOutcome.FAILED
             reason = "ceremony failed: ${failure::class.simpleName ?: "unknown"}"
         }
-        val end = MonotonicMeasurement.nowNanos()
+        val end = MonotonicMeasurement.end()
         val verificationRecord = trace.verification
         val operations = trace.operations
         val exclusions =

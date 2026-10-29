@@ -80,6 +80,57 @@ class MeasurementReportTest {
     }
 
     @Test
+    fun `failed measured action and missing operation repetitions make report incomplete`() {
+        val registration = attempt(CeremonyKind.REGISTRATION, "registration")
+        val registrationOperation = registration.operations.single()
+        val failedBase = attempt(CeremonyKind.AUTHENTICATION, "failed-authentication")
+        val failedOperation = failedBase.operations.single().copy(terminalOutcome = "failed:synthetic")
+        val failed =
+            failedBase.copy(
+                outcome = CeremonyOutcome.FAILED,
+                verifiedResponse = false,
+                operations = listOf(failedOperation),
+                operationAssessments =
+                    listOf(TimingAssessment.assess(failedOperation, emptyList(), responseVerified = false)),
+            )
+        val report =
+            MeasurementReport.create(
+                workload.copy(repetitionCount = 2),
+                listOf(registration, failed),
+                listOf(
+                    TimingAssessment.assess(registrationOperation, emptyList()),
+                    failed.operationAssessments.single(),
+                ),
+            )
+        assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
+        assertTrue(report.reasons.any { it.contains("insufficient eligible measured makeCredential") })
+        assertTrue(report.reasons.any { it.contains("measured actions failed") })
+    }
+
+    @Test
+    fun `suspend-spanning ceremony makes report incomplete`() {
+        val attempts =
+            listOf(
+                attempt(CeremonyKind.REGISTRATION, "1").copy(
+                    ceremonyInterval =
+                        MonotonicInterval(
+                            1L,
+                            2L,
+                            MonotonicMeasurement.CLOCK_DOMAIN,
+                            continuity = ClockContinuity.SUSPEND_DETECTED,
+                            suspendAwareElapsedNanos = 0L,
+                            clockDivergenceNanos = 1L,
+                        ),
+                ),
+                attempt(CeremonyKind.AUTHENTICATION, "2"),
+            )
+        val report = MeasurementReport.create(workload, attempts, listOf(assessment(OperationDecision.PASS)))
+
+        assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
+        assertTrue(report.reasons.any { it.contains("suspend-continuity") })
+    }
+
+    @Test
     fun `not invoked verification has no execution duration`() {
         val value = VerificationRecord(VerificationOutcome.NOT_INVOKED, null)
         assertEquals(null, value.interval)
@@ -129,6 +180,34 @@ class MeasurementReportTest {
         assertFalse(unmatched.reasons.none { it.contains("unmatched") || it.contains("attribution") })
         assertEquals(ProjectDisposition.INCOMPLETE, duplicateAction.disposition)
         assertFalse(duplicateAction.reasons.none { it.contains("action identities") })
+    }
+
+    @Test
+    fun `report rejects assessments whose operation interval or outcome differs from attempt evidence`() {
+        val registration = attempt(CeremonyKind.REGISTRATION, "1")
+        val authentication = attempt(CeremonyKind.AUTHENTICATION, "2")
+        val recordedOperation = registration.operations.single()
+        val validAssessment = TimingAssessment.assess(recordedOperation, emptyList())
+        val mismatchedInterval =
+            validAssessment.copy(
+                operation = recordedOperation.copy(interval = MonotonicInterval(1L, 3L, "test")),
+            )
+        val mismatchedOutcome =
+            validAssessment.copy(
+                operation = recordedOperation.copy(terminalOutcome = "failed:synthetic"),
+            )
+
+        listOf(mismatchedInterval, mismatchedOutcome).forEach { assessment ->
+            val report =
+                MeasurementReport.create(
+                    workload,
+                    listOf(registration, authentication),
+                    listOf(assessment, TimingAssessment.assess(authentication.operations.single(), emptyList())),
+                )
+
+            assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
+            assertTrue(report.reasons.any { it.contains("attribution is ambiguous") })
+        }
     }
 
     @Test
@@ -236,7 +315,8 @@ class MeasurementReportTest {
         assertEquals(OperationDecision.INCOMPLETE, rejectedAssessment.decision)
         assertFalse(rejectedAssessment.eligibleForDecision)
         assertTrue(rejectedAssessment.rawDurationNanos != null)
-        assertEquals(ProjectDisposition.PASS, report.disposition)
+        assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
+        assertTrue(report.reasons.any { it.contains("measured actions failed") })
         assertEquals(2, report.operationSummaries.getValue("makeCredential").occurrenceCount)
         assertEquals(3, report.attempts.size)
     }

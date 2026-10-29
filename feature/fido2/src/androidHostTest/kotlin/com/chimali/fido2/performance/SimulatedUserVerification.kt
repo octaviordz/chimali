@@ -17,8 +17,8 @@ class SimulatedUserVerification {
         require(outcome != VerificationOutcome.NOT_INVOKED) {
             "Use notInvoked() when the verification boundary was not entered"
         }
-        val start = MonotonicMeasurement.nowNanos()
-        val end = MonotonicMeasurement.nowNanos()
+        val start = MonotonicMeasurement.begin()
+        val end = MonotonicMeasurement.end()
         return VerificationRecord(outcome, MonotonicMeasurement.interval(start, end)).also(recordedInvocations::add)
     }
 
