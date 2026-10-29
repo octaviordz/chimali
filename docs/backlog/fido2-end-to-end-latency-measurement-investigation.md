@@ -1,16 +1,20 @@
 # Backlog: Investigate FIDO2 End-to-End Latency Measurement
 
-**Status**: Open — deferred to a future session by the user  
+**Status**: Superseded on 2026-10-29 by owner decision; physical campaign retired as the project acceptance assessment  
 **Created**: 2026-10-16  
 **Origin**: Feature 055, SC-007 / T084  
 **Related task**: [Feature tasks](../../specs/055-migrate-hdk-draft/tasks.md)  
 **Evidence**: [Implementation evidence](../../specs/055-migrate-hdk-draft/implementation-evidence.md), sections “SC-007 instrumented ASUS capture 1”, “capture 2”, and “controlled registration retry”.
 
-## Reason for deferral
+## Superseding decision (2026-10-29)
+
+The owner replaced the physical ASUS/Windows RP-to-verified-response target as the project latency acceptance assessment with Feature 060's host-simulated workflow. The declared host assessment measured ten occurrences each of MakeCredential, GetAssertion, GetInfo and ResetAuthenticator; all 40 passed the strict <200ms target. Feature-055 SC-007 is met by this assessment. See [the Feature-060 implementation evidence](../../specs/060-fido2-latency-measurement/implementation-evidence.md). The historical captures below remain diagnostic records only and are not discarded or reclassified as passing. T084 is superseded, not completed by physical measurements. T085 optimization work remains separately deferred.
+
+## Historical reason for original deferral
 
 The user assessed the ASUS/Windows Bluetooth passkey experience as good and accepted it from a UX perspective. The browser timing residual appeared inconsistent with that experience. The user requested a future investigation of the measurement and asked to continue another task. A measurement defect is a hypothesis; the captured results do not establish its cause.
 
-This defers the end-to-end investigation and remaining T084 sample campaign. It does not certify the numeric <1s target, change that target, or waive the separate <200ms target for all internal FIDO operations under T085.
+This records the original 2026-10-16 deferral rationale only. It is superseded by the 2026-10-29 decision above; the <1s physical target is retired, while the <200ms internal-operation target remains in force.
 
 **Later direction in the same session:** The user subsequently deferred all performance enhancements, including T085, to [a later internal performance phase](fido2-internal-performance-enhancements.md). Both investigations are deferred; neither target has been certified or removed.
 
@@ -44,3 +48,6 @@ The workload used the user-designated ASUS Zenfone 10, Android 15/API 35, optimi
 - The <1s end-to-end assessment uses an agreed, validated boundary; any proposed requirement change is explicit and reviewed separately.
 - Requirements, harness labels, quickstart and SC-007/T084 status are reconciled with the findings. User UX acceptance is recorded separately from numeric compliance.
 - Internal FIDO operation results remain tracked under T085, independently of this investigation.
+
+
+

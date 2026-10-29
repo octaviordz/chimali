@@ -1,11 +1,11 @@
 # Technical Requirements Document (TRD) - Chimali
 
 **Project Name**: Chimali  
-**Version**: 0.3.0
+**Version**: 0.4.0
 **Status**: Approved  
 **Reference Document**: [BRD](brd.md)
 
----
+ 
 
 ## 1. Executive Summary (Technical Context)
 This Technical Requirements Document (TRD) translates the business goals outlined in the [BRD](brd.md) into actionable technical specifications. While the BRD focuses on the "what" and "why," the TRD focuses on the "how" and the specific technical constraints for implementation.
@@ -13,7 +13,7 @@ This Technical Requirements Document (TRD) translates the business goals outline
 ## 2. Project Overview (Architectural)
 Chimali follows a **Clean Architecture** pattern with **Unidirectional Data Flow (UDF)** and **MVI (Model-View-Intent)** across three primary layers:
 
-- **UI / Presentation Layer** (Jetpack Compose): Renders state and emits user intents. MUST contain no business logic. State is consumed as `StateFlow`; intents are dispatched to ViewModels.
+ 
 - **Domain Layer** (Aggregates, Services, Use Cases): Pure Kotlin business rules, invariants, and workflows. MUST remain independent of presentation frameworks and persistence mechanisms.
 - **Data Layer** (Repositories, Event Store): The authoritative Single Source of Truth (SSOT). Exposes reactive streams (`Flow` / `StateFlow`) upward.
 
@@ -161,7 +161,7 @@ Event Sourcing serves as the primary persistence and audit mechanism for core ag
 - **TR-UI-050: Relying Party Icon Loading**: Prompts must support display of the RP icon/favicon. Implement using an asynchronous image loading library (e.g., **Coil**) with an automatic fallback to `https://{rpId}/favicon.ico` if the request doesn't provide a specific icon URL.
 - **TR-UI-060: Multi-Transport UI Context**: Prompt ViewModels must determine the transport (Local/Credential Manager vs. Remote/HID) to display the correct contextual header (e.g. "Create a passkey on another device" vs. "Create a passkey for this device").
 - **TR-UI-070: Standardized Button Styling Implementation**: All primary and secondary action buttons in the FIDO2 and Vault modules must be implemented using Material 3 `shape.large` (16dp rounded corners) and a minimum vertical `contentPadding` of 16dp. This ensures global visual consistency and high-density touch targets compliant with NFR-PERF-030 accessibility guidelines.
-- **TR-PERF-010: Performance Monitoring Reporting**: Provide a local automated report for the RP-to-verified-response round trip (<1,000ms after subtracting measured user-verification wait) and all internal FIDO operation processing (<200ms each after subtracting measured user-verification wait and excluding Bluetooth response handoff), with accepted-report status and no credential secrets or identifying data.
+- **TR-PERF-010: Performance Monitoring Reporting**: Provide a local report for a host-simulated FIDO2 ceremony using a synthetic relying party and user-verification test double. Record request-to-independently-verified-response duration and each app-internal FIDO operation; each internal operation MUST be <200ms, excluding measured user-verification work and Bluetooth response handoff. Physical-device latency is diagnostic only. Reports include workload, environment and accepted-report status and contain no credential secrets or identifying data.
 - **TR-UI-080 (superseded)**: The previous HDK remote-flow/KEM requirement is retired for the current local profile. No remote provisioning or issuer behavior is specified here.
 - **TR-DOC-010: Help System Architecture**: User guidance must be maintained as internal static Markdown files, rendered via a specialized `MarkdownText` Composable to provide a localized, on-device help experience.
 - **TR-DOC-020: Technical Documentation**: Full API documentation and cryptographic architectural notes (specifically for HDK derivation) must be maintained for developer reference.
@@ -381,11 +381,12 @@ Any future performance measurement proposal or benchmark suite MUST fully specif
 - **Proof of Execution Required**: Reports MUST include tool logs proving test discovery and active workload execution.
 - **Failed Workload Rule**: Any benchmark run that fails setup, aborts navigation, or produces an empty workload MUST be marked `Failed`; reporting a 0-ms empty run as passing is strictly prohibited.
 - **Prohibition on Inferred Compliance**: Collecting raw metrics without threshold comparison, reporting mathematical averages that obscure frame spikes, or inferring device compliance from an emulator or disparate hardware is prohibited from establishing compliance.
-- **Preserved Deferrals**: Feature-055 performance deferrals (T084, T085, partial SC-007) and benchmark fixes remain deferred in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-PERF-001`). This feature defines the measurement contract framework; no new benchmarks are executed.
+- **Performance Follow-ups**: Feature-055 T084 is superseded by the owner-approved Feature-060 simulated internal-operation assessment. The declared run measured ten occurrences each for MakeCredential, GetAssertion, GetInfo and ResetAuthenticator; all 40 passed below 200ms, meeting SC-007 for the declared host workload. T085 profiling/optimization and benchmark fixes remain deferred in `specs/057-improve-verification-contracts/follow-ups.md` (`FUP-PERF-001`). See Feature-060's implementation evidence and retained assessment artifact.
 
 ---
 
 ## 10. Document Metadata
 - **Owner**: Chimali Engineering Team
-- **Version**: 0.3.0
+- **Version**: 0.4.0
 - **Reference**: [BRD](brd.md)
+

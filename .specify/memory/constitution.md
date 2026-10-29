@@ -1,5 +1,23 @@
 <!--
 SYNC IMPACT REPORT
+Current amendment: Version 5.0.0 -> 6.0.0 (MAJOR: Replace the binding physical FIDO2 ceremony latency target with host-simulated internal-operation assessment).
+Date: 2026-10-29; original ratification date retained: 2026-02-19.
+
+Modified Principles:
+  - Principle VI, Authenticator Latency Budget: Retired the physical Bluetooth RP-to-verified-response <1,000ms acceptance target. The required latency assessment now uses a synthetic relying party and user-verification test double on a host, measuring each app-internal FIDO operation against the existing strict <200ms limit, excluding measured user-verification work and Bluetooth response handoff. Physical-device experience may be recorded diagnostically but is not the project latency acceptance target.
+
+Synchronized Authorities & Registers (same authorized change):
+  - docs/brd.md NFR-PERF-030, FR-VAL-030 and NFR-PERF-050.
+  - docs/trd.md TR-PERF-010.
+  - specs/055-migrate-hdk-draft/spec.md SC-007, tasks.md T084 disposition and quickstart status.
+  - Feature 060 specification/design and the T084 investigation backlog.
+
+Rationale: The owner selected repeatable internal-workflow measurement without external human/device waiting as the project's relevant performance assessment. The user approved replacing the physical target; the strict existing per-operation target remains unchanged. T085 remains an independent deferred optimization/sample-campaign task, to be reconciled with results from Feature 060.
+
+No other principle changes. No device execution or numeric pass is claimed.
+-->
+<!--
+SYNC IMPACT REPORT
 Current amendment: Version 4.1.0 -> 5.0.0 (MAJOR: Raise the binding coverage floors).
 Date: 2026-10-24; ratified date retained: 2026-02-19.
 
@@ -70,7 +88,7 @@ Chimali is a security-first Android application providing a local-first, encrypt
 ### VI. Performance Vitals & Resource Budgets
 
 - **Android Vitals Enforcement**: Features MUST adhere to strict vitals: Cold start < 2s, Warm < 1s, Hot < 500ms; consistent 60 FPS; zero memory leaks; wake locks < 0.1%.
-- **Authenticator Latency Budget**: FIDO2 Bluetooth authenticator RP-to-verified-response round trip MUST be < 1,000ms (excluding measured user-verification wait). Internal FIDO operation processing MUST be < 200ms (excluding user-verification wait and BLE handoff). Outgoing HID reports MUST utilize a thread-safe FIFO queuing mechanism to prevent packet loss during rapid or fragmented transactions.
+- **Authenticator Latency Budget**: Performance acceptance MUST measure all implemented app-internal FIDO operation processing through a host-simulated ceremony using a synthetic relying party and user-verification test double. Each operation MUST be < 200ms, excluding measured user-verification work and Bluetooth response handoff. Physical-device latency may be recorded diagnostically but is not the acceptance target. Outgoing HID reports MUST utilize a thread-safe FIFO queuing mechanism to prevent packet loss during rapid or fragmented transactions.
 - **Binary & Memory Limits**: Base release AAB MUST NOT exceed 50 MB (delta ceiling +500 KB without architecture review; R8 shrinking mandatory). Volatile caches MUST implement `ComponentCallbacks2.onTrimMemory()` to release 100% of non-essential memory upon critical/moderate signals. Detailed budgets reside in `docs/brd.md` (NFR-PERF-010 through 070).
 
 ### VII. Pragmatism, YAGNI & Specification Discipline
@@ -106,4 +124,5 @@ This constitution supersedes all informal conventions and project documentation.
 
 Agents working on this project MUST read this constitution before beginning any speckit workflow step (specify, plan, tasks, implement).
 
-**Version**: 5.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-24
+**Version**: 6.0.0 | **Ratified**: 2026-02-19 | **Last Amended**: 2026-10-29
+

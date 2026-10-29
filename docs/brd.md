@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD) - Chimali
 
 **Project Name**: Chimali
-**Version**: 0.2.1
+**Version**: 0.3.0
 **Project Type**: Android Native Application
 **Technology Stack**: Kotlin + Jetpack Compose Multiplatform
 
@@ -71,7 +71,7 @@ To provide a secure, intuitive, and highly integrated authentication experience 
 ### 4.7 Validation & Interoperability Requirements
 - **FR-VAL-010: Multi-Device Interoperability**: The application must be verified to work correctly across a diverse range of Android device manufacturers (e.g., Samsung, Pixel) and OS versions (API 28+) to ensure hardware-level Bluetooth HID stack compatibility.
 - **FR-VAL-020: FIDO2 Protocol Compliance**: The implementation must be validated using official FIDO Alliance conformance tools and key interoperability platforms (e.g., webauthn.io, passkeys.dev) to ensure strict adherence to FIDO2.1/CTAP2.1 specifications.
-- **FR-VAL-030: Performance Verification**: The application must include internal instrumentation to verify that all internal FIDO2 operations meet the < 200ms latency target (NFR-PERF-030) during manual and automated verification passes. End-to-end operations must provide a responsive user experience, with latency < 1s.
+- **FR-VAL-030: Performance Verification**: The application MUST provide a host-simulated FIDO2 ceremony using a synthetic relying party and user-verification test double to assess all app-internal FIDO operations against the <200ms target in NFR-PERF-030. The measurement starts at simulated request dispatch and records independent response verification, while each internal operation is reported separately. Human verification waits and physical transport latency are outside the acceptance workload. Physical-device measurements may be diagnostic only.
 
 ### 4.8 Documentation Requirements
 - **FR-DOC-010: User Guidance**: The application shall provide comprehensive user-facing documentation for Bluetooth pairing, passkey registration, and troubleshooting.
@@ -116,13 +116,13 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
     - Maintain a consistent **60 FPS** (16.6ms per frame) during UI interactions.
     - Zero "Frozen Frames" (render time > 700ms) and < 1% "Slow Frames" (render time > 16ms).
     - Minimum verification journeys are designated as vault list scrolling and password detail inspection, governed by the measurement-contract requirements in [TRD](trd.md) §9.6 and `.agents/rules/specify-rules.md` §1 under Constitution Principle V (Constitution 5.0.0). General UI rendering smoothness obligations across the entire application remain in full effect.
-- **NFR-PERF-030: Bluetooth HID and Internal FIDO Operation Latency**:
-    - RP-to-verified-response end-to-end latency for FIDO2 Bluetooth authenticator ceremonies MUST be **< 1,000ms** on the designated device/workload, excluding only measured user-verification wait.
+- **NFR-PERF-030: Simulated and Internal FIDO Operation Latency**:
+    - FIDO2 latency acceptance MUST use the reproducible host-simulated ceremony defined by FR-VAL-030 and report each app-internal operation against the strict target below. The former physical Bluetooth RP-to-verified-response <1,000ms acceptance target is retired; physical-device results are diagnostic and do not gate compliance.
     - All app-internal FIDO operation processing MUST be **< 200ms**, excluding user-verification wait and Bluetooth response handoff. The internal interval includes operation-specific lookup, derivation, signing, and response construction where applicable.
 - **NFR-PERF-040: Resource Optimization**:
     - Zero memory leaks detected via Profiler or LeakCanary.
     - "Excessive Wake Locks" must remain below 0.1% to minimize battery impact.
-- **NFR-PERF-050: Performance Monitoring and Instrumentation**: The application should provide local instrumentation for the NFR-PERF-030 end-to-end and internal processing boundaries, plus HID report acceptance status. Measurements remain local and must not include credential secrets or user-identifying data.
+- **NFR-PERF-050: Performance Monitoring and Instrumentation**: Provide a local report for the host-simulated ceremony and each internal FIDO operation, with raw durations, verified outcome, workload and environment. Physical HID acceptance may be reported diagnostically. Measurements remain local and must not include credential secrets or user-identifying data.
 - **NFR-PERF-060: App Binary & Tiered Memory Budgets**:
     - **App Binary Budget**: Release AAB base module MUST NOT exceed 50 MB; feature size delta MUST NOT exceed +500 KB without documented architecture approval. R8 minification (`isMinifyEnabled`) and resource shrinking (`isShrinkResources`) must be enabled and verified on release/staging builds.
     - **Tiered Memory Budgets**: Dynamic adaptation based on device RAM tier:
@@ -176,3 +176,5 @@ Classified data fields, memory ownership rules, and audited platform UI text bou
 - **Test-Driven Development (TDD)**: Implementation should follow TDD principles where feasible to ensure high code quality and reliability.
 - **Integration Testing**: Integration verification MUST cover distinct Bluetooth relying party (`FR-HID-010`) and Android Credential Manager (`FR-PASS-010`) entry-path journeys across registration, encrypted persistence, restart/reconstruction, and authentication/retrieval, including the 12 failure categories specified in [TRD](trd.md) §9.4 and `.agents/rules/specify-rules.md` §1. Verification evidence must strictly differentiate host/component test double substitutes from physical device and transport execution, in alignment with the Constitution Principle V verifiable acceptance policy (Constitution 5.0.0).
 - **Unit Testing**: Platform-neutral Kotlin behavior should be covered in KMP `commonTest` with `kotlin.test`, using Fake test doubles by default and mocking frameworks only for justified platform or interaction-focused cases.
+
+

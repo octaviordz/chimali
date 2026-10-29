@@ -1,16 +1,16 @@
 # Backlog: FIDO2 Internal Performance Enhancements
 
-**Status**: Open — all performance enhancements deferred to a later phase by the user  
+**Status**: Open — profiling attribution and optimization deferred; simulated latency measurement assigned to Feature 060  
 **Created**: 2026-10-16  
 **Origin**: Feature 055, SC-007 / T085  
-**Related investigation**: [End-to-end latency measurement](fido2-end-to-end-latency-measurement-investigation.md) (T084, also deferred)  
+**Related assessment**: [Feature 060 simulated latency assessment](../../specs/060-fido2-latency-measurement/spec.md); physical T084 campaign superseded 2026-10-29  
 **Task and evidence**: [Feature tasks](../../specs/055-migrate-hdk-draft/tasks.md), [implementation evidence](../../specs/055-migrate-hdk-draft/implementation-evidence.md)
 
 ## Decision and scope
 
-The user requested that all performance enhancements be paused for a later phase. This includes internal processing optimization, additional profiling and the remaining per-operation sample campaign under T085. The user had already accepted the observed ASUS/Windows UX and deferred end-to-end measurement investigation under T084.
+The user deferred internal processing optimization and profiling attribution to a later phase. On 2026-10-29 the owner superseded physical T084 and made Feature 060 the host-simulated internal-operation latency assessment. Feature 060 owns measurement; this backlog remains for attribution investigation and optimization.
 
-The targets remain documented as <200ms for all internal FIDO operations and <1s for end-to-end response under their defined boundaries. Deferral records outstanding work; it does not claim numeric compliance or remove the targets. Candidate listing must continue to perform no key derivation, and assertions must derive only the selected credential.
+The strict <200ms internal FIDO operation target remains binding and is assessed by Feature 060. The physical <1s target was retired by the owner-authorized 2026-10-29 governance amendment. Attribution profiling and optimization remain deferred; this backlog does not claim numeric compliance or optimization. Candidate listing must continue to perform no key derivation, and assertions must derive only the selected credential.
 
 ## Work preserved at deferral
 
@@ -18,7 +18,7 @@ The targets remain documented as <200ms for all internal FIDO operations and <1s
 - Three earlier correlated registration samples had internal MakeCredential times of 247.818, 284.752 and 229.253 ms. Discovery/pre-registration probe timings are not independent RP-verified authentication ceremonies.
 - Added fixed, secret-free async trace markers around registration stages and wallet initialization, plus requirement annotations, KDoc and a named internal-budget constant for timing helpers. These diagnostic changes are retained. No settings lookup optimization has been applied.
 - The focused registration, wallet-owner and timing suites passed 47 tests, with zero failures/errors. FIDO2 Ktlint and Detekt passed after correcting a line-length finding. The optimized release built successfully and was installed as `com.chimali` on ASUS Zenfone 10 (Android 15/API 35), preserving app data. APK SHA-256: `3E7FA9EDBDEB252F2DC17980C159981FEEDD2FCAB75BE3712813D5538606FA27`.
-- One instrumented registration verified at the local synthetic ES256 RP. The device recorded MakeCredential `internal_ns=239385208` (239.385 ms), measured prompt time 3,146.372 ms and adjusted local handoff 290.852 ms. All response reports were accepted and the user window was closed. No end-to-end sample was recorded for this run because T084 was already deferred.
+- One instrumented registration verified at the local synthetic ES256 RP. The device recorded MakeCredential `internal_ns=239385208` (239.385 ms), measured prompt time 3,146.372 ms and adjusted local handoff 290.852 ms. All response reports were accepted and the user window was closed. No browser end-to-end sample was recorded for this run; the physical T084 campaign was later superseded by the Feature 060 simulated assessment.
 
 ## Profiling lead for the future phase
 
@@ -65,3 +65,6 @@ The statistics slice starts at 297504033965756ns and lasts 2356928ns; the public
 5. Preserve zero candidate derivations and one selected assertion derivation, and reconcile T085/SC-007 and current documentation with actual results.
 
 Resume the separate end-to-end investigation only in the phase authorized for that backlog item.
+
+
+
