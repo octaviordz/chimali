@@ -28,6 +28,14 @@
     {
       "id": "INTEGRATION_WRAPPER_007_REJECTS_CANDIDATE_DIRTYING_DURING_VERIFY",
       "description": "Rejects a verifier that returns success after the candidate, trusted harness, or live target changes during verification"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_008_DISTINCT_OUTER_USES_MEASUREMENT_HARNESS",
+      "description": "A separate outer wrapper dispatches the isolated measurement to the selected clean harness entry point"
+    },
+    {
+      "id": "INTEGRATION_WRAPPER_009_READONLY_CHECKOUT_CLEANUP",
+      "description": "The isolated checkout is removed after a failed capture even when its generated files are read-only"
     }
   ]
 }

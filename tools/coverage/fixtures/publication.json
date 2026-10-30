@@ -57,10 +57,10 @@
       "id": "PUB_006_REMOTE_READBACK_MATCHES_PUSHED_COMMIT",
       "description": "Publication read-back accepts only the expected commit at the exact remote evidence ref",
       "publication": {
-        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_ref": "refs/heads/swe/coverage-evidence",
         "expected_commit": "0123456789abcdef0123456789abcdef01234567",
         "remote_ref_output": [
-          "0123456789abcdef0123456789abcdef01234567\trefs/heads/codex/coverage-evidence"
+          "0123456789abcdef0123456789abcdef01234567\trefs/heads/swe/coverage-evidence"
         ]
       },
       "expected_valid": true
@@ -69,10 +69,10 @@
       "id": "PUB_007_REMOTE_READBACK_MISMATCH_REJECTED",
       "description": "Publication cannot claim success when the remote ref differs from the pushed commit",
       "publication": {
-        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_ref": "refs/heads/swe/coverage-evidence",
         "expected_commit": "0123456789abcdef0123456789abcdef01234567",
         "remote_ref_output": [
-          "fedcba9876543210fedcba9876543210fedcba98\trefs/heads/codex/coverage-evidence"
+          "fedcba9876543210fedcba9876543210fedcba98\trefs/heads/swe/coverage-evidence"
         ]
       },
       "expected_valid": false,
@@ -82,7 +82,7 @@
       "id": "PUB_008_REMOTE_READBACK_WRONG_REF_REJECTED",
       "description": "A commit returned for a different branch cannot satisfy evidence-branch read-back",
       "publication": {
-        "expected_ref": "refs/heads/codex/coverage-evidence",
+        "expected_ref": "refs/heads/swe/coverage-evidence",
         "expected_commit": "0123456789abcdef0123456789abcdef01234567",
         "remote_ref_output": [
           "0123456789abcdef0123456789abcdef01234567\trefs/heads/main"
@@ -121,6 +121,42 @@
           "content_readback_verified": true
         },
         "run_id": "00000000-0000-4000-8000-000000000111",
+        "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "expected_valid": true
+    },
+    {
+      "id": "PUB_017_NEW_SWEE_ARCHIVE_IDENTITY_ACCEPTED",
+      "description": "A passing immutable receipt bound to the new exact archive ref is accepted",
+      "success_gate": {
+        "decision": {
+          "run_id": "00000000-0000-4000-8000-000000000112",
+          "overall_passed": true,
+          "decisions": {
+            "collection": "Complete",
+            "tests": "Passed",
+            "floors": "Passed",
+            "comparison_compatibility": "Compatible",
+            "regression": "Passed"
+          },
+          "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "receipt": {
+          "run_id": "00000000-0000-4000-8000-000000000112",
+          "publication_purpose": "Candidate",
+          "status": "Published",
+          "retrievable": true,
+          "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "archive_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "read_back_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "archive_branch": "swe/coverage-evidence",
+          "archive_ref": "refs/heads/swe/coverage-evidence",
+          "report_url": "https://github.com/octaviordz/chimali/blob/swe/coverage-evidence/runs/00000000-0000-4000-8000-000000000112/summary.md",
+          "archived_bundle_path": "runs/00000000-0000-4000-8000-000000000112",
+          "content_readback_verified": true
+        },
+        "run_id": "00000000-0000-4000-8000-000000000112",
         "bundle_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "manifest_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
       },

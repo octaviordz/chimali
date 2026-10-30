@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "INITIAL_BASE_001_EXACT_MAIN_CREATION_COMMIT_ACCEPTED", "expected_valid": true },
+    { "id": "INITIAL_BASE_002_SOURCE_REF_REQUIRED", "expected_valid": false },
+    { "id": "INITIAL_BASE_003_MAIN_MUST_EQUAL_MEASURED_SOURCE", "expected_valid": false },
+    { "id": "INITIAL_BASE_004_REQUIRED_SUITES_MUST_PASS", "expected_valid": false },
+    { "id": "INITIAL_BASE_005_REVIEWED_POLICY_REQUIRED", "expected_valid": false },
+    { "id": "INITIAL_BASE_006_PUBLISHER_REJECTS_UNBOUND_INITIAL_RUN", "expected_valid": true }
+  ]
+}

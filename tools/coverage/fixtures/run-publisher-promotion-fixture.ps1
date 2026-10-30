@@ -18,7 +18,7 @@ $decisionPath = Join-Path $tempRoot 'decision.json'
 $eventPath = Join-Path $tempRoot 'event.json'
 $verifiedEventPath = Join-Path $tempRoot 'verified-event.json'
 $invokeScript = Join-Path $tempRoot 'invoke-publisher.ps1'
-$branch = 'codex/coverage-evidence'
+$branch = 'swe/coverage-evidence'
 $runId = '00000000-0000-4000-8000-000000000461'
 $envNames = @('COVERAGE_TEST_REAL_GIT', 'COVERAGE_TEST_PROMOTION_DECISION', 'COVERAGE_TEST_PROMOTION_EVENT', 'CHIMALI_COVERAGE_PUBLISH_TOKEN')
 $previousEnv = @{}
@@ -63,10 +63,22 @@ try {
     New-Item -ItemType Directory -Path $baselineDirectory -Force | Out-Null
     $oldIndex = [PSCustomObject]@{ run_id = '00000000-0000-4000-8000-000000000099'; target_commit = ('9' * 40); provenance = 'FixturePriorIndex' }
     $oldIndex | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $baselineDirectory 'current.json') -Encoding utf8
+    $historicalRunId = '00000000-0000-4000-8000-000000000098'
+    $historicalRunDirectory = Join-Path (Join-Path $repoRoot 'runs') $historicalRunId
+    New-Item -ItemType Directory -Path $historicalRunDirectory -Force | Out-Null
+    $historicalBytes = [byte[]](0, 13, 10, 26, 255, 1, 2, 3)
+    [System.IO.File]::WriteAllBytes((Join-Path $historicalRunDirectory 'raw.bin'), $historicalBytes)
+    [PSCustomObject]@{ run_id = $historicalRunId; archive_branch = 'codex/coverage-evidence'; immutable = $true } |
+        ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $historicalRunDirectory 'publication.json') -Encoding utf8
+    $historicalReceipt = [PSCustomObject]@{ run_id = $historicalRunId; archive_branch = 'codex/coverage-evidence'; archive_ref = 'refs/heads/codex/coverage-evidence'; bundle_digest = 'a' * 64 }
+    $historicalReceipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $historicalRunDirectory 'receipt.json') -Encoding utf8
     Invoke-CheckedGit $repoRoot @('add','-A') 'Unable to stage initial fixture archive index'
     Invoke-CheckedGit $repoRoot @('commit','--quiet','-m','fixture prior accepted index') 'Unable to commit initial fixture archive index'
     Invoke-CheckedGit $repoRoot @('push','--quiet','origin',"HEAD:refs/heads/$branch") 'Unable to seed remote archive ref'
     $initialArchiveCommit = (& $realGit -C $repoRoot rev-parse HEAD).Trim()
+    Invoke-CheckedGit $repoRoot @('push','--quiet','origin',"$initialArchiveCommit`:refs/heads/codex/coverage-evidence") 'Unable to seed historical archive reference'
+    $historicalBlob = (& $realGit -C $repoRoot hash-object (Join-Path $historicalRunDirectory 'raw.bin')).Trim()
+    $historicalReceiptBlob = (& $realGit --git-dir=$bareRemote rev-parse "refs/heads/$branch`:runs/$historicalRunId/receipt.json").Trim()
     & $realGit -C $repoRoot checkout --quiet --detach $integratedCommit
     if ($LASTEXITCODE -ne 0) { throw 'Unable to return source checkout to the integrated commit' }
 
@@ -172,6 +184,24 @@ try {
         }
         $archivedManifest = (& $realGit --git-dir=$bareRemote show "$archiveRef`:runs/$runId/manifest.json") -join "`n"
         if ($LASTEXITCODE -ne 0 -or ($archivedManifest | ConvertFrom-Json).run_id -cne $runId) { throw 'Promotion archive is missing the exact measured run manifest.' }
+        $publicationRecordJson = (& $realGit --git-dir=$bareRemote show "$($archiveRef):assessments/$runId/publication.json") -join [Environment]::NewLine
+        if ($LASTEXITCODE -ne 0) { throw 'Promotion archive is missing the immutable retrievable report record.' }
+        $publicationRecord = $publicationRecordJson | ConvertFrom-Json
+        if ($publicationRecord.run_id -cne $runId -or $publicationRecord.bundle_digest -cne $receipt.bundle_digest -or
+            $publicationRecord.archive_branch -cne $branch -or $publicationRecord.archive_ref -cne $receipt.archive_ref -or
+            $publicationRecord.report_url -cne $receipt.report_url) {
+            throw 'Archived report record does not bind the exact run, archive ref, digest, and report URL.'
+        }
+        $retainedBlob = (& $realGit --git-dir=$bareRemote rev-parse "$($archiveRef):runs/$historicalRunId/raw.bin").Trim()
+        $retainedReceiptBlob = (& $realGit --git-dir=$bareRemote rev-parse "$($archiveRef):runs/$historicalRunId/receipt.json").Trim()
+        $retainedReceipt = (& $realGit --git-dir=$bareRemote show "$($archiveRef):runs/$historicalRunId/receipt.json") -join [Environment]::NewLine
+        $retainedLegacyRef = (& $realGit --git-dir=$bareRemote rev-parse --verify 'refs/heads/codex/coverage-evidence').Trim()
+        $legacyReceipt = $retainedReceipt | ConvertFrom-Json
+        if ($retainedBlob -cne $historicalBlob -or $retainedReceiptBlob -cne $historicalReceiptBlob -or
+            $legacyReceipt.archive_branch -cne 'codex/coverage-evidence' -or $legacyReceipt.archive_ref -cne 'refs/heads/codex/coverage-evidence' -or
+            $retainedLegacyRef -cne $initialArchiveCommit) {
+            throw "Promotion did not preserve historical identity (blob $retainedBlob/$historicalBlob, receipt $retainedReceiptBlob/$historicalReceiptBlob, branch $($legacyReceipt.archive_branch)/$($legacyReceipt.archive_ref), ref $retainedLegacyRef/$initialArchiveCommit)."
+        }
         Write-Output 'Production publisher verified the candidate, archived the run, advanced the accepted index atomically, and read back the integrated tree.'
         return
     }

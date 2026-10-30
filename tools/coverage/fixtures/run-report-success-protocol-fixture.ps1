@@ -168,7 +168,7 @@ try {
         $payload.output.summary -match 'changed after capture') {
         throw 'Published archive/check did not bind the passing success to the verified candidate run and head'
     }
-    $archiveCommit = (& $realGit --git-dir=$bare rev-parse refs/heads/codex/coverage-evidence).Trim()
+    $archiveCommit = (& $realGit --git-dir=$bare rev-parse refs/heads/swe/coverage-evidence).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $archiveCommit -or $publication.archive_commit -cne $archiveCommit -or $publication.read_back_commit -cne $archiveCommit) {
         throw 'Success report did not retain the exact archive commit read-back'
     }

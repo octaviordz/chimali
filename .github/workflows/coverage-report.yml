@@ -125,7 +125,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ github.repository }}
-          ref: refs/heads/codex/coverage-evidence
+          ref: refs/heads/swe/coverage-evidence
           path: accepted-evidence
           fetch-depth: 1
           persist-credentials: false

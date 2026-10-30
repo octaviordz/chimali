@@ -46,10 +46,91 @@ param(
     [string]$BaselineBundle,
 
     [Parameter(Mandatory = $false)]
-    [string]$RemoteName = 'origin'
+    [string]$RemoteName = 'origin',
+
+    [Parameter(DontShow = $true)]
+    [string]$InternalCandidateToken
 )
 
 $ErrorActionPreference = "Stop"
+$gitBindingVariables = @('GIT_DIR','GIT_WORK_TREE','GIT_INDEX_FILE','GIT_COMMON_DIR','GIT_OBJECT_DIRECTORY','GIT_ALTERNATE_OBJECT_DIRECTORIES','GIT_PREFIX','GIT_CEILING_DIRECTORIES','GIT_CONFIG_COUNT','GIT_CONFIG_PARAMETERS')
+$savedGitBindingVariables = @{}
+foreach ($name in $gitBindingVariables) {
+    $savedGitBindingVariables[$name] = [Environment]::GetEnvironmentVariable($name,'Process')
+    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+}
+$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
+$internalTokenValid = $InternalCandidateToken -match '^[0-9a-f]{64}$' -and
+    $env:CHIMALI_INTEGRATION_PREPARED_TOKEN -ceq $InternalCandidateToken -and
+    $env:CHIMALI_INTEGRATION_PREPARED_ROOT -ceq $RepositoryRoot
+if (-not $internalTokenValid) {
+    $candidateOutput = @(& git -C $RepositoryRoot rev-parse --verify "$CandidateRef^{commit}" 2>&1)
+    if ($LASTEXITCODE -ne 0 -or $candidateOutput.Count -ne 1 -or $candidateOutput[0] -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+        [Console]::Error.WriteLine("CandidateRef does not resolve to one exact commit: $CandidateRef (exit=$LASTEXITCODE, output=$($candidateOutput -join ' | '), root=$RepositoryRoot)")
+        exit 2
+    }
+    $candidateShaForWorktree = [string]$candidateOutput[0]
+    $tempRootForWorktree = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+    $preparedCheckout = Join-Path $tempRootForWorktree ("chimali-integration-candidate-" + [guid]::NewGuid().ToString('N'))
+    $tokenForChild = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+    $worktreeAdded = $false
+    try {
+        & git -C $RepositoryRoot worktree add --detach $preparedCheckout $candidateShaForWorktree
+        if ($LASTEXITCODE -ne 0) { throw 'Could not create a detached checkout for the exact candidate commit.' }
+        $worktreeAdded = $true
+        $pwshForChild = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $pwshForChild) { throw 'PowerShell 7 (pwsh) is required to run the isolated candidate verification.' }
+        $trustedEntryPoint = Join-Path ([System.IO.Path]::GetFullPath($HarnessRoot)) 'tools/integration-ci.ps1'
+        if (-not (Test-Path -LiteralPath $trustedEntryPoint -PathType Leaf)) { throw 'Selected trusted measurement harness has no integration entry point.' }
+        $childArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$trustedEntryPoint,
+            '-RepositoryRoot',$preparedCheckout,'-CandidateRef',$candidateShaForWorktree,'-TargetRef',$TargetRef,
+            '-HarnessRoot',$HarnessRoot,'-DeviceSerial',$DeviceSerial,'-EvidenceRoot',$EvidenceRoot,
+            '-RemoteName',$RemoteName,'-InternalCandidateToken',$tokenForChild)
+        if ($BaselineBundle) { $childArgs += @('-BaselineBundle',$BaselineBundle) }
+        $env:CHIMALI_INTEGRATION_PREPARED_TOKEN = $tokenForChild
+        $env:CHIMALI_INTEGRATION_PREPARED_ROOT = $preparedCheckout
+        & $pwshForChild.Source @childArgs
+        $isolatedExit = $LASTEXITCODE
+        exit $isolatedExit
+    } catch {
+        [Console]::Error.WriteLine("Exact-candidate isolation failed: $_")
+        exit 2
+    } finally {
+        $canonicalPrepared = [System.IO.Path]::GetFullPath($preparedCheckout)
+        $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')
+        if (-not [string]::Equals([System.IO.Path]::GetDirectoryName($canonicalPrepared), $tempRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+            [System.IO.Path]::GetFileName($canonicalPrepared) -notmatch '^chimali-integration-candidate-[a-f0-9]{32}$') {
+            throw "Refusing unsafe prepared-checkout cleanup path: $canonicalPrepared"
+        }
+        if ((Test-Path -LiteralPath $canonicalPrepared) -and ((Get-Item -LiteralPath $canonicalPrepared -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw 'Prepared checkout is a reparse point.'
+        }
+        if ($worktreeAdded) { & git -C $RepositoryRoot worktree remove --force $canonicalPrepared 2>$null | Out-Null }
+        for ($attempt = 0; $attempt -lt 10 -and (Test-Path -LiteralPath $canonicalPrepared); $attempt++) {
+            try {
+                $rootItem = Get-Item -LiteralPath $canonicalPrepared -Force
+                if ($rootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Prepared checkout is a reparse point.' }
+                Get-ChildItem -LiteralPath $canonicalPrepared -Force -Recurse | ForEach-Object {
+                    if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly) { $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly) }
+                }
+                [System.IO.Directory]::Delete($canonicalPrepared,$true)
+            } catch {
+                if ($attempt -eq 9) { Write-Warning "Could not remove prepared checkout '$canonicalPrepared': $_" }
+                else { Start-Sleep -Milliseconds 500 }
+            }
+        }
+        if ($worktreeAdded) { & git -C $RepositoryRoot worktree prune 2>$null | Out-Null }
+        Remove-Item Env:CHIMALI_INTEGRATION_PREPARED_TOKEN -ErrorAction SilentlyContinue
+        Remove-Item Env:CHIMALI_INTEGRATION_PREPARED_ROOT -ErrorAction SilentlyContinue
+        foreach ($name in $gitBindingVariables) {
+            if ($null -eq $savedGitBindingVariables[$name]) {
+                Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+            } else {
+                [Environment]::SetEnvironmentVariable($name,$savedGitBindingVariables[$name],'Process')
+            }
+        }
+    }
+}
 foreach ($rootArgument in @(@{ Name = 'RepositoryRoot'; Value = $RepositoryRoot }, @{ Name = 'HarnessRoot'; Value = $HarnessRoot }, @{ Name = 'EvidenceRoot'; Value = $EvidenceRoot })) {
     if ([string]::IsNullOrWhiteSpace([string]$rootArgument.Value)) {
         [Console]::Error.WriteLine("$($rootArgument.Name) cannot be empty.")
@@ -153,6 +234,7 @@ try {
 }
 
 Write-Host "Integration verification started:`n  Candidate: $candidateSha`n  Target: $targetSha`n  Device: $DeviceSerial`n  Evidence: $EvidenceRoot" -ForegroundColor Cyan
+$env:CHIMALI_CANDIDATE_CHECKOUT = $RepositoryRoot
 
 # 3. Non-mutating Local Checks
 Write-Host "`n[Step 1/3] Running non-mutating local checks (-NoFix)..." -ForegroundColor Cyan
@@ -329,6 +411,56 @@ try {
 } finally {
     Pop-Location
 }
+
+$assessmentRecordPath = Join-Path $assessmentsDir 'assessment-record.json'
+New-Item -ItemType Directory -Path $assessmentsDir -Force | Out-Null
+if (Test-Path -LiteralPath $assessmentRecordPath) {
+    [Console]::Error.WriteLine("Assessment record is immutable and already exists: $assessmentRecordPath")
+    exit 2
+}
+$baselineBundleDigest = Get-CoverageBundleDigest -BundlePath $effectiveBaseline
+$baselineTree = [string]$baselineManifest.git.source_tree
+$candidateBundleDigest = Get-CoverageBundleDigest -BundlePath $candidateBundlePath
+$manifestDigest = Get-FileSha256 -Path (Join-Path $candidateBundlePath 'manifest.json')
+$assessmentStatus = if ($verifyCode -eq 0) { 'PASS' } elseif ($verifyCode -eq 1) { 'FAIL' } else { 'INCOMPLETE' }
+$assessmentRecord = [PSCustomObject]@{
+    schema_version = '1.0'
+    assessment_id = [guid]::NewGuid().ToString()
+    decision = $assessmentStatus
+    created_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    repository = [PSCustomObject]@{ root = $RepositoryRoot; remote = $RemoteName }
+    candidate = [PSCustomObject]@{ commit = $candidateSha; tree = [string]$manifest.git.source_tree }
+    target = [PSCustomObject]@{ ref = $TargetRef; commit = $targetSha }
+    accepted_baseline = [PSCustomObject]@{
+        commit = [string]$baselineManifest.git.source_commit
+        tree = $baselineTree
+        run_id = [string]$baselineManifest.run_id
+        bundle_path = [System.IO.Path]::GetRelativePath($EvidenceRoot,$effectiveBaseline).Replace('\','/')
+        bundle_digest = $baselineBundleDigest
+        index_path = [System.IO.Path]::GetRelativePath($EvidenceRoot,$localCurrent).Replace('\','/')
+        index_digest = Get-FileSha256 -Path $localCurrent
+    }
+    policy = [PSCustomObject]@{
+        id = [string]$manifest.policy_id
+        scope_fingerprint = [string]$manifest.measurement_fingerprint
+    }
+    harness = [PSCustomObject]@{
+        commit = $harnessRevision
+        file_sha256 = $manifest.harness.file_sha256
+    }
+    device = $manifest.device
+    required_suites = $manifest.suites
+    run = [PSCustomObject]@{
+        id = [string]$manifest.run_id
+        bundle_path = $candidateBundlePath
+        bundle_digest = $candidateBundleDigest
+        manifest_digest = $manifestDigest
+        decision_path = (Join-Path $assessmentsDir 'decision.json')
+        decision_digest = if (Test-Path -LiteralPath (Join-Path $assessmentsDir 'decision.json')) { Get-FileSha256 -Path (Join-Path $assessmentsDir 'decision.json') } else { $null }
+    }
+    hosted_check = 'Unverified'
+}
+$assessmentRecord | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $assessmentRecordPath -Encoding utf8
 
 if ($verifyCode -eq 0) {
     Write-Host "`nIntegration CI verification succeeded locally. Note: Remote hosted check and publication required for merge approval." -ForegroundColor Green

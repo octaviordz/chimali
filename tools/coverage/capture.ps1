@@ -14,6 +14,10 @@
     Initial, Comparison, or Candidate.
 .PARAMETER TargetRevision
     Exact accepted target SHA; required when Purpose is not Initial.
+.PARAMETER InitialTargetRef
+    Exact source ref for an initial main baseline. When supplied, the captured
+    commit must equal this ref; baseline acceptance additionally checks the
+    corresponding live remote ref and main identity.
 .PARAMETER HarnessRoot
     Absolute path to the reviewed harness checkout.
 .PARAMETER DeviceSerial
@@ -37,6 +41,10 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$TargetRevision,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('lab/or/main')]
+    [string]$InitialTargetRef,
 
     [Parameter(Mandatory = $true)]
     [string]$HarnessRoot,
@@ -161,6 +169,10 @@ if ($Purpose -ne "Initial" -and [string]::IsNullOrEmpty($TargetRevision)) {
     Write-CoverageError "TargetRevision is required when Purpose is not Initial"
     exit 3
 }
+if ($Purpose -ne 'Initial' -and $InitialTargetRef) {
+    Write-CoverageError 'InitialTargetRef is valid only for Purpose Initial.'
+    exit 3
+}
 
 if (-not $javaCommand) {
     Write-CoverageError 'Java runtime is required for coverage capture but was not found on PATH.'
@@ -181,6 +193,22 @@ try {
         exit 2
     }
     $sourceTree = (git rev-parse 'HEAD^{tree}').Trim()
+    if ($InitialTargetRef) {
+        $initialTargetCommit = (& git rev-parse --verify "$InitialTargetRef^{commit}" 2>$null).Trim()
+        if ($LASTEXITCODE -ne 0 -or $initialTargetCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+            Write-CoverageError "Initial baseline source ref '$InitialTargetRef' is missing or does not resolve to a full commit."
+            exit 2
+        }
+        if ($initialTargetCommit -cne $SourceRevision) {
+            Write-CoverageError "Initial baseline source $SourceRevision differs from $InitialTargetRef ($initialTargetCommit)."
+            exit 2
+        }
+        if ($TargetRevision -and $TargetRevision -cne $initialTargetCommit) {
+            Write-CoverageError 'TargetRevision conflicts with the resolved initial baseline source ref.'
+            exit 3
+        }
+        $TargetRevision = $initialTargetCommit
+    }
 } finally {
     Pop-Location
 }
@@ -963,6 +991,7 @@ $manifest = [PSCustomObject]@{
         source_commit = $SourceRevision
         source_tree = $sourceTree
         target_commit = $TargetRevision
+        initial_target_ref = if ($InitialTargetRef) { $InitialTargetRef } else { $null }
         clean_preflight = $true
         clean_postflight = $cleanPostflight
     }
