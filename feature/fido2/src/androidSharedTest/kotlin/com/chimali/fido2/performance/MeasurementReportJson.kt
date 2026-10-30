@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.chimali.fido2.performance
 
 import java.time.Instant

@@ -1,9 +1,12 @@
+@file:Suppress("MagicNumber")
+
 package com.chimali.fido2.performance
 
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
@@ -29,8 +32,11 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import com.chimali.fido2.domain.repository.CredentialStatistics
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
+import com.chimali.fido2.domain.service.BiometricEnrollmentStatus
 import com.chimali.fido2.domain.service.BiometricStrength
+import com.chimali.fido2.domain.service.PinConfiguration
 import com.chimali.fido2.domain.service.UserVerificationAvailability
+import com.chimali.fido2.domain.service.UserVerificationRequirement as ServiceVerificationRequirement
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
@@ -43,14 +49,22 @@ import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.datetime.Instant
 
 /** Deterministic synthetic boundaries with real FIDO2 use-case, CBOR and ECDSA behavior. */
 internal class SimulatedAssessmentFixture {
     private val relyingPartyId = "https://example.com"
     private val cbor = CborCodec()
     private val repository = mockk<CredentialRepository>()
-    private val verificationService = mockk<UserVerificationService>()
-    private val settings = mockk<Fido2SettingsRepository>()
+    private val verificationService = ImmediateVerificationPolicy()
+    private val settings =
+        object : Fido2SettingsRepository {
+            override suspend fun getMaxCredentialCount(): Int = MAX_CREDENTIAL_COUNT
+
+            override suspend fun setMaxCredentialCount(count: Int) = Unit
+        }
     private val crypto = mockk<Fido2CryptoService>()
     private val keyPair: KeyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
     private val generatedKeyBytes = ByteArray(65) { (it + 1).toByte() }
@@ -75,23 +89,10 @@ internal class SimulatedAssessmentFixture {
             signer.update(secondArg<ByteArray>())
             Outcome.Success(signer.sign())
         }
-        coEvery { verificationService.isUserVerificationRequiredForText(any(), any(), any()) } returns
-            com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
-        coEvery { verificationService.getUserVerificationAvailability() } returns
-            UserVerificationAvailability(
-                isBiometricAvailable = true,
-                isPinAvailable = false,
-                isDeviceLockAvailable = false,
-                supportedBiometricTypes = emptyList(),
-                maxPinLength = 8,
-                minPinLength = 4,
-                biometricStrength = BiometricStrength.STRONG,
-            )
         coEvery { repository.getRelyingPartyForText(any()) } returns null
         coEvery { repository.saveRelyingParty(any<RelyingParty>()) } returns Outcome.Success(Unit)
         coEvery { repository.validateCredentialCreationForText(any(), any()) } returns Outcome.Success(Unit)
         coEvery { repository.getCredentialStatistics() } returns CredentialStatistics(0, 0, 0, 0, 0.0)
-        coEvery { settings.getMaxCredentialCount() } returns 100
         coEvery { repository.saveCredential(any()) } returns Outcome.Success(Unit)
         coEvery { repository.resetAuthenticator() } returns Outcome.Success(Unit)
         coEvery { repository.getCredentialSummariesForRpText(any()) } coAnswers {
@@ -303,4 +304,49 @@ internal class SimulatedAssessmentFixture {
 
     private fun syntheticHash(label: String): ByteArray =
         MessageDigest.getInstance("SHA-256").digest("TR-PERF-010:$label".encodeToByteArray())
+
+    private class ImmediateVerificationPolicy : UserVerificationService {
+        override suspend fun isUserVerificationRequiredForText(
+            rpId: CharSequence,
+            operationType: String,
+            context: com.chimali.fido2.domain.service.VerificationContext?,
+        ): ServiceVerificationRequirement = ServiceVerificationRequirement.NOT_REQUIRED
+
+        override suspend fun getUserVerificationAvailability() =
+            UserVerificationAvailability(
+                isBiometricAvailable = true,
+                isPinAvailable = false,
+                isDeviceLockAvailable = false,
+                supportedBiometricTypes = emptyList(),
+                maxPinLength = 8,
+                minPinLength = 4,
+                biometricStrength = BiometricStrength.STRONG,
+            )
+
+        override suspend fun isBiometricAvailable(): Boolean = true
+
+        override suspend fun isPinAvailable(): Boolean = false
+
+        override suspend fun getBiometricEnrollmentStatus() =
+            BiometricEnrollmentStatus(false, emptyList(), BiometricStrength.STRONG, Instant.fromEpochMilliseconds(0))
+
+        override suspend fun getPinConfiguration() = PinConfiguration(4, 8, false, null, 5, 0L)
+
+        override suspend fun recordUserConsent(consent: UserConsentRecord) = Outcome.Success(Unit)
+
+        override fun getRecentConsentRecords(
+            rpId: RpId?,
+            limit: Int,
+        ): Flow<UserConsentRecord> = emptyFlow()
+
+        override suspend fun isUserVerificationRequired(
+            rpId: RpId,
+            operationType: String,
+            context: com.chimali.fido2.domain.service.VerificationContext?,
+        ): ServiceVerificationRequirement = ServiceVerificationRequirement.NOT_REQUIRED
+    }
+
+    private companion object {
+        const val MAX_CREDENTIAL_COUNT = 100
+    }
 }

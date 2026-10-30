@@ -1,11 +1,6 @@
 package com.chimali.fido2.performance
 
 import com.chimali.core.common.annotation.Req
-import com.sun.jna.FunctionMapper
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.ptr.LongByReference
-import com.sun.jna.win32.StdCallLibrary
 
 enum class OperationDecision { PASS, FAIL, INCOMPLETE }
 
@@ -27,112 +22,15 @@ data class OperationAssessment(
     val reason: String? = null,
 )
 
-/** Uses actual System.nanoTime readings; no virtual or injected clock is used for elapsed results. */
-object MonotonicMeasurement {
-    const val CLOCK_DOMAIN = "jvm:System.nanoTime"
-    private const val MAX_CLOCK_DIVERGENCE_NANOS = 5_000_000L
+/** Clock domains that require a platform-specific suspend-continuity reading. */
+object ClockDomains {
+    const val SYSTEM_NANO_TIME = "jvm:System.nanoTime"
+    const val ANDROID_NANO_TIME = "android:System.nanoTime"
+    const val MAX_DIVERGENCE_NANOS = 5_000_000L
 
-    class Reading internal constructor(
-        val monotonicNanos: Long,
-        val suspendAwareNanos: Long?,
-    )
-
-    fun nowNanos(): Long = System.nanoTime()
-
-    /** Captures both clocks; System.nanoTime remains the sole source of reported elapsed durations. */
-    fun begin(): Reading = capture()
-
-    /** Captures both clocks at the end boundary. */
-    fun end(): Reading = capture()
-
-    fun interval(
-        startNanos: Long,
-        endNanos: Long,
-    ): MonotonicInterval = MonotonicInterval(startNanos, endNanos, CLOCK_DOMAIN)
-
-    fun interval(
-        start: Reading,
-        end: Reading,
-    ): MonotonicInterval {
-        val elapsed = end.monotonicNanos - start.monotonicNanos
-        val suspendAwareElapsed =
-            if (start.suspendAwareNanos != null && end.suspendAwareNanos != null) {
-                end.suspendAwareNanos - start.suspendAwareNanos
-            } else {
-                null
-            }
-        val divergence = suspendAwareElapsed?.let { elapsed - it }
-        val continuity =
-            when {
-                elapsed < 0L || suspendAwareElapsed?.let { it < 0L } == true -> ClockContinuity.CLOCK_DISCONTINUITY
-                divergence == null -> ClockContinuity.UNAVAILABLE
-                divergence > MAX_CLOCK_DIVERGENCE_NANOS -> ClockContinuity.SUSPEND_DETECTED
-                divergence < -MAX_CLOCK_DIVERGENCE_NANOS -> ClockContinuity.CLOCK_DISCONTINUITY
-                else -> ClockContinuity.VERIFIED
-            }
-        return MonotonicInterval(
-            startNanos = start.monotonicNanos,
-            endNanos = end.monotonicNanos,
-            clockDomain = CLOCK_DOMAIN,
-            continuity = continuity,
-            suspendAwareElapsedNanos = suspendAwareElapsed,
-            clockDivergenceNanos = divergence,
-        )
-    }
-
-    private fun capture(): Reading {
-        val before = System.nanoTime()
-        val suspendAwareNanos = WindowsSuspendClock.readNanosOrNull()
-        val after = System.nanoTime()
-        return Reading(before + (after - before) / 2L, suspendAwareNanos)
-    }
-
-    private object WindowsSuspendClock {
-        private val api: QueryUnbiasedInterruptTime? by lazy {
-            if (!System.getProperty("os.name").orEmpty().contains("Windows", ignoreCase = true)) {
-                null
-            } else {
-                Native.load(
-                    "kernelbase",
-                    QueryUnbiasedInterruptTime::class.java,
-                    mapOf(
-                        Library.OPTION_FUNCTION_MAPPER to
-                            FunctionMapper { _, method ->
-                                if (method.name == "queryUnbiasedInterruptTimePrecise") {
-                                    "QueryUnbiasedInterruptTimePrecise"
-                                } else {
-                                    method.name
-                                }
-                            },
-                    ),
-                )
-            }
-        }
-
-        fun readNanosOrNull(): Long? {
-            return readSuspendClockNanosOrNull {
-                val clock = api ?: return@readSuspendClockNanosOrNull null
-                val ticks = LongByReference()
-                clock.queryUnbiasedInterruptTimePrecise(ticks)
-                Math.multiplyExact(ticks.value, 100L)
-            }
-        }
-
-        private interface QueryUnbiasedInterruptTime : StdCallLibrary {
-            fun queryUnbiasedInterruptTimePrecise(unbiasedTime: LongByReference)
-        }
-    }
+    fun requiresContinuityEvidence(clockDomain: String): Boolean =
+        clockDomain == SYSTEM_NANO_TIME || clockDomain == ANDROID_NANO_TIME
 }
-
-/** Native clock loading and invocation are optional evidence sources; failures leave timing incomplete. */
-internal fun readSuspendClockNanosOrNull(read: () -> Long?): Long? =
-    try {
-        read()
-    } catch (_: LinkageError) {
-        null
-    } catch (_: RuntimeException) {
-        null
-    }
 
 @Req("TR-PERF-010")
 object TimingAssessment {
@@ -234,13 +132,13 @@ object TimingAssessment {
     }
 
     private fun requiresContinuityEvidence(interval: MonotonicInterval): Boolean =
-        interval.clockDomain == MonotonicMeasurement.CLOCK_DOMAIN
+        ClockDomains.requiresContinuityEvidence(interval.clockDomain)
 
     private fun continuityFailure(interval: MonotonicInterval): String =
         when (interval.continuity) {
-            ClockContinuity.SUSPEND_DETECTED -> "host suspend detected during interval"
+            ClockContinuity.SUSPEND_DETECTED -> "suspend detected during interval"
             ClockContinuity.CLOCK_DISCONTINUITY -> "monotonic clock discontinuity detected"
-            ClockContinuity.UNAVAILABLE -> "suspend detection is unavailable on this host"
+            ClockContinuity.UNAVAILABLE -> "suspend-continuity evidence is unavailable"
             ClockContinuity.NOT_MONITORED -> "interval lacks suspend-continuity evidence"
             ClockContinuity.VERIFIED -> ""
         }

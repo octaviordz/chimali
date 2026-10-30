@@ -149,8 +149,12 @@ kotlin {
             implementation(libs.kotlin.test)
         }
 
+        // Compile one shared test-only source directory into each independent Android test tree.
+        val sharedAndroidTestSources = "src/androidSharedTest/kotlin"
+
         // androidUnitTest: JVM-hosted Android unit tests (JUnit5 + MockK + SQLDelight)
         getByName("androidHostTest") {
+            kotlin.srcDir(sharedAndroidTestSources)
             dependencies {
                 implementation(libs.sqlite.mc.android.unit.test)
                 implementation(libs.junit.jupiter)
@@ -169,9 +173,15 @@ kotlin {
 
         // androidDeviceTest: on-device instrumented tests
         getByName("androidDeviceTest") {
+            kotlin.srcDir(sharedAndroidTestSources)
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
+                implementation(libs.androidx.test.runner)
                 implementation(libs.androidx.test.espresso.core)
+                implementation("io.mockk:mockk-android:${libs.versions.mockk.get()}") {
+                    exclude(group = "org.junit.jupiter")
+                    exclude(group = "org.junit.platform")
+                }
                 implementation(libs.compose.ui.test)
                 implementation(libs.compose.ui.test.junit4)
             }

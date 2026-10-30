@@ -155,7 +155,7 @@ object MeasurementReport {
         }
 
     private fun hasInvalidContinuityEvidence(interval: MonotonicInterval): Boolean =
-        interval.clockDomain == MonotonicMeasurement.CLOCK_DOMAIN && interval.continuity != ClockContinuity.VERIFIED
+        ClockDomains.requiresContinuityEvidence(interval.clockDomain) && interval.continuity != ClockContinuity.VERIFIED
 
     private fun identityReasons(
         attempts: List<CeremonyAttempt>,

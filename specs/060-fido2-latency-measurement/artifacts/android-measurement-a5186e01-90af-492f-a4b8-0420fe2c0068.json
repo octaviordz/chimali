@@ -1,0 +1,13 @@
+{
+  "schema": "060-android-collector-v1",
+  "run_id": "a5186e01-90af-492f-a4b8-0420fe2c0068",
+  "disposition": "INCOMPLETE",
+  "reason": "Could not identify the installed Android test package.",
+  "source_fingerprint": "7025f87dca4605c4348a3438a90c6ed428d9eb51+worktree-source-sha256:771688e84f4d7b22362e8c8ebadbb2126162c9906974f4fd4374e0ce1fc3e311",
+  "partial_device_report": null,
+  "recorded_at_utc": "2026-10-29T21:19:21.4126055Z",
+  "limitations": [
+    "Device serial is not retained.",
+    "No recovered device attempts are available unless partial_device_report is present."
+  ]
+}

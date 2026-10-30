@@ -17,7 +17,7 @@ data class SimulatedWorkload(
     val sourceRevision: String,
     val realComponents: Set<String>,
     val simulatedComponents: Set<String>,
-    val clockDomain: String = MonotonicMeasurement.CLOCK_DOMAIN,
+    val clockDomain: String = ClockDomains.SYSTEM_NANO_TIME,
     val outlierPolicy: String = "retain and report; no removal",
     val limitations: List<String> = emptyList(),
 ) {

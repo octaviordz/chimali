@@ -2,7 +2,7 @@
 
 **Branch**: `060-fido2-latency-measurement` | **Date**: 2026-10-29 | **Spec**: [spec.md](spec.md)
 
-**Status**: Implemented host-simulated assessment runner. The declared run measures all four inventoried operation types and passes the strict per-operation target; physical measurement was not performed.
+**Status**: Implemented and verified. Current-source host CI, connected Android suites and coverage verification passed; the final host acceptance report and Android device diagnostic report are retained in `implementation-evidence.md` and `artifacts/`.
 
 ## Summary
 
@@ -18,7 +18,7 @@ Measure a synthetic registration and authentication journey from a fake relying 
 
 **Testing**: Behavior checks for verified registration/authentication and denied/cancelled/invalid paths; real monotonic measurements for reported elapsed durations. Follow applicable existing local CI, traceability and coverage rules. The workload must document any components it cannot exercise on the host rather than replacing them invisibly.
 
-**Target Platform**: Supported developer/CI host; no physical phone, browser or Bluetooth hardware required. Identify runtime and host when reporting. Physical-device latency is diagnostic only under the amended requirement.
+**Target Platform**: Windows developer/CI host for project acceptance and a connected Android device for an additional simulated assessment. Identify host or device and runtime separately. No browser, Bluetooth or biometric interaction is required.
 
 **Performance Goals**: Define the simulated round-trip baseline and explicit measurement conditions; assess every implemented internal FIDO operation against the retained strict <200 ms target. Report the full simulated round-trip as diagnostic context without an additional threshold.
 
@@ -50,6 +50,8 @@ specs/060-fido2-latency-measurement/
 ├── quickstart.md
 └── checklists/
 feature/fido2/src/androidHostTest/         # existing relevant host tests and prospective simulated workflow
+feature/fido2/src/androidDeviceTest/       # Android instrumentation and platform clock
+feature/fido2/src/androidSharedTest/       # shared test-only ceremony and report helpers
 feature/fido2/src/androidMain/             # existing handlers and minimal instrumentation seams if needed
 tools/ctap2-rp-harness/                    # existing synthetic RP; reuse only where compatible
 ```
@@ -76,6 +78,18 @@ See [research.md](research.md) for metric boundaries, real monotonic timing, sco
 | FR-001–005, SC-001–002 | Defined simulated RP and verification double, verified ceremonies, explicit timing and application boundaries. |
 | FR-006–010, SC-003–004 | Real monotonic measurement, declared workload, complete synthetic evidence and privacy. |
 | FR-011–013, SC-005 | Simulated internal-operation assessment, superseded T084 and preserved historical observations. |
+| FR-014–018, SC-006–007, US4 | Separate Android simulated workload and report, same operation inventory and strict decisions; device performance failures are diagnostic and host acceptance is preserved. |
+
+## Android device extension — design and execution
+
+1. Extract the platform-independent ceremony, verification, fixture, operation assessment and report logic into `src/androidSharedTest/kotlin`; compile that directory into the independent host and device test trees. Isolate Windows and Android clock providers and retain the existing host behavior. Android settings, policy and user verification use working fakes. The broad stateful repository, final HDK-backed crypto service and unused final CTAP dispatcher collaborators use documented MockK exceptions. Disclose that those double implementations are not production-equivalent and are not independently calibrated; avoid changes to product behavior.
+2. Use real `System.nanoTime` intervals on Android. At each endpoint sample `SystemClock.elapsedRealtimeNanos()` between primary readings, retain both deltas and secondary-minus-primary difference, and mark absolute divergence greater than 5 ms, unavailable evidence or invalid intervals incomplete. A separate 1,000-reading clock-probe overhead estimate reports min/median/max but does not adjust operation results. Shorter sleeps, scheduling, and mock overhead remain uncertainty; do not substitute the second clock as the elapsed result.
+3. Declare the device workload before collection: two warmups and ten measured registration and authentication attempts, four operation types, immediate UV double, independently verified responses, retain-all policy, unrounded <200 ms per-operation decisions, and descriptive min/median/max. Identify any device-specific substitution or unsupported operation; do not mark missing work passing. Ensure report validation rejects mismatched records, failures and incomplete intervals.
+4. Run through an explicitly selected connected device. Capture model, OS, runtime, build identity, workload and actual substitutions. Generate a deterministic host fingerprint over production, shared-test, host-test and device-test sources plus Gradle/dependency and specification/contract inputs; pass it with the run ID to the Android instrumentation test. The test records its package identity and installed APK SHA-256; the collector checks these against the built APK. Missing or mismatched provenance is incomplete. Keep Android results separate from the existing host artifact.
+5. Persist synthetic per-attempt evidence to private test storage and AndroidX `PlatformTestStorage`, then let Gradle extract it to a separate host artifact. Record a host-side incomplete/interrupted run if a device disconnect, process crash or extraction failure prevents retrieval, retaining partial attempts where available. Do not expose account identifiers, secrets, biometric data or the device serial in the report. The PowerShell runner enforces one selected device and one active run.
+6. Verify shared logic with host regression checks, clock discontinuity and unavailable-evidence handling, device report integrity and interrupted-run behavior. Run the device workload on the connected ASUS device when available and collect its report on PASS, FAIL or INCOMPLETE. A valid device operation at or above 200 ms produces a diagnostic FAIL but does not by itself fail the runner, block completion of the Android measurement work, or alter host acceptance. Missing or invalid evidence remains INCOMPLETE and must not be represented as a passing assessment; infrastructure and behavior checks still fail on implementation defects. Complete code review, defect corrections and the fingerprinted specification/contract before the final local CI, host assessment and device assessment; repeat affected measurements and checks if fingerprinted inputs subsequently change. Then update only evidence and non-fingerprinted run documentation, retaining actual source fingerprints and results without claiming unexecuted device acceptance.
+
+**Post-design constitution check**: Host acceptance and the <200 ms budget remain unchanged. The device workload is additional simulated evidence; synthetic fixtures and test-only seams preserve security and production architecture. No physical browser/Bluetooth or biometric compliance is claimed. Both environments retain independent reproducible evidence and explicit incomplete outcomes.
 
 ## Complexity Tracking
 

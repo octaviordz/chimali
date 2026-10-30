@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.chimali.fido2.performance
 
 /** Accepts only a successful CTAP GetInfo response with the expected declared capabilities. */

@@ -1,0 +1,13 @@
+{
+  "schema": "060-android-collector-v1",
+  "run_id": "b3189e1e-8d4b-4da5-9af5-24ab276a6fc5",
+  "disposition": "INCOMPLETE",
+  "reason": "Android instrumentation task failed with exit code 1.",
+  "source_fingerprint": "7025f87dca4605c4348a3438a90c6ed428d9eb51+worktree-source-sha256:beb620aecc6bbe1905e5657314c41bd1a599a2aa03e5b628f7998e664381cb7c",
+  "partial_device_report": null,
+  "recorded_at_utc": "2026-10-29T21:17:56.5793540Z",
+  "limitations": [
+    "Device serial is not retained.",
+    "No recovered device attempts are available unless partial_device_report is present."
+  ]
+}

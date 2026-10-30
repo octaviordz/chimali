@@ -115,7 +115,7 @@ class TimingAssessmentTest {
 
         assertEquals(OperationDecision.INCOMPLETE, result.decision)
         assertNull(result.assessedDurationNanos)
-        assertEquals("host suspend detected during interval", result.reason)
+        assertEquals("suspend detected during interval", result.reason)
     }
 
     @Test
@@ -154,7 +154,7 @@ class TimingAssessmentTest {
 
         assertEquals(ClockContinuity.UNAVAILABLE, interval.continuity)
         assertEquals(OperationDecision.INCOMPLETE, result.decision)
-        assertEquals("suspend detection is unavailable on this host", result.reason)
+        assertEquals("suspend-continuity evidence is unavailable", result.reason)
         assertEquals(ProjectDisposition.INCOMPLETE, report.disposition)
         assertTrue(report.reasons.any { it.contains("insufficient eligible measured") })
     }

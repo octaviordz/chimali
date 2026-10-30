@@ -1,0 +1,2702 @@
+{
+  "schema": "060-android-v1",
+  "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+  "disposition": "PASS",
+  "provenance_valid": true,
+  "target_package": "com.chimali.fido2",
+  "target_version": "unknown",
+  "test_package": "com.chimali.fido2.test",
+  "test_apk_sha256": "fcabdcb040a690676f0a2031ee7ffc3705da99221212b9882165ed591cf30c2a",
+  "device": "asus ASUS_AI2302",
+  "android_release": "15",
+  "api_level": 35,
+  "assessment": {
+    "generated_at_utc": "2026-10-29T21:21:21.703244Z",
+    "disposition": "PASS",
+    "reasons": [],
+    "workload": {
+      "version": "060-android-v1",
+      "summary": "Android simulated fake-RP registration and authentication diagnostic",
+      "warmup_count_per_ceremony": 2,
+      "measured_repetitions_per_ceremony": 10,
+      "eligible_after_warmup": true,
+      "operation_types": [
+        "GetAssertion",
+        "GetInfo",
+        "MakeCredential",
+        "ResetAuthenticator"
+      ],
+      "exercised_operation_types": [
+        "GetAssertion",
+        "GetInfo",
+        "MakeCredential",
+        "ResetAuthenticator"
+      ],
+      "unmeasured_operation_types": [],
+      "host": "asus ASUS_AI2302",
+      "runtime": "Android 15 (API 35); test APK fcabdcb040a69067",
+      "source_revision": "7025f87dca4605c4348a3438a90c6ed428d9eb51+worktree-source-sha256:da4c9c73a0137b7fbe25a1e213b19e0f32711ab13f5435abeeed8cbb0d519b97",
+      "clock_domain": "android:System.nanoTime",
+      "outlier_policy": "retain and report; no removal",
+      "limitations": [
+        "Instrumentation and fixture overhead are included in operation and ceremony spans.",
+        "No browser, Bluetooth transport, physical authenticator, or biometric prompt is exercised.",
+        "Installed test APK SHA-256: fcabdcb040a690676f0a2031ee7ffc3705da99221212b9882165ed591cf30c2a; source fingerprint was supplied by the host collector.",
+        "SystemClock detects deep sleep divergence above 5 ms; shorter sleep and awake scheduling are not excluded."
+      ],
+      "real_components": [
+        "CTAP GetInfo",
+        "ResetAuthenticator",
+        "production registration and assertion use cases"
+      ],
+      "simulated_components": [
+        "fake relying party",
+        "immediate user verification",
+        "in-memory persistence"
+      ]
+    },
+    "attempts": [
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-warmup-1-83b29142-3345-4b1e-89b4-483c8c8b4752",
+        "action_id": "349cf31d-ddbc-4fd4-bfd0-4cf6808eb5d5",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "WARMUP",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527029907954,
+          "end_ns": 348527089653292,
+          "elapsed_ns": 59745338,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 59732969,
+          "clock_divergence_ns": -12369
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527029983058,
+            "end_ns": 348527029985844,
+            "elapsed_ns": 2786,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2708,
+            "clock_divergence_ns": -78
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "844ca162-be79-4aed-9e82-0013a9bcfa96",
+            "action_id": "349cf31d-ddbc-4fd4-bfd0-4cf6808eb5d5",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527030647224,
+              "end_ns": 348527062110219,
+              "elapsed_ns": 31462995,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 31464114,
+              "clock_divergence_ns": 1119
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 31462995,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 31462995,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527029983058,
+                    "end_ns": 348527029985844,
+                    "elapsed_ns": 2786,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2708,
+                    "clock_divergence_ns": -78
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "11d1ced8-5c94-47df-b0b5-53c4bb0dc134",
+            "action_id": "349cf31d-ddbc-4fd4-bfd0-4cf6808eb5d5",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527062336521,
+              "end_ns": 348527088473475,
+              "elapsed_ns": 26136954,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 26137760,
+              "clock_divergence_ns": 806
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 26136954,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 26136954,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527029983058,
+                    "end_ns": 348527029985844,
+                    "elapsed_ns": 2786,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2708,
+                    "clock_divergence_ns": -78
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-warmup-1-aa0099ed-11d3-4f1c-8ede-a3c3aa601849",
+        "action_id": "b2397e93-9dbf-49f3-9b5b-c3d9306f0781",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "WARMUP",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527127971495,
+          "end_ns": 348527140611495,
+          "elapsed_ns": 12640000,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 12637812,
+          "clock_divergence_ns": -2188
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527127994542,
+            "end_ns": 348527127996808,
+            "elapsed_ns": 2266,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2239,
+            "clock_divergence_ns": -27
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "66327f79-7fc6-4c85-921a-50301d9c84ef",
+            "action_id": "b2397e93-9dbf-49f3-9b5b-c3d9306f0781",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527128242745,
+              "end_ns": 348527138138344,
+              "elapsed_ns": 9895599,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 9896667,
+              "clock_divergence_ns": 1068
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 9895599,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 9895599,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527127994542,
+                    "end_ns": 348527127996808,
+                    "elapsed_ns": 2266,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2239,
+                    "clock_divergence_ns": -27
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "b29eeaa3-9815-4de2-9353-d5836fcd34f5",
+            "action_id": "b2397e93-9dbf-49f3-9b5b-c3d9306f0781",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527138287224,
+              "end_ns": 348527140209985,
+              "elapsed_ns": 1922761,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1922917,
+              "clock_divergence_ns": 156
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 1922761,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1922761,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527127994542,
+                    "end_ns": 348527127996808,
+                    "elapsed_ns": 2266,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2239,
+                    "clock_divergence_ns": -27
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-warmup-2-b0d4a941-8d4d-4c6c-aaba-9b4d6b9864c5",
+        "action_id": "5aaa4f05-1368-4797-8ede-80474de03dd6",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "WARMUP",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527222943448,
+          "end_ns": 348527247321209,
+          "elapsed_ns": 24377761,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 24374844,
+          "clock_divergence_ns": -2917
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527222979464,
+            "end_ns": 348527222982459,
+            "elapsed_ns": 2995,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2864,
+            "clock_divergence_ns": -131
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "f42cdfcc-2daf-4cab-8f83-25e6c2f2703d",
+            "action_id": "5aaa4f05-1368-4797-8ede-80474de03dd6",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527223129724,
+              "end_ns": 348527230103683,
+              "elapsed_ns": 6973959,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 6975156,
+              "clock_divergence_ns": 1197
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 6973959,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 6973959,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527222979464,
+                    "end_ns": 348527222982459,
+                    "elapsed_ns": 2995,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2864,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "c9d3056e-61c7-40ac-9a40-03463ff0591e",
+            "action_id": "5aaa4f05-1368-4797-8ede-80474de03dd6",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527230198422,
+              "end_ns": 348527246624698,
+              "elapsed_ns": 16426276,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 16426354,
+              "clock_divergence_ns": 78
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 16426276,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 16426276,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527222979464,
+                    "end_ns": 348527222982459,
+                    "elapsed_ns": 2995,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2864,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-warmup-2-6715e762-1f6c-481e-a3f9-1cee2501c706",
+        "action_id": "3a765f98-69db-4df6-955d-d45aaf34a205",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "WARMUP",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527260440792,
+          "end_ns": 348527271672068,
+          "elapsed_ns": 11231276,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 11230729,
+          "clock_divergence_ns": -547
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527260469386,
+            "end_ns": 348527260471730,
+            "elapsed_ns": 2344,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2344,
+            "clock_divergence_ns": 0
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "97fe1509-37eb-498f-8977-7b2e0bf9a271",
+            "action_id": "3a765f98-69db-4df6-955d-d45aaf34a205",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527260593839,
+              "end_ns": 348527269598396,
+              "elapsed_ns": 9004557,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 9004843,
+              "clock_divergence_ns": 286
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 9004557,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 9004557,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527260469386,
+                    "end_ns": 348527260471730,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": 0
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "d2936dba-d151-4be7-a4c4-65c93773d6d8",
+            "action_id": "3a765f98-69db-4df6-955d-d45aaf34a205",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527269658266,
+              "end_ns": 348527271295454,
+              "elapsed_ns": 1637188,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1637395,
+              "clock_divergence_ns": 207
+            },
+            "assessment": {
+              "eligible": false,
+              "raw_duration_ns": 1637188,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1637188,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527260469386,
+                    "end_ns": 348527260471730,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": 0
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-1-06e3fc1a-35b4-4f59-9eff-4480eca45f84",
+        "action_id": "7c410ef5-f685-40d8-b3fc-6775396ae46c",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527283017693,
+          "end_ns": 348527303963136,
+          "elapsed_ns": 20945443,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 20945105,
+          "clock_divergence_ns": -338
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527283038709,
+            "end_ns": 348527283041131,
+            "elapsed_ns": 2422,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2292,
+            "clock_divergence_ns": -130
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "9a2c0ed7-9a53-4b7e-ad31-69292a3dda70",
+            "action_id": "7c410ef5-f685-40d8-b3fc-6775396ae46c",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527283149542,
+              "end_ns": 348527288635271,
+              "elapsed_ns": 5485729,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5486041,
+              "clock_divergence_ns": 312
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5485729,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5485729,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527283038709,
+                    "end_ns": 348527283041131,
+                    "elapsed_ns": 2422,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "cccc140e-d1d1-4bb1-9f23-f05b6303a858",
+            "action_id": "7c410ef5-f685-40d8-b3fc-6775396ae46c",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527288693604,
+              "end_ns": 348527303269490,
+              "elapsed_ns": 14575886,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 14576250,
+              "clock_divergence_ns": 364
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 14575886,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 14575886,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527283038709,
+                    "end_ns": 348527283041131,
+                    "elapsed_ns": 2422,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-1-55a5bf0b-99dd-48c8-a0c5-808b5e0a0690",
+        "action_id": "b1c8f4e6-8f9d-4d87-8003-feb35cd24faa",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527316914021,
+          "end_ns": 348527326811391,
+          "elapsed_ns": 9897370,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9897292,
+          "clock_divergence_ns": -78
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527316940297,
+            "end_ns": 348527316942771,
+            "elapsed_ns": 2474,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2448,
+            "clock_divergence_ns": -26
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "edc75116-3c91-4afa-806f-4dc238ebb5b3",
+            "action_id": "b1c8f4e6-8f9d-4d87-8003-feb35cd24faa",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527317070349,
+              "end_ns": 348527324971261,
+              "elapsed_ns": 7900912,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7901354,
+              "clock_divergence_ns": 442
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7900912,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7900912,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527316940297,
+                    "end_ns": 348527316942771,
+                    "elapsed_ns": 2474,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2448,
+                    "clock_divergence_ns": -26
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "2207592e-851f-42bc-96c5-ff85ee59ff38",
+            "action_id": "b1c8f4e6-8f9d-4d87-8003-feb35cd24faa",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527325035323,
+              "end_ns": 348527326454777,
+              "elapsed_ns": 1419454,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1419635,
+              "clock_divergence_ns": 181
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1419454,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1419454,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527316940297,
+                    "end_ns": 348527316942771,
+                    "elapsed_ns": 2474,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2448,
+                    "clock_divergence_ns": -26
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-2-9fcd03a0-71ff-41df-b536-54c7ab26a689",
+        "action_id": "eded7c62-5a1d-4fcc-8d95-a88c24ecedf7",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527341328813,
+          "end_ns": 348527360717224,
+          "elapsed_ns": 19388411,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19387969,
+          "clock_divergence_ns": -442
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527341349073,
+            "end_ns": 348527341351417,
+            "elapsed_ns": 2344,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2240,
+            "clock_divergence_ns": -104
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "f0063f6d-a1ff-4d24-9606-7900f8eb3d32",
+            "action_id": "eded7c62-5a1d-4fcc-8d95-a88c24ecedf7",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527341458240,
+              "end_ns": 348527346901156,
+              "elapsed_ns": 5442916,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5443281,
+              "clock_divergence_ns": 365
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5442916,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5442916,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527341349073,
+                    "end_ns": 348527341351417,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2240,
+                    "clock_divergence_ns": -104
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "5b1e7d1e-9edf-4bc2-8e04-2d81ef41295e",
+            "action_id": "eded7c62-5a1d-4fcc-8d95-a88c24ecedf7",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527346959516,
+              "end_ns": 348527360029828,
+              "elapsed_ns": 13070312,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 13070625,
+              "clock_divergence_ns": 313
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 13070312,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 13070312,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527341349073,
+                    "end_ns": 348527341351417,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2240,
+                    "clock_divergence_ns": -104
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-2-20a3a086-bade-453f-89dd-35b50db05ab7",
+        "action_id": "2c147ac1-13e8-4492-87fe-2b4a34373657",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527372725193,
+          "end_ns": 348527382348266,
+          "elapsed_ns": 9623073,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9622761,
+          "clock_divergence_ns": -312
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527372747407,
+            "end_ns": 348527372749646,
+            "elapsed_ns": 2239,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2292,
+            "clock_divergence_ns": 53
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "f9f10477-b51d-45bc-a815-d2e3d22d3091",
+            "action_id": "2c147ac1-13e8-4492-87fe-2b4a34373657",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527372870792,
+              "end_ns": 348527380539308,
+              "elapsed_ns": 7668516,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7668698,
+              "clock_divergence_ns": 182
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7668516,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7668516,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527372747407,
+                    "end_ns": 348527372749646,
+                    "elapsed_ns": 2239,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": 53
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "a140a03d-e4a0-48c7-91d5-aad6c0b98a58",
+            "action_id": "2c147ac1-13e8-4492-87fe-2b4a34373657",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527380598318,
+              "end_ns": 348527382000792,
+              "elapsed_ns": 1402474,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1402604,
+              "clock_divergence_ns": 130
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1402474,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1402474,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527372747407,
+                    "end_ns": 348527372749646,
+                    "elapsed_ns": 2239,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": 53
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-3-7e34239a-2514-48c9-9548-872aa9267157",
+        "action_id": "6dd7bc2f-8054-4a6e-abb2-dcb0935dd2cd",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527399497016,
+          "end_ns": 348527418573891,
+          "elapsed_ns": 19076875,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19074271,
+          "clock_divergence_ns": -2604
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527399526521,
+            "end_ns": 348527399529099,
+            "elapsed_ns": 2578,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2656,
+            "clock_divergence_ns": 78
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "706479ad-7fb2-45ae-89fd-33afe5158393",
+            "action_id": "6dd7bc2f-8054-4a6e-abb2-dcb0935dd2cd",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527399642354,
+              "end_ns": 348527405329881,
+              "elapsed_ns": 5687527,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5688281,
+              "clock_divergence_ns": 754
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5687527,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5687527,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527399526521,
+                    "end_ns": 348527399529099,
+                    "elapsed_ns": 2578,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2656,
+                    "clock_divergence_ns": 78
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "a4302382-0526-486e-8698-7017ba0ad435",
+            "action_id": "6dd7bc2f-8054-4a6e-abb2-dcb0935dd2cd",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527405393344,
+              "end_ns": 348527417922094,
+              "elapsed_ns": 12528750,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 12529375,
+              "clock_divergence_ns": 625
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 12528750,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 12528750,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527399526521,
+                    "end_ns": 348527399529099,
+                    "elapsed_ns": 2578,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2656,
+                    "clock_divergence_ns": 78
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-3-77e30b97-a405-42ee-a7e5-e4cab47abdeb",
+        "action_id": "cd37410f-b667-4acc-b0d4-1698f4426eef",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527430607719,
+          "end_ns": 348527440467380,
+          "elapsed_ns": 9859661,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9858021,
+          "clock_divergence_ns": -1640
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527430636860,
+            "end_ns": 348527430639230,
+            "elapsed_ns": 2370,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2292,
+            "clock_divergence_ns": -78
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "bae54223-27cd-4301-abcd-025edc46701a",
+            "action_id": "cd37410f-b667-4acc-b0d4-1698f4426eef",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527430766912,
+              "end_ns": 348527438626391,
+              "elapsed_ns": 7859479,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7860053,
+              "clock_divergence_ns": 574
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7859479,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7859479,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527430636860,
+                    "end_ns": 348527430639230,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": -78
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "4df518cf-407c-475c-b151-bb75a81f48fb",
+            "action_id": "cd37410f-b667-4acc-b0d4-1698f4426eef",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527438690714,
+              "end_ns": 348527440085948,
+              "elapsed_ns": 1395234,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1395625,
+              "clock_divergence_ns": 391
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1395234,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1395234,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527430636860,
+                    "end_ns": 348527430639230,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2292,
+                    "clock_divergence_ns": -78
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-4-34a8e73e-7e6a-4267-bbcc-1b3496bb406d",
+        "action_id": "a679cfa2-aab7-4a56-9324-6fa7a1b9586d",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527460760714,
+          "end_ns": 348527479922172,
+          "elapsed_ns": 19161458,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19160365,
+          "clock_divergence_ns": -1093
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527460786729,
+            "end_ns": 348527460789099,
+            "elapsed_ns": 2370,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2500,
+            "clock_divergence_ns": 130
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "6729a606-817f-4ea1-9079-ded0f2943e4c",
+            "action_id": "a679cfa2-aab7-4a56-9324-6fa7a1b9586d",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527460900766,
+              "end_ns": 348527466571860,
+              "elapsed_ns": 5671094,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5671510,
+              "clock_divergence_ns": 416
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5671094,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5671094,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527460786729,
+                    "end_ns": 348527460789099,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2500,
+                    "clock_divergence_ns": 130
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "4f241a1b-69bf-4eef-92d1-39109b7661e6",
+            "action_id": "a679cfa2-aab7-4a56-9324-6fa7a1b9586d",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527466631808,
+              "end_ns": 348527479251704,
+              "elapsed_ns": 12619896,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 12620573,
+              "clock_divergence_ns": 677
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 12619896,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 12619896,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527460786729,
+                    "end_ns": 348527460789099,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2500,
+                    "clock_divergence_ns": 130
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-4-b8fe477c-42b5-4bfc-ab99-7180aa39b33d",
+        "action_id": "716247ec-fdd0-45ed-b03e-ff8b9166a790",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527491696495,
+          "end_ns": 348527501272380,
+          "elapsed_ns": 9575885,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9575156,
+          "clock_divergence_ns": -729
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527491720427,
+            "end_ns": 348527491722641,
+            "elapsed_ns": 2214,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2083,
+            "clock_divergence_ns": -131
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "d087f4d3-9b2c-407f-a4a6-aa6c2f82e813",
+            "action_id": "716247ec-fdd0-45ed-b03e-ff8b9166a790",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527491839464,
+              "end_ns": 348527499439099,
+              "elapsed_ns": 7599635,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7600000,
+              "clock_divergence_ns": 365
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7599635,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7599635,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527491720427,
+                    "end_ns": 348527491722641,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2083,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "5d6b6caa-4287-409e-a741-4502e33de86d",
+            "action_id": "716247ec-fdd0-45ed-b03e-ff8b9166a790",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527499501417,
+              "end_ns": 348527500898553,
+              "elapsed_ns": 1397136,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1397396,
+              "clock_divergence_ns": 260
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1397136,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1397136,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527491720427,
+                    "end_ns": 348527491722641,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2083,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-5-45ff140c-5ac8-4e9d-acec-ec5699b8631e",
+        "action_id": "10ee022f-62ce-4f35-978a-077a65714a79",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527524583396,
+          "end_ns": 348527544520896,
+          "elapsed_ns": 19937500,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19935365,
+          "clock_divergence_ns": -2135
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527524613891,
+            "end_ns": 348527524616573,
+            "elapsed_ns": 2682,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2657,
+            "clock_divergence_ns": -25
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "5e051d5d-862a-40d7-9b8f-aa63033bcb1d",
+            "action_id": "10ee022f-62ce-4f35-978a-077a65714a79",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527524730792,
+              "end_ns": 348527530654542,
+              "elapsed_ns": 5923750,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5924792,
+              "clock_divergence_ns": 1042
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5923750,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5923750,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527524613891,
+                    "end_ns": 348527524616573,
+                    "elapsed_ns": 2682,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2657,
+                    "clock_divergence_ns": -25
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "e2b90317-a7ce-4204-b5e1-84ea49659ede",
+            "action_id": "10ee022f-62ce-4f35-978a-077a65714a79",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527530725323,
+              "end_ns": 348527543745271,
+              "elapsed_ns": 13019948,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 13020208,
+              "clock_divergence_ns": 260
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 13019948,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 13019948,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527524613891,
+                    "end_ns": 348527524616573,
+                    "elapsed_ns": 2682,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2657,
+                    "clock_divergence_ns": -25
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-5-a8db63c5-b869-4c6d-a939-af923a461c04",
+        "action_id": "04fdf8c2-605b-409c-a83d-924d2525a134",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527556247927,
+          "end_ns": 348527565745505,
+          "elapsed_ns": 9497578,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9497291,
+          "clock_divergence_ns": -287
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527556271521,
+            "end_ns": 348527556273995,
+            "elapsed_ns": 2474,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2344,
+            "clock_divergence_ns": -130
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "61aa8101-6ea3-4aa3-b86c-ec8a395bc913",
+            "action_id": "04fdf8c2-605b-409c-a83d-924d2525a134",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527556402771,
+              "end_ns": 348527563848761,
+              "elapsed_ns": 7445990,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7446198,
+              "clock_divergence_ns": 208
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7445990,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7445990,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527556271521,
+                    "end_ns": 348527556273995,
+                    "elapsed_ns": 2474,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "d49c4907-81cc-4383-a28f-bcd1bb01a68c",
+            "action_id": "04fdf8c2-605b-409c-a83d-924d2525a134",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527563910974,
+              "end_ns": 348527565385011,
+              "elapsed_ns": 1474037,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1474167,
+              "clock_divergence_ns": 130
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1474037,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1474037,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527556271521,
+                    "end_ns": 348527556273995,
+                    "elapsed_ns": 2474,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-6-618992fe-ccc8-4676-83ae-53007a25e2e7",
+        "action_id": "396dffbc-0353-4e66-8894-bbdad2c2c8e9",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527589987745,
+          "end_ns": 348527608647797,
+          "elapsed_ns": 18660052,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 18659635,
+          "clock_divergence_ns": -417
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527590012849,
+            "end_ns": 348527590015167,
+            "elapsed_ns": 2318,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2291,
+            "clock_divergence_ns": -27
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "48576499-f82a-4f36-b561-94ab8373dd7a",
+            "action_id": "396dffbc-0353-4e66-8894-bbdad2c2c8e9",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527590122537,
+              "end_ns": 348527595691860,
+              "elapsed_ns": 5569323,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5569791,
+              "clock_divergence_ns": 468
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5569323,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5569323,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527590012849,
+                    "end_ns": 348527590015167,
+                    "elapsed_ns": 2318,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2291,
+                    "clock_divergence_ns": -27
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "f3fa2016-de37-4af3-b464-09bbe9881585",
+            "action_id": "396dffbc-0353-4e66-8894-bbdad2c2c8e9",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527595752354,
+              "end_ns": 348527607930167,
+              "elapsed_ns": 12177813,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 12177865,
+              "clock_divergence_ns": 52
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 12177813,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 12177813,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527590012849,
+                    "end_ns": 348527590015167,
+                    "elapsed_ns": 2318,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2291,
+                    "clock_divergence_ns": -27
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-6-bd1a7894-fb35-4b8a-ab05-0dc79fd99383",
+        "action_id": "35d889d5-eb6e-4f9a-952a-dcdf94ba5004",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527620197563,
+          "end_ns": 348527629212198,
+          "elapsed_ns": 9014635,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9014219,
+          "clock_divergence_ns": -416
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527620218110,
+            "end_ns": 348527620220323,
+            "elapsed_ns": 2213,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2136,
+            "clock_divergence_ns": -77
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "348b92d4-90ec-45a7-92c2-09d774b2f7b2",
+            "action_id": "35d889d5-eb6e-4f9a-952a-dcdf94ba5004",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527620339594,
+              "end_ns": 348527627471964,
+              "elapsed_ns": 7132370,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7132656,
+              "clock_divergence_ns": 286
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7132370,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7132370,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527620218110,
+                    "end_ns": 348527620220323,
+                    "elapsed_ns": 2213,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2136,
+                    "clock_divergence_ns": -77
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "11b3e513-d0be-4d4c-95d1-8612775d4f8f",
+            "action_id": "35d889d5-eb6e-4f9a-952a-dcdf94ba5004",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527627531703,
+              "end_ns": 348527628861730,
+              "elapsed_ns": 1330027,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1330208,
+              "clock_divergence_ns": 181
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1330027,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1330027,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527620218110,
+                    "end_ns": 348527620220323,
+                    "elapsed_ns": 2213,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2136,
+                    "clock_divergence_ns": -77
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-7-a9d1916c-fe06-40c6-a7d5-a9f198c857da",
+        "action_id": "ff72aa13-806e-4516-95a9-456a4fe5e341",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527648042120,
+          "end_ns": 348527667193344,
+          "elapsed_ns": 19151224,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19150573,
+          "clock_divergence_ns": -651
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527648066755,
+            "end_ns": 348527648069282,
+            "elapsed_ns": 2527,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2396,
+            "clock_divergence_ns": -131
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "ba4777ca-3d50-4342-b6e4-afc3c08bc799",
+            "action_id": "ff72aa13-806e-4516-95a9-456a4fe5e341",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527648182771,
+              "end_ns": 348527653846755,
+              "elapsed_ns": 5663984,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5664583,
+              "clock_divergence_ns": 599
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5663984,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5663984,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527648066755,
+                    "end_ns": 348527648069282,
+                    "elapsed_ns": 2527,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2396,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "173ab5aa-cff4-4a3d-8076-d934b524dc0e",
+            "action_id": "ff72aa13-806e-4516-95a9-456a4fe5e341",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527653908995,
+              "end_ns": 348527666514959,
+              "elapsed_ns": 12605964,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 12606562,
+              "clock_divergence_ns": 598
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 12605964,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 12605964,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527648066755,
+                    "end_ns": 348527648069282,
+                    "elapsed_ns": 2527,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2396,
+                    "clock_divergence_ns": -131
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-7-a9f286cb-55be-49da-bde1-4db5b160deb1",
+        "action_id": "2e09e718-8c83-48d4-8113-a4a8d420f264",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527678969099,
+          "end_ns": 348527688218058,
+          "elapsed_ns": 9248959,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 9248437,
+          "clock_divergence_ns": -522
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527678994490,
+            "end_ns": 348527678996860,
+            "elapsed_ns": 2370,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2552,
+            "clock_divergence_ns": 182
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "a552bfca-1050-4c1a-98fd-3dace5d4083f",
+            "action_id": "2e09e718-8c83-48d4-8113-a4a8d420f264",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527679125635,
+              "end_ns": 348527686375089,
+              "elapsed_ns": 7249454,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 7249844,
+              "clock_divergence_ns": 390
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 7249454,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 7249454,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527678994490,
+                    "end_ns": 348527678996860,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2552,
+                    "clock_divergence_ns": 182
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "6555fd6b-1541-41ad-8cb7-12c811b8a602",
+            "action_id": "2e09e718-8c83-48d4-8113-a4a8d420f264",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527686439802,
+              "end_ns": 348527687754907,
+              "elapsed_ns": 1315105,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1315312,
+              "clock_divergence_ns": 207
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1315105,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1315105,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527678994490,
+                    "end_ns": 348527678996860,
+                    "elapsed_ns": 2370,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2552,
+                    "clock_divergence_ns": 182
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-8-7cf9e3fe-7495-48b0-aee3-6d3ed7b39506",
+        "action_id": "401ceacb-e2f2-4437-a8d9-44e894fdf7eb",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527709342745,
+          "end_ns": 348527728358552,
+          "elapsed_ns": 19015807,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 19013333,
+          "clock_divergence_ns": -2474
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527709371755,
+            "end_ns": 348527709374776,
+            "elapsed_ns": 3021,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2969,
+            "clock_divergence_ns": -52
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "c7fab1d2-9082-41ee-9f24-a93dfa1fbfae",
+            "action_id": "401ceacb-e2f2-4437-a8d9-44e894fdf7eb",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527709493084,
+              "end_ns": 348527715230844,
+              "elapsed_ns": 5737760,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5738750,
+              "clock_divergence_ns": 990
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5737760,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5737760,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527709371755,
+                    "end_ns": 348527709374776,
+                    "elapsed_ns": 3021,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2969,
+                    "clock_divergence_ns": -52
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "f4456cf2-ab49-40ad-8dc3-545bc4c5470e",
+            "action_id": "401ceacb-e2f2-4437-a8d9-44e894fdf7eb",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527715294438,
+              "end_ns": 348527727681209,
+              "elapsed_ns": 12386771,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 12387083,
+              "clock_divergence_ns": 312
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 12386771,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 12386771,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527709371755,
+                    "end_ns": 348527709374776,
+                    "elapsed_ns": 3021,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2969,
+                    "clock_divergence_ns": -52
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-8-5e7df7de-b389-4cd8-8071-470342fccae6",
+        "action_id": "dd7f6f02-c8ab-4f13-91a2-e902fc055932",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527739879125,
+          "end_ns": 348527748534854,
+          "elapsed_ns": 8655729,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 8654844,
+          "clock_divergence_ns": -885
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527739904776,
+            "end_ns": 348527739906964,
+            "elapsed_ns": 2188,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2135,
+            "clock_divergence_ns": -53
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "ae3a8d5a-85b1-4638-b4c7-cc4d89eb294b",
+            "action_id": "dd7f6f02-c8ab-4f13-91a2-e902fc055932",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527740077432,
+              "end_ns": 348527746892745,
+              "elapsed_ns": 6815313,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 6815573,
+              "clock_divergence_ns": 260
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 6815313,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 6815313,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527739904776,
+                    "end_ns": 348527739906964,
+                    "elapsed_ns": 2188,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2135,
+                    "clock_divergence_ns": -53
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "64588ac5-1f47-4c7f-ae47-6805ca064016",
+            "action_id": "dd7f6f02-c8ab-4f13-91a2-e902fc055932",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527746954386,
+              "end_ns": 348527748185792,
+              "elapsed_ns": 1231406,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1231511,
+              "clock_divergence_ns": 105
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1231406,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1231406,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527739904776,
+                    "end_ns": 348527739906964,
+                    "elapsed_ns": 2188,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2135,
+                    "clock_divergence_ns": -53
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-9-cdb63a26-4cca-44b6-a9b0-c2705d3e8b80",
+        "action_id": "a54e4c27-7b09-4809-acea-c176072e79bf",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527770581183,
+          "end_ns": 348527788944125,
+          "elapsed_ns": 18362942,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 18361979,
+          "clock_divergence_ns": -963
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527770605453,
+            "end_ns": 348527770607797,
+            "elapsed_ns": 2344,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2344,
+            "clock_divergence_ns": 0
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "319285d2-2d89-4238-9e27-5812d92bcd9b",
+            "action_id": "a54e4c27-7b09-4809-acea-c176072e79bf",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527770716807,
+              "end_ns": 348527776467667,
+              "elapsed_ns": 5750860,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5751510,
+              "clock_divergence_ns": 650
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5750860,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5750860,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527770605453,
+                    "end_ns": 348527770607797,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": 0
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "507ff62d-3d85-4e95-826d-a5b45913885f",
+            "action_id": "a54e4c27-7b09-4809-acea-c176072e79bf",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527776529412,
+              "end_ns": 348527788277224,
+              "elapsed_ns": 11747812,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 11748229,
+              "clock_divergence_ns": 417
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 11747812,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 11747812,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527770605453,
+                    "end_ns": 348527770607797,
+                    "elapsed_ns": 2344,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": 0
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-9-db2bb53a-2104-42cb-8fe2-2ba30d4530cc",
+        "action_id": "c045a9f2-b0bd-4465-91cc-cf4bb06f1456",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527799881651,
+          "end_ns": 348527808573109,
+          "elapsed_ns": 8691458,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 8691041,
+          "clock_divergence_ns": -417
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527799902042,
+            "end_ns": 348527799904256,
+            "elapsed_ns": 2214,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2084,
+            "clock_divergence_ns": -130
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "fc2d11fd-d1ad-401a-a4fb-999493cf5840",
+            "action_id": "c045a9f2-b0bd-4465-91cc-cf4bb06f1456",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527800069724,
+              "end_ns": 348527806897094,
+              "elapsed_ns": 6827370,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 6827708,
+              "clock_divergence_ns": 338
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 6827370,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 6827370,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527799902042,
+                    "end_ns": 348527799904256,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2084,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "5450028c-294d-4e52-a8b1-08f5746c5fe3",
+            "action_id": "c045a9f2-b0bd-4465-91cc-cf4bb06f1456",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527806958734,
+              "end_ns": 348527808222381,
+              "elapsed_ns": 1263647,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1263802,
+              "clock_divergence_ns": 155
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1263647,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1263647,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527799902042,
+                    "end_ns": 348527799904256,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2084,
+                    "clock_divergence_ns": -130
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "registration-measured-10-1693e4a7-8f46-471b-8f5d-e5f2e1137ee8",
+        "action_id": "6b7b8f15-fdeb-4d32-b30e-6af025f91e5a",
+        "ceremony": "REGISTRATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527832899828,
+          "end_ns": 348527851318422,
+          "elapsed_ns": 18418594,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 18417552,
+          "clock_divergence_ns": -1042
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527832926807,
+            "end_ns": 348527832929256,
+            "elapsed_ns": 2449,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2344,
+            "clock_divergence_ns": -105
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "64611ed9-0978-4e00-9c54-cdd46a21f1c8",
+            "action_id": "6b7b8f15-fdeb-4d32-b30e-6af025f91e5a",
+            "type": "GetInfo",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527833045453,
+              "end_ns": 348527838749932,
+              "elapsed_ns": 5704479,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 5704688,
+              "clock_divergence_ns": 209
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 5704479,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 5704479,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527832926807,
+                    "end_ns": 348527832929256,
+                    "elapsed_ns": 2449,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": -105
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "6d4d56d2-a1eb-4a83-bbc3-65aded01644c",
+            "action_id": "6b7b8f15-fdeb-4d32-b30e-6af025f91e5a",
+            "type": "MakeCredential",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527838811339,
+              "end_ns": 348527850622537,
+              "elapsed_ns": 11811198,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 11811354,
+              "clock_divergence_ns": 156
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 11811198,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 11811198,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527832926807,
+                    "end_ns": 348527832929256,
+                    "elapsed_ns": 2449,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2344,
+                    "clock_divergence_ns": -105
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "run_id": "877bcabe-46f8-43d6-aa85-549ea7b76edf",
+        "attempt_id": "authentication-measured-10-c3041f4e-417f-4e92-9504-a21c9b03e858",
+        "action_id": "dc511a6f-a3fb-474e-9f12-b5ae2d648492",
+        "ceremony": "AUTHENTICATION",
+        "attempt_kind": "MEASURED",
+        "outcome": "VERIFIED",
+        "verified_response": true,
+        "ceremony_interval": {
+          "start_ns": 348527862022172,
+          "end_ns": 348527870434333,
+          "elapsed_ns": 8412161,
+          "clock_domain": "android:System.nanoTime",
+          "clock_continuity": "VERIFIED",
+          "suspend_aware_elapsed_ns": 8411667,
+          "clock_divergence_ns": -494
+        },
+        "verification": {
+          "outcome": "SUCCESS",
+          "interval": {
+            "start_ns": 348527862040349,
+            "end_ns": 348527862042563,
+            "elapsed_ns": 2214,
+            "clock_domain": "android:System.nanoTime",
+            "clock_continuity": "VERIFIED",
+            "suspend_aware_elapsed_ns": 2239,
+            "clock_divergence_ns": 25
+          }
+        },
+        "bluetooth_handoff": null,
+        "failure_reason": null,
+        "operations": [
+          {
+            "operation_id": "99d28b02-293c-4948-91f2-6fe969c22264",
+            "action_id": "dc511a6f-a3fb-474e-9f12-b5ae2d648492",
+            "type": "GetAssertion",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527862161339,
+              "end_ns": 348527868758240,
+              "elapsed_ns": 6596901,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 6597240,
+              "clock_divergence_ns": 339
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 6596901,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 6596901,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527862040349,
+                    "end_ns": 348527862042563,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2239,
+                    "clock_divergence_ns": 25
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "operation_id": "84b82874-c207-4c17-b25c-98c499ab3038",
+            "action_id": "dc511a6f-a3fb-474e-9f12-b5ae2d648492",
+            "type": "ResetAuthenticator",
+            "terminal_outcome": "completed",
+            "interval": {
+              "start_ns": 348527868817901,
+              "end_ns": 348527870097329,
+              "elapsed_ns": 1279428,
+              "clock_domain": "android:System.nanoTime",
+              "clock_continuity": "VERIFIED",
+              "suspend_aware_elapsed_ns": 1279583,
+              "clock_divergence_ns": 155
+            },
+            "assessment": {
+              "eligible": true,
+              "raw_duration_ns": 1279428,
+              "excluded_duration_ns": 0,
+              "assessed_duration_ns": 1279428,
+              "decision": "PASS",
+              "reason": null,
+              "exclusions": [
+                {
+                  "kind": "USER_VERIFICATION",
+                  "interval": {
+                    "start_ns": 348527862040349,
+                    "end_ns": 348527862042563,
+                    "elapsed_ns": 2214,
+                    "clock_domain": "android:System.nanoTime",
+                    "clock_continuity": "VERIFIED",
+                    "suspend_aware_elapsed_ns": 2239,
+                    "clock_divergence_ns": 25
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "operation_summaries": {
+      "GetAssertion": {
+        "occurrence_count": 10,
+        "minimum_ns": 6596901,
+        "median_ns": 7347722,
+        "maximum_ns": 7900912
+      },
+      "GetInfo": {
+        "occurrence_count": 10,
+        "minimum_ns": 5442916,
+        "median_ns": 5679310,
+        "maximum_ns": 5923750
+      },
+      "MakeCredential": {
+        "occurrence_count": 10,
+        "minimum_ns": 11747812,
+        "median_ns": 12567357,
+        "maximum_ns": 14575886
+      },
+      "ResetAuthenticator": {
+        "occurrence_count": 10,
+        "minimum_ns": 1231406,
+        "median_ns": 1362630,
+        "maximum_ns": 1474037
+      }
+    },
+    "ceremony_summaries": {
+      "AUTHENTICATION": {
+        "occurrence_count": 10,
+        "minimum_ns": 8412161,
+        "median_ns": 9373268,
+        "maximum_ns": 9897370
+      },
+      "REGISTRATION": {
+        "occurrence_count": 10,
+        "minimum_ns": 18362942,
+        "median_ns": 19114049,
+        "maximum_ns": 20945443
+      }
+    }
+  },
+  "collector": {
+    "source_fingerprint_verified": true,
+    "test_package_verified": true,
+    "test_apk_digest_verified": true,
+    "collected_at_utc": "2026-10-29T21:21:29.1821286Z",
+    "limitations": [
+      "Android device serial is intentionally not retained."
+    ]
+  }
+}

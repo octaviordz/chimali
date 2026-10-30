@@ -156,6 +156,8 @@ class SimulatedLatencyAssessmentTest {
                     "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/util/performance/BaselineMeasurements.kt",
                 ),
                 root.resolve("feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/performance"),
+                root.resolve("feature/fido2/src/androidSharedTest/kotlin/com/chimali/fido2/performance"),
+                root.resolve("feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/performance"),
                 root.resolve("feature/fido2/build.gradle.kts"),
                 root.resolve("gradle/libs.versions.toml"),
                 root.resolve("specs/060-fido2-latency-measurement/spec.md"),

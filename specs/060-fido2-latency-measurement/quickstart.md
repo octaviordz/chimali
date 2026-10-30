@@ -1,6 +1,20 @@
 # Quickstart: Simulated FIDO2 Ceremony Latency
 
-This guide describes the implemented host-simulated assessment. No physical phone, browser, Bluetooth device or human biometric action is required.
+## Android device diagnostic
+
+The Android run executes the same fake-RP registration and authentication workload on one selected device. It retains two warmups and ten measured attempts for each ceremony, independently verifies each response, and records GetInfo, MakeCredential, GetAssertion and ResetAuthenticator timings. User verification is immediate and simulated; no browser, Bluetooth transport, physical authenticator or biometric prompt is exercised.
+
+Connect and authorize one Android device, then run from the repository root:
+
+```powershell
+.\tools\fido2-android-latency.ps1 -Serial R7AIB7002901AZ3
+```
+
+The collector builds and runs the instrumentation test, supplies a source fingerprint and unique run ID, extracts the AndroidX test-storage report, verifies the report against the built test package SHA-256, and writes a separate artifact at `specs/060-fido2-latency-measurement/artifacts/android-measurement-{run-id}.json`. It requires an explicit `-Serial` when multiple authorized devices are connected. The collector stores no device serial. On an interrupted or invalid run it retains an `INCOMPLETE` artifact and includes partial attempts when the device or AndroidX output makes them recoverable.
+
+The primary elapsed duration is the real `System.nanoTime` delta using midpoint readings around `SystemClock.elapsedRealtimeNanos`. The report retains both clock deltas and their divergence. Missing/invalid secondary evidence or absolute divergence above 5 ms makes timing incomplete. A separate 1,000-sample clock-capture probe reports its min/median/max overhead; measured durations are not adjusted. Shorter sleeps and awake scheduling remain limitations.
+
+A valid device occurrence at or above 200 ms makes that device assessment `FAIL` but does not fail implementation CI or replace the host acceptance result. Missing provenance, invalid measurements or collection defects produce `INCOMPLETE`. See the [final device report](artifacts/android-measurement-58f5c694-0a65-40ee-befc-e8a52a8ff61a.json) and the detailed [implementation evidence](implementation-evidence.md).
 
 ## Preparation
 
@@ -26,7 +40,7 @@ The focused performance package has 37 passing tests. Full repository verificati
 .\tools\local-ci.ps1 -NoFix -NoConfigurationCache -RunCoverage
 ```
 
-This run passed style/static checks, release lint, all-module compilation, unit and KMP host suites, connected coverage on ASUS_AI2302 (Android 15), and `hdkCoverageVerify`. The local CI script supplies Kotlin's required `in-process` compiler strategy to the coverage gate. Detailed device counts and module coverage are in [implementation evidence](implementation-evidence.md).
+This run passed style/static checks, release lint, all-module compilation, unit and KMP host suites, connected coverage on ASUS_AI2302 (Android 15), and `hdkCoverageVerify`. The local CI script supplies Kotlin's required `in-process` compiler strategy to the coverage gate. Detailed device and module coverage results are in [implementation evidence](implementation-evidence.md).
 
 It writes `feature/fido2/build/reports/fido2/060/simulated-latency-assessment.json`. The retained [assessment artifact](artifacts/simulated-latency-assessment.json) preserves the declared run. It retains 24 fake-RP actions: 4 warmups and 20 measured attempts. Each registration action measures GetInfo and MakeCredential; each authentication action measures GetAssertion and ResetAuthenticator. The report retains ten measured occurrences for each operation type, all associated with their enclosing verified action.
 
@@ -38,6 +52,8 @@ All elapsed-time measurements use the real JVM `System.nanoTime` clock (`jvm:Sys
 2. Inspect each operation occurrence, its raw endpoints, exclusion intervals, assessed duration and decision. Do not treat the full simulated round trip as the per-operation duration.
 3. Review operation-to-action associations, substitutions, limitations and disposition in the report and [implementation evidence](implementation-evidence.md).
 4. Re-run the broader applicable host/style/static/coverage gates before treating code changes as fully verified. All reported elapsed durations use a real monotonic clock.
+
+For the device diagnostic, inspect the `assessment.operation_summaries` and every measured attempt in the linked Android report. Check the device metadata, source fingerprint, test package and APK SHA-256, verified responses, clock continuity, operation decisions, and recorded substitutions. Device performance disposition and host acceptance are separate results.
 
 ## Monotonic-clock measurement
 

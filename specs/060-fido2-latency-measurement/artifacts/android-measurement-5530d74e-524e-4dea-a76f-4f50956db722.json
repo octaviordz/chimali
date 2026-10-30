@@ -1,0 +1,13 @@
+{
+  "schema": "060-android-collector-v1",
+  "run_id": "5530d74e-524e-4dea-a76f-4f50956db722",
+  "disposition": "INCOMPLETE",
+  "reason": "Another Feature 060 Android assessment is already running.",
+  "source_fingerprint": "unavailable",
+  "partial_device_report": null,
+  "recorded_at_utc": "2026-10-29T21:17:55.2970919Z",
+  "limitations": [
+    "Device serial is not retained.",
+    "No recovered device attempts are available unless partial_device_report is present."
+  ]
+}

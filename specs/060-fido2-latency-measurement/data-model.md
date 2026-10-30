@@ -1,5 +1,13 @@
 # Data Model: Simulated FIDO2 Ceremony Latency
 
+## Android device run and collection (planned)
+
+A device run has a unique run ID, platform `ANDROID_DEVICE`, selected device model and OS version, runtime and test-package identity, host-supplied source fingerprint bound to the package, predeclared workload, start and end/status, and a separate artifact location. Device serials are used only for selection, not retained as account identity. The shared attempt and operation records retain their current correlation and privacy rules.
+
+Each Android interval retains primary `System.nanoTime` endpoints and elapsed value, independent `elapsedRealtimeNanos` delta, secondary-minus-primary divergence, tolerance, and continuity disposition. Sleep-sized divergence, invalid readings or absent continuity evidence yields incomplete; a value within tolerance is not proof that no shorter sleep occurred. The per-operation assessment uses only the primary elapsed value and measured exclusions.
+
+Run states are `started`, `complete`, `failed`, and `incomplete`. Persist completed attempts as they are produced; the host collection record identifies missing or unretrievable evidence and device disconnects. A complete passing device report needs independently verified measured ceremonies and at least ten eligible occurrences of every inventoried type, all strictly below 200 ms. A failing occurrence is FAIL; missing evidence is INCOMPLETE, with both conditions retained if present. Device performance FAIL alone does not block completion of the measurement work; report validity and collection failures remain independently visible. Host and device reports are independent and never pooled.
+
 ## Workload Definition
 
 Version, ceremony type, synthetic fixture, fake RP request and independent verification, production components exercised, substituted transport/platform and verification dependencies, declared verification outcome and no-deliberate-delay policy, monotonic clock source, runtime/host, warmup, repetitions, summary statistic, existing strict <200ms per-operation threshold, and measurement boundaries. Any workload change is recorded and prevents unsupported direct comparison.

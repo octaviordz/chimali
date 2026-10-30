@@ -1,5 +1,31 @@
 # Research: Simulated FIDO2 Ceremony Latency
 
+## Android device extension
+
+**Decision**: Compile the shared test-only ceremony, fixture, RP verifier and report calculations from `src/androidSharedTest/kotlin` into both Android host and device test trees. Isolate platform clock providers and use the project's JUnit 4 device runner. Settings and verification policy use working fakes; MockK is limited to the broad repository, final HDK-backed crypto service and unused final CTAP dispatcher collaborators. Run the same four-operation inventory with two warmups and ten measured repetitions per ceremony. Preserve the separate host acceptance result.
+
+**Rationale**: A shared workload makes the device result interpretable against the existing boundaries while avoiding divergent report logic. The host fixture currently depends on JVM MockK, the clock imports Windows JNA and the runner reads Git and local files, so device support requires explicit platform seams. Instrumentation and mock overhead remain part of the measured device environment and must be disclosed.
+
+**Alternatives considered**: Duplicating the fixture and calculation risks drift; running the existing host test on a desktop while a phone is attached does not measure Android execution. A browser/Bluetooth campaign would measure a different workflow and remains out of scope.
+
+**Decision**: Report real `System.nanoTime` durations on Android and compare endpoint deltas with `SystemClock.elapsedRealtimeNanos()`, sampled between two primary-clock readings. Use the primary midpoint and retain both deltas and secondary-minus-primary difference. Absolute divergence over 5 ms, a missing secondary reading or invalid interval makes the evidence incomplete. A 1,000-sample clock-probe estimate reports min/median/max without correcting operation times. Short sleeps below the tolerance, awake scheduling and uncalibrated test-double overhead are limitations. See [Android SystemClock documentation](https://developer.android.com/reference/android/os/SystemClock).
+
+**Rationale**: Both sources are real monotonic clocks with distinct sleep behavior. The secondary source is continuity evidence, not the reported elapsed duration; alignment and scheduling limit detection precision.
+
+**Alternatives considered**: The Windows-only suspend check is unavailable on Android. An unchecked primary clock cannot substantiate the planned invalid-interval handling.
+
+**Decision**: The PowerShell runner identifies exactly one authorized device and binds a deterministic source fingerprint, run ID and built test-package identity to the run. The instrumented test writes every completed ceremony attempt to private storage and AndroidX `PlatformTestStorage`; Gradle extracts the separate report. The host verifies the source fingerprint, package, and built APK SHA-256 before retaining it. On disconnect, crash, absent provenance or extraction failure, record an incomplete host-side run manifest and retain partial evidence when available. See [Android PlatformTestStorage](https://developer.android.com/reference/androidx/test/platform/io/PlatformTestStorage).
+
+**Rationale**: Android cannot rely on the host runner's Git process or working directory; an explicit handoff and durable extraction make the origin and interruption status reviewable. A device result must never silently replace the existing host report.
+
+**Alternatives considered**: Log-only evidence may be truncated or lost; treating a missing report as success conceals interrupted execution.
+
+**Decision**: A valid Android occurrence at or above 200 ms is a device assessment FAIL and remains visible as diagnostic evidence, but that performance result alone does not prevent completion of the Android measurement work or replace the host acceptance assessment. The runner and its correctness checks still detect and report infrastructure defects, invalid evidence and incomplete collection independently.
+
+**Rationale**: The owner chose diagnostic device performance while retaining host acceptance. Separating measurement validity from the measured outcome permits a useful report even when the device is slower than the comparison target.
+
+**Alternatives considered**: Failing the measurement workflow solely on the device threshold would make device speed an additional completion gate; treating an over-threshold result as PASS would misrepresent the measurement.
+
 ## Measurement boundary
 
 **Decision**: The principal feature measurement starts when a fake relying party issues a synthetic request and ends after it receives and independently verifies the response. Retain the raw duration and report exactly which real and simulated components it covers. Measure app-internal processing separately where supported.
