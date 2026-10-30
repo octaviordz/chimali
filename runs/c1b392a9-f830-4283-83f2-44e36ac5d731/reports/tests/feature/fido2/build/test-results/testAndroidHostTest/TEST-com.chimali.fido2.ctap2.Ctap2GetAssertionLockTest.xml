@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2GetAssertionLockTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:23.197Z" hostname="LOQ15IRX10-3" time="0.015">
+  <properties/>
+  <testcase name="handle returns CHANNEL_BUSY when lock is already held()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionLockTest" time="0.013"/>
+  <system-out><![CDATA[Warn: GetAssertion: Authenticator is busy with another ceremony — returning CHANNEL_BUSY
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

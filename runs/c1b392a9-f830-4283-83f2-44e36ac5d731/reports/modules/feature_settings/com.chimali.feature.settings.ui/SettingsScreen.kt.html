@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingsScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">settings</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.settings.ui</a> &gt; <span class="el_source">SettingsScreen.kt</span></div><h1>SettingsScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.settings.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.chimali.core.ui.theme.LegibilityType
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    vaultEnabled: Boolean,
+    passkeyEnabled: Boolean,
+    onRetakeOnboarding: () -&gt; Unit,
+    onBack: () -&gt; Unit,
+<span class="fc" id="L32">    modifier: Modifier = Modifier,</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L34">    val selectionLabels = settingsSelectionLabels(vaultEnabled, passkeyEnabled)</span>
+<span class="fc" id="L35">    Scaffold(</span>
+<span class="fc" id="L36">        modifier = modifier,</span>
+<span class="fc" id="L37">        topBar = {</span>
+<span class="fc" id="L38">            TopAppBar(title = { Text(&quot;Settings&quot;, modifier = Modifier.semantics { heading() }) })</span>
+<span class="fc" id="L39">        },</span>
+<span class="fc" id="L40">    ) { padding -&gt;</span>
+<span class="fc" id="L41">        Column(</span>
+            modifier =
+<span class="fc" id="L43">                Modifier</span>
+<span class="fc" id="L44">                    .fillMaxSize()</span>
+<span class="fc" id="L45">                    .padding(padding)</span>
+<span class="fc" id="L46">                    .padding(24.dp),</span>
+<span class="fc" id="L47">            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+        ) {
+<span class="fc" id="L49">            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {</span>
+<span class="fc" id="L50">                Column(</span>
+<span class="fc" id="L51">                    modifier = Modifier.fillMaxWidth().padding(16.dp),</span>
+<span class="fc" id="L52">                    verticalArrangement = Arrangement.spacedBy(6.dp),</span>
+                ) {
+<span class="fc" id="L54">                    Text(</span>
+<span class="fc" id="L55">                        text = &quot;Current selection&quot;,</span>
+<span class="fc" id="L56">                        style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L57">                        fontFamily = LegibilityType.AtkinsonFontFamily,</span>
+                    )
+<span class="fc" id="L59">                    Text(text = selectionLabels.vault)</span>
+<span class="fc" id="L60">                    Text(text = selectionLabels.passkey)</span>
+<span class="fc" id="L61">                }</span>
+<span class="fc" id="L62">            }</span>
+
+<span class="fc" id="L64">            Text(</span>
+<span class="fc" id="L65">                text = &quot;You can restart the onboarding flow to change which features Chimali uses by default.&quot;,</span>
+<span class="fc" id="L66">                style = MaterialTheme.typography.bodyMedium,</span>
+            )
+
+<span class="fc" id="L69">            Column(</span>
+<span class="fc" id="L70">                modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L71">                horizontalAlignment = Alignment.End,</span>
+<span class="fc" id="L72">                verticalArrangement = Arrangement.spacedBy(12.dp),</span>
+            ) {
+<span class="fc" id="L74">                OutlinedButton(onClick = onBack) {</span>
+<span class="fc" id="L75">                    Text(&quot;Back&quot;)</span>
+<span class="fc" id="L76">                }</span>
+<span class="fc" id="L77">                Button(onClick = onRetakeOnboarding) {</span>
+<span class="fc" id="L78">                    Text(&quot;Re-take Onboarding&quot;)</span>
+<span class="fc" id="L79">                }</span>
+<span class="fc" id="L80">            }</span>
+<span class="fc" id="L81">        }</span>
+<span class="fc" id="L82">    }</span>
+<span class="fc" id="L83">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

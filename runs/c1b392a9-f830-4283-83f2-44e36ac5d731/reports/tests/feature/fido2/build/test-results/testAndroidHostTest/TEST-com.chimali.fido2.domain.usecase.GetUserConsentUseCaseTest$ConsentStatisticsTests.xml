@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:40.570Z" hostname="LOQ15IRX10-3" time="0.021">
+  <properties/>
+  <testcase name="should calculate consent statistics correctly()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests" time="0.008"/>
+  <testcase name="should calculate statistics for specific rp()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests" time="0.006"/>
+  <testcase name="should identify most used consent method()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

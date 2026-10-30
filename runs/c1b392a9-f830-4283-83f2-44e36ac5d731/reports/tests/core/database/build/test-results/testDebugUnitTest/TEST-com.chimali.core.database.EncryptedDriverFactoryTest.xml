@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.database.EncryptedDriverFactoryTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-30T12:00:00.193Z" hostname="LOQ15IRX10-3" time="5.873">
+  <properties/>
+  <testcase name="createDriver preserves database and sidecars and erases root copy on open failure(File)" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="2.404"/>
+  <testcase name="createDriver throws IllegalStateException when master seed is null()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.038"/>
+  <testcase name="verifyIntegrity returns false when database file does not exist()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.136"/>
+  <testcase name="deriveDatabaseKey derives deterministic 256-bit key from seed()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.053"/>
+  <testcase name="createDriver initializes a clean database and reopens it normally(File)" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.14"/>
+  <testcase name="deriveDatabaseKey throws on empty seed()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.07"/>
+  <testcase name="verifyIntegrity fails closed when an existing database cannot be opened()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.196"/>
+  <testcase name="createDriver erases its owned root copy after driver creation fails()" classname="com.chimali.core.database.EncryptedDriverFactoryTest" time="0.164"/>
+  <system-out><![CDATA[Warn: Database integrity check failed (IllegalStateException)
+]]></system-out>
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (D:\packages\gradle\caches\modules-2\files-2.1\net.bytebuddy\byte-buddy-agent\1.14.6\46e2545d7a97b6ccb195621650c5957279eb4812\byte-buddy-agent-1.14.6.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+oct 30, 2026 6:00:05 A. M. io.mockk.impl.log.JULLogger warn
+ADVERTENCIA: Failed to transform class app/cash/sqldelight/db/QueryResult$AsyncValue
+java.lang.IllegalArgumentException: Cannot resolve T from public static java.lang.Object app.cash.sqldelight.db.QueryResult$AsyncValue.await-impl(?)
+	at net.bytebuddy.description.TypeVariableSource$AbstractBase.findExpectedVariable(TypeVariableSource.java:174)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onTypeVariable(TypeDescription.java:2062)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onTypeVariable(TypeDescription.java:1973)
+	at net.bytebuddy.description.type.TypeDescription$Generic$OfTypeVariable$Symbolic.accept(TypeDescription.java:5931)
+	at net.bytebuddy.description.type.TypeList$Generic$AbstractBase.accept(TypeList.java:303)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor.onWildcard(TypeDescription.java:1930)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onWildcard(TypeDescription.java:1973)
+	at net.bytebuddy.description.type.TypeDescription$Generic$OfWildcardType.accept(TypeDescription.java:4691)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor.onParameterizedType(TypeDescription.java:1908)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onParameterizedType(TypeDescription.java:1973)
+	at net.bytebuddy.description.type.TypeDescription$Generic$OfParameterizedType.accept(TypeDescription.java:5134)
+	at net.bytebuddy.description.type.TypeList$Generic$AbstractBase.accept(TypeList.java:303)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor.onWildcard(TypeDescription.java:1930)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onWildcard(TypeDescription.java:1973)
+	at net.bytebuddy.description.type.TypeDescription$Generic$OfWildcardType.accept(TypeDescription.java:4691)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor.onParameterizedType(TypeDescription.java:1908)
+	at net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor$ForAttachment.onParameterizedType(TypeDescription.java:1973)
+	at net.bytebuddy.description.type.TypeDescription$Generic$OfParameterizedType.accept(TypeDescription.java:5134)
+	at net.bytebuddy.description.method.ParameterDescription$Latent.getType(ParameterDescription.java:806)
+	at net.bytebuddy.description.method.ParameterList$AbstractBase.asTypeList(ParameterList.java:107)
+	at net.bytebuddy.description.method.MethodDescription$AbstractBase.hashCode(MethodDescription.java:938)
+	at java.base/java.util.HashMap.hash(HashMap.java:338)
+	at java.base/java.util.HashMap.put(HashMap.java:618)
+	at java.base/java.util.HashSet.add(HashSet.java:229)
+	at java.base/java.util.AbstractCollection.addAll(AbstractCollection.java:338)
+	at java.base/java.util.HashSet.<init>(HashSet.java:121)
+	at net.bytebuddy.dynamic.scaffold.MethodRegistry$Default.prepare(MethodRegistry.java:457)
+	at net.bytebuddy.dynamic.scaffold.inline.RedefinitionDynamicTypeBuilder.toTypeWriter(RedefinitionDynamicTypeBuilder.java:203)
+	at net.bytebuddy.dynamic.scaffold.inline.AbstractInliningDynamicTypeBuilder.toTypeWriter(AbstractInliningDynamicTypeBuilder.java:122)
+	at net.bytebuddy.dynamic.DynamicType$Builder$AbstractBase$UsingTypeWriter.make(DynamicType.java:4055)
+	at net.bytebuddy.dynamic.DynamicType$Builder$AbstractBase.make(DynamicType.java:3739)
+	at io.mockk.proxy.jvm.transformation.InliningClassTransformer.transform(InliningClassTransformer.kt:81)
+	at java.instrument/java.lang.instrument.ClassFileTransformer.transform(ClassFileTransformer.java:244)
+	at java.instrument/sun.instrument.TransformerManager.transform(TransformerManager.java:188)
+	at java.instrument/sun.instrument.InstrumentationImpl.transform(InstrumentationImpl.java:610)
+	at java.instrument/sun.instrument.InstrumentationImpl.retransformClasses0(Native Method)
+	at java.instrument/sun.instrument.InstrumentationImpl.retransformClasses(InstrumentationImpl.java:225)
+	at io.mockk.proxy.jvm.transformation.JvmInlineInstrumentation.retransform(JvmInlineInstrumentation.kt:28)
+	at io.mockk.proxy.common.transformation.RetransformInlineInstrumentation$execute$1.invoke(RetransformInlineInstrumentation.kt:19)
+	at io.mockk.proxy.common.transformation.RetransformInlineInstrumentation$execute$1.invoke(RetransformInlineInstrumentation.kt:16)
+	at io.mockk.proxy.common.transformation.ClassTransformationSpecMap.applyTransformation(ClassTransformationSpecMap.kt:41)
+	at io.mockk.proxy.common.transformation.RetransformInlineInstrumentation.execute(RetransformInlineInstrumentation.kt:16)
+	at io.mockk.proxy.jvm.ProxyMaker.inline(ProxyMaker.kt:90)
+	at io.mockk.proxy.jvm.ProxyMaker.proxy(ProxyMaker.kt:34)
+	at io.mockk.impl.instantiation.JvmMockFactory.newProxy(JvmMockFactory.kt:34)
+	at io.mockk.impl.instantiation.AbstractMockFactory.newProxy$default(AbstractMockFactory.kt:24)
+	at io.mockk.impl.instantiation.AbstractMockFactory.mockk(AbstractMockFactory.kt:59)
+	at io.mockk.impl.stub.MockKStub$childMockK$1$1$1.invoke(MockKStub.kt:199)
+	at io.mockk.impl.stub.MockKStub$childMockK$1$1$1.invoke(MockKStub.kt:198)
+	at io.mockk.impl.InternalPlatform.customComputeIfAbsent(InternalPlatform.kt:44)
+	at io.mockk.impl.stub.MockKStub$childMockK$1$1.invoke(MockKStub.kt:198)
+	at io.mockk.impl.recording.CommonCallRecorder.safeExec(CommonCallRecorder.kt:72)
+	at io.mockk.impl.log.SafeToString.exec(SafeToString.kt:8)
+	at io.mockk.impl.stub.MockKStub.childMockK(MockKStub.kt:197)
+	at io.mockk.impl.stub.MockKStub$defaultAnswer$1$1.invoke(MockKStub.kt:87)
+	at io.mockk.impl.instantiation.JvmAnyValueGenerator$anyValue$2.invoke(JvmAnyValueGenerator.kt:35)
+	at io.mockk.impl.instantiation.AnyValueGenerator.anyValue(AnyValueGenerator.kt:34)
+	at io.mockk.impl.instantiation.JvmAnyValueGenerator.anyValue(JvmAnyValueGenerator.kt:31)
+	at io.mockk.impl.stub.MockKStub.defaultAnswer(MockKStub.kt:83)
+	at io.mockk.impl.stub.MockKStub.answer(MockKStub.kt:42)
+	at io.mockk.impl.recording.states.AnsweringState.call(AnsweringState.kt:16)
+	at io.mockk.impl.recording.CommonCallRecorder.call(CommonCallRecorder.kt:53)
+	at io.mockk.impl.stub.MockKStub.handleInvocation(MockKStub.kt:269)
+	at io.mockk.impl.instantiation.JvmMockFactoryHelper$mockHandler$1.invocation(JvmMockFactoryHelper.kt:24)
+	at io.mockk.proxy.jvm.advice.Interceptor.call(Interceptor.kt:21)
+	at io.mockk.proxy.jvm.advice.BaseAdvice.handle(BaseAdvice.kt:42)
+	at io.mockk.proxy.jvm.advice.jvm.JvmMockKProxyInterceptor.interceptNoSuper(JvmMockKProxyInterceptor.java:45)
+	at app.cash.sqldelight.db.SqlSchema$Subclass3.create(Unknown Source)
+	at app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteSchemaKt.JdbcSqliteDriver$lambda$0(JdbcSqliteSchema.kt:34)
+	at app.cash.sqldelight.TransacterImpl.transactionWithWrapper(Transacter.kt:386)
+	at app.cash.sqldelight.TransacterImpl.transaction(Transacter.kt:365)
+	at app.cash.sqldelight.Transacter$DefaultImpls.transaction$default(Transacter.kt:94)
+	at app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteSchemaKt.JdbcSqliteDriver(JdbcSqliteSchema.kt:30)
+	at io.toxicity.sqlite.mc.driver.PlatformDriver$Companion.create$io_toxicity_sqlite_mc_driver_android(PlatformDriver.kt:126)
+	at io.toxicity.sqlite.mc.driver.SQLiteMCDriver$Factory$createActual$$inlined$withDispatcher$1.invokeSuspend(SQLiteMCDriver.kt:278)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:798)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+
+]]></system-err>
+</testsuite>

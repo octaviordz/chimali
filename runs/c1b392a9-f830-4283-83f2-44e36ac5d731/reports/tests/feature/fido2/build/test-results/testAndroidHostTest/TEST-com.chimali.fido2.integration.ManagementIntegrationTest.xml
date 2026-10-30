@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.ManagementIntegrationTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:42.474Z" hostname="LOQ15IRX10-3" time="0.093">
+  <properties/>
+  <testcase name="full management flow - add select delete wipe()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.047"/>
+  <testcase name="empty credentials list results in empty state()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.004"/>
+  <testcase name="confirm delete removes credential from repository()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.004"/>
+  <testcase name="selecting credential updates selectedCredential state()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.004"/>
+  <testcase name="confirm delete all empties repository()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.004"/>
+  <testcase name="setCredentials populates state with credentials()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.005"/>
+  <testcase name="delete failure sets error state()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.006"/>
+  <testcase name="show delete dialog sets credentialToDelete()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.004"/>
+  <testcase name="show delete all dialog sets warning flag()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.005"/>
+  <testcase name="dismiss clears dialog state()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.003"/>
+  <testcase name="delete all failure sets error state()" classname="com.chimali.fido2.integration.ManagementIntegrationTest" time="0.005"/>
+  <system-out><![CDATA[Info: (CredentialManagement) Initiating deletion for credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Info: (CredentialManagement) Successfully deleted credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Info: (CredentialManagement) Initiating deletion of all credentials
+Info: (CredentialManagement) Successfully deleted all credentials
+Info: (CredentialManagement) Initiating deletion for credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Info: (CredentialManagement) Successfully deleted credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Info: (CredentialManagement) Initiating deletion of all credentials
+Info: (CredentialManagement) Successfully deleted all credentials
+Info: (CredentialManagement) Initiating deletion for credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Error: (CredentialManagement) Failed to delete credential: CredentialId(ZEdWemRGOWpjbVZrWlc1MGFXRnNYekF4)
+Info: (CredentialManagement) Initiating deletion of all credentials
+Error: (CredentialManagement) Failed to delete all credentials
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

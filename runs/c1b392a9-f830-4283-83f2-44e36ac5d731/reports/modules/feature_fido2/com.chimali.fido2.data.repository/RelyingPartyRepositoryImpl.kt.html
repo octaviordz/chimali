@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RelyingPartyRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.repository</a> &gt; <span class="el_source">RelyingPartyRepositoryImpl.kt</span></div><h1>RelyingPartyRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.repository
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.data.dao.RelyingPartyDao
+import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
+import com.chimali.fido2.data.mapper.toDomainModel
+import com.chimali.fido2.domain.repository.RelyingPartyRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import org.koin.core.annotation.Single
+
+<span class="fc" id="L15">@Single</span>
+<span class="fc" id="L16">class RelyingPartyRepositoryImpl(</span>
+<span class="fc" id="L17">    private val relyingPartyDao: RelyingPartyDao,</span>
+) : RelyingPartyRepository {
+    /** Retains newly hydrated owners for terminal-cleanup regression tests. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L21">    internal var onRelyingPartyCreatedForTest: ((RelyingParty) -&gt; Unit)? = null</span>
+
+    /** Persists the supplied relying-party metadata through the protected SQLDelight store. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun saveRelyingParty(relyingParty: RelyingParty): Result&lt;Unit&gt; =
+<span class="nc" id="L26">        runCatching {</span>
+<span class="nc" id="L27">            relyingPartyDao.insertOrUpdateRelyingParty(relyingParty)</span>
+<span class="nc" id="L28">        }</span>
+
+    /** Reconstructs the matching relying-party model and transfers its mutable fields to the caller. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getRelyingPartyById(rpId: RpId): RelyingParty? =
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        relyingPartyDao.getRelyingPartyById(rpId)?.toDomainModel()</span>
+
+    /**
+     * Transfers complete owned batches only after downstream accepts the emission. Partial mapping failure,
+     * emission failure, and cancellation erase every model still owned here and every source row.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun getAllRelyingParties(): Flow&lt;List&lt;RelyingParty&gt;&gt; =
+<span class="fc" id="L41">        flow {</span>
+<span class="fc" id="L42">            relyingPartyDao.getAllRelyingParties().collect { rows -&gt;</span>
+<span class="fc" id="L43">                val models = mutableListOf&lt;RelyingParty&gt;()</span>
+<span class="fc" id="L44">                var transferred = false</span>
+<span class="fc" id="L45">                try {</span>
+<span class="fc" id="L46">                    rows.forEach {</span>
+<span class="fc" id="L47">                        val model = it.toDomainModel()</span>
+<span class="fc" id="L48">                        models += model</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">                        onRelyingPartyCreatedForTest?.invoke(model)</span>
+<span class="fc" id="L50">                    }</span>
+<span class="fc" id="L51">                    emit(models)</span>
+<span class="fc" id="L52">                    transferred = true</span>
+                } finally {
+<span class="fc" id="L54">                    rows.forEach { it.eraseSensitiveMetadata() }</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">                    if (!transferred) models.forEach(RelyingParty::eraseSensitiveText)</span>
+<span class="fc" id="L56">                }</span>
+<span class="fc" id="L57">            }</span>
+<span class="fc" id="L58">        }</span>
+
+    /** Deletes the relying-party record identified by [rpId]. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun deleteRelyingParty(rpId: RpId): Result&lt;Unit&gt; =
+<span class="nc" id="L63">        runCatching {</span>
+<span class="nc" id="L64">            relyingPartyDao.deleteRelyingParty(rpId)</span>
+<span class="nc" id="L65">        }</span>
+
+    /** Updates the persisted credential count for the relying-party record. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun updateCredentialCount(
+        rpId: RpId,
+        count: Int,
+    ): Result&lt;Unit&gt; =
+<span class="nc" id="L73">        runCatching {</span>
+<span class="nc" id="L74">            relyingPartyDao.updateCredentialCount(rpId, count)</span>
+<span class="nc" id="L75">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

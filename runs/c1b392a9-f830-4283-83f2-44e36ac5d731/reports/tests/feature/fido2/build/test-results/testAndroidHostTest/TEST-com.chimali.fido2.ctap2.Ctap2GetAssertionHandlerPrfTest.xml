@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:21.912Z" hostname="LOQ15IRX10-3" time="0.012">
+  <properties/>
+  <testcase name="cborMap_integerKeys_not_string_keys()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.003"/>
+  <testcase name="singleSalt_cborMap_output1_is32Bytes()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.0"/>
+  <testcase name="threeSalts_prfExtensionInput_throws()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.002"/>
+  <testcase name="dualSalt_cborMap_bothOutputs_are32Bytes()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.001"/>
+  <testcase name="dualSalt_cborMap_output1_and_output2_are_distinct()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.001"/>
+  <testcase name="singleSalt_cborMap_containsKey1Only()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.0"/>
+  <testcase name="dualSalt_cborMap_containsKeys1And2()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.0"/>
+  <testcase name="hmacSecretProcessor_extensionKey_is_hmac_secret_literal()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerPrfTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-30T11:59:58.512Z" hostname="LOQ15IRX10-3" time="0.049">
+  <properties/>
+  <testcase name="snapshot decryption failure and cancellation erase acquired key" classname="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" time="0.012"/>
+  <testcase name="snapshot key provider failure precedes serialization and encryption" classname="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" time="0.008"/>
+  <testcase name="event append erases serialized bytes on success failure and cancellation" classname="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" time="0.011"/>
+  <testcase name="snapshot save erases key and serialized bytes on success failure and cancellation" classname="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" time="0.009"/>
+  <testcase name="snapshot read erases key and decoded bytes on valid and malformed contents" classname="com.chimali.core.data.eventsourcing.VaultMetadataBufferOwnershipTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

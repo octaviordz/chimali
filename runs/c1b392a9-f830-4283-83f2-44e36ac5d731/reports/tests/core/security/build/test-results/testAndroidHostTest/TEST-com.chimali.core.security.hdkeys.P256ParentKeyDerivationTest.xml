@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.hdkeys.P256ParentKeyDerivationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:49.102Z" hostname="LOQ15IRX10-3" time="0.008">
+  <properties/>
+  <testcase name="exhausted sampler rejects invalid candidates and erases every candidate()" classname="com.chimali.core.security.hdkeys.P256ParentKeyDerivationTest" time="0.003"/>
+  <testcase name="RFC 9180 appendix A3 point one DeriveKeyPair matches published vector()" classname="com.chimali.core.security.hdkeys.P256ParentKeyDerivationTest" time="0.002"/>
+  <testcase name="sampler accepts a valid scalar at counter 255 and erases each candidate and PRK()" classname="com.chimali.core.security.hdkeys.P256ParentKeyDerivationTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

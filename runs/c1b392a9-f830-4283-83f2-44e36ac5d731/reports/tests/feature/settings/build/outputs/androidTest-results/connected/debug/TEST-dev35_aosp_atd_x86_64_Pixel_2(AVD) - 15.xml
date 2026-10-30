@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="3" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-10-30T14:12:15" hostname="localhost">
+  <testsuite name="com.chimali.feature.settings.ui.SettingsScreenTest" tests="3" failures="0" errors="0" skipped="0" time="4.351" timestamp="2026-10-30T14:12:15" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="retakeOnboardingButtonInvokesCallback" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="2.759" />
+    <testcase name="screenDisplaysEnabledAndDisabledFeatureSelections" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.810" />
+    <testcase name="screenDisplaysBothFeaturesEnabled" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.782" />
+  </testsuite>
+</testsuites>

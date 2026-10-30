@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.PrfExtensionInputTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:39.604Z" hostname="LOQ15IRX10-3" time="0.004">
+  <properties/>
+  <testcase name="threeSalts_throws()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="singleSalt_passes()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="salt2_accessor_returnsSecondSalt_whenPresent()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="wrongSizeSalt_33bytes_throws()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.001"/>
+  <testcase name="wrongSizeSalt_empty_throws()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="wrongSizeSalt_31bytes_throws()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="salt2_accessor_returnsNull_forSingleSaltInput()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="constants_haveCorrectValues()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="emptyList_throws()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.001"/>
+  <testcase name="twoSalts_passes()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <testcase name="salt1_accessor_returnsFirstSalt()" classname="com.chimali.fido2.domain.model.PrfExtensionInputTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

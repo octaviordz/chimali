@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-30T11:59:47.336Z" hostname="LOQ15IRX10-3" time="9.629">
+  <properties/>
+  <testcase name="append clears the event store key after completion" classname="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" time="9.325"/>
+  <testcase name="malformed stored event returns serialization failure" classname="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" time="0.047"/>
+  <testcase name="append rolls back all events when one encryption fails" classname="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" time="0.021"/>
+  <testcase name="append and read preserves created updated and deleted events" classname="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" time="0.035"/>
+  <testcase name="read clears the decrypted event buffer" classname="com.chimali.core.data.eventsourcing.EventStoreRepositoryImplTest" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (D:\packages\gradle\caches\modules-2\files-2.1\net.bytebuddy\byte-buddy-agent\1.14.6\46e2545d7a97b6ccb195621650c5957279eb4812\byte-buddy-agent-1.14.6.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

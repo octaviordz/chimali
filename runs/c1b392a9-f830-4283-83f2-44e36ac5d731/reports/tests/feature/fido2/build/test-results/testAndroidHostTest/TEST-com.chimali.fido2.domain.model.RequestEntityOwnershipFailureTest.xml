@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.RequestEntityOwnershipFailureTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:39.709Z" hostname="LOQ15IRX10-3" time="0.001">
+  <properties/>
+  <testcase name="failed RP owner transfer erases both owners and failed copies preserve original()" classname="com.chimali.fido2.domain.model.RequestEntityOwnershipFailureTest" time="0.001"/>
+  <testcase name="failed user owner transfer erases id and text and failed copies preserve original()" classname="com.chimali.fido2.domain.model.RequestEntityOwnershipFailureTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

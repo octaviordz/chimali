@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HkdfSha256.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.hdkeys</a> &gt; <span class="el_source">HkdfSha256.kt</span></div><h1>HkdfSha256.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.hdkeys
+
+import com.chimali.core.common.annotation.Req
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+
+/** RFC 5869 HKDF-SHA256 and the byte labels for Chimali's local profile. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+object HkdfSha256 {
+    /** Output length, in bytes, of SHA-256 and HKDF-SHA256 pseudorandom keys. */
+    const val HASH_LENGTH: Int = 32
+    private const val MAX_HKDF_BLOCK_COUNT = 255
+    private const val HKDF_COUNTER_LENGTH = 1
+    private const val FIRST_HKDF_BLOCK_COUNTER = 1
+    private const val MAX_OUTPUT_LENGTH = MAX_HKDF_BLOCK_COUNT * HASH_LENGTH
+    private const val BIP39_SEED_LENGTH = 64
+    private const val CREDENTIAL_ID_MIN_LENGTH = 16
+    private const val CREDENTIAL_ID_MAX_LENGTH = 1023
+    private const val CREDENTIAL_INFO_SEPARATOR = 0
+    private const val CREDENTIAL_INFO_SEPARATOR_LENGTH = 1
+    private const val CREDENTIAL_ID_LENGTH_PREFIX_BYTES = 2
+    private const val CREDENTIAL_INFO_FRAMING_LENGTH =
+        CREDENTIAL_INFO_SEPARATOR_LENGTH + CREDENTIAL_ID_LENGTH_PREFIX_BYTES
+    private const val ASCII_MAX_VALUE = 0x7f
+
+    /** Fixed ASCII root salt label separating Chimali's local derivation profile. */
+    const val ROOT_SALT_LABEL = &quot;chimali-local-key-derivation-v1&quot;
+
+    /** Fixed ASCII HKDF info label for deriving the P-256 parent input. */
+    const val P256_PARENT_LABEL = &quot;chimali-local-hdk-p256-v1/parent&quot;
+
+    /** Fixed ASCII HKDF info label for P-256 credential-secret derivation. */
+    const val P256_CREDENTIAL_LABEL = &quot;chimali-local-hdk-p256-v1/credential-secret&quot;
+
+    /** Fixed ASCII HKDF info label for Ed25519 credential-seed derivation. */
+    const val ED25519_CREDENTIAL_LABEL = &quot;chimali-local-ed25519-v1/credential-seed&quot;
+
+    /** Fixed ASCII HKDF info label for ML-DSA-65 credential-seed derivation. */
+    const val MLDSA65_CREDENTIAL_LABEL = &quot;chimali-local-mldsa65-v1/credential-seed&quot;
+
+    /** Extracts an owned 32-byte PRK. [salt] and [ikm] are borrowed and remain unchanged. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun extract(
+        salt: ByteArray,
+        ikm: ByteArray,
+    ): ByteArray {
+<span class="fc bfc" id="L47" title="All 4 branches covered.">        val effectiveSalt = if (salt.isEmpty()) ByteArray(HASH_LENGTH) else salt</span>
+<span class="fc" id="L48">        return try {</span>
+<span class="fc" id="L49">            hmacSha256(effectiveSalt, ikm)</span>
+        } finally {
+<span class="fc bfc" id="L51" title="All 2 branches covered.">            if (effectiveSalt !== salt) effectiveSalt.fill(0)</span>
+        }
+    }
+
+    /** Expands a borrowed PRK and info to a new output buffer, per RFC 5869 §2.3. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun expand(
+        prk: ByteArray,
+        info: ByteArray,
+        length: Int,
+    ): ByteArray {
+<span class="fc bfc" id="L62" title="All 4 branches covered.">        require(prk.size == HASH_LENGTH) { &quot;HKDF-SHA256 PRK must be 32 bytes&quot; }</span>
+<span class="fc bfc" id="L63" title="All 6 branches covered.">        require(length in 0..MAX_OUTPUT_LENGTH) { &quot;HKDF output length must be in 0..8160 bytes&quot; }</span>
+
+<span class="fc" id="L65">        val output = ByteArray(length)</span>
+<span class="fc" id="L66">        var previous = ByteArray(0)</span>
+<span class="fc" id="L67">        var offset = 0</span>
+<span class="fc" id="L68">        var completed = false</span>
+<span class="fc" id="L69">        try {</span>
+<span class="fc" id="L70">            var counter = FIRST_HKDF_BLOCK_COUNTER</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            while (offset &lt; length) {</span>
+<span class="fc" id="L72">                val blockInput = ByteArray(previous.size + info.size + HKDF_COUNTER_LENGTH)</span>
+<span class="fc" id="L73">                try {</span>
+<span class="fc" id="L74">                    previous.copyInto(blockInput)</span>
+<span class="fc" id="L75">                    info.copyInto(blockInput, previous.size)</span>
+<span class="fc" id="L76">                    blockInput[blockInput.lastIndex] = counter.toByte()</span>
+<span class="fc" id="L77">                    val next = hmacSha256(prk, blockInput)</span>
+<span class="fc" id="L78">                    previous.fill(0)</span>
+<span class="fc" id="L79">                    previous = next</span>
+                } finally {
+<span class="fc" id="L81">                    blockInput.fill(0)</span>
+                }
+<span class="fc" id="L83">                val copyLength = minOf(HASH_LENGTH, length - offset)</span>
+<span class="fc" id="L84">                previous.copyInto(output, offset, 0, copyLength)</span>
+<span class="fc" id="L85">                offset += copyLength</span>
+<span class="fc" id="L86">                counter++</span>
+            }
+<span class="fc" id="L88">            completed = true</span>
+<span class="fc" id="L89">            return output</span>
+        } finally {
+<span class="pc bnc" id="L91" title="All 2 branches missed.">            if (!completed) output.fill(0)</span>
+<span class="pc" id="L92">            previous.fill(0)</span>
+        }
+    }
+
+    /** Encodes the named, fixed public root salt. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L98">    fun rootSalt(): ByteArray = ROOT_SALT_LABEL.toByteArray(Charsets.US_ASCII)</span>
+
+    /** Extracts the wallet PRK from the complete 64-byte BIP39 seed [seed]. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deriveWalletPrk(seed: ByteArray): ByteArray {
+<span class="fc bfc" id="L103" title="All 4 branches covered.">        require(seed.size == BIP39_SEED_LENGTH) { &quot;BIP39 seed must be the complete 64-byte value&quot; }</span>
+<span class="fc" id="L104">        val salt = rootSalt()</span>
+<span class="fc" id="L105">        return try {</span>
+<span class="fc" id="L106">            extract(salt, seed)</span>
+        } finally {
+<span class="fc" id="L108">            salt.fill(0)</span>
+        }
+    }
+
+    /** Encodes the named RFC 9180 P-256 parent expansion label. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L114">    fun p256ParentInfo(): ByteArray = P256_PARENT_LABEL.toByteArray(Charsets.US_ASCII)</span>
+
+    /** Expands the deterministic RFC 9180 P-256 parent input from a borrowed wallet PRK. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deriveP256ParentInput(prk: ByteArray): ByteArray {
+<span class="fc" id="L119">        val info = p256ParentInfo()</span>
+<span class="fc" id="L120">        return try {</span>
+<span class="fc" id="L121">            expand(prk, info, HASH_LENGTH)</span>
+        } finally {
+<span class="fc" id="L123">            info.fill(0)</span>
+        }
+    }
+
+    /** Derives one algorithm-specific credential seed from the full decoded identifier. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deriveCredentialSeed(
+        prk: ByteArray,
+        label: String,
+        credentialId: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L134">        val info = credentialInfo(label, credentialId)</span>
+<span class="fc" id="L135">        return try {</span>
+<span class="fc" id="L136">            expand(prk, info, HASH_LENGTH)</span>
+        } finally {
+<span class="fc" id="L138">            info.fill(0)</span>
+        }
+    }
+
+    /**
+     * Builds `ASCII(label) || 0x00 || I2OSP(length(credentialId), 2) || credentialId`.
+     * The credential ID is borrowed; the returned framing buffer is owned by the caller.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun credentialInfo(
+        label: String,
+        credentialId: ByteArray,
+    ): ByteArray {
+<span class="fc bfc" id="L151" title="All 6 branches covered.">        require(credentialId.size in CREDENTIAL_ID_MIN_LENGTH..CREDENTIAL_ID_MAX_LENGTH) {</span>
+<span class="fc" id="L152">            &quot;Credential ID must be 16..1023 bytes&quot;</span>
+        }
+<span class="fc bfc" id="L154" title="All 10 branches covered.">        require(label.isNotEmpty() &amp;&amp; label.all { it.code &lt;= ASCII_MAX_VALUE }) {</span>
+<span class="fc" id="L155">            &quot;HKDF label must be non-empty ASCII&quot;</span>
+        }
+<span class="fc" id="L157">        val labelBytes = label.toByteArray(Charsets.US_ASCII)</span>
+<span class="fc" id="L158">        val result = ByteArray(labelBytes.size + CREDENTIAL_INFO_FRAMING_LENGTH + credentialId.size)</span>
+<span class="fc" id="L159">        labelBytes.copyInto(result)</span>
+<span class="fc" id="L160">        var offset = labelBytes.size</span>
+<span class="fc" id="L161">        result[offset++] = CREDENTIAL_INFO_SEPARATOR.toByte()</span>
+<span class="fc" id="L162">        result[offset++] = (credentialId.size ushr 8).toByte()</span>
+<span class="fc" id="L163">        result[offset++] = credentialId.size.toByte()</span>
+<span class="fc" id="L164">        credentialId.copyInto(result, offset)</span>
+<span class="fc" id="L165">        labelBytes.fill(0)</span>
+<span class="fc" id="L166">        return result</span>
+    }
+
+    private fun hmacSha256(
+        key: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L173">        val mac = Mac.getInstance(&quot;HmacSHA256&quot;)</span>
+<span class="fc" id="L174">        mac.init(SecretKeySpec(key, &quot;HmacSHA256&quot;))</span>
+<span class="fc" id="L175">        return mac.doFinal(data)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

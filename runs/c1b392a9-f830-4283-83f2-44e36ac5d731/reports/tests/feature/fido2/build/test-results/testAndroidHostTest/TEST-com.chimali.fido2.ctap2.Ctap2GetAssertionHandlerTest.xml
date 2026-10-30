@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:21.925Z" hostname="LOQ15IRX10-3" time="1.234">
+  <properties/>
+  <testcase name="rejects malformed allow-list containers and descriptors before credential lookup()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.176"/>
+  <testcase name="handle clears derived outputs after framing while returned packet retains authorized bytes()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.366"/>
+  <testcase name="busy ceremony rejects request before decoding or credential lookup()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.02"/>
+  <testcase name="maps domain failures to their protocol status and fail-closed fallback()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.036"/>
+  <testcase name="decodes allow-list identifiers and required user verification from CTAP request()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.03"/>
+  <testcase name="rejects malformed CTAP user-verification option with invalid-CBOR status()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.015"/>
+  <testcase name="maps decoder exceptions to invalid-CBOR or processing statuses()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.016"/>
+  <testcase name="handle routes a single credProtect UV-required credential through the UI prompt()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.074"/>
+  <testcase name="typed hmac-secret extension is omitted when credential seed is unavailable()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.025"/>
+  <testcase name="handle dispatches UI event when multiple credentials match()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.028"/>
+  <testcase name="encodes credential user entity and matching credential count in assertion response()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.037"/>
+  <testcase name="no-credential response preserves protocol status without logging RP association()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.03"/>
+  <testcase name="handle executes headless fast-path when uv is PREFERRED and exactly one credential matches()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.038"/>
+  <testcase name="handle clears PRF and assertion buffers when response framing throws()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.018"/>
+  <testcase name="decodes legacy sensitive text request values and erases their owners()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest" time="0.028"/>
+  <system-out><![CDATA[Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+Debug: GetAssertion PRF: derived 2 output(s)
+Warn: GetAssertion: Authenticator is busy with another ceremony — returning CHANNEL_BUSY
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion failed: credential not found
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Error: Assertion failed during GetAssertion
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Error: Assertion failed during GetAssertion
+Debug: GetAssertion request admitted: allowCredentials=1
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion rejected an invalid parameter
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with an I/O error
+Error: GetAssertion rejected an invalid argument
+Error: GetAssertion encountered an invalid state
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: Assertion response ready
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+Warn: GetAssertion hmac-secret: PRF derivation returned null — omitting (T049)
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: Assertion response ready
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+Debug: GetAssertion PRF: derived 2 output(s)
+Error: GetAssertion encountered an invalid state
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedCeremonyTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:44.142Z" hostname="LOQ15IRX10-3" time="0.091">
+  <properties/>
+  <testcase name="failed operation stays in the attempt evidence and verification is not invoked()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.059"/>
+  <testcase name="records request through verified response and associates internal operations()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.004"/>
+  <testcase name="concurrent operation and discovery probe spans retain unique action association()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.009"/>
+  <testcase name="independently rejected response is not a verified sample()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.004"/>
+  <testcase name="verification outcomes govern whether the operation workflow can continue()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.005"/>
+  <testcase name="cancellation and timeout are returned as retained incomplete attempts()" classname="com.chimali.fido2.performance.SimulatedCeremonyTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

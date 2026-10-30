@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:12:03.676Z" hostname="LOQ15IRX10-3" time="0.079">
+  <properties/>
+  <testcase name="nullEmptyDuplicateAndNestedFutureFieldsPreserveLegacySemantics" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.009"/>
+  <testcase name="optionalAndUnknownFieldsAndEscapesAreCompatible" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.001"/>
+  <testcase name="malformedAndPartialObjectsEraseEveryAllocatedArray" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.001"/>
+  <testcase name="oversizedExpansionIsRejectedBeforeScratchAllocation" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.015"/>
+  <testcase name="malformedJsonGrammarFailsWithoutRetainingPartialSecrets" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.002"/>
+  <testcase name="missingRequiredFieldsAndTruncatedTokensEraseAllPartialData" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.001"/>
+  <testcase name="multipleCustomFieldsAndTruncatedContainersCleanEveryPartialField" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.001"/>
+  <testcase name="realAesReadsCapturedOldCiphertextAndSupportsEditReopen" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.035"/>
+  <testcase name="allocationsAreErasedEvenIfEncodingOrDecodingFailsPartway" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.006"/>
+  <testcase name="fixedLegacyPayloadsReadAndWriteTheSameJsonContract" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.005"/>
+  <testcase name="controlCharactersAndUnpairedSurrogatesMatchLegacyUtf8Replacement" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.0"/>
+  <testcase name="malformedCoderResultIsSurfaced" classname="com.chimali.feature.vault.internal.crypto.VaultPayloadCodecTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

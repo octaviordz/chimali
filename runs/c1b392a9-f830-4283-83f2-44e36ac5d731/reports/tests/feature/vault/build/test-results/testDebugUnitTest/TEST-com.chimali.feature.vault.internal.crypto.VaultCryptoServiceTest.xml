@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:12:03.638Z" hostname="LOQ15IRX10-3" time="0.035">
+  <properties/>
+  <testcase name="malformed decrypted payload returns safe error" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.006"/>
+  <testcase name="clearMemory overwrites every mutable secret buffer" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.001"/>
+  <testcase name="encrypt and decrypt PasswordPayload succeeds" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.005"/>
+  <testcase name="encrypt and decrypt CreditCardPayload succeeds" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.003"/>
+  <testcase name="cancellation from key provider is propagated" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.006"/>
+  <testcase name="encrypt and decrypt SecureNotePayload succeeds" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.004"/>
+  <testcase name="encryption key is cleared after encryption" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.004"/>
+  <testcase name="key provider failure returns safe encryption error" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoServiceTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

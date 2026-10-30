@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:28.332Z" hostname="LOQ15IRX10-3" time="0.051">
+  <properties/>
+  <testcase name="test retry succeeds after previous failure()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.01"/>
+  <testcase name="test concurrent migration call returns success without re-running()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.002"/>
+  <testcase name="test migration failure and rollback under interruption()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.003"/>
+  <testcase name="test successful migration of legacy records()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.008"/>
+  <testcase name="migration erases consent RP index when update fails and remains retryable()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.003"/>
+  <testcase name="migration erases credential RP index when user index acquisition fails()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.004"/>
+  <testcase name="test partial migration picks up only unmigrated records()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.008"/>
+  <testcase name="test migration idempotency on subsequent runs()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.003"/>
+  <testcase name="migration erases RP owner and row buffers when user text decoding fails then retries()" classname="com.chimali.fido2.data.database.SearchableMetadataMigrationTest" time="0.006"/>
+  <system-out><![CDATA[Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Error: (SearchableMetadataMigration) Searchable metadata migration failed
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 0 credentials to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Debug: (SearchableMetadataMigration) Migration already in state: SUCCESS, skipping execution.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Debug: (SearchableMetadataMigration) Found 1 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 1 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 0 credentials to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 1 user consent records to inspect for migration.
+Error: (SearchableMetadataMigration) Searchable metadata migration failed
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 0 credentials to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 1 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Error: (SearchableMetadataMigration) Searchable metadata migration failed
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 2 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+Info: (SearchableMetadataMigration) Starting searchable metadata migration...
+Debug: (SearchableMetadataMigration) Found 1 credentials to inspect for migration.
+Info: (SearchableMetadataMigration) Migrating credential metadata.
+Debug: (SearchableMetadataMigration) Found 0 relying parties to inspect for migration.
+Debug: (SearchableMetadataMigration) Found 0 user consent records to inspect for migration.
+Info: (SearchableMetadataMigration) Searchable metadata migration completed successfully.
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

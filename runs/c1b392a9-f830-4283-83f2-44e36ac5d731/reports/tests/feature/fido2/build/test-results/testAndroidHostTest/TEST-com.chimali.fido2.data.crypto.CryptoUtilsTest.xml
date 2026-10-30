@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.CryptoUtilsTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:25.100Z" hostname="LOQ15IRX10-3" time="0.01">
+  <properties/>
+  <testcase name="test secure byte array comparison equal()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.001"/>
+  <testcase name="test CBOR attestation object encoding()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test CBOR client data JSON encoding()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test memory zeroing byte array()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.001"/>
+  <testcase name="test secure byte array comparison not equal()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test memory zeroing char array()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test secure string to bytes conversion()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test CBOR encoding and decoding()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.001"/>
+  <testcase name="test secure byte array comparison different lengths()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test secure array copy byte array()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.001"/>
+  <testcase name="test CBOR authenticator data encoding()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test secure array copy char array()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.0"/>
+  <testcase name="test secure string to chars conversion()" classname="com.chimali.fido2.data.crypto.CryptoUtilsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

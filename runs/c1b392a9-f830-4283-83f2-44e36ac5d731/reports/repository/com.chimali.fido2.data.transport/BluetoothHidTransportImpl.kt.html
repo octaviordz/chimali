@@ -1,0 +1,728 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BluetoothHidTransportImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">BluetoothHidTransportImpl.kt</span></div><h1>BluetoothHidTransportImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.common.result.onFailure
+import com.chimali.core.events.Fido2Event
+import com.chimali.core.events.Fido2EventBus
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.fido2.bluetooth.BROADCAST_CID
+import com.chimali.fido2.bluetooth.BluetoothHidConfigProvider
+import com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper
+import com.chimali.fido2.bluetooth.CtapHidMessage
+import com.chimali.fido2.bluetooth.HidConnectionState
+import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
+import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
+import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.util.performance.BaselineMeasurements
+import com.chimali.fido2.util.performance.LatencyProfiler
+import com.chimali.fido2.util.performance.PerformanceTrace
+import java.security.SecureRandom
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import org.koin.core.annotation.Single
+
+/**
+ * Central FIDO2 HID transport layer (T053 + T054).
+ *
+ * Implements [Fido2Transport] as the top-level orchestrator that:
+ * 1. initializes and registers the [BluetoothHidDeviceWrapper] (peripheral role)
+ * 2. Consumes raw 62-byte HID reports from [BluetoothHidDeviceWrapper.incomingReports]
+ * 3. Reassembles multi-packet CTAPHID messages via [HidReportParser]
+ * 4. Dispatches each command to the appropriate CTAP2 handler
+ * 5. Sends responses back via [BluetoothHidDeviceWrapper.sendReport]
+ * 6. Manages per-channel session state and CID assignment
+ *
+ * Connection State Management (T054)
+ * ------------------------------------
+ * Channel IDs (CIDs) are 4-byte per-session identifiers assigned during
+ * CTAPHID_INIT. The broadcast CID (0xFFFFFFFF) is used only for INIT.
+ * Each connected host gets its own CID tracked in [channelRegistry].
+ */
+<span class="fc" id="L66">@Single</span>
+<span class="fc" id="L67">class BluetoothHidTransportImpl(</span>
+<span class="fc" id="L68">    private val hidWrapper: BluetoothHidDeviceWrapper,</span>
+<span class="fc" id="L69">    private val hidReportParser: HidReportParser,</span>
+<span class="fc" id="L70">    private val makeCredentialHandler: Ctap2MakeCredentialHandler,</span>
+<span class="fc" id="L71">    private val getAssertionHandler: Ctap2GetAssertionHandler,</span>
+<span class="fc" id="L72">    private val responseBuilder: Ctap2ResponseBuilder,</span>
+<span class="fc" id="L73">    private val authenticatorInfoProvider: AuthenticatorInfoProvider,</span>
+<span class="fc" id="L74">    private val fido2EventBus: Fido2EventBus,</span>
+    // Injected to trigger background event observation
+<span class="fc" id="L76">    @Suppress(&quot;unused&quot;) private val pairedDeviceEventCoordinator: PairedDeviceEventCoordinator,</span>
+<span class="fc" id="L77">    private val userVerificationService: UserVerificationService,</span>
+<span class="fc" id="L78">    private val masterSeedProvider: MasterSeedProvider,</span>
+) : Fido2Transport {
+    companion object {
+        // CTAPHID error codes (§8.4)
+        private const val ERR_INVALID_CMD: Byte = 0x01
+        private const val ERR_INVALID_SEQ: Byte = 0x04
+        private const val ERR_CHANNEL_BUSY: Byte = 0x06
+        private const val ERR_INVALID_CHANNEL: Byte = 0x0B
+
+        // CTAP2 Command Codes
+        private const val CMD_MAKE_CREDENTIAL = 0x01
+        private const val CMD_GET_ASSERTION = 0x02
+        private const val CMD_GET_INFO = 0x04
+        private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F
+
+        /** Default maximum ceremony duration in milliseconds, including user interaction. */
+        const val DEFAULT_CEREMONY_TIMEOUT_MILLIS = 120_000L
+
+        private const val NANOS_PER_MILLISECOND = 1_000_000L
+
+        /**
+         * Inter-report pacing delay in milliseconds.
+         *
+         * After each HID report is dispatched to [BluetoothHidDeviceWrapper.sendReport],
+         * the sender coroutine sleeps for this duration to let the Bluetooth HCI layer
+         * process the outbound HCI command before the next packet is queued.
+         *
+         * Actual value read from [BluetoothHidConfigProvider.config] at runtime.
+         */
+<span class="fc" id="L107">        private val REPORT_PACE_DELAY get() = BluetoothHidConfigProvider.config.reportPaceDelay</span>
+<span class="fc" id="L108">        private val KEEPALIVE_INITIAL_DELAY get() = BluetoothHidConfigProvider.config.keepaliveInitialDelay</span>
+<span class="fc" id="L109">        private val KEEPALIVE_PERIOD get() = BluetoothHidConfigProvider.config.keepalivePeriod</span>
+
+        // Protocol
+        private const val STATUS_PROCESSING: Byte = 0x01
+        private const val STATUS_UPNEEDED: Byte = 0x02
+
+        private const val HEX_RADIX = 16
+        private const val BYTE_MASK = 0xFF
+        private const val REASSEMBLY_EXPIRY_POLL_MILLIS = 500L
+
+        /** Maximum channel identifiers owned by one transport session. */
+        internal const val MAX_SESSION_CIDS = 16
+
+        /** Maximum attempts to find an unused channel identifier before failing allocation. */
+        internal const val MAX_CID_ALLOCATION_ATTEMPTS = 32
+    }
+
+<span class="fc" id="L126">    private val secureRandom = SecureRandom()</span>
+
+    /**
+     * Fills the allocator's reused 4-byte CID buffer synchronously for each allocation attempt.
+     * Do not retain or mutate it after the callback; a successful allocation transfers it to the registry.
+     */
+<span class="pc" id="L132">    internal var nextCidBytes: (ByteArray) -&gt; Unit = secureRandom::nextBytes</span>
+<span class="fc" id="L133">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+
+    /** Host scheduling seam; defaults preserve the production IO worker and monotonic clock. */
+<span class="fc" id="L136">    internal var workerDispatcher: CoroutineDispatcher = Dispatchers.IO</span>
+
+    /** Host regression seam for advancing response consumption independently from request work. */
+<span class="pc" id="L139">    internal var sendQueueDispatcher: CoroutineDispatcher? = null</span>
+
+    /** Monotonic nanosecond clock used for elapsed transport timing; values are not wall-clock timestamps. */
+<span class="pc" id="L142">    internal var monotonicNanos: () -&gt; Long = System::nanoTime</span>
+
+    /** Host regression seam; production keeps the CTAP safe default. */
+<span class="pc" id="L145">    internal var ceremonyTimeoutMillis = DEFAULT_CEREMONY_TIMEOUT_MILLIS</span>
+
+    /** Retains the actual admitted request owner for host terminal-zeroing assertions. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="pc" id="L149">    internal var onCborRequestPayloadForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    /** Synchronous test observer before completed-message dispatch; production keeps this unset. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="pc" id="L153">    internal var onCompletedMessageForTest: ((CtapHidMessage) -&gt; Unit)? = null</span>
+
+    /** Serializes parser/CID ownership with synchronous wrapper session transitions. */
+<span class="fc" id="L156">    private val transportSessionLock = Any()</span>
+<span class="fc" id="L157">    private var observedSessionGeneration = Long.MIN_VALUE</span>
+    private var observedConnectionState: HidConnectionState? = null
+
+    /** Set of currently allocated channel IDs, each bound to its host-session generation. */
+<span class="fc" id="L161">    private val channelRegistry = HidChannelRegistry()</span>
+
+    private var receiveJob: Job? = null
+    private var stateObserverJob: Job? = null
+
+    /** Owns admitted CTAPHID requests and bounds concurrent ceremony work per host generation. */
+    private val cborRequestOwner =
+<span class="fc" id="L168">        CtapHidRequestOwner(</span>
+<span class="fc" id="L169">            scope = scope,</span>
+<span class="fc" id="L170">            dispatcher = { workerDispatcher },</span>
+<span class="fc" id="L171">            monotonicNanos = { monotonicNanos() },</span>
+<span class="fc" id="L172">            isSessionCurrent = ::isCurrentSession,</span>
+<span class="fc" id="L173">            handleRequest = ::handleCbor,</span>
+<span class="fc" id="L174">            reportChannelBusy = { cid, generation -&gt;</span>
+<span class="fc" id="L175">                sendPackets(responseBuilder.hidErrorResponse(cid, ERR_CHANNEL_BUSY), generation)</span>
+<span class="fc" id="L176">            },</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            onPayloadForTest = { payload -&gt; onCborRequestPayloadForTest?.invoke(payload) },</span>
+        )
+    private val u2fApduCommandHandler =
+<span class="fc" id="L180">        U2fApduCommandHandler(</span>
+<span class="fc" id="L181">            hidReportParser = hidReportParser,</span>
+<span class="fc" id="L182">            responseBuilder = responseBuilder,</span>
+<span class="fc" id="L183">            enqueuePackets = ::sendPackets,</span>
+<span class="fc" id="L184">            launchCborOperation = { message, generation -&gt; cborRequestOwner.dispatch(message, generation) },</span>
+        )
+    private val commandDispatcher =
+<span class="fc" id="L187">        CtapHidCommandDispatcher(</span>
+<span class="fc" id="L188">            hidReportParser = hidReportParser,</span>
+<span class="fc" id="L189">            responseBuilder = responseBuilder,</span>
+<span class="fc" id="L190">            getAssertionHandler = getAssertionHandler,</span>
+<span class="fc" id="L191">            authenticatorInfoProvider = authenticatorInfoProvider,</span>
+<span class="fc" id="L192">            cborRequestOwner = cborRequestOwner,</span>
+<span class="fc" id="L193">            u2fApduCommandHandler = u2fApduCommandHandler,</span>
+<span class="fc" id="L194">            isCurrentSession = ::isCurrentSession,</span>
+<span class="fc" id="L195">            isChannelRegistered = ::isChannelRegistered,</span>
+<span class="fc" id="L196">            allocateCid = ::generateCid,</span>
+<span class="fc" id="L197">            sendPackets = ::sendPackets,</span>
+        )
+
+    /** Serializes outgoing reports in a bounded queue and disposes pending packets at generation changes. */
+    private val sendQueueSender =
+<span class="fc" id="L202">        HidReportSender(</span>
+<span class="fc" id="L203">            scope = scope,</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">            dispatcher = { sendQueueDispatcher ?: workerDispatcher },</span>
+<span class="fc" id="L205">            sessionGeneration = hidWrapper::sessionGeneration,</span>
+<span class="fc" id="L206">            sendReport = { bytes, generation -&gt;</span>
+<span class="fc" id="L207">                PerformanceTrace.section(&quot;Fido2.HID.SendReport&quot;) {</span>
+<span class="fc" id="L208">                    hidWrapper.sendReport(bytes, generation)</span>
+<span class="fc" id="L209">                }</span>
+            },
+<span class="fc" id="L211">            reportAccepted = BaselineMeasurements::reportAccepted,</span>
+<span class="fc" id="L212">            reportPaceDelayMillis = REPORT_PACE_DELAY.inWholeMilliseconds,</span>
+        )
+
+<span class="fc" id="L215">    init {</span>
+<span class="fc" id="L216">        hidWrapper.onSessionTransition = ::onWrapperSessionTransition</span>
+<span class="fc" id="L217">        val (generation, state) = hidWrapper.sessionSnapshot()</span>
+<span class="fc" id="L218">        onWrapperSessionTransition(generation, state)</span>
+<span class="fc" id="L219">    }</span>
+
+    // ── Fido2Transport interface ───────────────────────────────────────────────
+
+    /** Acquires the Android HID profile, registers it and starts session-bound transport workers. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    override suspend fun connect(): Result&lt;Unit&gt; =
+<span class="fc" id="L226">        try {</span>
+<span class="fc" id="L227">            Logger.d { &quot;connect() starting...&quot; }</span>
+            // Drop any buffered reports from the previous transport generation before the
+            // wrapper can admit reports for a newly registered host session.
+<span class="fc" id="L230">            hidWrapper.discardQueuedIncomingReports()</span>
+<span class="fc" id="L231">            hidWrapper.initialize().getOrThrow()</span>
+<span class="fc" id="L232">            Logger.d { &quot;hidWrapper initialized, now registering app...&quot; }</span>
+<span class="fc" id="L233">            hidWrapper.registerApp().getOrThrow()</span>
+<span class="fc" id="L234">            Logger.d { &quot;hidWrapper app registered, starting receiver, sender and observer...&quot; }</span>
+<span class="fc" id="L235">            startTransportWorkers()</span>
+<span class="fc" id="L236">            Logger.i(&quot;BluetoothHidTransport connected and advertising&quot;)</span>
+<span class="fc" id="L237">            Result.success(Unit)</span>
+<span class="nc" id="L238">        } catch (e: Fido2Exception) {</span>
+<span class="nc" id="L239">            Logger.e { &quot;connect() failed with Fido2Exception: ${e.message}&quot; }</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            hidWrapper.reportError(e.message ?: &quot;HID connection failed&quot;)</span>
+<span class="nc" id="L241">            Result.failure(e)</span>
+<span class="nc" id="L242">        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L243">            Logger.e(e) { &quot;connect() unexpected failure: ${e.message}&quot; }</span>
+<span class="nc" id="L244">            val msg = &quot;Failed to start HID transport: ${e.message}&quot;</span>
+<span class="nc" id="L245">            hidWrapper.reportError(msg)</span>
+<span class="pc" id="L246">            Result.failure(Fido2Exception.TransportException(msg))</span>
+<span class="fc" id="L247">        }</span>
+
+    /** Initiates connection to the selected bonded host, starting advertising when the transport is idle. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    override suspend fun connectDevice(macAddress: String): Result&lt;Unit&gt; =
+<span class="nc" id="L252">        try {</span>
+<span class="nc" id="L253">            Logger.i { &quot;connectDevice($macAddress) called&quot; }</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            if (hidWrapper.connectionState.value is HidConnectionState.Idle) {</span>
+<span class="nc" id="L255">                Logger.i { &quot;Transport is Idle; starting transport before connecting to device $macAddress&quot; }</span>
+<span class="nc" id="L256">                connect().getOrThrow()</span>
+            }
+<span class="nc" id="L258">            val initiated = hidWrapper.connect(macAddress)</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">            if (initiated) {</span>
+<span class="nc" id="L260">                Result.success(Unit)</span>
+            } else {
+<span class="nc" id="L262">                Result.failure(Fido2Exception.BluetoothException(&quot;Failed to initiate connection to $macAddress&quot;))</span>
+            }
+<span class="nc" id="L264">        } catch (e: Fido2Exception) {</span>
+<span class="nc" id="L265">            Logger.e(e) { &quot;connectDevice($macAddress) failed: ${e.message}&quot; }</span>
+<span class="nc" id="L266">            Result.failure(e)</span>
+<span class="nc" id="L267">        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L268">            Logger.e(e) { &quot;connectDevice($macAddress) failed: ${e.message}&quot; }</span>
+<span class="nc" id="L269">            Result.failure(e)</span>
+<span class="nc" id="L270">        } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L271">            Logger.e(e) { &quot;connectDevice($macAddress) failed: ${e.message}&quot; }</span>
+<span class="nc" id="L272">            Result.failure(e)</span>
+<span class="nc" id="L273">        }</span>
+
+    /** Stops request and response workers and erases parser, queue and channel state for this session. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    override suspend fun disconnect(): Result&lt;Unit&gt; =
+<span class="fc" id="L278">        try {</span>
+<span class="fc" id="L279">            Logger.d { &quot;disconnect() starting...&quot; }</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">            receiveJob?.cancelAndJoin()</span>
+<span class="fc" id="L281">            receiveJob = null</span>
+<span class="fc" id="L282">            cborRequestOwner.cancelAll()</span>
+            // Join the observer before unregistering so the intentional state transition cannot
+            // race with observer work while the session and transport workers are being torn down.
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            stateObserverJob?.cancelAndJoin()</span>
+<span class="fc" id="L286">            stateObserverJob = null</span>
+<span class="fc" id="L287">            sendQueueSender.stop()</span>
+<span class="fc" id="L288">            BaselineMeasurements.disconnect()</span>
+<span class="fc" id="L289">            hidWrapper.unregisterApp()</span>
+<span class="fc" id="L290">            hidWrapper.discardQueuedIncomingReports()</span>
+<span class="fc" id="L291">            clearChannelRegistry()</span>
+<span class="fc" id="L292">            hidReportParser.reset()</span>
+<span class="fc" id="L293">            Logger.i { &quot;BluetoothHidTransport disconnected&quot; }</span>
+<span class="fc" id="L294">            Result.success(Unit)</span>
+<span class="nc" id="L295">        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L296">            Logger.e(e) { &quot;disconnect() failed: ${e.message}&quot; }</span>
+<span class="pc" id="L297">            Result.failure(Fido2Exception.TransportException(&quot;Disconnect error: ${e.message}&quot;))</span>
+<span class="fc" id="L298">        }</span>
+
+    // ── Connection state observation (T054) ───────────────────────────────────
+
+    /** Applies parser, CID, request and sender ownership changes synchronously with wrapper callbacks. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun onWrapperSessionTransition(
+        generation: Long,
+        state: HidConnectionState,
+    ) {
+<span class="fc" id="L308">        var endedGeneration: Long? = null</span>
+<span class="pc" id="L309">        synchronized(transportSessionLock) {</span>
+<span class="pc bpc" id="L310" title="1 of 2 branches missed.">            if (generation &lt; observedSessionGeneration) return</span>
+<span class="fc bfc" id="L311" title="All 4 branches covered.">            if (generation == observedSessionGeneration &amp;&amp; state == observedConnectionState) return</span>
+
+<span class="fc bfc" id="L313" title="All 4 branches covered.">            if (observedSessionGeneration != Long.MIN_VALUE &amp;&amp; observedSessionGeneration != generation) {</span>
+<span class="fc" id="L314">                endedGeneration = observedSessionGeneration</span>
+            }
+<span class="fc" id="L316">            observedSessionGeneration = generation</span>
+<span class="fc" id="L317">            observedConnectionState = state</span>
+<span class="fc" id="L318">            hidReportParser.reset()</span>
+<span class="fc" id="L319">            clearChannelRegistry()</span>
+
+<span class="fc bfc" id="L321" title="All 2 branches covered.">            if (state is HidConnectionState.Connected) {</span>
+<span class="fc" id="L322">                sendQueueSender.start(generation)</span>
+            } else {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">                sendQueueSender.stop(endedGeneration ?: generation)</span>
+            }
+<span class="fc" id="L326">        }</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        endedGeneration?.let(cborRequestOwner::cancelGeneration)</span>
+<span class="fc" id="L328">    }</span>
+
+    private fun isCurrentSession(generation: Long): Boolean =
+<span class="fc" id="L331">        synchronized(transportSessionLock) {</span>
+<span class="fc" id="L332">            isCurrentSessionLocked(generation)</span>
+<span class="fc" id="L333">        }</span>
+
+    private fun isCurrentSessionLocked(generation: Long): Boolean =
+<span class="pc bpc" id="L336" title="1 of 4 branches missed.">        generation == observedSessionGeneration &amp;&amp; generation == hidWrapper.sessionGeneration()</span>
+
+    /** Checks that a non-INIT command belongs to a CID allocated in the active host generation. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun isChannelRegistered(
+        cid: ByteArray,
+        generation: Long,
+<span class="fc" id="L343">    ): Boolean = channelRegistry.isRegistered(cid, generation)</span>
+
+    private fun observeConnectionState() {
+<span class="pc bpc" id="L346" title="1 of 2 branches missed.">        stateObserverJob?.cancel()</span>
+<span class="fc" id="L347">        stateObserverJob =</span>
+<span class="fc" id="L348">            hidWrapper.connectionState</span>
+<span class="fc" id="L349">                .onEach { state -&gt;</span>
+<span class="fc" id="L350">                    when (state) {</span>
+<span class="fc bfc" id="L351" title="All 2 branches covered.">                        is HidConnectionState.Connected -&gt; {</span>
+<span class="fc" id="L352">                            Logger.i { &quot;Host connected: ${state.device.address}&quot; }</span>
+                            // Best-effort user-verification availability cache warm-up. This is
+                            // asynchronous and does not guarantee the cache is populated before
+                            // a ceremony begins; signing remains software-derived.
+<span class="fc" id="L356">                            scope.launch(workerDispatcher) {</span>
+<span class="pc" id="L357">                                runCatching { userVerificationService.getUserVerificationAvailability() }</span>
+<span class="pc bpc" id="L358" title="1 of 2 branches missed.">                                    .onFailure { e -&gt;</span>
+<span class="nc" id="L359">                                        Logger.w { &quot;BiometricManager pre-warm failed (non-fatal): ${e.message}&quot; }</span>
+<span class="nc" id="L360">                                    }</span>
+<span class="fc" id="L361">                            }</span>
+                            // Transport is now ready for CTAPHID_INIT from the host
+                        }
+<span class="fc bfc" id="L364" title="All 2 branches covered.">                        is HidConnectionState.Advertising -&gt; {</span>
+<span class="fc" id="L365">                            Logger.d { &quot;Advertising for host connections&quot; }</span>
+                        }
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">                        is HidConnectionState.Idle -&gt; {</span>
+<span class="nc" id="L368">                            Logger.d { &quot;HID transport idle&quot; }</span>
+                        }
+<span class="pc bpc" id="L370" title="1 of 2 branches missed.">                        is HidConnectionState.Error -&gt; {</span>
+<span class="fc" id="L371">                            Logger.e { &quot;HID connection error: ${state.message}&quot; }</span>
+                        }
+                        else -&gt; { /* Connecting — nothing to do */ }
+                    }
+<span class="fc" id="L375">                }.launchIn(CoroutineScope(scope.coroutineContext + workerDispatcher))</span>
+<span class="fc" id="L376">    }</span>
+
+    // ── Report receiver loop ──────────────────────────────────────────────────
+
+    /** Owns each queued report until parsing finishes and erases it even on cancellation/error. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun startReceiving() {
+<span class="pc bpc" id="L383" title="1 of 2 branches missed.">        receiveJob?.cancel()</span>
+<span class="fc" id="L384">        receiveJob =</span>
+<span class="fc" id="L385">            scope.launch(workerDispatcher) {</span>
+<span class="fc" id="L386">                while (true) {</span>
+<span class="fc" id="L387">                    val result =</span>
+<span class="fc" id="L388">                        withTimeoutOrNull(REASSEMBLY_EXPIRY_POLL_MILLIS) {</span>
+<span class="fc" id="L389">                            hidWrapper.incomingReports.receiveCatching()</span>
+                        }
+<span class="fc bfc" id="L391" title="All 2 branches covered.">                    if (result == null) {</span>
+<span class="fc" id="L392">                        synchronized(transportSessionLock) { hidReportParser.expirePending() }</span>
+                    } else {
+<span class="pc bpc" id="L394" title="1 of 2 branches missed.">                        val report = result.getOrNull() ?: break</span>
+<span class="fc" id="L395">                        try {</span>
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">                            if (report.sessionGeneration == hidWrapper.sessionGeneration()) {</span>
+<span class="fc" id="L397">                                processReport(report.bytes, report.sessionGeneration)</span>
+                            }
+                        } finally {
+<span class="fc" id="L400">                            report.bytes.fill(0)</span>
+                        }
+                    }
+                }
+<span class="nc" id="L404">            }</span>
+<span class="fc" id="L405">    }</span>
+
+    /** Starts the same receive/observer loops used after successful wrapper registration. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun startTransportWorkers() {
+<span class="fc" id="L410">        startReceiving()</span>
+<span class="fc" id="L411">        observeConnectionState()</span>
+<span class="fc" id="L412">        val (generation, state) = hidWrapper.sessionSnapshot()</span>
+<span class="fc" id="L413">        onWrapperSessionTransition(generation, state)</span>
+<span class="fc" id="L414">    }</span>
+
+    /** Test seam for exercising real wrapper callbacks without acquiring the Android profile proxy. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L418">    internal fun startTransportWorkersForTest() = startTransportWorkers()</span>
+
+    /** Borrows one receive-loop-owned report; a completed message is transferred to dispatch. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private suspend fun processReport(
+        report: ByteArray,
+        sessionGeneration: Long,
+    ) {
+<span class="fc" id="L426">        val result =</span>
+<span class="pc" id="L427">            synchronized(transportSessionLock) {</span>
+<span class="pc bpc" id="L428" title="1 of 2 branches missed.">                if (!isCurrentSessionLocked(sessionGeneration)) return</span>
+<span class="fc" id="L429">                hidReportParser.processReport(report)</span>
+            }
+<span class="pc bpc" id="L431" title="1 of 2 branches missed.">        if (result.isFailure) {</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            Logger.e { &quot;Report parse error: ${result.exceptionOrNull()?.message}&quot; }</span>
+            // Can't identify CID from a broken packet; send broadcast error
+<span class="nc" id="L434">            sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_SEQ), sessionGeneration)</span>
+<span class="nc" id="L435">            return</span>
+        }
+
+<span class="pc bpc" id="L438" title="1 of 4 branches missed.">        val message = result.getOrNull() ?: return // null = still accumulating</span>
+<span class="fc bfc" id="L439" title="All 2 branches covered.">        onCompletedMessageForTest?.invoke(message)</span>
+
+<span class="fc" id="L441">        Logger.d {</span>
+<span class="fc" id="L442">            &quot;CTAPHID cmd=0x${message.command.toString(HEX_RADIX).uppercase()} &quot; +</span>
+<span class="fc" id="L443">                &quot;cid=${message.channelId.toHex()} payloadLen=${message.payload.size}&quot;</span>
+        }
+
+<span class="fc" id="L446">        var ownershipTransferred = false</span>
+<span class="fc" id="L447">        try {</span>
+<span class="fc bfc" id="L448" title="All 2 branches covered.">            if (isCurrentSession(sessionGeneration)) {</span>
+<span class="fc" id="L449">                dispatchMessage(message, sessionGeneration)</span>
+<span class="fc" id="L450">                ownershipTransferred = true</span>
+            }
+<span class="nc" id="L452">        } catch (cancellation: kotlinx.coroutines.CancellationException) {</span>
+            // A memory trim/replacement cancels only the bounded provider owner. Keep the
+            // receiver alive when its transport coroutine itself is still active; disconnect
+            // cancellation must continue propagating and terminate the receiver.
+<span class="nc" id="L456">            currentCoroutineContext().ensureActive()</span>
+<span class="nc" id="L457">            Logger.i(cancellation) { &quot;Discarded CTAPHID work after its wallet owner was fenced&quot; }</span>
+        } finally {
+<span class="fc bfc" id="L459" title="All 2 branches covered.">            if (!ownershipTransferred) message.payload.fill(0)</span>
+        }
+<span class="fc" id="L461">    }</span>
+
+    // ── Command dispatcher ────────────────────────────────────────────────────
+
+    /** Transfers CBOR payload ownership to the asynchronous request owner; other messages erase locally. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L467">    internal suspend fun dispatchMessage(</span>
+        message: CtapHidMessage,
+<span class="fc" id="L469">        sessionGeneration: Long = hidWrapper.sessionGeneration(),</span>
+<span class="fc" id="L470">    ) = commandDispatcher.dispatch(message, sessionGeneration)</span>
+
+    // ── CTAPHID_CBOR ──────────────────────────────────────────────────────────
+
+    private suspend fun handleCbor(
+        message: CtapHidMessage,
+        requestAdmissionNanos: Long,
+        requestSessionGeneration: Long,
+    ) {
+<span class="fc" id="L479">        val cid = message.channelId</span>
+
+        // Accept CBOR only for a channel allocated in this live transport session.
+<span class="pc bpc" id="L482" title="1 of 2 branches missed.">        if (!isCurrentSession(requestSessionGeneration)) return</span>
+<span class="fc" id="L483">        val channelIsCurrent = isChannelRegistered(cid, requestSessionGeneration)</span>
+<span class="pc bpc" id="L484" title="2 of 4 branches missed.">        if (cid.contentEquals(BROADCAST_CID) || !channelIsCurrent) {</span>
+<span class="nc" id="L485">            sendPackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_CHANNEL), requestSessionGeneration)</span>
+<span class="nc" id="L486">            return</span>
+        }
+
+<span class="fc" id="L489">        val payload = message.payload</span>
+<span class="pc bpc" id="L490" title="1 of 2 branches missed.">        if (!isCurrentSession(requestSessionGeneration)) return</span>
+<span class="pc bpc" id="L491" title="2 of 4 branches missed.">        if (payload.isEmpty()) {</span>
+<span class="nc" id="L492">            sendPackets(</span>
+<span class="nc" id="L493">                responseBuilder.errorResponse(cid, com.chimali.fido2.ctap2.CTAP2_ERR_INVALID_CBOR),</span>
+<span class="nc" id="L494">                requestSessionGeneration,</span>
+            )
+<span class="nc" id="L496">            return</span>
+        }
+
+<span class="fc" id="L499">        val ctapCommand = payload[0].toInt() and BYTE_MASK</span>
+<span class="fc" id="L500">        val operationLabel =</span>
+<span class="fc bfc" id="L501" title="All 4 branches covered.">            when (ctapCommand) {</span>
+<span class="fc" id="L502">                CMD_MAKE_CREDENTIAL -&gt; &quot;MakeCredential&quot;</span>
+<span class="fc" id="L503">                CMD_GET_ASSERTION -&gt; &quot;GetAssertion&quot;</span>
+<span class="fc" id="L504">                CMD_GET_INFO -&gt; &quot;GetInfo&quot;</span>
+<span class="fc" id="L505">                else -&gt; &quot;CTAP2_0x${ctapCommand.toString(HEX_RADIX)}&quot;</span>
+            }
+        // NFR-PERF-030: Start timing the request through outbound HID response handoff.
+<span class="fc" id="L508">        LatencyProfiler.start(operationLabel)</span>
+<span class="fc" id="L509">        Logger.d {</span>
+<span class="fc" id="L510">            &quot;CTAP2 command=0x${ctapCommand.toString(HEX_RADIX)} on CID=${cid.toHex()}&quot;</span>
+        }
+
+        // ── Periodic keepalive loop ────────────────────────────────────────────
+        // CTAP HID spec §8.5.5: the authenticator MUST send CTAPHID_KEEPALIVE
+        // continuously at a period ≤ 500ms while processing a CBOR command.
+        //
+        // IMPORTANT: the initial delay must come BEFORE the first keepalive send.
+        // Fast commands (GetInfo) complete in &lt;10ms; an immediate keepalive would
+        // arrive at Windows BEFORE the real response, causing ERROR_INVALID_DATA.
+        // The rauth-android reference always sleeps first, then sends.
+<span class="fc" id="L521">        val keepaliveJob: Job =</span>
+<span class="fc" id="L522">            CoroutineScope(currentCoroutineContext()).launch(workerDispatcher) {</span>
+<span class="fc" id="L523">                delay(KEEPALIVE_INITIAL_DELAY) // wait first; spec requires first ~100ms. Reference uses 75ms.</span>
+<span class="pc bpc" id="L524" title="1 of 2 branches missed.">                if (isCurrentSession(requestSessionGeneration)) {</span>
+<span class="fc" id="L525">                    sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_PROCESSING), requestSessionGeneration)</span>
+                }
+<span class="fc" id="L527">                while (true) {</span>
+<span class="fc" id="L528">                    delay(KEEPALIVE_PERIOD) // 75ms between subsequent keepalives.</span>
+<span class="pc bpc" id="L529" title="1 of 2 branches missed.">                    if (isCurrentSession(requestSessionGeneration)) {</span>
+<span class="fc" id="L530">                        sendPackets(responseBuilder.keepAliveResponse(cid, STATUS_UPNEEDED), requestSessionGeneration)</span>
+                    } else {
+<span class="nc" id="L532">                        break</span>
+                    }
+                }
+<span class="nc" id="L535">            }</span>
+
+<span class="fc" id="L537">        var responseHandedOff = false</span>
+<span class="fc" id="L538">        var responsePackets: List&lt;ByteArray&gt;? = null</span>
+
+        fun ownResponse(packets: List&lt;ByteArray&gt;): List&lt;ByteArray&gt; {
+<span class="pc bpc" id="L541" title="2 of 8 branches missed.">            responsePackets?.takeIf { it !== packets }?.forEach { it.fill(0) }</span>
+<span class="fc" id="L542">            responsePackets = packets</span>
+<span class="fc" id="L543">            return packets</span>
+        }
+<span class="fc" id="L545">        try {</span>
+<span class="fc" id="L546">            val packets =</span>
+<span class="fc" id="L547">                try {</span>
+<span class="fc" id="L548">                    try {</span>
+<span class="fc" id="L549">                        val elapsedMillis = (monotonicNanos() - requestAdmissionNanos) / NANOS_PER_MILLISECOND</span>
+<span class="fc" id="L550">                        val remainingMillis = ceremonyTimeoutMillis - elapsedMillis</span>
+<span class="fc" id="L551">                        withTimeout(remainingMillis) {</span>
+<span class="pc bpc" id="L552" title="1 of 4 branches missed.">                            when (ctapCommand) {</span>
+                                CMD_MAKE_CREDENTIAL -&gt; {
+                                    // authenticatorMakeCredential — CTAP2 registration
+<span class="fc" id="L555">                                    val resp =</span>
+<span class="fc" id="L556">                                        masterSeedProvider.withSessionOwner(</span>
+<span class="fc" id="L557">                                            ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,</span>
+                                        ) {
+<span class="fc" id="L559">                                            ownResponse(makeCredentialHandler.handle(message))</span>
+                                        }
+<span class="fc" id="L561">                                    publishSuccessEvent()</span>
+<span class="fc" id="L562">                                    resp</span>
+                                }
+
+                                CMD_GET_ASSERTION -&gt; {
+                                    // authenticatorGetAssertion — CTAP2 authentication
+<span class="fc" id="L567">                                    val resp =</span>
+<span class="fc" id="L568">                                        masterSeedProvider.withSessionOwner(</span>
+<span class="fc" id="L569">                                            ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,</span>
+                                        ) {
+<span class="fc" id="L571">                                            ownResponse(commandDispatcher.handleGetAssertion(message))</span>
+                                        }
+<span class="fc" id="L573">                                    publishSuccessEvent()</span>
+<span class="fc" id="L574">                                    resp</span>
+                                }
+
+                                CMD_GET_INFO -&gt;
+<span class="nc" id="L578">                                    ownResponse(commandDispatcher.handleGetInfo(cid)) // authenticatorGetInfo</span>
+
+                                else -&gt; {
+<span class="fc" id="L581">                                    Logger.w { &quot;Unsupported CTAP2 command 0x${ctapCommand.toString(HEX_RADIX)}&quot; }</span>
+<span class="fc" id="L582">                                    ownResponse(responseBuilder.errorResponse(cid, ERR_INVALID_CMD))</span>
+                                }
+<span class="fc" id="L584">                            }</span>
+                        }
+<span class="fc" id="L586">                    } catch (_: TimeoutCancellationException) {</span>
+<span class="fc" id="L587">                        Logger.w { &quot;CTAP ceremony exceeded its admission deadline&quot; }</span>
+<span class="fc" id="L588">                        ownResponse(responseBuilder.errorResponse(cid, CTAP2_ERR_USER_ACTION_TIMEOUT))</span>
+                    }
+                } finally {
+                    // cancelAndJoin() (not just cancel()) ensures the keepalive coroutine
+                    // has completely stopped before we send the real response. Without this,
+                    // a keepalive in-flight could arrive at Windows AFTER the CBOR response,
+                    // corrupting the framing of the next request.
+<span class="fc" id="L595">                    PerformanceTrace.section(&quot;Fido2.HID.KeepaliveShutdown&quot;) {</span>
+<span class="fc" id="L596">                        keepaliveJob.cancelAndJoin()</span>
+<span class="fc" id="L597">                    }</span>
+<span class="fc" id="L598">                }</span>
+            // Capture CTAP processing separately from response queueing and report pacing.
+<span class="fc" id="L600">            BaselineMeasurements.processingComplete(operationLabel)</span>
+<span class="fc" id="L601">            BaselineMeasurements.trackResponse(operationLabel, packets)</span>
+<span class="pc bpc" id="L602" title="1 of 2 branches missed.">            if (!isCurrentSession(requestSessionGeneration)) return</span>
+            // Wait until the final response report has been handed to the Bluetooth HID
+            // wrapper so NFR-PERF-030 includes transport-queue wait and report pacing.
+<span class="fc" id="L605">            responseHandedOff =</span>
+<span class="fc" id="L606">                PerformanceTrace.section(&quot;Fido2.HID.ResponseQueueAndHandoff&quot;) {</span>
+<span class="fc" id="L607">                    sendPacketsAndAwaitHandoff(packets, requestSessionGeneration)</span>
+                }
+        } finally {
+            // These packets contain the serialized CTAP response (including any PRF output).
+            // The queue handoff completes before this owner releases and erases them.
+<span class="fc bfc" id="L612" title="All 2 branches covered.">            responsePackets?.forEach { it.fill(0) }</span>
+            // User-interaction time remains excluded from the measured system latency.
+<span class="pc bfc" id="L614" title="All 2 branches covered.">            LatencyProfiler.end(operationLabel, responseHandedOff)</span>
+        }
+<span class="fc" id="L616">    }</span>
+
+    private fun publishSuccessEvent() {
+<span class="fc" id="L619">        val state = hidWrapper.connectionState.value</span>
+<span class="fc bfc" id="L620" title="All 2 branches covered.">        if (state is HidConnectionState.Connected) {</span>
+<span class="fc" id="L621">            val mac = state.device.address</span>
+<span class="fc" id="L622">            val name =</span>
+<span class="pc bpc" id="L623" title="1 of 2 branches missed.">                if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.S) {</span>
+<span class="nc" id="L624">                    try {</span>
+<span class="nc" id="L625">                        state.device.name</span>
+<span class="nc" id="L626">                    } catch (e: SecurityException) {</span>
+<span class="nc" id="L627">                        Logger.w(e) { &quot;BluetoothHidTransport: Failed to get device name&quot; }</span>
+<span class="nc" id="L628">                        null</span>
+                    }
+                } else {
+                    @Suppress(&quot;DEPRECATION&quot;)
+<span class="fc" id="L632">                    state.device.name</span>
+                }
+
+<span class="fc" id="L635">            val devClass =</span>
+<span class="pc bpc" id="L636" title="1 of 2 branches missed.">                if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.S) {</span>
+<span class="nc" id="L637">                    try {</span>
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                        state.device.bluetoothClass?.deviceClass</span>
+<span class="nc" id="L639">                    } catch (e: SecurityException) {</span>
+<span class="nc" id="L640">                        Logger.w(e) { &quot;BluetoothHidTransport: Failed to get bluetooth class&quot; }</span>
+<span class="nc" id="L641">                        null</span>
+                    }
+                } else {
+                    @Suppress(&quot;DEPRECATION&quot;)
+<span class="pc bpc" id="L645" title="1 of 2 branches missed.">                    state.device.bluetoothClass?.deviceClass</span>
+                }
+
+<span class="fc" id="L648">            Logger.d { &quot;FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass&quot; }</span>
+<span class="fc" id="L649">            fido2EventBus.publish(</span>
+<span class="fc" id="L650">                Fido2Event.InteractionSuccessful(</span>
+<span class="fc" id="L651">                    hostDeviceAddress = mac,</span>
+<span class="fc" id="L652">                    hostDeviceName = name,</span>
+<span class="fc" id="L653">                    hostDeviceClass = devClass,</span>
+                ),
+            )
+        }
+<span class="fc" id="L657">    }</span>
+
+    // ── CTAPHID_PING ──────────────────────────────────────────────────────────
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /** Transfers packet ownership to the generation-bound sender. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="nc" id="L665">    private fun sendPackets(</span>
+        packets: List&lt;ByteArray&gt;,
+<span class="nc" id="L667">        sessionGeneration: Long = hidWrapper.sessionGeneration(),</span>
+<span class="fc" id="L668">    ) = sendQueueSender.enqueue(packets, sessionGeneration)</span>
+
+    /** Transfers an owned response copy to the matching generation until HID handoff completes. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private suspend fun sendPacketsAndAwaitHandoff(
+        packets: List&lt;ByteArray&gt;,
+        sessionGeneration: Long,
+<span class="fc" id="L675">    ): Boolean = sendQueueSender.enqueueAndAwait(packets, sessionGeneration)</span>
+
+    /** Starts the generation-bound sender before the receiver begins admitting requests. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L679">    internal fun restartSendQueueForTest() = sendQueueSender.start()</span>
+
+    /** Enqueues an owned test packet through the production generation-bound sender. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L683">    internal fun enqueueSendPacketForTest(packet: ByteArray) = sendQueueSender.enqueue(listOf(packet))</span>
+
+    /** Stops the sender through its production generation cleanup path. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L687">    internal fun stopSendQueueForTest() = sendQueueSender.stop()</span>
+
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L690">    private fun generateCid(sessionGeneration: Long = hidWrapper.sessionGeneration()): ByteArray? =</span>
+<span class="fc" id="L691">        synchronized(transportSessionLock) {</span>
+<span class="fc" id="L692">            channelRegistry.allocate(</span>
+<span class="fc" id="L693">                sessionGeneration = sessionGeneration,</span>
+<span class="fc" id="L694">                maxAttempts = MAX_CID_ALLOCATION_ATTEMPTS,</span>
+<span class="fc" id="L695">                maximumChannels = MAX_SESSION_CIDS,</span>
+<span class="fc" id="L696">                isSessionCurrent = { isCurrentSessionLocked(sessionGeneration) },</span>
+<span class="fc" id="L697">                nextCidBytes = nextCidBytes,</span>
+<span class="fc" id="L698">            )</span>
+<span class="fc" id="L699">        }</span>
+
+<span class="fc" id="L701">    private fun clearChannelRegistry() = channelRegistry.clear()</span>
+
+    /** Registers a copied synthetic CID for transport dispatch regressions. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    internal fun registerChannelForTest(cid: ByteArray) =
+<span class="fc" id="L706">        channelRegistry.registerForTest(cid, hidWrapper.sessionGeneration(), MAX_SESSION_CIDS)</span>
+
+    /** Checks a CID against the same generation-bound registry used by production dispatch. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    internal fun isChannelRegisteredForTest(
+        cid: ByteArray,
+        generation: Long,
+<span class="fc" id="L713">    ): Boolean = channelRegistry.isRegistered(cid, generation)</span>
+
+    /** Allocates a CID through the production session registry for bounded-allocation tests. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L717">    internal fun allocateCidForTest(): ByteArray? = generateCid()</span>
+
+    /** Returns the wrapper's current host generation for transport lifecycle assertions. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L721">    internal fun sessionGenerationForTest(): Long = hidWrapper.sessionGeneration()</span>
+
+<span class="fc" id="L723">    private fun ByteArray.toHex(): String = joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }</span>
+
+    /** Expose connection state for observing by the presentation layer. */
+<span class="pc" id="L726">    override val connectionState: StateFlow&lt;HidConnectionState&gt; = hidWrapper.connectionState</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

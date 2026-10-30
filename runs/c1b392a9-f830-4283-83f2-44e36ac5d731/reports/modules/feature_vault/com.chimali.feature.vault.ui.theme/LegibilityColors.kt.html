@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LegibilityColors.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui.theme</a> &gt; <span class="el_source">LegibilityColors.kt</span></div><h1>LegibilityColors.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+/**
+ * Semantic color tokens for password legibility highlighting.
+ * Colors are chosen to be colorblind-friendly with sufficient contrast.
+ */
+object LegibilityColors {
+    private const val ORANGE_HEX = 0xFFE67E22
+    private const val BLUE_HEX = 0xFF3498DB
+    private const val PURPLE_HEX = 0xFF9B59B6
+    private const val GREEN_HEX = 0xFF27AE60
+
+    private const val ORANGE_HC_HEX = 0xFFD35400
+    private const val BLUE_HC_HEX = 0xFF2980B9
+    private const val PURPLE_HC_HEX = 0xFF8E44AD
+    private const val GREEN_HC_HEX = 0xFF229954
+
+    private const val BG_ALPHA_MASK = 0x1A000000L
+    private const val RGB_MASK = 0x00FFFFFFL
+
+    // Orange for numbers (primary semantic color)
+<span class="fc" id="L24">    val NumberOrange = Color(ORANGE_HEX)</span>
+
+    // Additional semantic colors for character type highlighting
+<span class="fc" id="L27">    val SymbolBlue = Color(BLUE_HEX)</span>
+<span class="fc" id="L28">    val UppercasePurple = Color(PURPLE_HEX)</span>
+<span class="fc" id="L29">    val LowercaseGreen = Color(GREEN_HEX)</span>
+
+    // Colorblind-friendly alternatives
+<span class="pc" id="L32">    val NumberOrangeHighContrast = Color(ORANGE_HC_HEX) // Darker orange for better contrast</span>
+<span class="pc" id="L33">    val SymbolBlueHighContrast = Color(BLUE_HC_HEX)</span>
+<span class="pc" id="L34">    val UppercasePurpleHighContrast = Color(PURPLE_HC_HEX)</span>
+<span class="pc" id="L35">    val LowercaseGreenHighContrast = Color(GREEN_HC_HEX)</span>
+
+    // Background highlights for colorblind mode (subtle)
+<span class="pc" id="L38">    val NumberBackground = Color((ORANGE_HEX and RGB_MASK) or BG_ALPHA_MASK)</span>
+<span class="pc" id="L39">    val SymbolBackground = Color((BLUE_HEX and RGB_MASK) or BG_ALPHA_MASK)</span>
+<span class="pc" id="L40">    val UppercaseBackground = Color((PURPLE_HEX and RGB_MASK) or BG_ALPHA_MASK)</span>
+<span class="pc" id="L41">    val LowercaseBackground = Color((GREEN_HEX and RGB_MASK) or BG_ALPHA_MASK)</span>
+}
+
+/**
+ * WCAG 2.1 AA contrast compliant color combinations.
+ * All colors meet 4.5:1 contrast ratio against typical backgrounds.
+ */
+object WCAGCompliantColors {
+    // For use on light backgrounds (Surface, SurfaceVariant)
+<span class="nc" id="L50">    val OnLightNumber = LegibilityColors.NumberOrange</span>
+<span class="nc" id="L51">    val OnLightSymbol = LegibilityColors.SymbolBlue</span>
+<span class="nc" id="L52">    val OnLightUppercase = LegibilityColors.UppercasePurple</span>
+<span class="nc" id="L53">    val OnLightLowercase = LegibilityColors.LowercaseGreen</span>
+
+    // For use on dark backgrounds (Surface, SurfaceVariant in dark theme)
+<span class="nc" id="L56">    val OnDarkNumber = LegibilityColors.NumberOrangeHighContrast</span>
+<span class="nc" id="L57">    val OnDarkSymbol = LegibilityColors.SymbolBlueHighContrast</span>
+<span class="nc" id="L58">    val OnDarkUppercase = LegibilityColors.UppercasePurpleHighContrast</span>
+<span class="nc" id="L59">    val OnDarkLowercase = LegibilityColors.LowercaseGreenHighContrast</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

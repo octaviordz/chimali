@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" tests="27" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:21.428Z" hostname="LOQ15IRX10-3" time="0.234">
+  <properties/>
+  <testcase name="truncated and oversized callback reports are rejected without fabricated padding()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.01"/>
+  <testcase name="outgoing stale session report is rejected before reaching Bluetooth()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="outgoing platform report copy is erased when Bluetooth send throws()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="[1] adapter-off" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.006"/>
+  <testcase name="[2] profile-lost" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.001"/>
+  <testcase name="[3] registration-lost" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.002"/>
+  <testcase name="[4] registration-renewed" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.07"/>
+  <testcase name="[5] unplug" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.003"/>
+  <testcase name="[6] unregister" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.002"/>
+  <testcase name="[7] close" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.009"/>
+  <testcase name="[8] error" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.002"/>
+  <testcase name="active host disconnect advances generation and erases queued reports()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="incoming report admission rejects another host and tags active session generation()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.003"/>
+  <testcase name="callback admission copies borrowed bytes bounds queue and erases undelivered owners()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.005"/>
+  <testcase name="never-bonded host is disconnected without becoming the active session()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="[1] adapter-off" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.011"/>
+  <testcase name="[2] profile-lost" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.005"/>
+  <testcase name="[3] registration-lost" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.006"/>
+  <testcase name="[4] unregister" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.006"/>
+  <testcase name="[5] close" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.008"/>
+  <testcase name="[6] error" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.005"/>
+  <testcase name="outgoing platform report copy is erased after success rejection and driver failure()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="unplug from another host preserves active report ownership()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.003"/>
+  <testcase name="host connecting during bond is deferred and cleared if it disconnects()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.004"/>
+  <testcase name="registration callback forwards connection reports and unplug through the real wrapper()" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.023"/>
+  <testcase name="[1] set" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.002"/>
+  <testcase name="[2] interrupt" classname="com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest" time="0.003"/>
+  <system-out><![CDATA[Warn: Discarding malformed HID report with 61 bytes
+Warn: Discarding malformed HID report with 63 bytes
+Error: sendReport: Bluetooth not available — synthetic Bluetooth stack failure
+Debug: BluetoothAdapter state changed: 10
+Warn: Bluetooth turned OFF — resetting HID proxy and connection state
+Warn: Discarding HID report from a host outside the active session
+Debug: HID_DEVICE profile proxy released (service disconnected)
+Warn: Discarding HID report from a host outside the active session
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Debug: [DIAG:APP_STATUS_CHANGED] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#114))
+Warn: Discarding HID report from a host outside the active session
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Debug: [DIAG:APP_STATUS_CHANGED] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#116))
+Warn: Discarding HID report from a host outside the active session
+Debug: onVirtualCableUnplug device=00:11:22:33:44:55
+Warn: Discarding HID report from a host outside the active session
+Debug: unregisterApp() called
+Debug: [DIAG:PRE_UNREGISTER] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#121))
+Debug: [DIAG:POST_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Warn: Discarding HID report from a host outside the active session
+Debug: close() called
+Debug: unregisterApp() called
+Debug: [DIAG:PRE_UNREGISTER] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#123))
+Debug: [DIAG:POST_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Warn: Discarding HID report from a host outside the active session
+Warn: Discarding HID report from a host outside the active session
+Info: onConnectionStateChanged device=AA:BB:CC:DD:EE:FF state=DISCONNECTED(0)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#127))
+Debug: Device disconnected: AA:BB:CC:DD:EE:FF
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=Connected(device=BluetoothDevice(#127))
+Debug: Device disconnected: 00:11:22:33:44:55
+Warn: Discarding HID report from a host outside the active session
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_NONE(10)
+Warn: Rejecting connection from completely unbonded device 00:11:22:33:44:55. No link key present — device has never paired.
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Debug: BluetoothAdapter state changed: 10
+Warn: Bluetooth turned OFF — resetting HID proxy and connection state
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Debug: HID_DEVICE profile proxy released (service disconnected)
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Debug: [DIAG:APP_STATUS_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Debug: unregisterApp() called
+Debug: [DIAG:PRE_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Debug: [DIAG:POST_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Debug: close() called
+Debug: unregisterApp() called
+Debug: [DIAG:PRE_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Debug: [DIAG:POST_UNREGISTER] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Info: Bond state changed: device=00:11:22:33:44:55 BOND_BONDING(11)→BOND_BONDED(12)
+Debug: [DIAG:BOND_CHANGED] hidDevice=null, _connectionState=Error(message=synthetic transport failure)
+Debug: sendReport dispatched len=62 success=true
+Debug: sendReport dispatched len=62 success=false
+Error: sendReport: BLUETOOTH_CONNECT permission denied
+Debug: onVirtualCableUnplug device=AA:BB:CC:DD:EE:FF
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDING(11)
+Debug: Device 00:11:22:33:44:55 is still bonding — deferring connection acceptance until BOND_BONDED.
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Debug: [DIAG:CONNECTION_STATE_CHANGED] hidDevice=null, _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285
+Debug: Device disconnected: 00:11:22:33:44:55
+Debug: Pending bond device 00:11:22:33:44:55 disconnected — clearing deferred state.
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTING(1)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connecting...
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=Connecting(device=BluetoothDevice(#179)), connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#179)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Debug: onSetReport type=2 id=0 len=62
+Debug: onInterruptData reportId=0 len=62
+Debug: onInterruptData reportId=0 len=62
+Warn: Discarding HID report from a host outside the active session
+Debug: onVirtualCableUnplug device=AA:BB:CC:DD:EE:FF
+Debug: onVirtualCableUnplug device=00:11:22:33:44:55
+Debug: onVirtualCableUnplug device=00:11:22:33:44:55
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTING(3)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 disconnecting...
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Debug: Device disconnected: 00:11:22:33:44:55
+Debug: onSetReport type=2 id=0 len=62
+Warn: Discarding HID report from a host outside the active session
+Debug: onSetReport type=2 id=0 len=62
+Debug: onInterruptData reportId=0 len=62
+Warn: Discarding HID report from a host outside the active session
+Debug: onInterruptData reportId=0 len=62
+]]></system-out>
+  <system-err><![CDATA[java.lang.IllegalStateException: synthetic Bluetooth stack failure
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest.outgoing platform report copy is erased when Bluetooth send throws(BluetoothHidDeviceWrapperIncomingReportTest.kt:264)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+	at jdk.proxy2/jdk.proxy2.$Proxy6.stop(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+java.lang.SecurityException: synthetic Bluetooth permission failure
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest.outgoing_platform_report_copy_is_erased_after_success_rejection_and_driver_failure$lambda$1(BluetoothHidDeviceWrapperIncomingReportTest.kt:235)
+	at io.mockk.MockKStubScope$answers$1.invoke(API.kt:2249)
+	at io.mockk.MockKStubScope$answers$1.invoke(API.kt:2249)
+	at io.mockk.FunctionAnswer.answer(Answers.kt:19)
+	at io.mockk.impl.stub.AnswerAnsweringOpportunity.answer(AnswerAnsweringOpportunity.kt:14)
+	at io.mockk.impl.stub.MockKStub.answer(MockKStub.kt:54)
+	at io.mockk.impl.recording.states.AnsweringState.call(AnsweringState.kt:16)
+	at io.mockk.impl.recording.CommonCallRecorder.call(CommonCallRecorder.kt:53)
+	at io.mockk.impl.stub.MockKStub.handleInvocation(MockKStub.kt:269)
+	at io.mockk.impl.instantiation.JvmMockFactoryHelper$mockHandler$1.invocation(JvmMockFactoryHelper.kt:24)
+	at io.mockk.proxy.jvm.advice.Interceptor.call(Interceptor.kt:21)
+	at android.bluetooth.BluetoothHidDevice.sendReport(BluetoothHidDevice.java)
+	at com.chimali.fido2.bluetooth.BluetoothHidReportSender.send(BluetoothHidReportSender.kt:42)
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper.sendReportToCurrentHost(BluetoothHidDeviceWrapper.kt:703)
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper.sendReport(BluetoothHidDeviceWrapper.kt:700)
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper.sendReport(BluetoothHidDeviceWrapper.kt:688)
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest.outgoing platform report copy is erased after success rejection and driver failure(BluetoothHidDeviceWrapperIncomingReportTest.kt:242)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+	at jdk.proxy2/jdk.proxy2.$Proxy6.stop(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+]]></system-err>
+</testsuite>

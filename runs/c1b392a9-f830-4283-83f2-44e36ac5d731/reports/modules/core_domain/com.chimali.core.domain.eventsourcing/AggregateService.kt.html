@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AggregateService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">domain</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.eventsourcing</a> &gt; <span class="el_source">AggregateService.kt</span></div><h1>AggregateService.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.eventsourcing
+
+import kotlinx.datetime.Instant
+
+/**
+ * High-level service interface for managing an aggregate root using event sourcing.
+ * Orchestrates the hydration, command execution, and event persistence.
+ *
+ * @param Command The type of commands supported by the aggregate.
+ * @param State The type of the aggregate root state.
+ */
+interface AggregateService&lt;Command, State&gt; {
+    /**
+     * Reconstructs the current state of an aggregate by replaying its event stream.
+     *
+     * @param aggregateId The unique identifier of the aggregate root.
+     * @param asOf Optional timestamp to reconstruct state at a specific point in history.
+     * @return The reconstructed state or failure if the aggregate does not exist.
+     */
+<span class="nc" id="L20">    suspend fun getState(</span>
+        aggregateId: String,
+<span class="nc" id="L22">        asOf: Instant? = null,</span>
+<span class="nc" id="L23">    ): Result&lt;State&gt;</span>
+
+    /**
+     * Executes a command against an aggregate.
+     * This method handles:
+     * 1. Hydrating the current state.
+     * 2. Deciding which events to emit.
+     * 3. Appending events to the store.
+     * 4. Retrying automatically on concurrency conflicts.
+     *
+     * @param aggregateId The unique identifier of the aggregate root.
+     * @param command The command to execute.
+     * @return The new state of the aggregate after command execution.
+     */
+    suspend fun execute(
+        aggregateId: String,
+        command: Command,
+    ): Result&lt;State&gt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WalletMasterSeedProvider.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">WalletMasterSeedProvider.kt</span></div><h1>WalletMasterSeedProvider.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import androidx.datastore.core.DataStore
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.datastore.EncryptionWrapper
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.core.security.api.EncryptedMetadataService
+import com.chimali.core.security.api.HdkKeyPair
+import com.chimali.core.security.api.ImportMnemonicResult
+import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.core.security.api.MetadataLookupTokenService
+import com.chimali.core.security.hdkeys.HkdfSha256
+import com.chimali.core.security.hdkeys.P256ParentKeyDerivation
+import com.chimali.core.security.impl.AesGcmEncryptedMetadataService
+import com.chimali.core.security.impl.HmacMetadataLookupTokenService
+import com.chimali.fido2.util.performance.PerformanceTrace
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.StandardCharsets
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import okio.ByteString.Companion.decodeBase64
+import okio.ByteString.Companion.toByteString
+import org.koin.core.annotation.Single
+
+/**
+ * Current wallet root provider backed only by encrypted Proto DataStore recovery material.
+ *
+ * It caches one 32-byte RFC 5869 PRK and one deterministic P-256 parent pair. Getter methods
+ * return operation-owned copies. Mnemonics, BIP39 seeds, parent inputs and temporary keys are
+ * erased in `finally`; per-credential Ed25519/ML-DSA seeds are derived by the crypto service and
+ * are never cached here.
+ */
+<span class="fc" id="L48">@Single</span>
+<span class="fc" id="L49">class WalletMasterSeedProvider(</span>
+<span class="fc" id="L50">    private val masterSeedGenerator: MasterSeedGenerator,</span>
+<span class="fc" id="L51">    private val dataStore: DataStore&lt;UserPreferences&gt;,</span>
+<span class="fc" id="L52">    private val encryptionWrapper: EncryptionWrapper,</span>
+<span class="fc" id="L53">    private val lookupTokenService: MetadataLookupTokenService,</span>
+<span class="fc" id="L54">    private val encryptedMetadataService: EncryptedMetadataService,</span>
+) : MasterSeedProvider {
+<span class="fc" id="L56">    private val initializationMutex = Mutex()</span>
+<span class="fc" id="L57">    private val cacheLock = Any()</span>
+
+    private var cachedPrk: ByteArray? = null
+    private var cachedParent: HdkKeyPair? = null
+    private var generation: Long = 0
+    private var nextOwnerId: Long = 0
+<span class="fc" id="L63">    private val activeOwners = mutableMapOf&lt;Long, ActiveOwner&gt;()</span>
+
+<span class="fc" id="L65">    private data class ActiveOwner(</span>
+<span class="fc" id="L66">        val generation: Long,</span>
+<span class="fc" id="L67">        val job: Job,</span>
+<span class="fc" id="L68">        val kind: MasterSeedOwnerKind,</span>
+    )
+
+<span class="fc" id="L71">    private class OwnerContext(</span>
+<span class="fc" id="L72">        val ownerId: Long,</span>
+<span class="fc" id="L73">    ) : AbstractCoroutineContextElement(Key) {</span>
+        companion object Key : CoroutineContext.Key&lt;OwnerContext&gt;
+    }
+
+    /** Returns the current wallet-session fence value used to reject stale operations. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L79">    override fun sessionGeneration(): Long = synchronized(cacheLock) { generation }</span>
+
+    /** Reports whether [generation] still identifies the active wallet session. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun isSessionGenerationCurrent(generation: Long): Boolean =
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        synchronized(cacheLock) { this.generation == generation }</span>
+
+    /** Fences bootstrap/operation copies and erases all cached root-derived material. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun clearSession() {
+<span class="fc" id="L89">        synchronized(cacheLock) {</span>
+<span class="fc" id="L90">            generation += 1</span>
+<span class="fc" id="L91">            val ownersToCancel = activeOwners.values.map { it.job }</span>
+<span class="fc" id="L92">            activeOwners.clear()</span>
+<span class="fc" id="L93">            eraseCacheLocked()</span>
+<span class="fc" id="L94">            clearProvisionedMetadataKeys()</span>
+<span class="fc" id="L95">            ownersToCancel.forEach { it.cancel(CancellationException(&quot;Wallet session was fenced&quot;)) }</span>
+<span class="fc" id="L96">        }</span>
+<span class="fc" id="L97">    }</span>
+
+    /** Cancels owners of the requested kind in the current session without clearing other owners. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun cancelSessionOwners(ownerKind: MasterSeedOwnerKind) {
+<span class="fc" id="L102">        synchronized(cacheLock) {</span>
+<span class="fc" id="L103">            activeOwners.values</span>
+<span class="pc bpc" id="L104" title="1 of 4 branches missed.">                .filter { it.generation == generation &amp;&amp; it.kind == ownerKind }</span>
+<span class="fc" id="L105">                .forEach { it.job.cancel(CancellationException(&quot;$ownerKind wallet operation ended&quot;)) }</span>
+<span class="fc" id="L106">        }</span>
+<span class="fc" id="L107">    }</span>
+
+    /** Owns cache material only for this operation; cancellation/replacement fences its child job. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun &lt;T&gt; withSessionOwner(
+        initialize: Boolean,
+        ownerKind: MasterSeedOwnerKind,
+        operation: suspend (generation: Long) -&gt; T,
+    ): T {
+<span class="fc" id="L116">        val parentJob = currentCoroutineContext()[Job]</span>
+<span class="fc" id="L117">        var registeredOwner: Pair&lt;Long, ActiveOwner&gt;? = null</span>
+<span class="fc" id="L118">        return try {</span>
+<span class="fc" id="L119">            val (ownerId, owner) =</span>
+<span class="fc" id="L120">                initializationMutex.withLock {</span>
+<span class="fc" id="L121">                    currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L122">                    val registered =</span>
+<span class="fc" id="L123">                        synchronized(cacheLock) {</span>
+<span class="fc" id="L124">                            nextOwnerId += 1</span>
+<span class="fc" id="L125">                            ActiveOwner(generation, Job(parentJob), ownerKind)</span>
+<span class="fc" id="L126">                                .also { activeOwners[nextOwnerId] = it }</span>
+<span class="fc" id="L127">                                .let { nextOwnerId to it }</span>
+                        }
+<span class="fc" id="L129">                    registeredOwner = registered</span>
+<span class="fc" id="L130">                    registered</span>
+                }
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            withContext(owner.job + OwnerContext(ownerId)) {</span>
+                // Bootstrap must run in the same cancellable owner context as the operation.
+                // The mutex still serializes initialization and replacement, but cancellation
+                // of this owner can now release it while a suspending store read/write is pending.
+<span class="fc" id="L136">                initializationMutex.withLock {</span>
+<span class="fc" id="L137">                    currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L138">                    ensureOwnerCanPublish(ownerId, owner)</span>
+<span class="fc bfc" id="L139" title="All 4 branches covered.">                    if (initialize &amp;&amp; !isInitialized()) initializeLocked()</span>
+<span class="fc" id="L140">                    currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L141">                    ensureOwnerCanPublish(ownerId, owner)</span>
+<span class="pc bpc" id="L142" title="1 of 4 branches missed.">                    if (initialize &amp;&amp; !isInitialized()) {</span>
+<span class="nc" id="L143">                        throw CancellationException(&quot;Wallet cache was not initialized for the admitted operation&quot;)</span>
+                    }
+<span class="fc" id="L145">                }</span>
+<span class="fc" id="L146">                operation(owner.generation)</span>
+            }
+        } finally {
+<span class="pc bpc" id="L149" title="2 of 4 branches missed.">            registeredOwner?.let { (ownerId, owner) -&gt;</span>
+<span class="fc" id="L150">                owner.job.cancel()</span>
+<span class="fc" id="L151">                withContext(NonCancellable) {</span>
+<span class="fc" id="L152">                    releaseSessionOwner(ownerId, owner)</span>
+<span class="fc" id="L153">                }</span>
+<span class="fc" id="L154">            }</span>
+        }
+    }
+
+    /** Returns an owned copy of the 32-byte wallet PRK inside an admitted owner operation. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getMasterSeed(): ByteArray? {
+<span class="fc" id="L161">        requireOwnedOperation()</span>
+<span class="fc" id="L162">        ensureInitialized()</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">        return synchronized(cacheLock) { cachedPrk?.copyOf() }</span>
+    }
+
+    /** Returns owned copies of the cached deterministic parent key pair inside an owner operation. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getDeviceKeyPair(): HdkKeyPair? {
+<span class="fc" id="L169">        requireOwnedOperation()</span>
+<span class="fc" id="L170">        ensureInitialized()</span>
+<span class="fc" id="L171">        return synchronized(cacheLock) {</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">            cachedParent?.let { parent -&gt; HdkKeyPair(parent.privateKey.copyOf(), parent.publicKey.copyOf()) }</span>
+        }
+    }
+
+    /** Decrypts the recovery phrase into a caller-owned mutable array; the caller must erase it. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L178">    override suspend fun getMnemonic(): CharArray? {</span>
+<span class="fc" id="L179">        requireOwnedOperation()</span>
+<span class="fc" id="L180">        val prefs = dataStore.data.first()</span>
+<span class="pc bpc" id="L181" title="2 of 4 branches missed.">        if (prefs.encryptedWalletSeed.isEmpty()) return null</span>
+<span class="fc" id="L182">        return decryptMnemonic(prefs.encryptedWalletSeed)</span>
+    }
+
+    /** Validates and consumes [mnemonic], persists its encrypted form, and replaces session material. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L187">    override suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult {</span>
+<span class="fc" id="L188">        try {</span>
+<span class="fc" id="L189">            return initializationMutex.withLock {</span>
+<span class="fc" id="L190">                val validationSeed = masterSeedGenerator.deriveSeed(mnemonic)</span>
+<span class="fc" id="L191">                try {</span>
+<span class="fc" id="L192">                    val alreadyExisted =</span>
+<span class="fc" id="L193">                        dataStore.data</span>
+<span class="fc" id="L194">                            .first()</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                            .encryptedWalletSeed</span>
+<span class="fc" id="L196">                            .isNotEmpty()</span>
+<span class="fc" id="L197">                    val encrypted = encryptMnemonic(mnemonic)</span>
+<span class="fc" id="L198">                    clearSession()</span>
+<span class="fc" id="L199">                    val (ownerId, owner) =</span>
+<span class="fc" id="L200">                        registerSessionOwnerLocked(</span>
+<span class="fc" id="L201">                            MasterSeedOwnerKind.FOREGROUND,</span>
+<span class="fc" id="L202">                            currentCoroutineContext()[Job],</span>
+                        )
+<span class="fc" id="L204">                    try {</span>
+<span class="fc" id="L205">                        withContext(owner.job + OwnerContext(ownerId)) {</span>
+<span class="fc" id="L206">                            dataStore.updateData { current -&gt; current.copy(encryptedWalletSeed = encrypted) }</span>
+                        }
+<span class="fc bfc" id="L208" title="All 2 branches covered.">                        if (alreadyExisted) ImportMnemonicResult.Replaced else ImportMnemonicResult.Created</span>
+                    } finally {
+<span class="fc" id="L210">                        owner.job.cancel()</span>
+<span class="fc" id="L211">                        releaseSessionOwnerLocked(ownerId, owner)</span>
+                    }
+                } finally {
+<span class="fc" id="L214">                    validationSeed.fill(0)</span>
+<span class="fc" id="L215">                }</span>
+            }
+        } finally {
+<span class="fc" id="L218">            mnemonic.fill('\u0000')</span>
+        }
+    }
+
+    private suspend fun ensureInitialized() {
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if (isInitialized()) return</span>
+<span class="nc" id="L224">        initializationMutex.withLock {</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">            if (!isInitialized()) initializeLocked()</span>
+<span class="nc" id="L226">        }</span>
+<span class="nc" id="L227">    }</span>
+
+<span class="fc" id="L229">    private suspend fun initializeLocked() {</span>
+<span class="fc" id="L230">        val initializingGeneration = sessionGeneration()</span>
+<span class="fc" id="L231">        val initializingOwnerId =</span>
+<span class="pc bpc" id="L232" title="1 of 2 branches missed.">            currentCoroutineContext()[OwnerContext]?.ownerId</span>
+<span class="nc" id="L233">                ?: throw CancellationException(&quot;Wallet bootstrap requires an active operation owner&quot;)</span>
+<span class="fc" id="L234">        var mnemonic: CharArray? = null</span>
+<span class="fc" id="L235">        var bip39Seed: ByteArray? = null</span>
+<span class="fc" id="L236">        var prk: ByteArray? = null</span>
+<span class="fc" id="L237">        var parentResult: P256ParentKeyDerivation.Result? = null</span>
+<span class="fc" id="L238">        var pendingParent: HdkKeyPair? = null</span>
+<span class="fc" id="L239">        try {</span>
+<span class="fc" id="L240">            mnemonic = PerformanceTrace.section(&quot;Fido2.Wallet.ReadMnemonic&quot;) { getOrCreateMnemonic() }</span>
+<span class="fc" id="L241">            bip39Seed =</span>
+<span class="fc" id="L242">                PerformanceTrace.section(&quot;Fido2.Wallet.Bip39&quot;) {</span>
+<span class="fc" id="L243">                    masterSeedGenerator.deriveSeed(mnemonic)</span>
+                }
+<span class="fc" id="L245">            prk = HkdfSha256.deriveWalletPrk(bip39Seed)</span>
+<span class="fc" id="L246">            parentResult =</span>
+<span class="fc" id="L247">                PerformanceTrace.section(&quot;Fido2.Wallet.Parent&quot;) {</span>
+<span class="fc" id="L248">                    P256ParentKeyDerivation.deriveFromPrk(prk)</span>
+                }
+<span class="fc" id="L250">            pendingParent = HdkKeyPair(parentResult.privateScalar.copyOf(), parentResult.publicKey.copyOf())</span>
+
+            // Provision external root consumers first. Publish the root and parent atomically only
+            // after all initialization work has succeeded.
+<span class="fc" id="L254">            synchronized(cacheLock) {</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">                if (generation != initializingGeneration) {</span>
+<span class="fc" id="L256">                    throw CancellationException(&quot;Wallet cache generation was fenced during initialization&quot;)</span>
+                }
+<span class="fc" id="L258">                ensureCurrentOwnerCanPublishLocked(initializingGeneration, initializingOwnerId)</span>
+<span class="fc" id="L259">                var metadataProvisioned = false</span>
+<span class="fc" id="L260">                try {</span>
+<span class="fc" id="L261">                    provisionSearchableMetadataKeys(prk)</span>
+<span class="fc" id="L262">                    eraseCacheLocked()</span>
+<span class="fc" id="L263">                    cachedPrk = prk.copyOf()</span>
+<span class="fc" id="L264">                    cachedParent = pendingParent</span>
+<span class="fc" id="L265">                    pendingParent = null</span>
+<span class="fc" id="L266">                    metadataProvisioned = true</span>
+                } finally {
+<span class="pc" id="L268">                    if (!metadataProvisioned) clearProvisionedMetadataKeys()</span>
+<span class="fc" id="L269">                }</span>
+<span class="fc" id="L270">            }</span>
+<span class="fc" id="L271">            Logger.d { &quot;Wallet root initialized&quot; }</span>
+        } finally {
+<span class="fc bfc" id="L273" title="All 2 branches covered.">            mnemonic?.fill('\u0000')</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            bip39Seed?.fill(0)</span>
+<span class="fc bfc" id="L275" title="All 2 branches covered.">            prk?.fill(0)</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">            parentResult?.erasePrivateScalar()</span>
+<span class="fc bfc" id="L277" title="All 2 branches covered.">            pendingParent?.erasePrivateKey()</span>
+        }
+<span class="fc" id="L279">    }</span>
+
+    /** Returns a decrypted persisted phrase or generates and persists a fresh 24-word phrase. */
+
+<span class="fc" id="L283">    private suspend fun getOrCreateMnemonic(): CharArray {</span>
+<span class="fc" id="L284">        val prefs = dataStore.data.first()</span>
+<span class="fc bfc" id="L285" title="All 4 branches covered.">        if (prefs.encryptedWalletSeed.isNotEmpty()) return decryptMnemonic(prefs.encryptedWalletSeed)</span>
+
+<span class="fc" id="L287">        val generated = masterSeedGenerator.generateMnemonic(MNEMONIC_WORD_COUNT)</span>
+<span class="fc" id="L288">        var persisted = false</span>
+<span class="fc" id="L289">        try {</span>
+<span class="fc" id="L290">            val encrypted = encryptMnemonic(generated)</span>
+<span class="fc" id="L291">            dataStore.updateData { current -&gt; current.copy(encryptedWalletSeed = encrypted) }</span>
+<span class="fc" id="L292">            persisted = true</span>
+<span class="fc" id="L293">            return generated</span>
+        } finally {
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">            if (!persisted) generated.fill('\u0000')</span>
+        }
+    }
+
+    private fun decryptMnemonic(encodedCiphertext: String): CharArray {
+<span class="fc" id="L300">        val ciphertext =</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">            requireNotNull(encodedCiphertext.decodeBase64()) {</span>
+<span class="fc" id="L302">                &quot;Encrypted wallet mnemonic is not valid Base64&quot;</span>
+<span class="fc" id="L303">            }.toByteArray()</span>
+<span class="fc" id="L304">        var plaintext: ByteArray? = null</span>
+<span class="fc" id="L305">        var decoded: CharBuffer? = null</span>
+<span class="fc" id="L306">        try {</span>
+<span class="fc" id="L307">            plaintext = encryptionWrapper.decrypt(ciphertext)</span>
+<span class="fc bfc" id="L308" title="All 6 branches covered.">            require(plaintext.isNotEmpty()) { &quot;Encrypted wallet mnemonic is empty&quot; }</span>
+<span class="fc" id="L309">            val charBuffer = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))</span>
+<span class="fc" id="L310">            decoded = charBuffer</span>
+<span class="fc" id="L311">            return CharArray(charBuffer.remaining()).also { charBuffer.get(it) }</span>
+        } finally {
+<span class="fc" id="L313">            ciphertext.fill(0)</span>
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">            plaintext?.fill(0)</span>
+<span class="pc bpc" id="L315" title="1 of 4 branches missed.">            decoded?.let { chars -&gt; if (chars.hasArray()) chars.array().fill('\u0000') }</span>
+        }
+    }
+
+    /** Encrypts borrowed mnemonic characters without constructing an immutable plaintext String. */
+
+    private fun encryptMnemonic(mnemonic: CharArray): String {
+<span class="pc bpc" id="L322" title="3 of 6 branches missed.">        require(mnemonic.isNotEmpty()) { &quot;Mnemonic must not be empty&quot; }</span>
+<span class="fc" id="L323">        var encoded: ByteBuffer? = null</span>
+<span class="fc" id="L324">        var plaintext: ByteArray? = null</span>
+<span class="fc" id="L325">        var ciphertext: ByteArray? = null</span>
+<span class="fc" id="L326">        try {</span>
+<span class="fc" id="L327">            val byteBuffer = StandardCharsets.UTF_8.newEncoder().encode(CharBuffer.wrap(mnemonic))</span>
+<span class="fc" id="L328">            encoded = byteBuffer</span>
+<span class="fc" id="L329">            val plainBytes = ByteArray(byteBuffer.remaining()).also { byteBuffer.get(it) }</span>
+<span class="fc" id="L330">            plaintext = plainBytes</span>
+<span class="fc" id="L331">            ciphertext = encryptionWrapper.encrypt(plainBytes)</span>
+<span class="fc" id="L332">            return ciphertext.toByteString().base64()</span>
+        } finally {
+<span class="pc bpc" id="L334" title="1 of 2 branches missed.">            plaintext?.fill(0)</span>
+<span class="pc bpc" id="L335" title="4 of 8 branches missed.">            encoded?.let { buffer -&gt; if (buffer.hasArray()) buffer.array().fill(0) }</span>
+<span class="pc bpc" id="L336" title="2 of 4 branches missed.">            ciphertext?.fill(0)</span>
+        }
+    }
+
+    private fun provisionSearchableMetadataKeys(prk: ByteArray) {
+<span class="fc" id="L341">        val label = SEARCHABLE_METADATA_EXPANSION_KEY.toByteArray(StandardCharsets.US_ASCII)</span>
+<span class="fc" id="L342">        var derived: ByteArray? = null</span>
+<span class="fc" id="L343">        var metadataKey: ByteArray? = null</span>
+<span class="fc" id="L344">        try {</span>
+<span class="fc" id="L345">            derived = hmacSha512(label, prk)</span>
+<span class="fc" id="L346">            metadataKey = derived.copyOf(METADATA_KEY_SIZE_BYTES)</span>
+<span class="fc bfc" id="L347" title="All 4 branches covered.">            (lookupTokenService as? HmacMetadataLookupTokenService)?.provisionKey(metadataKey)</span>
+<span class="fc bfc" id="L348" title="All 4 branches covered.">            (encryptedMetadataService as? AesGcmEncryptedMetadataService)?.provisionKey(metadataKey)</span>
+        } finally {
+<span class="fc" id="L350">            label.fill(0)</span>
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">            derived?.fill(0)</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">            metadataKey?.fill(0)</span>
+        }
+<span class="fc" id="L354">    }</span>
+
+    private fun hmacSha512(
+        key: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L360">        val mac = Mac.getInstance(HMAC_SHA512)</span>
+<span class="fc" id="L361">        mac.init(SecretKeySpec(key, HMAC_SHA512))</span>
+<span class="fc" id="L362">        return mac.doFinal(data)</span>
+    }
+
+<span class="pc bpc" id="L365" title="1 of 4 branches missed.">    private fun isInitialized(): Boolean = synchronized(cacheLock) { cachedPrk != null &amp;&amp; cachedParent != null }</span>
+
+    private suspend fun requireOwnedOperation() {
+<span class="fc" id="L368">        val ownerId =</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">            currentCoroutineContext()[OwnerContext]?.ownerId</span>
+<span class="fc" id="L370">                ?: throw CancellationException(&quot;Wallet material requires an active operation owner&quot;)</span>
+<span class="fc" id="L371">        synchronized(cacheLock) {</span>
+<span class="fc" id="L372">            val owner = activeOwners[ownerId]</span>
+<span class="pc bpc" id="L373" title="3 of 6 branches missed.">            if (owner == null || owner.generation != generation || !owner.job.isActive) {</span>
+<span class="nc" id="L374">                throw CancellationException(&quot;Wallet operation owner is no longer active&quot;)</span>
+            }
+<span class="fc" id="L376">        }</span>
+<span class="fc" id="L377">    }</span>
+
+    private fun ensureOwnerCanPublish(
+        ownerId: Long,
+        expected: ActiveOwner,
+    ) {
+<span class="fc" id="L383">        synchronized(cacheLock) {</span>
+<span class="pc bpc" id="L384" title="3 of 6 branches missed.">            if (generation != expected.generation || activeOwners[ownerId] !== expected || !expected.job.isActive) {</span>
+<span class="nc" id="L385">                throw CancellationException(&quot;Wallet operation owner is no longer active&quot;)</span>
+            }
+<span class="fc" id="L387">        }</span>
+<span class="fc" id="L388">    }</span>
+
+    /** Called under [cacheLock] immediately before publishing any bootstrap cache material. */
+    private fun ensureCurrentOwnerCanPublishLocked(
+        initializingGeneration: Long,
+        ownerId: Long,
+    ) {
+<span class="fc" id="L395">        val owner = activeOwners[ownerId]</span>
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">        if (generation != initializingGeneration ||</span>
+<span class="pc bpc" id="L397" title="1 of 2 branches missed.">            owner == null ||</span>
+<span class="pc bpc" id="L398" title="1 of 2 branches missed.">            owner.generation != generation ||</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">            !owner.job.isActive</span>
+        ) {
+<span class="fc" id="L401">            throw CancellationException(&quot;Wallet operation owner was cancelled during bootstrap&quot;)</span>
+        }
+<span class="fc" id="L403">    }</span>
+
+    private suspend fun releaseSessionOwner(
+        ownerId: Long,
+        owner: ActiveOwner,
+    ) {
+<span class="fc" id="L409">        initializationMutex.withLock {</span>
+<span class="fc" id="L410">            releaseSessionOwnerLocked(ownerId, owner)</span>
+<span class="fc" id="L411">        }</span>
+<span class="fc" id="L412">    }</span>
+
+    /** Called while [initializationMutex] is held so wallet replacement remains serialized. */
+
+    private fun registerSessionOwnerLocked(
+        ownerKind: MasterSeedOwnerKind,
+        parentJob: Job?,
+    ): Pair&lt;Long, ActiveOwner&gt; =
+<span class="fc" id="L420">        synchronized(cacheLock) {</span>
+<span class="fc" id="L421">            nextOwnerId += 1</span>
+<span class="fc" id="L422">            val owner = ActiveOwner(generation, Job(parentJob), ownerKind)</span>
+<span class="fc" id="L423">            activeOwners[nextOwnerId] = owner</span>
+<span class="fc" id="L424">            nextOwnerId to owner</span>
+<span class="fc" id="L425">        }</span>
+
+    /** Called with [initializationMutex] held by either owner completion or replacement. */
+
+    private fun releaseSessionOwnerLocked(
+        ownerId: Long,
+        owner: ActiveOwner,
+    ) {
+<span class="fc" id="L433">        synchronized(cacheLock) {</span>
+<span class="pc bpc" id="L434" title="1 of 4 branches missed.">            if (generation != owner.generation || activeOwners.remove(ownerId) !== owner) return@synchronized</span>
+<span class="fc bfc" id="L435" title="All 2 branches covered.">            if (activeOwners.isEmpty()) {</span>
+<span class="fc" id="L436">                generation += 1</span>
+<span class="fc" id="L437">                eraseCacheLocked()</span>
+<span class="fc" id="L438">                clearProvisionedMetadataKeys()</span>
+            }
+<span class="fc" id="L440">        }</span>
+<span class="fc" id="L441">    }</span>
+
+    private fun eraseCacheLocked() {
+<span class="fc bfc" id="L444" title="All 2 branches covered.">        cachedPrk?.fill(0)</span>
+<span class="fc" id="L445">        cachedPrk = null</span>
+<span class="fc bfc" id="L446" title="All 2 branches covered.">        cachedParent?.erasePrivateKey()</span>
+<span class="fc" id="L447">        cachedParent = null</span>
+<span class="fc" id="L448">    }</span>
+
+    private fun clearProvisionedMetadataKeys() {
+<span class="fc bfc" id="L451" title="All 4 branches covered.">        (lookupTokenService as? HmacMetadataLookupTokenService)?.clearKey()</span>
+<span class="fc bfc" id="L452" title="All 4 branches covered.">        (encryptedMetadataService as? AesGcmEncryptedMetadataService)?.clearKey()</span>
+<span class="fc" id="L453">    }</span>
+
+    private companion object {
+        const val MNEMONIC_WORD_COUNT = 24
+        const val METADATA_KEY_SIZE_BYTES = 32
+        const val HMAC_SHA512 = &quot;HmacSHA512&quot;
+        const val SEARCHABLE_METADATA_EXPANSION_KEY = &quot;chimali_searchable_metadata_v1&quot;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

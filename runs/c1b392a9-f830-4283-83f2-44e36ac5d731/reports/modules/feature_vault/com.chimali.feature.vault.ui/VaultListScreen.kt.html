@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultListScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui</a> &gt; <span class="el_source">VaultListScreen.kt</span></div><h1>VaultListScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.chimali.feature.vault.api.VaultItem
+import com.chimali.feature.vault.api.VaultType
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VaultListScreen(
+    items: List&lt;VaultItem&gt;,
+    labels: List&lt;LabelUiModel&gt;,
+    selectedLabelId: UUID?,
+    onItemClick: (VaultItem) -&gt; Unit,
+    onAddClick: () -&gt; Unit,
+    onLabelFilterClick: (UUID?) -&gt; Unit,
+    onManageLabelsClick: () -&gt; Unit,
+<span class="nc bnc" id="L49" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">    onOpenSettings: (() -&gt; Unit)? = null,</span>
+<span class="nc" id="L51">    errorMessage: String? = null,</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L53">    Scaffold(</span>
+<span class="nc" id="L54">        modifier = modifier,</span>
+<span class="nc" id="L55">        topBar = {</span>
+<span class="nc" id="L56">            TopAppBar(</span>
+<span class="nc" id="L57">                title = { Text(&quot;Credentials Vault&quot;, modifier = Modifier.semantics { heading() }) },</span>
+<span class="nc" id="L58">                actions = {</span>
+<span class="nc" id="L59">                    IconButton(onClick = onManageLabelsClick) {</span>
+<span class="nc" id="L60">                        Icon(Icons.Default.Label, contentDescription = &quot;Manage Labels&quot;)</span>
+<span class="nc" id="L61">                    }</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                    if (onOpenSettings != null) {</span>
+<span class="nc" id="L63">                        IconButton(onClick = onOpenSettings) {</span>
+<span class="nc" id="L64">                            Icon(Icons.Default.Settings, contentDescription = &quot;Settings&quot;)</span>
+<span class="nc" id="L65">                        }</span>
+<span class="nc" id="L66">                    }</span>
+<span class="nc" id="L67">                },</span>
+            )
+<span class="nc" id="L69">        },</span>
+<span class="nc" id="L70">        floatingActionButton = {</span>
+<span class="nc" id="L71">            FloatingActionButton(onClick = onAddClick) {</span>
+<span class="nc" id="L72">                Icon(Icons.Default.Add, contentDescription = &quot;Add Item&quot;)</span>
+<span class="nc" id="L73">            }</span>
+<span class="nc" id="L74">        },</span>
+<span class="nc" id="L75">    ) { padding -&gt;</span>
+<span class="nc" id="L76">        Column(modifier = Modifier.padding(padding).fillMaxSize()) {</span>
+            // Label Filter Bar
+<span class="nc" id="L78">            ScrollableTabRow(</span>
+                selectedTabIndex =
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                    if (selectedLabelId == null) {</span>
+<span class="nc" id="L81">                        0</span>
+                    } else {
+<span class="nc" id="L83">                        labels.indexOfFirst { it.id == selectedLabelId } + 1</span>
+                    },
+<span class="nc" id="L85">                edgePadding = 16.dp,</span>
+<span class="nc" id="L86">                divider = {},</span>
+<span class="nc" id="L87">                containerColor = MaterialTheme.colorScheme.surface,</span>
+<span class="nc" id="L88">                contentColor = MaterialTheme.colorScheme.primary,</span>
+<span class="nc" id="L89">            ) {</span>
+<span class="nc" id="L90">                Tab(</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                    selected = selectedLabelId == null,</span>
+<span class="nc" id="L92">                    onClick = { onLabelFilterClick(null) },</span>
+<span class="nc" id="L93">                    text = { Text(&quot;All&quot;) },</span>
+                )
+<span class="nc" id="L95">                labels.forEach { label -&gt;</span>
+<span class="nc" id="L96">                    Tab(</span>
+<span class="nc" id="L97">                        selected = selectedLabelId == label.id,</span>
+<span class="nc" id="L98">                        onClick = { onLabelFilterClick(label.id) },</span>
+<span class="nc" id="L99">                        text = { Text(label.name) },</span>
+                    )
+<span class="nc" id="L101">                }</span>
+<span class="nc" id="L102">            }</span>
+
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            if (errorMessage != null) {</span>
+<span class="nc" id="L105">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {</span>
+<span class="nc" id="L106">                    Text(errorMessage)</span>
+<span class="nc" id="L107">                }</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            } else if (items.isEmpty()) {</span>
+<span class="nc" id="L109">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {</span>
+<span class="nc" id="L110">                    Text(&quot;No items found.&quot;)</span>
+<span class="nc" id="L111">                }</span>
+<span class="nc" id="L112">            } else {</span>
+<span class="nc" id="L113">                LazyColumn(modifier = Modifier.fillMaxSize()) {</span>
+<span class="nc" id="L114">                    items(items, key = { it.id }) { item -&gt;</span>
+<span class="nc" id="L115">                        VaultItemRow(item = item, onClick = { onItemClick(item) })</span>
+<span class="nc" id="L116">                        HorizontalDivider()</span>
+<span class="nc" id="L117">                    }</span>
+<span class="nc" id="L118">                }</span>
+            }
+<span class="nc" id="L120">        }</span>
+<span class="nc" id="L121">    }</span>
+<span class="nc" id="L122">}</span>
+
+@Composable
+fun VaultItemRow(
+    item: VaultItem,
+    onClick: () -&gt; Unit,
+<span class="nc" id="L128">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L130">    Row(</span>
+        modifier =
+<span class="nc" id="L132">            modifier</span>
+<span class="nc" id="L133">                .fillMaxWidth()</span>
+<span class="nc" id="L134">                .clickable(onClick = onClick)</span>
+<span class="nc" id="L135">                .padding(16.dp)</span>
+<span class="nc" id="L136">                .semantics(mergeDescendants = true) { },</span>
+<span class="nc" id="L137">        horizontalArrangement = Arrangement.SpaceBetween,</span>
+    ) {
+<span class="nc" id="L139">        Column {</span>
+<span class="nc" id="L140">            Text(text = String(item.title), style = MaterialTheme.typography.bodyLarge)</span>
+<span class="nc" id="L141">            Text(</span>
+<span class="nc" id="L142">                text = item.type.name,</span>
+<span class="nc" id="L143">                style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L144">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+<span class="nc" id="L146">        }</span>
+<span class="nc" id="L147">    }</span>
+<span class="nc" id="L148">}</span>
+
+@Preview(showBackground = true)
+@Composable
+<span class="nc" id="L152">private fun VaultListScreenPreview() {</span>
+<span class="nc" id="L153">    val date = &quot;2023-01-01&quot;</span>
+<span class="nc" id="L154">    val payload = &quot;payload&quot;.toByteArray()</span>
+<span class="nc" id="L155">    val crdt = &quot;crdt&quot;.toByteArray()</span>
+
+<span class="nc" id="L157">    val sampleItems =</span>
+<span class="nc" id="L158">        listOf(</span>
+<span class="nc" id="L159">            VaultItem(</span>
+<span class="nc" id="L160">                id = UUID.randomUUID(),</span>
+<span class="nc" id="L161">                type = VaultType.PASSWORD,</span>
+<span class="nc" id="L162">                title = &quot;Sample Login&quot;,</span>
+<span class="nc" id="L163">                payload = payload,</span>
+<span class="nc" id="L164">                crdtState = crdt,</span>
+<span class="nc" id="L165">                dateCreated = date,</span>
+<span class="nc" id="L166">                dateModified = date,</span>
+<span class="nc" id="L167">                lastBackedUpAt = null,</span>
+<span class="nc" id="L168">                identityId = UUID.randomUUID(),</span>
+            ),
+<span class="nc" id="L170">            VaultItem(</span>
+<span class="nc" id="L171">                id = UUID.randomUUID(),</span>
+<span class="nc" id="L172">                type = VaultType.NOTE,</span>
+<span class="nc" id="L173">                title = &quot;Sample Note&quot;,</span>
+<span class="nc" id="L174">                payload = payload,</span>
+<span class="nc" id="L175">                crdtState = crdt,</span>
+<span class="nc" id="L176">                dateCreated = date,</span>
+<span class="nc" id="L177">                dateModified = date,</span>
+<span class="nc" id="L178">                lastBackedUpAt = null,</span>
+<span class="nc" id="L179">                identityId = UUID.randomUUID(),</span>
+            ),
+        )
+<span class="nc" id="L182">    val sampleLabels =</span>
+<span class="nc" id="L183">        listOf(</span>
+<span class="nc" id="L184">            LabelUiModel(UUID.randomUUID(), &quot;Work&quot;, &quot;#FFC107&quot;),</span>
+<span class="nc" id="L185">            LabelUiModel(UUID.randomUUID(), &quot;Personal&quot;, &quot;#4CAF50&quot;),</span>
+        )
+
+<span class="nc" id="L188">    VaultListScreen(</span>
+<span class="nc" id="L189">        items = sampleItems,</span>
+<span class="nc" id="L190">        labels = sampleLabels,</span>
+<span class="nc" id="L191">        selectedLabelId = null,</span>
+<span class="nc" id="L192">        onItemClick = {},</span>
+<span class="nc" id="L193">        onAddClick = {},</span>
+<span class="nc" id="L194">        onLabelFilterClick = {},</span>
+<span class="nc" id="L195">        onManageLabelsClick = {},</span>
+<span class="nc" id="L196">        onOpenSettings = {},</span>
+    )
+<span class="nc" id="L198">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

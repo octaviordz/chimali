@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PairedDevicesSection.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">PairedDevicesSection.kt</span></div><h1>PairedDevicesSection.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.chimali.fido2.domain.model.PairedDevice
+import java.text.DateFormat
+import java.util.Date
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PairedDevicesSection(
+    onEditDevice: (String) -&gt; Unit,
+    devices: List&lt;PairedDevice&gt;,
+    onPendingRemove: (PairedDevice) -&gt; Unit,
+    onUndoRemove: (String) -&gt; Unit,
+    onCommitRemove: (String) -&gt; Unit,
+    removalEvents: Flow&lt;PairedDevice&gt;,
+<span class="fc bfc" id="L66" title="All 2 branches covered.">    modifier: Modifier = Modifier,</span>
+<span class="fc" id="L67">    onDeviceClick: ((PairedDevice) -&gt; Unit)? = null,</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L69">    val snackbarHostState = remember { SnackbarHostState() }</span>
+<span class="fc" id="L70">    val scope = rememberCoroutineScope()</span>
+
+    // Collect removal events to show the Undo snackbar
+<span class="pc bpc" id="L73" title="2 of 4 branches missed.">    LaunchedEffect(removalEvents, onUndoRemove, onCommitRemove) {</span>
+<span class="fc" id="L74">        removalEvents.collect { device -&gt;</span>
+<span class="nc" id="L75">            scope.launch {</span>
+<span class="nc" id="L76">                val result =</span>
+<span class="nc" id="L77">                    snackbarHostState.showSnackbar(</span>
+<span class="nc bnc" id="L78" title="All 4 branches missed.">                        message = &quot;\&quot;${device.alias ?: device.name ?: &quot;Device&quot;}\&quot; removed&quot;,</span>
+<span class="nc" id="L79">                        actionLabel = &quot;Undo&quot;,</span>
+<span class="nc" id="L80">                        duration = SnackbarDuration.Long,</span>
+                    )
+<span class="nc bnc" id="L82" title="All 2 branches missed.">                if (result == SnackbarResult.ActionPerformed) {</span>
+<span class="nc" id="L83">                    onUndoRemove(device.macAddress)</span>
+                } else {
+<span class="nc" id="L85">                    onCommitRemove(device.macAddress)</span>
+                }
+<span class="nc" id="L87">            }</span>
+<span class="nc" id="L88">        }</span>
+<span class="fc" id="L89">    }</span>
+
+<span class="fc" id="L91">    AnimatedVisibility(visible = true, modifier = modifier) {</span>
+<span class="fc" id="L92">        Box(modifier = Modifier.fillMaxWidth()) {</span>
+<span class="fc" id="L93">            Column(modifier = Modifier.fillMaxWidth()) {</span>
+<span class="fc bfc" id="L94" title="All 4 branches covered.">                if (devices.isNotEmpty()) {</span>
+<span class="fc" id="L95">                    Text(</span>
+<span class="fc" id="L96">                        text = &quot;Devices&quot;,</span>
+<span class="fc" id="L97">                        style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L98">                        fontWeight = FontWeight.Bold,</span>
+<span class="fc" id="L99">                        color = MaterialTheme.colorScheme.onSurface,</span>
+<span class="fc" id="L100">                        modifier = Modifier.padding(bottom = 8.dp),</span>
+                    )
+
+<span class="fc" id="L103">                    Card(</span>
+<span class="fc" id="L104">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L105">                        shape = MaterialTheme.shapes.large,</span>
+                        colors =
+<span class="fc" id="L107">                            CardDefaults.cardColors(</span>
+                                containerColor =
+<span class="fc" id="L109">                                    MaterialTheme.colorScheme.surfaceVariant</span>
+<span class="fc" id="L110">                                        .copy(alpha = 0.5f),</span>
+                            ),
+<span class="fc" id="L112">                    ) {</span>
+<span class="fc" id="L113">                        LazyColumn(</span>
+                            modifier =
+<span class="fc" id="L115">                                Modifier</span>
+<span class="fc" id="L116">                                    .fillMaxWidth()</span>
+<span class="fc" id="L117">                                    .heightIn(max = 280.dp),</span>
+<span class="fc" id="L118">                        ) {</span>
+<span class="fc" id="L119">                            items(</span>
+<span class="fc" id="L120">                                items = devices,</span>
+<span class="fc" id="L121">                                key = { it.macAddress },</span>
+                            ) { device -&gt;
+<span class="fc" id="L123">                                PairedDeviceItem(</span>
+<span class="fc" id="L124">                                    device = device,</span>
+<span class="fc" id="L125">                                    onSwipedAway = {</span>
+<span class="nc" id="L126">                                        onPendingRemove(device)</span>
+<span class="nc" id="L127">                                    },</span>
+<span class="fc" id="L128">                                    onEditClick = { onEditDevice(device.macAddress) },</span>
+<span class="fc" id="L129">                                    onDeviceClick = onDeviceClick,</span>
+<span class="fc" id="L130">                                )</span>
+<span class="fc" id="L131">                            }</span>
+<span class="fc" id="L132">                        }</span>
+<span class="fc" id="L133">                    }</span>
+<span class="fc" id="L134">                }</span>
+<span class="fc" id="L135">            }</span>
+
+            // Snackbar pinned to the bottom of the section box
+<span class="fc" id="L138">            SnackbarHost(</span>
+<span class="fc" id="L139">                hostState = snackbarHostState,</span>
+<span class="fc" id="L140">                modifier = Modifier.align(Alignment.BottomCenter),</span>
+            )
+<span class="fc" id="L142">        }</span>
+<span class="fc" id="L143">    }</span>
+<span class="fc" id="L144">}</span>
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PairedDeviceItem(
+    device: PairedDevice,
+    onSwipedAway: () -&gt; Unit,
+    onEditClick: () -&gt; Unit,
+<span class="pc" id="L152">    onDeviceClick: ((PairedDevice) -&gt; Unit)? = null,</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L154">    val dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)</span>
+<span class="fc" id="L155">    val lastUsed = dateFormat.format(Date(device.lastUsedAt))</span>
+
+<span class="fc" id="L157">    val dismissState =</span>
+<span class="fc" id="L158">        rememberSwipeToDismissBoxState(</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">            confirmValueChange = { value -&gt;</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                if (value != SwipeToDismissBoxValue.Settled) {</span>
+<span class="nc" id="L161">                    onSwipedAway()</span>
+                    // Return false: we handle visibility via ViewModel, not SwipeToDismissBox
+<span class="nc" id="L163">                    false</span>
+                } else {
+<span class="nc" id="L165">                    false</span>
+<span class="nc" id="L166">                }</span>
+            },
+            // Require 40% drag before triggering — prevents accidental deletes
+<span class="pc" id="L169">            positionalThreshold = { totalDistance -&gt; totalDistance * 0.4f },</span>
+        )
+
+<span class="fc" id="L172">    SwipeToDismissBox(</span>
+<span class="fc" id="L173">        state = dismissState,</span>
+<span class="fc" id="L174">        enableDismissFromEndToStart = true,</span>
+<span class="fc" id="L175">        enableDismissFromStartToEnd = true,</span>
+<span class="fc" id="L176">        backgroundContent = {</span>
+<span class="fc" id="L177">            val progress = dismissState.progress</span>
+<span class="fc" id="L178">            val targetValue = dismissState.targetValue</span>
+
+            // Background only becomes visible when actively swiping
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">            val isSwiping = progress &gt; 0.01f</span>
+
+<span class="fc" id="L183">            val bgAlpha by animateFloatAsState(</span>
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">                targetValue = if (isSwiping) 1f else 0f,</span>
+<span class="fc" id="L185">                label = &quot;bg_alpha&quot;,</span>
+            )
+<span class="fc" id="L187">            val iconAlpha by animateFloatAsState(</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">                targetValue = if (progress &gt; 0.15f) 1f else 0f,</span>
+<span class="fc" id="L189">                label = &quot;icon_alpha&quot;,</span>
+            )
+
+            // Determine swipe direction from targetValue (not dismissDirection which can be null)
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">            val isSwipingLeft = targetValue == SwipeToDismissBoxValue.EndToStart</span>
+
+<span class="fc" id="L195">            Box(</span>
+                modifier =
+<span class="fc" id="L197">                    Modifier</span>
+<span class="fc" id="L198">                        .fillMaxSize()</span>
+<span class="fc" id="L199">                        .alpha(bgAlpha)</span>
+<span class="fc" id="L200">                        .background(MaterialTheme.colorScheme.errorContainer)</span>
+<span class="fc" id="L201">                        .padding(horizontal = 20.dp),</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">                contentAlignment = if (isSwipingLeft) Alignment.CenterEnd else Alignment.CenterStart,</span>
+            ) {
+<span class="fc" id="L204">                Icon(</span>
+<span class="fc" id="L205">                    imageVector = Icons.Default.Delete,</span>
+<span class="fc" id="L206">                    contentDescription = &quot;Delete device&quot;,</span>
+<span class="fc" id="L207">                    tint = MaterialTheme.colorScheme.onErrorContainer,</span>
+<span class="fc" id="L208">                    modifier = Modifier.alpha(iconAlpha),</span>
+                )
+<span class="fc" id="L210">            }</span>
+<span class="fc" id="L211">        },</span>
+<span class="fc" id="L212">    ) {</span>
+        // Foreground — icon depends on device class
+<span class="fc" id="L214">        val iconInfo = getDeviceIcon(device.deviceClass)</span>
+
+<span class="fc" id="L216">        ListItem(</span>
+            modifier =
+<span class="fc bfc" id="L218" title="All 2 branches covered.">                if (onDeviceClick != null) {</span>
+<span class="pc" id="L219">                    Modifier.clickable { onDeviceClick(device) }</span>
+<span class="fc" id="L220">                } else {</span>
+<span class="fc" id="L221">                    Modifier</span>
+<span class="fc" id="L222">                },</span>
+<span class="fc" id="L223">            headlineContent = {</span>
+<span class="fc" id="L224">                Text(</span>
+<span class="fc bfc" id="L225" title="All 4 branches covered.">                    text = device.alias ?: device.name ?: &quot;Unknown Device&quot;,</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">                    fontWeight = if (device.alias != null) FontWeight.Bold else FontWeight.Normal,</span>
+                )
+<span class="fc" id="L228">            },</span>
+<span class="fc" id="L229">            supportingContent = {</span>
+<span class="fc" id="L230">                Column {</span>
+<span class="pc bpc" id="L231" title="1 of 4 branches missed.">                    if (device.alias != null &amp;&amp; device.name != null) {</span>
+<span class="fc" id="L232">                        Text(</span>
+<span class="fc" id="L233">                            text = &quot;Device: ${device.name}&quot;,</span>
+<span class="fc" id="L234">                            style = MaterialTheme.typography.labelSmall,</span>
+<span class="fc" id="L235">                            color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                        )
+<span class="fc" id="L237">                    }</span>
+<span class="fc" id="L238">                    Text(&quot;Last used: $lastUsed&quot;)</span>
+<span class="fc" id="L239">                }</span>
+<span class="fc" id="L240">            },</span>
+<span class="fc" id="L241">            leadingContent = {</span>
+<span class="fc" id="L242">                Icon(</span>
+<span class="fc" id="L243">                    imageVector = iconInfo.first,</span>
+<span class="fc" id="L244">                    contentDescription = iconInfo.second,</span>
+<span class="fc" id="L245">                    tint = MaterialTheme.colorScheme.primary,</span>
+                )
+<span class="fc" id="L247">            },</span>
+<span class="fc" id="L248">            trailingContent = {</span>
+<span class="fc" id="L249">                Row {</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">                    if (onDeviceClick != null) {</span>
+<span class="fc" id="L251">                        IconButton(onClick = { onDeviceClick(device) }) {</span>
+<span class="fc" id="L252">                            Icon(</span>
+<span class="fc" id="L253">                                imageVector = Icons.Default.Bluetooth,</span>
+<span class="fc" id="L254">                                contentDescription = &quot;Connect device&quot;,</span>
+<span class="fc" id="L255">                                tint = MaterialTheme.colorScheme.primary,</span>
+                            )
+<span class="fc" id="L257">                        }</span>
+<span class="fc" id="L258">                    }</span>
+<span class="fc" id="L259">                    IconButton(onClick = onEditClick) {</span>
+<span class="fc" id="L260">                        Icon(</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">                            imageVector = if (device.alias != null) Icons.Default.Label else Icons.Default.Edit,</span>
+<span class="fc" id="L262">                            contentDescription = &quot;Edit name&quot;,</span>
+<span class="fc" id="L263">                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),</span>
+                        )
+<span class="fc" id="L265">                    }</span>
+<span class="fc" id="L266">                }</span>
+<span class="fc" id="L267">            },</span>
+            colors =
+<span class="fc" id="L269">                ListItemDefaults.colors(</span>
+<span class="fc" id="L270">                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,</span>
+                ),
+        )
+<span class="fc" id="L273">    }</span>
+<span class="fc" id="L274">}</span>
+
+private const val MAJOR_CLASS_MASK = 0x1F00
+private const val MAJOR_CLASS_COMPUTER = 0x0100
+private const val MAJOR_CLASS_PHONE = 0x0200
+private const val MAJOR_CLASS_WEARABLE = 0x0700
+
+/**
+ * Maps a raw Bluetooth Device Class integer into a specific Material Icon.
+ */
+@Composable
+<span class="fc" id="L285">private fun getDeviceIcon(deviceClass: Int?): Pair&lt;androidx.compose.ui.graphics.vector.ImageVector, String&gt; {</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">    if (deviceClass == null) return Icons.Default.Bluetooth to &quot;Generic Bluetooth device&quot;</span>
+
+    // The major class is stored in bits 8-12. Masking extracts these bits.
+<span class="fc bfc" id="L289" title="All 4 branches covered.">    return when (deviceClass and MAJOR_CLASS_MASK) {</span>
+<span class="fc" id="L290">        MAJOR_CLASS_COMPUTER -&gt; Icons.Default.Computer to &quot;Computer&quot;</span>
+<span class="fc" id="L291">        MAJOR_CLASS_PHONE -&gt; Icons.Default.Smartphone to &quot;Phone&quot;</span>
+<span class="fc" id="L292">        MAJOR_CLASS_WEARABLE -&gt; Icons.Default.Watch to &quot;Wearable&quot;</span>
+<span class="fc" id="L293">        else -&gt; Icons.Default.Bluetooth to &quot;Generic Bluetooth device&quot;</span>
+    }
+<span class="fc" id="L295">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultNavGraph.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui.navigation</a> &gt; <span class="el_source">VaultNavGraph.kt</span></div><h1>VaultNavGraph.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui.navigation
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Note
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.chimali.feature.vault.api.VaultIntent
+import com.chimali.feature.vault.internal.VaultViewModel
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.PasswordPayload
+import com.chimali.feature.vault.internal.payload.SecureNotePayload
+import com.chimali.feature.vault.ui.CreditCardDetailScreen
+import com.chimali.feature.vault.ui.CreditCardEntryScreen
+import com.chimali.feature.vault.ui.LabelManagerScreen
+import com.chimali.feature.vault.ui.PasswordDetailScreen
+import com.chimali.feature.vault.ui.PasswordEntryScreen
+import com.chimali.feature.vault.ui.SecureNoteDetailScreen
+import com.chimali.feature.vault.ui.SecureNoteEntryScreen
+import com.chimali.feature.vault.ui.VaultListScreen
+import java.util.UUID
+import org.koin.compose.viewmodel.koinViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+<span class="nc bnc" id="L60" title="All 4 branches missed.">fun VaultNavGraph(</span>
+    onOpenSettings: () -&gt; Unit,
+<span class="nc bnc" id="L62" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">    navController: NavHostController = rememberNavController(),</span>
+<span class="nc" id="L64">    viewModel: VaultViewModel = koinViewModel(),</span>
+<span class="nc bnc" id="L65" title="All 6 branches missed.">) {</span>
+    // Only this nonsecret marker is saved. Restored editors have no surviving draft/identity owner.
+<span class="nc" id="L67">    var previouslyComposed by rememberSaveable { mutableStateOf(false) }</span>
+<span class="nc" id="L68">    val restoredSession = remember { previouslyComposed }</span>
+<span class="nc" id="L69">    LaunchedEffect(Unit) {</span>
+<span class="nc" id="L70">        previouslyComposed = true</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (restoredSession &amp;&amp;</span>
+<span class="nc bnc" id="L72" title="All 4 branches missed.">            navController.currentDestination?.route in</span>
+<span class="nc" id="L73">            setOf(</span>
+<span class="nc" id="L74">                VaultDestinations.ENTRY_PASSWORD_ROUTE,</span>
+<span class="nc" id="L75">                VaultDestinations.ENTRY_CARD_ROUTE,</span>
+<span class="nc" id="L76">                VaultDestinations.ENTRY_NOTE_ROUTE,</span>
+            )
+        ) {
+<span class="nc" id="L79">            viewModel.processIntent(VaultIntent.AbandonMutation)</span>
+<span class="nc" id="L80">            viewModel.processIntent(VaultIntent.ClearSelectedItem)</span>
+<span class="nc" id="L81">            navController.popBackStack(VaultDestinations.LIST_ROUTE, false)</span>
+        }
+<span class="nc" id="L83">    }</span>
+
+<span class="nc" id="L85">    val state by viewModel.state.collectAsState()</span>
+<span class="nc" id="L86">    var showAddTypeSheet by remember { mutableStateOf(false) }</span>
+
+<span class="nc" id="L88">    var editingPasswordPayload by remember { mutableStateOf&lt;Pair&lt;UUID, PasswordPayload&gt;?&gt;(null) }</span>
+<span class="nc" id="L89">    var editingCreditCardPayload by remember { mutableStateOf&lt;Pair&lt;UUID, CreditCardPayload&gt;?&gt;(null) }</span>
+<span class="nc" id="L90">    var editingSecureNotePayload by remember { mutableStateOf&lt;Pair&lt;UUID, SecureNotePayload&gt;?&gt;(null) }</span>
+
+<span class="nc" id="L92">    DisposableEffect(viewModel) {</span>
+<span class="nc" id="L93">        onDispose {</span>
+<span class="nc" id="L94">            editingPasswordPayload?.second?.clearMemory()</span>
+<span class="nc" id="L95">            editingCreditCardPayload?.second?.clearMemory()</span>
+<span class="nc" id="L96">            editingSecureNotePayload?.second?.clearMemory()</span>
+<span class="nc" id="L97">            viewModel.processIntent(VaultIntent.ClearSelectedItem)</span>
+<span class="nc" id="L98">            viewModel.processIntent(VaultIntent.AbandonMutation)</span>
+<span class="nc" id="L99">        }</span>
+    }
+
+<span class="nc" id="L102">    var editingLabelIds by remember { mutableStateOf(emptySet&lt;UUID&gt;()) }</span>
+
+<span class="nc" id="L104">    LaunchedEffect(Unit) {</span>
+<span class="nc" id="L105">        viewModel.processIntent(VaultIntent.LoadItems())</span>
+<span class="nc" id="L106">        viewModel.processIntent(VaultIntent.LoadLabels)</span>
+<span class="nc" id="L107">    }</span>
+
+<span class="nc" id="L109">    LaunchedEffect(state.mutationState) {</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        if (state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED &amp;&amp;</span>
+<span class="nc bnc" id="L111" title="All 6 branches missed.">            navController.currentBackStackEntry?.destination?.route != VaultDestinations.LIST_ROUTE</span>
+        ) {
+<span class="nc" id="L113">            navController.popBackStack(VaultDestinations.LIST_ROUTE, false)</span>
+<span class="nc" id="L114">            editingPasswordPayload = null</span>
+<span class="nc" id="L115">            editingCreditCardPayload = null</span>
+<span class="nc" id="L116">            editingSecureNotePayload = null</span>
+<span class="nc" id="L117">            viewModel.processIntent(VaultIntent.ResetMutation)</span>
+        }
+<span class="nc" id="L119">    }</span>
+
+<span class="nc" id="L121">    NavHost(</span>
+<span class="nc" id="L122">        navController = navController,</span>
+<span class="nc" id="L123">        startDestination = VaultDestinations.LIST_ROUTE,</span>
+<span class="nc" id="L124">        modifier = modifier,</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">    ) {</span>
+<span class="nc" id="L126">        composable(VaultDestinations.LIST_ROUTE) {</span>
+<span class="nc" id="L127">            VaultListScreen(</span>
+<span class="nc" id="L128">                items = state.items,</span>
+<span class="nc" id="L129">                labels = state.labels,</span>
+<span class="nc" id="L130">                selectedLabelId = state.selectedLabelId,</span>
+<span class="nc" id="L131">                onItemClick = { item -&gt;</span>
+<span class="nc" id="L132">                    navController.navigate(VaultDestinations.detailRoute(item.type, item.id))</span>
+<span class="nc" id="L133">                },</span>
+<span class="nc" id="L134">                onAddClick = { showAddTypeSheet = true },</span>
+<span class="nc" id="L135">                onLabelFilterClick = { labelId -&gt;</span>
+<span class="nc" id="L136">                    viewModel.processIntent(VaultIntent.LoadItems(labelId))</span>
+<span class="nc" id="L137">                },</span>
+<span class="nc" id="L138">                onManageLabelsClick = {</span>
+<span class="nc" id="L139">                    navController.navigate(VaultDestinations.LABELS_ROUTE)</span>
+<span class="nc" id="L140">                },</span>
+<span class="nc" id="L141">                onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L142">                errorMessage = state.errorMessage,</span>
+            )
+
+<span class="nc bnc" id="L145" title="All 2 branches missed.">            if (showAddTypeSheet) {</span>
+<span class="nc" id="L146">                val sheetState = rememberModalBottomSheetState()</span>
+<span class="nc" id="L147">                ModalBottomSheet(</span>
+<span class="nc" id="L148">                    onDismissRequest = { showAddTypeSheet = false },</span>
+<span class="nc" id="L149">                    sheetState = sheetState,</span>
+<span class="nc" id="L150">                ) {</span>
+<span class="nc" id="L151">                    Column(modifier = Modifier.padding(bottom = 32.dp)) {</span>
+<span class="nc" id="L152">                        ListItem(</span>
+<span class="nc" id="L153">                            headlineContent = { Text(&quot;Password&quot;) },</span>
+<span class="nc" id="L154">                            leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) },</span>
+                            modifier =
+<span class="nc" id="L156">                                Modifier</span>
+<span class="nc" id="L157">                                    .fillMaxWidth()</span>
+<span class="nc" id="L158">                                    .clickable {</span>
+<span class="nc" id="L159">                                        showAddTypeSheet = false</span>
+<span class="nc" id="L160">                                        editingPasswordPayload = null</span>
+<span class="nc" id="L161">                                        navController.navigate(VaultDestinations.ENTRY_PASSWORD_ROUTE)</span>
+<span class="nc" id="L162">                                    },</span>
+                        )
+<span class="nc" id="L164">                        ListItem(</span>
+<span class="nc" id="L165">                            headlineContent = { Text(&quot;Credit Card&quot;) },</span>
+<span class="nc" id="L166">                            leadingContent = { Icon(Icons.Default.CreditCard, contentDescription = null) },</span>
+                            modifier =
+<span class="nc" id="L168">                                Modifier</span>
+<span class="nc" id="L169">                                    .fillMaxWidth()</span>
+<span class="nc" id="L170">                                    .clickable {</span>
+<span class="nc" id="L171">                                        showAddTypeSheet = false</span>
+<span class="nc" id="L172">                                        editingCreditCardPayload = null</span>
+<span class="nc" id="L173">                                        navController.navigate(VaultDestinations.ENTRY_CARD_ROUTE)</span>
+<span class="nc" id="L174">                                    },</span>
+                        )
+<span class="nc" id="L176">                        ListItem(</span>
+<span class="nc" id="L177">                            headlineContent = { Text(&quot;Secure Note&quot;) },</span>
+<span class="nc" id="L178">                            leadingContent = { Icon(Icons.AutoMirrored.Filled.Note, contentDescription = null) },</span>
+                            modifier =
+<span class="nc" id="L180">                                Modifier</span>
+<span class="nc" id="L181">                                    .fillMaxWidth()</span>
+<span class="nc" id="L182">                                    .clickable {</span>
+<span class="nc" id="L183">                                        showAddTypeSheet = false</span>
+<span class="nc" id="L184">                                        editingSecureNotePayload = null</span>
+<span class="nc" id="L185">                                        navController.navigate(VaultDestinations.ENTRY_NOTE_ROUTE)</span>
+<span class="nc" id="L186">                                    },</span>
+                        )
+<span class="nc" id="L188">                    }</span>
+<span class="nc" id="L189">                }</span>
+<span class="nc" id="L190">            }</span>
+<span class="nc" id="L191">        }</span>
+
+        // Add / Edit Password
+<span class="nc" id="L194">        composable(VaultDestinations.ENTRY_PASSWORD_ROUTE) {</span>
+<span class="nc" id="L195">            DisposableEffect(Unit) {</span>
+<span class="nc" id="L196">                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }</span>
+            }
+<span class="nc" id="L198">            PasswordEntryScreen(</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                initialPayload = editingPasswordPayload?.second,</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,</span>
+<span class="nc" id="L202">                errorMessage = state.errorMessage,</span>
+<span class="nc" id="L203">                labels = state.labels,</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                initialLabelIds = if (editingPasswordPayload != null) editingLabelIds else emptySet(),</span>
+<span class="nc" id="L205">                onSave = {},</span>
+<span class="nc" id="L206">                onSaveWithLabels = { payload, labelIds -&gt;</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">                    val editingId = editingPasswordPayload?.first</span>
+<span class="nc" id="L208">                    viewModel.processIntent(</span>
+<span class="nc" id="L209">                        VaultIntent.SavePassword(id = editingId, payload = payload, labelIds = labelIds),</span>
+                    )
+<span class="nc" id="L211">                },</span>
+<span class="nc" id="L212">                onCancel = {</span>
+<span class="nc" id="L213">                    viewModel.processIntent(VaultIntent.AbandonMutation)</span>
+<span class="nc bnc" id="L214" title="All 4 branches missed.">                    editingPasswordPayload?.second?.clearMemory()</span>
+<span class="nc" id="L215">                    editingPasswordPayload = null</span>
+<span class="nc" id="L216">                    navController.popBackStack()</span>
+<span class="nc" id="L217">                },</span>
+            )
+<span class="nc" id="L219">        }</span>
+
+        // Password Detail
+<span class="nc" id="L222">        composable(</span>
+<span class="nc" id="L223">            route = VaultDestinations.DETAIL_PASSWORD_ROUTE,</span>
+<span class="nc" id="L224">            arguments = listOf(navArgument(&quot;id&quot;) { type = NavType.StringType }),</span>
+<span class="nc" id="L225">        ) { backStackEntry -&gt;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            val idString = backStackEntry.arguments?.getString(&quot;id&quot;)</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">            val itemId = idString?.let { UUID.fromString(it) }</span>
+
+<span class="nc" id="L229">            RefreshDetailsOnResume(</span>
+<span class="nc" id="L230">                itemId,</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },</span>
+<span class="nc" id="L232">                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },</span>
+            )
+<span class="nc" id="L234">            val payload = state.selectedPasswordPayload</span>
+<span class="nc bnc" id="L235" title="All 8 branches missed.">            if (payload != null &amp;&amp; itemId != null &amp;&amp; state.selectedItem?.id == itemId) {</span>
+<span class="nc" id="L236">                PasswordDetailScreen(</span>
+<span class="nc" id="L237">                    payload = payload,</span>
+<span class="nc" id="L238">                    onEdit = {</span>
+<span class="nc" id="L239">                        editingLabelIds = state.selectedItemLabelIds</span>
+<span class="nc" id="L240">                        editingPasswordPayload = Pair(itemId, payload.copyForEditing())</span>
+<span class="nc" id="L241">                        navController.navigate(VaultDestinations.ENTRY_PASSWORD_ROUTE)</span>
+<span class="nc" id="L242">                    },</span>
+<span class="nc" id="L243">                    onDelete = {</span>
+<span class="nc" id="L244">                        viewModel.processIntent(VaultIntent.DeleteItem(itemId))</span>
+<span class="nc" id="L245">                    },</span>
+<span class="nc" id="L246">                    onBack = {</span>
+<span class="nc" id="L247">                        viewModel.processIntent(VaultIntent.ClearSelectedItem)</span>
+<span class="nc" id="L248">                        navController.popBackStack()</span>
+<span class="nc" id="L249">                    },</span>
+<span class="nc" id="L250">                    onCopyPassword = {</span>
+<span class="nc" id="L251">                        viewModel.processIntent(VaultIntent.CopyPassword(it))</span>
+<span class="nc" id="L252">                    },</span>
+<span class="nc" id="L253">                    copyMessage = state.copyMessage,</span>
+<span class="nc" id="L254">                    onCopyMessage = { viewModel.processIntent(VaultIntent.ClearCopyMessage) },</span>
+                )
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            } else if (state.errorMessage != null) {</span>
+<span class="nc" id="L257">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L258">                    Column(horizontalAlignment = Alignment.CenterHorizontally) {</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                        Text(state.errorMessage ?: &quot;Unable to open item&quot;)</span>
+<span class="nc" id="L260">                        androidx.compose.material3.TextButton(</span>
+<span class="nc" id="L261">                            onClick = {</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                                itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) }</span>
+<span class="nc" id="L263">                            },</span>
+<span class="nc" id="L264">                        ) {</span>
+<span class="nc" id="L265">                            Text(&quot;Retry&quot;)</span>
+<span class="nc" id="L266">                        }</span>
+<span class="nc" id="L267">                    }</span>
+<span class="nc" id="L268">                }</span>
+<span class="nc" id="L269">            } else {</span>
+<span class="nc" id="L270">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L271">                    CircularProgressIndicator()</span>
+<span class="nc" id="L272">                }</span>
+            }
+<span class="nc" id="L274">        }</span>
+
+        // Add / Edit Credit Card
+<span class="nc" id="L277">        composable(VaultDestinations.ENTRY_CARD_ROUTE) {</span>
+<span class="nc" id="L278">            DisposableEffect(Unit) {</span>
+<span class="nc" id="L279">                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }</span>
+            }
+<span class="nc" id="L281">            CreditCardEntryScreen(</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                initialPayload = editingCreditCardPayload?.second,</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,</span>
+<span class="nc" id="L285">                errorMessage = state.errorMessage,</span>
+<span class="nc" id="L286">                labels = state.labels,</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                initialLabelIds = if (editingCreditCardPayload != null) editingLabelIds else emptySet(),</span>
+<span class="nc" id="L288">                onSave = {},</span>
+<span class="nc" id="L289">                onSaveWithLabels = { payload, labelIds -&gt;</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">                    val editingId = editingCreditCardPayload?.first</span>
+<span class="nc" id="L291">                    viewModel.processIntent(</span>
+<span class="nc" id="L292">                        VaultIntent.SaveCreditCard(id = editingId, payload = payload, labelIds = labelIds),</span>
+                    )
+<span class="nc" id="L294">                },</span>
+<span class="nc" id="L295">                onCancel = {</span>
+<span class="nc" id="L296">                    viewModel.processIntent(VaultIntent.AbandonMutation)</span>
+<span class="nc bnc" id="L297" title="All 4 branches missed.">                    editingCreditCardPayload?.second?.clearMemory()</span>
+<span class="nc" id="L298">                    editingCreditCardPayload = null</span>
+<span class="nc" id="L299">                    navController.popBackStack()</span>
+<span class="nc" id="L300">                },</span>
+            )
+<span class="nc" id="L302">        }</span>
+
+        // Credit Card Detail
+<span class="nc" id="L305">        composable(</span>
+<span class="nc" id="L306">            route = VaultDestinations.DETAIL_CARD_ROUTE,</span>
+<span class="nc" id="L307">            arguments = listOf(navArgument(&quot;id&quot;) { type = NavType.StringType }),</span>
+<span class="nc" id="L308">        ) { backStackEntry -&gt;</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            val idString = backStackEntry.arguments?.getString(&quot;id&quot;)</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">            val itemId = idString?.let { UUID.fromString(it) }</span>
+
+<span class="nc" id="L312">            RefreshDetailsOnResume(</span>
+<span class="nc" id="L313">                itemId,</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },</span>
+<span class="nc" id="L315">                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },</span>
+            )
+<span class="nc" id="L317">            val payload = state.selectedCreditCardPayload</span>
+<span class="nc bnc" id="L318" title="All 8 branches missed.">            if (payload != null &amp;&amp; itemId != null &amp;&amp; state.selectedItem?.id == itemId) {</span>
+<span class="nc" id="L319">                CreditCardDetailScreen(</span>
+<span class="nc" id="L320">                    payload = payload,</span>
+<span class="nc" id="L321">                    onEdit = {</span>
+<span class="nc" id="L322">                        editingLabelIds = state.selectedItemLabelIds</span>
+<span class="nc" id="L323">                        editingCreditCardPayload = Pair(itemId, payload.copyForEditing())</span>
+<span class="nc" id="L324">                        navController.navigate(VaultDestinations.ENTRY_CARD_ROUTE)</span>
+<span class="nc" id="L325">                    },</span>
+<span class="nc" id="L326">                    onDelete = {</span>
+<span class="nc" id="L327">                        viewModel.processIntent(VaultIntent.DeleteItem(itemId))</span>
+<span class="nc" id="L328">                    },</span>
+<span class="nc" id="L329">                    onBack = {</span>
+<span class="nc" id="L330">                        viewModel.processIntent(VaultIntent.ClearSelectedItem)</span>
+<span class="nc" id="L331">                        navController.popBackStack()</span>
+<span class="nc" id="L332">                    },</span>
+                )
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            } else if (state.errorMessage != null) {</span>
+<span class="nc" id="L335">                DetailErrorState(</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                    message = state.errorMessage ?: &quot;Unable to open item&quot;,</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                    onRetry = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },</span>
+                )
+<span class="nc" id="L339">            } else {</span>
+<span class="nc" id="L340">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L341">                    CircularProgressIndicator()</span>
+<span class="nc" id="L342">                }</span>
+            }
+<span class="nc" id="L344">        }</span>
+
+        // Add / Edit Secure Note
+<span class="nc" id="L347">        composable(VaultDestinations.ENTRY_NOTE_ROUTE) {</span>
+<span class="nc" id="L348">            DisposableEffect(Unit) {</span>
+<span class="nc" id="L349">                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }</span>
+            }
+<span class="nc" id="L351">            SecureNoteEntryScreen(</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">                saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,</span>
+<span class="nc bnc" id="L353" title="All 2 branches missed.">                initialPayload = editingSecureNotePayload?.second,</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">                isSaving = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.PENDING,</span>
+<span class="nc" id="L355">                errorMessage = state.errorMessage,</span>
+<span class="nc" id="L356">                labels = state.labels,</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">                initialLabelIds = if (editingSecureNotePayload != null) editingLabelIds else emptySet(),</span>
+<span class="nc" id="L358">                onSave = {},</span>
+<span class="nc" id="L359">                onSaveWithLabels = { payload, labelIds -&gt;</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                    val editingId = editingSecureNotePayload?.first</span>
+<span class="nc" id="L361">                    viewModel.processIntent(</span>
+<span class="nc" id="L362">                        VaultIntent.SaveSecureNote(id = editingId, payload = payload, labelIds = labelIds),</span>
+                    )
+<span class="nc" id="L364">                },</span>
+<span class="nc" id="L365">                onCancel = {</span>
+<span class="nc" id="L366">                    viewModel.processIntent(VaultIntent.AbandonMutation)</span>
+<span class="nc bnc" id="L367" title="All 4 branches missed.">                    editingSecureNotePayload?.second?.clearMemory()</span>
+<span class="nc" id="L368">                    editingSecureNotePayload = null</span>
+<span class="nc" id="L369">                    navController.popBackStack()</span>
+<span class="nc" id="L370">                },</span>
+            )
+<span class="nc" id="L372">        }</span>
+
+        // Secure Note Detail
+<span class="nc" id="L375">        composable(</span>
+<span class="nc" id="L376">            route = VaultDestinations.DETAIL_NOTE_ROUTE,</span>
+<span class="nc" id="L377">            arguments = listOf(navArgument(&quot;id&quot;) { type = NavType.StringType }),</span>
+<span class="nc" id="L378">        ) { backStackEntry -&gt;</span>
+<span class="nc bnc" id="L379" title="All 2 branches missed.">            val idString = backStackEntry.arguments?.getString(&quot;id&quot;)</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">            val itemId = idString?.let { UUID.fromString(it) }</span>
+
+<span class="nc" id="L382">            RefreshDetailsOnResume(</span>
+<span class="nc" id="L383">                itemId,</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">                onResume = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },</span>
+<span class="nc" id="L385">                onPause = { viewModel.processIntent(VaultIntent.ClearSelectedItem) },</span>
+            )
+<span class="nc" id="L387">            val payload = state.selectedSecureNotePayload</span>
+<span class="nc bnc" id="L388" title="All 8 branches missed.">            if (payload != null &amp;&amp; itemId != null &amp;&amp; state.selectedItem?.id == itemId) {</span>
+<span class="nc" id="L389">                SecureNoteDetailScreen(</span>
+<span class="nc" id="L390">                    payload = payload,</span>
+<span class="nc" id="L391">                    onEdit = {</span>
+<span class="nc" id="L392">                        editingLabelIds = state.selectedItemLabelIds</span>
+<span class="nc" id="L393">                        editingSecureNotePayload = Pair(itemId, payload.copyForEditing())</span>
+<span class="nc" id="L394">                        navController.navigate(VaultDestinations.ENTRY_NOTE_ROUTE)</span>
+<span class="nc" id="L395">                    },</span>
+<span class="nc" id="L396">                    onDelete = {</span>
+<span class="nc" id="L397">                        viewModel.processIntent(VaultIntent.DeleteItem(itemId))</span>
+<span class="nc" id="L398">                    },</span>
+<span class="nc" id="L399">                    onBack = {</span>
+<span class="nc" id="L400">                        viewModel.processIntent(VaultIntent.ClearSelectedItem)</span>
+<span class="nc" id="L401">                        navController.popBackStack()</span>
+<span class="nc" id="L402">                    },</span>
+                )
+<span class="nc bnc" id="L404" title="All 2 branches missed.">            } else if (state.errorMessage != null) {</span>
+<span class="nc" id="L405">                DetailErrorState(</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">                    message = state.errorMessage ?: &quot;Unable to open item&quot;,</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                    onRetry = { itemId?.let { viewModel.processIntent(VaultIntent.DecryptItem(it)) } },</span>
+                )
+<span class="nc" id="L409">            } else {</span>
+<span class="nc" id="L410">                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L411">                    CircularProgressIndicator()</span>
+<span class="nc" id="L412">                }</span>
+            }
+<span class="nc" id="L414">        }</span>
+
+        // Label Manager
+<span class="nc" id="L417">        composable(VaultDestinations.LABELS_ROUTE) {</span>
+<span class="nc" id="L418">            LabelManagerScreen(</span>
+<span class="nc" id="L419">                labels = state.labels,</span>
+<span class="nc" id="L420">                onCreateLabel = { name, colorHex -&gt;</span>
+<span class="nc" id="L421">                    viewModel.processIntent(VaultIntent.CreateLabel(name, colorHex))</span>
+<span class="nc" id="L422">                },</span>
+<span class="nc" id="L423">                onDeleteLabel = { labelId -&gt;</span>
+<span class="nc" id="L424">                    viewModel.processIntent(VaultIntent.DeleteLabel(labelId))</span>
+<span class="nc" id="L425">                },</span>
+<span class="nc" id="L426">                onBack = {</span>
+<span class="nc" id="L427">                    navController.popBackStack()</span>
+<span class="nc" id="L428">                },</span>
+<span class="nc" id="L429">                errorMessage = state.errorMessage,</span>
+            )
+<span class="nc" id="L431">        }</span>
+<span class="nc" id="L432">    }</span>
+<span class="nc" id="L433">}</span>
+
+@Composable
+private fun DetailErrorState(
+    message: String,
+    onRetry: () -&gt; Unit,
+<span class="nc" id="L439">) {</span>
+<span class="nc" id="L440">    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L441">        Column(horizontalAlignment = Alignment.CenterHorizontally) {</span>
+<span class="nc" id="L442">            Text(message)</span>
+<span class="nc" id="L443">            androidx.compose.material3.TextButton(onClick = onRetry) {</span>
+<span class="nc" id="L444">                Text(&quot;Retry&quot;)</span>
+<span class="nc" id="L445">            }</span>
+<span class="nc" id="L446">        }</span>
+<span class="nc" id="L447">    }</span>
+<span class="nc" id="L448">}</span>
+
+/** FR-VAULT-026: a resumed detail session obtains fresh values, never a previously erased payload. */
+@Composable
+private fun RefreshDetailsOnResume(
+    itemId: UUID?,
+    onResume: () -&gt; Unit,
+    onPause: () -&gt; Unit,
+<span class="nc" id="L456">) {</span>
+<span class="nc" id="L457">    val owner = LocalLifecycleOwner.current</span>
+<span class="nc" id="L458">    val resume by rememberUpdatedState(onResume)</span>
+<span class="nc" id="L459">    val pause by rememberUpdatedState(onPause)</span>
+<span class="nc" id="L460">    DisposableEffect(owner, itemId) {</span>
+<span class="nc" id="L461">        val observer =</span>
+            LifecycleEventObserver { _, event -&gt;
+<span class="nc bnc" id="L463" title="All 2 branches missed.">                if (event == Lifecycle.Event.ON_RESUME) {</span>
+<span class="nc" id="L464">                    resume()</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">                } else if (event == Lifecycle.Event.ON_PAUSE) {</span>
+<span class="nc" id="L466">                    pause()</span>
+                }
+<span class="nc" id="L468">            }</span>
+<span class="nc" id="L469">        owner.lifecycle.addObserver(observer)</span>
+<span class="nc" id="L470">        onDispose { owner.lifecycle.removeObserver(observer) }</span>
+    }
+<span class="nc" id="L472">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

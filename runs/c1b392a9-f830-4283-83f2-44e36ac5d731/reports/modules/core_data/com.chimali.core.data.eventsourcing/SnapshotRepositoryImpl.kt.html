@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SnapshotRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">data</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.data.eventsourcing</a> &gt; <span class="el_source">SnapshotRepositoryImpl.kt</span></div><h1>SnapshotRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.core.data.eventsourcing
+
+import com.chimali.core.database.VaultDatabase
+import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.Snapshot
+import com.chimali.core.domain.eventsourcing.vault.VaultState
+import com.chimali.core.domain.repository.SnapshotRepository
+import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
+import org.koin.core.annotation.Single
+
+/**
+ * Implementation of SnapshotRepository for the VaultDatabase.
+ * Handles serialization and encryption of Vault aggregate snapshots.
+ */
+<span class="fc" id="L18">@Single</span>
+<span class="fc" id="L19">class SnapshotRepositoryImpl(</span>
+<span class="fc" id="L20">    private val database: VaultDatabase,</span>
+<span class="fc" id="L21">    private val encryptionManager: EncryptionManager,</span>
+<span class="fc" id="L22">    private val keyProvider: EventStoreKeyProvider,</span>
+) : SnapshotRepository {
+    private val json =
+<span class="fc" id="L25">        Json {</span>
+<span class="fc" id="L26">            ignoreUnknownKeys = true</span>
+<span class="fc" id="L27">        }</span>
+
+    @Suppress(&quot;UNCHECKED_CAST&quot;)
+    private fun &lt;T&gt; getSerializer(kind: EventKind): KSerializer&lt;T&gt; =
+<span class="fc" id="L31">        when (kind) {</span>
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">            EventKind.VAULT_ENTRY -&gt; VaultState.serializer() as KSerializer&lt;T&gt;</span>
+<span class="nc" id="L33">            else -&gt; throw IllegalArgumentException(&quot;Unsupported aggregate kind: $kind&quot;)</span>
+<span class="fc" id="L34">        }</span>
+
+<span class="fc" id="L36">    override suspend fun &lt;T&gt; save(</span>
+        kind: EventKind,
+        snapshot: Snapshot&lt;T&gt;,
+    ): Result&lt;Unit&gt; {
+<span class="pc bpc" id="L40" title="1 of 2 branches missed.">        if (kind != EventKind.VAULT_ENTRY) return Result.success(Unit)</span>
+
+<span class="fc" id="L42">        var ownedKey: ByteArray? = null</span>
+<span class="fc" id="L43">        var ownedPlaintext: ByteArray? = null</span>
+<span class="fc" id="L44">        return try {</span>
+<span class="fc" id="L45">            val key = keyProvider.getEventStoreKey(&quot;chimali_vault_es_v1&quot;).also { ownedKey = it }</span>
+
+<span class="fc" id="L47">            database.transaction {</span>
+<span class="fc" id="L48">                val stateSerializer = getSerializer&lt;T&gt;(kind)</span>
+<span class="fc" id="L49">                val snapshotSerializer = Snapshot.serializer(stateSerializer)</span>
+<span class="fc" id="L50">                val payloadJson = json.encodeToString(snapshotSerializer, snapshot)</span>
+<span class="fc" id="L51">                val plaintext = payloadJson.encodeToByteArray().also { ownedPlaintext = it }</span>
+<span class="fc" id="L52">                val encryptedPayload = encryptionManager.encrypt(plaintext, key)</span>
+
+<span class="fc" id="L54">                database.vaultQueries.insert_snapshot(</span>
+<span class="fc" id="L55">                    aggregate_id = snapshot.aggregateId,</span>
+<span class="fc" id="L56">                    sequence_number = snapshot.sequenceNumber,</span>
+<span class="fc" id="L57">                    timestamp = snapshot.timestamp.toString(),</span>
+<span class="fc" id="L58">                    payload = encryptedPayload,</span>
+                )
+
+                // Retain only the last 2 snapshots to save space
+<span class="fc" id="L62">                database.vaultQueries.delete_old_snapshots(</span>
+<span class="fc" id="L63">                    aggregate_id = snapshot.aggregateId,</span>
+<span class="fc" id="L64">                    aggregate_id_ = snapshot.aggregateId,</span>
+                )
+<span class="fc" id="L66">            }</span>
+<span class="fc" id="L67">            Result.success(Unit)</span>
+<span class="nc" id="L68">        } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L69">            Result.failure(e)</span>
+        } finally {
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            ownedPlaintext?.fill(0)</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            ownedKey?.fill(0)</span>
+        }
+    }
+
+<span class="fc" id="L76">    override suspend fun &lt;T&gt; getLatest(</span>
+        kind: EventKind,
+        aggregateId: String,
+    ): Result&lt;Snapshot&lt;T&gt;?&gt; {
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (kind != EventKind.VAULT_ENTRY) return Result.success(null)</span>
+
+<span class="fc" id="L82">        var ownedKey: ByteArray? = null</span>
+<span class="fc" id="L83">        var ownedPlaintext: ByteArray? = null</span>
+<span class="fc" id="L84">        return try {</span>
+<span class="fc" id="L85">            val row = database.vaultQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">            if (row == null) {</span>
+<span class="fc" id="L87">                Result.success(null)</span>
+            } else {
+<span class="fc" id="L89">                val key = keyProvider.getEventStoreKey(&quot;chimali_vault_es_v1&quot;).also { ownedKey = it }</span>
+<span class="fc" id="L90">                val decryptedPayload = encryptionManager.decrypt(row.payload, key).also { ownedPlaintext = it }</span>
+<span class="fc" id="L91">                val stateSerializer = getSerializer&lt;T&gt;(kind)</span>
+<span class="fc" id="L92">                val snapshotSerializer = Snapshot.serializer(stateSerializer)</span>
+
+<span class="fc" id="L94">                val result = json.decodeFromString(snapshotSerializer, decryptedPayload.decodeToString())</span>
+<span class="fc" id="L95">                Result.success(result)</span>
+            }
+<span class="nc" id="L97">        } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L98">            Result.failure(e)</span>
+        } finally {
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            ownedPlaintext?.fill(0)</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">            ownedKey?.fill(0)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

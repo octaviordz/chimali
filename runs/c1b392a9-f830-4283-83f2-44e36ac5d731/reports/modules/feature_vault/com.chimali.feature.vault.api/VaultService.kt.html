@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.api</a> &gt; <span class="el_source">VaultService.kt</span></div><h1>VaultService.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.api
+
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
+
+enum class VaultType {
+<span class="fc" id="L9">    PASSWORD,</span>
+<span class="fc" id="L10">    CREDIT_CARD,</span>
+<span class="fc" id="L11">    NOTE,</span>
+}
+
+<span class="fc" id="L14">data class VaultItem(</span>
+<span class="fc" id="L15">    val id: UUID,</span>
+<span class="fc" id="L16">    val type: VaultType,</span>
+<span class="fc" id="L17">    val title: CharArray,</span>
+<span class="fc" id="L18">    val payload: ByteArray,</span>
+<span class="fc" id="L19">    val crdtState: ByteArray,</span>
+<span class="fc" id="L20">    val dateCreated: String,</span>
+<span class="fc" id="L21">    val dateModified: String,</span>
+<span class="fc" id="L22">    val lastBackedUpAt: String?,</span>
+<span class="fc" id="L23">    val identityId: UUID,</span>
+) {
+    /** Compatibility input adapter; the item never retains the supplied String. */
+    constructor(
+        id: UUID,
+        type: VaultType,
+        title: String,
+        payload: ByteArray,
+        crdtState: ByteArray,
+        dateCreated: String,
+        dateModified: String,
+        lastBackedUpAt: String?,
+        identityId: UUID,
+<span class="fc" id="L36">    ) : this(</span>
+<span class="fc" id="L37">        id = id,</span>
+<span class="fc" id="L38">        type = type,</span>
+<span class="fc" id="L39">        title = title.toCharArray(),</span>
+<span class="fc" id="L40">        payload = payload,</span>
+<span class="fc" id="L41">        crdtState = crdtState,</span>
+<span class="fc" id="L42">        dateCreated = dateCreated,</span>
+<span class="fc" id="L43">        dateModified = dateModified,</span>
+<span class="fc" id="L44">        lastBackedUpAt = lastBackedUpAt,</span>
+<span class="fc" id="L45">        identityId = identityId,</span>
+<span class="fc" id="L46">    )</span>
+
+    fun clearMemory() {
+<span class="fc" id="L49">        title.fill('\u0000')</span>
+<span class="fc" id="L50">    }</span>
+
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">        if (javaClass != other?.javaClass) return false</span>
+
+<span class="nc" id="L56">        other as VaultItem</span>
+
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (id != other.id) return false</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (type != other.type) return false</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (!title.contentEquals(other.title)) return false</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (!payload.contentEquals(other.payload)) return false</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (!crdtState.contentEquals(other.crdtState)) return false</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (dateCreated != other.dateCreated) return false</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (dateModified != other.dateModified) return false</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (lastBackedUpAt != other.lastBackedUpAt) return false</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (identityId != other.identityId) return false</span>
+
+<span class="nc" id="L68">        return true</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="fc" id="L72">        var result = id.hashCode()</span>
+<span class="fc" id="L73">        result = 31 * result + type.hashCode()</span>
+<span class="fc" id="L74">        result = 31 * result + title.contentHashCode()</span>
+<span class="fc" id="L75">        result = 31 * result + payload.contentHashCode()</span>
+<span class="fc" id="L76">        result = 31 * result + crdtState.contentHashCode()</span>
+<span class="fc" id="L77">        result = 31 * result + dateCreated.hashCode()</span>
+<span class="fc" id="L78">        result = 31 * result + dateModified.hashCode()</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        result = 31 * result + (lastBackedUpAt?.hashCode() ?: 0)</span>
+<span class="fc" id="L80">        result = 31 * result + identityId.hashCode()</span>
+<span class="fc" id="L81">        return result</span>
+    }
+}
+
+interface VaultService {
+    suspend fun getItems(labelId: UUID?): Outcome&lt;List&lt;VaultItem&gt;, DomainError&gt;
+
+    suspend fun saveItem(item: VaultItem): Outcome&lt;Unit, DomainError&gt;
+
+    suspend fun setItemLabels(
+        itemId: UUID,
+        labelIds: List&lt;UUID&gt;,
+    ): Outcome&lt;Unit, DomainError&gt;
+
+    suspend fun getItemLabelIds(itemId: UUID): Outcome&lt;List&lt;UUID&gt;, DomainError&gt;
+
+    suspend fun deleteItem(id: UUID): Outcome&lt;Unit, DomainError&gt;
+
+    suspend fun getLabels(): Outcome&lt;List&lt;LabelUiModel&gt;, DomainError&gt;
+
+    suspend fun createLabel(
+        name: String,
+        colorHex: String,
+    ): Outcome&lt;LabelUiModel, DomainError&gt;
+
+    suspend fun deleteLabel(id: UUID): Outcome&lt;Unit, DomainError&gt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

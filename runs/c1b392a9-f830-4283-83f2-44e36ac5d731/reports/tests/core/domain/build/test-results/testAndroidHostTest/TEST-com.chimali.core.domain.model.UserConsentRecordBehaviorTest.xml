@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:30.335Z" hostname="LOQ15IRX10-3" time="0.016">
+  <properties/>
+  <testcase name="record rejects missing required values and timestamps beyond grace()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.0"/>
+  <testcase name="record accepts valid IPv4 IPv6 and maximum credential identity()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <testcase name="identity helpers distinguish credential RP and operation type()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <testcase name="validation failure erases the internal sensitive text buffer()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <testcase name="record rejects blank and oversized user agent and device ID()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <testcase name="record rejects malformed and overlong IP values()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.002"/>
+  <testcase name="eraseSensitiveText erases the owned RP buffer()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.0"/>
+  <testcase name="copy performs deep copy of sensitive text isolating instances()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.0"/>
+  <testcase name="record accepts optional metadata at documented text boundaries()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.0"/>
+  <testcase name="recentness accepts configured window and rejects older records()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.0"/>
+  <testcase name="consent method distinguishes all biometric and PIN combinations()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.002"/>
+  <testcase name="fromText constructs and validates consent record()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <testcase name="diagnostics redact metadata and equals hashCode work on record fields()" classname="com.chimali.core.domain.model.UserConsentRecordBehaviorTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

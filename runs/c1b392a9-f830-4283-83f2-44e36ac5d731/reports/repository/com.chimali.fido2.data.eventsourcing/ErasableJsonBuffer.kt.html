@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErasableJsonBuffer.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">ErasableJsonBuffer.kt</span></div><h1>ErasableJsonBuffer.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import java.io.OutputStream
+
+/** Mutable JSON output whose complete backing storage can be erased after use or failure. */
+<span class="fc" id="L7">internal class ErasableJsonBuffer(</span>
+<span class="fc" id="L8">    initialCapacity: Int = 256,</span>
+<span class="fc" id="L9">) : OutputStream() {</span>
+<span class="fc" id="L10">    private var bytes = ByteArray(initialCapacity)</span>
+    private var length = 0
+
+    /** Appends one low-order byte, growing owned storage and erasing any replaced buffer. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+    override fun write(value: Int) {
+<span class="fc" id="L16">        ensureCapacity(1)</span>
+<span class="fc" id="L17">        bytes[length++] = value.toByte()</span>
+<span class="fc" id="L18">    }</span>
+
+    /** Copies [count] bytes from [source] into this owner; the source remains borrowed. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+    override fun write(
+        source: ByteArray,
+        offset: Int,
+        count: Int,
+    ) {
+<span class="pc bpc" id="L27" title="4 of 8 branches missed.">        require(offset &gt;= 0 &amp;&amp; count &gt;= 0 &amp;&amp; offset &lt;= source.size - count)</span>
+<span class="fc" id="L28">        ensureCapacity(count)</span>
+<span class="fc" id="L29">        source.copyInto(bytes, length, offset, offset + count)</span>
+<span class="fc" id="L30">        length += count</span>
+<span class="fc" id="L31">    }</span>
+
+    /** Returns an independent caller-owned copy of the written prefix. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+<span class="fc" id="L35">    fun copyToOwnedBytes(): ByteArray = bytes.copyOf(length)</span>
+
+    /** Zeroes the complete backing array and resets the visible length; safe to call repeatedly. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+    fun erase() {
+<span class="fc" id="L40">        bytes.fill(0)</span>
+<span class="fc" id="L41">        length = 0</span>
+<span class="fc" id="L42">    }</span>
+
+    /** Test inspection that reports whether length is zero and all owned bytes were overwritten. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+<span class="pc bpc" id="L46" title="3 of 6 branches missed.">    internal fun isErased(): Boolean = length == 0 &amp;&amp; bytes.all { it == 0.toByte() }</span>
+
+    private fun ensureCapacity(additional: Int) {
+<span class="fc" id="L49">        val required = Math.addExact(length, additional)</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        if (required &lt;= bytes.size) return</span>
+<span class="fc" id="L51">        val capacity = maxOf(bytes.size.toLong() * 2, required.toLong()).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()</span>
+<span class="fc" id="L52">        val previous = bytes</span>
+<span class="fc" id="L53">        bytes = previous.copyOf(capacity)</span>
+<span class="fc" id="L54">        previous.fill(0)</span>
+<span class="fc" id="L55">    }</span>
+}
+
+/** Returns an owned serialization copy and always erases the serializer's backing buffer. */
+@Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+internal inline fun encodeToErasableJsonBytes(encode: (OutputStream) -&gt; Unit): ByteArray {
+<span class="fc" id="L61">    val buffer = ErasableJsonBuffer()</span>
+<span class="fc" id="L62">    try {</span>
+<span class="fc" id="L63">        encode(buffer)</span>
+<span class="fc" id="L64">        return buffer.copyToOwnedBytes()</span>
+    } finally {
+<span class="fc" id="L66">        buffer.erase()</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

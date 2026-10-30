@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SensitiveJsonFields.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">SensitiveJsonFields.kt</span></div><h1>SensitiveJsonFields.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import java.io.OutputStream
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
+
+/** Mutable JSON bridge that keeps selected string values out of immutable serializer intermediates. */
+internal object SensitiveJsonFields {
+    private const val HEX = &quot;0123456789abcdef&quot;
+    private const val MAX_ESCAPED_UTF8_BYTES_PER_CHARACTER = 6
+    private const val JSON_DELIMITER_COUNT = 2
+    private const val BYTE_MASK = 0xFF
+    private const val UTF8_MAX_BYTES_PER_UTF16_UNIT = 4
+    private const val HEX_NIBBLE_SHIFT = 4
+    private const val HEX_NIBBLE_MASK = 0x0F
+    private const val HEX_RADIX = 16
+    private const val JSON_BACKSPACE = 0x08
+    private const val JSON_TAB = 0x09
+    private const val JSON_LINE_FEED = 0x0A
+    private const val JSON_FORM_FEED = 0x0C
+    private const val JSON_CARRIAGE_RETURN = 0x0D
+    private const val JSON_CONTROL_LIMIT = 0x20
+    private const val JSON_MIN_CONTROL_CODE = 0x00
+    private const val UNICODE_ESCAPE_DIGITS = 4
+    private const val MAX_JSON_DOCUMENT_BYTES = 1_048_576
+    private const val MAX_JSON_NESTING_DEPTH = 64
+    private const val MAX_JSON_STRING_CHARACTERS = 1_048_576
+    private const val INITIAL_JSON_STRING_CAPACITY = 32
+<span class="fc" id="L32">    private val JSON_WHITESPACE = charArrayOf(' ', '\t', '\r', '\n')</span>
+<span class="fc" id="L33">    private val JSON_PRIMITIVE_DELIMITERS = charArrayOf(',', '}', ']', ' ', '\t', '\r', '\n')</span>
+
+    /** Serializes a sanitized JSON object, replacing each empty selected string with mutable text. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encode(
+        fields: Map&lt;String, CharArray&gt;,
+        serializeSanitized: (OutputStream) -&gt; Unit,
+    ): ByteArray {
+<span class="fc" id="L41">        val sanitized = encodeToErasableJsonBytes(serializeSanitized)</span>
+<span class="fc" id="L42">        val output =</span>
+<span class="fc" id="L43">            ErasableJsonBuffer(</span>
+<span class="fc" id="L44">                sanitized.size +</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">                    fields.values.sumOf { it.size * MAX_ESCAPED_UTF8_BYTES_PER_CHARACTER + JSON_DELIMITER_COUNT },</span>
+            )
+<span class="fc" id="L47">        return try {</span>
+<span class="fc" id="L48">            var cursor = 0</span>
+<span class="fc" id="L49">            fields.forEach { (name, value) -&gt;</span>
+<span class="fc" id="L50">                val placeholder = &quot;\&quot;$name\&quot;:\&quot;\&quot;&quot;.encodeToByteArray()</span>
+<span class="fc" id="L51">                val match = sanitized.indexOf(placeholder, cursor)</span>
+<span class="pc bpc" id="L52" title="2 of 4 branches missed.">                require(match &gt;= cursor) { &quot;Sensitive JSON field placeholder missing&quot; }</span>
+<span class="fc" id="L53">                val prefixLength = placeholder.size - JSON_DELIMITER_COUNT</span>
+<span class="fc" id="L54">                output.write(sanitized, cursor, match + prefixLength - cursor)</span>
+<span class="fc" id="L55">                writeJsonStringContents(output, value)</span>
+<span class="fc" id="L56">                output.write(placeholder.last().toInt())</span>
+<span class="fc" id="L57">                cursor = match + placeholder.size</span>
+<span class="fc" id="L58">                placeholder.fill(0)</span>
+<span class="fc" id="L59">            }</span>
+<span class="fc" id="L60">            output.write(sanitized, cursor, sanitized.size - cursor)</span>
+<span class="fc" id="L61">            output.copyToOwnedBytes()</span>
+        } finally {
+<span class="fc" id="L63">            sanitized.fill(0)</span>
+<span class="fc" id="L64">            output.erase()</span>
+        }
+    }
+
+    /** Decodes selected JSON string fields directly into mutable owners and erases its work buffers. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L70">    fun &lt;T&gt; decode(</span>
+        input: ByteArray,
+        fieldNames: Set&lt;String&gt;,
+<span class="fc" id="L73">        fieldObjectPath: List&lt;String&gt; = emptyList(),</span>
+        deserializeSanitized: (ByteArray) -&gt; T,
+        attachFields: (T, Map&lt;String, CharArray&gt;) -&gt; T,
+    ): T {
+<span class="fc bfc" id="L77" title="All 4 branches covered.">        require(input.size &lt;= MAX_JSON_DOCUMENT_BYTES) { &quot;JSON document exceeds the supported size&quot; }</span>
+<span class="fc" id="L78">        val document = decodeUtf8(input)</span>
+<span class="fc" id="L79">        val redactions = mutableListOf&lt;Redaction&gt;()</span>
+<span class="fc" id="L80">        val fields = linkedMapOf&lt;String, CharArray&gt;()</span>
+<span class="fc" id="L81">        var sanitized: ByteArray? = null</span>
+<span class="fc" id="L82">        var transferred = false</span>
+<span class="fc" id="L83">        try {</span>
+<span class="fc" id="L84">            JsonFieldParser(document, fieldNames, fieldObjectPath, fields, redactions).parse()</span>
+<span class="fc" id="L85">            val sanitizedCharacters = redact(document, redactions)</span>
+<span class="fc" id="L86">            try {</span>
+<span class="fc" id="L87">                sanitized = encodeUtf8(sanitizedCharacters)</span>
+            } finally {
+<span class="fc" id="L89">                sanitizedCharacters.fill('\u0000')</span>
+            }
+<span class="fc" id="L91">            val decoded = deserializeSanitized(sanitized)</span>
+<span class="fc" id="L92">            val result = attachFields(decoded, fields)</span>
+<span class="fc" id="L93">            transferred = true</span>
+<span class="fc" id="L94">            return result</span>
+        } finally {
+<span class="fc" id="L96">            document.fill('\u0000')</span>
+<span class="pc bpc" id="L97" title="1 of 4 branches missed.">            sanitized?.fill(0)</span>
+<span class="fc" id="L98">            redactions.clear()</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">            if (!transferred) fields.values.forEach { it.fill('\u0000') }</span>
+<span class="fc" id="L100">            fields.clear()</span>
+        }
+    }
+
+    private fun writeJsonStringContents(
+        output: OutputStream,
+        characters: CharArray,
+    ) {
+<span class="fc" id="L108">        output.write('&quot;'.code)</span>
+<span class="fc" id="L109">        val utf8 = encodeUtf8(characters)</span>
+<span class="fc" id="L110">        try {</span>
+<span class="fc" id="L111">            utf8.forEach { byte -&gt;</span>
+<span class="fc" id="L112">                val value = byte.toInt() and BYTE_MASK</span>
+<span class="fc" id="L113">                when (value) {</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                    '&quot;'.code -&gt; output.write(&quot;\\\&quot;&quot;.encodeToByteArray())</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">                    '\\'.code -&gt; output.write(&quot;\\\\&quot;.encodeToByteArray())</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">                    JSON_BACKSPACE -&gt; output.write(&quot;\\b&quot;.encodeToByteArray())</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                    JSON_TAB -&gt; output.write(&quot;\\t&quot;.encodeToByteArray())</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">                    JSON_LINE_FEED -&gt; output.write(&quot;\\n&quot;.encodeToByteArray())</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">                    JSON_FORM_FEED -&gt; output.write(&quot;\\f&quot;.encodeToByteArray())</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">                    JSON_CARRIAGE_RETURN -&gt; output.write(&quot;\\r&quot;.encodeToByteArray())</span>
+<span class="pc bpc" id="L121" title="1 of 6 branches missed.">                    in JSON_MIN_CONTROL_CODE until JSON_CONTROL_LIMIT -&gt; {</span>
+<span class="fc" id="L122">                        output.write(&quot;\\u00&quot;.encodeToByteArray())</span>
+<span class="fc" id="L123">                        output.write(HEX[value ushr HEX_NIBBLE_SHIFT].code)</span>
+<span class="fc" id="L124">                        output.write(HEX[value and HEX_NIBBLE_MASK].code)</span>
+                    }
+<span class="fc" id="L126">                    else -&gt; output.write(value)</span>
+                }
+<span class="fc" id="L128">            }</span>
+        } finally {
+<span class="fc" id="L130">            utf8.fill(0)</span>
+        }
+<span class="fc" id="L132">    }</span>
+
+    private fun decodeUtf8(bytes: ByteArray): CharArray {
+<span class="fc" id="L135">        val output = CharBuffer.allocate(bytes.size)</span>
+<span class="fc" id="L136">        try {</span>
+<span class="fc" id="L137">            val decoder =</span>
+<span class="fc" id="L138">                StandardCharsets.UTF_8</span>
+<span class="fc" id="L139">                    .newDecoder()</span>
+<span class="fc" id="L140">                    .onMalformedInput(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L141">                    .onUnmappableCharacter(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L142">            val result = decoder.decode(ByteBuffer.wrap(bytes), output, true)</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            if (result.isError) result.throwException()</span>
+<span class="fc" id="L144">            val flushed = decoder.flush(output)</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            if (flushed.isError) flushed.throwException()</span>
+<span class="fc" id="L146">            return output.array().copyOf(output.position())</span>
+        } finally {
+<span class="fc" id="L148">            output.array().fill('\u0000')</span>
+        }
+    }
+
+    private fun encodeUtf8(characters: CharArray): ByteArray {
+<span class="fc" id="L153">        val output = ByteBuffer.allocate(Math.multiplyExact(characters.size, UTF8_MAX_BYTES_PER_UTF16_UNIT))</span>
+<span class="fc" id="L154">        try {</span>
+<span class="fc" id="L155">            val encoder =</span>
+<span class="fc" id="L156">                StandardCharsets.UTF_8</span>
+<span class="fc" id="L157">                    .newEncoder()</span>
+<span class="fc" id="L158">                    .onMalformedInput(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L159">                    .onUnmappableCharacter(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L160">            val result = encoder.encode(CharBuffer.wrap(characters), output, true)</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">            if (result.isError) result.throwException()</span>
+<span class="fc" id="L162">            val flushed = encoder.flush(output)</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            if (flushed.isError) flushed.throwException()</span>
+<span class="fc" id="L164">            output.flip()</span>
+<span class="fc" id="L165">            return ByteArray(output.remaining()).also(output::get)</span>
+        } finally {
+<span class="fc" id="L167">            output.array().fill(0)</span>
+        }
+    }
+
+    private fun redact(
+        document: CharArray,
+        redactions: List&lt;Redaction&gt;,
+    ): CharArray {
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        val removedCharacters = redactions.sumOf { it.endExclusive - it.start - JSON_DELIMITER_COUNT }</span>
+<span class="fc" id="L176">        val output = CharArray(document.size - removedCharacters)</span>
+<span class="fc" id="L177">        var sourceIndex = 0</span>
+<span class="fc" id="L178">        var destinationIndex = 0</span>
+<span class="fc" id="L179">        redactions.forEach { redaction -&gt;</span>
+<span class="fc" id="L180">            val prefixLength = redaction.start - sourceIndex</span>
+<span class="fc" id="L181">            document.copyInto(output, destinationIndex, sourceIndex, redaction.start)</span>
+<span class="fc" id="L182">            destinationIndex += prefixLength</span>
+<span class="fc" id="L183">            output[destinationIndex++] = '&quot;'</span>
+<span class="fc" id="L184">            output[destinationIndex++] = '&quot;'</span>
+<span class="fc" id="L185">            sourceIndex = redaction.endExclusive</span>
+<span class="fc" id="L186">        }</span>
+<span class="fc" id="L187">        document.copyInto(output, destinationIndex, sourceIndex, document.size)</span>
+<span class="fc" id="L188">        return output</span>
+    }
+
+    private fun ByteArray.indexOf(
+        needle: ByteArray,
+        fromIndex: Int,
+    ): Int {
+<span class="pc bpc" id="L195" title="2 of 4 branches missed.">        if (needle.isEmpty()) return fromIndex.coerceAtMost(size)</span>
+<span class="fc" id="L196">        val lastStart = size - needle.size</span>
+<span class="pc bpc" id="L197" title="2 of 4 branches missed.">        for (start in fromIndex..lastStart) {</span>
+<span class="fc" id="L198">            var matches = true</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">            for (offset in needle.indices) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                if (this[start + offset] != needle[offset]) {</span>
+<span class="fc" id="L201">                    matches = false</span>
+<span class="fc" id="L202">                    break</span>
+                }
+            }
+<span class="fc bfc" id="L205" title="All 2 branches covered.">            if (matches) return start</span>
+        }
+<span class="nc" id="L207">        return -1</span>
+    }
+
+<span class="fc" id="L210">    private data class Redaction(</span>
+<span class="fc" id="L211">        val start: Int,</span>
+<span class="fc" id="L212">        val endExclusive: Int,</span>
+    )
+
+<span class="fc" id="L215">    private class JsonFieldParser(</span>
+<span class="fc" id="L216">        private val document: CharArray,</span>
+<span class="fc" id="L217">        private val fieldNames: Set&lt;String&gt;,</span>
+<span class="fc" id="L218">        private val fieldObjectPath: List&lt;String&gt;,</span>
+<span class="fc" id="L219">        private val fields: MutableMap&lt;String, CharArray&gt;,</span>
+<span class="fc" id="L220">        private val redactions: MutableList&lt;Redaction&gt;,</span>
+    ) {
+        private var cursor = 0
+
+        fun parse() {
+<span class="fc" id="L225">            skipWhitespace()</span>
+<span class="fc" id="L226">            parseValue(objectPath = emptyList(), depth = 0, propertyName = null, capture = false)</span>
+<span class="fc" id="L227">            skipWhitespace()</span>
+<span class="pc bpc" id="L228" title="2 of 4 branches missed.">            require(cursor == document.size) { &quot;Trailing JSON data&quot; }</span>
+<span class="fc" id="L229">        }</span>
+
+        private fun parseValue(
+            objectPath: List&lt;String&gt;?,
+            depth: Int,
+            propertyName: String?,
+            capture: Boolean,
+        ) {
+<span class="fc" id="L237">            skipWhitespace()</span>
+<span class="fc bfc" id="L238" title="All 6 branches covered.">            require(!capture || current() == '&quot;') { &quot;Sensitive JSON field must be a string&quot; }</span>
+<span class="fc bfc" id="L239" title="All 4 branches covered.">            when (current()) {</span>
+<span class="fc" id="L240">                '{' -&gt; parseObject(objectPath, depth + 1)</span>
+<span class="fc" id="L241">                '[' -&gt; parseArray(depth + 1)</span>
+                '&quot;' -&gt; {
+<span class="fc bfc" id="L243" title="All 2 branches covered.">                    if (capture) {</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">                        val fieldKey = propertyName ?: error(&quot;Missing selected JSON field name&quot;)</span>
+<span class="fc bfc" id="L245" title="All 4 branches covered.">                        require(fieldKey !in fields) { &quot;Duplicate sensitive JSON field&quot; }</span>
+<span class="fc" id="L246">                        val parsed = parseString()</span>
+<span class="fc" id="L247">                        fields[fieldKey] = parsed.characters</span>
+<span class="fc" id="L248">                        redactions += Redaction(parsed.start, parsed.endExclusive)</span>
+                    } else {
+<span class="fc" id="L250">                        parseString().characters.fill('\u0000')</span>
+                    }
+                }
+                else -&gt; {
+<span class="pc bpc" id="L254" title="2 of 4 branches missed.">                    require(!capture) { &quot;Sensitive JSON field must be a string&quot; }</span>
+<span class="fc" id="L255">                    parsePrimitive()</span>
+                }
+            }
+<span class="fc" id="L258">        }</span>
+
+        private fun parseObject(
+            objectPath: List&lt;String&gt;?,
+            depth: Int,
+        ) {
+<span class="pc bpc" id="L264" title="2 of 4 branches missed.">            require(depth &lt;= MAX_JSON_NESTING_DEPTH) { &quot;JSON nesting exceeds the supported depth&quot; }</span>
+<span class="fc" id="L265">            expect('{')</span>
+<span class="fc" id="L266">            skipWhitespace()</span>
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">            if (take('}')) return</span>
+<span class="fc" id="L268">            while (true) {</span>
+<span class="fc" id="L269">                skipWhitespace()</span>
+<span class="fc bfc" id="L270" title="All 4 branches covered.">                require(current() == '&quot;') { &quot;Expected object property&quot; }</span>
+<span class="fc" id="L271">                val name = parseString().characters</span>
+<span class="fc" id="L272">                val sensitiveName = fieldNames.firstOrNull { name.contentEqualsText(it) }</span>
+<span class="fc" id="L273">                val propertyName = name.concatToString()</span>
+<span class="fc" id="L274">                name.fill('\u0000')</span>
+<span class="fc" id="L275">                skipWhitespace()</span>
+<span class="fc" id="L276">                expect(':')</span>
+<span class="pc bpc" id="L277" title="1 of 4 branches missed.">                val selectedPath = objectPath != null &amp;&amp; objectPath == fieldObjectPath</span>
+<span class="fc bfc" id="L278" title="All 4 branches covered.">                val capture = selectedPath &amp;&amp; sensitiveName != null</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">                val childPath = objectPath?.let { it + propertyName }</span>
+<span class="fc" id="L280">                parseValue(childPath, depth, sensitiveName, capture)</span>
+<span class="fc" id="L281">                skipWhitespace()</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                if (take('}')) return</span>
+<span class="fc" id="L283">                expect(',')</span>
+            }
+        }
+
+        private fun parseArray(depth: Int) {
+<span class="pc bpc" id="L288" title="2 of 4 branches missed.">            require(depth &lt;= MAX_JSON_NESTING_DEPTH) { &quot;JSON nesting exceeds the supported depth&quot; }</span>
+<span class="fc" id="L289">            expect('[')</span>
+<span class="fc" id="L290">            skipWhitespace()</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">            if (take(']')) return</span>
+<span class="fc" id="L292">            while (true) {</span>
+<span class="fc" id="L293">                parseValue(objectPath = null, depth = depth, propertyName = null, capture = false)</span>
+<span class="fc" id="L294">                skipWhitespace()</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">                if (take(']')) return</span>
+<span class="fc" id="L296">                expect(',')</span>
+            }
+        }
+
+        private fun parsePrimitive() {
+<span class="fc" id="L301">            val start = cursor</span>
+<span class="pc bpc" id="L302" title="1 of 4 branches missed.">            while (cursor &lt; document.size &amp;&amp; document[cursor] !in JSON_PRIMITIVE_DELIMITERS) {</span>
+<span class="fc" id="L303">                cursor++</span>
+            }
+<span class="pc bpc" id="L305" title="2 of 4 branches missed.">            require(cursor &gt; start) { &quot;Expected JSON value&quot; }</span>
+<span class="fc" id="L306">        }</span>
+
+        private fun parseString(): ParsedString {
+<span class="fc" id="L309">            val start = cursor</span>
+<span class="fc" id="L310">            expect('&quot;')</span>
+<span class="fc" id="L311">            var characters = CharArray(minOf(INITIAL_JSON_STRING_CAPACITY, document.size - cursor).coerceAtLeast(1))</span>
+<span class="fc" id="L312">            var length = 0</span>
+
+            fun append(character: Char) {
+<span class="pc bpc" id="L315" title="2 of 4 branches missed.">                require(length &lt; MAX_JSON_STRING_CHARACTERS) { &quot;JSON string exceeds the supported size&quot; }</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">                if (length == characters.size) {</span>
+<span class="fc" id="L317">                    val replacement = characters.copyOf(minOf(MAX_JSON_STRING_CHARACTERS, characters.size * 2))</span>
+<span class="fc" id="L318">                    characters.fill('\u0000')</span>
+<span class="fc" id="L319">                    characters = replacement</span>
+                }
+<span class="fc" id="L321">                characters[length++] = character</span>
+<span class="fc" id="L322">            }</span>
+
+<span class="fc" id="L324">            try {</span>
+<span class="fc" id="L325">                while (true) {</span>
+<span class="pc bpc" id="L326" title="2 of 4 branches missed.">                    require(cursor &lt; document.size) { &quot;Unterminated JSON string&quot; }</span>
+<span class="fc" id="L327">                    val character = document[cursor++]</span>
+<span class="fc" id="L328">                    when {</span>
+<span class="fc bfc" id="L329" title="All 2 branches covered.">                        character == '&quot;' -&gt; return ParsedString(start, cursor, characters.copyOf(length))</span>
+<span class="fc bfc" id="L330" title="All 2 branches covered.">                        character == '\\' -&gt; {</span>
+<span class="pc bpc" id="L331" title="2 of 4 branches missed.">                            require(cursor &lt; document.size) { &quot;Incomplete JSON escape&quot; }</span>
+<span class="pc bpc" id="L332" title="4 of 8 branches missed.">                            when (val escaped = document[cursor++]) {</span>
+<span class="fc" id="L333">                                '&quot;', '\\', '/' -&gt; append(escaped)</span>
+<span class="nc" id="L334">                                'b' -&gt; append('\b')</span>
+<span class="nc" id="L335">                                'f' -&gt; append('\u000C')</span>
+<span class="fc" id="L336">                                'n' -&gt; append('\n')</span>
+<span class="nc" id="L337">                                'r' -&gt; append('\r')</span>
+<span class="fc" id="L338">                                't' -&gt; append('\t')</span>
+<span class="pc" id="L339">                                'u' -&gt; append(parseUnicodeEscape())</span>
+<span class="nc" id="L340">                                else -&gt; error(&quot;Invalid JSON escape&quot;)</span>
+                            }
+                        }
+<span class="pc bpc" id="L343" title="1 of 2 branches missed.">                        character.code &lt; JSON_CONTROL_LIMIT -&gt; error(&quot;Unescaped JSON control character&quot;)</span>
+<span class="fc" id="L344">                        else -&gt; append(character)</span>
+                    }
+                }
+            } finally {
+<span class="fc" id="L348">                characters.fill('\u0000')</span>
+            }
+        }
+
+        private fun parseUnicodeEscape(): Char {
+<span class="pc bpc" id="L353" title="2 of 4 branches missed.">            require(cursor &lt;= document.size - UNICODE_ESCAPE_DIGITS) { &quot;Incomplete Unicode escape&quot; }</span>
+<span class="fc" id="L354">            var value = 0</span>
+<span class="fc bfc" id="L355" title="All 2 branches covered.">            repeat(UNICODE_ESCAPE_DIGITS) {</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">                val digit = document[cursor++].digitToIntOrNull(HEX_RADIX) ?: error(&quot;Invalid Unicode escape&quot;)</span>
+<span class="fc" id="L357">                value = (value shl HEX_NIBBLE_SHIFT) or digit</span>
+<span class="fc" id="L358">            }</span>
+<span class="fc" id="L359">            return value.toChar()</span>
+        }
+
+        private fun skipWhitespace() {
+<span class="fc bfc" id="L363" title="All 4 branches covered.">            while (cursor &lt; document.size &amp;&amp; document[cursor] in JSON_WHITESPACE) cursor++</span>
+<span class="fc" id="L364">        }</span>
+
+<span class="pc bpc" id="L366" title="3 of 6 branches missed.">        private fun current(): Char = document.getOrElse(cursor) { '\u0000' }</span>
+
+        private fun take(expected: Char): Boolean {
+<span class="fc bfc" id="L369" title="All 2 branches covered.">            if (current() != expected) return false</span>
+<span class="fc" id="L370">            cursor++</span>
+<span class="fc" id="L371">            return true</span>
+        }
+
+        private fun expect(expected: Char) {
+<span class="pc bpc" id="L375" title="1 of 2 branches missed.">            require(take(expected)) { &quot;Expected JSON delimiter&quot; }</span>
+<span class="fc" id="L376">        }</span>
+
+        private fun CharArray.contentEqualsText(text: String): Boolean =
+<span class="fc bfc" id="L379" title="All 6 branches covered.">            size == text.length &amp;&amp; indices.all { this[it] == text[it] }</span>
+    }
+
+<span class="fc" id="L382">    private data class ParsedString(</span>
+<span class="fc" id="L383">        val start: Int,</span>
+<span class="fc" id="L384">        val endExclusive: Int,</span>
+<span class="fc" id="L385">        val characters: CharArray,</span>
+    )
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

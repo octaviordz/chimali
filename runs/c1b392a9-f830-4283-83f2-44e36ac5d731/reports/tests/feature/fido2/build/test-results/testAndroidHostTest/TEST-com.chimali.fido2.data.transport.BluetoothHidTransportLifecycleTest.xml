@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:30.894Z" hostname="LOQ15IRX10-3" time="2.188">
+  <properties/>
+  <testcase name="unallocated CIDs and stale session results are rejected before wallet ownership()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.768"/>
+  <testcase name="real wrapper connection callback rebases sender and fences reconnect traffic()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.162"/>
+  <testcase name="[1] timeout" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.12"/>
+  <testcase name="[2] cancel" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.087"/>
+  <testcase name="[3] transfer-failure" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.099"/>
+  <testcase name="[4] success" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.089"/>
+  <testcase name="[1] Idle, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.15"/>
+  <testcase name="[2] Advertising, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.125"/>
+  <testcase name="[3] Connected, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.012"/>
+  <testcase name="CID allocation has a session limit and a finite collision retry count()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.092"/>
+  <testcase name="[1] success" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.086"/>
+  <testcase name="[2] send-failure" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.082"/>
+  <testcase name="[3] send-exception" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.09"/>
+  <testcase name="[4] cancel" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.108"/>
+  <testcase name="prior sender cleanup cannot consume a successor generation response()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest" time="0.109"/>
+  <system-out><![CDATA[Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Debug: Advertising for host connections
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#2666)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Info: Host connected: 00:11:22:33:44:55
+Debug: CTAPHID cmd=0x6 cid=ffffffff payloadLen=8
+Info: CTAPHID_INIT: assigned CID=00000020
+Debug: sendReport dispatched len=62 success=true
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=Connected(device=BluetoothDevice(#2666)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Debug: Device disconnected: 00:11:22:33:44:55
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#2666)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Debug: CTAPHID cmd=0x1 cid=00000020 payloadLen=1
+Debug: CTAPHID cmd=0x10 cid=00000020 payloadLen=1
+Debug: CTAPHID cmd=0x6 cid=ffffffff payloadLen=8
+Info: CTAPHID_INIT: assigned CID=00000021
+Debug: sendReport dispatched len=62 success=true
+Debug: CTAPHID cmd=0x10 cid=00000021 payloadLen=1
+Debug: CTAP2 command=0x1 on CID=00000021
+Error: HID connection error: synthetic terminal host error
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 7ms (Total: 7ms, User: 0ms, HID reports accepted: false)
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=Error(message=synthetic terminal host error), connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#2666)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Info: Host connected: 00:11:22:33:44:55
+Debug: CTAPHID cmd=0x6 cid=ffffffff payloadLen=8
+Info: CTAPHID_INIT: assigned CID=00000022
+Debug: sendReport dispatched len=62 success=true
+Debug: CTAPHID cmd=0x10 cid=00000022 payloadLen=1
+Debug: CTAP2 command=0x1 on CID=00000022
+Debug: FIDO2 Operation succeeded for host:  (00:11:22:33:44:55), Class: 0
+Debug: sendReport dispatched len=62 success=true
+Debug: sendReport dispatched len=62 success=true
+Debug: sendReport dispatched len=62 success=true
+Debug: sendReport dispatched len=62 success=true
+Debug: sendReport dispatched len=62 success=true
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 6ms (Total: 6ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=Connected(device=BluetoothDevice(#2666)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 1ms (Total: 1ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 0ms (Total: 0ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 1ms (Total: 1ms, User: 0ms, HID reports accepted: false)
+Error: CTAPHID request handler failed
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 0ms (Total: 0ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Warn: No active HID sender or its bounded queue is full; dropping packet
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Warn: No active HID sender or its bounded queue is full; dropping packet
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x7f on CID=01020304
+Warn: Unsupported CTAP2 command 0x7f
+Debug: [NFR-PERF-030][local-handoff] CTAP2_0x7f = 1ms (Total: 1ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x7f on CID=01020304
+Warn: Unsupported CTAP2 command 0x7f
+Warn: sendReport returned false — host may have disconnected
+Debug: [NFR-PERF-030][local-handoff] CTAP2_0x7f = 1ms (Total: 1ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x7f on CID=01020304
+Warn: Unsupported CTAP2 command 0x7f
+Error: Failed to send HID report
+Debug: [NFR-PERF-030][local-handoff] CTAP2_0x7f = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x7f on CID=01020304
+Warn: Unsupported CTAP2 command 0x7f
+Debug: [NFR-PERF-030][local-handoff] CTAP2_0x7f = 1ms (Total: 1ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+]]></system-out>
+  <system-err><![CDATA[java.lang.IllegalStateException: synthetic owner-result transfer failure
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:707)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport$TrackingMasterSeedProvider.withSessionOwner(BluetoothHidTransportLifecycleTest.kt:504)
+	at com.chimali.core.security.api.MasterSeedProvider.withSessionOwner$default(MasterSeedProvider.kt:28)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invokeSuspend(BluetoothHidTransportImpl.kt:556)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invoke(BluetoothHidTransportImpl.kt)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatched(Undispatched.kt:66)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturnIgnoreTimeout(Undispatched.kt:50)
+	at kotlinx.coroutines.TimeoutKt.setupTimeout(Timeout.kt:233)
+	at kotlinx.coroutines.TimeoutKt.withTimeout(Timeout.kt:29)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.handleCbor(BluetoothHidTransportImpl.kt:551)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.access$handleCbor(BluetoothHidTransportImpl.kt:66)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$cborRequestOwner$4.invoke(BluetoothHidTransportImpl.kt:173)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$cborRequestOwner$4.invoke(BluetoothHidTransportImpl.kt:173)
+	at com.chimali.fido2.data.transport.CtapHidRequestOwner$dispatch$operation$1$admittedOperation$1.invokeSuspend(CtapHidRequestOwner.kt:69)
+	at _COROUTINE._BOUNDARY._(CoroutineDebugging.kt:42)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.handleCbor(BluetoothHidTransportImpl.kt:551)
+	at com.chimali.fido2.data.transport.CtapHidRequestOwner$dispatch$operation$1$admittedOperation$1.invokeSuspend(CtapHidRequestOwner.kt:69)
+Caused by: java.lang.IllegalStateException: synthetic owner-result transfer failure
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:707)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1$4.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport$TrackingMasterSeedProvider.withSessionOwner(BluetoothHidTransportLifecycleTest.kt:504)
+	at com.chimali.core.security.api.MasterSeedProvider.withSessionOwner$default(MasterSeedProvider.kt:28)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invokeSuspend(BluetoothHidTransportImpl.kt:556)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$handleCbor$packets$1.invoke(BluetoothHidTransportImpl.kt)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatched(Undispatched.kt:66)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturnIgnoreTimeout(Undispatched.kt:50)
+	at kotlinx.coroutines.TimeoutKt.setupTimeout(Timeout.kt:233)
+	at kotlinx.coroutines.TimeoutKt.withTimeout(Timeout.kt:29)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.handleCbor(BluetoothHidTransportImpl.kt:551)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.access$handleCbor(BluetoothHidTransportImpl.kt:66)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$cborRequestOwner$4.invoke(BluetoothHidTransportImpl.kt:173)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$cborRequestOwner$4.invoke(BluetoothHidTransportImpl.kt:173)
+	at com.chimali.fido2.data.transport.CtapHidRequestOwner$dispatch$operation$1$admittedOperation$1.invokeSuspend(CtapHidRequestOwner.kt:69)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.runCurrent(TestCoroutineScheduler.kt:131)
+	at kotlinx.coroutines.test.TestScopeKt.runCurrent(TestScope.kt:91)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:714)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest(BluetoothHidTransportLifecycleTest.kt:210)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest$default(BluetoothHidTransportLifecycleTest.kt:182)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:686)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response created before wallet owner transfer is erased or handed off by terminal outcome$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest.response created before wallet owner transfer is erased or handed off by terminal outcome(BluetoothHidTransportLifecycleTest.kt:685)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestTemplateMethod(TimeoutExtension.java:94)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask$DefaultDynamicTestExecutor.execute(NodeTestTask.java:226)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask$DefaultDynamicTestExecutor.execute(NodeTestTask.java:204)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:142)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.lambda$execute$2(TestTemplateTestDescriptor.java:110)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:179)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:110)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:44)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+	at jdk.proxy2/jdk.proxy2.$Proxy6.stop(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+java.lang.IllegalStateException: synthetic HID driver failure
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1$1.invokeSuspend$lambda$0(BluetoothHidTransportLifecycleTest.kt:646)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport$Fixture._init_$lambda$15(BluetoothHidTransportLifecycleTest.kt:438)
+	at io.mockk.MockKStubScope$answers$1.invoke(API.kt:2249)
+	at io.mockk.MockKStubScope$answers$1.invoke(API.kt:2249)
+	at io.mockk.FunctionAnswer.answer(Answers.kt:19)
+	at io.mockk.impl.stub.AnswerAnsweringOpportunity.answer(AnswerAnsweringOpportunity.kt:14)
+	at io.mockk.impl.stub.MockKStub.answer(MockKStub.kt:54)
+	at io.mockk.impl.recording.states.AnsweringState.call(AnsweringState.kt:16)
+	at io.mockk.impl.recording.CommonCallRecorder.call(CommonCallRecorder.kt:53)
+	at io.mockk.impl.stub.MockKStub.handleInvocation(MockKStub.kt:269)
+	at io.mockk.impl.instantiation.JvmMockFactoryHelper$mockHandler$1.invocation(JvmMockFactoryHelper.kt:24)
+	at io.mockk.proxy.jvm.advice.Interceptor.call(Interceptor.kt:21)
+	at com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapper.sendReport(BluetoothHidDeviceWrapper.kt:701)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3$1.invokeSuspend(BluetoothHidTransportImpl.kt:208)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3$1.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3$1.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.util.performance.PerformanceTrace.section(PerformanceTrace.kt:24)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3.invokeSuspend(BluetoothHidTransportImpl.kt:207)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl$sendQueueSender$3.invoke(BluetoothHidTransportImpl.kt)
+	at com.chimali.fido2.data.transport.HidReportSender.sendOne(HidReportSender.kt:167)
+	at com.chimali.fido2.data.transport.HidReportSender.access$sendOne(HidReportSender.kt:18)
+	at com.chimali.fido2.data.transport.HidReportSender$start$job$1.invokeSuspend(HidReportSender.kt:68)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.runCurrent(TestCoroutineScheduler.kt:131)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:664)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest(BluetoothHidTransportLifecycleTest.kt:210)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest$default(BluetoothHidTransportLifecycleTest.kt:182)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:637)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest$response packet remains readable through handoff and is erased afterward$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest.response packet remains readable through handoff and is erased afterward(BluetoothHidTransportLifecycleTest.kt:635)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestTemplateMethod(TimeoutExtension.java:94)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask$DefaultDynamicTestExecutor.execute(NodeTestTask.java:226)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask$DefaultDynamicTestExecutor.execute(NodeTestTask.java:204)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:142)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.lambda$execute$2(TestTemplateTestDescriptor.java:110)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:179)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:110)
+	at org.junit.jupiter.engine.descriptor.TestTemplateTestDescriptor.execute(TestTemplateTestDescriptor.java:44)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+	at jdk.proxy2/jdk.proxy2.$Proxy6.stop(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+]]></system-err>
+</testsuite>

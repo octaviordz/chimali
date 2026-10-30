@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PasskeyAggregateServiceImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">PasskeyAggregateServiceImpl.kt</span></div><h1>PasskeyAggregateServiceImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.DomainEvent
+import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.Snapshot
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyDecider
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyEvent
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.domain.repository.EventStoreRepository
+import com.chimali.core.domain.repository.SnapshotRepository
+import com.chimali.core.domain.valueobject.CredentialId
+import kotlinx.coroutines.CancellationException
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+
+/**
+ * Implementation of AggregateService for the Passkey aggregate.
+ * Orchestrates hydration and command execution with retry logic.
+ */
+<span class="fc" id="L24">class PasskeyAggregateServiceImpl(</span>
+<span class="fc" id="L25">    private val eventStoreRepository: EventStoreRepository,</span>
+<span class="fc" id="L26">    private val snapshotRepository: SnapshotRepository,</span>
+<span class="fc" id="L27">    private val decider: PasskeyDecider = PasskeyDecider(),</span>
+<span class="fc" id="L28">) : AggregateService&lt;PasskeyCommand, PasskeyState&gt; {</span>
+    companion object {
+        private const val MAX_RETRIES = 3
+        private const val SNAPSHOT_THRESHOLD = 20
+        private const val INVALID_COMMAND_MESSAGE = &quot;Invalid passkey command&quot;
+    }
+
+    /** Reconstructs owned aggregate state from the latest snapshot and subsequent events. */
+    @Req(&quot;FR-003&quot;, &quot;FR-013&quot;, &quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getState(
+        aggregateId: String,
+        asOf: Instant?,
+    ): Result&lt;PasskeyState&gt; =
+<span class="fc" id="L41">        try {</span>
+<span class="fc" id="L42">            getStateOwned(aggregateId, asOf)</span>
+<span class="fc" id="L43">        } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L44">            throw cancellation</span>
+<span class="fc" id="L45">        } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L46">            Result.failure(MalformedPasskeyAggregateException())</span>
+<span class="nc" id="L47">        } catch (_: ClassCastException) {</span>
+<span class="nc" id="L48">            Result.failure(MalformedPasskeyAggregateException())</span>
+<span class="nc" id="L49">        } catch (_: IllegalStateException) {</span>
+<span class="pc" id="L50">            Result.failure(MalformedPasskeyAggregateException())</span>
+<span class="fc" id="L51">        }</span>
+
+    // Ownership scopes are intentionally nested so snapshot fallback and transfer cleanup stay paired.
+    @Suppress(&quot;NestedBlockDepth&quot;)
+    private suspend fun getStateOwned(
+        aggregateId: String,
+        asOf: Instant?,
+    ): Result&lt;PasskeyState&gt; {
+        // Try to load from snapshot if we're looking for the latest state
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (asOf == null) {</span>
+<span class="fc" id="L61">            val snapshotResult = snapshotRepository.getLatest&lt;PasskeyState&gt;(EventKind.PASSKEY, aggregateId)</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            val snapshot = snapshotResult.getOrNull()</span>
+
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if (snapshot != null) {</span>
+<span class="fc" id="L65">                val sourceState = snapshot.state</span>
+<span class="fc" id="L66">                val initialState =</span>
+<span class="fc" id="L67">                    try {</span>
+<span class="fc" id="L68">                        validateSnapshot(snapshot, aggregateId)</span>
+<span class="fc" id="L69">                        sourceState.copyWithOwnedMetadata()</span>
+<span class="fc" id="L70">                    } catch (_: InvalidPasskeyStateException) {</span>
+<span class="fc" id="L71">                        null</span>
+                    } finally {
+<span class="fc" id="L73">                        sourceState.eraseSensitiveMetadata()</span>
+                    }
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">                if (initialState != null) {</span>
+<span class="fc" id="L77">                    var stateTransferred = false</span>
+<span class="fc" id="L78">                    try {</span>
+<span class="fc" id="L79">                        val eventsResult =</span>
+<span class="fc" id="L80">                            eventStoreRepository.getEventsFrom(</span>
+<span class="fc" id="L81">                                EventKind.PASSKEY,</span>
+<span class="fc" id="L82">                                aggregateId,</span>
+<span class="fc" id="L83">                                snapshot.sequenceNumber,</span>
+                            )
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">                        return eventsResult.fold(</span>
+                            onSuccess = { events -&gt;
+<span class="fc" id="L87">                                val reconstructed = foldOwnedEvents(initialState, events, aggregateId)</span>
+<span class="fc" id="L88">                                stateTransferred = true</span>
+<span class="fc" id="L89">                                Result.success(reconstructed)</span>
+                            },
+<span class="nc" id="L91">                            onFailure = { failure -&gt; Result.failure(failure) },</span>
+                        )
+                    } finally {
+<span class="fc bfc" id="L94" title="All 2 branches covered.">                        if (!stateTransferred) initialState.eraseSensitiveMetadata()</span>
+                    }
+                }
+            }
+        }
+
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">        return eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, asOf).fold(</span>
+<span class="fc" id="L101">            onSuccess = { events -&gt; Result.success(foldOwnedEvents(PasskeyState(), events, aggregateId)) },</span>
+<span class="nc" id="L102">            onFailure = { failure -&gt; Result.failure(failure) },</span>
+        )
+    }
+
+<span class="fc" id="L106">    private fun foldOwnedEvents(</span>
+        initialState: PasskeyState,
+        events: List&lt;DomainEvent&gt;,
+        aggregateId: String,
+<span class="fc" id="L110">        eraseEvents: Boolean = true,</span>
+    ): PasskeyState {
+<span class="fc" id="L112">        var state = initialState</span>
+<span class="fc" id="L113">        var returnedState = false</span>
+<span class="fc" id="L114">        try {</span>
+<span class="fc" id="L115">            validateState(state, aggregateId, allowInitial = true)</span>
+<span class="fc" id="L116">            events.forEach { domainEvent -&gt;</span>
+<span class="pc bpc" id="L117" title="2 of 4 branches missed.">                val event = domainEvent as? PasskeyEvent ?: invalidPasskeyState()</span>
+<span class="pc bpc" id="L118" title="2 of 4 branches missed.">                if (event.aggregateId != aggregateId || state.sequenceNumber == Long.MAX_VALUE) {</span>
+<span class="nc" id="L119">                    invalidPasskeyState()</span>
+                }
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">                if (event.sequenceNumber != state.sequenceNumber + 1L) invalidPasskeyState()</span>
+<span class="fc" id="L122">                val evolved =</span>
+<span class="fc" id="L123">                    try {</span>
+<span class="fc" id="L124">                        decider.evolve(state, event)</span>
+<span class="fc" id="L125">                    } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L126">                        invalidPasskeyState()</span>
+                    }
+<span class="fc" id="L128">                state.eraseSensitiveMetadata()</span>
+<span class="fc" id="L129">                state = evolved</span>
+<span class="fc" id="L130">                validateState(state, aggregateId, allowInitial = false)</span>
+<span class="fc" id="L131">            }</span>
+<span class="fc" id="L132">            returnedState = true</span>
+<span class="fc" id="L133">            return state</span>
+        } finally {
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">            if (!returnedState) state.eraseSensitiveMetadata()</span>
+<span class="pc bpc" id="L136" title="1 of 4 branches missed.">            if (eraseEvents) {</span>
+<span class="fc" id="L137">                events.filterIsInstance&lt;PasskeyEvent.Registered&gt;().forEach { it.eraseSensitiveMetadata() }</span>
+            }
+        }
+    }
+
+    private fun validateSnapshot(
+        snapshot: Snapshot&lt;PasskeyState&gt;,
+        aggregateId: String,
+    ) {
+<span class="pc bpc" id="L146" title="1 of 4 branches missed.">        if (snapshot.aggregateId != aggregateId || snapshot.sequenceNumber != snapshot.state.sequenceNumber) {</span>
+<span class="nc" id="L147">            invalidPasskeyState()</span>
+        }
+<span class="fc" id="L149">        validateState(snapshot.state, aggregateId, allowInitial = false)</span>
+<span class="fc" id="L150">    }</span>
+
+    private fun validateState(
+        state: PasskeyState,
+        aggregateId: String,
+        allowInitial: Boolean,
+    ) {
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (state.isInitialState()) {</span>
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">            if (allowInitial) return</span>
+<span class="nc" id="L159">            invalidPasskeyState()</span>
+        }
+<span class="pc bpc" id="L161" title="1 of 6 branches missed.">        if (state.id != aggregateId || state.sequenceNumber &lt;= 0L || state.publicKey.isBlank()) {</span>
+<span class="nc" id="L162">            invalidPasskeyState()</span>
+        }
+<span class="fc" id="L164">        try {</span>
+<span class="fc" id="L165">            CredentialKeyDescriptor(</span>
+<span class="fc" id="L166">                CredentialId.fromByteArray(state.credentialId),</span>
+<span class="fc" id="L167">                state.coseAlgorithm,</span>
+<span class="fc" id="L168">                state.derivationProfile,</span>
+            )
+<span class="fc" id="L170">        } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L171">            invalidPasskeyState()</span>
+        }
+<span class="fc" id="L173">    }</span>
+
+    private fun PasskeyState.isInitialState(): Boolean =
+<span class="fc bfc" id="L176" title="All 4 branches covered.">        id.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L177" title="All 4 branches covered.">            rpId.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L178" title="All 4 branches covered.">            userId.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L179" title="All 4 branches covered.">            userName.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L180" title="All 4 branches covered.">            userDisplayName.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L181" title="All 4 branches covered.">            credentialId.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L182" title="All 4 branches covered.">            publicKey.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L183" title="All 4 branches covered.">            aaguid.isEmpty() &amp;&amp;</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">            signCount == 0L &amp;&amp;</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">            !isDeleted &amp;&amp;</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">            sequenceNumber == 0L &amp;&amp;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">            coseAlgorithm == 0 &amp;&amp;</span>
+<span class="fc bfc" id="L188" title="All 4 branches covered.">            derivationProfile.isEmpty()</span>
+
+    /** Applies a command, persists its events, and returns caller-owned reconstructed state. */
+    @Req(&quot;FR-003&quot;, &quot;FR-013&quot;, &quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun execute(
+        aggregateId: String,
+        command: PasskeyCommand,
+    ): Result&lt;PasskeyState&gt; =
+<span class="fc" id="L196">        try {</span>
+<span class="fc" id="L197">            executeOwned(aggregateId, command)</span>
+<span class="fc" id="L198">        } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L199">            throw cancellation</span>
+<span class="fc" id="L200">        } catch (failure: IllegalArgumentException) {</span>
+            // Preserve errors raised by repositories/snapshots; only validation failures before
+            // append are translated to InvalidPasskeyCommandException below.
+<span class="fc" id="L203">            Result.failure(failure)</span>
+        } finally {
+<span class="fc bfc" id="L205" title="All 4 branches covered.">            (command as? PasskeyCommand.Register)?.eraseSensitiveMetadata()</span>
+<span class="fc" id="L206">        }</span>
+
+    private suspend fun executeOwned(
+        aggregateId: String,
+        command: PasskeyCommand,
+    ): Result&lt;PasskeyState&gt; {
+<span class="fc" id="L212">        var lastResult: Result&lt;Unit&gt;? = null</span>
+
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">        repeat(MAX_RETRIES) {</span>
+<span class="fc" id="L215">            val currentStateResult = getState(aggregateId)</span>
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">            if (currentStateResult.isFailure) return currentStateResult</span>
+
+<span class="fc" id="L218">            val currentState = currentStateResult.getOrThrow()</span>
+<span class="fc" id="L219">            var events: List&lt;PasskeyEvent&gt; = emptyList()</span>
+<span class="fc" id="L220">            var preserveCurrentState = false</span>
+<span class="fc" id="L221">            var stateToReturn: PasskeyState? = null</span>
+<span class="fc" id="L222">            try {</span>
+<span class="fc" id="L223">                try {</span>
+<span class="fc" id="L224">                    validateCommand(aggregateId, currentState, command)</span>
+<span class="fc" id="L225">                    events = decider.decide(currentState, command)</span>
+<span class="fc" id="L226">                } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L227">                    return Result.failure(InvalidPasskeyCommandException())</span>
+                }
+
+<span class="fc bfc" id="L230" title="All 2 branches covered.">                if (events.isEmpty()) {</span>
+<span class="fc" id="L231">                    preserveCurrentState = true</span>
+<span class="fc" id="L232">                    return Result.success(currentState)</span>
+                }
+
+                // Validate the complete prospective state before committing authoritative events.
+                // Keep event metadata owned until append has consumed it.
+<span class="fc" id="L237">                val prospectiveState =</span>
+<span class="fc" id="L238">                    try {</span>
+<span class="fc" id="L239">                        foldOwnedEvents(currentState, events, aggregateId, eraseEvents = false)</span>
+<span class="nc" id="L240">                    } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L241">                        return Result.failure(InvalidPasskeyCommandException())</span>
+                    }
+<span class="fc" id="L243">                stateToReturn = prospectiveState</span>
+<span class="fc" id="L244">                val appendResult: Result&lt;Unit&gt; = eventStoreRepository.append(EventKind.PASSKEY, events)</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                if (appendResult.isSuccess) {</span>
+<span class="fc" id="L246">                    val state = prospectiveState</span>
+
+                    // Check if we should take a snapshot (threshold: 20 events)
+<span class="fc bfc" id="L249" title="All 2 branches covered.">                    if (state.sequenceNumber % SNAPSHOT_THRESHOLD == 0L) {</span>
+<span class="fc" id="L250">                        val snapshotResult =</span>
+<span class="fc" id="L251">                            snapshotRepository.save(</span>
+<span class="fc" id="L252">                                EventKind.PASSKEY,</span>
+<span class="fc" id="L253">                                Snapshot(</span>
+<span class="fc" id="L254">                                    aggregateId = aggregateId,</span>
+<span class="fc" id="L255">                                    sequenceNumber = state.sequenceNumber,</span>
+<span class="fc" id="L256">                                    state = state,</span>
+<span class="fc" id="L257">                                    timestamp = Clock.System.now(),</span>
+                                ),
+                            )
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                        if (snapshotResult.isFailure) {</span>
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">                            return Result.failure(requireNotNull(snapshotResult.exceptionOrNull()))</span>
+                        }
+                    }
+
+<span class="fc" id="L265">                    preserveCurrentState = true</span>
+<span class="fc" id="L266">                    return Result.success(state)</span>
+                }
+<span class="fc" id="L268">                lastResult = appendResult</span>
+            } finally {
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">                if (!preserveCurrentState) {</span>
+<span class="pc" id="L271">                    currentState.eraseSensitiveMetadata()</span>
+<span class="pc bpc" id="L272" title="1 of 2 branches missed.">                    stateToReturn?.eraseSensitiveMetadata()</span>
+                }
+<span class="pc" id="L274">                events.filterIsInstance&lt;PasskeyEvent.Registered&gt;().forEach { it.eraseSensitiveMetadata() }</span>
+            }
+<span class="fc" id="L276">        }</span>
+
+<span class="nc" id="L278">        val exception =</span>
+<span class="nc bnc" id="L279" title="All 4 branches missed.">            lastResult?.exceptionOrNull() ?: RuntimeException(</span>
+<span class="nc" id="L280">                &quot;Passkey aggregate command execution failed after retries&quot;,</span>
+            )
+<span class="nc" id="L282">        val finalResult: Result&lt;PasskeyState&gt; = Result.failure(exception)</span>
+<span class="nc" id="L283">        return finalResult</span>
+    }
+
+    private fun PasskeyState.copyWithOwnedMetadata(): PasskeyState =
+<span class="fc" id="L287">        copy(</span>
+<span class="fc" id="L288">            rpId = rpId.copyOf(),</span>
+<span class="fc" id="L289">            userId = userId.copyOf(),</span>
+<span class="fc" id="L290">            userName = userName.copyOf(),</span>
+<span class="fc" id="L291">            userDisplayName = userDisplayName.copyOf(),</span>
+<span class="fc" id="L292">        )</span>
+
+    private fun validateCommand(
+        aggregateId: String,
+        state: PasskeyState,
+        command: PasskeyCommand,
+    ) {
+<span class="pc bpc" id="L299" title="2 of 4 branches missed.">        require(aggregateId.isNotBlank()) { INVALID_COMMAND_MESSAGE }</span>
+<span class="fc" id="L300">        when (command) {</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">            is PasskeyCommand.Register -&gt; {</span>
+<span class="pc bpc" id="L302" title="3 of 6 branches missed.">                require(command.id == aggregateId &amp;&amp; state.isInitialState()) { INVALID_COMMAND_MESSAGE }</span>
+<span class="fc bfc" id="L303" title="All 4 branches covered.">                require(command.publicKey.isNotBlank()) { INVALID_COMMAND_MESSAGE }</span>
+<span class="fc" id="L304">                CredentialKeyDescriptor(</span>
+<span class="fc" id="L305">                    CredentialId.fromByteArray(command.credentialId),</span>
+<span class="fc" id="L306">                    command.coseAlgorithm,</span>
+<span class="fc" id="L307">                    command.derivationProfile,</span>
+                )
+            }
+<span class="fc bfc" id="L310" title="All 2 branches covered.">            is PasskeyCommand.Authenticate -&gt; {</span>
+<span class="pc bpc" id="L311" title="1 of 8 branches missed.">                require(command.id == aggregateId &amp;&amp; !state.isInitialState() &amp;&amp; !state.isDeleted) {</span>
+<span class="fc" id="L312">                    INVALID_COMMAND_MESSAGE</span>
+                }
+            }
+<span class="fc" id="L315">            is PasskeyCommand.Delete -&gt; {</span>
+<span class="pc bpc" id="L316" title="2 of 8 branches missed.">                require(command.id == aggregateId &amp;&amp; !state.isInitialState() &amp;&amp; !state.isDeleted) {</span>
+<span class="fc" id="L317">                    INVALID_COMMAND_MESSAGE</span>
+                }
+            }
+        }
+<span class="pc bpc" id="L321" title="2 of 4 branches missed.">        require(state.sequenceNumber &lt; Long.MAX_VALUE) { INVALID_COMMAND_MESSAGE }</span>
+<span class="fc" id="L322">    }</span>
+
+<span class="fc" id="L324">    private class InvalidPasskeyStateException : IllegalArgumentException(&quot;Invalid passkey aggregate data&quot;)</span>
+
+<span class="fc" id="L326">    private fun invalidPasskeyState(): Nothing = throw InvalidPasskeyStateException()</span>
+
+<span class="fc" id="L328">    private class MalformedPasskeyAggregateException : IllegalStateException(&quot;Passkey aggregate data is invalid&quot;)</span>
+
+<span class="fc" id="L330">    private class InvalidPasskeyCommandException : IllegalArgumentException(&quot;Passkey command is invalid&quot;)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

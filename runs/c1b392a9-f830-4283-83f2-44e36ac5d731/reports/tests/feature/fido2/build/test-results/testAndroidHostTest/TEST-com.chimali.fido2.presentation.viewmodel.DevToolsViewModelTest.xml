@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:45.298Z" hostname="LOQ15IRX10-3" time="0.181">
+  <properties/>
+  <testcase name="cancelling import erases the in-flight mutable input()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.064"/>
+  <testcase name="hiding during mnemonic load cancels the reveal owner()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.008"/>
+  <testcase name="RecoverFromSeed with fewer than 24 words sets error()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.004"/>
+  <testcase name="disposing before scheduled import starts erases the transferred input()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.005"/>
+  <testcase name="LoadMnemonic returns word list when provider has mnemonic()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.005"/>
+  <testcase name="mnemonic reveal keeps its provider owner until it is hidden()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.01"/>
+  <testcase name="ClearMnemonic zeroes words from state()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.004"/>
+  <testcase name="disposing view model erases revealed mnemonic owner()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.004"/>
+  <testcase name="LoadMnemonic sets error when provider returns null()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.005"/>
+  <testcase name="DismissError clears error from state()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.003"/>
+  <testcase name="copy requires a revealed mnemonic and uses the sensitive clipboard policy()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.012"/>
+  <testcase name="reveal replacement erases the previous mutable mnemonic owner()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.006"/>
+  <testcase name="RecoverFromSeed with 24 words emits success state()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

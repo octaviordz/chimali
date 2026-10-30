@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="35" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-10-30T14:11:57" hostname="localhost">
+  <testsuite name="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" tests="2" failures="0" errors="0" skipped="0" time="3.275" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="persistentCeremoniesRecoverForEverySupportedSignatureAlgorithm" classname="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" time="2.908" />
+    <testcase name="p256RegistrationAndAssertionRecoverFromEncryptedEventAndProjectionStores" classname="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" time="0.367" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" tests="3" failures="0" errors="0" skipped="0" time="0.009" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="cleanSyntheticRestartFixture" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.000" />
+    <testcase name="recoverAndSignAfterOperatingSystemProcessRestart" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.009" />
+    <testcase name="prepareSyntheticCredentialForRestartRecovery" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.000" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" tests="7" failures="0" errors="0" skipped="0" time="0.992" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="foregroundOwnerCanEndWhileAuthenticatorOwnerKeepsWalletSessionAlive" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.055" />
+    <testcase name="replacingEncryptedWalletFencesAdmittedAndroidProviderOwner" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.093" />
+    <testcase name="androidProvidersGenerateAndVerifyAllSupportedCredentialSignatures" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.343" />
+    <testcase name="encryptedProjectionReplacementRollsBackEarlierDeletionWhenInsertFails" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.170" />
+    <testcase name="severeMemoryTrimLevelsFenceWalletOwnersAndPermitEncryptedReconstruction" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.150" />
+    <testcase name="emptyEncryptedRecoveryStoreInitializesAndReconstructsTheSameWalletAndDatabase" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.142" />
+    <testcase name="generationFenceDiscardsSynchronousP256DerivationResult" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.039" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.transport.BluetoothHidTransportDisconnectDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.096" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="hidDisconnectCancelsPendingAuthenticationAndErasesTheProductionWalletOwner" classname="com.chimali.fido2.data.transport.BluetoothHidTransportDisconnectDeviceTest" time="0.096" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidMeasurementReportTest" tests="5" failures="0" errors="0" skipped="0" time="0.026" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="performanceFailureAndIncompleteEvidenceRemainVisibleTogether" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.010" />
+    <testcase name="thresholdEqualityIsDeviceFailAndRetainsMeasurements" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.005" />
+    <testcase name="orphanedOperationAssessmentMakesReportIncomplete" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.002" />
+    <testcase name="missingContinuityEvidenceRemainsIncomplete" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.003" />
+    <testcase name="deviceReportPassesOnlyWhenEveryOccurrenceIsBelowBudget" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.006" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidSimulatedLatencyAssessmentTest" tests="1" failures="0" errors="0" skipped="0" time="6.958" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="runAndroidSimulatedAssessmentAndPersistSyntheticEvidence" classname="com.chimali.fido2.performance.AndroidSimulatedLatencyAssessmentTest" time="6.958" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidTimingAssessmentTest" tests="4" failures="0" errors="0" skipped="0" time="0.007" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="realPrimaryAndElapsedRealtimeClocksProduceRetainedDeltas" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.002" />
+    <testcase name="overlappingExclusionsAreSubtractedOnlyOnce" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.002" />
+    <testcase name="boundaryDivergenceIsValidAndUnavailableSourceIsIncomplete" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.002" />
+    <testcase name="divergenceBeyondFiveMillisecondsIsIncompleteInEitherDirection" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.001" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" tests="6" failures="0" errors="0" skipped="0" time="11.011" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="pairedDeviceWithoutAliasUsesFallbackNameAndIconClass" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="2.019" />
+    <testcase name="transportButtonUsesStartAndStopLabelsAndInvokesToggle" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="3.118" />
+    <testcase name="emptyPairedDeviceListHidesTheDevicesHeading" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="0.746" />
+    <testcase name="pairedDeviceRowsRenderNamesAndInvokeEditAndConnectActions" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="2.748" />
+    <testcase name="pairedDeviceIconFallbackAndWearableClassesAreRendered" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="0.955" />
+    <testcase name="statusIndicatorRendersEveryConnectionStateAndAdvertisingMode" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.425" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" tests="6" failures="0" errors="0" skipped="0" time="28.197" timestamp="2026-10-30T14:11:57" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="masterSeedScreenRevealsAfterAuthenticationAndErasesOnDisposal" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="2.195" />
+    <testcase name="manualRecoveryDisablesImeLearningAutofillAndExtractedText" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="2.909" />
+    <testcase name="mnemonicGridItemsHaveMergedDescendants" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="0.826" />
+    <testcase name="qrHideAndClearUseExplicitUserActions" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="4.845" />
+    <testcase name="devToolsTitlesHaveHeadingRole" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="0.831" />
+    <testcase name="manualRecoveryTransfersOneMutablePhraseBuffer" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="16.591" />
+  </testsuite>
+</testsuites>

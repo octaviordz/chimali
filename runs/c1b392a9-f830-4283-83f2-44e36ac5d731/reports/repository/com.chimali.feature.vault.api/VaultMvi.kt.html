@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultMvi.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.api</a> &gt; <span class="el_source">VaultMvi.kt</span></div><h1>VaultMvi.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.api
+
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.PasswordPayload
+import com.chimali.feature.vault.internal.payload.SecureNotePayload
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
+
+enum class VaultMutationState {
+<span class="fc" id="L10">    IDLE,</span>
+<span class="fc" id="L11">    PENDING,</span>
+<span class="fc" id="L12">    SUCCEEDED,</span>
+<span class="fc" id="L13">    FAILED,</span>
+}
+
+<span class="fc" id="L16">data class VaultState(</span>
+<span class="fc" id="L17">    val items: List&lt;VaultItem&gt; = emptyList(),</span>
+<span class="pc" id="L18">    val labels: List&lt;LabelUiModel&gt; = emptyList(),</span>
+<span class="fc" id="L19">    val selectedLabelId: UUID? = null,</span>
+<span class="fc" id="L20">    val isLoading: Boolean = false,</span>
+<span class="fc" id="L21">    val errorMessage: String? = null,</span>
+<span class="fc" id="L22">    val selectedItem: VaultItem? = null,</span>
+<span class="fc" id="L23">    val selectedPasswordPayload: PasswordPayload? = null,</span>
+<span class="fc" id="L24">    val selectedCreditCardPayload: CreditCardPayload? = null,</span>
+<span class="fc" id="L25">    val selectedSecureNotePayload: SecureNotePayload? = null,</span>
+<span class="fc" id="L26">    val mutationState: VaultMutationState = VaultMutationState.IDLE,</span>
+<span class="fc" id="L27">    val copyMessage: String? = null,</span>
+<span class="fc" id="L28">    val selectedItemLabelIds: Set&lt;UUID&gt; = emptySet(),</span>
+<span class="fc" id="L29">)</span>
+
+sealed interface VaultIntent {
+<span class="fc" id="L32">    data class LoadItems(</span>
+<span class="fc" id="L33">        val filterLabelId: UUID? = null,</span>
+<span class="fc" id="L34">    ) : VaultIntent</span>
+
+    data object LoadLabels : VaultIntent
+
+<span class="nc" id="L38">    data class CreateLabel(</span>
+<span class="nc" id="L39">        val name: String,</span>
+<span class="nc" id="L40">        val colorHex: String,</span>
+    ) : VaultIntent
+
+<span class="nc" id="L43">    data class DeleteLabel(</span>
+<span class="nc" id="L44">        val id: UUID,</span>
+    ) : VaultIntent
+
+<span class="nc" id="L47">    data class SaveItem(</span>
+<span class="nc" id="L48">        val item: VaultItem,</span>
+    ) : VaultIntent
+
+<span class="fc" id="L51">    data class SavePassword(</span>
+<span class="fc" id="L52">        val id: UUID? = null,</span>
+<span class="fc" id="L53">        val payload: PasswordPayload,</span>
+<span class="fc" id="L54">        val identityId: UUID = UUID(0, 0),</span>
+<span class="fc" id="L55">        val labelIds: List&lt;UUID&gt; = emptyList(),</span>
+<span class="fc" id="L56">    ) : VaultIntent</span>
+
+<span class="fc" id="L58">    data class SaveCreditCard(</span>
+<span class="fc" id="L59">        val id: UUID? = null,</span>
+<span class="fc" id="L60">        val payload: CreditCardPayload,</span>
+<span class="fc" id="L61">        val identityId: UUID = UUID(0, 0),</span>
+<span class="fc" id="L62">        val labelIds: List&lt;UUID&gt; = emptyList(),</span>
+<span class="fc" id="L63">    ) : VaultIntent</span>
+
+<span class="fc" id="L65">    data class SaveSecureNote(</span>
+<span class="fc" id="L66">        val id: UUID? = null,</span>
+<span class="fc" id="L67">        val payload: SecureNotePayload,</span>
+<span class="fc" id="L68">        val identityId: UUID = UUID(0, 0),</span>
+<span class="fc" id="L69">        val labelIds: List&lt;UUID&gt; = emptyList(),</span>
+<span class="fc" id="L70">    ) : VaultIntent</span>
+
+<span class="fc" id="L72">    data class DeleteItem(</span>
+<span class="fc" id="L73">        val id: UUID,</span>
+    ) : VaultIntent
+
+<span class="fc" id="L76">    data class DecryptItem(</span>
+<span class="fc" id="L77">        val id: UUID,</span>
+    ) : VaultIntent
+
+    data object ClearSelectedItem : VaultIntent
+
+    data object ResetMutation : VaultIntent
+
+    /** Disposes a save session; late completion cannot navigate another editor. */
+    data object AbandonMutation : VaultIntent
+
+    data object ClearClipboard : VaultIntent
+
+    data object ClearCopyMessage : VaultIntent
+
+    /** Consumes an independent mutable copy; never pass the detail owner's array. */
+<span class="fc" id="L92">    class CopyPassword(</span>
+<span class="fc" id="L93">        val password: CharArray,</span>
+    ) : VaultIntent {
+<span class="fc" id="L95">        override fun toString(): String = &quot;CopyPassword([redacted])&quot;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

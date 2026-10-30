@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.impl.EventStoreKeyProviderImplTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:49.225Z" hostname="LOQ15IRX10-3" time="0.273">
+  <properties/>
+  <testcase name="getEventStoreKey produces distinct keys for distinct labels()" classname="com.chimali.core.security.impl.EventStoreKeyProviderImplTest" time="0.223"/>
+  <testcase name="getEventStoreKey throws IllegalStateException when master seed is null()" classname="com.chimali.core.security.impl.EventStoreKeyProviderImplTest" time="0.025"/>
+  <testcase name="getEventStoreKey produces 32-byte key from HMAC-SHA512()" classname="com.chimali.core.security.impl.EventStoreKeyProviderImplTest" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

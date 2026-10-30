@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedLatencyAssessmentTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:44.234Z" hostname="LOQ15IRX10-3" time="0.46">
+  <properties/>
+  <testcase name="runDeclaredAssessment()" classname="com.chimali.fido2.performance.SimulatedLatencyAssessmentTest" time="0.46"/>
+  <system-out><![CDATA[Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+Debug: GetInfo response packet[0] hex: 010203049000cd00a80182684649444f5f325f30684649444f5f325f3102836b6372656450726f746563746b686d61632d7365637265746c6d696e50696e
+Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+Debug: Handling authenticatorReset
+FIDO2_LATENCY_REPORT=D:\temp\chimali-integration-candidate-8c2379907f79459c941e3da4ac5b179b\feature\fido2\build\reports\fido2\060\simulated-latency-assessment.json
+FIDO2_LATENCY_DISPOSITION=PASS
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

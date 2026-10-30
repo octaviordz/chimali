@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.SensitiveTextTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:30.316Z" hostname="LOQ15IRX10-3" time="0.018">
+  <properties/>
+  <testcase name="serializer clears temporary buffer after successful encoding()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.003"/>
+  <testcase name="subSequence returns borrowed view reflecting owner mutations and erasure()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.001"/>
+  <testcase name="contentEquals supports case sensitivity option()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="copyOf creates independent owner preserving characters()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="copyOwner creates isolated duplicate owner()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="copyCharacters produces detached array that caller can erase()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="equals and hashCode compare by content()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="serializer clears temporary buffer on encoder failure()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.002"/>
+  <testcase name="diagnostics redact secret text in toString()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.0"/>
+  <testcase name="subSequence rejects out-of-bounds start and end indices()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.001"/>
+  <testcase name="view index access rejects out-of-bounds access()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.001"/>
+  <testcase name="serializer serializes and deserializes while preserving content()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.001"/>
+  <testcase name="takeOwnership assumes control of char buffer()" classname="com.chimali.core.domain.model.SensitiveTextTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

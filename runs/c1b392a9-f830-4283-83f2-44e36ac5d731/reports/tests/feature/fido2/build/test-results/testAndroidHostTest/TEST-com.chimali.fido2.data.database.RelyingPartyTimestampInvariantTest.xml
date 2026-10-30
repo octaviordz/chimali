@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.database.RelyingPartyTimestampInvariantTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:28.300Z" hostname="LOQ15IRX10-3" time="0.032">
+  <properties/>
+  <testcase name="bulk relying party update rolls back earlier rows when a later snapshot violates timestamp order()" classname="com.chimali.fido2.data.database.RelyingPartyTimestampInvariantTest" time="0.014"/>
+  <testcase name="all activity writers reject clock regressions and preserve stored timestamps()" classname="com.chimali.fido2.data.database.RelyingPartyTimestampInvariantTest" time="0.018"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

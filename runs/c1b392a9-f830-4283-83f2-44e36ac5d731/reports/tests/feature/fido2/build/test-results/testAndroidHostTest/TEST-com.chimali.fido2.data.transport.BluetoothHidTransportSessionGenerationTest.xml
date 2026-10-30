@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.BluetoothHidTransportSessionGenerationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:39.266Z" hostname="LOQ15IRX10-3" time="0.159">
+  <properties/>
+  <testcase name="delayed predecessor teardown preserves successor parser channel and control traffic()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportSessionGenerationTest" time="0.158"/>
+  <system-out><![CDATA[Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Debug: Advertising for host connections
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#4750)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Info: Host connected: 00:11:22:33:44:55
+Debug: CTAPHID cmd=0x6 cid=ffffffff payloadLen=8
+Info: CTAPHID_INIT: assigned CID=80992f37
+Debug: sendReport dispatched len=62 success=true
+Debug: CTAPHID cmd=0x10 cid=80992f37 payloadLen=2
+Debug: CTAP2 command=0x1 on CID=80992f37
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=Connected(device=BluetoothDevice(#4750)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Debug: Device disconnected: 00:11:22:33:44:55
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=CONNECTED(2)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Info: Device 00:11:22:33:44:55 connected — bondState=BOND_BONDED(12)
+Info: Accepting connection from 00:11:22:33:44:55
+Info: [DIAG:DEVICE_ACCEPTED] _connectionState=Connected(device=BluetoothDevice(#4750)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:DEVICE_ACCEPTED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:DEVICE_ACCEPTED] bondedDevices=[] (count=0)
+Debug: CTAPHID cmd=0x6 cid=ffffffff payloadLen=8
+Info: CTAPHID_INIT: assigned CID=181e7300
+Debug: sendReport dispatched len=62 success=true
+Debug: CTAPHID cmd=0x1 cid=80992f37 payloadLen=1
+Debug: CTAPHID cmd=0x1 cid=181e7300 payloadLen=1
+Debug: sendReport dispatched len=62 success=true
+Debug: CTAPHID cmd=0x10 cid=181e7300 payloadLen=72
+Debug: CTAP2 command=0x1 on CID=181e7300
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 0ms (Total: 0ms, User: 0ms, HID reports accepted: false)
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=Connected(device=BluetoothDevice(#4750)), connectedDevice=00:11:22:33:44:55, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Debug: Device disconnected: 00:11:22:33:44:55
+Debug: Advertising for host connections
+Warn: LatencyProfiler.end called without matching start for id='MakeCredential'
+Info: onConnectionStateChanged device=00:11:22:33:44:55 state=DISCONNECTED(0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:CONNECTION_STATE_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:CONNECTION_STATE_CHANGED] bondedDevices=[] (count=0)
+Debug: Device disconnected: 00:11:22:33:44:55
+Debug: disconnect() starting...
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@4c8c3285, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@543e228c, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: BluetoothHidTransport disconnected
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

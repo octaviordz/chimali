@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:26.055Z" hostname="LOQ15IRX10-3" time="0.074">
+  <properties/>
+  <testcase name="ML-DSA key pair generation returns non-null keypair()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="production 32-byte seed generation matches independent ML-DSA-65 public fixture()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.009"/>
+  <testcase name="ML-DSA provider support detection returns true on JVM()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.0"/>
+  <testcase name="ML-DSA key algorithm name contains ML-DSA()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="BC direct seed import matches NIST ACVP ML-DSA-65 key-generation vector()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="publicKeyBytes returns non-empty byte array()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="production rejects seeds that are not exactly 32 bytes()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="sign returns non-null signature()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.003"/>
+  <testcase name="BC verifies independent ML-DSA-65 signature fixture()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.045"/>
+  <testcase name="unavailable provider is reported without returning key or signature()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.002"/>
+  <testcase name="BC direct 32-byte seed import matches independent ML-DSA-65 fixture()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.001"/>
+  <testcase name="signing provider failure erases the returned private-key encoding()" classname="com.chimali.fido2.data.crypto.PostQuantumCryptoTest" time="0.003"/>
+  <system-out><![CDATA[Error: ML-DSA-65 provider is unavailable
+Error: ML-DSA-65 seed import failed
+Error: ML-DSA-65 signing failed
+Error: ML-DSA-65 signing failed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

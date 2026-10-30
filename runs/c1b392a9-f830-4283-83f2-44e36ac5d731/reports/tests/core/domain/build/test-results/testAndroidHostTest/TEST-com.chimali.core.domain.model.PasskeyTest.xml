@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.PasskeyTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:30.295Z" hostname="LOQ15IRX10-3" time="0.006">
+  <properties/>
+  <testcase name="equals reflexivity and null or different class handling()" classname="com.chimali.core.domain.model.PasskeyTest" time="0.0"/>
+  <testcase name="equals and hashCode compare all value properties()" classname="com.chimali.core.domain.model.PasskeyTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

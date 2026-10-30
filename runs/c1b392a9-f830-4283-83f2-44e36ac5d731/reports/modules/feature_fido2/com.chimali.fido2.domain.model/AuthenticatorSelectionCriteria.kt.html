@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticatorSelectionCriteria.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">AuthenticatorSelectionCriteria.kt</span></div><h1>AuthenticatorSelectionCriteria.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+/**
+ * Domain model representing AuthenticatorSelectionCriteria.
+ * This specifies criteria for selecting authenticators.
+ */
+<span class="fc" id="L7">data class AuthenticatorSelectionCriteria(</span>
+<span class="pc" id="L8">    val authenticatorAttachment: AuthenticatorAttachment?,</span>
+<span class="fc" id="L9">    val requireResidentKey: ResidentKeyRequirement?,</span>
+<span class="fc" id="L10">    val userVerification: UserVerificationRequirement?,</span>
+<span class="pc" id="L11">    val timeoutSeconds: Long?,</span>
+<span class="pc" id="L12">    val allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;?,</span>
+) {
+<span class="fc" id="L14">    init {</span>
+<span class="fc" id="L15">        validate()</span>
+<span class="fc" id="L16">    }</span>
+
+    /**
+     * Checks if resident keys are required.
+     */
+<span class="fc bfc" id="L21" title="All 2 branches covered.">    fun requiresResidentKeys(): Boolean = requireResidentKey == ResidentKeyRequirement.REQUIRED</span>
+
+    /**
+     * Checks if user verification is required.
+     */
+<span class="fc bfc" id="L26" title="All 2 branches covered.">    fun requiresUserVerification(): Boolean = userVerification == UserVerificationRequirement.REQUIRED</span>
+
+    /**
+     * Checks if cross-platform authenticators are allowed.
+     */
+<span class="fc bfc" id="L31" title="All 2 branches covered.">    fun allowsCrossPlatform(): Boolean = authenticatorAttachment == AuthenticatorAttachment.CROSS_PLATFORM</span>
+
+    /**
+     * Returns a description of the selection criteria.
+     */
+    fun getDescription(): String {
+<span class="fc" id="L37">        val parts = mutableListOf&lt;String&gt;()</span>
+
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        authenticatorAttachment?.let { attachment -&gt;</span>
+<span class="fc" id="L40">            parts.add(&quot;Attachment: ${attachment.name.lowercase()}&quot;)</span>
+        }
+
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        requireResidentKey?.let { resident -&gt;</span>
+<span class="fc" id="L44">            parts.add(&quot;Resident Key: ${resident.name.lowercase()}&quot;)</span>
+        }
+
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        userVerification?.let { verification -&gt;</span>
+<span class="fc" id="L48">            parts.add(&quot;User Verification: ${verification.name.lowercase()}&quot;)</span>
+        }
+
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        timeoutSeconds?.let { timeout -&gt;</span>
+<span class="fc" id="L52">            parts.add(&quot;Timeout: ${timeout}s&quot;)</span>
+        }
+
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        allowCredentials?.let { credentials -&gt;</span>
+<span class="fc" id="L56">            parts.add(&quot;Allow Credentials: ${credentials.size} items&quot;)</span>
+        }
+
+<span class="fc bfc" id="L59" title="All 4 branches covered.">        return if (parts.isNotEmpty()) parts.joinToString(&quot;, &quot;) else &quot;No specific criteria&quot;</span>
+    }
+
+    companion object {
+        private const val MAX_TIMEOUT_SECONDS = 300
+        private const val DEFAULT_TIMEOUT_SECONDS = 300L
+        private const val MAX_ALLOW_CREDENTIALS = 32
+
+        /**
+         * Creates a new AuthenticatorSelectionCriteria with validation.
+         */
+<span class="fc" id="L70">        fun create(</span>
+<span class="fc" id="L71">            authenticatorAttachment: AuthenticatorAttachment? = null,</span>
+<span class="fc" id="L72">            requireResidentKey: ResidentKeyRequirement? = null,</span>
+<span class="fc" id="L73">            userVerification: UserVerificationRequirement? = null,</span>
+<span class="fc" id="L74">            timeoutSeconds: Long? = null,</span>
+<span class="fc" id="L75">            allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null,</span>
+        ): AuthenticatorSelectionCriteria =
+<span class="fc" id="L77">            AuthenticatorSelectionCriteria(</span>
+<span class="fc" id="L78">                authenticatorAttachment = authenticatorAttachment,</span>
+<span class="fc" id="L79">                requireResidentKey = requireResidentKey,</span>
+<span class="fc" id="L80">                userVerification = userVerification,</span>
+<span class="fc" id="L81">                timeoutSeconds = timeoutSeconds,</span>
+<span class="fc" id="L82">                allowCredentials = allowCredentials,</span>
+<span class="fc" id="L83">            )</span>
+    }
+
+    /**
+     * Validates the AuthenticatorSelectionCriteria according to FIDO2 specifications.
+     * Throws IllegalArgumentException if validation fails.
+     */
+    internal fun validate() {
+        // Validate timeout if present
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        timeoutSeconds?.let { timeout -&gt;</span>
+<span class="fc bfc" id="L93" title="All 4 branches covered.">            require(timeout &gt; 0) { &quot;Timeout must be positive&quot; }</span>
+<span class="fc bfc" id="L94" title="All 4 branches covered.">            require(timeout &lt;= MAX_TIMEOUT_SECONDS) { &quot;Timeout cannot exceed 5 minutes (${MAX_TIMEOUT_SECONDS}s)&quot; }</span>
+<span class="fc" id="L95">        }</span>
+
+        // Validate credential list if present
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        allowCredentials?.let { allowList -&gt;</span>
+<span class="fc bfc" id="L99" title="All 4 branches covered.">            require(allowList.size &lt;= MAX_ALLOW_CREDENTIALS) {</span>
+<span class="fc" id="L100">                &quot;Allow credentials list cannot exceed $MAX_ALLOW_CREDENTIALS items&quot;</span>
+            }
+<span class="fc" id="L102">            allowList.forEach { descriptor -&gt;</span>
+<span class="fc" id="L103">                descriptor.validate()</span>
+<span class="fc" id="L104">            }</span>
+<span class="fc" id="L105">        }</span>
+<span class="fc" id="L106">    }</span>
+
+    /**
+     * Returns the safe timeout value.
+     */
+    fun getSafeTimeoutSeconds(): Long {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        return timeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS // Default 5 minutes</span>
+    }
+}
+
+/**
+ * Enumeration of authenticator attachment types.
+ */
+enum class AuthenticatorAttachment {
+<span class="fc" id="L120">    PLATFORM,</span>
+<span class="fc" id="L121">    CROSS_PLATFORM,</span>
+<span class="fc" id="L122">    USB,</span>
+<span class="fc" id="L123">    NFC,</span>
+<span class="fc" id="L124">    BLE,</span>
+<span class="fc" id="L125">    INTERNAL,</span>
+}
+
+/**
+ * Enumeration of resident key requirements.
+ */
+enum class ResidentKeyRequirement {
+<span class="fc" id="L132">    DISCOURAGED,</span>
+<span class="fc" id="L133">    PREFERRED,</span>
+<span class="fc" id="L134">    REQUIRED,</span>
+}
+
+/**
+ * Enumeration of user verification requirements.
+ */
+enum class UserVerificationRequirement {
+<span class="fc" id="L141">    DISCOURAGED,</span>
+<span class="fc" id="L142">    PREFERRED,</span>
+<span class="fc" id="L143">    REQUIRED,</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

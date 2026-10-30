@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.AuthenticationConsentStateOwnershipTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:41.298Z" hostname="LOQ15IRX10-3" time="0.011">
+  <properties/>
+  <testcase name="[1] verify" classname="com.chimali.fido2.integration.AuthenticationConsentStateOwnershipTest" time="0.006"/>
+  <testcase name="[2] cancel" classname="com.chimali.fido2.integration.AuthenticationConsentStateOwnershipTest" time="0.001"/>
+  <testcase name="[3] replacement" classname="com.chimali.fido2.integration.AuthenticationConsentStateOwnershipTest" time="0.001"/>
+  <testcase name="[4] teardown" classname="com.chimali.fido2.integration.AuthenticationConsentStateOwnershipTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

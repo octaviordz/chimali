@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.common.datastore.UserPreferencesDataStorePerformanceTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T11:59:40.658Z" hostname="LOQ15IRX10-3" time="0.035">
+  <properties/>
+  <testcase name="testDataStorePerformance()" classname="com.chimali.core.common.datastore.UserPreferencesDataStorePerformanceTest" time="0.034"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

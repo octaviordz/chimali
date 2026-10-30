@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.hdkeys.HdkP256Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:48.807Z" hostname="LOQ15IRX10-3" time="0.251">
+  <properties/>
+  <testcase name="child result preserves parent private public correspondence()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.231"/>
+  <testcase name="public child derivation returns an owned factor that composes with the parent scalar()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.005"/>
+  <testcase name="derivation rejects malformed secrets scalars points and mismatched parent pair()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.002"/>
+  <testcase name="repeated child composition preserves the scalar and point relation()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.005"/>
+  <testcase name="public child derivation rejects incomplete or oversized local secrets()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.0"/>
+  <testcase name="frozen independent child vectors match full preimage digest factor and key outputs()" classname="com.chimali.core.security.hdkeys.HdkP256Test" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

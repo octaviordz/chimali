@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticatorInfoProvider.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.service</a> &gt; <span class="el_source">AuthenticatorInfoProvider.kt</span></div><h1>AuthenticatorInfoProvider.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.service
+
+import com.chimali.fido2.domain.model.AuthenticatorTransport
+import org.koin.core.annotation.Single
+
+/**
+ * FR-006 — Authoritative capabilities returned by the CTAP authenticatorGetInfo path.
+ *
+ * Ceremony behavior remains owned by the dedicated CTAP handlers and use cases. This provider
+ * intentionally owns only static, publicly advertised capability information.
+ */
+<span class="fc" id="L12">@Single</span>
+class AuthenticatorInfoProvider {
+    fun getAuthenticatorInfo(): AuthenticatorInfo =
+<span class="fc" id="L15">        AuthenticatorInfo(</span>
+<span class="fc" id="L16">            aaguid = CHIMALI_AAGUID.copyOf(),</span>
+<span class="fc" id="L17">            version = &quot;U2F_V2&quot;,</span>
+<span class="fc" id="L18">            supportedAlgorithms = SUPPORTED_ALGORITHMS,</span>
+<span class="fc" id="L19">            supportedTransports = SUPPORTED_TRANSPORTS,</span>
+<span class="fc" id="L20">            isResidentKeySupported = true,</span>
+<span class="fc" id="L21">            isUserVerificationSupported = true,</span>
+<span class="fc" id="L22">            maxCredentialCount = MAX_CREDENTIAL_COUNT,</span>
+<span class="fc" id="L23">            maxCredentialIdLength = MAX_CREDENTIAL_ID_LENGTH,</span>
+<span class="fc" id="L24">            firmwareVersion = &quot;1.0&quot;,</span>
+<span class="fc" id="L25">            serialNumber = &quot;00000000&quot;,</span>
+<span class="fc" id="L26">            isInitialized = true,</span>
+<span class="fc" id="L27">            isLocked = false,</span>
+<span class="fc" id="L28">        )</span>
+
+    private companion object {
+        const val MAX_CREDENTIAL_COUNT = 50
+        const val MAX_CREDENTIAL_ID_LENGTH = 255
+<span class="pc" id="L33">        val SUPPORTED_ALGORITHMS = listOf(&quot;ES256&quot;, &quot;EdDSA&quot;, &quot;ML-DSA&quot;)</span>
+<span class="pc" id="L34">        val SUPPORTED_TRANSPORTS = listOf(AuthenticatorTransport.USB, AuthenticatorTransport.BLE)</span>
+<span class="nc" id="L35">        val CHIMALI_AAGUID =</span>
+<span class="fc" id="L36">            byteArrayOf(</span>
+<span class="fc" id="L37">                0x43,</span>
+<span class="fc" id="L38">                0x48,</span>
+<span class="fc" id="L39">                0x49,</span>
+<span class="fc" id="L40">                0x4D,</span>
+<span class="fc" id="L41">                0x41,</span>
+<span class="fc" id="L42">                0x4C,</span>
+<span class="fc" id="L43">                0x49,</span>
+<span class="fc" id="L44">                0x00,</span>
+<span class="fc" id="L45">                0x00,</span>
+<span class="fc" id="L46">                0x00,</span>
+<span class="fc" id="L47">                0x00,</span>
+<span class="fc" id="L48">                0x00,</span>
+<span class="fc" id="L49">                0x00,</span>
+<span class="fc" id="L50">                0x00,</span>
+<span class="fc" id="L51">                0x00,</span>
+<span class="fc" id="L52">                0x01,</span>
+            )
+    }
+}
+
+/** Public capability data used to encode CTAP authenticatorGetInfo responses. */
+<span class="fc" id="L58">data class AuthenticatorInfo(</span>
+<span class="fc" id="L59">    val aaguid: ByteArray,</span>
+<span class="fc" id="L60">    val version: String,</span>
+<span class="pc" id="L61">    val supportedAlgorithms: List&lt;String&gt;,</span>
+<span class="pc" id="L62">    val supportedTransports: List&lt;AuthenticatorTransport&gt;,</span>
+<span class="fc" id="L63">    val isResidentKeySupported: Boolean,</span>
+<span class="fc" id="L64">    val isUserVerificationSupported: Boolean,</span>
+<span class="pc" id="L65">    val maxCredentialCount: Int,</span>
+<span class="pc" id="L66">    val maxCredentialIdLength: Int,</span>
+<span class="pc" id="L67">    val firmwareVersion: String,</span>
+<span class="pc" id="L68">    val serialNumber: String,</span>
+<span class="pc" id="L69">    val isInitialized: Boolean,</span>
+<span class="pc" id="L70">    val isLocked: Boolean,</span>
+) {
+<span class="pc bpc" id="L72" title="2 of 4 branches missed.">    fun isReady(): Boolean = isInitialized &amp;&amp; !isLocked</span>
+
+<span class="nc" id="L74">    fun getDescription(): String = &quot;Authenticator v$version (AAGUID: ${aaguid.joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }})&quot;</span>
+
+<span class="fc" id="L76">    fun supportsAlgorithm(algorithm: String): Boolean = supportedAlgorithms.contains(algorithm)</span>
+
+<span class="fc" id="L78">    fun supportsTransport(transport: AuthenticatorTransport): Boolean = supportedTransports.contains(transport)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

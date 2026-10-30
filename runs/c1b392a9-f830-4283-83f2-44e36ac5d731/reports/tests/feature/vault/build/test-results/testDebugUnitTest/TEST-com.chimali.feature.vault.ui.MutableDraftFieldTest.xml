@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.ui.MutableDraftFieldTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:12:03.825Z" hostname="LOQ15IRX10-3" time="0.007">
+  <properties/>
+  <testcase name="replacementErasesPreviousStorageAndSubmissionRemainsIndependent" classname="com.chimali.feature.vault.ui.MutableDraftFieldTest" time="0.0"/>
+  <testcase name="lateInputAfterClosureIsIgnoredWithoutReadingOrCopyingIt" classname="com.chimali.feature.vault.ui.MutableDraftFieldTest" time="0.001"/>
+  <testcase name="failedReplacementPreservesRetryValueAndBorrowedSlicesAreWiped" classname="com.chimali.feature.vault.ui.MutableDraftFieldTest" time="0.001"/>
+  <testcase name="typedDraftsOwnAllMainFieldsAndRedactDiagnostics" classname="com.chimali.feature.vault.ui.MutableDraftFieldTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

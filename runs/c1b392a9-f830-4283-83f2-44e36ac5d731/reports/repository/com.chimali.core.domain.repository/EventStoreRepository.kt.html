@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EventStoreRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.repository</a> &gt; <span class="el_source">EventStoreRepository.kt</span></div><h1>EventStoreRepository.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.repository
+
+import com.chimali.core.domain.eventsourcing.DomainEvent
+import com.chimali.core.domain.eventsourcing.EventKind
+import kotlinx.datetime.Instant
+
+/**
+ * Interface for persisting and retrieving domain events.
+ * Implementations are responsible for encryption and serialization.
+ */
+interface EventStoreRepository {
+    /**
+     * Appends a list of events to the store for a specific aggregate root.
+     *
+     * @param kind The type of aggregate root.
+     * @param events The events to append.
+     * @return Success if all events were appended, or failure (e.g., OptimisticConcurrencyException).
+     */
+    suspend fun append(
+        kind: EventKind,
+        events: List&lt;DomainEvent&gt;,
+    ): Result&lt;Unit&gt;
+
+    /**
+     * Retrieves the complete event history for an aggregate root.
+     *
+     * @param kind The type of aggregate root.
+     * @param aggregateId The unique identifier of the aggregate.
+     * @param upTo Optional timestamp to limit the retrieved events (for temporal queries).
+     * @return An ordered list of events.
+     */
+<span class="pc" id="L32">    suspend fun getEvents(</span>
+        kind: EventKind,
+        aggregateId: String,
+<span class="fc" id="L35">        upTo: Instant? = null,</span>
+<span class="nc" id="L36">    ): Result&lt;List&lt;DomainEvent&gt;&gt;</span>
+
+    /**
+     * Retrieves events for an aggregate root starting from a specific sequence number.
+     * Used for hydration starting from a snapshot.
+     *
+     * @param kind The type of aggregate root.
+     * @param aggregateId The unique identifier of the aggregate.
+     * @param fromSequence The sequence number to start from (exclusive).
+     * @return An ordered list of subsequent events.
+     */
+    suspend fun getEventsFrom(
+        kind: EventKind,
+        aggregateId: String,
+        fromSequence: Long,
+    ): Result&lt;List&lt;DomainEvent&gt;&gt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

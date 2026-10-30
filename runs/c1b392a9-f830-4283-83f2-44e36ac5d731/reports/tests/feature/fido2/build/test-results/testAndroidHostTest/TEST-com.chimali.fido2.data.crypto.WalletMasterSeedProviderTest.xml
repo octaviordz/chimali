@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:26.260Z" hostname="LOQ15IRX10-3" time="0.511">
+  <properties/>
+  <testcase name="overlapping owners keep one cache until the last owner releases then reconstruct lazily()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.051"/>
+  <testcase name="failed mnemonic encryption erases caller phrase and derived validation seed without persisting()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.006"/>
+  <testcase name="parent cancellation during synchronous bootstrap leaves no unowned cache and reconstructs lazily()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.018"/>
+  <testcase name="foreground loss cancels foreground owner while admitted authenticator owner continues()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.017"/>
+  <testcase name="import consumes mutable phrase and replaces current derivation material()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.013"/>
+  <testcase name="persisted encrypted mnemonic reconstructs the same root without generating another phrase()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.011"/>
+  <testcase name="failed root derivation does not publish a partial cache()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.012"/>
+  <testcase name="cancelled owner release waits for wallet replacement then erases without orphaning()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.018"/>
+  <testcase name="session clearing fences an in-flight bootstrap and next request reconstructs lazily()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.014"/>
+  <testcase name="wallet replacement cancels old owner and next owner derives from imported wallet()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.017"/>
+  <testcase name="clean bootstrap stores encrypted mnemonic and returns owned root and parent copies()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.011"/>
+  <testcase name="foreground cancellation discards completed synchronous bootstrap before cache publication()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.015"/>
+  <testcase name="clear and foreground cancellation release suspended bootstrap owners without parent cancellation()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.042"/>
+  <testcase name="mnemonic recovery rejects malformed ciphertext empty plaintext and invalid UTF8()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.013"/>
+  <testcase name="provider owns only one root and parent cache and no credential PQ cache()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.0"/>
+  <testcase name="session fence cancels its active operation owner()" classname="com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest" time="0.015"/>
+  <system-out><![CDATA[Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+Debug: Wallet root initialized
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

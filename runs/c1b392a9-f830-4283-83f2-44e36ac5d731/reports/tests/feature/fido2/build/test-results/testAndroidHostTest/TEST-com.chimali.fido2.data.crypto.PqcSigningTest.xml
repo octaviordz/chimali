@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.PqcSigningTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:26.130Z" hostname="LOQ15IRX10-3" time="0.022">
+  <properties/>
+  <testcase name="verifyTamperedMessageReturnsFalse()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.007"/>
+  <testcase name="verifyWrongKeyReturnsFalse()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.005"/>
+  <testcase name="sameSeedProducesSamePublicKey()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.001"/>
+  <testcase name="publicKeyBytesHasExpectedMinimumLength()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.001"/>
+  <testcase name="differentSeedsProduceDifferentKeys()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.001"/>
+  <testcase name="signAndVerifyRoundTripSucceeds()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.004"/>
+  <testcase name="coseAlgorithmConstantHasExpectedValue()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.0"/>
+  <testcase name="providerSupportReturnsTrue()" classname="com.chimali.fido2.data.crypto.PqcSigningTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

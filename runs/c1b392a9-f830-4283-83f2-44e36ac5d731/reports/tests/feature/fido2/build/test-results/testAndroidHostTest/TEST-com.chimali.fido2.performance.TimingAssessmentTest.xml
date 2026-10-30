@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.TimingAssessmentTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:44.800Z" hostname="LOQ15IRX10-3" time="0.033">
+  <properties/>
+  <testcase name="exclusions outside operation do not reduce its duration()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="unverified response cannot produce an operation pass()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="suspend or clock discontinuity evidence makes real-clock operation incomplete()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="operation exactly at budget fails()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="native suspend clock failures are retained as incomplete measurement evidence()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.001"/>
+  <testcase name="subtracts union of user verification and handoff overlaps only once()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.002"/>
+  <testcase name="invalid operation and incompatible exclusion are incomplete()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="failed operation retains duration as incomplete instead of passing()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="unordered and overflowed intervals are incomplete()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="negative monotonic origin is valid when elapsed delta is nonnegative()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.0"/>
+  <testcase name="real monotonic measurement reports ordered interval and checks continuity()" classname="com.chimali.fido2.performance.TimingAssessmentTest" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

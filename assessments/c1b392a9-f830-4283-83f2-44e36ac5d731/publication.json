@@ -1,0 +1,12 @@
+{
+  "run_id": "c1b392a9-f830-4283-83f2-44e36ac5d731",
+  "schema_version": "1.0",
+  "publication_purpose": "Candidate",
+  "archive_branch": "swe/coverage-evidence",
+  "archive_ref": "refs/heads/swe/coverage-evidence",
+  "bundle_digest": "d71928160a4ce5f3f9a989f2fff6263d8246d9eb8fbbe8c49c88a0d9f9eabfa1",
+  "manifest_digest": "90d351f0df41d4caa332f19b38a067df497b700da0f1e93ef4f59ae21ff539f1",
+  "assessment_record_digest": "1e34dbba9260887613ebd4ef1b0d668fd6955ddf101b3d860e72bc6df2083de3",
+  "report_url": "https://github.com/octaviordz/chimali/blob/swe/coverage-evidence/runs/c1b392a9-f830-4283-83f2-44e36ac5d731/summary.md",
+  "published_at": "2026-10-30T14:13:34Z"
+}

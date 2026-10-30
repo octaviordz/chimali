@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AttestationConveyancePreference.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">AttestationConveyancePreference.kt</span></div><h1>AttestationConveyancePreference.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+/**
+ * Domain model representing AttestationConveyancePreference.
+ * This specifies preferences for attestation conveyance.
+ */
+enum class AttestationConveyancePreference {
+<span class="fc" id="L8">    NONE,</span>
+<span class="fc" id="L9">    INDIRECT,</span>
+<span class="fc" id="L10">    DIRECT,</span>
+<span class="fc" id="L11">    ENTERPRISE,</span>
+    ;
+
+    /**
+     * Returns a description of the preference.
+     */
+    fun getDescription(): String =
+<span class="nc bnc" id="L18" title="All 4 branches missed.">        when (this) {</span>
+<span class="nc" id="L19">            NONE -&gt; &quot;No attestation preference&quot;</span>
+<span class="nc" id="L20">            INDIRECT -&gt; &quot;Indirect attestation&quot;</span>
+<span class="nc" id="L21">            DIRECT -&gt; &quot;Direct attestation&quot;</span>
+<span class="nc" id="L22">            ENTERPRISE -&gt; &quot;Enterprise attestation&quot;</span>
+<span class="nc" id="L23">        }</span>
+
+    /**
+     * Checks if this preference allows attestation.
+     */
+<span class="nc bnc" id="L28" title="All 2 branches missed.">    fun allowsAttestation(): Boolean = this != NONE</span>
+
+    /**
+     * Checks if this requires direct attestation.
+     */
+<span class="nc bnc" id="L33" title="All 2 branches missed.">    fun requiresDirectAttestation(): Boolean = this == DIRECT</span>
+
+    /**
+     * Checks if this requires enterprise attestation.
+     */
+<span class="nc bnc" id="L38" title="All 2 branches missed.">    fun requiresEnterpriseAttestation(): Boolean = this == ENTERPRISE</span>
+
+    companion object {
+        /**
+         * Creates a preference from string value.
+         */
+        fun fromString(value: String): AttestationConveyancePreference =
+<span class="nc bnc" id="L45" title="All 5 branches missed.">            when (value.lowercase()) {</span>
+<span class="nc" id="L46">                &quot;none&quot; -&gt; NONE</span>
+<span class="nc" id="L47">                &quot;indirect&quot; -&gt; INDIRECT</span>
+<span class="nc" id="L48">                &quot;direct&quot; -&gt; DIRECT</span>
+<span class="nc" id="L49">                &quot;enterprise&quot; -&gt; ENTERPRISE</span>
+<span class="nc" id="L50">                else -&gt; NONE // Default to none</span>
+<span class="nc" id="L51">            }</span>
+
+        /**
+         * Returns the default preference.
+         */
+<span class="nc" id="L56">        fun getDefault(): AttestationConveyancePreference = NONE</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

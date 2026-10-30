@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.bluetooth.HidReportParserTest" tests="19" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:21.664Z" hostname="LOQ15IRX10-3" time="0.038">
+  <properties/>
+  <testcase name="buildInitResponse rejects wrong nonce size()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.004"/>
+  <testcase name="zero length payload is accepted()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.002"/>
+  <testcase name="short report returns failure()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.002"/>
+  <testcase name="encode and re-parse single packet round trip()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="exact HID capacity is representable and next byte plus legacy limit are rejected()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.009"/>
+  <testcase name="multi packet message reassembles correctly()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="replacement malformed sequence reset and expiry erase incomplete staging()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.003"/>
+  <testcase name="single packet CTAPHID_PING assembles correctly()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="reassembly staging is erased after successful completion()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="two continuation packets reassemble correctly()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="orphaned continuation returns failure()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="out of order continuation returns failure()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="reset clears pending state so continuation becomes orphan()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="oversized HID report is rejected instead of truncating()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.0"/>
+  <testcase name="buildErrorResponse has correct structure()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.0"/>
+  <testcase name="buildInitResponse produces correctly structured response()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="single packet message assembles immediately()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.0"/>
+  <testcase name="encode large payload produces multiple packets()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.001"/>
+  <testcase name="buildKeepAliveResponse has correct structure()" classname="com.chimali.fido2.bluetooth.HidReportParserTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

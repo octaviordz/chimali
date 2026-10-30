@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CborCodec.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">CborCodec.kt</span></div><h1>CborCodec.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
+import org.koin.core.annotation.Single
+
+/**
+ * Minimal RFC 7049 (CBOR) codec for the CTAP2 HID protocol.
+ *
+ * CTAP2 messages from Windows are binary CBOR with **integer keys**.
+ * The previous JSON-based implementation silently returned emptyMap() on every
+ * incoming CTAP2 payload, causing all credential lookups to fail.
+ *
+ * This implementation supports the CBOR types used by CTAP2:
+ * - Major type 0: unsigned integer  → Long / Int
+ * - Major type 1: negative integer  → Long
+ * - Major type 2: byte string       → ByteArray
+ * - Major type 3: text string       → String for compatibility decode; erasable owners for sensitive requests
+ * - Major type 4: array             → List&lt;Any&gt;
+ * - Major type 5: map               → Map&lt;String, Any&gt;  (int keys → &quot;1&quot;,&quot;2&quot;,…)
+ * - Major type 7 / simple:          → Boolean / null
+ */
+<span class="fc" id="L27">@Single</span>
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+class CborCodec {
+    /** Explicit CBOR simple values retained so protocol validation can distinguish them from absent fields. */
+    internal enum class SimpleValue {
+<span class="fc" id="L32">        NULL,</span>
+<span class="fc" id="L33">        UNDEFINED,</span>
+    }
+
+    /** Test-only observer for retained intermediate output buffers after erasure. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L38">    internal var onIntermediateBufferErasedForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    /** Test-only observer for decoded byte-string owners at the ownership transfer boundary. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L42">    internal var onDecodedByteStringForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    /** Test-only observer for decoded text owners, including map keys erased during parsing. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L46">    internal var onDecodedTextOwnerForTest: ((SensitiveCredentialText) -&gt; Unit)? = null</span>
+
+    /** Test-only observer for temporary UTF-8 buffers after they are erased. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L50">    internal var onTemporaryTextBytesErasedForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    private val encodingEngine =
+<span class="fc" id="L53">        CborEncodingEngine(</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">            onIntermediateBufferErased = { onIntermediateBufferErasedForTest?.invoke(it) },</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">            onTemporaryTextBytesErased = { onTemporaryTextBytesErasedForTest?.invoke(it) },</span>
+        )
+
+    companion object {
+        // CBOR Major Types
+        private const val MAJOR_TYPE_UNSIGNED_INT = 0
+        private const val MAJOR_TYPE_NEGATIVE_INT = 1
+        private const val MAJOR_TYPE_BYTE_STRING = 2
+        private const val MAJOR_TYPE_TEXT_STRING = 3
+        private const val MAJOR_TYPE_ARRAY = 4
+        private const val MAJOR_TYPE_MAP = 5
+        private const val MAJOR_TYPE_SIMPLE = 7
+
+        private const val MAJOR_TYPE_SHIFT = 5
+        private const val INFO_MASK = 0x1F
+
+        // CBOR Simple Values
+        private const val SIMPLE_FALSE = 20
+        private const val SIMPLE_TRUE = 21
+        private const val SIMPLE_NULL = 22
+        private const val SIMPLE_UNDEFINED = 23
+
+        // CBOR Header Constants
+        private const val HEADER_SMALL_LIMIT = 24
+        private const val HEADER_UINT8 = 24
+        private const val HEADER_UINT16 = 25
+        private const val HEADER_UINT32 = 26
+        private const val HEADER_UINT64 = 27
+
+        // CTAP2/COSE Constants
+
+        // ML-DSA-65 raw public key size per NIST FIPS 204 §5
+
+        // CBOR Negative Int Helper (-7 -&gt; 0x26)
+
+        private const val BYTE_SHIFT_8 = 8
+        private const val MASK_8_BITS = 0xFF
+        private const val SIZE_UINT32 = 4
+        private const val SIZE_UINT64 = 8
+        private const val INDEX_3 = 3
+        private const val INDEX_7 = 7
+        private const val MAX_CBOR_INPUT_BYTES = 1_048_576
+        private const val MAX_CBOR_NESTING_DEPTH = 64
+        private const val MAX_CBOR_CONTAINER_ITEMS = 16_384
+
+        /** Fixed protocol field names accepted by sensitive CTAP decoding; unknown text keys are discarded. */
+        private val SENSITIVE_REQUEST_TEXT_KEYS =
+<span class="fc" id="L102">            setOf(</span>
+<span class="fc" id="L103">                &quot;rp&quot;,</span>
+<span class="fc" id="L104">                &quot;user&quot;,</span>
+<span class="fc" id="L105">                &quot;id&quot;,</span>
+<span class="fc" id="L106">                &quot;name&quot;,</span>
+<span class="fc" id="L107">                &quot;displayName&quot;,</span>
+<span class="fc" id="L108">                &quot;icon&quot;,</span>
+<span class="fc" id="L109">                &quot;type&quot;,</span>
+<span class="fc" id="L110">                &quot;alg&quot;,</span>
+<span class="fc" id="L111">                &quot;pubKeyCredParams&quot;,</span>
+<span class="fc" id="L112">                &quot;clientDataHash&quot;,</span>
+<span class="fc" id="L113">                &quot;options&quot;,</span>
+<span class="fc" id="L114">                &quot;uv&quot;,</span>
+<span class="fc" id="L115">                &quot;rk&quot;,</span>
+<span class="fc" id="L116">                &quot;extensions&quot;,</span>
+<span class="fc" id="L117">                &quot;credProtect&quot;,</span>
+<span class="fc" id="L118">                &quot;hmac-secret&quot;,</span>
+<span class="fc" id="L119">                &quot;prf&quot;,</span>
+<span class="fc" id="L120">                &quot;allowList&quot;,</span>
+<span class="fc" id="L121">                &quot;allowCredentials&quot;,</span>
+<span class="fc" id="L122">                &quot;userVerification&quot;,</span>
+<span class="fc" id="L123">                &quot;largeBlob&quot;,</span>
+<span class="fc" id="L124">                &quot;largeBlobKey&quot;,</span>
+<span class="fc" id="L125">                &quot;credBlob&quot;,</span>
+<span class="fc" id="L126">                &quot;uvm&quot;,</span>
+<span class="fc" id="L127">                &quot;appid&quot;,</span>
+<span class="fc" id="L128">                &quot;appidExclude&quot;,</span>
+<span class="fc" id="L129">                &quot;hmac-secret-mc&quot;,</span>
+<span class="fc" id="L130">                &quot;credentialBlob&quot;,</span>
+<span class="fc" id="L131">                &quot;getCredBlob&quot;,</span>
+            )
+    }
+
+    // ── Decoding ──────────────────────────────────────────────────────────────
+
+    /**
+     * Decodes bounded CTAP2 binary CBOR into a Kotlin map. Integer keys become strings for handler compatibility;
+     * malformed or unsupported input returns an empty map, while byte-string owners transfer only on valid decode.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L142">    fun decodeFromFido2Format(data: ByteArray): Map&lt;String, Any&gt; = decodeMap(data, sensitiveTextValues = false)</span>
+
+    /** Decodes a CTAP request with mutable owners for text values that must be cleared at request end. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L146">    fun decodeSensitiveRequest(data: ByteArray): Map&lt;String, Any&gt; = decodeMap(data, sensitiveTextValues = true)</span>
+
+    private fun decodeMap(
+        data: ByteArray,
+        sensitiveTextValues: Boolean,
+    ): Map&lt;String, Any&gt; {
+<span class="pc bpc" id="L152" title="3 of 6 branches missed.">        if (data.isEmpty() || data.size &gt; MAX_CBOR_INPUT_BYTES) return emptyMap()</span>
+<span class="fc" id="L153">        val decodedByteStrings = mutableListOf&lt;ByteArray&gt;()</span>
+<span class="fc" id="L154">        val decodedTextOwners = mutableListOf&lt;SensitiveCredentialText&gt;()</span>
+<span class="fc" id="L155">        return try {</span>
+<span class="fc" id="L156">            val (value, nextOffset) =</span>
+<span class="fc" id="L157">                decodeItem(data, 0, 0, decodedByteStrings, decodedTextOwners, sensitiveTextValues)</span>
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">            if (nextOffset != data.size) malformedCbor(&quot;Trailing CBOR data&quot;)</span>
+            @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">            (value as? Map&lt;String, Any&gt;)</span>
+<span class="pc" id="L161">                ?: emptyMap&lt;String, Any&gt;().also {</span>
+<span class="nc" id="L162">                    decodedByteStrings.eraseAll()</span>
+<span class="nc" id="L163">                    decodedTextOwners.forEach(SensitiveCredentialText::erase)</span>
+<span class="nc" id="L164">                }</span>
+<span class="fc" id="L165">        } catch (_: MalformedCborException) {</span>
+<span class="fc" id="L166">            decodedByteStrings.eraseAll()</span>
+<span class="pc" id="L167">            decodedTextOwners.forEach(SensitiveCredentialText::erase)</span>
+<span class="fc" id="L168">            emptyMap()</span>
+        }
+    }
+
+    /** Erases decoded byte and text value owners after the consuming request ends. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun eraseDecodedRequestValues(value: Any?) {
+<span class="fc" id="L175">        when (value) {</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">            is ByteArray -&gt; value.fill(0)</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            is SensitiveCredentialText -&gt; value.erase()</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">            is Map&lt;*, *&gt; -&gt; value.values.forEach(::eraseDecodedRequestValues)</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            is Iterable&lt;*&gt; -&gt; value.forEach(::eraseDecodedRequestValues)</span>
+        }
+<span class="fc" id="L181">    }</span>
+
+    // ── Encoding ──────────────────────────────────────────────────────────────
+
+    /** Encodes a Kotlin map as canonical CTAP2 CBOR and erases intermediate buffers. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L187">    fun encodeToFido2Format(data: Map&lt;String, Any&gt;): ByteArray = encodingEngine.encodeToFido2Format(data)</span>
+
+    /** Encodes a P-256 public key as a COSE_Key map. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCosePublicKeyFromUncompressed(uncompressedPoint: ByteArray): ByteArray =
+<span class="nc" id="L192">        encodingEngine.encodeCosePublicKeyFromUncompressed(uncompressedPoint)</span>
+
+    /** Encodes a raw ML-DSA-65 public key as a COSE_Key map. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCoseMlDsaPublicKey(publicKeyBytes: ByteArray): ByteArray =
+<span class="fc" id="L197">        encodingEngine.encodeCoseMlDsaPublicKey(publicKeyBytes)</span>
+
+    /** Encodes an Ed25519 public key as a COSE_Key map. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCoseEd25519PublicKey(publicKeyBytes: ByteArray): ByteArray =
+<span class="nc" id="L202">        encodingEngine.encodeCoseEd25519PublicKey(publicKeyBytes)</span>
+
+    /** Converts the supported Java public-key encodings to COSE_Key maps. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCosePublicKeyFromJavaKey(publicKey: java.security.PublicKey): ByteArray =
+<span class="fc" id="L207">        encodingEngine.encodeCosePublicKeyFromJavaKey(publicKey)</span>
+    // ── Recursive decoder ─────────────────────────────────────────────────────
+
+    /** Returns (decodedValue, nextOffset). */
+    private fun decodeItem(
+        data: ByteArray,
+        offset: Int,
+        depth: Int,
+        decodedByteStrings: MutableList&lt;ByteArray&gt;,
+        decodedTextOwners: MutableList&lt;SensitiveCredentialText&gt;,
+        sensitiveTextValues: Boolean,
+    ): Pair&lt;Any?, Int&gt; {
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">        if (depth &gt; MAX_CBOR_NESTING_DEPTH) malformedCbor(&quot;CBOR nesting exceeds supported depth&quot;)</span>
+<span class="fc" id="L220">        requireAvailable(data, offset, 1)</span>
+<span class="fc" id="L221">        val initial = data[offset].toInt() and MASK_8_BITS</span>
+<span class="fc" id="L222">        val major = initial shr MAJOR_TYPE_SHIFT</span>
+<span class="fc" id="L223">        val info = initial and INFO_MASK</span>
+<span class="fc" id="L224">        var pos = offset + 1</span>
+
+<span class="fc" id="L226">        val (argument, newPos) = decodeArgument(data, pos, info)</span>
+<span class="fc" id="L227">        pos = newPos</span>
+
+<span class="pc bpc" id="L229" title="1 of 8 branches missed.">        return when (major) {</span>
+            MAJOR_TYPE_UNSIGNED_INT -&gt; {
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">                if (argument &lt; 0) malformedCbor(&quot;CBOR unsigned integer exceeds supported range&quot;)</span>
+<span class="fc" id="L232">                Pair(argument, pos)</span>
+            }
+<span class="fc" id="L234">            MAJOR_TYPE_NEGATIVE_INT -&gt; Pair(-argument - 1L, pos) // negative integer</span>
+            MAJOR_TYPE_BYTE_STRING -&gt; { // byte string
+<span class="fc" id="L236">                val len = checkedLength(data, pos, argument)</span>
+<span class="fc" id="L237">                val bytes = data.copyOfRange(pos, pos + len)</span>
+<span class="fc" id="L238">                decodedByteStrings += bytes</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                onDecodedByteStringForTest?.invoke(bytes)</span>
+<span class="fc" id="L240">                Pair(bytes, pos + len)</span>
+            }
+
+            MAJOR_TYPE_TEXT_STRING -&gt; { // text string
+<span class="fc" id="L244">                val len = checkedLength(data, pos, argument)</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                if (sensitiveTextValues) {</span>
+<span class="fc" id="L246">                    val owner =</span>
+<span class="fc" id="L247">                        try {</span>
+<span class="fc" id="L248">                            SensitiveCredentialText.fromUtf8Range(data, pos, len)</span>
+<span class="nc" id="L249">                        } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="nc" id="L250">                            malformedCbor(&quot;Malformed CBOR UTF-8 text&quot;)</span>
+                        }
+<span class="fc" id="L252">                    decodedTextOwners += owner</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">                    onDecodedTextOwnerForTest?.invoke(owner)</span>
+<span class="fc" id="L254">                    return Pair(owner, pos + len)</span>
+                }
+<span class="fc" id="L256">                val str =</span>
+<span class="fc" id="L257">                    try {</span>
+<span class="fc" id="L258">                        StandardCharsets.UTF_8</span>
+<span class="fc" id="L259">                            .newDecoder()</span>
+<span class="fc" id="L260">                            .onMalformedInput(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L261">                            .onUnmappableCharacter(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L262">                            .decode(ByteBuffer.wrap(data, pos, len))</span>
+<span class="fc" id="L263">                            .toString()</span>
+<span class="fc" id="L264">                    } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="nc" id="L265">                        malformedCbor(&quot;Malformed CBOR UTF-8 text&quot;)</span>
+                    }
+<span class="fc" id="L267">                Pair(str, pos + len)</span>
+            }
+
+            MAJOR_TYPE_ARRAY -&gt; { // array
+<span class="fc" id="L271">                val count = checkedContainerCount(data, pos, argument, minimumBytesPerItem = 1)</span>
+<span class="fc" id="L272">                val list = ArrayList&lt;Any?&gt;(count)</span>
+<span class="fc" id="L273">                var cur = pos</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                repeat(count) {</span>
+<span class="fc" id="L275">                    val (item, next) =</span>
+<span class="fc" id="L276">                        decodeItem(data, cur, depth + 1, decodedByteStrings, decodedTextOwners, sensitiveTextValues)</span>
+<span class="fc" id="L277">                    list.add(item)</span>
+<span class="fc" id="L278">                    cur = next</span>
+<span class="fc" id="L279">                }</span>
+<span class="fc" id="L280">                Pair(list, cur)</span>
+            }
+
+            MAJOR_TYPE_MAP -&gt; { // map
+<span class="fc" id="L284">                val count = checkedContainerCount(data, pos, argument, minimumBytesPerItem = 2)</span>
+<span class="fc" id="L285">                val map = LinkedHashMap&lt;String, Any&gt;(count)</span>
+<span class="fc" id="L286">                val seenKeys = HashSet&lt;String&gt;(count)</span>
+<span class="fc" id="L287">                var cur = pos</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">                repeat(count) {</span>
+<span class="fc" id="L289">                    val (key, kNext) =</span>
+<span class="fc" id="L290">                        decodeItem(data, cur, depth + 1, decodedByteStrings, decodedTextOwners, sensitiveTextValues)</span>
+<span class="fc" id="L291">                    val (value, vNext) =</span>
+<span class="fc" id="L292">                        decodeItem(data, kNext, depth + 1, decodedByteStrings, decodedTextOwners, sensitiveTextValues)</span>
+<span class="fc" id="L293">                    val keyString =</span>
+<span class="fc" id="L294">                        when (key) {</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">                            is Long -&gt; key.toString()</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">                            is String -&gt; key</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">                            is SensitiveCredentialText -&gt;</span>
+<span class="fc" id="L298">                                SENSITIVE_REQUEST_TEXT_KEYS.firstOrNull(key::contentEquals)</span>
+<span class="nc" id="L299">                            else -&gt; malformedCbor(&quot;Unsupported CBOR map key type&quot;)</span>
+                        }
+<span class="fc bfc" id="L301" title="All 2 branches covered.">                    if (key is SensitiveCredentialText) key.erase()</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">                    if (keyString != null) {</span>
+<span class="pc bpc" id="L303" title="1 of 2 branches missed.">                        if (!seenKeys.add(keyString)) malformedCbor(&quot;Duplicate CBOR map key&quot;)</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">                        map[keyString] = value ?: malformedCbor(&quot;CBOR map values must retain explicit null markers&quot;)</span>
+                    } else {
+                        // Unknown text-keyed fields are ignored by CTAP callers. Erase their decoded
+                        // values now instead of retaining attacker-controlled text until request end.
+<span class="fc" id="L308">                        eraseDecodedRequestValues(value)</span>
+                    }
+<span class="fc" id="L310">                    cur = vNext</span>
+<span class="fc" id="L311">                }</span>
+<span class="fc" id="L312">                Pair(map, cur)</span>
+            }
+
+            MAJOR_TYPE_SIMPLE -&gt; { // float/simple/break
+<span class="fc" id="L316">                val value: Any? =</span>
+<span class="pc bpc" id="L317" title="1 of 5 branches missed.">                    when (info) {</span>
+<span class="fc" id="L318">                        SIMPLE_FALSE -&gt; false</span>
+<span class="fc" id="L319">                        SIMPLE_TRUE -&gt; true</span>
+<span class="fc" id="L320">                        SIMPLE_NULL -&gt; SimpleValue.NULL</span>
+<span class="fc" id="L321">                        SIMPLE_UNDEFINED -&gt; SimpleValue.UNDEFINED</span>
+<span class="nc" id="L322">                        else -&gt; malformedCbor(&quot;Unsupported CBOR simple or floating-point value&quot;)</span>
+                    }
+<span class="fc" id="L324">                Pair(value, pos)</span>
+            }
+
+<span class="nc" id="L327">            else -&gt; malformedCbor(&quot;Unsupported CBOR major type&quot;)</span>
+        }
+    }
+
+    private fun checkedLength(
+        data: ByteArray,
+        offset: Int,
+        argument: Long,
+    ): Int {
+<span class="pc bpc" id="L336" title="2 of 4 branches missed.">        if (argument &lt; 0 || argument &gt; Int.MAX_VALUE) malformedCbor(&quot;CBOR string length is out of range&quot;)</span>
+<span class="fc" id="L337">        val length = argument.toInt()</span>
+<span class="fc" id="L338">        requireAvailable(data, offset, length)</span>
+<span class="fc" id="L339">        return length</span>
+    }
+
+    private fun checkedContainerCount(
+        data: ByteArray,
+        offset: Int,
+        argument: Long,
+        minimumBytesPerItem: Int,
+    ): Int {
+<span class="pc bpc" id="L348" title="1 of 4 branches missed.">        if (argument &lt; 0 || argument &gt; MAX_CBOR_CONTAINER_ITEMS) {</span>
+<span class="nc" id="L349">            malformedCbor(&quot;CBOR container item count exceeds supported limit&quot;)</span>
+        }
+<span class="fc" id="L351">        val count = argument.toInt()</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        if (count &gt; (data.size - offset) / minimumBytesPerItem) {</span>
+<span class="nc" id="L353">            malformedCbor(&quot;CBOR container count exceeds remaining input&quot;)</span>
+        }
+<span class="fc" id="L355">        return count</span>
+    }
+
+    private fun requireAvailable(
+        data: ByteArray,
+        offset: Int,
+        length: Int,
+    ) {
+<span class="pc bpc" id="L363" title="2 of 6 branches missed.">        if (offset &lt; 0 || length &lt; 0 || offset &gt; data.size - length) {</span>
+<span class="nc" id="L364">            malformedCbor(&quot;Truncated CBOR input&quot;)</span>
+        }
+<span class="fc" id="L366">    }</span>
+
+    private fun MutableList&lt;ByteArray&gt;.eraseAll() {
+<span class="fc" id="L369">        forEach { it.fill(0) }</span>
+<span class="fc" id="L370">        clear()</span>
+<span class="fc" id="L371">    }</span>
+
+    /**
+     * Decode the CBOR additional-info argument (length / small integer).
+     * Returns (valueAsLong, nextOffset).
+     */
+    private fun decodeArgument(
+        data: ByteArray,
+        offset: Int,
+        info: Int,
+    ): Pair&lt;Long, Int&gt; =
+<span class="fc" id="L382">        when {</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">            info &lt; HEADER_SMALL_LIMIT -&gt; Pair(info.toLong(), offset)</span>
+<span class="fc bfc" id="L384" title="All 2 branches covered.">            info == HEADER_UINT8 -&gt; {</span>
+<span class="fc" id="L385">                requireAvailable(data, offset, 1)</span>
+<span class="fc" id="L386">                Pair((data[offset].toInt() and MASK_8_BITS).toLong(), offset + 1)</span>
+            }
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            info == HEADER_UINT16 -&gt; {</span>
+<span class="fc" id="L389">                requireAvailable(data, offset, 2)</span>
+<span class="fc" id="L390">                val v =</span>
+<span class="fc" id="L391">                    ((data[offset].toInt() and MASK_8_BITS) shl BYTE_SHIFT_8) or</span>
+<span class="fc" id="L392">                        (data[offset + 1].toInt() and MASK_8_BITS)</span>
+<span class="fc" id="L393">                Pair(v.toLong(), offset + 2)</span>
+            }
+
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">            info == HEADER_UINT32 -&gt; {</span>
+<span class="fc" id="L397">                requireAvailable(data, offset, SIZE_UINT32)</span>
+<span class="fc" id="L398">                var v = 0L</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">                for (i in 0..INDEX_3) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()</span>
+<span class="fc" id="L400">                Pair(v, offset + SIZE_UINT32)</span>
+            }
+
+<span class="nc bnc" id="L403" title="All 2 branches missed.">            info == HEADER_UINT64 -&gt; {</span>
+<span class="nc" id="L404">                requireAvailable(data, offset, SIZE_UINT64)</span>
+<span class="nc" id="L405">                var v = 0L</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">                for (i in 0..INDEX_7) v = (v shl BYTE_SHIFT_8) or (data[offset + i].toInt() and MASK_8_BITS).toLong()</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                if (v &lt; 0) malformedCbor(&quot;CBOR argument exceeds supported range&quot;)</span>
+<span class="nc" id="L408">                Pair(v, offset + SIZE_UINT64)</span>
+            }
+
+<span class="nc" id="L411">            else -&gt; malformedCbor(&quot;Indefinite or reserved CBOR argument is unsupported&quot;)</span>
+<span class="fc" id="L412">        }</span>
+
+<span class="fc" id="L414">    private class MalformedCborException(</span>
+        message: String,
+<span class="fc" id="L416">    ) : IllegalArgumentException(message)</span>
+
+<span class="fc" id="L418">    private fun malformedCbor(message: String): Nothing = throw MalformedCborException(message)</span>
+
+    /**
+     * Owns the intermediate wire buffer and clears it after copying the returned response bytes.
+     *
+     * Erases every superseded buffer before allowing the stream to continue growing.
+     * All writes reserve capacity here first so ByteArrayOutputStream never replaces
+     * a sensitive backing array without this class clearing it.
+     */
+<span class="fc" id="L427">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="pc" id="L428">    internal class ErasableByteArrayOutputStream(</span>
+<span class="pc" id="L429">        private val onBufferErased: ((ByteArray) -&gt; Unit)? = null,</span>
+<span class="nc" id="L430">    ) : ByteArrayOutputStream() {</span>
+        /** Writes one byte after reserving and erasing replaced sensitive backing storage. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        @Synchronized
+        override fun write(b: Int) {
+<span class="fc" id="L435">            ensureCapacityFor(1)</span>
+<span class="fc" id="L436">            super.write(b)</span>
+<span class="fc" id="L437">        }</span>
+
+        /** Writes a byte range after reserving and erasing replaced sensitive backing storage. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        @Synchronized
+        override fun write(
+            bytes: ByteArray,
+            offset: Int,
+            length: Int,
+        ) {
+<span class="pc bpc" id="L447" title="3 of 6 branches missed.">            if (offset &lt; 0 || length &lt; 0 || length &gt; bytes.size - offset) {</span>
+<span class="nc" id="L448">                throw IndexOutOfBoundsException(&quot;Invalid byte range&quot;)</span>
+            }
+<span class="fc" id="L450">            ensureCapacityFor(length)</span>
+<span class="fc" id="L451">            super.write(bytes, offset, length)</span>
+<span class="fc" id="L452">        }</span>
+
+        /** Erases the current intermediate response buffer and resets its logical length. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        @Synchronized
+        fun erase() {
+<span class="fc" id="L458">            eraseBuffer(buf)</span>
+<span class="fc" id="L459">            reset()</span>
+<span class="fc" id="L460">        }</span>
+
+        private fun ensureCapacityFor(additionalBytes: Int) {
+<span class="pc bpc" id="L463" title="1 of 2 branches missed.">            if (additionalBytes == 0) return</span>
+<span class="fc" id="L464">            val requiredCapacity = Math.addExact(count, additionalBytes)</span>
+<span class="fc bfc" id="L465" title="All 2 branches covered.">            if (requiredCapacity &lt;= buf.size) return</span>
+
+<span class="pc bpc" id="L467" title="1 of 2 branches missed.">            val doubledCapacity = if (buf.size &lt;= Int.MAX_VALUE / 2) buf.size * 2 else Int.MAX_VALUE</span>
+<span class="fc" id="L468">            val replacement = buf.copyOf(maxOf(requiredCapacity, doubledCapacity))</span>
+<span class="fc" id="L469">            val previous = buf</span>
+<span class="fc" id="L470">            buf = replacement</span>
+<span class="fc" id="L471">            eraseBuffer(previous)</span>
+<span class="fc" id="L472">        }</span>
+
+        private fun eraseBuffer(buffer: ByteArray) {
+<span class="fc" id="L475">            buffer.fill(0)</span>
+<span class="pc bpc" id="L476" title="1 of 2 branches missed.">            onBufferErased?.invoke(buffer)</span>
+<span class="fc" id="L477">        }</span>
+    }
+
+    // ── Legacy helpers ────────────────────────────────────────────────────────
+
+    /** Encodes the structured attestation object as canonical CTAP2 CBOR. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeAttestationObject(
+        rpIdHash: ByteArray,
+        flags: Byte,
+        counter: Int,
+        aaguid: ByteArray,
+        credentialId: ByteArray,
+        publicKeyBytes: ByteArray,
+    ): ByteArray =
+<span class="fc" id="L492">        encodeToFido2Format(</span>
+<span class="fc" id="L493">            mapOf(</span>
+<span class="fc" id="L494">                &quot;fmt&quot; to &quot;packed&quot;,</span>
+<span class="fc" id="L495">                &quot;authData&quot; to</span>
+<span class="fc" id="L496">                    mapOf(</span>
+<span class="fc" id="L497">                        &quot;rpIdHash&quot; to rpIdHash,</span>
+<span class="fc" id="L498">                        &quot;flags&quot; to flags.toInt(),</span>
+<span class="fc" id="L499">                        &quot;counter&quot; to counter,</span>
+<span class="fc" id="L500">                        &quot;aaguid&quot; to aaguid,</span>
+<span class="fc" id="L501">                        &quot;credentialId&quot; to credentialId,</span>
+<span class="fc" id="L502">                        &quot;publicKey&quot; to publicKeyBytes,</span>
+                    ),
+            ),
+<span class="fc" id="L505">        )</span>
+
+    /** Encodes the relying-party hash, flags and counter as CTAP2 CBOR. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeAuthenticatorData(
+        rpIdHash: ByteArray,
+        flags: Byte,
+        counter: Int,
+<span class="fc" id="L513">    ): ByteArray = encodeToFido2Format(mapOf(&quot;rpIdHash&quot; to rpIdHash, &quot;flags&quot; to flags.toInt(), &quot;counter&quot; to counter))</span>
+
+    /** Encodes client-data fields using the legacy CBOR representation retained by this compatibility helper. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L517">    fun encodeClientDataJson(</span>
+        type: String,
+        challenge: ByteArray,
+        origin: String,
+<span class="fc" id="L521">        crossOrigin: Boolean = false,</span>
+    ): ByteArray =
+<span class="fc" id="L523">        encodeToFido2Format(</span>
+<span class="fc" id="L524">            mapOf(</span>
+<span class="fc" id="L525">                &quot;type&quot; to type,</span>
+<span class="fc" id="L526">                &quot;challenge&quot; to challenge,</span>
+<span class="fc" id="L527">                &quot;origin&quot; to origin,</span>
+<span class="fc" id="L528">                &quot;crossOrigin&quot; to crossOrigin,</span>
+            ),
+<span class="fc" id="L530">        )</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

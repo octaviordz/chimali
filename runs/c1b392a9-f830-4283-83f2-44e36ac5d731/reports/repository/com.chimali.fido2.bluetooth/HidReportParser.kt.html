@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HidReportParser.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.bluetooth</a> &gt; <span class="el_source">HidReportParser.kt</span></div><h1>HidReportParser.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.bluetooth
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.exception.Fido2Exception
+import java.nio.ByteBuffer
+import org.koin.core.annotation.Single
+
+// ── CTAP2-over-HID packet structure (FIDO CTAP HID spec §8) ──────────────────
+//
+// The FIDO CTAP HID specification relies on a fixed packet size agreed upon
+// in the HID Descriptor. Our HID Descriptor sets the report size to 62 bytes.
+// Therefore, the CTAPHID packet size is exactly 62 bytes.
+//
+//
+// Init packet (first in sequence):
+//   [CID 4B] [CMD 1B (bit7=1)] [BCNTH 1B] [BCNTL 1B] [DATA up to 55B]
+//
+// Continuation packet:
+//   [CID 4B] [SEQ 1B (bit7=0, 0x00-0x7F)] [DATA up to 57B]
+
+/** Number of bytes in each CTAP HID report for the configured Bluetooth transport. */
+internal const val HID_PACKET_SIZE = 62 // Must match FIDO_HID_REPORT_SIZE (62) exactly
+
+/** Number of leading bytes reserved for the channel identifier in each report. */
+internal const val CID_SIZE = 4
+
+/** Byte index of the command field in an initial packet. */
+internal const val INIT_CMD_OFFSET = 4
+
+/** Byte index of the high byte of the initial packet's payload length. */
+internal const val INIT_BCNTH_OFFSET = 5
+
+/** Byte index of the low byte of the initial packet's payload length. */
+internal const val INIT_BCNTL_OFFSET = 6
+
+/** Byte index where initial-packet payload data begins. */
+internal const val INIT_DATA_OFFSET = 7
+
+/** Maximum payload bytes carried by one initial packet. */
+internal const val INIT_DATA_SIZE = HID_PACKET_SIZE - INIT_DATA_OFFSET // 55
+
+/** Byte index of the sequence number in a continuation packet. */
+internal const val CONT_SEQ_OFFSET = 4
+
+/** Byte index where continuation-packet payload data begins. */
+internal const val CONT_DATA_OFFSET = 5
+
+/** Maximum payload bytes carried by one continuation packet. */
+internal const val CONT_DATA_SIZE = HID_PACKET_SIZE - CONT_DATA_OFFSET // 57
+
+private const val CMD_FLAG = 0x80 // bit7 set → init packet
+private const val CMD_MASK = 0x7F
+private const val BYTE_MASK = 0xFF
+private const val SHIFT_8 = 8
+
+// Well-known CTAPHID commands
+
+/** CTAPHID_MSG command code for legacy U2F messages. */
+internal const val CTAPHID_MSG = 0x03
+
+/** CTAPHID_CBOR command code for CTAP2 messages. */
+internal const val CTAPHID_CBOR = 0x10
+
+/** CTAPHID_INIT command code for channel allocation and initialization. */
+internal const val CTAPHID_INIT = 0x06
+
+/** CTAPHID_PING command code for echoing payloads. */
+internal const val CTAPHID_PING = 0x01
+
+/** CTAPHID_CANCEL command code for canceling an in-progress operation. */
+internal const val CTAPHID_CANCEL = 0x11
+
+/** CTAPHID_ERROR command code for transport-level errors. */
+internal const val CTAPHID_ERROR = 0x3F
+
+/** CTAPHID_KEEPALIVE command code for reporting operation progress. */
+internal const val CTAPHID_KEEPALIVE = 0x3B
+
+// CTAPHID_INIT nonce / response sizes
+
+private const val INIT_NONCE_SIZE = 8
+
+// response: nonce(8) + CID_assigned(4) + protocolVersion(1) + majorDV(1) + minorDV(1) + buildDV(1) + capabilities(1)
+private const val INIT_RESPONSE_SIZE = 17
+private const val INIT_PROTOCOL_VERSION: Byte = 0x02
+private const val INIT_DEVICE_MAJOR_VERSION: Byte = 0x01
+private const val INIT_DEVICE_MINOR_VERSION: Byte = 0x00
+private const val INIT_DEVICE_BUILD_VERSION: Byte = 0x00
+
+/** Maximum payload accepted across one initial packet and 128 continuation packets. */
+internal const val MAX_HID_MESSAGE_SIZE = INIT_DATA_SIZE + (128 * CONT_DATA_SIZE)
+
+private const val MAX_PENDING_HID_MESSAGES = 8
+private const val PENDING_HID_MESSAGE_TIMEOUT_NANOS = 5_000_000_000L
+
+private const val CAPABILITY_CBOR = 0x04 // Authenticator supports CTAPHID_CBOR (CTAP2)
+private const val CAPABILITY_NMSG = 0x08 // Authenticator does NOT support CTAPHID_MSG (U2F)
+//
+// ⚠️  BOTH bits must be set for a CTAP2-only authenticator.
+//
+// Without CAPABILITY_NMSG, Windows assumes MSG is supported and sends
+// U2F_REGISTER (INS=0x01) as a legacy capability probe.  Any U2F APDU
+// error code returned — including 0x6985 SW_CONDITIONS_NOT_SATISFIED —
+// causes Windows to enter an infinite polling loop: it shows &quot;Touch your
+// security key&quot; and re-sends U2F_REGISTER every ~300 ms until it times out
+// and kills the process.  It NEVER escalates to CTAPHID_CBOR MakeCredential.
+//
+// With CAPABILITY_NMSG set, Windows reads from the INIT response that
+// CTAPHID_MSG is not supported, skips the U2F probe entirely, and goes
+// directly to CTAPHID_CBOR (0x10) for authenticatorMakeCredential.
+//
+// The prior concern &quot;may trip device-state validation errors&quot; was based on
+// early testing before CTAPHID_MSG handling existed and is no longer
+// applicable.  wiokey-android sets NMSG; we do the same.
+
+/** CID assigned to the broadcast channel (used for CTAPHID_INIT). */
+<span class="fc" id="L117">val BROADCAST_CID: ByteArray =</span>
+<span class="fc" id="L118">    byteArrayOf(</span>
+<span class="fc" id="L119">        BYTE_MASK.toByte(),</span>
+<span class="fc" id="L120">        BYTE_MASK.toByte(),</span>
+<span class="fc" id="L121">        BYTE_MASK.toByte(),</span>
+<span class="fc" id="L122">        BYTE_MASK.toByte(),</span>
+    )
+
+/**
+ * Represents a fully assembled CTAP2 HID command — after multi-packet reassembly.
+ */
+<span class="fc" id="L128">data class CtapHidMessage(</span>
+    /** Channel identifier carried by the assembled CTAP HID message. */
+<span class="fc" id="L130">    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L131">    val channelId: ByteArray,</span>
+    /** Command code with the initial-packet flag bit removed. */
+<span class="fc" id="L133">    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L134">    val command: Int,</span>
+    /** Reassembled message payload bytes. */
+<span class="fc" id="L136">    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L137">    val payload: ByteArray,</span>
+) {
+    /** Compares channel, command, and payload by value; byte arrays use content equality. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    override fun equals(other: Any?): Boolean {
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        if (this === other) return true</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (other !is CtapHidMessage) return false</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        return channelId.contentEquals(other.channelId) &amp;&amp;</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">            command == other.command &amp;&amp;</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            payload.contentEquals(other.payload)</span>
+    }
+
+    /** Returns a content-derived collection hash consistent with [equals]. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    override fun hashCode(): Int {
+<span class="nc" id="L152">        var result = channelId.contentHashCode()</span>
+<span class="nc" id="L153">        result = 31 * result + command</span>
+<span class="nc" id="L154">        result = 31 * result + payload.contentHashCode()</span>
+<span class="nc" id="L155">        return result</span>
+    }
+}
+
+/**
+ * Parses 62-byte raw HID reports and reassembles multi-packet CTAP2 HID messages.
+ *
+ * Per FIDO CTAP HID spec §8, each report is either an *init* packet
+ * (MSB of byte[4] == 1) or a *continuation* packet (MSB == 0). This parser
+ * accumulates packets per channel ID until the full payload is received.
+ *
+ * Android-specific: report size is 62 (not the spec's 64) due to the L2CAP
+ * MTU cap. See [FIDO_HID_REPORT_SIZE] and the wiokey-android reference.
+ *
+ * Usage: feed each report from [BluetoothHidDeviceWrapper.incomingReports]
+ * to [processReport]. When a result is non-null the full message is ready.
+ */
+<span class="fc" id="L172">@Single</span>
+@Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+class HidReportParser {
+<span class="pc" id="L175">    private data class InProgress(</span>
+<span class="fc" id="L176">        val channelId: ByteArray,</span>
+<span class="fc" id="L177">        val command: Int,</span>
+<span class="fc" id="L178">        val buffer: ByteArray,</span>
+<span class="fc" id="L179">        var bytesWritten: Int,</span>
+<span class="fc" id="L180">        val createdAtNanos: Long,</span>
+<span class="pc" id="L181">        var nextSeq: Int = 0,</span>
+<span class="nc" id="L182">    )</span>
+
+    /** Map from CID (as hex string) → in-progress reassembly state. */
+<span class="fc" id="L185">    private val pending = mutableMapOf&lt;String, InProgress&gt;()</span>
+
+    /** Monotonic nanosecond clock used for expiration and deterministic host tests. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="pc" id="L189">    internal var monotonicNanos: () -&gt; Long = System::nanoTime</span>
+
+    /** Optional host-test observer receiving the parser-owned reassembly buffer after allocation. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="pc" id="L193">    internal var onReassemblyBufferCreatedForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    /**
+     * Processes one raw HID report (62 bytes on BT HID — see [HID_PACKET_SIZE]).
+     *
+     * Borrows the platform-owned report. Any completed message owns a separate payload; its
+     * terminal dispatcher must erase that payload after the operation finishes.
+     *
+     * @return a [CtapHidMessage] when the full message is assembled, or null
+     *         if more continuation packets are still expected.
+     * @throws [Fido2Exception.ProtocolException] on framing errors.
+     */
+    @Synchronized
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun processReport(report: ByteArray): Result&lt;CtapHidMessage?&gt; {
+<span class="fc" id="L208">        expirePending(monotonicNanos())</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        if (report.size != HID_PACKET_SIZE) {</span>
+<span class="fc" id="L210">            return Result.failure(</span>
+<span class="fc" id="L211">                Fido2Exception.ProtocolException(</span>
+<span class="fc" id="L212">                    &quot;Invalid HID report size: ${report.size} != $HID_PACKET_SIZE&quot;,</span>
+                ),
+            )
+        }
+
+<span class="fc" id="L217">        val cid = report.copyOfRange(0, CID_SIZE)</span>
+<span class="fc" id="L218">        val cidKey = cid.toHex()</span>
+
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        return if (report[INIT_CMD_OFFSET].toInt() and CMD_FLAG != 0) {</span>
+<span class="fc" id="L221">            processInitPacket(cid, cidKey, report)</span>
+        } else {
+<span class="fc" id="L223">            processContinuationPacket(cid, cidKey, report)</span>
+        }
+    }
+
+    // ── Init packet ───────────────────────────────────────────────────────────
+
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun processInitPacket(
+        cid: ByteArray,
+        cidKey: String,
+        report: ByteArray,
+    ): Result&lt;CtapHidMessage?&gt; {
+<span class="fc" id="L235">        val cmd = report[INIT_CMD_OFFSET].toInt() and CMD_MASK</span>
+<span class="fc" id="L236">        val bcntH = report[INIT_BCNTH_OFFSET].toInt() and BYTE_MASK</span>
+<span class="fc" id="L237">        val bcntL = report[INIT_BCNTL_OFFSET].toInt() and BYTE_MASK</span>
+<span class="fc" id="L238">        val totalLength = (bcntH shl SHIFT_8) or bcntL</span>
+
+        // A new init packet replaces any incomplete request from the same channel, even when
+        // the new length itself is rejected.
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        pending.remove(cidKey)?.erase()</span>
+
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        if (totalLength &gt; MAX_HID_MESSAGE_SIZE) {</span>
+<span class="fc" id="L245">            return Result.failure(</span>
+<span class="fc" id="L246">                Fido2Exception.ProtocolException(&quot;HID message exceeds $MAX_HID_MESSAGE_SIZE bytes&quot;),</span>
+            )
+        }
+
+<span class="fc" id="L250">        val dataInThisPacket = minOf(INIT_DATA_SIZE, totalLength)</span>
+
+<span class="pc bpc" id="L252" title="1 of 4 branches missed.">        if (totalLength &gt; INIT_DATA_SIZE &amp;&amp; pending.size &gt;= MAX_PENDING_HID_MESSAGES) {</span>
+<span class="nc" id="L253">            return Result.failure(</span>
+<span class="nc" id="L254">                Fido2Exception.ProtocolException(&quot;Too many incomplete HID messages&quot;),</span>
+            )
+        }
+
+<span class="fc bfc" id="L258" title="All 2 branches covered.">        return if (totalLength &lt;= INIT_DATA_SIZE) {</span>
+            // This returned copy becomes the message payload owner. The caller must erase it
+            // after dispatch; the platform report remains borrowed and is never modified here.
+<span class="fc" id="L261">            val payload = report.copyOfRange(INIT_DATA_OFFSET, INIT_DATA_OFFSET + totalLength)</span>
+<span class="fc" id="L262">            Result.success(CtapHidMessage(cid, cmd, payload))</span>
+        } else {
+<span class="fc" id="L264">            val buffer = ByteArray(totalLength)</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">            onReassemblyBufferCreatedForTest?.invoke(buffer)</span>
+<span class="fc" id="L266">            report.copyInto(buffer, 0, INIT_DATA_OFFSET, INIT_DATA_OFFSET + dataInThisPacket)</span>
+<span class="fc" id="L267">            pending[cidKey] =</span>
+<span class="fc" id="L268">                InProgress(</span>
+<span class="fc" id="L269">                    channelId = cid,</span>
+<span class="fc" id="L270">                    command = cmd,</span>
+<span class="fc" id="L271">                    buffer = buffer,</span>
+<span class="fc" id="L272">                    bytesWritten = dataInThisPacket,</span>
+<span class="fc" id="L273">                    createdAtNanos = monotonicNanos(),</span>
+<span class="fc" id="L274">                    nextSeq = 0,</span>
+                )
+<span class="fc" id="L276">            Result.success(null)</span>
+        }
+    }
+
+    // ── Continuation packet ───────────────────────────────────────────────────
+
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun processContinuationPacket(
+        cid: ByteArray,
+        cidKey: String,
+        report: ByteArray,
+    ): Result&lt;CtapHidMessage?&gt; {
+<span class="fc" id="L288">        val state =</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            pending[cidKey]</span>
+<span class="fc" id="L290">                ?: return Result.failure(</span>
+<span class="fc" id="L291">                    Fido2Exception.ProtocolException(&quot;Continuation packet for unknown CID $cidKey&quot;),</span>
+                )
+
+<span class="fc" id="L294">        val seq = report[CONT_SEQ_OFFSET].toInt() and CMD_MASK</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        if (seq != state.nextSeq) {</span>
+<span class="fc" id="L296">            pending.remove(cidKey)</span>
+<span class="fc" id="L297">            state.erase()</span>
+<span class="fc" id="L298">            return Result.failure(</span>
+<span class="fc" id="L299">                Fido2Exception.ProtocolException(</span>
+<span class="fc" id="L300">                    &quot;Sequence mismatch on CID $cidKey: expected ${state.nextSeq}, got $seq&quot;,</span>
+                ),
+            )
+        }
+
+<span class="fc" id="L305">        val remaining = state.buffer.size - state.bytesWritten</span>
+<span class="fc" id="L306">        val dataInPacket = minOf(CONT_DATA_SIZE, remaining)</span>
+<span class="fc" id="L307">        report.copyInto(state.buffer, state.bytesWritten, CONT_DATA_OFFSET, CONT_DATA_OFFSET + dataInPacket)</span>
+<span class="fc" id="L308">        state.bytesWritten += dataInPacket</span>
+<span class="fc" id="L309">        state.nextSeq++</span>
+
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        return if (state.bytesWritten == state.buffer.size) {</span>
+<span class="fc" id="L312">            pending.remove(cidKey)</span>
+<span class="fc" id="L313">            val payload = state.buffer.copyOf()</span>
+<span class="fc" id="L314">            state.erase()</span>
+<span class="fc" id="L315">            Result.success(CtapHidMessage(cid, state.command, payload))</span>
+        } else {
+<span class="fc" id="L317">            Result.success(null)</span>
+        }
+    }
+
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    private fun InProgress.erase() {
+<span class="fc" id="L323">        buffer.fill(0)</span>
+<span class="fc" id="L324">        channelId.fill(0)</span>
+<span class="fc" id="L325">        bytesWritten = 0</span>
+<span class="fc" id="L326">    }</span>
+
+    /**
+     * Erases every partial request whose monotonic lifetime has elapsed. The bounded receive
+     * loop calls this during idle polling and parsing calls it before accepting another packet.
+     */
+    @Synchronized
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L334">    fun expirePending(nowNanos: Long = monotonicNanos()) {</span>
+<span class="fc" id="L335">        val expiredKeys =</span>
+<span class="fc" id="L336">            pending</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">                .filterValues { nowNanos - it.createdAtNanos &gt;= PENDING_HID_MESSAGE_TIMEOUT_NANOS }</span>
+<span class="fc" id="L338">                .keys</span>
+<span class="fc" id="L339">                .toList()</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        expiredKeys.forEach { key -&gt; pending.remove(key)?.erase() }</span>
+<span class="fc" id="L341">    }</span>
+
+    // ── Response packing ──────────────────────────────────────────────────────
+
+    /**
+     * Encodes a [CtapHidMessage] into one or more 62-byte BT HID reports (see [HID_PACKET_SIZE])
+     * that can be sent back to the host via [BluetoothHidDeviceWrapper.sendReport].
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun encodeResponse(message: CtapHidMessage): List&lt;ByteArray&gt; {
+<span class="pc bpc" id="L351" title="2 of 4 branches missed.">        require(message.channelId.size == CID_SIZE) { &quot;CID must be $CID_SIZE bytes&quot; }</span>
+<span class="fc bfc" id="L352" title="All 4 branches covered.">        require(message.payload.size &lt;= MAX_HID_MESSAGE_SIZE) {</span>
+<span class="fc" id="L353">            &quot;HID message exceeds $MAX_HID_MESSAGE_SIZE bytes&quot;</span>
+        }
+<span class="fc" id="L355">        val packets = mutableListOf&lt;ByteArray&gt;()</span>
+<span class="fc" id="L356">        val payload = message.payload</span>
+<span class="fc" id="L357">        val totalLength = payload.size</span>
+
+        // Init packet
+<span class="fc" id="L360">        val initPacket = ByteArray(HID_PACKET_SIZE)</span>
+<span class="fc" id="L361">        message.channelId.copyInto(initPacket, 0)</span>
+<span class="fc" id="L362">        initPacket[INIT_CMD_OFFSET] = (message.command or CMD_FLAG).toByte()</span>
+<span class="fc" id="L363">        initPacket[INIT_BCNTH_OFFSET] = ((totalLength shr SHIFT_8) and BYTE_MASK).toByte()</span>
+<span class="fc" id="L364">        initPacket[INIT_BCNTL_OFFSET] = (totalLength and BYTE_MASK).toByte()</span>
+<span class="fc" id="L365">        val firstChunk = minOf(INIT_DATA_SIZE, totalLength)</span>
+<span class="fc" id="L366">        payload.copyInto(initPacket, INIT_DATA_OFFSET, 0, firstChunk)</span>
+<span class="fc" id="L367">        packets.add(initPacket)</span>
+
+        // Continuation packets
+<span class="fc" id="L370">        var offset = firstChunk</span>
+<span class="fc" id="L371">        var seq = 0</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">        while (offset &lt; totalLength) {</span>
+<span class="fc" id="L373">            val contPacket = ByteArray(HID_PACKET_SIZE)</span>
+<span class="fc" id="L374">            message.channelId.copyInto(contPacket, 0)</span>
+<span class="fc" id="L375">            contPacket[CONT_SEQ_OFFSET] = (seq and CMD_MASK).toByte()</span>
+<span class="fc" id="L376">            val chunk = minOf(CONT_DATA_SIZE, totalLength - offset)</span>
+<span class="fc" id="L377">            payload.copyInto(contPacket, CONT_DATA_OFFSET, offset, offset + chunk)</span>
+<span class="fc" id="L378">            packets.add(contPacket)</span>
+<span class="fc" id="L379">            offset += chunk</span>
+<span class="fc" id="L380">            seq++</span>
+        }
+
+<span class="fc" id="L383">        return packets</span>
+    }
+
+    /**
+     * Builds a CTAPHID_INIT response that assigns a new channel to the caller.
+     *
+     * @param nonce  The 8-byte nonce from the host's CTAPHID_INIT request.
+     * @param newCid 4-byte channel ID assigned for this session.
+     * @return A message containing the nonce, assigned channel, protocol version and capabilities.
+     * @throws IllegalArgumentException if either input has an invalid length.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun buildInitResponse(
+        nonce: ByteArray,
+        newCid: ByteArray,
+    ): CtapHidMessage {
+<span class="fc bfc" id="L399" title="All 4 branches covered.">        require(nonce.size == INIT_NONCE_SIZE) { &quot;Nonce must be $INIT_NONCE_SIZE bytes&quot; }</span>
+<span class="pc bpc" id="L400" title="2 of 4 branches missed.">        require(newCid.size == CID_SIZE) { &quot;CID must be $CID_SIZE bytes&quot; }</span>
+
+<span class="fc" id="L402">        val payload =</span>
+            ByteBuffer
+<span class="fc" id="L404">                .allocate(INIT_RESPONSE_SIZE)</span>
+<span class="fc" id="L405">                .apply {</span>
+<span class="fc" id="L406">                    put(nonce)</span>
+<span class="fc" id="L407">                    put(newCid)</span>
+<span class="fc" id="L408">                    put(INIT_PROTOCOL_VERSION)</span>
+<span class="fc" id="L409">                    put(INIT_DEVICE_MAJOR_VERSION)</span>
+<span class="fc" id="L410">                    put(INIT_DEVICE_MINOR_VERSION)</span>
+<span class="fc" id="L411">                    put(INIT_DEVICE_BUILD_VERSION)</span>
+<span class="fc" id="L412">                    put(</span>
+<span class="fc" id="L413">                        (CAPABILITY_CBOR or CAPABILITY_NMSG).toByte(),</span>
+                    ) // 0x0C: CBOR supported, MSG not — prevents U2F polling loop
+<span class="fc" id="L415">                }.array()</span>
+
+<span class="fc" id="L417">        return CtapHidMessage(BROADCAST_CID, CTAPHID_INIT, payload)</span>
+    }
+
+    /**
+     * Builds a CTAPHID_ERROR response using the borrowed channel identifier and one status byte.
+     * The returned message owns its one-byte payload; the caller retains ownership of [cid].
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun buildErrorResponse(
+        cid: ByteArray,
+        errorCode: Byte,
+<span class="fc" id="L428">    ): CtapHidMessage = CtapHidMessage(cid, CTAPHID_ERROR, byteArrayOf(errorCode))</span>
+
+    /**
+     * Builds a CTAPHID_KEEPALIVE response with a one-byte progress status.
+     * The returned message owns its payload; [cid] remains borrowed.
+     * @param status 0x01 means processing; 0x02 means user action is needed.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun buildKeepAliveResponse(
+        cid: ByteArray,
+        status: Byte,
+<span class="fc" id="L439">    ): CtapHidMessage = CtapHidMessage(cid, CTAPHID_KEEPALIVE, byteArrayOf(status))</span>
+
+    /** Erases all pending request bytes and channel copies when a transport session ends. */
+    @Synchronized
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-VAL-020&quot;)
+    fun reset() {
+<span class="fc" id="L445">        pending.values.forEach { it.erase() }</span>
+<span class="fc" id="L446">        pending.clear()</span>
+<span class="fc" id="L447">    }</span>
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+
+<span class="fc" id="L451">    private fun ByteArray.toHex(): String = joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

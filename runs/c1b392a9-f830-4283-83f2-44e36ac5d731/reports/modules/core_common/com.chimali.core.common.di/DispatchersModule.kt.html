@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DispatchersModule.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">common</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.common.di</a> &gt; <span class="el_source">DispatchersModule.kt</span></div><h1>DispatchersModule.kt</h1><pre class="source lang-java linenums">package com.chimali.core.common.di
+
+import kotlinx.coroutines.CoroutineDispatcher
+import org.koin.core.annotation.Module
+import org.koin.core.annotation.Named
+import org.koin.core.annotation.Single
+
+/**
+ * Koin Annotations module for coroutine dispatchers.
+ * Uses platform-specific provider functions to bridge implementations.
+ */
+<span class="nc" id="L12">@Module</span>
+class DispatchersModule {
+    @Single
+    @Named(DispatcherQualifiers.DISPATCHER_DEFAULT)
+<span class="nc" id="L16">    fun default(): CoroutineDispatcher = provideDefaultDispatcher()</span>
+
+    @Single
+    @Named(DispatcherQualifiers.DISPATCHER_IO)
+<span class="nc" id="L20">    fun io(): CoroutineDispatcher = provideIoDispatcher()</span>
+
+    @Single
+    @Named(DispatcherQualifiers.DISPATCHER_MAIN)
+<span class="nc" id="L24">    fun main(): CoroutineDispatcher = provideMainDispatcher()</span>
+}
+
+/**
+ * Platform-specific dispatcher providers.
+ */
+expect fun provideDefaultDispatcher(): CoroutineDispatcher
+
+expect fun provideIoDispatcher(): CoroutineDispatcher
+
+expect fun provideMainDispatcher(): CoroutineDispatcher
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

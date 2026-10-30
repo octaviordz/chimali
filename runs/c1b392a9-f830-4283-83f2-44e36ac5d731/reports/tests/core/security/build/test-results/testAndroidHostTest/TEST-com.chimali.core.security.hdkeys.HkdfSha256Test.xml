@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.hdkeys.HkdfSha256Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:09:49.059Z" hostname="LOQ15IRX10-3" time="0.03">
+  <properties/>
+  <testcase name="empty salt uses RFC 5869 zero salt and input buffers remain borrowed()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.011"/>
+  <testcase name="expand rejects lengths beyond RFC 5869 maximum()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.001"/>
+  <testcase name="expand rejects malformed PRKs and negative output length()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <testcase name="expand accepts zero and maximum RFC output lengths without mutating borrowed inputs()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.011"/>
+  <testcase name="RFC 5869 appendix A1 extract and expand match published vector()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <testcase name="credential info uses exact label zero delimiter uint16 length and full borrowed identifier()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <testcase name="full synthetic BIP39 seed produces frozen local wallet PRK and parent input()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <testcase name="credential info rejects empty and non ASCII labels without mutating borrowed identifier()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <testcase name="wallet derivation rejects seeds that are not the complete BIP39 seed()" classname="com.chimali.core.security.hdkeys.HkdfSha256Test" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

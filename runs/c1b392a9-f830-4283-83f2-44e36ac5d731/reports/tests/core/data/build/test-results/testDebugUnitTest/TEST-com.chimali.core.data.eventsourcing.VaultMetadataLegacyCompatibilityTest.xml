@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.VaultMetadataLegacyCompatibilityTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T11:59:58.563Z" hostname="LOQ15IRX10-3" time="0.012">
+  <properties/>
+  <testcase name="title-bearing events match frozen legacy JSON string schema" classname="com.chimali.core.data.eventsourcing.VaultMetadataLegacyCompatibilityTest" time="0.009"/>
+  <testcase name="title-bearing snapshot matches frozen legacy nested string schema" classname="com.chimali.core.data.eventsourcing.VaultMetadataLegacyCompatibilityTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

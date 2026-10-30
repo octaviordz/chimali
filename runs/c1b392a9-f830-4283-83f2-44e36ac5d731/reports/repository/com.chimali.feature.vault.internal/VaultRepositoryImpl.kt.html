@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.internal</a> &gt; <span class="el_source">VaultRepositoryImpl.kt</span></div><h1>VaultRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.internal
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.database.VaultDatabase
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.vault.VaultCommand
+import com.chimali.core.domain.eventsourcing.vault.VaultState
+import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
+import com.chimali.feature.vault.api.VaultItem
+import com.chimali.feature.vault.api.VaultService
+import com.chimali.feature.vault.api.VaultType
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.koin.core.annotation.Single
+
+<span class="fc" id="L20">@Single</span>
+@Suppress(&quot;TooGenericExceptionCaught&quot;)
+<span class="fc" id="L22">class VaultRepositoryImpl(</span>
+<span class="fc" id="L23">    private val database: VaultDatabase,</span>
+<span class="fc" id="L24">    private val aggregateService: AggregateService&lt;VaultCommand, VaultState&gt;,</span>
+) : VaultService {
+    override suspend fun getItems(labelId: UUID?): Outcome&lt;List&lt;VaultItem&gt;, DomainError&gt; =
+<span class="fc" id="L27">        withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L28">            try {</span>
+<span class="fc" id="L29">                val entries =</span>
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">                    if (labelId == null) {</span>
+<span class="fc" id="L31">                        database.vaultQueries.get_vault_entries().executeAsList()</span>
+                    } else {
+<span class="nc" id="L33">                        database.vaultQueries.get_vault_entries_by_label(labelId.toString()).executeAsList()</span>
+                    }
+
+<span class="fc" id="L36">                val items =</span>
+<span class="fc" id="L37">                    entries.map { entry -&gt;</span>
+<span class="fc" id="L38">                        VaultItem(</span>
+<span class="fc" id="L39">                            id = UUID.fromString(entry.id),</span>
+<span class="fc" id="L40">                            type = VaultType.valueOf(entry.type),</span>
+<span class="fc" id="L41">                            title = entry.title.decodeToString().toCharArray(),</span>
+<span class="fc" id="L42">                            payload = entry.encrypted_payload,</span>
+<span class="fc" id="L43">                            crdtState = entry.crdt_state,</span>
+<span class="fc" id="L44">                            dateCreated = entry.date_created,</span>
+<span class="fc" id="L45">                            dateModified = entry.date_modified,</span>
+<span class="fc" id="L46">                            lastBackedUpAt = entry.last_backed_up_at,</span>
+<span class="fc" id="L47">                            identityId = UUID.fromString(entry.identity_id),</span>
+<span class="fc" id="L48">                        )</span>
+                    }
+<span class="fc" id="L50">                Outcome.Success(items)</span>
+<span class="nc" id="L51">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L52">                Logger.e(e) { &quot;VaultRepositoryImpl: Failed to load vault items&quot; }</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Failed to load vault items&quot;, e))</span>
+<span class="nc" id="L54">            } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L55">                Logger.e(e) { &quot;VaultRepositoryImpl: Invalid data in vault entries&quot; }</span>
+<span class="pc bnc" id="L56" title="All 2 branches missed.">                Outcome.Error(DomainError.StorageError(e.message ?: &quot;Invalid vault data&quot;, e))</span>
+<span class="fc" id="L57">            }</span>
+<span class="fc" id="L58">        }</span>
+
+    override suspend fun saveItem(item: VaultItem): Outcome&lt;Unit, DomainError&gt; =
+<span class="fc" id="L61">        withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L62">            try {</span>
+<span class="fc" id="L63">                val exists =</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">                    database.vaultQueries.get_vault_entry_by_id(item.id.toString()).executeAsOneOrNull() != null</span>
+
+<span class="fc" id="L66">                val command =</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">                    if (!exists) {</span>
+<span class="fc" id="L68">                        VaultCommand.Create(</span>
+<span class="fc" id="L69">                            id = item.id.toString(),</span>
+<span class="fc" id="L70">                            type = item.type.name,</span>
+<span class="fc" id="L71">                            title = item.title.copyOf(),</span>
+<span class="fc" id="L72">                            payload = item.payload,</span>
+<span class="fc" id="L73">                            identityId = item.identityId.toString(),</span>
+                        )
+                    } else {
+<span class="fc" id="L76">                        VaultCommand.Update(</span>
+<span class="fc" id="L77">                            id = item.id.toString(),</span>
+<span class="fc" id="L78">                            title = item.title.copyOf(),</span>
+<span class="fc" id="L79">                            payload = item.payload,</span>
+                        )
+                    }
+
+<span class="fc" id="L83">                try {</span>
+<span class="fc" id="L84">                    val result = aggregateService.execute(item.id.toString(), command)</span>
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">                    if (result.isSuccess) {</span>
+<span class="fc" id="L87">                        val state = result.getOrThrow()</span>
+<span class="fc" id="L88">                        try {</span>
+<span class="fc" id="L89">                            var titleBytes: ByteArray? = null</span>
+<span class="fc" id="L90">                            try {</span>
+<span class="fc" id="L91">                                titleBytes = state.title.concatToString().encodeToByteArray()</span>
+<span class="fc" id="L92">                                database.vaultQueries.insert_vault_entry(</span>
+<span class="fc" id="L93">                                    id = state.id,</span>
+<span class="fc" id="L94">                                    doc_id = state.id,</span>
+<span class="fc" id="L95">                                    type = state.type,</span>
+<span class="fc" id="L96">                                    title = titleBytes,</span>
+<span class="fc" id="L97">                                    encrypted_payload = state.payload,</span>
+<span class="fc" id="L98">                                    crdt_state = item.crdtState,</span>
+<span class="fc" id="L99">                                    date_created = item.dateCreated,</span>
+<span class="fc" id="L100">                                    date_modified = item.dateModified,</span>
+<span class="fc" id="L101">                                    last_backed_up_at = item.lastBackedUpAt,</span>
+<span class="pc bpc" id="L102" title="2 of 4 branches missed.">                                    identity_id = state.identityId.ifEmpty { item.identityId.toString() },</span>
+                                )
+                            } finally {
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">                                titleBytes?.fill(0)</span>
+                            }
+                        } finally {
+<span class="fc" id="L108">                            state.clearSensitiveMemory()</span>
+                        }
+<span class="fc" id="L110">                        Outcome.Success(Unit)</span>
+                    } else {
+<span class="nc" id="L112">                        val error = result.exceptionOrNull()</span>
+<span class="nc" id="L113">                        Logger.e(error) { &quot;VaultRepositoryImpl: Aggregate execution failed for id=${item.id}&quot; }</span>
+<span class="pc bnc" id="L114" title="All 4 branches missed.">                        Outcome.Error(DomainError.DatabaseError(error?.message ?: &quot;Failed to save vault item&quot;))</span>
+                    }
+                } finally {
+<span class="fc" id="L117">                    command.clearSensitiveMemory()</span>
+                }
+<span class="nc" id="L119">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L120">                Logger.e(e) { &quot;VaultRepositoryImpl: Database failure during save id=${item.id}&quot; }</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Database error during save&quot;, e))</span>
+<span class="nc" id="L122">            } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L123">                Logger.e(e) { &quot;VaultRepositoryImpl: State failure during save id=${item.id}&quot; }</span>
+<span class="pc bnc" id="L124" title="All 2 branches missed.">                Outcome.Error(DomainError.StorageError(e.message ?: &quot;Invalid state during save&quot;, e))</span>
+<span class="fc" id="L125">            }</span>
+<span class="fc" id="L126">        }</span>
+
+    override suspend fun deleteItem(id: UUID): Outcome&lt;Unit, DomainError&gt; =
+<span class="fc" id="L129">        withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L130">            try {</span>
+<span class="fc" id="L131">                val result = aggregateService.execute(id.toString(), VaultCommand.Delete(id.toString()))</span>
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">                if (result.isSuccess) {</span>
+<span class="fc" id="L133">                    database.vaultQueries.delete_vault_entry(id.toString())</span>
+<span class="fc" id="L134">                    Outcome.Success(Unit)</span>
+                } else {
+<span class="nc" id="L136">                    val error = result.exceptionOrNull()</span>
+<span class="nc" id="L137">                    Logger.e(error) { &quot;VaultRepositoryImpl: Aggregate delete failed for id=$id&quot; }</span>
+<span class="pc bnc" id="L138" title="All 4 branches missed.">                    Outcome.Error(DomainError.DatabaseError(error?.message ?: &quot;Failed to delete vault item&quot;))</span>
+                }
+<span class="nc" id="L140">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L141">                Logger.e(e) { &quot;VaultRepositoryImpl: Database failure during delete id=$id&quot; }</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Database error during delete&quot;, e))</span>
+<span class="nc" id="L143">            } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L144">                Logger.e(e) { &quot;VaultRepositoryImpl: State failure during delete id=$id&quot; }</span>
+<span class="pc bnc" id="L145" title="All 2 branches missed.">                Outcome.Error(DomainError.StorageError(e.message ?: &quot;Invalid state during delete&quot;, e))</span>
+<span class="fc" id="L146">            }</span>
+<span class="fc" id="L147">        }</span>
+
+    override suspend fun setItemLabels(
+        itemId: UUID,
+        labelIds: List&lt;UUID&gt;,
+    ): Outcome&lt;Unit, DomainError&gt; =
+<span class="nc" id="L153">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L154">            try {</span>
+<span class="nc" id="L155">                database.transaction {</span>
+<span class="nc" id="L156">                    database.vaultQueries.delete_vault_entry_labels(itemId.toString())</span>
+<span class="nc" id="L157">                    labelIds.forEach { labelId -&gt;</span>
+<span class="nc" id="L158">                        database.vaultQueries.insert_vault_entry_label(itemId.toString(), labelId.toString())</span>
+<span class="nc" id="L159">                    }</span>
+<span class="nc" id="L160">                }</span>
+<span class="nc" id="L161">                Outcome.Success(Unit)</span>
+<span class="nc" id="L162">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L163">                throw e</span>
+<span class="nc" id="L164">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L165">                Logger.e(e) { &quot;VaultRepositoryImpl: Failed to set item labels&quot; }</span>
+<span class="nc" id="L166">                Outcome.Error(DomainError.DatabaseError(&quot;Failed to save item labels&quot;, e))</span>
+<span class="nc" id="L167">            }</span>
+<span class="nc" id="L168">        }</span>
+
+    override suspend fun getItemLabelIds(itemId: UUID): Outcome&lt;List&lt;UUID&gt;, DomainError&gt; =
+<span class="nc" id="L171">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L172">            try {</span>
+<span class="nc" id="L173">                Outcome.Success(</span>
+<span class="nc" id="L174">                    database.vaultQueries.get_labels_for_entry(itemId.toString()).executeAsList().map {</span>
+<span class="nc" id="L175">                        UUID.fromString(it.id)</span>
+                    },
+                )
+<span class="nc" id="L178">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L179">                throw e</span>
+<span class="nc" id="L180">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L181">                Outcome.Error(DomainError.DatabaseError(&quot;Failed to load item labels&quot;, e))</span>
+<span class="nc" id="L182">            } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L183">                Outcome.Error(DomainError.StorageError(&quot;Invalid item label data&quot;, e))</span>
+<span class="nc" id="L184">            }</span>
+<span class="nc" id="L185">        }</span>
+
+    override suspend fun getLabels(): Outcome&lt;List&lt;com.chimali.feature.vault.ui.model.LabelUiModel&gt;, DomainError&gt; =
+<span class="nc" id="L188">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L189">            try {</span>
+<span class="nc" id="L190">                val labels =</span>
+<span class="nc" id="L191">                    database.vaultQueries.get_labels().executeAsList().map {</span>
+<span class="nc" id="L192">                        com.chimali.feature.vault.ui.model.LabelUiModel(</span>
+<span class="nc" id="L193">                            id = UUID.fromString(it.id),</span>
+<span class="nc" id="L194">                            name = it.name,</span>
+<span class="nc" id="L195">                            colorHex = it.color_hex,</span>
+<span class="nc" id="L196">                        )</span>
+                    }
+<span class="nc" id="L198">                Outcome.Success(labels)</span>
+<span class="nc" id="L199">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L200">                throw e</span>
+<span class="nc" id="L201">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L202">                Logger.e(e) { &quot;VaultRepositoryImpl: Failed to get labels&quot; }</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Failed to get labels&quot;, e))</span>
+<span class="nc" id="L204">            } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L205">                Logger.e(e) { &quot;VaultRepositoryImpl: Invalid label data&quot; }</span>
+<span class="nc" id="L206">                Outcome.Error(DomainError.StorageError(&quot;Invalid label data&quot;, e))</span>
+<span class="nc" id="L207">            }</span>
+<span class="nc" id="L208">        }</span>
+
+    override suspend fun createLabel(
+        name: String,
+        colorHex: String,
+    ): Outcome&lt;com.chimali.feature.vault.ui.model.LabelUiModel, DomainError&gt; =
+<span class="nc" id="L214">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L215">            try {</span>
+<span class="nc" id="L216">                val id = UUID.randomUUID()</span>
+<span class="nc" id="L217">                database.vaultQueries.insert_label(id.toString(), colorHex, name)</span>
+<span class="nc" id="L218">                Outcome.Success(</span>
+                    com.chimali.feature.vault.ui.model
+<span class="nc" id="L220">                        .LabelUiModel(id, name, colorHex),</span>
+                )
+<span class="nc" id="L222">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L223">                throw e</span>
+<span class="nc" id="L224">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L225">                Logger.e(e) { &quot;VaultRepositoryImpl: Failed to create label&quot; }</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Failed to create label&quot;, e))</span>
+<span class="nc" id="L227">            }</span>
+<span class="nc" id="L228">        }</span>
+
+    override suspend fun deleteLabel(id: UUID): Outcome&lt;Unit, DomainError&gt; =
+<span class="nc" id="L231">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L232">            try {</span>
+<span class="nc" id="L233">                database.vaultQueries.delete_label(id.toString())</span>
+<span class="nc" id="L234">                Outcome.Success(Unit)</span>
+<span class="nc" id="L235">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L236">                throw e</span>
+<span class="nc" id="L237">            } catch (e: android.database.SQLException) {</span>
+<span class="nc" id="L238">                Logger.e(e) { &quot;VaultRepositoryImpl: Failed to delete label&quot; }</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                Outcome.Error(DomainError.DatabaseError(e.message ?: &quot;Failed to delete label&quot;, e))</span>
+<span class="nc" id="L240">            }</span>
+<span class="nc" id="L241">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

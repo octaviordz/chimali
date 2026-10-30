@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedUserVerificationTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:44.739Z" hostname="LOQ15IRX10-3" time="0.002">
+  <properties/>
+  <testcase name="returns each configured outcome immediately and records intrinsic intervals()" classname="com.chimali.fido2.performance.SimulatedUserVerificationTest" time="0.001"/>
+  <testcase name="not invoked has no execution interval or duration()" classname="com.chimali.fido2.performance.SimulatedUserVerificationTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

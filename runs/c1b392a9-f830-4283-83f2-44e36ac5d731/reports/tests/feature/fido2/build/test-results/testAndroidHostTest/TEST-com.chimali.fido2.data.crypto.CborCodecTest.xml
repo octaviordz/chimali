@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.CborCodecTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:24.042Z" hostname="LOQ15IRX10-3" time="0.829">
+  <properties/>
+  <testcase name="CBOR encoding failure erases grown plaintext buffers before propagating()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.006"/>
+  <testcase name="ML-DSA sign with re-derived key verifies against original public key()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.097"/>
+  <testcase name="sensitive credential text encodes as the same CBOR text string without a String adapter()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.0"/>
+  <testcase name="CBOR map encoding is canonical and preserves negative integer key type()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.0"/>
+  <testcase name="decoder preserves explicit null and undefined map values()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.0"/>
+  <testcase name="encodeCoseMlDsaPublicKey produces kty=7 AKP and alg=-49()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.001"/>
+  <testcase name="sensitive decoding erases map key owners and ignores unknown nested text fields()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.003"/>
+  <testcase name="server side round-trip - reconstruct ML-DSA key from COSE pub and verify signature()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.046"/>
+  <testcase name="decoder rejects trailing truncated oversized deeply nested and malformed UTF-8 input()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.002"/>
+  <testcase name="encodeCosePublicKeyFromJavaKey strips DER header and returns raw 1952 bytes()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.002"/>
+  <testcase name="CBOR malformed trailing structure clears byte strings decoded before failure()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.002"/>
+  <testcase name="encodeCosePublicKeyFromJavaKey pub matches raw bytes from SubjectPublicKeyInfo()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.001"/>
+  <testcase name="generateMlDsaKeyPair is deterministic - same seed produces same key pair()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.002"/>
+  <testcase name="sensitive request decoding owns mutable text and clears it at request end()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.001"/>
+  <testcase name="CBOR text encoding erases temporary UTF-8 byte arrays()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.001"/>
+  <testcase name="CBOR encoding erases every replaced plaintext buffer and preserves the returned response()" classname="com.chimali.fido2.data.crypto.CborCodecTest" time="0.002"/>
+  <system-out><![CDATA[Info: Registering bundled BouncyCastle provider (replacing existing: false)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

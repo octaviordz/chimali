@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultDestinations.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui.navigation</a> &gt; <span class="el_source">VaultDestinations.kt</span></div><h1>VaultDestinations.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui.navigation
+
+object VaultDestinations {
+    const val LIST_ROUTE = &quot;vault/list&quot;
+    const val ENTRY_PASSWORD_ROUTE = &quot;vault/entry/password&quot;
+    const val ENTRY_CARD_ROUTE = &quot;vault/entry/card&quot;
+    const val ENTRY_NOTE_ROUTE = &quot;vault/entry/note&quot;
+    const val DETAIL_PASSWORD_ROUTE = &quot;vault/detail/password/{id}&quot;
+    const val DETAIL_CARD_ROUTE = &quot;vault/detail/card/{id}&quot;
+    const val DETAIL_NOTE_ROUTE = &quot;vault/detail/note/{id}&quot;
+    const val LABELS_ROUTE = &quot;vault/labels&quot;
+
+    fun detailRoute(
+        type: com.chimali.feature.vault.api.VaultType,
+        id: java.util.UUID,
+    ): String =
+<span class="fc bfc" id="L17" title="All 3 branches covered.">        when (type) {</span>
+<span class="fc" id="L18">            com.chimali.feature.vault.api.VaultType.PASSWORD -&gt; &quot;vault/detail/password/$id&quot;</span>
+<span class="fc" id="L19">            com.chimali.feature.vault.api.VaultType.CREDIT_CARD -&gt; &quot;vault/detail/card/$id&quot;</span>
+<span class="fc" id="L20">            com.chimali.feature.vault.api.VaultType.NOTE -&gt; &quot;vault/detail/note/$id&quot;</span>
+<span class="fc" id="L21">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

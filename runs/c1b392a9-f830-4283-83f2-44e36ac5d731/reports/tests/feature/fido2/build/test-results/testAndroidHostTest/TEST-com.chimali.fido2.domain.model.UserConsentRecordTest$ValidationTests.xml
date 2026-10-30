@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:39.759Z" hostname="LOQ15IRX10-3" time="0.051">
+  <properties/>
+  <testcase name="should throw exception when rp id is invalid()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.002"/>
+  <testcase name="should throw exception when credential id exceeds maximum length()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.002"/>
+  <testcase name="should throw exception when rp id is blank()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.021"/>
+  <testcase name="should throw exception when ip address is invalid()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.002"/>
+  <testcase name="should create valid consent record with minimal fields()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.003"/>
+  <testcase name="should throw exception when timestamp is in the future()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.003"/>
+  <testcase name="should create valid consent record with all fields()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.002"/>
+  <testcase name="should throw exception when no consent method is used()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.003"/>
+  <testcase name="should throw exception when device id is blank()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.005"/>
+  <testcase name="should throw exception when credential id is blank()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.003"/>
+  <testcase name="should throw exception when user agent is blank()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.002"/>
+  <testcase name="should throw exception when id is blank()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

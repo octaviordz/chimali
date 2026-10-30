@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OnboardingViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.onboarding.presentation.viewmodel</a> &gt; <span class="el_source">OnboardingViewModel.kt</span></div><h1>OnboardingViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.onboarding.presentation.viewmodel
+
+import androidx.datastore.core.DataStore
+import androidx.lifecycle.ViewModel
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.feature.onboarding.presentation.model.OnboardingStep
+import com.chimali.feature.onboarding.presentation.model.OnboardingUiState
+import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+
+private const val DEFAULT_VAULT_ROUTE = &quot;vault/home&quot;
+private const val DEFAULT_AUTHENTICATOR_ROUTE = &quot;fido2/home&quot;
+
+<span class="fc" id="L17">class OnboardingViewModel(</span>
+<span class="fc" id="L18">    private val dataStore: DataStore&lt;UserPreferences&gt;,</span>
+) : ViewModel() {
+<span class="fc" id="L20">    private val _state = MutableStateFlow(OnboardingUiState())</span>
+<span class="fc" id="L21">    val state: StateFlow&lt;OnboardingUiState&gt; = _state.asStateFlow()</span>
+
+    fun onContinueFromIntro() {
+<span class="fc" id="L24">        _state.update { it.copy(step = OnboardingStep.FeatureSelection, errorMessage = null) }</span>
+<span class="fc" id="L25">    }</span>
+
+    fun onVaultToggled(enabled: Boolean) {
+<span class="fc" id="L28">        _state.update { it.copy(vaultSelected = enabled, errorMessage = null) }</span>
+<span class="fc" id="L29">    }</span>
+
+    fun onPasskeyToggled(enabled: Boolean) {
+<span class="fc" id="L32">        _state.update { it.copy(passkeySelected = enabled, errorMessage = null) }</span>
+<span class="fc" id="L33">    }</span>
+
+    fun onBackToIntro() {
+<span class="fc" id="L36">        _state.update { it.copy(step = OnboardingStep.Intro, errorMessage = null) }</span>
+<span class="fc" id="L37">    }</span>
+
+    suspend fun finishOnboarding(): Boolean {
+<span class="fc" id="L40">        val currentState = _state.value</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if (!currentState.canContinue) {</span>
+<span class="fc" id="L42">            _state.update { it.copy(errorMessage = &quot;Select at least one feature to continue.&quot;) }</span>
+<span class="fc" id="L43">            return false</span>
+        }
+
+<span class="fc" id="L46">        _state.update { it.copy(isSaving = true, errorMessage = null) }</span>
+<span class="fc" id="L47">        return try {</span>
+<span class="fc" id="L48">            dataStore.updateData { preferences -&gt;</span>
+<span class="fc" id="L49">                preferences.copy(</span>
+<span class="fc" id="L50">                    onboardingCompleted = true,</span>
+<span class="fc" id="L51">                    vaultFeatureEnabled = currentState.vaultSelected,</span>
+<span class="fc" id="L52">                    passkeyAuthenticatorFeatureEnabled = currentState.passkeySelected,</span>
+<span class="fc" id="L53">                    lastVisitedMainScreen = currentState.defaultMainScreenRoute(),</span>
+<span class="fc" id="L54">                )</span>
+            }
+<span class="fc" id="L56">            _state.update { it.copy(isSaving = false) }</span>
+<span class="fc" id="L57">            true</span>
+<span class="fc" id="L58">        } catch (exception: IOException) {</span>
+<span class="fc" id="L59">            _state.update {</span>
+<span class="fc" id="L60">                it.copy(</span>
+<span class="fc" id="L61">                    isSaving = false,</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">                    errorMessage = exception.message ?: &quot;Unable to save onboarding preferences.&quot;,</span>
+<span class="fc" id="L63">                )</span>
+            }
+<span class="fc bfc" id="L65" title="All 2 branches covered.">            false</span>
+        }
+    }
+
+    private fun OnboardingUiState.defaultMainScreenRoute(): String =
+<span class="fc" id="L70">        when {</span>
+<span class="fc bfc" id="L71" title="All 4 branches covered.">            vaultSelected &amp;&amp; passkeySelected -&gt; DEFAULT_AUTHENTICATOR_ROUTE</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            vaultSelected -&gt; DEFAULT_VAULT_ROUTE</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">            passkeySelected -&gt; DEFAULT_AUTHENTICATOR_ROUTE</span>
+<span class="nc" id="L74">            else -&gt; DEFAULT_AUTHENTICATOR_ROUTE</span>
+<span class="fc" id="L75">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

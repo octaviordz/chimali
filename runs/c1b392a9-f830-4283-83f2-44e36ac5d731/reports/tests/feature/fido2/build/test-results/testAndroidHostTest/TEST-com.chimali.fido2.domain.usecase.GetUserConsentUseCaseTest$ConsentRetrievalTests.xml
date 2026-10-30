@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:40.469Z" hostname="LOQ15IRX10-3" time="0.1">
+  <properties/>
+  <testcase name="should retrieve consent records by rp id()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" time="0.064"/>
+  <testcase name="should retrieve consent records by time range()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" time="0.009"/>
+  <testcase name="should retrieve consent records by operation type()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" time="0.008"/>
+  <testcase name="should retrieve recent consent records()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" time="0.009"/>
+  <testcase name="should retrieve consent records by credential id()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

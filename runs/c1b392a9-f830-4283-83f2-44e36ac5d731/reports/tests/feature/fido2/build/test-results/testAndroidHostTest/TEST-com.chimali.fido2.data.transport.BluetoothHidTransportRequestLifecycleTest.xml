@@ -1,0 +1,931 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" tests="53" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:33.083Z" hostname="LOQ15IRX10-3" time="6.183">
+  <properties/>
+  <testcase name="[1] cbor" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.105"/>
+  <testcase name="[2] apdu" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.087"/>
+  <testcase name="handler failure still erases its admitted request payload()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.151"/>
+  <testcase name="active request retains its bytes while admitted and erases busy and cancelled requests()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.11"/>
+  <testcase name="disconnect erases incomplete parser state and a successor starts with fresh storage()" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.094"/>
+  <testcase name="[1] verification, timeout" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.178"/>
+  <testcase name="[2] verification, cancel" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.109"/>
+  <testcase name="[3] verification, disconnect" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.115"/>
+  <testcase name="[4] processing, timeout" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.126"/>
+  <testcase name="[5] processing, cancel" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.111"/>
+  <testcase name="[6] processing, disconnect" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.128"/>
+  <testcase name="[1] bootstrap, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.174"/>
+  <testcase name="[2] bootstrap, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.136"/>
+  <testcase name="[3] bootstrap, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.12"/>
+  <testcase name="[4] bootstrap, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.116"/>
+  <testcase name="[5] bootstrap, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.1"/>
+  <testcase name="[6] bootstrap, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.113"/>
+  <testcase name="[7] candidates, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.13"/>
+  <testcase name="[8] candidates, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.121"/>
+  <testcase name="[9] candidates, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.119"/>
+  <testcase name="[10] candidates, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.131"/>
+  <testcase name="[11] candidates, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.11"/>
+  <testcase name="[12] candidates, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.109"/>
+  <testcase name="[13] availability, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.155"/>
+  <testcase name="[14] availability, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.111"/>
+  <testcase name="[15] availability, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.109"/>
+  <testcase name="[16] availability, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.116"/>
+  <testcase name="[17] availability, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.094"/>
+  <testcase name="[18] availability, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.105"/>
+  <testcase name="[19] consent, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.119"/>
+  <testcase name="[20] consent, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.126"/>
+  <testcase name="[21] consent, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.1"/>
+  <testcase name="[22] consent, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.117"/>
+  <testcase name="[23] consent, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.093"/>
+  <testcase name="[24] consent, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.105"/>
+  <testcase name="[25] confirmation, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.139"/>
+  <testcase name="[26] confirmation, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.135"/>
+  <testcase name="[27] confirmation, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.103"/>
+  <testcase name="[28] confirmation, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.112"/>
+  <testcase name="[29] confirmation, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.101"/>
+  <testcase name="[30] confirmation, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.109"/>
+  <testcase name="[31] verification, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.119"/>
+  <testcase name="[32] verification, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.098"/>
+  <testcase name="[33] verification, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.103"/>
+  <testcase name="[34] verification, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.11"/>
+  <testcase name="[35] verification, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.103"/>
+  <testcase name="[36] verification, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.105"/>
+  <testcase name="[37] processing, timeout, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.135"/>
+  <testcase name="[38] processing, timeout, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.101"/>
+  <testcase name="[39] processing, cancel, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.102"/>
+  <testcase name="[40] processing, cancel, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.11"/>
+  <testcase name="[41] processing, disconnect, false" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.119"/>
+  <testcase name="[42] processing, disconnect, true" classname="com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest" time="0.102"/>
+  <system-out><![CDATA[Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 0ms (Total: 0ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAPHID_MSG len=7 cid=01020304
+Debug: CTAPHID_MSG routing CTAP2 cmd=0x2 as CBOR
+Debug: CTAP2 command=0x2 on CID=01020304
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 0ms (Total: 0ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x4 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] GetInfo = 0ms (Total: 0ms, User: 0ms, HID reports accepted: false)
+Error: CTAPHID request handler failed
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 6ms (Total: 6ms, User: 0ms, HID reports accepted: false)
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 4ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 28ms (Total: 28ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 5ms (Total: 5ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Debug: disconnect() starting...
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 6ms (Total: 6ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 15ms (Total: 15ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 6ms (Total: 6ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x1 on CID=01020304
+Debug: Wallet root initialized
+Debug: Registration request received
+Debug: disconnect() starting...
+Debug: [NFR-PERF-030][local-handoff] MakeCredential = 7ms (Total: 7ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 8ms (Total: 8ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 10ms (Total: 10ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: disconnect() starting...
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: disconnect() starting...
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 9ms (Total: 9ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 10ms (Total: 10ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 6ms (Total: 6ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 3ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 10ms (Total: 25ms, User: 15ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 5ms (Total: 13ms, User: 8ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 2ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 5ms (Total: 5ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 3ms, User: 1ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 6ms, User: 2ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 10ms, User: 6ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 9ms (Total: 14ms, User: 5ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 3ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 3ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 1ms (Total: 2ms, User: 1ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 5ms, User: 2ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 9ms, User: 5ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 8ms (Total: 20ms, User: 12ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 3ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 5ms (Total: 6ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 5ms, User: 2ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 2ms (Total: 3ms, User: 1ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 12ms, User: 8ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 7ms (Total: 11ms, User: 4ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 3ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 5ms (Total: 6ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 4ms, User: 1ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 5ms, User: 1ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 12ms (Total: 46ms, User: 34ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion timed out after 120000ms
+Warn: CTAP ceremony exceeded its admission deadline
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 8ms (Total: 8ms, User: 0ms, HID reports accepted: true)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 3ms (Total: 3ms, User: 0ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 6ms (Total: 7ms, User: 1ms, HID reports accepted: false)
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 4ms (Total: 4ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: connect() starting...
+Debug: hidWrapper initialized, now registering app...
+Debug: hidWrapper app registered, starting receiver, sender and observer...
+Info: BluetoothHidTransport connected and advertising
+Debug: Advertising for host connections
+Debug: CTAP2 command=0x2 on CID=01020304
+Debug: Wallet root initialized
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: disconnect() starting...
+Error: GetAssertion encountered an invalid state
+Debug: [NFR-PERF-030][local-handoff] GetAssertion = 6ms (Total: 6ms, User: 0ms, HID reports accepted: false)
+Info: BluetoothHidTransport disconnected
+Debug: disconnect() starting...
+Info: BluetoothHidTransport disconnected
+]]></system-out>
+  <system-err><![CDATA[java.lang.IllegalStateException: synthetic handler failure
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:1012)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest(BluetoothHidTransportLifecycleTest.kt:210)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest$default(BluetoothHidTransportLifecycleTest.kt:182)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:1010)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at _COROUTINE._BOUNDARY._(CoroutineDebugging.kt:42)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportImpl.handleCbor(BluetoothHidTransportImpl.kt:551)
+	at com.chimali.fido2.data.transport.CtapHidRequestOwner$dispatch$operation$1$admittedOperation$1.invokeSuspend(CtapHidRequestOwner.kt:69)
+Caused by: java.lang.IllegalStateException: synthetic handler failure
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:1012)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest(BluetoothHidTransportLifecycleTest.kt:210)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTestSupport.withFixture$fido2_hostTest$default(BluetoothHidTransportLifecycleTest.kt:182)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invokeSuspend(BluetoothHidTransportLifecycleTest.kt:1010)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest$handler failure still erases its admitted request payload$1.invoke(BluetoothHidTransportLifecycleTest.kt)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:317)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:98)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:326)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:256)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:54)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlockingImpl(Builders.kt:30)
+	at kotlinx.coroutines.BuildersKt.runBlockingImpl(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK(Builders.concurrent.kt:172)
+	at kotlinx.coroutines.BuildersKt.runBlockingK(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__Builders_concurrentKt.runBlockingK$default(Builders.concurrent.kt:157)
+	at kotlinx.coroutines.BuildersKt.runBlockingK$default(Unknown Source)
+	at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:309)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:167)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:1)
+	at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:159)
+	at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:1)
+	at com.chimali.fido2.data.transport.BluetoothHidTransportRequestLifecycleTest.handler failure still erases its admitted request payload(BluetoothHidTransportLifecycleTest.kt:1009)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+	at jdk.proxy2/jdk.proxy2.$Proxy6.stop(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+]]></system-err>
+</testsuite>

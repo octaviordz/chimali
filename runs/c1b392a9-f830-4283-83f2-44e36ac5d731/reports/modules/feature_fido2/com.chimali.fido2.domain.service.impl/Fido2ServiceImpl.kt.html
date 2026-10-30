@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2ServiceImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.service.impl</a> &gt; <span class="el_source">Fido2ServiceImpl.kt</span></div><h1>Fido2ServiceImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.service.impl
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.repository.Fido2Repository
+import com.chimali.fido2.domain.service.Fido2Service
+import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
+import kotlinx.coroutines.flow.Flow
+import org.koin.core.annotation.Single
+
+/**
+ * T070 — Wires [Fido2Service] to [RegisterCredentialUseCase] so the presentation layer
+ * has a single entry-point for all FIDO2 operations.
+ */
+<span class="nc" id="L21">@Single</span>
+<span class="nc" id="L22">class Fido2ServiceImpl(</span>
+<span class="nc" id="L23">    private val fido2Repository: Fido2Repository,</span>
+<span class="nc" id="L24">    private val registerCredentialUseCase: RegisterCredentialUseCase,</span>
+) : Fido2Service {
+    /**
+     * T070 — Full FIDO2 registration via CTAP2 MakeCredential.
+     *
+     * Delegates to [RegisterCredentialUseCase] which handles:
+     * - Options validation
+     * - User verification (biometric / PIN)
+     * - Consent recording (T075)
+     * - Descriptor-selected local key derivation and software signing after existing authorization
+     * - AttestationObject construction
+     * - Credential metadata persistence; derived private keys are not persisted
+     */
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun makeCredential(
+        options: MakeCredentialOptions,
+        userVerificationPerformed: Boolean,
+<span class="nc" id="L42">    ): Outcome&lt;MakeCredentialResult, DomainError&gt; = registerCredentialUseCase(options, userVerificationPerformed)</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun registerNewCredential(
+        rpId: RpId,
+        userName: String,
+        userDisplayName: String,
+<span class="nc" id="L49">    ): Outcome&lt;CredentialId, DomainError&gt; = fido2Repository.registerCredential(rpId, userName, userDisplayName)</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L52">    override fun getAllCredentials(): Flow&lt;PasskeyCredential&gt; = fido2Repository.getAllCredentials()</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun deleteCredential(credentialId: CredentialId): Outcome&lt;Unit, DomainError&gt; =
+<span class="nc" id="L56">        fido2Repository.deleteCredential(credentialId)</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L59">    override suspend fun isSupported(): Boolean = true</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

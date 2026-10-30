@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:39.712Z" hostname="LOQ15IRX10-3" time="0.022">
+  <properties/>
+  <testcase name="should correctly check if consent is recent()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.006"/>
+  <testcase name="should correctly identify registration consent()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.003"/>
+  <testcase name="should correctly identify authentication consent()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.002"/>
+  <testcase name="should return correct consent method()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.002"/>
+  <testcase name="should correctly check if consent is for specific credential()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.002"/>
+  <testcase name="should correctly check if consent is for specific rp()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.002"/>
+  <testcase name="should return safe credential id()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

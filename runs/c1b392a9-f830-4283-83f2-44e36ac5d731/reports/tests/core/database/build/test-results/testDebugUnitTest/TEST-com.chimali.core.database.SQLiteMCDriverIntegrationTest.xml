@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.database.SQLiteMCDriverIntegrationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T12:00:06.070Z" hostname="LOQ15IRX10-3" time="7755.645">
+  <properties/>
+  <testcase name="encrypted SQLiteMCDriver with ChaCha20 creates and reopens database with correct key(File)" classname="com.chimali.core.database.SQLiteMCDriverIntegrationTest" time="0.034"/>
+  <testcase name="encrypted SQLiteMCDriver fails to open when supplied mismatched key(File)" classname="com.chimali.core.database.SQLiteMCDriverIntegrationTest" time="7755.601"/>
+  <testcase name="in-memory SQLiteMCDriver returns ok for PRAGMA integrity_check without native library workaround()" classname="com.chimali.core.database.SQLiteMCDriverIntegrationTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

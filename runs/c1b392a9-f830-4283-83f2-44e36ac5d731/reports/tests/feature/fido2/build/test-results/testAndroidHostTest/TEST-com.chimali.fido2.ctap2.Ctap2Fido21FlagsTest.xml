@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T14:10:21.710Z" hostname="LOQ15IRX10-3" time="0.201">
+  <properties/>
+  <testcase name="t056a MakeCredential extensions map credProtect policy is parsed()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.004"/>
+  <testcase name="t056a MakeCredential without credProtect extension yields null policy()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.001"/>
+  <testcase name="t056b getInfoResponse options includes credProtect and clientPin()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.001"/>
+  <testcase name="t056b getInfoResponse includes FIDO_2_1 in versions()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.14"/>
+  <testcase name="t056b getInfoResponse retains FIDO_2_0 for backward compatibility()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.001"/>
+  <testcase name="t056b getInfoResponse advertises required FIDO2_1 extensions()" classname="com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
