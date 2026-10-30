@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:39.178Z" hostname="LOQ15IRX10-3" time="0.243">
+  <properties/>
+  <testcase name="count_by_rp_id returns correct count for token()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.036"/>
+  <testcase name="null tokens return no results for token-based queries()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.036"/>
+  <testcase name="delete_by_rp_id removes only matching token credentials()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.038"/>
+  <testcase name="select_by_user_id returns credentials matching user_id_index token()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.017"/>
+  <testcase name="select_by_rp_id returns credentials matching rp_id_index token()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.012"/>
+  <testcase name="select_by_rp_id_and_user_id returns credentials matching both tokens()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.021"/>
+  <testcase name="count_by_rp_id returns correct consent count for token()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.021"/>
+  <testcase name="select_by_rp_id returns consent records matching rp_id_index token()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.025"/>
+  <testcase name="search_by_rp_id uses token for exact RP match and LIKE for display search()" classname="com.chimali.fido2.data.dao.SearchableMetadataDaoTest" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

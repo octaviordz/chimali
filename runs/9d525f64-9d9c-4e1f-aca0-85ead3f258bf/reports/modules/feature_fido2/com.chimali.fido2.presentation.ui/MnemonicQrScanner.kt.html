@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MnemonicQrScanner.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">MnemonicQrScanner.kt</span></div><h1>MnemonicQrScanner.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import android.Manifest
+import androidx.annotation.OptIn
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
+private const val MNEMONIC_WORD_COUNT = 24
+
+/**
+ * T146f — A CameraX-based QR code scanner composable.
+ *
+ * Displays a live camera preview and uses ML Kit barcode scanning to detect
+ * a QR code containing a space-separated BIP39 mnemonic. On a successful
+ * scan the [onScan] callback is invoked with the tokenised word list.
+ *
+ * The camera is released automatically when this composable leaves the
+ * composition via [DisposableEffect].
+ *
+ * **Permissions**: The caller must have already obtained [Manifest.permission.CAMERA]
+ * before composing this. Wrap it in an `if (cameraPermGranted)` guard.
+ */
+@Composable
+@Suppress(
+    &quot;TooGenericExceptionCaught&quot;,
+    &quot;FunctionNaming&quot;,
+)
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun MnemonicQrScanner(
+    onScan: (CharArray) -&gt; Unit,
+<span class="nc bnc" id="L57" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc" id="L58">    onError: (String) -&gt; Unit = {},</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L60">    val context = LocalContext.current</span>
+<span class="nc" id="L61">    val lifecycleOwner = LocalLifecycleOwner.current</span>
+<span class="nc" id="L62">    val closed = remember { AtomicBoolean(false) }</span>
+<span class="nc" id="L63">    val hasScanned = remember { AtomicBoolean(false) }</span>
+<span class="nc" id="L64">    val executor = remember { Executors.newSingleThreadExecutor() }</span>
+<span class="nc" id="L65">    val scanner = remember { BarcodeScanning.getClient() }</span>
+
+<span class="nc" id="L67">    DisposableEffect(Unit) {</span>
+<span class="nc" id="L68">        onDispose {</span>
+<span class="nc" id="L69">            closed.set(true)</span>
+<span class="nc" id="L70">            executor.shutdown()</span>
+<span class="nc" id="L71">            scanner.close()</span>
+<span class="nc" id="L72">        }</span>
+    }
+
+<span class="nc" id="L75">    Box(modifier = modifier.fillMaxSize()) {</span>
+<span class="nc" id="L76">        AndroidView(</span>
+<span class="nc bnc" id="L77" title="All 4 branches missed.">            factory = { ctx -&gt;</span>
+<span class="nc" id="L78">                val previewView = PreviewView(ctx)</span>
+<span class="nc" id="L79">                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)</span>
+<span class="nc" id="L80">                cameraProviderFuture.addListener({</span>
+<span class="nc" id="L81">                    val cameraProvider = cameraProviderFuture.get()</span>
+
+<span class="nc" id="L83">                    val preview =</span>
+<span class="nc" id="L84">                        Preview.Builder().build().also {</span>
+<span class="nc" id="L85">                            it.setSurfaceProvider(previewView.surfaceProvider)</span>
+<span class="nc" id="L86">                        }</span>
+
+<span class="nc" id="L88">                    val imageAnalysis =</span>
+                        ImageAnalysis
+<span class="nc" id="L90">                            .Builder()</span>
+<span class="nc" id="L91">                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)</span>
+<span class="nc" id="L92">                            .build()</span>
+
+<span class="nc" id="L94">                    imageAnalysis.setAnalyzer(executor) { imageProxy -&gt;</span>
+<span class="nc bnc" id="L95" title="All 4 branches missed.">                        if (!closed.get() &amp;&amp; !hasScanned.get()) {</span>
+<span class="nc" id="L96">                            processImageProxy(imageProxy, scanner) { rawValue -&gt;</span>
+<span class="nc bnc" id="L97" title="All 4 branches missed.">                                if (closed.get() || hasScanned.get()) return@processImageProxy</span>
+<span class="nc" id="L98">                                val tokenCount = countWords(rawValue)</span>
+<span class="nc bnc" id="L99" title="All 4 branches missed.">                                if (tokenCount == MNEMONIC_WORD_COUNT &amp;&amp; hasScanned.compareAndSet(false, true)) {</span>
+<span class="nc" id="L100">                                    val mnemonic = copyTrimmed(rawValue)</span>
+<span class="nc" id="L101">                                    var transferred = false</span>
+<span class="nc" id="L102">                                    try {</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                                        if (!closed.get()) {</span>
+<span class="nc" id="L104">                                            onScan(mnemonic)</span>
+<span class="nc" id="L105">                                            transferred = true</span>
+                                        }
+                                    } finally {
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                                        if (!transferred) mnemonic.fill('\u0000')</span>
+<span class="nc" id="L109">                                    }</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                                } else if (tokenCount != MNEMONIC_WORD_COUNT) {</span>
+                                    // Non-critical validation error; keep scanning and log only the count.
+<span class="nc" id="L112">                                    Logger.w {</span>
+<span class="nc" id="L113">                                        &quot;QR scan had $tokenCount words, &quot; +</span>
+<span class="nc" id="L114">                                            &quot;need $MNEMONIC_WORD_COUNT. Continuing scanner...&quot;</span>
+                                    }
+                                }
+<span class="nc" id="L117">                            }</span>
+                        }
+<span class="nc" id="L119">                    }</span>
+
+<span class="nc" id="L121">                    try {</span>
+<span class="nc" id="L122">                        cameraProvider.unbindAll()</span>
+<span class="nc" id="L123">                        cameraProvider.bindToLifecycle(</span>
+<span class="nc" id="L124">                            lifecycleOwner,</span>
+<span class="nc" id="L125">                            CameraSelector.DEFAULT_BACK_CAMERA,</span>
+<span class="nc" id="L126">                            preview,</span>
+<span class="nc" id="L127">                            imageAnalysis,</span>
+                        )
+<span class="nc" id="L129">                    } catch (exc: Exception) {</span>
+<span class="nc" id="L130">                        Logger.e(exc) { &quot;Camera bind failed&quot; }</span>
+<span class="nc" id="L131">                        onError(&quot;Camera error: ${exc.message}&quot;)</span>
+                    }
+<span class="nc" id="L133">                }, ContextCompat.getMainExecutor(ctx))</span>
+<span class="nc" id="L134">                previewView</span>
+            },
+<span class="nc" id="L136">            modifier = Modifier.fillMaxSize(),</span>
+<span class="nc" id="L137">            onRelease = {</span>
+                // T004 - Ensure camera provider unbinds on release
+<span class="nc" id="L139">                try {</span>
+<span class="nc" id="L140">                    val cameraProvider = ProcessCameraProvider.getInstance(context).get()</span>
+<span class="nc" id="L141">                    cameraProvider.unbindAll()</span>
+<span class="nc" id="L142">                } catch (e: Exception) {</span>
+<span class="nc" id="L143">                    Logger.e(e) { &quot;Failed to unbind camera on release&quot; }</span>
+                }
+<span class="nc" id="L145">            },</span>
+        )
+
+<span class="nc" id="L148">        Text(</span>
+<span class="nc" id="L149">            text = &quot;Point at the $MNEMONIC_WORD_COUNT-word seed QR code&quot;,</span>
+<span class="nc" id="L150">            style = MaterialTheme.typography.labelLarge,</span>
+<span class="nc" id="L151">            color = MaterialTheme.colorScheme.onPrimary,</span>
+            modifier =
+<span class="nc" id="L153">                Modifier</span>
+<span class="nc" id="L154">                    .align(Alignment.BottomCenter)</span>
+<span class="nc" id="L155">                    .padding(bottom = 32.dp),</span>
+        )
+<span class="nc" id="L157">    }</span>
+<span class="nc" id="L158">}</span>
+
+/** Counts whitespace-delimited words without creating immutable token strings. */
+
+private fun countWords(value: String): Int {
+<span class="nc" id="L163">    var count = 0</span>
+<span class="nc" id="L164">    var inWord = false</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">    for (character in value) {</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (character.isWhitespace()) {</span>
+<span class="nc" id="L167">            inWord = false</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        } else if (!inWord) {</span>
+<span class="nc" id="L169">            count++</span>
+<span class="nc" id="L170">            inWord = true</span>
+        }
+    }
+<span class="nc" id="L173">    return count</span>
+}
+
+/** Copies only the trimmed scan characters into a mutable buffer for the caller to own. */
+
+private fun copyTrimmed(value: String): CharArray {
+<span class="nc" id="L179">    var start = 0</span>
+<span class="nc" id="L180">    var end = value.length</span>
+<span class="nc bnc" id="L181" title="All 4 branches missed.">    while (start &lt; end &amp;&amp; value[start].isWhitespace()) start++</span>
+<span class="nc bnc" id="L182" title="All 4 branches missed.">    while (end &gt; start &amp;&amp; value[end - 1].isWhitespace()) end--</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">    return CharArray(end - start) { index -&gt; value[start + index] }</span>
+}
+
+@OptIn(ExperimentalGetImage::class)
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun processImageProxy(
+    imageProxy: ImageProxy,
+    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
+    onResult: (String) -&gt; Unit,
+) {
+<span class="nc bnc" id="L193" title="All 2 branches missed.">    val mediaImage = imageProxy.image ?: return imageProxy.close()</span>
+<span class="nc" id="L194">    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)</span>
+<span class="nc" id="L195">    scanner</span>
+<span class="nc" id="L196">        .process(image)</span>
+<span class="nc" id="L197">        .addOnSuccessListener { barcodes -&gt;</span>
+<span class="nc bnc" id="L198" title="All 4 branches missed.">            barcodes.firstOrNull()?.rawValue?.let { onResult(it) }</span>
+<span class="nc" id="L199">        }.addOnCompleteListener { imageProxy.close() }</span>
+<span class="nc" id="L200">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

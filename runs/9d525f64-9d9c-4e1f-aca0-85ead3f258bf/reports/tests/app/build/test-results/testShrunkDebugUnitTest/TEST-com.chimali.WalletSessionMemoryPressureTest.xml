@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.WalletSessionMemoryPressureTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:18:18.607Z" hostname="LOQ15IRX10-3" time="0.153">
+  <properties/>
+  <testcase name="each required severe trim fences session and requests gc after clearing()" classname="com.chimali.WalletSessionMemoryPressureTest" time="0.127"/>
+  <testcase name="non-required trim levels do not clear the wallet session or request gc()" classname="com.chimali.WalletSessionMemoryPressureTest" time="0.002"/>
+  <testcase name="gc hint still runs when session clearing throws()" classname="com.chimali.WalletSessionMemoryPressureTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.DomainModelSerializationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:36.941Z" hostname="LOQ15IRX10-3" time="0.018">
+  <properties/>
+  <testcase name="testRelyingPartySerialization()" classname="com.chimali.core.domain.model.DomainModelSerializationTest" time="0.004"/>
+  <testcase name="testCredentialSummarySerialization()" classname="com.chimali.core.domain.model.DomainModelSerializationTest" time="0.006"/>
+  <testcase name="testUserConsentRecordSerialization()" classname="com.chimali.core.domain.model.DomainModelSerializationTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

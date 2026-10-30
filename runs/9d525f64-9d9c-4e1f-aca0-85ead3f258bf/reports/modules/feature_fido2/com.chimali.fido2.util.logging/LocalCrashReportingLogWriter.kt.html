@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LocalCrashReportingLogWriter.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.logging</a> &gt; <span class="el_source">LocalCrashReportingLogWriter.kt</span></div><h1>LocalCrashReportingLogWriter.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.logging
+
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Severity
+import com.chimali.core.common.annotation.Req
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import okio.FileSystem
+import okio.Path
+import okio.buffer
+
+/**
+ * Local-only crash reporting mechanism (no cloud sync).
+ * Writes logs to a rotating file in the app's internal storage.
+ * Implements privacy-safe logging via [PrivacyLogScrubber].
+ */
+<span class="fc" id="L18">class LocalCrashReportingLogWriter(</span>
+<span class="fc" id="L19">    private val directoryProvider: LogDirectoryProvider,</span>
+    // 5MB limit default
+<span class="fc" id="L21">    private val maxFileSize: Long = DEFAULT_MAX_FILE_SIZE_BYTES,</span>
+<span class="fc" id="L22">) : LogWriter() {</span>
+<span class="fc" id="L23">    private val fileSystem = FileSystem.SYSTEM</span>
+    private val logDir: Path
+<span class="fc" id="L25">        get() = directoryProvider.getLogDirectory()</span>
+
+    private val currentLogFile: Path
+<span class="fc" id="L28">        get() = logDir.resolve(&quot;fido2_crash_log.txt&quot;)</span>
+
+<span class="fc" id="L30">    private val platformLock = AndroidPlatformLock()</span>
+
+<span class="fc" id="L32">    init {</span>
+<span class="fc" id="L33">        try {</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">            if (!fileSystem.exists(logDir)) {</span>
+<span class="fc" id="L35">                fileSystem.createDirectories(logDir)</span>
+            }
+<span class="nc" id="L37">        } catch (e: java.io.IOException) {</span>
+            // Silently fail or print to stderr if directory creation fails
+<span class="nc" id="L39">            println(&quot;CrashReportingWriter: Failed to create log directory: ${e.message}&quot;)</span>
+        }
+<span class="fc" id="L41">    }</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun log(
+        severity: Severity,
+        message: String,
+        tag: String,
+        throwable: Throwable?,
+    ) {
+<span class="fc" id="L50">        val scrubbedMessage = PrivacyLogScrubber.scrub(message)</span>
+
+        // This writer writes EVERYTHING &gt;= INFO to the local file for post-crash analysis
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (severity &lt; Severity.Info) {</span>
+<span class="fc" id="L54">            return</span>
+        }
+
+        // KMP has no Thread.currentThread().name standardly available in commonMain
+<span class="fc" id="L58">        val currentInstant = Clock.System.now()</span>
+<span class="fc" id="L59">        val time = currentInstant.toLocalDateTime(TimeZone.currentSystemDefault()).toString()</span>
+<span class="fc" id="L60">        val priorityStr =</span>
+<span class="pc bpc" id="L61" title="1 of 5 branches missed.">            when (severity) {</span>
+<span class="fc" id="L62">                Severity.Info -&gt; &quot;I&quot;</span>
+<span class="fc" id="L63">                Severity.Warn -&gt; &quot;W&quot;</span>
+<span class="fc" id="L64">                Severity.Error -&gt; &quot;E&quot;</span>
+<span class="fc" id="L65">                Severity.Assert -&gt; &quot;WTF&quot;</span>
+<span class="nc" id="L66">                else -&gt; &quot;V&quot;</span>
+            }
+
+<span class="fc" id="L69">        val formattedLog =</span>
+<span class="fc" id="L70">            buildString {</span>
+<span class="fc" id="L71">                append(&quot;$time $priorityStr/$tag: $scrubbedMessage\n&quot;)</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">                throwable?.let {</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">                    append(&quot;${it::class.qualifiedName ?: &quot;Throwable&quot;}\n&quot;)</span>
+<span class="fc" id="L74">                    it.stackTrace.forEach { frame -&gt; append(&quot;\tat $frame\n&quot;) }</span>
+<span class="fc" id="L75">                }</span>
+<span class="fc" id="L76">            }</span>
+
+<span class="fc" id="L78">        writeToFile(formattedLog)</span>
+<span class="fc" id="L79">    }</span>
+
+    private fun writeToFile(logEntry: String) {
+<span class="fc" id="L82">        platformLock.withLock {</span>
+<span class="fc" id="L83">            try {</span>
+                // Check size and rotate if needed
+<span class="fc bfc" id="L85" title="All 2 branches covered.">                if (fileSystem.exists(currentLogFile)) {</span>
+<span class="fc" id="L86">                    val metadata = fileSystem.metadataOrNull(currentLogFile)</span>
+<span class="pc bpc" id="L87" title="2 of 4 branches missed.">                    val size = metadata?.size ?: 0L</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">                    if (size &gt; maxFileSize) {</span>
+<span class="fc" id="L89">                        rotateLogs()</span>
+                    }
+                }
+
+                // Append to file
+<span class="fc" id="L94">                val sink = fileSystem.appendingSink(currentLogFile).buffer()</span>
+<span class="fc" id="L95">                try {</span>
+<span class="fc" id="L96">                    sink.writeUtf8(logEntry)</span>
+<span class="fc" id="L97">                    sink.flush()</span>
+<span class="nc" id="L98">                } catch (e: java.io.IOException) {</span>
+<span class="nc" id="L99">                    println(&quot;CrashReportingWriter: Write error: ${e.message}&quot;)</span>
+                } finally {
+<span class="fc" id="L101">                    try {</span>
+<span class="fc" id="L102">                        sink.close()</span>
+<span class="nc" id="L103">                    } catch (ignored: java.io.IOException) {</span>
+                    }
+                }
+<span class="nc" id="L106">            } catch (e: java.io.IOException) {</span>
+                // Fallback for debugging writer issues
+<span class="nc" id="L108">                println(&quot;CrashReportingWriter: Failed to write local log: ${e.message}&quot;)</span>
+            }
+<span class="fc" id="L110">        }</span>
+<span class="fc" id="L111">    }</span>
+
+    private fun rotateLogs() {
+<span class="fc" id="L114">        val backupFile = logDir.resolve(&quot;fido2_crash_log.bak&quot;)</span>
+<span class="fc" id="L115">        try {</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">            if (fileSystem.exists(backupFile)) {</span>
+<span class="fc" id="L117">                fileSystem.delete(backupFile)</span>
+            }
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">            if (fileSystem.exists(currentLogFile)) {</span>
+<span class="fc" id="L120">                fileSystem.atomicMove(currentLogFile, backupFile)</span>
+            }
+<span class="nc" id="L122">        } catch (e: java.io.IOException) {</span>
+<span class="nc" id="L123">            println(&quot;CrashReportingWriter: Failed to rotate logs: ${e.message}&quot;)</span>
+        }
+<span class="fc" id="L125">    }</span>
+
+    companion object {
+        private const val DEFAULT_MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

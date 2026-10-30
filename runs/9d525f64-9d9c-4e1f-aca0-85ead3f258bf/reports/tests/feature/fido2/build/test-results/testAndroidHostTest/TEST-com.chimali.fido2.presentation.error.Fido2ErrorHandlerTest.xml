@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:08.916Z" hostname="LOQ15IRX10-3" time="0.022">
+  <properties/>
+  <testcase name="handle maps all remaining fido2 exceptions and fallbacks()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.012"/>
+  <testcase name="handle maps unsupported algorithms directly()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.001"/>
+  <testcase name="isSilentRetryable classifies transport and connection errors()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.001"/>
+  <testcase name="handle maps domain errors exhaustively()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.001"/>
+  <testcase name="handle maps biometric failures correctly()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.0"/>
+  <testcase name="handle maps connection exceptions to user friendly messages()" classname="com.chimali.fido2.presentation.error.Fido2ErrorHandlerTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

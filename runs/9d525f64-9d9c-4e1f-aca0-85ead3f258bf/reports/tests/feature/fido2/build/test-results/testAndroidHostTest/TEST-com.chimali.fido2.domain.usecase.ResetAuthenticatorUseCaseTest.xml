@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCaseTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:45.895Z" hostname="LOQ15IRX10-3" time="0.036">
+  <properties/>
+  <testcase name="invoke should return failure when repository fails to reset authenticator()" classname="com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCaseTest" time="0.018"/>
+  <testcase name="invoke should return success when repository successfully resets authenticator()" classname="com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCaseTest" time="0.016"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

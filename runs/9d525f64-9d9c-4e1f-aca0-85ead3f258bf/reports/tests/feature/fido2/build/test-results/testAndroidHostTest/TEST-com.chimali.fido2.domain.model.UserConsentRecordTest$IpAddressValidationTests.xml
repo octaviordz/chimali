@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:38.461Z" hostname="LOQ15IRX10-3" time="0.042">
+  <properties/>
+  <testcase name="should reject invalid ip addresses()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests" time="0.018"/>
+  <testcase name="should accept valid ipv4 addresses()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests" time="0.013"/>
+  <testcase name="should accept valid ipv6 addresses()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

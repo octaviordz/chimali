@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Outcome.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.common.result</a> &gt; <span class="el_source">Outcome.kt</span></div><h1>Outcome.kt</h1><pre class="source lang-java linenums">package com.chimali.core.common.result
+
+/**
+ * Functional wrapper for operations that can succeed with a value [D] or fail with a [DomainError] [E].
+ *
+ * ## Why not `kotlin.Result&lt;T&gt;`?
+ *
+ * Kotlin's built-in `Result&lt;T&gt;` forces the error type to be `Throwable`, which breaks
+ * domain isolation. `Outcome&lt;D, E&gt;` ensures that domain and presentation layers only
+ * ever deal with our categorized [DomainError] sealed hierarchy, which forces exhaustive
+ * `when` statements and prevents leaking raw exceptions into the UI.
+ *
+ * ## Architecture Contract
+ *
+ * - **Repository / Service boundary**: Catch specific exceptions, log via Kermit,
+ *   wrap in [Error] with the appropriate [DomainError] subtype.
+ * - **ViewModel / Presenter**: Consume [Outcome] via exhaustive `when` — never
+ *   catch exceptions directly, never log from the presentation layer.
+ *
+ * ## Usage
+ *
+ * ```kotlin
+ * // Repository
+ * suspend fun fetchData(): Outcome&lt;MyData, DomainError&gt; =
+ *     try {
+ *         Outcome.Success(api.getData())
+ *     } catch (e: IOException) {
+ *         Logger.e(e) { &quot;Network failure&quot; }
+ *         Outcome.Error(DomainError.NetworkError(&quot;Network failure&quot;, e))
+ *     }
+ *
+ * // ViewModel
+ * when (val result = repository.fetchData()) {
+ *     is Outcome.Success -&gt; _uiState.value = UiState.Content(result.data)
+ *     is Outcome.Error   -&gt; _uiState.value = UiState.Error(mapError(result.error))
+ * }
+ * ```
+ */
+sealed interface Outcome&lt;out D, out E : DomainError&gt; {
+    /**
+     * The operation completed successfully and [data] holds the result.
+     *
+     * Note: `Outcome&lt;D, Nothing&gt;` — no error type can be instantiated,
+     * so callers only need to handle [Success] on this branch.
+     */
+<span class="fc" id="L46">    data class Success&lt;out D&gt;(</span>
+<span class="fc" id="L47">        val data: D,</span>
+    ) : Outcome&lt;D, Nothing&gt;
+
+    /**
+     * The operation failed and [error] contains the categorized domain error.
+     *
+     * Note: `Outcome&lt;Nothing, E&gt;` — no data type can be instantiated,
+     * so callers only need to handle [Error] on this branch.
+     */
+<span class="fc" id="L56">    data class Error&lt;out E : DomainError&gt;(</span>
+<span class="fc" id="L57">        val error: E,</span>
+    ) : Outcome&lt;Nothing, E&gt;
+}
+
+// ── Extension functions ────────────────────────────────────────────────────────
+
+/**
+ * Returns the [Outcome.Success.data] value, or `null` if this is [Outcome.Error].
+ */
+<span class="fc bfc" id="L66" title="All 4 branches covered.">fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.getOrNull(): D? = (this as? Outcome.Success)?.data</span>
+
+/**
+ * Returns the [Outcome.Success.data] value, or [default] if this is [Outcome.Error].
+ */
+<span class="pc bpc" id="L71" title="3 of 6 branches missed.">fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.getOrDefault(default: D): D = (this as? Outcome.Success)?.data ?: default</span>
+
+/**
+ * Returns the [Outcome.Success.data] value, or computes a default value from the error.
+ */
+inline fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.getOrElse(onFailure: (E) -&gt; D): D =
+<span class="fc" id="L77">    when (this) {</span>
+<span class="fc" id="L78">        is Outcome.Success -&gt; data</span>
+<span class="fc" id="L79">        is Outcome.Error -&gt; onFailure(error)</span>
+<span class="fc" id="L80">    }</span>
+
+/**
+ * Returns `true` if this is [Outcome.Success].
+ */
+<span class="fc" id="L85">val &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.isSuccess: Boolean get() = this is Outcome.Success</span>
+
+/**
+ * Returns `true` if this is [Outcome.Error].
+ */
+<span class="fc" id="L90">val &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.isFailure: Boolean get() = this is Outcome.Error</span>
+
+/**
+ * Transforms a [Outcome.Success] value using [transform].
+ * A [Outcome.Error] is passed through unchanged.
+ */
+inline fun &lt;D, R, E : DomainError&gt; Outcome&lt;D, E&gt;.map(transform: (D) -&gt; R): Outcome&lt;R, E&gt; =
+<span class="fc" id="L97">    when (this) {</span>
+<span class="fc" id="L98">        is Outcome.Success -&gt; Outcome.Success(transform(data))</span>
+<span class="nc" id="L99">        is Outcome.Error -&gt; this</span>
+<span class="fc" id="L100">    }</span>
+
+/**
+ * Executes [action] if this is [Outcome.Error], then returns `this` unchanged.
+ *
+ * Useful for logging at the boundary without disturbing the return type chain.
+ */
+inline fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.onFailure(action: (E) -&gt; Unit): Outcome&lt;D, E&gt; {
+<span class="fc" id="L108">    if (this is Outcome.Error) action(error)</span>
+<span class="fc" id="L109">    return this</span>
+}
+
+inline fun &lt;D, E : DomainError, R : DomainError&gt; Outcome&lt;D, E&gt;.mapError(transform: (E) -&gt; R): Outcome&lt;D, R&gt; =
+<span class="fc" id="L113">    when (this) {</span>
+<span class="fc" id="L114">        is Outcome.Success -&gt; this</span>
+<span class="fc" id="L115">        is Outcome.Error -&gt; Outcome.Error(transform(error))</span>
+<span class="fc" id="L116">    }</span>
+
+/**
+ * Executes [action] if this is [Outcome.Success], then returns `this` unchanged.
+ */
+inline fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.onSuccess(action: (D) -&gt; Unit): Outcome&lt;D, E&gt; {
+<span class="fc" id="L122">    if (this is Outcome.Success) action(data)</span>
+<span class="fc" id="L123">    return this</span>
+}
+
+/**
+ * Flat-maps a [Outcome.Success] to another [Outcome].
+ * A [Outcome.Error] is passed through unchanged.
+ */
+inline fun &lt;D, R, E : DomainError&gt; Outcome&lt;D, E&gt;.flatMap(transform: (D) -&gt; Outcome&lt;R, E&gt;): Outcome&lt;R, E&gt; =
+<span class="nc" id="L131">    when (this) {</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        is Outcome.Success -&gt; transform(data)</span>
+<span class="nc" id="L133">        is Outcome.Error -&gt; this</span>
+<span class="nc" id="L134">    }</span>
+
+/**
+ * Returns the [Outcome.Success.data] value if this is [Outcome.Success],
+ * or throws the [DomainError.cause] (if available) or an [IllegalStateException] with [DomainError.message].
+ */
+fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.getOrThrow(): D =
+<span class="fc" id="L141">    when (this) {</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        is Outcome.Success -&gt; data</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        is Outcome.Error -&gt; throw error.cause ?: IllegalStateException(error.message)</span>
+<span class="fc" id="L144">    }</span>
+
+/**
+ * Returns the [DomainError.cause] if this is [Outcome.Error], or `null` if this is [Outcome.Success].
+ */
+fun &lt;D, E : DomainError&gt; Outcome&lt;D, E&gt;.exceptionOrNull(): Throwable? =
+<span class="fc" id="L150">    when (this) {</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        is Outcome.Success -&gt; null</span>
+<span class="fc" id="L152">        is Outcome.Error -&gt; error.cause</span>
+<span class="fc" id="L153">    }</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

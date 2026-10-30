@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserConsentRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.repository</a> &gt; <span class="el_source">UserConsentRepositoryImpl.kt</span></div><h1>UserConsentRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.repository
+
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.domain.repository.UserConsentRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import org.koin.core.annotation.Single
+
+<span class="nc" id="L10">@Single</span>
+class UserConsentRepositoryImpl : UserConsentRepository {
+    override suspend fun recordConsent(consentRecord: UserConsentRecord): Result&lt;Unit&gt; {
+        // DEFERRED(040): Consent persistence — pending schema design
+<span class="nc" id="L14">        return Result.success(Unit)</span>
+    }
+
+    override fun getConsentRecordsByRpId(rpId: RpId): Flow&lt;List&lt;UserConsentRecord&gt;&gt; {
+        // DEFERRED(040): Consent persistence — pending schema design
+<span class="nc" id="L19">        return flowOf(emptyList())</span>
+    }
+
+    override fun getAllConsentRecords(): Flow&lt;List&lt;UserConsentRecord&gt;&gt; {
+        // DEFERRED(040): Consent persistence — pending schema design
+<span class="nc" id="L24">        return flowOf(emptyList())</span>
+    }
+
+    override suspend fun deleteConsentRecordsByRpId(rpId: RpId): Result&lt;Unit&gt; {
+        // DEFERRED(040): Consent persistence — pending schema design
+<span class="nc" id="L29">        return Result.success(Unit)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

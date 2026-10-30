@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>P256Group.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.hdkeys</a> &gt; <span class="el_source">P256Group.kt</span></div><h1>P256Group.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.hdkeys
+
+import com.chimali.core.common.annotation.Req
+import java.math.BigInteger
+import org.bouncycastle.asn1.x9.X9ECParameters
+import org.bouncycastle.crypto.ec.CustomNamedCurves
+import org.bouncycastle.math.ec.ECPoint
+
+/**
+ * Validated P-256 (secp256r1) group operations for the current local profile.
+ */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+object P256Group {
+<span class="fc" id="L14">    private val curveParams: X9ECParameters = CustomNamedCurves.getByName(&quot;secp256r1&quot;)</span>
+<span class="fc" id="L15">    private val curve = curveParams.curve</span>
+
+    /** Generator point G of P-256. */
+<span class="fc" id="L18">    val G: ECPoint = curveParams.g</span>
+
+    /** Order n of the P-256 curve. */
+<span class="fc" id="L21">    val ORDER: BigInteger = curveParams.n</span>
+
+    /** Length of a serialized scalar in bytes (32). */
+    const val SCALAR_LENGTH = 32
+
+    private const val SEC1_UNCOMPRESSED_PREFIX_LENGTH = 1
+    private const val X_COORDINATE_OFFSET = SEC1_UNCOMPRESSED_PREFIX_LENGTH
+    private const val Y_COORDINATE_OFFSET = X_COORDINATE_OFFSET + SCALAR_LENGTH
+    private const val BIG_INTEGER_SIGN_PADDING_LENGTH = 1
+
+    /** Length of an uncompressed serialized point: 0x04 || x(32) || y(32). */
+    const val ELEMENT_UNCOMPRESSED_LENGTH = SEC1_UNCOMPRESSED_PREFIX_LENGTH + 2 * SCALAR_LENGTH
+
+    /** SEC1 prefix byte identifying an uncompressed P-256 point. */
+    internal const val UNCOMPRESSED_FORMAT_INDICATOR = 0x04
+
+    /**
+     * Scalar multiplication: compute k * P.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun scalarMult(
+        point: ECPoint,
+        k: BigInteger,
+    ): ECPoint {
+<span class="fc" id="L45">        requireScalar(k)</span>
+<span class="fc" id="L46">        requirePoint(point)</span>
+<span class="fc" id="L47">        return point.multiply(k).normalize()</span>
+    }
+
+    /**
+     * Scalar-base multiplication: compute k * G.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L54">    fun scalarBaseMult(k: BigInteger): ECPoint = scalarMult(G, k)</span>
+
+    /**
+     * Serialize an EC point as uncompressed: 0x04 || x (32 bytes) || y (32 bytes).
+     * Total: 65 bytes.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun serializeElement(point: ECPoint): ByteArray {
+<span class="fc" id="L62">        val normalized = point.normalize()</span>
+<span class="fc" id="L63">        requirePoint(normalized)</span>
+<span class="fc" id="L64">        return normalized.getEncoded(false) // uncompressed</span>
+    }
+
+    /**
+     * Deserialize an EC point from uncompressed encoding.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deserializeElement(encoded: ByteArray): ECPoint {
+<span class="fc bfc" id="L72" title="All 4 branches covered.">        require(encoded.size == ELEMENT_UNCOMPRESSED_LENGTH) { &quot;P-256 point must be exactly 65 bytes&quot; }</span>
+<span class="pc bpc" id="L73" title="2 of 4 branches missed.">        require((encoded[0].toInt() and 0xff) == UNCOMPRESSED_FORMAT_INDICATOR) {</span>
+<span class="nc" id="L74">            &quot;P-256 point must use uncompressed SEC1 encoding&quot;</span>
+        }
+<span class="fc" id="L76">        val fieldPrime = curve.field.characteristic</span>
+<span class="fc" id="L77">        val x = BigInteger(1, encoded.copyOfRange(X_COORDINATE_OFFSET, Y_COORDINATE_OFFSET))</span>
+<span class="fc" id="L78">        val y = BigInteger(1, encoded.copyOfRange(Y_COORDINATE_OFFSET, ELEMENT_UNCOMPRESSED_LENGTH))</span>
+<span class="pc bpc" id="L79" title="3 of 6 branches missed.">        require(x &lt; fieldPrime &amp;&amp; y &lt; fieldPrime) { &quot;P-256 coordinates must be canonical field elements&quot; }</span>
+<span class="fc" id="L80">        val point =</span>
+<span class="fc" id="L81">            try {</span>
+<span class="fc" id="L82">                curve.decodePoint(encoded).normalize()</span>
+<span class="fc" id="L83">            } catch (failure: IllegalArgumentException) {</span>
+<span class="fc" id="L84">                throw IllegalArgumentException(&quot;Invalid P-256 point encoding&quot;, failure)</span>
+            }
+<span class="fc" id="L86">        requirePoint(point)</span>
+<span class="fc" id="L87">        return point</span>
+    }
+
+    /**
+     * Serialize a scalar as a 32-byte big-endian byte array (I2OSP).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun serializeScalar(scalar: BigInteger): ByteArray {
+<span class="fc" id="L95">        requireScalar(scalar)</span>
+<span class="fc" id="L96">        val bytes = scalar.toByteArray()</span>
+<span class="fc" id="L97">        return try {</span>
+<span class="fc" id="L98">            when {</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">                bytes.size == SCALAR_LENGTH -&gt; bytes.copyOf()</span>
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">                bytes.size == SCALAR_LENGTH + BIG_INTEGER_SIGN_PADDING_LENGTH &amp;&amp; bytes[0] == 0.toByte() -&gt;</span>
+<span class="fc" id="L101">                    bytes.copyOfRange(BIG_INTEGER_SIGN_PADDING_LENGTH, bytes.size)</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">                bytes.size &lt; SCALAR_LENGTH -&gt; ByteArray(SCALAR_LENGTH - bytes.size) + bytes</span>
+<span class="pc" id="L103">                else -&gt; throw IllegalArgumentException(&quot;P-256 scalar does not fit 32 bytes&quot;)</span>
+            }
+        } finally {
+<span class="pc" id="L106">            bytes.fill(0)</span>
+<span class="fc" id="L107">        }</span>
+    }
+
+    /**
+     * Deserialize a scalar from a 32-byte big-endian byte array (OS2IP).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deserializeScalar(bytes: ByteArray): BigInteger {
+<span class="fc bfc" id="L115" title="All 4 branches covered.">        require(bytes.size == SCALAR_LENGTH) { &quot;P-256 scalar must be exactly 32 bytes&quot; }</span>
+<span class="fc" id="L116">        return BigInteger(1, bytes).also(::requireScalar)</span>
+    }
+
+    private fun requireScalar(scalar: BigInteger) {
+<span class="fc bfc" id="L120" title="All 6 branches covered.">        require(scalar.signum() &gt; 0 &amp;&amp; scalar &lt; ORDER) { &quot;P-256 scalar must be in 1..n-1&quot; }</span>
+<span class="fc" id="L121">    }</span>
+
+    private fun requirePoint(point: ECPoint) {
+<span class="pc bpc" id="L124" title="4 of 8 branches missed.">        require(!point.isInfinity &amp;&amp; point.isValid &amp;&amp; point.curve == curve) {</span>
+<span class="nc" id="L125">            &quot;P-256 point must be finite, valid, and on the P-256 curve&quot;</span>
+        }
+<span class="fc" id="L127">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:28.421Z" hostname="LOQ15IRX10-3" time="0.203">
+  <properties/>
+  <testcase name="derive_returnsNull_whenSeedUnavailable()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.02"/>
+  <testcase name="deriveAll_returnsNull_whenSeedUnavailable_T049()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.026"/>
+  <testcase name="deriveAll_dualSalt_returnsBothOutputs()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.03"/>
+  <testcase name="deriveAll erases output one when deriving output two is cancelled()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.033"/>
+  <testcase name="deriveAll_toCborMap_hasIntegerKeys()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.024"/>
+  <testcase name="deriveAll_singleSalt_returnsOutput1Only()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.015"/>
+  <testcase name="derive_outputIs32Bytes()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.015"/>
+  <testcase name="derive_isDeterministic()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationTest" time="0.023"/>
+  <system-out><![CDATA[Warn: (PrfKeyDerivation) PRF: salt1 derivation failed for credentialId=test-credential-id; omitting PRF from response
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-credential-id
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

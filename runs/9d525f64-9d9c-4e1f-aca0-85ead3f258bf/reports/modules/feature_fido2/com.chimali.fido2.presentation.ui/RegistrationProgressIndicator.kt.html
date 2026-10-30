@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegistrationProgressIndicator.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">RegistrationProgressIndicator.kt</span></div><h1>RegistrationProgressIndicator.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * T066 — Registration Progress Indicator.
+ *
+ * Animated multi-ring indicator shown during the cryptographic registration phase.
+ * Uses a pulsating circular animation to indicate BLE/HID communication + key generation
+ * is happening in the background.
+ *
+ * @param modifier    Modifier to be applied to the layout.
+ * @param message    Status message to display beneath the indicator.
+ * @param size       Diameter of the indicator canvas.
+ * @param strokeWidth Width of the arc strokes.
+ */
+@Composable
+fun RegistrationProgressIndicator(
+<span class="nc bnc" id="L47" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">    message: String = &quot;Registering passkey…&quot;,</span>
+<span class="nc" id="L49">    size: Dp = 120.dp,</span>
+<span class="nc" id="L50">    strokeWidth: Dp = 6.dp,</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L52">    val infiniteTransition = rememberInfiniteTransition(label = &quot;fido2-progress&quot;)</span>
+
+    // Outer arc rotation
+<span class="nc" id="L55">    val outerRotation by infiniteTransition.animateFloat(</span>
+<span class="nc" id="L56">        initialValue = 0f,</span>
+<span class="nc" id="L57">        targetValue = 360f,</span>
+        animationSpec =
+<span class="nc" id="L59">            infiniteRepeatable(</span>
+<span class="nc" id="L60">                animation = tween(durationMillis = 1200, easing = LinearEasing),</span>
+<span class="nc" id="L61">                repeatMode = RepeatMode.Restart,</span>
+            ),
+<span class="nc" id="L63">        label = &quot;outer-rotation&quot;,</span>
+    )
+
+    // Inner arc rotation (counter-clockwise, slightly faster)
+<span class="nc" id="L67">    val innerRotation by infiniteTransition.animateFloat(</span>
+<span class="nc" id="L68">        initialValue = 0f,</span>
+<span class="nc" id="L69">        targetValue = -360f,</span>
+        animationSpec =
+<span class="nc" id="L71">            infiniteRepeatable(</span>
+<span class="nc" id="L72">                animation = tween(durationMillis = 900, easing = LinearEasing),</span>
+<span class="nc" id="L73">                repeatMode = RepeatMode.Restart,</span>
+            ),
+<span class="nc" id="L75">        label = &quot;inner-rotation&quot;,</span>
+    )
+
+    // Pulsating alpha for the center dot
+<span class="nc" id="L79">    val centerAlpha by infiniteTransition.animateFloat(</span>
+<span class="nc" id="L80">        initialValue = 0.3f,</span>
+<span class="nc" id="L81">        targetValue = 1.0f,</span>
+        animationSpec =
+<span class="nc" id="L83">            infiniteRepeatable(</span>
+<span class="nc" id="L84">                animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),</span>
+<span class="nc" id="L85">                repeatMode = RepeatMode.Reverse,</span>
+            ),
+<span class="nc" id="L87">        label = &quot;center-alpha&quot;,</span>
+    )
+
+<span class="nc" id="L90">    val primary = MaterialTheme.colorScheme.primary</span>
+<span class="nc" id="L91">    val secondary = MaterialTheme.colorScheme.secondary</span>
+<span class="nc" id="L92">    val tertiary = MaterialTheme.colorScheme.tertiary</span>
+
+<span class="nc" id="L94">    Column(</span>
+<span class="nc" id="L95">        horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L96">        verticalArrangement = Arrangement.spacedBy(24.dp),</span>
+        modifier =
+<span class="nc" id="L98">            modifier</span>
+<span class="nc" id="L99">                .padding(32.dp)</span>
+<span class="nc" id="L100">                .semantics { contentDescription = &quot;Registration in progress&quot; },</span>
+    ) {
+<span class="nc" id="L102">        Canvas(</span>
+<span class="nc" id="L103">            modifier = Modifier.size(size),</span>
+<span class="nc bnc" id="L104" title="All 4 branches missed.">        ) {</span>
+<span class="nc" id="L105">            val center = Offset(size.toPx() / 2f, size.toPx() / 2f)</span>
+<span class="nc" id="L106">            val radius = (size.toPx() / 2f) - strokeWidth.toPx()</span>
+<span class="nc" id="L107">            val innerRadius = radius * INNER_RING_RATIO</span>
+<span class="nc" id="L108">            val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)</span>
+<span class="nc" id="L109">            val innerStroke = Stroke(width = (strokeWidth.toPx() * 0.7f), cap = StrokeCap.Round)</span>
+
+            // Outer ring
+<span class="nc" id="L112">            drawArc(</span>
+<span class="nc" id="L113">                color = primary,</span>
+<span class="nc" id="L114">                startAngle = outerRotation,</span>
+<span class="nc" id="L115">                sweepAngle = 240f,</span>
+<span class="nc" id="L116">                useCenter = false,</span>
+<span class="nc" id="L117">                style = stroke,</span>
+<span class="nc" id="L118">                topLeft = Offset(center.x - radius, center.y - radius),</span>
+                size =
+                    androidx.compose.ui.geometry
+<span class="nc" id="L121">                        .Size(radius * 2, radius * 2),</span>
+            )
+
+            // Inner ring (counter-clockwise)
+<span class="nc" id="L125">            drawArc(</span>
+<span class="nc" id="L126">                color = secondary,</span>
+<span class="nc" id="L127">                startAngle = innerRotation,</span>
+<span class="nc" id="L128">                sweepAngle = 200f,</span>
+<span class="nc" id="L129">                useCenter = false,</span>
+<span class="nc" id="L130">                style = innerStroke,</span>
+<span class="nc" id="L131">                topLeft = Offset(center.x - innerRadius, center.y - innerRadius),</span>
+                size =
+                    androidx.compose.ui.geometry
+<span class="nc" id="L134">                        .Size(innerRadius * 2, innerRadius * 2),</span>
+            )
+
+            // Pulsating center dot
+<span class="nc" id="L138">            drawCircle(</span>
+<span class="nc" id="L139">                color = tertiary.copy(alpha = centerAlpha),</span>
+<span class="nc" id="L140">                radius = strokeWidth.toPx() * 1.5f,</span>
+<span class="nc" id="L141">                center = center,</span>
+            )
+<span class="nc" id="L143">        }</span>
+
+<span class="nc" id="L145">        Text(</span>
+<span class="nc" id="L146">            text = message,</span>
+<span class="nc" id="L147">            style = MaterialTheme.typography.bodyLarge,</span>
+<span class="nc" id="L148">            fontWeight = FontWeight.Medium,</span>
+<span class="nc" id="L149">            textAlign = TextAlign.Center,</span>
+<span class="nc" id="L150">            color = MaterialTheme.colorScheme.onBackground,</span>
+        )
+
+<span class="nc" id="L153">        LinearProgressIndicator(</span>
+<span class="nc" id="L154">            modifier = Modifier.fillMaxWidth(PROGRESS_WIDTH_FRACTION),</span>
+<span class="nc" id="L155">            color = MaterialTheme.colorScheme.primary,</span>
+        )
+<span class="nc" id="L157">    }</span>
+<span class="nc" id="L158">}</span>
+
+private const val INNER_RING_RATIO = 0.65f
+private const val PROGRESS_WIDTH_FRACTION = 0.6f
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

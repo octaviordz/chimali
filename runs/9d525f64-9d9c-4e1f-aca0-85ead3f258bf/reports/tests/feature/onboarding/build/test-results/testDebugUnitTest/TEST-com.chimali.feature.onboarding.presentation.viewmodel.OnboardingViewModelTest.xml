@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:19.101Z" hostname="LOQ15IRX10-3" time="0.533">
+  <properties/>
+  <testcase name="finishOnboarding rejects continuing without a feature()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.315"/>
+  <testcase name="finishOnboarding stores authenticator as default when both features are enabled()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.097"/>
+  <testcase name="finishOnboarding stores authenticator as default when only passkey is enabled()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.014"/>
+  <testcase name="finishOnboarding reports storage errors and clears saving state()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.005"/>
+  <testcase name="finishOnboarding persists selected features and default main screen()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.013"/>
+  <testcase name="back to intro clears selection error()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.005"/>
+  <testcase name="initial state disables continue until a feature is selected()" classname="com.chimali.feature.onboarding.presentation.viewmodel.OnboardingViewModelTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

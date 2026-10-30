@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LabelSelection.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui</a> &gt; <span class="el_source">LabelSelection.kt</span></div><h1>LabelSelection.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui
+
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
+
+@Composable
+fun LabelSelection(
+    labels: List&lt;LabelUiModel&gt;,
+    selectedIds: Set&lt;UUID&gt;,
+    onToggle: (UUID) -&gt; Unit,
+<span class="nc bnc" id="L16" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc" id="L17">    enabled: Boolean = true,</span>
+<span class="nc bnc" id="L18" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L19">    Row(modifier = modifier) {</span>
+<span class="nc" id="L20">        labels.forEach { label -&gt;</span>
+<span class="nc" id="L21">            FilterChip(</span>
+<span class="nc" id="L22">                enabled = enabled,</span>
+<span class="nc" id="L23">                selected = label.id in selectedIds,</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">                onClick = { onToggle(label.id) },</span>
+<span class="nc" id="L25">                label = { Text(label.name) },</span>
+            )
+<span class="nc" id="L27">        }</span>
+<span class="nc" id="L28">    }</span>
+<span class="nc" id="L29">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

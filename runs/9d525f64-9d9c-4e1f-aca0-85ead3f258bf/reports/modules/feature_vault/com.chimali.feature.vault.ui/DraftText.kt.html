@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DraftText.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui</a> &gt; <span class="el_source">DraftText.kt</span></div><h1>DraftText.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui
+
+import com.chimali.feature.vault.internal.payload.CustomField
+
+/** FR-VAULT-026: comparisons borrow the UI value and do not allocate secret copies. */
+internal fun matchesDraftText(
+    text: CharSequence,
+    baseline: CharArray?,
+<span class="fc bfc" id="L9" title="All 8 branches covered.">): Boolean = text.length == (baseline?.size ?: 0) &amp;&amp; text.indices.all { text[it] == baseline!![it] }</span>
+
+internal fun copyDraftFields(fields: List&lt;CustomField&gt;?): List&lt;CustomField&gt; =
+<span class="pc bpc" id="L12" title="1 of 2 branches missed.">    fields.orEmpty().map { it.copyForEditing() }</span>
+
+// Existing unresolved UI boundary (T055/T059), centralized to avoid extra conversion paths.
+<span class="nc bnc" id="L15" title="All 4 branches missed.">internal fun initialDraftText(value: CharArray?): String = value?.let { String(it) }.orEmpty()</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

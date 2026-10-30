@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EventStoreKeyProviderImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">security</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.impl</a> &gt; <span class="el_source">EventStoreKeyProviderImpl.kt</span></div><h1>EventStoreKeyProviderImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.impl
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.EventStoreKeyProvider
+import com.chimali.core.security.api.MasterSeedProvider
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
+
+<span class="fc" id="L10">@Single</span>
+<span class="fc" id="L11">class EventStoreKeyProviderImpl(</span>
+<span class="fc" id="L12">    private val masterSeedProvider: MasterSeedProvider,</span>
+) : EventStoreKeyProvider {
+    /** Derives and returns an owned event-store key, erasing the wallet-root copy and HMAC buffers. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getEventStoreKey(aggregateLabel: String): ByteArray =
+<span class="fc" id="L17">        masterSeedProvider.withSessionOwner { _ -&gt;</span>
+<span class="fc" id="L18">            var rootPrk: ByteArray? = null</span>
+<span class="fc" id="L19">            var label: ByteArray? = null</span>
+<span class="fc" id="L20">            var fullHash: ByteArray? = null</span>
+<span class="fc" id="L21">            try {</span>
+<span class="fc" id="L22">                val ownedRootPrk =</span>
+<span class="pc bpc" id="L23" title="1 of 2 branches missed.">                    checkNotNull(masterSeedProvider.getMasterSeed()) {</span>
+<span class="nc" id="L24">                        &quot;Wallet root not initialized. Cannot derive event store keys.&quot;</span>
+                    }
+<span class="fc" id="L26">                rootPrk = ownedRootPrk</span>
+<span class="fc" id="L27">                val encodedLabel = aggregateLabel.toByteArray(Charsets.UTF_8)</span>
+<span class="fc" id="L28">                label = encodedLabel</span>
+                // Preserve this consumer's existing HMAC-SHA512 label policy; the provider now
+                // supplies an owned 32-byte root PRK copy instead of the full BIP39 seed.
+<span class="fc" id="L31">                val mac = Mac.getInstance(&quot;HmacSHA512&quot;)</span>
+<span class="fc" id="L32">                mac.init(SecretKeySpec(ownedRootPrk, &quot;HmacSHA512&quot;))</span>
+<span class="fc" id="L33">                fullHash = mac.doFinal(encodedLabel)</span>
+<span class="fc" id="L34">                fullHash.copyOf(32)</span>
+            } finally {
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">                rootPrk?.fill(0)</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">                label?.fill(0)</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">                fullHash?.fill(0)</span>
+<span class="fc" id="L39">            }</span>
+<span class="fc" id="L40">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

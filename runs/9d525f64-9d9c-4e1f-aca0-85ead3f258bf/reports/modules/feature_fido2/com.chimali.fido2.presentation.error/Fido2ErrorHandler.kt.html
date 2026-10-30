@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2ErrorHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.error</a> &gt; <span class="el_source">Fido2ErrorHandler.kt</span></div><h1>Fido2ErrorHandler.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.error
+
+import com.chimali.core.common.result.DomainError
+import com.chimali.fido2.domain.exception.Fido2Exception
+
+/**
+ * T149 / T152 — FIDO2 error handler.
+ *
+ * Maps [Fido2Exception] and [DomainError] subclasses to user-facing messages and retry recommendations.
+ * Keeps the ViewModel clean of string resources by centralising all error classification logic.
+ */
+object Fido2ErrorHandler {
+<span class="pc" id="L13">    data class ErrorUi(</span>
+<span class="fc" id="L14">        val title: String,</span>
+<span class="fc" id="L15">        val message: String,</span>
+<span class="fc" id="L16">        val isRetryable: Boolean,</span>
+        // CTAP2 error code for transport layer
+<span class="pc" id="L18">        val ctap2ErrorCode: Int? = null,</span>
+<span class="nc" id="L19">    )</span>
+
+    /**
+     * Maps a DomainError to UI-renderable [ErrorUi].
+     */
+    fun handle(error: DomainError): ErrorUi =
+<span class="fc" id="L25">        when (error) {</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">            is DomainError.OperationDenied -&gt;</span>
+<span class="fc" id="L27">                ErrorUi(</span>
+<span class="fc" id="L28">                    title = &quot;Operation denied&quot;,</span>
+<span class="fc" id="L29">                    message = error.message,</span>
+<span class="fc" id="L30">                    isRetryable = true,</span>
+<span class="fc" id="L31">                    ctap2ErrorCode = 0x29,</span>
+                )
+
+<span class="fc bfc" id="L34" title="All 2 branches covered.">            is DomainError.NotFound -&gt;</span>
+<span class="fc" id="L35">                ErrorUi(</span>
+<span class="fc" id="L36">                    title = &quot;Not found&quot;,</span>
+<span class="fc" id="L37">                    message = error.message,</span>
+<span class="fc" id="L38">                    isRetryable = false,</span>
+<span class="fc" id="L39">                    ctap2ErrorCode = 0x2E,</span>
+                )
+
+<span class="fc bfc" id="L42" title="All 2 branches covered.">            is DomainError.DatabaseError -&gt;</span>
+<span class="fc" id="L43">                ErrorUi(</span>
+<span class="fc" id="L44">                    title = &quot;Database error&quot;,</span>
+<span class="fc" id="L45">                    message = &quot;Could not access local storage. ${error.message}&quot;,</span>
+<span class="fc" id="L46">                    isRetryable = true,</span>
+<span class="fc" id="L47">                    ctap2ErrorCode = 0x17,</span>
+                )
+
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            is DomainError.CryptoError -&gt;</span>
+<span class="fc" id="L51">                ErrorUi(</span>
+<span class="fc" id="L52">                    title = &quot;Security error&quot;,</span>
+<span class="fc" id="L53">                    message = &quot;Could not perform cryptographic operation. ${error.message}&quot;,</span>
+<span class="fc" id="L54">                    isRetryable = true,</span>
+<span class="fc" id="L55">                    ctap2ErrorCode = 0x17,</span>
+                )
+
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            is DomainError.NetworkError -&gt;</span>
+<span class="fc" id="L59">                ErrorUi(</span>
+<span class="fc" id="L60">                    title = &quot;Connection error&quot;,</span>
+<span class="fc" id="L61">                    message = &quot;Communication with the host was interrupted. ${error.message}&quot;,</span>
+<span class="fc" id="L62">                    isRetryable = true,</span>
+<span class="fc" id="L63">                    ctap2ErrorCode = 0x07,</span>
+                )
+
+            else -&gt;
+<span class="fc" id="L67">                ErrorUi(</span>
+<span class="fc" id="L68">                    title = &quot;Unexpected error&quot;,</span>
+<span class="fc" id="L69">                    message = error.message,</span>
+<span class="fc" id="L70">                    isRetryable = true,</span>
+<span class="fc" id="L71">                    ctap2ErrorCode = 0x7F,</span>
+                )
+<span class="fc" id="L73">        }</span>
+
+    /**
+     * Maps a throwable (expected to be [Fido2Exception]) to UI-renderable [ErrorUi].
+     */
+    fun handle(error: Throwable): ErrorUi =
+<span class="fc" id="L79">        when (error) {</span>
+            // ── User verification ──────────────────────────────────────────────────
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            is Fido2Exception.UserVerificationFailed -&gt;</span>
+<span class="fc" id="L82">                ErrorUi(</span>
+<span class="fc" id="L83">                    title = &quot;Verification failed&quot;,</span>
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">                    message = error.message ?: &quot;Could not verify your identity. Please try again.&quot;,</span>
+<span class="fc" id="L85">                    isRetryable = true,</span>
+                    // CTAP2_ERR_OPERATION_DENIED
+<span class="fc" id="L87">                    ctap2ErrorCode = 0x29,</span>
+                )
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">            is Fido2Exception.NoVerificationMethodAvailable -&gt;</span>
+<span class="fc" id="L91">                ErrorUi(</span>
+<span class="fc" id="L92">                    title = &quot;No verification method&quot;,</span>
+<span class="fc" id="L93">                    message = &quot;No biometric or PIN is set up on this device. Please configure one in Settings.&quot;,</span>
+<span class="fc" id="L94">                    isRetryable = false,</span>
+                    // CTAP2_ERR_PIN_NOT_SET
+<span class="fc" id="L96">                    ctap2ErrorCode = 0x26,</span>
+                )
+
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            is Fido2Exception.ConsentDenied -&gt;</span>
+<span class="fc" id="L100">                ErrorUi(</span>
+<span class="fc" id="L101">                    title = &quot;Registration cancelled&quot;,</span>
+<span class="fc" id="L102">                    message = &quot;You declined to create a passkey. Tap the site's 'Create passkey' button to try again.&quot;,</span>
+<span class="fc" id="L103">                    isRetryable = false,</span>
+                    // CTAP2_ERR_PIN_POLICY_VIOLATION
+<span class="fc" id="L105">                    ctap2ErrorCode = 0x27,</span>
+                )
+
+            // ── Credential conflicts ───────────────────────────────────────────────
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            is Fido2Exception.CredentialCreationNotAllowed -&gt;</span>
+<span class="fc" id="L110">                ErrorUi(</span>
+<span class="fc" id="L111">                    title = &quot;Passkey not allowed&quot;,</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                    message = error.message ?: &quot;This site doesn't allow creating a new passkey at this time.&quot;,</span>
+<span class="fc" id="L113">                    isRetryable = false,</span>
+                    // CTAP2_ERR_CREDENTIAL_EXCLUDED
+<span class="fc" id="L115">                    ctap2ErrorCode = 0x22,</span>
+                )
+
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            is Fido2Exception.DuplicateCredentialException -&gt;</span>
+<span class="fc" id="L119">                ErrorUi(</span>
+<span class="fc" id="L120">                    title = &quot;Passkey already exists&quot;,</span>
+<span class="fc" id="L121">                    message = &quot;A passkey for this account already exists on this device.&quot;,</span>
+<span class="fc" id="L122">                    isRetryable = false,</span>
+                    // CTAP2_ERR_CREDENTIAL_EXCLUDED
+<span class="fc" id="L124">                    ctap2ErrorCode = 0x22,</span>
+                )
+
+<span class="fc bfc" id="L127" title="All 2 branches covered.">            is Fido2Exception.TooManyCredentials -&gt;</span>
+<span class="fc" id="L128">                ErrorUi(</span>
+<span class="fc" id="L129">                    title = &quot;Too many passkeys&quot;,</span>
+<span class="fc" id="L130">                    message = &quot;This device's passkey storage is full. Remove unused passkeys and try again.&quot;,</span>
+<span class="fc" id="L131">                    isRetryable = false,</span>
+                    // CTAP2_ERR_KEY_STORE_FULL
+<span class="fc" id="L133">                    ctap2ErrorCode = 0x49,</span>
+                )
+
+            // ── Cryptographic ──────────────────────────────────────────────────────
+<span class="fc bfc" id="L137" title="All 2 branches covered.">            is Fido2Exception.KeyGenerationFailed,</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">            is Fido2Exception.KeyGenerationException,</span>
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">            is Fido2Exception.CryptographicException,</span>
+            -&gt;
+<span class="fc" id="L141">                ErrorUi(</span>
+<span class="fc" id="L142">                    title = &quot;Security error&quot;,</span>
+<span class="fc" id="L143">                    message = &quot;Could not generate a secure key for your passkey. Please try again.&quot;,</span>
+<span class="fc" id="L144">                    isRetryable = true,</span>
+                    // CTAP2_ERR_PROCESSING
+<span class="fc" id="L146">                    ctap2ErrorCode = 0x17,</span>
+                )
+
+<span class="fc bfc" id="L149" title="All 2 branches covered.">            is Fido2Exception.UnsupportedAlgorithmException,</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">            is Fido2Exception.UnsupportedAlgorithm,</span>
+            -&gt;
+<span class="fc" id="L152">                ErrorUi(</span>
+<span class="fc" id="L153">                    title = &quot;Unsupported algorithm&quot;,</span>
+<span class="fc" id="L154">                    message = &quot;This site requested a cryptographic algorithm not supported by this device.&quot;,</span>
+<span class="fc" id="L155">                    isRetryable = false,</span>
+                    // CTAP2_ERR_UNSUPPORTED_ALGORITHM
+<span class="fc" id="L157">                    ctap2ErrorCode = 0x26,</span>
+                )
+
+            // ── Storage ────────────────────────────────────────────────────────────
+<span class="fc bfc" id="L161" title="All 2 branches covered.">            is Fido2Exception.CredentialStorageFailed,</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">            is Fido2Exception.StorageException,</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            is Fido2Exception.DatabaseException,</span>
+            -&gt;
+<span class="fc" id="L165">                ErrorUi(</span>
+<span class="fc" id="L166">                    title = &quot;Storage error&quot;,</span>
+                    message =
+                        &quot;Could not save your passkey. &quot; +
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">                            &quot;${error.message ?: &quot;Please check available storage and try again.&quot;}&quot;,</span>
+<span class="fc" id="L170">                    isRetryable = true,</span>
+                    // CTAP2_ERR_PIN_POLICY_VIOLATION
+<span class="fc" id="L172">                    ctap2ErrorCode = 0x27,</span>
+                )
+
+            // ── Timeout / transport ────────────────────────────────────────────────
+<span class="fc bfc" id="L176" title="All 2 branches covered.">            is Fido2Exception.TransportException,</span>
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">            is Fido2Exception.BluetoothException,</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">            is Fido2Exception.ConnectionException,</span>
+            -&gt;
+<span class="fc" id="L180">                ErrorUi(</span>
+<span class="fc" id="L181">                    title = &quot;Connection lost&quot;,</span>
+<span class="fc" id="L182">                    message = &quot;The Bluetooth connection was interrupted. Move closer and try again.&quot;,</span>
+<span class="fc" id="L183">                    isRetryable = true,</span>
+                    // CTAP2_ERR_TIMEOUT
+<span class="fc" id="L185">                    ctap2ErrorCode = 0x07,</span>
+                )
+
+            // ── Registration wrapper ───────────────────────────────────────────────
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            is Fido2Exception.RegistrationFailed -&gt;</span>
+<span class="fc" id="L190">                ErrorUi(</span>
+<span class="fc" id="L191">                    title = &quot;Registration failed&quot;,</span>
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                    message = error.message ?: &quot;Passkey registration failed. Please try again.&quot;,</span>
+<span class="fc" id="L193">                    isRetryable = true,</span>
+                    // CTAP2_ERR_PROCESSING
+<span class="fc" id="L195">                    ctap2ErrorCode = 0x17,</span>
+                )
+
+            // ── Generic fallback ───────────────────────────────────────────────────
+            else -&gt;
+<span class="fc" id="L200">                ErrorUi(</span>
+<span class="fc" id="L201">                    title = &quot;Unexpected error&quot;,</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">                    message = error.message ?: &quot;An unexpected error occurred. Please try again.&quot;,</span>
+<span class="fc" id="L203">                    isRetryable = true,</span>
+                    // CTAP1_ERR_OTHER
+<span class="fc" id="L205">                    ctap2ErrorCode = 0x7F,</span>
+                )
+<span class="fc" id="L207">        }</span>
+
+    /**
+     * Returns true if the error should be silently retried without user interaction.
+     * Currently only [Fido2Exception.TransportException] qualifies.
+     */
+    fun isSilentRetryable(error: Throwable): Boolean =
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        error is Fido2Exception.TransportException ||</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            error is Fido2Exception.ConnectionException</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

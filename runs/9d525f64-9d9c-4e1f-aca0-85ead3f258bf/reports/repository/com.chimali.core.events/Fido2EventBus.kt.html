@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2EventBus.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.events</a> &gt; <span class="el_source">Fido2EventBus.kt</span></div><h1>Fido2EventBus.kt</h1><pre class="source lang-java linenums">package com.chimali.core.events
+
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+
+/**
+ * Singleton event bus for cross-module FIDO2 and Bluetooth events.
+ * Implements a Mediator pattern to decouple transport/hardware layers from domain logic.
+ */
+<span class="fc" id="L11">class Fido2EventBus {</span>
+    private val _events =
+<span class="fc" id="L13">        MutableSharedFlow&lt;Fido2Event&gt;(</span>
+<span class="fc" id="L14">            extraBufferCapacity = 10,</span>
+        )
+<span class="fc" id="L16">    val events: SharedFlow&lt;Fido2Event&gt; = _events.asSharedFlow()</span>
+
+    fun publish(event: Fido2Event) {
+<span class="nc" id="L19">        _events.tryEmit(event)</span>
+<span class="nc" id="L20">    }</span>
+}
+
+/**
+ * sealed class representing all possible events emitted by the FIDO2 system.
+ */
+sealed class Fido2Event {
+    /**
+     * Emitted when a FIDO2 MakeCredential or GetAssertion operation successfully completes over Bluetooth.
+     * @param hostDeviceAddress The MAC address of the Bluetooth host that requested the operation.
+     * @param hostDeviceName The friendly Bluetooth name of the host, if available.
+     * @param hostDeviceClass The Bluetooth class of the device (Phone, Computer, etc.) if available.
+     */
+<span class="fc" id="L33">    data class InteractionSuccessful(</span>
+<span class="pc" id="L34">        val hostDeviceAddress: String,</span>
+<span class="pc" id="L35">        val hostDeviceName: String?,</span>
+<span class="pc" id="L36">        val hostDeviceClass: Int?,</span>
+    ) : Fido2Event()
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

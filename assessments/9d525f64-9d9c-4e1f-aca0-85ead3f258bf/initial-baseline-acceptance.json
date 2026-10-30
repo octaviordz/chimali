@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_id": "9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+  "accepted_at": "2026-10-30T10:58:15Z",
+  "initial_target_ref": "lab/or/main",
+  "source_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "source_tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+  "main_creation_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "policy_id": "chimali-coverage-v1",
+  "bundle_digest": "4835269a4ec74699fdeb08c6ed068ed01866666c99b866e3f303fe789faacbfe",
+  "manifest_digest": "190457d80ecc5080264af64e1bce799f982b5198d270dc398a8ab33343344a30",
+  "verifier_decision_digest": "4028ef53a987ee92b41417bb8308c6852584e1d890e87f7ce96d6d09789a1e19",
+  "verifier_decision": {
+    "collection": "Complete",
+    "tests": "Passed",
+    "floors": "Passed",
+    "comparison_compatibility": "Missing",
+    "regression": "NotApplicable",
+    "publication": "Pending",
+    "integration": "Unverified"
+  },
+  "hosted_check": "Unverified"
+}

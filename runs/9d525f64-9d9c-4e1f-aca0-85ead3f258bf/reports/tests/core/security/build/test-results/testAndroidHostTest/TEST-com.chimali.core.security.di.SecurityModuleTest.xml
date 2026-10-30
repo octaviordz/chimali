@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.di.SecurityModuleTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:45.062Z" hostname="LOQ15IRX10-3" time="0.471">
+  <properties/>
+  <testcase name="verify EventStoreKeyProvider is wired correctly()" classname="com.chimali.core.security.di.SecurityModuleTest" time="0.449"/>
+  <testcase name="verify MetadataLookupTokenService and EncryptedMetadataService are wired correctly()" classname="com.chimali.core.security.di.SecurityModuleTest" time="0.015"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

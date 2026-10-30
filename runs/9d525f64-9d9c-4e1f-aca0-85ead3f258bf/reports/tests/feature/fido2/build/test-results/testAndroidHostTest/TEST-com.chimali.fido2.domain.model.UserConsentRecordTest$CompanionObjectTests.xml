@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:38.382Z" hostname="LOQ15IRX10-3" time="0.036">
+  <properties/>
+  <testcase name="should create consent record using companion object factory method()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests" time="0.012"/>
+  <testcase name="should have correct constant values()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests" time="0.012"/>
+  <testcase name="should create consent record with minimal parameters()" classname="com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

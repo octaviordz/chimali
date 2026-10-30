@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.EventStoreSerializerTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:11.210Z" hostname="LOQ15IRX10-3" time="0.004">
+  <properties/>
+  <testcase name="malformed event payload is rejected" classname="com.chimali.core.data.eventsourcing.EventStoreSerializerTest" time="0.001"/>
+  <testcase name="updated and deleted events round trip" classname="com.chimali.core.data.eventsourcing.EventStoreSerializerTest" time="0.002"/>
+  <testcase name="created event round trips without type discriminator collision" classname="com.chimali.core.data.eventsourcing.EventStoreSerializerTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

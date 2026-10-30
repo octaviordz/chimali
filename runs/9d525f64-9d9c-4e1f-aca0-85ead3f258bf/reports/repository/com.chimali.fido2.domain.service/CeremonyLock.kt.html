@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CeremonyLock.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.service</a> &gt; <span class="el_source">CeremonyLock.kt</span></div><h1>CeremonyLock.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.service
+
+import kotlinx.coroutines.sync.Mutex
+import org.koin.core.annotation.Single
+
+/**
+ * Ensures that only one FIDO2 ceremony (Assertion or Registration) can be active at a time.
+ * This satisfies the FIDO2 requirement that the authenticator is a single-threaded state machine
+ * and prevents concurrent ceremonies from clashing over the UI or cryptographic resources.
+ */
+<span class="fc" id="L11">@Single</span>
+class CeremonyLock {
+<span class="fc" id="L13">    private val mutex = Mutex()</span>
+
+    /**
+     * Tries to acquire the lock. Returns true if successful, false if a ceremony is already in progress.
+     */
+<span class="fc" id="L18">    fun tryLock(): Boolean = mutex.tryLock()</span>
+
+    /**
+     * Releases the lock.
+     */
+    fun unlock() {
+<span class="pc bpc" id="L24" title="1 of 2 branches missed.">        if (mutex.isLocked) {</span>
+<span class="fc" id="L25">            mutex.unlock()</span>
+        }
+<span class="fc" id="L27">    }</span>
+
+    /**
+     * Returns true if a ceremony is currently in progress.
+     */
+<span class="fc" id="L32">    val isLocked: Boolean get() = mutex.isLocked</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.MultiAlgorithmIntegrationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:54.487Z" hostname="LOQ15IRX10-3" time="2.366">
+  <properties/>
+  <testcase name="registration and authentication work for ECDSA()" classname="com.chimali.fido2.integration.MultiAlgorithmIntegrationTest" time="0.515"/>
+  <testcase name="registration and authentication work for ML-DSA-65()" classname="com.chimali.fido2.integration.MultiAlgorithmIntegrationTest" time="1.344"/>
+  <testcase name="registration and authentication work for Ed25519()" classname="com.chimali.fido2.integration.MultiAlgorithmIntegrationTest" time="0.504"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

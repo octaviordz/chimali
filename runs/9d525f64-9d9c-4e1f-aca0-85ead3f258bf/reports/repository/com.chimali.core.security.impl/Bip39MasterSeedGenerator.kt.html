@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Bip39MasterSeedGenerator.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.impl</a> &gt; <span class="el_source">Bip39MasterSeedGenerator.kt</span></div><h1>Bip39MasterSeedGenerator.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.impl
+
+import android.icu.text.Normalizer2
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.MasterSeedGenerator
+import com.chimali.core.security.memory.ErasableCharBuffer
+import com.chimali.core.security.platform.loadResourceLines
+import java.nio.CharBuffer
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
+
+/** Mutable normalization boundary so JVM host tests can supply deterministic normalization. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal fun interface MutableNfkdNormalizer {
+    /**
+     * Writes NFKD-normalized [source] characters into the caller-owned [destination].
+     *
+     * The source is borrowed and must remain valid for this call; the destination remains owned
+     * by its caller, which must erase it after use, including when normalization fails.
+     * Implementations may propagate normalization or destination-append failures.
+     *
+     * @param source borrowed text to normalize
+     * @param destination caller-owned mutable output buffer
+     * @return [Unit] after normalized text has been written
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun normalize(
+        source: CharSequence,
+        destination: ErasableCharBuffer,
+    )
+}
+
+private object AndroidIcuNfkdNormalizer : MutableNfkdNormalizer {
+    /**
+     * Appends Android ICU's NFKD normalization of borrowed [source] into [destination].
+     * The caller retains destination ownership and must erase it after use or on failure.
+     * ICU normalization and destination-append failures propagate to the caller.
+     *
+     * @param source borrowed text to normalize
+     * @param destination caller-owned mutable output buffer
+     * @return [Unit] after normalized text has been written
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun normalize(
+        source: CharSequence,
+        destination: ErasableCharBuffer,
+    ) {
+<span class="fc" id="L51">        Normalizer2.getNFKDInstance().normalize(source, destination)</span>
+<span class="fc" id="L52">    }</span>
+}
+
+/** BIP39 English generation and fixed empty-passphrase seed derivation using mutable owners. */
+<span class="fc" id="L56">@Single</span>
+<span class="fc" id="L57">class Bip39MasterSeedGenerator() : MasterSeedGenerator {</span>
+<span class="fc" id="L58">    private var nfkdNormalizer: MutableNfkdNormalizer = AndroidIcuNfkdNormalizer</span>
+
+    /** Host-test seam; production construction always uses Android ICU. */
+<span class="fc" id="L61">    internal constructor(nfkdNormalizer: MutableNfkdNormalizer) : this() {</span>
+<span class="fc" id="L62">        this.nfkdNormalizer = nfkdNormalizer</span>
+<span class="fc" id="L63">    }</span>
+
+<span class="fc" id="L65">    private val wordList: List&lt;String&gt; by lazy {</span>
+<span class="fc" id="L66">        loadResourceLines(&quot;bip39_english.txt&quot;)</span>
+<span class="pc bpc" id="L67" title="2 of 4 branches missed.">            .also { require(it.size == WORD_LIST_SIZE) { &quot;BIP39 wordlist must contain 2048 words&quot; } }</span>
+    }
+
+    /** Generates a mutable 24-word English BIP39 phrase and erases temporary entropy before return. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun generateMnemonic(wordCount: Int): CharArray {
+<span class="fc bfc" id="L73" title="All 4 branches covered.">        require(wordCount == PROFILE_WORD_COUNT) { &quot;The wallet profile requires exactly 24 words&quot; }</span>
+<span class="fc" id="L74">        val entropy = ByteArray(ENTROPY_LENGTH)</span>
+<span class="fc" id="L75">        return try {</span>
+<span class="fc" id="L76">            SecureRandom().nextBytes(entropy)</span>
+<span class="fc" id="L77">            entropyToMnemonic(entropy)</span>
+        } finally {
+<span class="fc" id="L79">            entropy.fill(0)</span>
+        }
+    }
+
+    /** Validates a borrowed English mnemonic and returns its full 64-byte, empty-passphrase seed. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun deriveSeed(mnemonic: CharArray): ByteArray {
+<span class="fc" id="L86">        val normalized = ErasableCharBuffer(mnemonic.size)</span>
+<span class="fc" id="L87">        var indices: IntArray? = null</span>
+<span class="fc" id="L88">        var entropy: ByteArray? = null</span>
+<span class="fc" id="L89">        var password: ByteArray? = null</span>
+<span class="fc" id="L90">        val salt = EMPTY_PASSPHRASE_SALT.copyOf()</span>
+<span class="fc" id="L91">        var output: ByteArray? = null</span>
+<span class="fc" id="L92">        try {</span>
+<span class="fc" id="L93">            nfkdNormalizer.normalize(CharBuffer.wrap(mnemonic), normalized)</span>
+<span class="fc" id="L94">            indices = parseAndValidateMnemonic(normalized)</span>
+<span class="fc" id="L95">            entropy = indicesToEntropy(indices)</span>
+<span class="fc" id="L96">            password = asciiPhraseBytes(normalized)</span>
+
+<span class="fc" id="L98">            val derived = pbkdf2HmacSha512(password, salt, PBKDF2_ITERATIONS)</span>
+<span class="fc" id="L99">            output = derived</span>
+<span class="fc" id="L100">            return derived.also { output = null }</span>
+        } finally {
+<span class="fc" id="L102">            normalized.erase()</span>
+<span class="pc bpc" id="L103" title="2 of 4 branches missed.">            indices?.fill(0)</span>
+<span class="pc bpc" id="L104" title="2 of 4 branches missed.">            entropy?.fill(0)</span>
+<span class="pc bpc" id="L105" title="2 of 4 branches missed.">            password?.fill(0)</span>
+<span class="fc" id="L106">            salt.fill(0)</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">            output?.fill(0)</span>
+        }
+    }
+
+    /** Converts borrowed 256-bit entropy to an owned 24-word phrase. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal fun entropyToMnemonic(entropy: ByteArray): CharArray {
+<span class="pc bpc" id="L114" title="2 of 4 branches missed.">        require(entropy.size == ENTROPY_LENGTH) { &quot;The current wallet profile requires 256-bit entropy&quot; }</span>
+<span class="fc" id="L115">        val checksum = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(entropy)</span>
+<span class="fc" id="L116">        val indices = IntArray(PROFILE_WORD_COUNT)</span>
+<span class="fc" id="L117">        try {</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            for (word in indices.indices) {</span>
+<span class="fc" id="L119">                var value = 0</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">                for (bitInWord in 0 until BITS_PER_WORD) {</span>
+<span class="fc" id="L121">                    val sourceBit = word * BITS_PER_WORD + bitInWord</span>
+<span class="fc" id="L122">                    val bit =</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">                        if (sourceBit &lt; ENTROPY_LENGTH * BITS_PER_BYTE) {</span>
+<span class="fc" id="L124">                            bitAt(entropy, sourceBit)</span>
+                        } else {
+<span class="fc" id="L126">                            bitAt(checksum, sourceBit - ENTROPY_LENGTH * BITS_PER_BYTE)</span>
+                        }
+<span class="fc" id="L128">                    value = (value shl 1) or bit</span>
+                }
+<span class="fc" id="L130">                indices[word] = value</span>
+            }
+
+<span class="fc" id="L133">            val words = wordList</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">            val length = indices.sumOf { words[it].length } + indices.lastIndex</span>
+<span class="fc" id="L135">            val phrase = CharArray(length)</span>
+<span class="fc" id="L136">            var offset = 0</span>
+<span class="fc" id="L137">            indices.forEachIndexed { wordIndex, wordIndexValue -&gt;</span>
+<span class="fc" id="L138">                val word = words[wordIndexValue]</span>
+<span class="fc" id="L139">                word.forEach { character -&gt; phrase[offset++] = character }</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">                if (wordIndex != indices.lastIndex) phrase[offset++] = ' '</span>
+<span class="fc" id="L141">            }</span>
+<span class="fc" id="L142">            return phrase</span>
+        } finally {
+<span class="fc" id="L144">            checksum.fill(0)</span>
+<span class="fc" id="L145">            indices.fill(0)</span>
+        }
+    }
+
+    private fun parseAndValidateMnemonic(normalized: CharSequence): IntArray {
+<span class="pc bpc" id="L150" title="3 of 10 branches missed.">        require(normalized.isNotEmpty() &amp;&amp; normalized.first() != ' ' &amp;&amp; normalized.last() != ' ') {</span>
+<span class="fc" id="L151">            &quot;Mnemonic must not have leading or trailing whitespace&quot;</span>
+        }
+<span class="fc" id="L153">        val indices = IntArray(PROFILE_WORD_COUNT)</span>
+<span class="fc" id="L154">        var wordNumber = 0</span>
+<span class="fc" id="L155">        var start = 0</span>
+<span class="fc" id="L156">        var completed = false</span>
+<span class="fc" id="L157">        try {</span>
+<span class="pc bpc" id="L158" title="1 of 4 branches missed.">            for (position in 0..normalized.length) {</span>
+<span class="fc bfc" id="L159" title="All 4 branches covered.">                if (position == normalized.length || normalized[position] == ' ') {</span>
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">                    require(position &gt; start) { &quot;Mnemonic words must use single spaces&quot; }</span>
+<span class="pc bpc" id="L161" title="2 of 4 branches missed.">                    require(wordNumber &lt; PROFILE_WORD_COUNT) { &quot;Mnemonic must contain exactly 24 words&quot; }</span>
+<span class="fc" id="L162">                    val found = findWordIndex(normalized, start, position)</span>
+<span class="fc bfc" id="L163" title="All 4 branches covered.">                    require(found &gt;= 0) { &quot;Mnemonic contains a word outside the English BIP39 list&quot; }</span>
+<span class="fc" id="L164">                    indices[wordNumber++] = found</span>
+<span class="fc" id="L165">                    start = position + 1</span>
+                }
+            }
+<span class="fc bfc" id="L168" title="All 4 branches covered.">            require(wordNumber == PROFILE_WORD_COUNT) { &quot;Mnemonic must contain exactly 24 words&quot; }</span>
+<span class="fc" id="L169">            val entropy = indicesToEntropy(indices)</span>
+<span class="fc" id="L170">            try {</span>
+<span class="fc" id="L171">                val checksum = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(entropy)</span>
+<span class="fc" id="L172">                try {</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                    for (bit in 0 until CHECKSUM_BITS) {</span>
+<span class="fc" id="L174">                        val concatenatedBit = ENTROPY_LENGTH * BITS_PER_BYTE + bit</span>
+<span class="fc" id="L175">                        val wordIndex = concatenatedBit / BITS_PER_WORD</span>
+<span class="fc" id="L176">                        val bitInWord = concatenatedBit % BITS_PER_WORD</span>
+<span class="fc" id="L177">                        val mnemonicBit = (indices[wordIndex] ushr (BITS_PER_WORD - bitInWord - 1)) and 1</span>
+<span class="fc bfc" id="L178" title="All 4 branches covered.">                        require(mnemonicBit == bitAt(checksum, bit)) {</span>
+<span class="fc" id="L179">                            &quot;Mnemonic checksum is invalid&quot;</span>
+                        }
+                    }
+                } finally {
+<span class="fc" id="L183">                    checksum.fill(0)</span>
+                }
+            } finally {
+<span class="fc" id="L186">                entropy.fill(0)</span>
+            }
+<span class="fc" id="L188">            completed = true</span>
+<span class="fc" id="L189">            return indices</span>
+        } finally {
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">            if (!completed) indices.fill(0)</span>
+        }
+    }
+
+    private fun findWordIndex(
+        phrase: CharSequence,
+        start: Int,
+        end: Int,
+    ): Int {
+<span class="fc" id="L200">        val words = wordList</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        for (wordIndex in words.indices) {</span>
+<span class="fc" id="L202">            val candidate = words[wordIndex]</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">            if (candidate.length != end - start) continue</span>
+<span class="fc" id="L204">            var matches = true</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">            for (offset in candidate.indices) {</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">                if (phrase[start + offset] != candidate[offset]) {</span>
+<span class="fc" id="L207">                    matches = false</span>
+<span class="fc" id="L208">                    break</span>
+                }
+            }
+<span class="fc bfc" id="L211" title="All 2 branches covered.">            if (matches) return wordIndex</span>
+        }
+<span class="fc" id="L213">        return -1</span>
+    }
+
+    private fun indicesToEntropy(indices: IntArray): ByteArray {
+<span class="pc bpc" id="L217" title="2 of 4 branches missed.">        require(indices.size == PROFILE_WORD_COUNT) { &quot;The wallet profile requires 24 words&quot; }</span>
+<span class="fc" id="L218">        val entropy = ByteArray(ENTROPY_LENGTH)</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        for (word in indices.indices) {</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">            for (bitInWord in 0 until BITS_PER_WORD) {</span>
+<span class="fc" id="L221">                val value = (indices[word] ushr (BITS_PER_WORD - bitInWord - 1)) and 1</span>
+<span class="fc" id="L222">                val targetBit = word * BITS_PER_WORD + bitInWord</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                if (targetBit &lt; ENTROPY_LENGTH * BITS_PER_BYTE) setBit(entropy, targetBit, value)</span>
+            }
+        }
+<span class="fc" id="L226">        return entropy</span>
+    }
+
+    private fun asciiPhraseBytes(phrase: CharSequence): ByteArray =
+<span class="fc bfc" id="L230" title="All 2 branches covered.">        ByteArray(phrase.length) { index -&gt;</span>
+<span class="fc" id="L231">            val character = phrase[index]</span>
+<span class="pc bpc" id="L232" title="3 of 6 branches missed.">            require(character.code in 0x00..0x7f) { &quot;Validated English mnemonic must be ASCII&quot; }</span>
+<span class="fc" id="L233">            character.code.toByte()</span>
+<span class="fc" id="L234">        }</span>
+
+    private fun pbkdf2HmacSha512(
+        password: ByteArray,
+        salt: ByteArray,
+        iterations: Int,
+    ): ByteArray {
+<span class="fc" id="L241">        val mac = Mac.getInstance(HMAC_SHA512)</span>
+<span class="fc" id="L242">        mac.init(SecretKeySpec(password, HMAC_SHA512))</span>
+<span class="fc" id="L243">        val block = ByteArray(salt.size + INT_LENGTH)</span>
+<span class="fc" id="L244">        salt.copyInto(block)</span>
+<span class="fc" id="L245">        block[block.lastIndex] = 1</span>
+<span class="fc" id="L246">        val output = ByteArray(SEED_LENGTH)</span>
+<span class="fc" id="L247">        var current: ByteArray? = null</span>
+<span class="fc" id="L248">        var completed = false</span>
+<span class="fc" id="L249">        try {</span>
+<span class="fc" id="L250">            val first = mac.doFinal(block)</span>
+<span class="fc" id="L251">            current = first</span>
+<span class="fc" id="L252">            first.copyInto(output)</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">            repeat(iterations - 1) {</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">                val previous = requireNotNull(current)</span>
+<span class="fc" id="L255">                val next = mac.doFinal(previous)</span>
+<span class="fc" id="L256">                previous.fill(0)</span>
+<span class="fc" id="L257">                current = next</span>
+<span class="fc bfc" id="L258" title="All 2 branches covered.">                for (index in output.indices) output[index] = (output[index].toInt() xor next[index].toInt()).toByte()</span>
+<span class="fc" id="L259">            }</span>
+<span class="fc" id="L260">            completed = true</span>
+<span class="fc" id="L261">            return output</span>
+        } finally {
+<span class="pc bnc" id="L263" title="All 2 branches missed.">            if (!completed) output.fill(0)</span>
+<span class="pc" id="L264">            block.fill(0)</span>
+<span class="pc bpc" id="L265" title="3 of 4 branches missed.">            current?.fill(0)</span>
+        }
+    }
+
+    private fun bitAt(
+        bytes: ByteArray,
+        bitIndex: Int,
+<span class="fc" id="L272">    ): Int = (bytes[bitIndex / BITS_PER_BYTE].toInt() ushr (BITS_PER_BYTE - 1 - bitIndex % BITS_PER_BYTE)) and 1</span>
+
+    private fun setBit(
+        bytes: ByteArray,
+        bitIndex: Int,
+        value: Int,
+    ) {
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        if (value != 0) {</span>
+<span class="fc" id="L280">            val byteIndex = bitIndex / BITS_PER_BYTE</span>
+<span class="fc" id="L281">            bytes[byteIndex] =</span>
+<span class="fc" id="L282">                (bytes[byteIndex].toInt() or (1 shl (BITS_PER_BYTE - 1 - bitIndex % BITS_PER_BYTE))).toByte()</span>
+        }
+<span class="fc" id="L284">    }</span>
+
+    private companion object {
+        const val WORD_LIST_SIZE = 2048
+        const val PROFILE_WORD_COUNT = 24
+        const val ENTROPY_LENGTH = 32
+        const val SEED_LENGTH = 64
+        const val BITS_PER_BYTE = 8
+        const val BITS_PER_WORD = 11
+        const val CHECKSUM_BITS = 8
+        const val PBKDF2_ITERATIONS = 2048
+        const val INT_LENGTH = 4
+        const val HMAC_SHA512 = &quot;HmacSHA512&quot;
+<span class="pc" id="L297">        val EMPTY_PASSPHRASE_SALT = byteArrayOf(0x6d, 0x6e, 0x65, 0x6d, 0x6f, 0x6e, 0x69, 0x63)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

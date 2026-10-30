@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssertionObject.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">AssertionObject.kt</span></div><h1>AssertionObject.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import kotlinx.datetime.Instant
+
+/**
+ * T079 — Domain model representing the output of a FIDO2 GetAssertion ceremony.
+ *
+ * Maps to CTAP2 `authenticatorGetAssertion` response fields (§6.2 table).
+ * Returned from [GetAssertionUseCase] and serialised by the CTAP2 response builder
+ * before being sent over the BLE HID transport to the host.
+ */
+<span class="fc" id="L16">data class AssertionObject(</span>
+    /**
+     * CTAP2 response 0x01 — credential descriptor identifying which credential was used.
+     * May be omitted if only one credential was in the allowCredentials list.
+     */
+<span class="fc" id="L21">    val credential: PublicKeyCredentialDescriptor?,</span>
+    /**
+     * CTAP2 response 0x02 — serialised authenticatorData.
+     * Contains: rpIdHash (32) | flags (1) | signCount (4) | [extensions-CBOR].
+     */
+<span class="fc" id="L26">    val authData: ByteArray,</span>
+    /**
+     * CTAP2 response 0x03 — DER-encoded ECDSA P-256 signature over (authData || clientDataHash).
+     */
+<span class="fc" id="L30">    val signature: ByteArray,</span>
+    /**
+     * CTAP2 response 0x04 — user entity (optional; present for discoverable credentials).
+     */
+<span class="fc" id="L34">    val user: PublicKeyCredentialUserEntity?,</span>
+    /**
+     * CTAP2 response 0x05 — number of credentials in the allowCredentials list
+     * that matched this RP. Present only when &gt; 1 match found.
+     */
+<span class="fc" id="L39">    val numberOfCredentials: Int? = null,</span>
+    /** Timestamp of when this assertion was produced. */
+<span class="pc" id="L41">    val timestamp: Instant = TimeProvider().now(),</span>
+    /** ID of the credential that was used. Convenience field derived from [credential]. */
+<span class="fc bfc" id="L43" title="All 4 branches covered.">    val credentialId: String = credential?.getIdBase64Url() ?: &quot;&quot;,</span>
+<span class="fc" id="L44">) {</span>
+    companion object {
+        private const val MIN_AUTH_DATA_SIZE = 37
+        private const val FLAGS_OFFSET = 32
+        private const val SIGN_COUNT_OFFSET = 33
+        private const val SIGN_COUNT_BYTE_0_SHIFT = 24
+        private const val SIGN_COUNT_BYTE_1_SHIFT = 16
+        private const val SIGN_COUNT_BYTE_2_SHIFT = 8
+        private const val BYTE_MASK = 0xFF
+
+        private const val FLAG_UP_MASK = 0x01
+        private const val FLAG_UV_MASK = 0x04
+        private const val TEST_FLAGS_UP_UV = 0x05
+        private const val TEST_SIG_SIZE = 64
+
+        private const val SIGN_COUNT_BYTE_OFFSET_1 = 1
+        private const val SIGN_COUNT_BYTE_OFFSET_2 = 2
+        private const val SIGN_COUNT_BYTE_OFFSET_3 = 3
+
+        /**
+         * Creates a minimal AssertionObject for testing without real crypto.
+         */
+        fun createTest(
+            credentialId: CredentialId,
+            rpId: RpId,
+        ): AssertionObject {
+<span class="fc" id="L70">            val rpIdHash =</span>
+                java.security.MessageDigest
+<span class="fc" id="L72">                    .getInstance(&quot;SHA-256&quot;)</span>
+<span class="fc" id="L73">                    .digest(rpId.value.toByteArray())</span>
+<span class="fc" id="L74">            val flags = byteArrayOf(TEST_FLAGS_UP_UV.toByte()) // UP | UV</span>
+<span class="fc" id="L75">            val counter = byteArrayOf(0, 0, 0, 1)</span>
+<span class="fc" id="L76">            val authData = rpIdHash + flags + counter // 37 bytes</span>
+<span class="fc" id="L77">            return AssertionObject(</span>
+<span class="fc" id="L78">                credential = PublicKeyCredentialDescriptor.create(id = credentialId),</span>
+<span class="fc" id="L79">                authData = authData,</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                signature = ByteArray(TEST_SIG_SIZE) { it.toByte() },</span>
+<span class="fc" id="L81">                user = null,</span>
+            )
+        }
+    }
+
+<span class="fc" id="L86">    init {</span>
+<span class="fc bfc" id="L87" title="All 4 branches covered.">        require(authData.size &gt;= MIN_AUTH_DATA_SIZE) {</span>
+<span class="fc" id="L88">            &quot;authData must be at least 37 bytes (rpIdHash+flags+counter), got ${authData.size}&quot;</span>
+        }
+<span class="fc bfc" id="L90" title="All 6 branches covered.">        require(signature.isNotEmpty()) { &quot;signature cannot be empty&quot; }</span>
+<span class="fc" id="L91">    }</span>
+
+    /** Extracts the sign-count from bytes 33–36 (big-endian uint32) of authData. */
+    @Suppress(&quot;unused&quot;)
+    fun extractSignCount(): Long {
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        if (authData.size &lt; MIN_AUTH_DATA_SIZE) return 0L</span>
+<span class="fc" id="L97">        return ((authData[SIGN_COUNT_OFFSET].toLong() and BYTE_MASK.toLong()) shl SIGN_COUNT_BYTE_0_SHIFT) or</span>
+            (
+<span class="fc" id="L99">                (</span>
+<span class="fc" id="L100">                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_1].toLong() and</span>
+<span class="fc" id="L101">                        BYTE_MASK.toLong()</span>
+<span class="fc" id="L102">                ) shl SIGN_COUNT_BYTE_1_SHIFT</span>
+            ) or
+            (
+<span class="fc" id="L105">                (</span>
+<span class="fc" id="L106">                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_2].toLong() and</span>
+<span class="fc" id="L107">                        BYTE_MASK.toLong()</span>
+<span class="fc" id="L108">                ) shl SIGN_COUNT_BYTE_2_SHIFT</span>
+            ) or
+            (
+                (
+<span class="fc" id="L112">                    authData[SIGN_COUNT_OFFSET + SIGN_COUNT_BYTE_OFFSET_3].toLong() and</span>
+<span class="fc" id="L113">                        BYTE_MASK.toLong()</span>
+                )
+            )
+    }
+
+    /** Returns true if the UP (user present) flag is set in authData byte 32. */
+    @Suppress(&quot;unused&quot;)
+    fun isUserPresent(): Boolean =
+<span class="pc bpc" id="L121" title="1 of 4 branches missed.">        authData.size &gt; FLAGS_OFFSET &amp;&amp; (authData[FLAGS_OFFSET].toInt() and FLAG_UP_MASK) != 0</span>
+
+    /** Returns true if the UV (user verified) flag is set in authData byte 32. */
+    @Suppress(&quot;unused&quot;)
+    fun isUserVerified(): Boolean =
+<span class="pc bpc" id="L126" title="1 of 4 branches missed.">        authData.size &gt; FLAGS_OFFSET &amp;&amp; (authData[FLAGS_OFFSET].toInt() and FLAG_UV_MASK) != 0</span>
+
+    // ByteArray equality
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (other !is AssertionObject) return false</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">        return authData.contentEquals(other.authData) &amp;&amp;</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">            signature.contentEquals(other.signature) &amp;&amp;</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            credential == other.credential &amp;&amp;</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">            user == other.user</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="nc" id="L139">        var result = authData.contentHashCode()</span>
+<span class="nc" id="L140">        result = 31 * result + signature.contentHashCode()</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        result = 31 * result + (credential?.hashCode() ?: 0)</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        result = 31 * result + (user?.hashCode() ?: 0)</span>
+<span class="nc" id="L143">        return result</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

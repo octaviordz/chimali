@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditPairedDeviceScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">EditPairedDeviceScreen.kt</span></div><h1>EditPairedDeviceScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * New Screen for editing a trusted host's alias and managing its record.
+ * Replaces the previous AlertDialog for better UX as requested.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+<span class="nc bnc" id="L45" title="All 2 branches missed.">fun EditPairedDeviceScreen(</span>
+    macAddress: String,
+    onNavigateUp: () -&gt; Unit,
+<span class="nc bnc" id="L48" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc" id="L49">    viewModel: PairedDevicesViewModel = koinViewModel(),</span>
+<span class="nc bnc" id="L50" title="All 6 branches missed.">) {</span>
+<span class="nc" id="L51">    val devices by viewModel.pairedDevices.collectAsState()</span>
+<span class="nc" id="L52">    val device =</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        remember(devices, macAddress) {</span>
+<span class="nc bnc" id="L54" title="All 4 branches missed.">            devices.find { it.macAddress == macAddress }</span>
+        }
+
+    // Capture initial alias or empty string
+<span class="nc" id="L58">    var aliasText by remember(device) {</span>
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        mutableStateOf(device?.alias ?: &quot;&quot;)</span>
+    }
+
+<span class="nc bnc" id="L62" title="All 2 branches missed.">    if (device == null) {</span>
+        // Just show an empty box during the transition back to the list
+<span class="nc" id="L64">        Box(Modifier.fillMaxSize())</span>
+<span class="nc" id="L65">        return</span>
+<span class="nc" id="L66">    }</span>
+
+<span class="nc" id="L68">    Scaffold(</span>
+<span class="nc" id="L69">        modifier = modifier,</span>
+<span class="nc" id="L70">        topBar = {</span>
+<span class="nc" id="L71">            TopAppBar(</span>
+<span class="nc" id="L72">                title = { Text(&quot;Edit Device Alias&quot;) },</span>
+<span class="nc" id="L73">                navigationIcon = {</span>
+<span class="nc" id="L74">                    IconButton(onClick = onNavigateUp) {</span>
+<span class="nc" id="L75">                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = &quot;Back&quot;)</span>
+<span class="nc" id="L76">                    }</span>
+<span class="nc" id="L77">                },</span>
+<span class="nc" id="L78">                actions = {</span>
+<span class="nc" id="L79">                    IconButton(</span>
+<span class="nc" id="L80">                        onClick = {</span>
+<span class="nc" id="L81">                            val targetDevice = device</span>
+<span class="nc" id="L82">                            onNavigateUp()</span>
+<span class="nc" id="L83">                            viewModel.pendingRemove(targetDevice)</span>
+<span class="nc" id="L84">                        },</span>
+<span class="nc" id="L85">                    ) {</span>
+<span class="nc" id="L86">                        Icon(</span>
+<span class="nc" id="L87">                            imageVector = Icons.Default.Delete,</span>
+<span class="nc" id="L88">                            contentDescription = &quot;Delete device&quot;,</span>
+<span class="nc" id="L89">                            tint = MaterialTheme.colorScheme.error,</span>
+                        )
+<span class="nc" id="L91">                    }</span>
+<span class="nc" id="L92">                },</span>
+            )
+<span class="nc" id="L94">        },</span>
+<span class="nc" id="L95">        bottomBar = {</span>
+<span class="nc" id="L96">            Surface(</span>
+<span class="nc" id="L97">                tonalElevation = 2.dp,</span>
+<span class="nc" id="L98">                shadowElevation = 8.dp,</span>
+<span class="nc" id="L99">            ) {</span>
+<span class="nc" id="L100">                Row(</span>
+                    modifier =
+<span class="nc" id="L102">                        Modifier</span>
+<span class="nc" id="L103">                            .fillMaxWidth()</span>
+<span class="nc" id="L104">                            .padding(16.dp),</span>
+<span class="nc" id="L105">                    horizontalArrangement = Arrangement.spacedBy(12.dp),</span>
+                ) {
+<span class="nc" id="L107">                    ChimaliOutlinedButton(</span>
+<span class="nc" id="L108">                        onClick = onNavigateUp,</span>
+<span class="nc" id="L109">                        modifier = Modifier.weight(1f),</span>
+<span class="nc" id="L110">                    ) {</span>
+<span class="nc" id="L111">                        Text(&quot;Cancel&quot;)</span>
+<span class="nc" id="L112">                    }</span>
+<span class="nc" id="L113">                    ChimaliButton(</span>
+<span class="nc" id="L114">                        onClick = {</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                            viewModel.updateAlias(macAddress, aliasText.ifBlank { null })</span>
+<span class="nc" id="L116">                            onNavigateUp()</span>
+<span class="nc" id="L117">                        },</span>
+<span class="nc" id="L118">                        modifier = Modifier.weight(1f),</span>
+<span class="nc" id="L119">                    ) {</span>
+<span class="nc" id="L120">                        Text(&quot;Save Changes&quot;)</span>
+<span class="nc" id="L121">                    }</span>
+<span class="nc" id="L122">                }</span>
+<span class="nc" id="L123">            }</span>
+<span class="nc" id="L124">        },</span>
+<span class="nc" id="L125">    ) { padding -&gt;</span>
+<span class="nc" id="L126">        Column(</span>
+            modifier =
+<span class="nc" id="L128">                Modifier</span>
+<span class="nc" id="L129">                    .fillMaxSize()</span>
+<span class="nc" id="L130">                    .padding(padding)</span>
+<span class="nc" id="L131">                    .padding(20.dp),</span>
+<span class="nc" id="L132">            verticalArrangement = Arrangement.spacedBy(24.dp),</span>
+        ) {
+            // Summary Header
+<span class="nc" id="L135">            Card(</span>
+<span class="nc" id="L136">                modifier = Modifier.fillMaxWidth(),</span>
+                colors =
+<span class="nc" id="L138">                    CardDefaults.cardColors(</span>
+<span class="nc" id="L139">                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),</span>
+                    ),
+<span class="nc" id="L141">            ) {</span>
+<span class="nc" id="L142">                Column(modifier = Modifier.padding(16.dp)) {</span>
+<span class="nc" id="L143">                    Text(</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">                        text = device.name ?: &quot;Unknown Device&quot;,</span>
+<span class="nc" id="L145">                        style = MaterialTheme.typography.titleLarge,</span>
+<span class="nc" id="L146">                        fontWeight = FontWeight.Bold,</span>
+                    )
+<span class="nc" id="L148">                    Text(</span>
+<span class="nc" id="L149">                        text = &quot;MAC: ${device.macAddress}&quot;,</span>
+<span class="nc" id="L150">                        style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L151">                        color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                    )
+<span class="nc" id="L153">                }</span>
+<span class="nc" id="L154">            }</span>
+
+            // Alias Input
+<span class="nc" id="L157">            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {</span>
+<span class="nc" id="L158">                Text(</span>
+<span class="nc" id="L159">                    text = &quot;Device Alias&quot;,</span>
+<span class="nc" id="L160">                    style = MaterialTheme.typography.labelLarge,</span>
+<span class="nc" id="L161">                    color = MaterialTheme.colorScheme.primary,</span>
+                )
+<span class="nc" id="L163">                OutlinedTextField(</span>
+<span class="nc" id="L164">                    value = aliasText,</span>
+<span class="nc" id="L165">                    onValueChange = { aliasText = it },</span>
+<span class="nc" id="L166">                    placeholder = { Text(&quot;e.g. Work Computer&quot;) },</span>
+<span class="nc" id="L167">                    modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L168">                    singleLine = true,</span>
+<span class="nc" id="L169">                    shape = MaterialTheme.shapes.medium,</span>
+<span class="nc" id="L170">                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },</span>
+                )
+<span class="nc" id="L172">                Text(</span>
+<span class="nc" id="L173">                    text = &quot;This name is only visible to you inside Chimali.&quot;,</span>
+<span class="nc" id="L174">                    style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L175">                    color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                )
+<span class="nc" id="L177">            }</span>
+<span class="nc" id="L178">        }</span>
+<span class="nc" id="L179">    }</span>
+<span class="nc" id="L180">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

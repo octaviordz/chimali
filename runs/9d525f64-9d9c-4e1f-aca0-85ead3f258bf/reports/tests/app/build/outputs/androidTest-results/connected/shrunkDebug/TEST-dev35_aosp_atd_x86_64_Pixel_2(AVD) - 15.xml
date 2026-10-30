@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="11" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-10-30T10:18:11" hostname="localhost">
+  <testsuite name="com.chimali.CredentialCryptoProviderTest" tests="3" failures="0" errors="0" skipped="0" time="0.253" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="es256PublicKeyRoundTripAndSignature" classname="com.chimali.CredentialCryptoProviderTest" time="0.039" />
+    <testcase name="ed25519PublicKeyRoundTripAndSignature" classname="com.chimali.CredentialCryptoProviderTest" time="0.051" />
+    <testcase name="mlDsa65PublicKeyRoundTripAndSignature" classname="com.chimali.CredentialCryptoProviderTest" time="0.163" />
+  </testsuite>
+  <testsuite name="com.chimali.LeakCanaryMnemonicOwnerTest" tests="1" failures="0" errors="0" skipped="0" time="7.177" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="activityDisposalClearsSyntheticMnemonicOwnerWithoutRetainingLifecycleObjects" classname="com.chimali.LeakCanaryMnemonicOwnerTest" time="7.177" />
+  </testsuite>
+  <testsuite name="com.chimali.ProductionAppProcessRestartTest" tests="2" failures="0" errors="0" skipped="0" time="0.057" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="recoverAndSignInFreshProductionAppProcess" classname="com.chimali.ProductionAppProcessRestartTest" time="0.038" />
+    <testcase name="registerSyntheticCredentialInProductionAppProcess" classname="com.chimali.ProductionAppProcessRestartTest" time="0.019" />
+  </testsuite>
+  <testsuite name="com.chimali.StartupTest" tests="1" failures="0" errors="0" skipped="0" time="6.507" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="appCreatesAndAttachesComposeContentOnStartup" classname="com.chimali.StartupTest" time="6.507" />
+  </testsuite>
+  <testsuite name="com.chimali.WalletSessionMemoryPressureCallbackTest" tests="1" failures="0" errors="0" skipped="0" time="0.454" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="severeAndroidTrimCallbacksFenceTheProductionWalletGeneration" classname="com.chimali.WalletSessionMemoryPressureCallbackTest" time="0.454" />
+  </testsuite>
+  <testsuite name="com.chimali.di.VaultPasskeyWiringTest" tests="3" failures="0" errors="0" skipped="0" time="10.895" timestamp="2026-10-30T10:18:11" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="productionGraphKeepsVaultAndPasskeyAggregatesQualified" classname="com.chimali.di.VaultPasskeyWiringTest" time="2.639" />
+    <testcase name="productionGraphResolvesQualifiedServicesInEitherRelativeModuleOrder" classname="com.chimali.di.VaultPasskeyWiringTest" time="0.065" />
+    <testcase name="productionGraphPersistsVaultTypesAndPasskeyIndependently" classname="com.chimali.di.VaultPasskeyWiringTest" time="8.191" />
+  </testsuite>
+</testsuites>

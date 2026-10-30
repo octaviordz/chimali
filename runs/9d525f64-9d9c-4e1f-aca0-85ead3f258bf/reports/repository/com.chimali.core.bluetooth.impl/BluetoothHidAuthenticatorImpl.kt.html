@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BluetoothHidAuthenticatorImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.bluetooth.impl</a> &gt; <span class="el_source">BluetoothHidAuthenticatorImpl.kt</span></div><h1>BluetoothHidAuthenticatorImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.core.bluetooth.impl
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppSdpSettings
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.content.Context
+import androidx.annotation.RequiresPermission
+import co.touchlab.kermit.Logger
+import com.chimali.core.bluetooth.api.AuthenticatorState
+import com.chimali.core.bluetooth.api.BluetoothHidAuthenticator
+import java.util.concurrent.Executors
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Concrete implementation of [BluetoothHidAuthenticator] backed by the Android
+ * [BluetoothHidDevice] profile (Bluetooth Classic HID).
+ *
+ * ## Role in the architecture
+ * This class is responsible solely for:
+ *  - Acquiring the [BluetoothHidDevice] profile proxy from the system.
+ *  - Registering the app's HID SDP record so the host OS can discover and
+ *    enumerate the device as a FIDO2 Bluetooth authenticator.
+ *  - Exposing a [state] flow that reflects the current connection lifecycle
+ *    (IDLE → ADVERTISING → CONNECTED).
+ *
+ * ## Relationship with BluetoothHidDeviceWrapper / BluetoothHidTransportImpl
+ * This class handles only the *profile registration* side: the SDP record,
+ * capability advertisement, and connection state tracking. The actual HID
+ * interrupt-data exchange (sending/receiving HID reports) is delegated to
+ * `BluetoothHidDeviceWrapper` and orchestrated by `BluetoothHidTransportImpl`,
+ * which handles CTAPHID framing and routes CTAP2 commands to the appropriate
+ * handlers (MakeCredential, GetAssertion, GetInfo).
+ *
+ * ## Lifecycle
+ * 1. Constructed by Koin — immediately calls [initializeProfileProxy] to
+ *    register as a [BluetoothProfile.ServiceListener].
+ * 2. When [onServiceConnected] fires, the [BluetoothHidDevice] proxy is stored.
+ * 3. [startAdvertising] registers the SDP record and sets the app ready for
+ *    incoming connections from the host. This is guarded by state so it
+ *    cannot be called twice while already advertising.
+ * 4. [stop] unregisters the app (currently no-op pending cleanup refactor)
+ *    and resets the state to IDLE.
+ * 5. [sendConfirmation] is a skeleton call for explicit user-presence signals;
+ *    the actual FIDO2 packet sending is done via `BluetoothHidDeviceWrapper`.
+ */
+<span class="fc" id="L51">class BluetoothHidAuthenticatorImpl(</span>
+<span class="fc" id="L52">    private val context: Context,</span>
+) : BluetoothHidAuthenticator,
+    BluetoothProfile.ServiceListener {
+    companion object {
+        private const val TAG = &quot;BluetoothHID&quot;
+    }
+
+    /** Underlying Bluetooth HID Device profile proxy, provided by the Android framework. */
+    private var hidDevice: BluetoothHidDevice? = null
+
+    /** System Bluetooth adapter, used to acquire the HID Device profile proxy. */
+<span class="fc" id="L63">    private val adapter: BluetoothAdapter? by lazy {</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        manager?.adapter</span>
+    }
+
+    /**
+     * Current lifecycle state of this authenticator. Exposed as a [StateFlow]
+     * so observers (e.g., the ViewModel) can react to changes without polling.
+     */
+<span class="fc" id="L72">    private val _state = MutableStateFlow(AuthenticatorState.IDLE)</span>
+<span class="fc" id="L73">    override val state: StateFlow&lt;AuthenticatorState&gt; = _state.asStateFlow()</span>
+
+<span class="fc" id="L75">    init {</span>
+<span class="fc" id="L76">        initializeProfileProxy()</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Acquires the [BluetoothHidDevice] profile proxy from the Bluetooth adapter.
+     *
+     * This is called once at construction time. The result arrives asynchronously
+     * via [onServiceConnected]. If Bluetooth permission has not been granted yet,
+     * the [SecurityException] is caught and logged — the app will need to retry
+     * after the user grants the permission.
+     */
+    @SuppressLint(&quot;MissingPermission&quot;)
+    private fun initializeProfileProxy() {
+<span class="fc" id="L89">        try {</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">            adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)</span>
+<span class="nc" id="L91">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L92">            Logger.e(TAG, e) { &quot;Bluetooth permission denied on init&quot; }</span>
+        }
+<span class="fc" id="L94">    }</span>
+
+    /**
+     * Registers the FIDO2 HID SDP record and starts advertising the device
+     * as a Bluetooth HID authenticator.
+     *
+     * The SDP record uses [BluetoothHidDevice.SUBCLASS1_COMBO] so the host OS
+     * recognises the device as a combo HID peripheral (keyboard + other), which
+     * is required for CTAP2 HID compliance.
+     *
+     * This is a no-op if already advertising or connected ([AuthenticatorState] != IDLE).
+     *
+     * @see com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR
+     */
+    @RequiresPermission(
+        allOf = [
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+        ],
+    )
+    override fun startAdvertising() {
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">        if (_state.value != AuthenticatorState.IDLE) return</span>
+
+<span class="fc" id="L117">        val sdpSettings =</span>
+<span class="fc" id="L118">            BluetoothHidDeviceAppSdpSettings(</span>
+<span class="fc" id="L119">                &quot;Chimali Authenticator&quot;,</span>
+<span class="fc" id="L120">                &quot;Virtual FIDO Key&quot;,</span>
+<span class="fc" id="L121">                &quot;Chimali&quot;,</span>
+<span class="fc" id="L122">                BluetoothHidDevice.SUBCLASS1_COMBO,</span>
+<span class="fc" id="L123">                com.chimali.core.bluetooth.util.BluetoothHidConstants.FIDO_HID_REPORT_DESCRIPTOR,</span>
+            )
+
+<span class="fc" id="L126">        try {</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">            hidDevice?.registerApp(</span>
+<span class="fc" id="L128">                sdpSettings,</span>
+<span class="fc" id="L129">                null,</span>
+<span class="fc" id="L130">                null, // QOS — null uses platform defaults; no latency constraints needed</span>
+<span class="fc" id="L131">                Executors.newSingleThreadExecutor(),</span>
+<span class="fc" id="L132">                object : BluetoothHidDevice.Callback() {</span>
+                    /**
+                     * Called when the HID Device app is successfully registered with the
+                     * Bluetooth stack. At this point the adapter is visible to BT hosts
+                     * as a HID peripheral and Windows/macOS can initiate a pairing.
+                     */
+                    override fun onAppStatusChanged(
+                        pluggedDevice: android.bluetooth.BluetoothDevice?,
+                        registered: Boolean,
+                    ) {
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">                        if (registered) {</span>
+<span class="fc" id="L143">                            _state.value = AuthenticatorState.ADVERTISING</span>
+<span class="fc" id="L144">                            Logger.d(TAG) { &quot;App registered and advertising&quot; }</span>
+                        }
+<span class="fc" id="L146">                    }</span>
+
+                    /**
+                     * Called when the HID connection state changes with the remote host.
+                     * Maps [BluetoothProfile] state constants to [AuthenticatorState]:
+                     *  - STATE_CONNECTED  → CONNECTED  (ready to receive/send HID reports)
+                     *  - STATE_DISCONNECTED → IDLE     (waiting for a new connection)
+                     *  - Anything else (CONNECTING/DISCONNECTING) is ignored.
+                     */
+                    override fun onConnectionStateChanged(
+                        device: android.bluetooth.BluetoothDevice?,
+                        state: Int,
+                    ) {
+<span class="fc" id="L159">                        this@BluetoothHidAuthenticatorImpl._state.value =</span>
+<span class="pc bpc" id="L160" title="1 of 3 branches missed.">                            when (state) {</span>
+<span class="fc" id="L161">                                BluetoothProfile.STATE_CONNECTED -&gt; AuthenticatorState.CONNECTED</span>
+<span class="fc" id="L162">                                BluetoothProfile.STATE_DISCONNECTED -&gt; AuthenticatorState.IDLE</span>
+<span class="nc" id="L163">                                else -&gt; this@BluetoothHidAuthenticatorImpl._state.value</span>
+                            }
+<span class="fc" id="L165">                    }</span>
+                },
+            )
+<span class="nc" id="L168">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L169">            Logger.e(TAG, e) { &quot;Bluetooth permission denied when starting advertisement&quot; }</span>
+        }
+<span class="fc" id="L171">    }</span>
+
+    /**
+     * Stops the authenticator and resets its state to IDLE.
+     *
+     * Note: [BluetoothHidDevice.unregisterApp] is currently commented out pending
+     * a lifecycle refactor — calling it while the transport layer is still processing
+     * an in-flight CTAP2 request can cause a race condition. The SDP record will be
+     * cleaned up when the app process exits.
+     */
+    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    override fun stop() {
+<span class="fc" id="L183">        try {</span>
+            // hidDevice?.unregisterApp() — intentionally deferred; see KDoc above.
+<span class="nc" id="L185">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L186">            Logger.e(TAG, e) { &quot;Bluetooth permission denied when stopping&quot; }</span>
+        }
+<span class="fc" id="L188">        _state.value = AuthenticatorState.IDLE</span>
+<span class="fc" id="L189">    }</span>
+
+    /**
+     * Sends an explicit user-presence confirmation signal to the currently connected host.
+     *
+     * This is a skeleton implementation. In the current architecture, FIDO2 responses
+     * (which encode user-presence implicitly) are sent via `BluetoothHidDeviceWrapper` inside
+     * `BluetoothHidTransportImpl`. This method provides a hook for future explicit
+     * out-of-band confirmation flows (e.g., a physical button tap event).
+     */
+    override fun sendConfirmation() {
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        if (_state.value != AuthenticatorState.CONNECTED) return</span>
+        // Send actual HID report for &quot;button press&quot; or FIDO HID response
+<span class="fc" id="L202">        Logger.d(TAG) { &quot;Sending confirmation (skeleton)&quot; }</span>
+<span class="fc" id="L203">    }</span>
+
+    /**
+     * [BluetoothProfile.ServiceListener] callback — stores the [BluetoothHidDevice]
+     * proxy so [startAdvertising] and other operations can use it.
+     */
+    override fun onServiceConnected(
+        profile: Int,
+        proxy: BluetoothProfile?,
+    ) {
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">        if (profile == BluetoothProfile.HID_DEVICE) {</span>
+<span class="fc" id="L214">            hidDevice = proxy as BluetoothHidDevice</span>
+        }
+<span class="fc" id="L216">    }</span>
+
+    /**
+     * [BluetoothProfile.ServiceListener] callback — clears the proxy reference
+     * so we do not hold a stale handle after the Bluetooth service has disconnected.
+     */
+    override fun onServiceDisconnected(profile: Int) {
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if (profile == BluetoothProfile.HID_DEVICE) {</span>
+<span class="fc" id="L224">            hidDevice = null</span>
+        }
+<span class="fc" id="L226">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

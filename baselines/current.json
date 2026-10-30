@@ -1,0 +1,16 @@
+{
+  "tested_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "integrated_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "target_tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+  "tested_tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+  "target_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "initial_target_ref": "lab/or/main",
+  "acceptance_record_path": "assessments/9d525f64-9d9c-4e1f-aca0-85ead3f258bf/initial-baseline-acceptance.json",
+  "acceptance_record_digest": "8ed1f0fe5337e5704715c8c32cccd7125b314938280d8033599f3628db22c0c2",
+  "run_id": "9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+  "archive_branch": "swe/coverage-evidence",
+  "bundle_path": "runs/9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+  "bundle_digest": "4835269a4ec74699fdeb08c6ed068ed01866666c99b866e3f303fe789faacbfe",
+  "promoted_at": "2026-10-30T10:58:15Z",
+  "provenance": "MeasuredAcceptedTarget"
+}

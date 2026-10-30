@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:40.393Z" hostname="LOQ15IRX10-3" time="1.511">
+  <properties/>
+  <testcase name="counter persistence cancellation propagates and discards the signed assertion()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.218"/>
+  <testcase name="returns failure when credential selection fails()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.096"/>
+  <testcase name="counter persistence failure prevents returning the signed assertion()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.075"/>
+  <testcase name="unsupported candidate protection policy fails before selection or signing()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.036"/>
+  <testcase name="returns failure when user verification required but fails()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.028"/>
+  <testcase name="headless assertion reuses the candidate snapshot used for fast path selection()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.056"/>
+  <testcase name="returns failure when no credentials found for RP()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.028"/>
+  <testcase name="delegates to SelectCredentialUseCase when multiple credentials found()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.269"/>
+  <testcase name="missing credential errors and diagnostics omit the RP association()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.048"/>
+  <testcase name="assertion routes selected P-256 Ed25519 and ML-DSA credentials through their current profiles()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.073"/>
+  <testcase name="required verification rejects an assertion when verification was not performed()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.028"/>
+  <testcase name="credProtect UV-required candidate remains promptable and is filtered until verification completes()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.048"/>
+  <testcase name="exhausted or corrupt authenticator counter fails before signing and mutation()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.053"/>
+  <testcase name="registered public key mismatch fails without mutating the selected key or sign counter()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.051"/>
+  <testcase name="sign count error details are not returned to assertion callers()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.037"/>
+  <testcase name="user verification flag reflects completed verification rather than requested preference()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.037"/>
+  <testcase name="malformed summary profile fails before signing or counter mutation()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.041"/>
+  <testcase name="returns failure when cryptoService signing fails()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.032"/>
+  <testcase name="assertion signs exactly the selected descriptor once without hydrating candidate credentials()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.063"/>
+  <testcase name="last representable authenticator counter is encoded as unsigned big endian()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.064"/>
+  <testcase name="increments sign count on successful assertion()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.055"/>
+  <testcase name="signing cancellation propagates without changing the selected credential counter()" classname="com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest" time="0.043"/>
+  <system-out><![CDATA[Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Warn: Failed to update assertion sign count (DatabaseError)
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+Debug: Assertion completed
+Debug: GetAssertion processing started
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

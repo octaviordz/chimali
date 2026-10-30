@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:15.717Z" hostname="LOQ15IRX10-3" time="0.079">
+  <properties/>
+  <testcase name="makeCredential_inRangeHint_passedThroughUnchanged()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.002"/>
+  <testcase name="getAssertion_inRangeHint_passedThroughUnchanged()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.002"/>
+  <testcase name="makeCredential_nullHint_returnsDefault()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.013"/>
+  <testcase name="makeCredential_aboveMaxHint_clampedToMax()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.004"/>
+  <testcase name="getAssertion_nullHint_returnsDefault()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.018"/>
+  <testcase name="makeCredential_belowMinHint_clampedToMin()" classname="com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest" time="0.03"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Passkey.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">domain</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.model</a> &gt; <span class="el_source">Passkey.kt</span></div><h1>Passkey.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.model
+
+import com.chimali.core.domain.valueobject.PasskeyId
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
+
+<span class="fc" id="L7">@Serializable</span>
+<span class="fc" id="L8">data class Passkey(</span>
+<span class="pc" id="L9">    val id: PasskeyId,</span>
+<span class="pc" id="L10">    val relyingParty: String,</span>
+<span class="pc" id="L11">    val username: String,</span>
+<span class="pc" id="L12">    val credentialId: ByteArray,</span>
+<span class="pc" id="L13">    val publicKey: ByteArray,</span>
+<span class="pc" id="L14">    val signatureCounter: Long,</span>
+<span class="pc" id="L15">    val createdAt: Instant,</span>
+<span class="pc" id="L16">    val lastUsed: Instant?,</span>
+) : DomainModel {
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L19" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="fc bfc" id="L20" title="All 4 branches covered.">        if (other == null || this::class != other::class) return false</span>
+
+<span class="fc" id="L22">        other as Passkey</span>
+
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (id != other.id) return false</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">        if (relyingParty != other.relyingParty) return false</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (username != other.username) return false</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        if (!credentialId.contentEquals(other.credentialId)) return false</span>
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (!publicKey.contentEquals(other.publicKey)) return false</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (signatureCounter != other.signatureCounter) return false</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (createdAt != other.createdAt) return false</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        if (lastUsed != other.lastUsed) return false</span>
+
+<span class="fc" id="L33">        return true</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="fc" id="L37">        var result = id.hashCode()</span>
+<span class="fc" id="L38">        result = 31 * result + relyingParty.hashCode()</span>
+<span class="fc" id="L39">        result = 31 * result + username.hashCode()</span>
+<span class="fc" id="L40">        result = 31 * result + credentialId.contentHashCode()</span>
+<span class="fc" id="L41">        result = 31 * result + publicKey.contentHashCode()</span>
+<span class="fc" id="L42">        result = 31 * result + signatureCounter.hashCode()</span>
+<span class="fc" id="L43">        result = 31 * result + createdAt.hashCode()</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        result = 31 * result + (lastUsed?.hashCode() ?: 0)</span>
+<span class="fc" id="L45">        return result</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

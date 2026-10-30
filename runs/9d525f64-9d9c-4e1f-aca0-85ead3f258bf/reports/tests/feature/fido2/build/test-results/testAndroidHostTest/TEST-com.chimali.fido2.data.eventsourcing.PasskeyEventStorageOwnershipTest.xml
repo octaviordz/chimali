@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:46.020Z" hostname="LOQ15IRX10-3" time="0.284">
+  <properties/>
+  <testcase name="mutable JSON decode erases extracted fields when ownership transfer is cancelled()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.004"/>
+  <testcase name="sensitive event owners preserve the established JSON string wire fields()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.026"/>
+  <testcase name="mutable event JSON preserves escaped Unicode and long string fields()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.014"/>
+  <testcase name="mutable JSON decode erases extracted fields when reconstruction fails()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.003"/>
+  <testcase name="event append and replay erase owned key and plaintext buffers()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.049"/>
+  <testcase name="serializer growth erases every replaced plaintext buffer()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.002"/>
+  <testcase name="storage result contains malformed UTF-8 failures and preserves cancellation()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.017"/>
+  <testcase name="erasable JSON serializer buffer is wiped after success and serialization failure()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.002"/>
+  <testcase name="snapshot save and restore erase owned key and plaintext buffers()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.034"/>
+  <testcase name="snapshot repository ignores unknown nested sensitive names before and after state fields()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.015"/>
+  <testcase name="event append failure erases owned key and plaintext()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.031"/>
+  <testcase name="mutable JSON rejects duplicate selected fields and selected fields with non-string values()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.002"/>
+  <testcase name="cancelled event append rolls back and erases owned key and buffers()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.037"/>
+  <testcase name="mutable JSON parser rejects excessive nesting and oversized documents()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.022"/>
+  <testcase name="mutable JSON extraction is limited to the exact state path()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest" time="0.012"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

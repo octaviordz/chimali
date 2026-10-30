@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:47.198Z" hostname="LOQ15IRX10-3" time="0.122">
+  <properties/>
+  <testcase name="encrypt uses unique nonces()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.018"/>
+  <testcase name="tampering with ciphertext fails decryption()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.005"/>
+  <testcase name="encrypt and decrypt with associated data succeeds()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.012"/>
+  <testcase name="clearKey drops key and prevents subsequent encryption and decryption()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.007"/>
+  <testcase name="decrypt without provisioned key fails with illegal state()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.005"/>
+  <testcase name="ciphertext shorter than version and nonce fails with illegal argument()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.006"/>
+  <testcase name="tampering with nonce fails decryption()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.004"/>
+  <testcase name="decrypt fails with different associated data()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.009"/>
+  <testcase name="unsupported version fails decryption()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.007"/>
+  <testcase name="encrypt without provisioned key fails with illegal state()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.004"/>
+  <testcase name="encrypt and decrypt without associated data succeeds()" classname="com.chimali.core.security.impl.AesGcmEncryptedMetadataServiceTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

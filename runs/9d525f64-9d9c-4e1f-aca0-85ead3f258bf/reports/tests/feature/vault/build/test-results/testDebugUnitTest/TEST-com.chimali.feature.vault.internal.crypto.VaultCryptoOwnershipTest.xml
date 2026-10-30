@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:28:23.762Z" hostname="LOQ15IRX10-3" time="0.613">
+  <properties/>
+  <testcase name="cancellationAndProviderFailurePreserveOwnershipForEveryType" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.157"/>
+  <testcase name="rejectedEncryptionErasesAllocatedPlaintextForEveryType" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.07"/>
+  <testcase name="decryptFailuresReturnSafeErrorsAndEraseTheAcquiredKey" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.067"/>
+  <testcase name="successAndEncryptionFailureEraseInputsKeysPlaintextAndScratchForEveryType" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.084"/>
+  <testcase name="cancellationDuringReturnDeliveryErasesProducedPayloadForEveryType" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.077"/>
+  <testcase name="keyFailureAllocatesNoSerializedPlaintextAndErasesEverySubmittedField" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.092"/>
+  <testcase name="cancelledQueuedDecryptionDoesNotAcquireKeyOrPublishPayload" classname="com.chimali.feature.vault.internal.crypto.VaultCryptoOwnershipTest" time="0.056"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

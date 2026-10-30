@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.mapper.EntityMappersTest" tests="29" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:46.412Z" hostname="LOQ15IRX10-3" time="0.298">
+  <properties/>
+  <testcase name="[1] invalid-id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.004"/>
+  <testcase name="[2] short-id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[3] invalid-credential-id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.001"/>
+  <testcase name="[4] different-credential-id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[5] invalid-aaguid" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.004"/>
+  <testcase name="[6] first-byte-credential-mismatch" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[7] last-byte-credential-mismatch" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[8] different-length-credential-id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.001"/>
+  <testcase name="[9] short-aaguid" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.003"/>
+  <testcase name="[10] invalid-profile" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.003"/>
+  <testcase name="[11] algorithm-overflow" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.004"/>
+  <testcase name="[12] unsupported-algorithm" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[13] negative-counter" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.003"/>
+  <testcase name="[14] blank-name" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[15] invalid-rp" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.003"/>
+  <testcase name="[16] future-timestamp" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.003"/>
+  <testcase name="[17] updated-before-created" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.001"/>
+  <testcase name="[18] updated-before-last-used" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.001"/>
+  <testcase name="[19] invalid-public-key" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="valid record preserves identity profile registered key and counter()" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.009"/>
+  <testcase name="audit timestamps accept equal and advanced update times and clear row owners()" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.005"/>
+  <testcase name="[1] rp_id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.004"/>
+  <testcase name="[2] user_id" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[3] user_name" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="[4] user_display_name" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.002"/>
+  <testcase name="metadata cancellation propagates unchanged()" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.008"/>
+  <testcase name="invalid persisted credential-protection policies fail closed and clear row owners()" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.008"/>
+  <testcase name="[1] true" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.006"/>
+  <testcase name="[2] false" classname="com.chimali.fido2.data.mapper.EntityMappersTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

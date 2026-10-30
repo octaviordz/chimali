@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultEvent.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.eventsourcing.vault</a> &gt; <span class="el_source">VaultEvent.kt</span></div><h1>VaultEvent.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.eventsourcing.vault
+
+import com.chimali.core.domain.eventsourcing.DomainEvent
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
+
+/**
+ * Domain events for the VaultEntry aggregate.
+ */
+<span class="nc" id="L10">@Serializable</span>
+sealed interface VaultEvent : DomainEvent {
+    /**
+     * Emitted when a new vault entry is created.
+     */
+<span class="fc" id="L15">    @Serializable</span>
+<span class="fc" id="L16">    data class Created(</span>
+<span class="fc" id="L17">        override val aggregateId: String,</span>
+<span class="fc" id="L18">        override val sequenceNumber: Long,</span>
+<span class="fc" id="L19">        override val timestamp: Instant,</span>
+<span class="fc" id="L20">        val type: String,</span>
+<span class="fc" id="L21">        @Serializable(with = SensitiveCharArraySerializer::class)</span>
+<span class="fc" id="L22">        val title: CharArray,</span>
+<span class="fc" id="L23">        val payload: ByteArray,</span>
+<span class="fc" id="L24">        val identityId: String,</span>
+    ) : VaultEvent {
+        constructor(
+            aggregateId: String,
+            sequenceNumber: Long,
+            timestamp: Instant,
+            type: String,
+            title: String,
+            payload: ByteArray,
+            identityId: String,
+<span class="fc" id="L34">        ) : this(aggregateId, sequenceNumber, timestamp, type, title.toCharArray(), payload, identityId)</span>
+    }
+
+    /**
+     * Emitted when an existing vault entry is updated.
+     */
+<span class="fc" id="L40">    @Serializable</span>
+<span class="fc" id="L41">    data class Updated(</span>
+<span class="fc" id="L42">        override val aggregateId: String,</span>
+<span class="fc" id="L43">        override val sequenceNumber: Long,</span>
+<span class="fc" id="L44">        override val timestamp: Instant,</span>
+<span class="fc" id="L45">        @Serializable(with = SensitiveCharArraySerializer::class)</span>
+<span class="fc" id="L46">        val title: CharArray?,</span>
+<span class="fc" id="L47">        val payload: ByteArray?,</span>
+    ) : VaultEvent {
+        constructor(
+            aggregateId: String,
+            sequenceNumber: Long,
+            timestamp: Instant,
+            title: String,
+            payload: ByteArray?,
+<span class="fc" id="L55">        ) : this(aggregateId, sequenceNumber, timestamp, title.toCharArray(), payload)</span>
+    }
+
+    /**
+     * Emitted when a vault entry is marked as deleted.
+     */
+<span class="fc" id="L61">    @Serializable</span>
+<span class="fc" id="L62">    data class Deleted(</span>
+<span class="fc" id="L63">        override val aggregateId: String,</span>
+<span class="fc" id="L64">        override val sequenceNumber: Long,</span>
+<span class="fc" id="L65">        override val timestamp: Instant,</span>
+    ) : VaultEvent
+}
+
+/** Clears event-owned sensitive text after the state has made its own copy. */
+fun VaultEvent.clearSensitiveMemory() {
+<span class="pc" id="L71">    when (this) {</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        is VaultEvent.Created -&gt; {</span>
+<span class="fc" id="L73">            title.fill('\u0000')</span>
+<span class="fc" id="L74">            payload.fill(0)</span>
+        }
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        is VaultEvent.Updated -&gt; {</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">            title?.fill('\u0000')</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            payload?.fill(0)</span>
+        }
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        is VaultEvent.Deleted -&gt; Unit</span>
+    }
+<span class="fc" id="L82">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrivacyLogScrubber.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.logging</a> &gt; <span class="el_source">PrivacyLogScrubber.kt</span></div><h1>PrivacyLogScrubber.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.logging
+
+import com.chimali.core.common.annotation.Req
+
+/**
+ * T151: Privacy-safe debug logging.
+ * Scrubs sensitive data (mnemonics, private keys, biometric states) from log messages.
+ */
+object PrivacyLogScrubber {
+    private const val REDACTED = &quot;[REDACTED]&quot;
+
+    // A heuristic to catch mnemonics: 12 or 24 words separated by spaces.
+    // E.g. &quot;abandon abandon abandon...&quot;
+<span class="fc" id="L14">    private val MNEMONIC_PATTERN = Regex(&quot;(?i)(?:[a-z]{3,8}\\s+){11,23}[a-z]{3,8}&quot;)</span>
+
+    // A heuristic to catch base64/hex long strings (e.g. EC private keys, large signatures)
+    // Matches 64+ character hex strings or long base64
+<span class="fc" id="L18">    private val KEY_MATERIAL_PATTERN = Regex(&quot;([A-Fa-f0-9]{64,})|([A-Za-z0-9+/=]{80,})&quot;)</span>
+
+    // Sensitive keys/terms
+    private val SENSITIVE_KEYWORDS =
+<span class="fc" id="L22">        listOf(</span>
+<span class="fc" id="L23">            &quot;password&quot;,</span>
+<span class="fc" id="L24">            &quot;pin&quot;,</span>
+<span class="fc" id="L25">            &quot;prk&quot;,</span>
+<span class="fc" id="L26">            &quot;privateKey&quot;,</span>
+<span class="fc" id="L27">            &quot;private key&quot;,</span>
+<span class="fc" id="L28">            &quot;private_key&quot;,</span>
+<span class="fc" id="L29">            &quot;privateScalar&quot;,</span>
+<span class="fc" id="L30">            &quot;private scalar&quot;,</span>
+<span class="fc" id="L31">            &quot;private_scalar&quot;,</span>
+<span class="fc" id="L32">            &quot;seed&quot;,</span>
+<span class="fc" id="L33">            &quot;mnemonic&quot;,</span>
+<span class="fc" id="L34">            &quot;secret&quot;,</span>
+<span class="fc" id="L35">            &quot;secretKey&quot;,</span>
+<span class="fc" id="L36">            &quot;rootKey&quot;,</span>
+<span class="fc" id="L37">            &quot;root key&quot;,</span>
+<span class="fc" id="L38">            &quot;root_key&quot;,</span>
+<span class="fc" id="L39">            &quot;factor&quot;,</span>
+        )
+
+    // Compile once and scan once rather than compiling and scanning for every keyword. The
+    // scrubber runs on the logging path, including CTAP/HID handling, so avoid repeated work.
+    private val SENSITIVE_KEYWORD_PATTERN =
+<span class="fc" id="L45">        Regex(</span>
+<span class="fc" id="L46">            &quot;&quot;&quot;(?i)(${SENSITIVE_KEYWORDS.joinToString(&quot;|&quot;) { Regex.escape(it) }})\s*[:=]\s*([^\s,;&amp;]+)&quot;&quot;&quot;,</span>
+        )
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun scrub(message: String): String {
+<span class="fc" id="L51">        var scrubbed = message</span>
+
+        // 1. Scrub Mnemonics
+<span class="fc" id="L54">        scrubbed = MNEMONIC_PATTERN.replace(scrubbed, REDACTED)</span>
+
+        // 2. Scrub Key Material (Hex / Base64)
+<span class="fc" id="L57">        scrubbed = KEY_MATERIAL_PATTERN.replace(scrubbed, REDACTED)</span>
+
+        // 3. Simple Keyword Based Value Redaction
+        // Replaces patterns like &quot;seed=abandon...&quot; or &quot;password: blah&quot;
+<span class="fc" id="L61">        scrubbed = scrubbed.replace(SENSITIVE_KEYWORD_PATTERN, &quot;$1=$REDACTED&quot;)</span>
+
+<span class="fc" id="L63">        return scrubbed</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrfExtensionInput.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">PrfExtensionInput.kt</span></div><h1>PrfExtensionInput.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+import com.chimali.core.common.annotation.Req
+
+/**
+ * T042 — PRF extension domain model.
+ *
+ * Models the `hmac-secret` / `prf` CTAP2 extension inputs and outputs
+ * per WebAuthn L3 §10.1.4 and CTAP2 spec §12.4.
+ *
+ * Constraints:
+ * - 1–2 salts allowed (MAX_SALTS = 2)
+ * - Each salt must be exactly 32 bytes
+ * - Each derived output is exactly 32 bytes (HMAC-SHA-256)
+ *
+ * @property salts Retains the supplied list and arrays without copying; callers must keep them
+ * valid through derivation and erase them when their ownership ends.
+ */
+<span class="fc" id="L19">data class PrfExtensionInput(</span>
+    /**
+     * Ordered list of 32-byte salt inputs; must contain 1 or 2 entries.
+     * CTAP2 encodes these as map keys 0x01 (salt1) and 0x02 (salt2 optional).
+     */
+<span class="fc" id="L24">    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L25">    val salts: List&lt;ByteArray&gt;,</span>
+) {
+<span class="fc" id="L27">    init {</span>
+<span class="fc bfc" id="L28" title="All 4 branches covered.">        require(salts.isNotEmpty()) {</span>
+<span class="fc" id="L29">            &quot;PRF extension requires at least $MIN_SALTS salt; got 0&quot;</span>
+        }
+<span class="fc bfc" id="L31" title="All 4 branches covered.">        require(salts.size &lt;= MAX_SALTS) {</span>
+<span class="fc" id="L32">            &quot;PRF extension supports at most $MAX_SALTS salts; got ${salts.size}&quot;</span>
+        }
+<span class="fc" id="L34">        salts.forEachIndexed { i, salt -&gt;</span>
+<span class="fc bfc" id="L35" title="All 4 branches covered.">            require(salt.size == SALT_SIZE_BYTES) {</span>
+<span class="fc" id="L36">                &quot;PRF salt[$i] must be exactly $SALT_SIZE_BYTES bytes; got ${salt.size}&quot;</span>
+            }
+<span class="fc" id="L38">        }</span>
+<span class="fc" id="L39">    }</span>
+
+    /** Borrows the first validated 32-byte salt from [salts]; no defensive copy is made. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L43">    val salt1: ByteArray get() = salts[0]</span>
+
+    /** Borrows the optional second validated 32-byte salt from [salts]; no copy is made. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L47">    val salt2: ByteArray? get() = salts.getOrNull(1)</span>
+
+    companion object {
+        /** Minimum number of salts accepted for a PRF input. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+        const val MIN_SALTS = 1
+
+        /** Maximum number of salts representable by the CTAP2 extension. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+        const val MAX_SALTS = 2
+
+        /** Required byte length for each PRF salt. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+        const val SALT_SIZE_BYTES = 32
+
+        /** Required byte length for each derived PRF output. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+        const val MAX_OUTPUT_BYTES = 32
+
+        /** Factory for a single-salt PRF input. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+<span class="fc" id="L68">        fun single(salt: ByteArray): PrfExtensionInput = PrfExtensionInput(listOf(salt))</span>
+
+        /** Factory for a dual-salt PRF input. */
+        @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+        fun dual(
+            salt1: ByteArray,
+            salt2: ByteArray,
+<span class="fc" id="L75">        ): PrfExtensionInput = PrfExtensionInput(listOf(salt1, salt2))</span>
+    }
+}
+
+/**
+ * T042 — PRF extension output domain model.
+ *
+ * Contains 1 or 2 32-byte HMAC-SHA-256 outputs, corresponding to the
+ * salts in the original [PrfExtensionInput].
+ *
+ * CTAP2 encodes outputs with integer keys:
+ *   - key 1 → output1 (always present)
+ *   - key 2 → output2 (only when 2 salts were provided)
+ */
+<span class="fc" id="L89">data class PrfExtensionOutput(</span>
+    /** Borrowed 32-byte output buffer, erased by [clear] and exposed directly to CTAP encoding. */
+<span class="fc" id="L91">    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L92">    val output1: ByteArray,</span>
+    /** Optional borrowed 32-byte second output buffer, erased by [clear]. */
+<span class="fc" id="L94">    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)</span>
+<span class="fc" id="L95">    val output2: ByteArray? = null,</span>
+<span class="fc" id="L96">) {</span>
+<span class="fc" id="L97">    init {</span>
+<span class="pc bpc" id="L98" title="2 of 4 branches missed.">        require(output1.size == PrfExtensionInput.MAX_OUTPUT_BYTES) {</span>
+<span class="nc" id="L99">            &quot;PRF output1 must be exactly ${PrfExtensionInput.MAX_OUTPUT_BYTES} bytes; got ${output1.size}&quot;</span>
+        }
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        output2?.let { out -&gt;</span>
+<span class="pc bpc" id="L102" title="2 of 4 branches missed.">            require(out.size == PrfExtensionInput.MAX_OUTPUT_BYTES) {</span>
+<span class="nc" id="L103">                &quot;PRF output2 must be exactly ${PrfExtensionInput.MAX_OUTPUT_BYTES} bytes; got ${out.size}&quot;</span>
+            }
+<span class="fc" id="L105">        }</span>
+<span class="fc" id="L106">    }</span>
+
+    /** Converts this output to a CTAP2 CBOR map with integer keys 1 and 2. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+    fun toCborMap(): Map&lt;Int, ByteArray&gt; =
+<span class="fc" id="L111">        buildMap {</span>
+<span class="fc" id="L112">            put(1, output1)</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            output2?.let { put(2, it) }</span>
+<span class="fc" id="L114">        }</span>
+
+    /**
+     * T043a — Explicitly zero out the output buffers after use.
+     * Call this when the result is no longer needed to prevent sensitive
+     * key material from lingering in memory (Constitution §I).
+     */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+    fun clear() {
+<span class="fc" id="L123">        output1.fill(0)</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        output2?.fill(0)</span>
+<span class="fc" id="L125">    }</span>
+
+    /** Compares output bytes by content; this ordinary model equality is not constant-time. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+    override fun equals(other: Any?): Boolean {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (this === other) return true</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (other !is PrfExtensionOutput) return false</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (!output1.contentEquals(other.output1)) return false</span>
+<span class="nc bnc" id="L133" title="All 6 branches missed.">        if (output2 != null &amp;&amp; other.output2 != null &amp;&amp; !output2.contentEquals(other.output2)) return false</span>
+<span class="nc bnc" id="L134" title="All 6 branches missed.">        if ((output2 == null) != (other.output2 == null)) return false</span>
+<span class="nc" id="L135">        return true</span>
+    }
+
+    /** Returns a content hash consistent with [equals]. */
+    @Req(&quot;NFR-SEC-010&quot;, &quot;FR-VAL-020&quot;)
+    override fun hashCode(): Int {
+<span class="nc" id="L141">        var result = output1.contentHashCode()</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        result = 31 * result + (output2?.contentHashCode() ?: 0)</span>
+<span class="nc" id="L143">        return result</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

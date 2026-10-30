@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedRelyingPartyTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:08.608Z" hostname="LOQ15IRX10-3" time="0.019">
+  <properties/>
+  <testcase name="independently verifies synthetic registration and assertion signature()" classname="com.chimali.fido2.performance.SimulatedRelyingPartyTest" time="0.013"/>
+  <testcase name="rejects a registration challenge mismatch()" classname="com.chimali.fido2.performance.SimulatedRelyingPartyTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

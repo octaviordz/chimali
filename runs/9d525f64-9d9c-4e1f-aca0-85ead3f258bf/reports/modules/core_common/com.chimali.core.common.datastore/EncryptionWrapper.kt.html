@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EncryptionWrapper.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">common</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.common.datastore</a> &gt; <span class="el_source">EncryptionWrapper.kt</span></div><h1>EncryptionWrapper.kt</h1><pre class="source lang-java linenums">package com.chimali.core.common.datastore
+
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+
+<span class="fc" id="L11">class EncryptionWrapper {</span>
+    companion object {
+        private const val KEY_SIZE = 256
+        private const val IV_SIZE = 12
+        private const val GCM_TAG_LENGTH = 128
+    }
+
+<span class="fc" id="L18">    private val keyAlias = &quot;chimali_datastore_key&quot;</span>
+<span class="fc" id="L19">    private val keyStore = KeyStore.getInstance(&quot;AndroidKeyStore&quot;).apply { load(null) }</span>
+
+<span class="fc" id="L21">    init {</span>
+<span class="pc bpc" id="L22" title="1 of 2 branches missed.">        if (!keyStore.containsAlias(keyAlias)) {</span>
+<span class="fc" id="L23">            val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, &quot;AndroidKeyStore&quot;)</span>
+<span class="fc" id="L24">            val spec =</span>
+                KeyGenParameterSpec
+<span class="fc" id="L26">                    .Builder(</span>
+<span class="fc" id="L27">                        keyAlias,</span>
+<span class="fc" id="L28">                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,</span>
+<span class="fc" id="L29">                    ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)</span>
+<span class="fc" id="L30">                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</span>
+<span class="fc" id="L31">                    .setKeySize(KEY_SIZE)</span>
+<span class="fc" id="L32">                    .build()</span>
+<span class="fc" id="L33">            keyGenerator.init(spec)</span>
+<span class="fc" id="L34">            keyGenerator.generateKey()</span>
+        }
+<span class="fc" id="L36">    }</span>
+
+<span class="fc" id="L38">    private fun getSecretKey(): SecretKey = keyStore.getKey(keyAlias, null) as SecretKey</span>
+
+    fun encrypt(data: ByteArray): ByteArray {
+<span class="fc" id="L41">        val cipher = Cipher.getInstance(&quot;AES/GCM/NoPadding&quot;)</span>
+<span class="fc" id="L42">        cipher.init(Cipher.ENCRYPT_MODE, getSecretKey())</span>
+<span class="fc" id="L43">        val iv = cipher.iv</span>
+<span class="fc" id="L44">        val encrypted = cipher.doFinal(data)</span>
+
+        // Zero out data in memory after encryption
+<span class="fc" id="L47">        data.fill(0)</span>
+
+<span class="fc" id="L49">        return iv + encrypted</span>
+    }
+
+    fun decrypt(data: ByteArray): ByteArray {
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (data.size &lt; IV_SIZE) return ByteArray(0)</span>
+
+<span class="fc" id="L55">        val cipher = Cipher.getInstance(&quot;AES/GCM/NoPadding&quot;)</span>
+<span class="fc" id="L56">        val iv = data.copyOfRange(0, IV_SIZE)</span>
+<span class="fc" id="L57">        val encrypted = data.copyOfRange(IV_SIZE, data.size)</span>
+
+        // Zero out intermediate arrays if needed, though they aren't the plaintext
+
+<span class="fc" id="L61">        val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)</span>
+<span class="fc" id="L62">        cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), spec)</span>
+<span class="fc" id="L63">        return cipher.doFinal(encrypted)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

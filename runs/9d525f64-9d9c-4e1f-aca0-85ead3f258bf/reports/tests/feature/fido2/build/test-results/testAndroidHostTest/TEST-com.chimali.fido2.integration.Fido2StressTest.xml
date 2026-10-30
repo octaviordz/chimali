@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.Fido2StressTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:48.236Z" hostname="LOQ15IRX10-3" time="5.843">
+  <properties/>
+  <testcase name="100 consecutive registration operations succeed at a 95 percent rate()" classname="com.chimali.fido2.integration.Fido2StressTest" time="1.901"/>
+  <testcase name="interleaved registration and authentication do not corrupt state()" classname="com.chimali.fido2.integration.Fido2StressTest" time="1.577"/>
+  <testcase name="100 consecutive authentication operations on registered credentials succeed at a 95 percent rate()" classname="com.chimali.fido2.integration.Fido2StressTest" time="2.36"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

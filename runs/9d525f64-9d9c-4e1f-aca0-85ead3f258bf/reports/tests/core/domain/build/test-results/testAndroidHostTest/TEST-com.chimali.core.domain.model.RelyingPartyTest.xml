@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.RelyingPartyTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:36.970Z" hostname="LOQ15IRX10-3" time="0.011">
+  <properties/>
+  <testcase name="RP ID parser rejects blank unsupported and malformed forms()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.001"/>
+  <testcase name="domain extraction and trust checks use the normalized host only()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.0"/>
+  <testcase name="constructor accepts documented name and icon length boundaries()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.0"/>
+  <testcase name="constructor enforces future and last-used timestamp ordering()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.0"/>
+  <testcase name="factory derives a display name from a blank input()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.0"/>
+  <testcase name="copy helpers update activity and recent-use outcomes()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.003"/>
+  <testcase name="constructor rejects invalid optional icon values()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.001"/>
+  <testcase name="normalization preserves HTTPS and localhost HTTP and upgrades other HTTP()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.001"/>
+  <testcase name="RP ID parser accepts secure origins domains and localhost forms()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.001"/>
+  <testcase name="constructor rejects blank name invalid RP ID and negative credential count()" classname="com.chimali.core.domain.model.RelyingPartyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

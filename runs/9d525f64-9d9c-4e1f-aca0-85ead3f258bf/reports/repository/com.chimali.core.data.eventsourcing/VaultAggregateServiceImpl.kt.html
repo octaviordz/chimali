@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultAggregateServiceImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.data.eventsourcing</a> &gt; <span class="el_source">VaultAggregateServiceImpl.kt</span></div><h1>VaultAggregateServiceImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.core.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.DomainEvent
+import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.Snapshot
+import com.chimali.core.domain.eventsourcing.vault.VaultCommand
+import com.chimali.core.domain.eventsourcing.vault.VaultDecider
+import com.chimali.core.domain.eventsourcing.vault.VaultEvent
+import com.chimali.core.domain.eventsourcing.vault.VaultState
+import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
+import com.chimali.core.domain.repository.EventStoreRepository
+import com.chimali.core.domain.repository.SnapshotRepository
+import kotlinx.datetime.Instant
+import org.koin.core.annotation.Single
+
+/**
+ * Implementation of AggregateService for the VaultEntry aggregate.
+ * Orchestrates hydration and command execution with retry logic.
+ */
+<span class="fc" id="L22">@Single</span>
+<span class="fc" id="L23">class VaultAggregateServiceImpl(</span>
+<span class="fc" id="L24">    private val eventStoreRepository: EventStoreRepository,</span>
+<span class="fc" id="L25">    private val snapshotRepository: SnapshotRepository,</span>
+<span class="fc" id="L26">    private val decider: VaultDecider = VaultDecider(),</span>
+<span class="fc" id="L27">) : AggregateService&lt;VaultCommand, VaultState&gt; {</span>
+    companion object {
+        private const val MAX_RETRIES = 3
+        private const val SNAPSHOT_THRESHOLD = 20
+    }
+
+    /**
+     * Reconstructs aggregate state up to the specified point in time or latest.
+     * Uses snapshot hydration when available with fallback to full event fold.
+     *
+     * Traceability: NFR-ARCH-050 (Deterministic Decider fold reconstruction, snapshot acceleration, full fold fallback)
+     */
+    @Req(&quot;NFR-ARCH-050&quot;)
+    override suspend fun getState(
+        aggregateId: String,
+        asOf: Instant?,
+    ): Result&lt;VaultState&gt; {
+        // Try to load from snapshot if we're looking for the latest state
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        if (asOf == null) {</span>
+<span class="fc" id="L46">            val snapshotResult = snapshotRepository.getLatest&lt;VaultState&gt;(EventKind.VAULT_ENTRY, aggregateId)</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">            val snapshot = snapshotResult.getOrNull()</span>
+
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            if (snapshot != null) {</span>
+<span class="fc" id="L50">                var replaySucceeded = false</span>
+<span class="fc" id="L51">                try {</span>
+<span class="fc" id="L52">                    val eventsResult =</span>
+<span class="fc" id="L53">                        eventStoreRepository.getEventsFrom(</span>
+<span class="fc" id="L54">                            EventKind.VAULT_ENTRY,</span>
+<span class="fc" id="L55">                            aggregateId,</span>
+<span class="fc" id="L56">                            snapshot.sequenceNumber,</span>
+                        )
+<span class="fc" id="L58">                    val replayResult =</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">                        eventsResult.fold(</span>
+<span class="fc" id="L60">                            onSuccess = { events -&gt; Result.success(evolveOwned(snapshot.state, events)) },</span>
+<span class="fc" id="L61">                            onFailure = { failure -&gt; Result.failure(failure) },</span>
+                        )
+<span class="fc" id="L63">                    replaySucceeded = replayResult.isSuccess</span>
+<span class="fc" id="L64">                    return replayResult</span>
+                } finally {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">                    if (!replaySucceeded) {</span>
+<span class="fc" id="L67">                        snapshot.state.clearSensitiveMemory()</span>
+                    }
+                }
+            }
+        }
+
+        // Fallback to full history
+<span class="fc" id="L74">        return eventStoreRepository</span>
+<span class="fc" id="L75">            .getEvents(EventKind.VAULT_ENTRY, aggregateId, asOf)</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            .map { events -&gt; evolveOwned(decider.initialState, events) }</span>
+    }
+
+    /**
+     * Executes a command against the aggregate with optimistic concurrency retry logic.
+     * Appends generated events, takes snapshots at configured intervals, and clears volatile memory.
+     *
+     * Traceability: NFR-ARCH-050 (Append-only commit, bounded optimistic concurrency retry, snapshot generation)
+     * Traceability: NFR-SEC-041 (Sensitive memory zeroization on state transition)
+     */
+    @Req(&quot;NFR-ARCH-050&quot;, &quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun execute(
+        aggregateId: String,
+        command: VaultCommand,
+    ): Result&lt;VaultState&gt; =
+<span class="fc" id="L91">        try {</span>
+<span class="fc" id="L92">            var lastResult: Result&lt;Unit&gt;? = null</span>
+
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            repeat(MAX_RETRIES) {</span>
+<span class="fc" id="L95">                val currentStateResult = getState(aggregateId)</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">                if (currentStateResult.isFailure) return currentStateResult</span>
+
+<span class="fc" id="L98">                val currentState = currentStateResult.getOrThrow()</span>
+<span class="fc" id="L99">                var ownedState = currentState</span>
+<span class="fc" id="L100">                var events: List&lt;VaultEvent&gt; = emptyList()</span>
+<span class="fc" id="L101">                var stateTransferred = false</span>
+<span class="fc" id="L102">                try {</span>
+<span class="fc" id="L103">                    events = decider.decide(currentState, command)</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">                    if (events.isEmpty()) {</span>
+<span class="fc" id="L105">                        stateTransferred = true</span>
+<span class="fc" id="L106">                        return Result.success(currentState)</span>
+                    }
+
+<span class="fc" id="L109">                    val appendResult: Result&lt;Unit&gt; = eventStoreRepository.append(EventKind.VAULT_ENTRY, events)</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">                    if (appendResult.isFailure) {</span>
+<span class="fc" id="L111">                        lastResult = appendResult</span>
+                        return@repeat
+                    }
+
+<span class="fc" id="L115">                    events.forEach { event -&gt;</span>
+<span class="fc" id="L116">                        val previousState = ownedState</span>
+<span class="fc" id="L117">                        ownedState = decider.evolve(previousState, event)</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">                        if (previousState !== ownedState) previousState.clearSensitiveMemory()</span>
+<span class="fc" id="L119">                    }</span>
+
+                    // Check if we should take a snapshot (threshold: 20 events)
+<span class="fc bfc" id="L122" title="All 2 branches covered.">                    if (ownedState.sequenceNumber % SNAPSHOT_THRESHOLD == 0L) {</span>
+<span class="fc" id="L123">                        snapshotRepository.save(</span>
+<span class="fc" id="L124">                            EventKind.VAULT_ENTRY,</span>
+<span class="fc" id="L125">                            Snapshot(</span>
+<span class="fc" id="L126">                                aggregateId = aggregateId,</span>
+<span class="fc" id="L127">                                sequenceNumber = ownedState.sequenceNumber,</span>
+<span class="fc" id="L128">                                state = ownedState,</span>
+                                timestamp =
+<span class="fc" id="L130">                                    kotlinx.datetime.Clock.System</span>
+<span class="fc" id="L131">                                        .now(),</span>
+                            ),
+                        )
+                    }
+
+<span class="fc" id="L136">                    stateTransferred = true</span>
+<span class="fc" id="L137">                    return Result.success(ownedState)</span>
+                } finally {
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">                    if (!stateTransferred) ownedState.clearSensitiveMemory()</span>
+<span class="pc" id="L140">                    events.forEach { it.clearSensitiveMemory() }</span>
+                }
+            }
+
+<span class="fc" id="L144">            val exception =</span>
+<span class="pc bpc" id="L145" title="2 of 4 branches missed.">                lastResult?.exceptionOrNull() ?: RuntimeException(</span>
+<span class="nc" id="L146">                    &quot;Aggregate command execution failed after retries&quot;,</span>
+                )
+<span class="fc" id="L148">            val finalResult: Result&lt;VaultState&gt; = Result.failure(exception)</span>
+<span class="fc" id="L149">            return finalResult</span>
+        } finally {
+<span class="fc" id="L151">            command.clearSensitiveMemory()</span>
+        }
+
+    /** Event-store reads transfer each title into the returned state, then release the event owner. */
+    private fun evolveOwned(
+        initial: VaultState,
+        events: List&lt;DomainEvent&gt;,
+    ): VaultState {
+<span class="fc" id="L159">        var state = initial</span>
+<span class="fc" id="L160">        var transferred = false</span>
+<span class="fc" id="L161">        try {</span>
+<span class="fc" id="L162">            events.forEach { domainEvent -&gt;</span>
+<span class="fc" id="L163">                val event = domainEvent as VaultEvent</span>
+<span class="fc" id="L164">                try {</span>
+<span class="fc" id="L165">                    val next = decider.evolve(state, event)</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                    if (state !== next) state.clearSensitiveMemory()</span>
+<span class="fc" id="L167">                    state = next</span>
+                } finally {
+<span class="fc" id="L169">                    event.clearSensitiveMemory()</span>
+                }
+<span class="fc" id="L171">            }</span>
+<span class="fc" id="L172">            transferred = true</span>
+<span class="fc" id="L173">            return state</span>
+        } finally {
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">            if (!transferred) state.clearSensitiveMemory()</span>
+<span class="pc bpc" id="L176" title="2 of 8 branches missed.">            events.forEach { (it as? VaultEvent)?.clearSensitiveMemory() }</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

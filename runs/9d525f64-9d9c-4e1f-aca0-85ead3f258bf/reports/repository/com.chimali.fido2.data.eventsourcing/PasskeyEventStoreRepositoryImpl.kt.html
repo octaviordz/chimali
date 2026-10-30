@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PasskeyEventStoreRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">PasskeyEventStoreRepositoryImpl.kt</span></div><h1>PasskeyEventStoreRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.eventsourcing.DomainEvent
+import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyEvent
+import com.chimali.core.domain.repository.EventStoreRepository
+import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
+import com.chimali.fido2.data.database.Fido2Database
+import java.io.ByteArrayInputStream
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.datetime.Instant
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.encodeToStream
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+
+/**
+ * Implementation of EventStoreRepository for the Fido2Database.
+ * Handles serialization and encryption of Passkey aggregate events.
+ */
+<span class="fc" id="L28">@OptIn(ExperimentalSerializationApi::class)</span>
+<span class="fc" id="L29">class PasskeyEventStoreRepositoryImpl(</span>
+<span class="fc" id="L30">    private val database: Fido2Database,</span>
+<span class="fc" id="L31">    private val encryptionManager: EncryptionManager,</span>
+<span class="fc" id="L32">    private val keyProvider: EventStoreKeyProvider,</span>
+) : EventStoreRepository {
+    private val json =
+<span class="fc" id="L35">        Json {</span>
+<span class="fc" id="L36">            serializersModule =</span>
+<span class="fc" id="L37">                SerializersModule {</span>
+<span class="fc" id="L38">                    polymorphic(DomainEvent::class) {</span>
+<span class="fc" id="L39">                        subclass(PasskeyEvent.Registered::class)</span>
+<span class="fc" id="L40">                        subclass(PasskeyEvent.Authenticated::class)</span>
+<span class="fc" id="L41">                        subclass(PasskeyEvent.Deleted::class)</span>
+<span class="fc" id="L42">                    }</span>
+<span class="fc" id="L43">                }</span>
+<span class="fc" id="L44">        }</span>
+
+    /** Encrypts and appends events, erasing temporary plaintext and key buffers on all exit paths. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun append(
+        kind: EventKind,
+        events: List&lt;DomainEvent&gt;,
+    ): Result&lt;Unit&gt; {
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">        if (kind != EventKind.PASSKEY) return Result.success(Unit)</span>
+
+<span class="fc" id="L54">        val context = currentCoroutineContext()</span>
+<span class="fc" id="L55">        var key: ByteArray? = null</span>
+<span class="fc" id="L56">        return try {</span>
+<span class="fc" id="L57">            captureStorageResult {</span>
+<span class="fc" id="L58">                context.ensureActive()</span>
+<span class="fc" id="L59">                val eventKey = keyProvider.getEventStoreKey(&quot;chimali_fido2_es_v1&quot;)</span>
+<span class="fc" id="L60">                key = eventKey</span>
+<span class="fc" id="L61">                database.transaction {</span>
+<span class="fc" id="L62">                    context.ensureActive()</span>
+<span class="fc" id="L63">                    events.forEach { event -&gt;</span>
+<span class="fc" id="L64">                        context.ensureActive()</span>
+<span class="fc" id="L65">                        var plaintext: ByteArray? = null</span>
+<span class="fc" id="L66">                        var encryptedPayload: ByteArray? = null</span>
+<span class="fc" id="L67">                        try {</span>
+<span class="fc" id="L68">                            plaintext = encodePasskeyEvent(event)</span>
+<span class="fc" id="L69">                            encryptedPayload = encryptionManager.encrypt(plaintext, eventKey)</span>
+<span class="fc" id="L70">                            database.fido2DatabaseQueries.insert_event(</span>
+<span class="fc" id="L71">                                aggregate_id = event.aggregateId,</span>
+<span class="fc" id="L72">                                sequence_number = event.sequenceNumber,</span>
+<span class="fc" id="L73">                                timestamp = event.timestamp.toString(),</span>
+<span class="fc" id="L74">                                payload = encryptedPayload,</span>
+                            )
+                        } finally {
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                            plaintext?.fill(0)</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">                            encryptedPayload?.fill(0)</span>
+                        }
+<span class="fc" id="L80">                    }</span>
+<span class="fc" id="L81">                    context.ensureActive()</span>
+<span class="fc" id="L82">                }</span>
+                Unit
+<span class="fc" id="L84">            }</span>
+        } finally {
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">            key?.fill(0)</span>
+        }
+    }
+
+    /** Reconstructs the event stream and transfers results after erasing temporary plaintext and keys. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getEvents(
+        kind: EventKind,
+        aggregateId: String,
+        upTo: Instant?,
+<span class="fc" id="L96">    ): Result&lt;List&lt;DomainEvent&gt;&gt; = getEventsWithDecoder(kind, aggregateId, upTo, ::decodePasskeyEvent)</span>
+
+    /** Executes replay with a caller-supplied decoder so the owner cleanup path can be retained in tests. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal suspend fun getEventsWithDecoder(
+        kind: EventKind,
+        aggregateId: String,
+        upTo: Instant?,
+        decodeEvent: (ByteArray) -&gt; DomainEvent,
+    ): Result&lt;List&lt;DomainEvent&gt;&gt; {
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (kind != EventKind.PASSKEY) return Result.success(emptyList())</span>
+
+<span class="fc" id="L108">        val context = currentCoroutineContext()</span>
+<span class="fc" id="L109">        var key: ByteArray? = null</span>
+<span class="fc" id="L110">        return try {</span>
+<span class="fc" id="L111">            captureStorageResult {</span>
+<span class="fc" id="L112">                context.ensureActive()</span>
+<span class="pc bpc" id="L113" title="2 of 4 branches missed.">                val timestampLimit = upTo?.toString() ?: &quot;9999-12-31T23:59:59Z&quot;</span>
+<span class="fc" id="L114">                val eventKey = keyProvider.getEventStoreKey(&quot;chimali_fido2_es_v1&quot;)</span>
+<span class="fc" id="L115">                key = eventKey</span>
+<span class="fc" id="L116">                val rows =</span>
+<span class="fc" id="L117">                    database.fido2DatabaseQueries</span>
+<span class="fc" id="L118">                        .get_events(aggregate_id = aggregateId, timestamp = timestampLimit)</span>
+<span class="fc" id="L119">                        .executeAsList()</span>
+<span class="fc" id="L120">                val events = mutableListOf&lt;DomainEvent&gt;()</span>
+<span class="fc" id="L121">                var transferred = false</span>
+<span class="fc" id="L122">                try {</span>
+<span class="fc" id="L123">                    rows.forEach { row -&gt;</span>
+<span class="fc" id="L124">                        context.ensureActive()</span>
+<span class="fc" id="L125">                        var plaintext: ByteArray? = null</span>
+<span class="fc" id="L126">                        try {</span>
+<span class="fc" id="L127">                            plaintext = encryptionManager.decrypt(row.payload, eventKey)</span>
+<span class="fc" id="L128">                            events += decodeEvent(plaintext)</span>
+                        } finally {
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">                            plaintext?.fill(0)</span>
+                        }
+<span class="fc" id="L132">                    }</span>
+<span class="fc" id="L133">                    context.ensureActive()</span>
+<span class="fc" id="L134">                    transferred = true</span>
+<span class="fc" id="L135">                    events.toList()</span>
+                } finally {
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">                    if (!transferred) events.forEach(::eraseSensitiveEvent)</span>
+<span class="fc" id="L138">                }</span>
+            }
+        } finally {
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">            key?.fill(0)</span>
+        }
+    }
+
+    /** Reconstructs events from the requested sequence and transfers results after erasing temporary buffers. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun getEventsFrom(
+        kind: EventKind,
+        aggregateId: String,
+        fromSequence: Long,
+    ): Result&lt;List&lt;DomainEvent&gt;&gt; {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (kind != EventKind.PASSKEY) return Result.success(emptyList())</span>
+
+<span class="nc" id="L154">        val context = currentCoroutineContext()</span>
+<span class="nc" id="L155">        var key: ByteArray? = null</span>
+<span class="nc" id="L156">        return try {</span>
+<span class="nc" id="L157">            captureStorageResult {</span>
+<span class="nc" id="L158">                context.ensureActive()</span>
+<span class="nc" id="L159">                val eventKey = keyProvider.getEventStoreKey(&quot;chimali_fido2_es_v1&quot;)</span>
+<span class="nc" id="L160">                key = eventKey</span>
+<span class="nc" id="L161">                val rows =</span>
+<span class="nc" id="L162">                    database.fido2DatabaseQueries</span>
+<span class="nc" id="L163">                        .get_events_from(aggregate_id = aggregateId, sequence_number = fromSequence)</span>
+<span class="nc" id="L164">                        .executeAsList()</span>
+<span class="nc" id="L165">                val events = mutableListOf&lt;DomainEvent&gt;()</span>
+<span class="nc" id="L166">                var transferred = false</span>
+<span class="nc" id="L167">                try {</span>
+<span class="nc" id="L168">                    rows.forEach { row -&gt;</span>
+<span class="nc" id="L169">                        context.ensureActive()</span>
+<span class="nc" id="L170">                        var plaintext: ByteArray? = null</span>
+<span class="nc" id="L171">                        try {</span>
+<span class="nc" id="L172">                            plaintext = encryptionManager.decrypt(row.payload, eventKey)</span>
+<span class="nc" id="L173">                            events += decodePasskeyEvent(plaintext)</span>
+                        } finally {
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                            plaintext?.fill(0)</span>
+                        }
+<span class="nc" id="L177">                    }</span>
+<span class="nc" id="L178">                    context.ensureActive()</span>
+<span class="nc" id="L179">                    transferred = true</span>
+<span class="nc" id="L180">                    events.toList()</span>
+                } finally {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                    if (!transferred) events.forEach(::eraseSensitiveEvent)</span>
+<span class="nc" id="L183">                }</span>
+            }
+        } finally {
+<span class="nc bnc" id="L186" title="All 2 branches missed.">            key?.fill(0)</span>
+        }
+    }
+
+    private fun eraseSensitiveEvent(event: DomainEvent) {
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if (event is PasskeyEvent.Registered) event.eraseSensitiveMetadata()</span>
+<span class="fc" id="L192">    }</span>
+
+    private fun encodePasskeyEvent(event: DomainEvent): ByteArray =
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if (event is PasskeyEvent.Registered) {</span>
+<span class="fc" id="L196">            val sanitized =</span>
+<span class="fc" id="L197">                event.copy(</span>
+                    rpId = charArrayOf(),
+                    userId = charArrayOf(),
+                    userName = charArrayOf(),
+                    userDisplayName = charArrayOf(),
+                )
+<span class="fc" id="L203">            SensitiveJsonFields.encode(</span>
+<span class="fc" id="L204">                linkedMapOf(</span>
+<span class="fc" id="L205">                    &quot;rpId&quot; to event.rpId,</span>
+<span class="fc" id="L206">                    &quot;userId&quot; to event.userId,</span>
+<span class="fc" id="L207">                    &quot;userName&quot; to event.userName,</span>
+<span class="fc" id="L208">                    &quot;userDisplayName&quot; to event.userDisplayName,</span>
+                ),
+<span class="fc" id="L210">            ) { output -&gt; json.encodeToStream(PolymorphicSerializer(DomainEvent::class), sanitized, output) }</span>
+        } else {
+<span class="fc" id="L212">            encodeToErasableJsonBytes { output -&gt;</span>
+<span class="fc" id="L213">                json.encodeToStream(PolymorphicSerializer(DomainEvent::class), event, output)</span>
+<span class="fc" id="L214">            }</span>
+<span class="fc" id="L215">        }</span>
+
+    private fun decodePasskeyEvent(plaintext: ByteArray): DomainEvent =
+<span class="fc" id="L218">        SensitiveJsonFields.decode(</span>
+<span class="fc" id="L219">            input = plaintext,</span>
+<span class="fc" id="L220">            fieldNames = SENSITIVE_FIELDS,</span>
+<span class="fc" id="L221">            deserializeSanitized = { sanitized -&gt; json.decodeFromStream&lt;DomainEvent&gt;(ByteArrayInputStream(sanitized)) },</span>
+            attachFields = { decoded, fields -&gt;
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">                if (decoded !is PasskeyEvent.Registered) {</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                    require(fields.isEmpty()) { &quot;Unexpected sensitive fields for passkey event&quot; }</span>
+<span class="nc" id="L225">                    decoded</span>
+                } else {
+<span class="fc" id="L227">                    decoded.copy(</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">                        rpId = requireNotNull(fields[&quot;rpId&quot;]),</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">                        userId = requireNotNull(fields[&quot;userId&quot;]),</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">                        userName = requireNotNull(fields[&quot;userName&quot;]),</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">                        userDisplayName = requireNotNull(fields[&quot;userDisplayName&quot;]),</span>
+                    )
+<span class="fc" id="L233">                }</span>
+            },
+<span class="fc" id="L235">        )</span>
+
+    private companion object {
+<span class="pc" id="L238">        val SENSITIVE_FIELDS = setOf(&quot;rpId&quot;, &quot;userId&quot;, &quot;userName&quot;, &quot;userDisplayName&quot;)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

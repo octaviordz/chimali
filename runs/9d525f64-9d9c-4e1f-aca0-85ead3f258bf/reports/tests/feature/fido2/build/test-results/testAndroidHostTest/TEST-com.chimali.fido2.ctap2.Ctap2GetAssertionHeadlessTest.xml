@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2GetAssertionHeadlessTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:12.612Z" hostname="LOQ15IRX10-3" time="0.1">
+  <properties/>
+  <testcase name="handle returns success via headless path when uv is preferred and one candidate exists()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionHeadlessTest" time="0.093"/>
+  <system-out><![CDATA[Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

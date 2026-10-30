@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:38.124Z" hostname="LOQ15IRX10-3" time="0.106">
+  <properties/>
+  <testcase name="should throw exception when rp id is invalid()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.01"/>
+  <testcase name="should throw exception when name is blank()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.011"/>
+  <testcase name="should create valid rp with icon url()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.01"/>
+  <testcase name="should throw exception when name exceeds maximum length()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.008"/>
+  <testcase name="should throw exception when icon url uses unsupported protocol()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.008"/>
+  <testcase name="should create valid rp with all required fields()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.008"/>
+  <testcase name="should throw exception when icon url is invalid()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.009"/>
+  <testcase name="should throw exception when credential count is negative()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.009"/>
+  <testcase name="should throw exception when id is blank()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.01"/>
+  <testcase name="should throw exception when last used time is before creation time()" classname="com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.MeasurementReportTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:06.209Z" hostname="LOQ15IRX10-3" time="0.039">
+  <properties/>
+  <testcase name="a measured failing occurrence fails report()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.005"/>
+  <testcase name="failed measured action and missing operation repetitions make report incomplete()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.009"/>
+  <testcase name="not invoked verification has no execution duration()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <testcase name="suspend-spanning ceremony makes report incomplete()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.002"/>
+  <testcase name="warmup failure is retained but excluded from acceptance decision()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.002"/>
+  <testcase name="rejected attempt duration is retained but excluded from passing summaries()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <testcase name="report rejects assessments whose operation interval or outcome differs from attempt evidence()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <testcase name="attempt IDs are unique and registration and authentication both need verified evidence()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <testcase name="per type summary is descriptive and keeps every occurrence()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.002"/>
+  <testcase name="report rejects unassociated operation assessments and duplicate actions()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <testcase name="evidence records have no fields for secrets or real identity data()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.004"/>
+  <testcase name="unmeasured operation prevents complete pass()" classname="com.chimali.fido2.performance.MeasurementReportTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

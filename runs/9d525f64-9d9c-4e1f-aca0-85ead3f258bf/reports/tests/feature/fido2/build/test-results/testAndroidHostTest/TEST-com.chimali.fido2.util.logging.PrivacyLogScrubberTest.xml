@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:13.451Z" hostname="LOQ15IRX10-3" time="0.03">
+  <properties/>
+  <testcase name="scrub completely masks 12 word mnemonics()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.004"/>
+  <testcase name="scrub completely masks 24 word mnemonics()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.001"/>
+  <testcase name="scrub redacts every sensitive keyword in one pass()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.01"/>
+  <testcase name="scrub ignores normal text()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.0"/>
+  <testcase name="scrub redacts specific sensitive keywords()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.005"/>
+  <testcase name="scrub completely masks hex key material()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.002"/>
+  <testcase name="scrub redacts derivation secrets and private material labels with spaces()" classname="com.chimali.fido2.util.logging.PrivacyLogScrubberTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

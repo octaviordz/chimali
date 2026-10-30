@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2Module.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.di</a> &gt; <span class="el_source">Fido2Module.kt</span></div><h1>Fido2Module.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.di
+
+import android.bluetooth.BluetoothManager
+import android.content.Context
+import androidx.biometric.BiometricManager
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.database.EncryptedDriverFactory
+import com.chimali.core.domain.eventsourcing.AggregateService
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
+import com.chimali.core.domain.repository.EventStoreRepository
+import com.chimali.core.domain.repository.SnapshotRepository
+import com.chimali.core.events.Fido2EventBus
+import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
+import com.chimali.fido2.data.database.Fido2Database
+import com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImpl
+import com.chimali.fido2.data.eventsourcing.PasskeyEventStoreRepositoryImpl
+import com.chimali.fido2.data.eventsourcing.PasskeySnapshotRepositoryImpl
+import org.koin.core.annotation.ComponentScan
+import org.koin.core.annotation.Module
+import org.koin.core.annotation.Named
+import org.koin.core.annotation.Single
+
+/**
+ * Koin Annotations module for feature:fido2.
+ *
+ * @ComponentScan discovers all @Single/@Factory/@KoinViewModel annotated classes in the
+ * [com.chimali.fido2] package. Android platform services (BluetoothManager, BiometricManager,
+ * Fido2Database) that cannot be annotated on their class are provided here as @Single factory
+ * methods (Koin Annotations §3.3: Module-level provides).
+ *
+ * Usage in [ChimaliApplication]:
+ * ```kotlin
+ * modules(Fido2Module().module)
+ * ```
+ */
+<span class="nc" id="L38">@Module</span>
+@ComponentScan(&quot;com.chimali.fido2&quot;)
+class Fido2Module {
+    /**
+     * Provides the Android [BluetoothManager] system service.
+     * BluetoothHidTransportImpl and other HID components resolve this from the Koin graph.
+     */
+    @Single
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun bluetoothManager(context: Context): BluetoothManager =
+<span class="nc" id="L48">        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager</span>
+
+    /**
+     * Provides [BiometricManager] for user verification flows.
+     */
+    @Single
+    @Req(&quot;FR-AUTH-010&quot;)
+<span class="nc" id="L55">    fun biometricManager(context: Context): BiometricManager = BiometricManager.from(context)</span>
+
+    /**
+     * Provides the SQLDelight [Fido2Database] instance backed by SQLite3MultipleCiphers (ChaCha20-Poly1305).
+     * The database is a singleton; the driver is created once per process via [EncryptedDriverFactory].
+     *
+     * Traceability &amp; Partitioning:
+     * @see FR-MC-050 SQLite3MultipleCiphers encrypted driver for fido2.db
+     * @see Constitution §XII.1 Rigorous Traceability
+     * @see Constitution §XII.4 Separation of Concerns (Partitioning)
+     */
+    @Single
+    @Req(&quot;NFR-SEC-010&quot;, &quot;NFR-SEC-041&quot;)
+    fun fido2Database(encryptedDriverFactory: EncryptedDriverFactory): Fido2Database {
+<span class="nc" id="L69">        val driver = encryptedDriverFactory.createDriver(Fido2Database.Schema, &quot;fido2.db&quot;)</span>
+<span class="nc" id="L70">        return Fido2Database(driver)</span>
+    }
+
+    /**
+     * Provides the application-level FIDO2 event bus (singleton).
+     * Not annotated on [Fido2EventBus] directly as it lives in core:events.
+     */
+    @Single
+    @Req(&quot;FR-HID-030&quot;)
+<span class="nc" id="L79">    fun fido2EventBus(): Fido2EventBus = Fido2EventBus()</span>
+
+    /**
+     * T018 — Provides the Passkey Event Store Repository.
+     */
+    @Single
+    @Named(&quot;passkey&quot;)
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun passkeyEventStoreRepository(
+        database: Fido2Database,
+        encryptionManager: EncryptionManager,
+        keyProvider: EventStoreKeyProvider,
+<span class="nc" id="L91">    ): EventStoreRepository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, keyProvider)</span>
+
+    /**
+     * T028 — Provides the Passkey Snapshot Repository.
+     */
+    @Single
+    @Named(&quot;passkey&quot;)
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun passkeySnapshotRepository(
+        database: Fido2Database,
+        encryptionManager: EncryptionManager,
+        keyProvider: EventStoreKeyProvider,
+<span class="nc" id="L103">    ): SnapshotRepository = PasskeySnapshotRepositoryImpl(database, encryptionManager, keyProvider)</span>
+
+    /**
+     * T019 — Provides the Passkey Aggregate Service.
+     */
+    @Single
+    @Named(&quot;passkey&quot;)
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun passkeyAggregateService(
+        @Named(&quot;passkey&quot;) eventStoreRepository: EventStoreRepository,
+        @Named(&quot;passkey&quot;) snapshotRepository: SnapshotRepository,
+    ): AggregateService&lt;PasskeyCommand, PasskeyState&gt; =
+<span class="nc" id="L115">        PasskeyAggregateServiceImpl(eventStoreRepository, snapshotRepository)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

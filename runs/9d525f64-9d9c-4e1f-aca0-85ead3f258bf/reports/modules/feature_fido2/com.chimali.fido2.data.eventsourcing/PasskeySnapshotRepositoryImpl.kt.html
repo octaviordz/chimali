@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PasskeySnapshotRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">PasskeySnapshotRepositoryImpl.kt</span></div><h1>PasskeySnapshotRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.eventsourcing.EventKind
+import com.chimali.core.domain.eventsourcing.Snapshot
+import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
+import com.chimali.core.domain.repository.SnapshotRepository
+import com.chimali.core.security.api.EncryptionManager
+import com.chimali.core.security.api.EventStoreKeyProvider
+import com.chimali.fido2.data.database.Fido2Database
+import java.io.ByteArrayInputStream
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.encodeToStream
+
+/**
+ * Implementation of SnapshotRepository for the Fido2Database.
+ * Handles serialization and encryption of Passkey aggregate snapshots.
+ */
+<span class="fc" id="L24">@OptIn(ExperimentalSerializationApi::class)</span>
+<span class="fc" id="L25">class PasskeySnapshotRepositoryImpl(</span>
+<span class="fc" id="L26">    private val database: Fido2Database,</span>
+<span class="fc" id="L27">    private val encryptionManager: EncryptionManager,</span>
+<span class="fc" id="L28">    private val keyProvider: EventStoreKeyProvider,</span>
+) : SnapshotRepository {
+    private val json =
+<span class="fc" id="L31">        Json {</span>
+<span class="fc" id="L32">            ignoreUnknownKeys = true</span>
+<span class="fc" id="L33">        }</span>
+
+    @Suppress(&quot;UNCHECKED_CAST&quot;)
+    private fun &lt;T&gt; getSerializer(kind: EventKind): KSerializer&lt;T&gt; =
+<span class="fc" id="L37">        when (kind) {</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">            EventKind.PASSKEY -&gt; PasskeyState.serializer() as KSerializer&lt;T&gt;</span>
+<span class="nc" id="L39">            else -&gt; throw IllegalArgumentException(&quot;Unsupported aggregate kind: $kind&quot;)</span>
+<span class="fc" id="L40">        }</span>
+
+    /** Encrypts the snapshot and erases temporary plaintext and key buffers on all exit paths. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun &lt;T&gt; save(
+        kind: EventKind,
+        snapshot: Snapshot&lt;T&gt;,
+    ): Result&lt;Unit&gt; {
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (kind != EventKind.PASSKEY) return Result.success(Unit)</span>
+
+<span class="fc" id="L50">        val context = currentCoroutineContext()</span>
+<span class="fc" id="L51">        var key: ByteArray? = null</span>
+<span class="fc" id="L52">        return try {</span>
+<span class="fc" id="L53">            captureStorageResult {</span>
+<span class="fc" id="L54">                context.ensureActive()</span>
+<span class="fc" id="L55">                val eventKey = keyProvider.getEventStoreKey(&quot;chimali_fido2_es_v1&quot;)</span>
+<span class="fc" id="L56">                key = eventKey</span>
+<span class="fc" id="L57">                database.transaction {</span>
+<span class="fc" id="L58">                    context.ensureActive()</span>
+<span class="fc" id="L59">                    val stateSerializer = getSerializer&lt;T&gt;(kind)</span>
+<span class="fc" id="L60">                    val snapshotSerializer = Snapshot.serializer(stateSerializer)</span>
+<span class="fc" id="L61">                    var plaintext: ByteArray? = null</span>
+<span class="fc" id="L62">                    var encryptedPayload: ByteArray? = null</span>
+<span class="fc" id="L63">                    try {</span>
+<span class="fc" id="L64">                        val state =</span>
+<span class="pc bpc" id="L65" title="2 of 4 branches missed.">                            snapshot.state as? PasskeyState</span>
+<span class="nc" id="L66">                                ?: throw IllegalArgumentException(&quot;Unsupported passkey snapshot state&quot;)</span>
+
+                        @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="fc" id="L69">                        val sanitizedSnapshot =</span>
+<span class="fc" id="L70">                            snapshot.copy(</span>
+                                state =
+<span class="fc" id="L72">                                    state.copy(</span>
+                                        rpId = charArrayOf(),
+                                        userId = charArrayOf(),
+                                        userName = charArrayOf(),
+                                        userDisplayName = charArrayOf(),
+                                    ) as T,
+                            )
+<span class="fc" id="L79">                        plaintext =</span>
+<span class="fc" id="L80">                            SensitiveJsonFields.encode(</span>
+<span class="fc" id="L81">                                linkedMapOf(</span>
+<span class="fc" id="L82">                                    &quot;rpId&quot; to state.rpId,</span>
+<span class="fc" id="L83">                                    &quot;userId&quot; to state.userId,</span>
+<span class="fc" id="L84">                                    &quot;userName&quot; to state.userName,</span>
+<span class="fc" id="L85">                                    &quot;userDisplayName&quot; to state.userDisplayName,</span>
+                                ),
+<span class="fc" id="L87">                            ) { output -&gt; json.encodeToStream(snapshotSerializer, sanitizedSnapshot, output) }</span>
+<span class="fc" id="L88">                        encryptedPayload = encryptionManager.encrypt(plaintext, eventKey)</span>
+<span class="fc" id="L89">                        database.fido2DatabaseQueries.insert_snapshot(</span>
+<span class="fc" id="L90">                            aggregate_id = snapshot.aggregateId,</span>
+<span class="fc" id="L91">                            sequence_number = snapshot.sequenceNumber,</span>
+<span class="fc" id="L92">                            timestamp = snapshot.timestamp.toString(),</span>
+<span class="fc" id="L93">                            payload = encryptedPayload,</span>
+                        )
+
+                        // Retain only the last 2 snapshots
+<span class="fc" id="L97">                        database.fido2DatabaseQueries.delete_old_snapshots(</span>
+<span class="fc" id="L98">                            aggregate_id = snapshot.aggregateId,</span>
+<span class="fc" id="L99">                            aggregate_id_ = snapshot.aggregateId,</span>
+                        )
+                    } finally {
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">                        plaintext?.fill(0)</span>
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">                        encryptedPayload?.fill(0)</span>
+                    }
+<span class="fc" id="L105">                    context.ensureActive()</span>
+<span class="fc" id="L106">                }</span>
+                Unit
+<span class="fc" id="L108">            }</span>
+        } finally {
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">            key?.fill(0)</span>
+        }
+    }
+
+    /** Reconstructs the latest snapshot, transfers state ownership and erases temporary buffers. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override suspend fun &lt;T&gt; getLatest(
+        kind: EventKind,
+        aggregateId: String,
+    ): Result&lt;Snapshot&lt;T&gt;?&gt; =
+<span class="fc" id="L120">        getLatestWithDecoder(kind, aggregateId) { plaintext -&gt;</span>
+<span class="fc" id="L121">            decodePasskeySnapshot(kind, plaintext)</span>
+<span class="fc" id="L122">        }</span>
+
+    /** Runs snapshot retrieval with a decoder so terminal ownership can be checked through retained references. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal suspend fun &lt;T&gt; getLatestWithDecoder(
+        kind: EventKind,
+        aggregateId: String,
+        decodeSnapshot: (ByteArray) -&gt; Snapshot&lt;T&gt;,
+    ): Result&lt;Snapshot&lt;T&gt;?&gt; {
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">        if (kind != EventKind.PASSKEY) return Result.success(null)</span>
+
+<span class="fc" id="L133">        val context = currentCoroutineContext()</span>
+<span class="fc" id="L134">        var key: ByteArray? = null</span>
+<span class="fc" id="L135">        var plaintext: ByteArray? = null</span>
+<span class="fc" id="L136">        return try {</span>
+<span class="fc" id="L137">            captureStorageResult {</span>
+<span class="fc" id="L138">                context.ensureActive()</span>
+<span class="fc" id="L139">                val row =</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">                    database.fido2DatabaseQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()</span>
+<span class="fc" id="L141">                        ?: return@captureStorageResult null</span>
+
+<span class="fc" id="L143">                val eventKey = keyProvider.getEventStoreKey(&quot;chimali_fido2_es_v1&quot;)</span>
+<span class="fc" id="L144">                key = eventKey</span>
+<span class="fc" id="L145">                plaintext = encryptionManager.decrypt(row.payload, eventKey)</span>
+<span class="fc" id="L146">                var decoded: Snapshot&lt;T&gt;? = null</span>
+<span class="fc" id="L147">                var transferred = false</span>
+<span class="fc" id="L148">                try {</span>
+<span class="fc" id="L149">                    decoded = decodeSnapshot(plaintext)</span>
+<span class="fc" id="L150">                    context.ensureActive()</span>
+<span class="fc" id="L151">                    transferred = true</span>
+<span class="fc" id="L152">                    decoded</span>
+                } finally {
+<span class="pc bpc" id="L154" title="4 of 8 branches missed.">                    if (!transferred) (decoded?.state as? PasskeyState)?.eraseSensitiveMetadata()</span>
+<span class="fc" id="L155">                }</span>
+            }
+        } finally {
+<span class="fc bfc" id="L158" title="All 2 branches covered.">            plaintext?.fill(0)</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">            key?.fill(0)</span>
+        }
+    }
+
+    /** Reconstructs snapshot state using only its root `state` sensitive-field path. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal fun &lt;T&gt; decodePasskeySnapshot(
+        kind: EventKind,
+        plaintext: ByteArray,
+    ): Snapshot&lt;T&gt; {
+<span class="fc" id="L169">        val stateSerializer = getSerializer&lt;T&gt;(kind)</span>
+<span class="fc" id="L170">        val snapshotSerializer = Snapshot.serializer(stateSerializer)</span>
+<span class="fc" id="L171">        return SensitiveJsonFields.decode(</span>
+<span class="fc" id="L172">            input = plaintext,</span>
+<span class="fc" id="L173">            fieldNames = SENSITIVE_FIELDS,</span>
+<span class="fc" id="L174">            fieldObjectPath = listOf(&quot;state&quot;),</span>
+            deserializeSanitized = { sanitized -&gt;
+<span class="fc" id="L176">                json.decodeFromStream(snapshotSerializer, ByteArrayInputStream(sanitized))</span>
+            },
+            attachFields = { sanitizedSnapshot, fields -&gt;
+<span class="fc" id="L179">                val state =</span>
+<span class="pc bpc" id="L180" title="2 of 4 branches missed.">                    sanitizedSnapshot.state as? PasskeyState</span>
+<span class="nc" id="L181">                        ?: throw IllegalArgumentException(&quot;Unsupported passkey snapshot state&quot;)</span>
+                @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="fc" id="L183">                sanitizedSnapshot.copy(</span>
+                    state =
+<span class="fc" id="L185">                        state.copy(</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                            rpId = requireNotNull(fields[&quot;rpId&quot;]),</span>
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">                            userId = requireNotNull(fields[&quot;userId&quot;]),</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">                            userName = requireNotNull(fields[&quot;userName&quot;]),</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">                            userDisplayName = requireNotNull(fields[&quot;userDisplayName&quot;]),</span>
+                        ) as T,
+<span class="fc" id="L191">                )</span>
+            },
+        )
+    }
+
+    private companion object {
+<span class="pc" id="L197">        val SENSITIVE_FIELDS = setOf(&quot;rpId&quot;, &quot;userId&quot;, &quot;userName&quot;, &quot;userDisplayName&quot;)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

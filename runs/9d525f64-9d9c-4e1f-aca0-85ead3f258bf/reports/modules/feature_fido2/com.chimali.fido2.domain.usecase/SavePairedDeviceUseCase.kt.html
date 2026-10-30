@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SavePairedDeviceUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.usecase</a> &gt; <span class="el_source">SavePairedDeviceUseCase.kt</span></div><h1>SavePairedDeviceUseCase.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.usecase
+
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.fido2.domain.model.PairedDevice
+import com.chimali.fido2.domain.repository.PairedDeviceRepository
+import org.koin.core.annotation.Factory
+
+/**
+ * Validates and saves a newly discovered or re-authenticated Bluetooth host
+ * to the PairedDevice database table.
+ */
+<span class="fc" id="L14">@Factory</span>
+<span class="fc" id="L15">class SavePairedDeviceUseCase(</span>
+<span class="fc" id="L16">    private val repository: PairedDeviceRepository,</span>
+<span class="fc" id="L17">    private val timeProvider: TimeProvider,</span>
+) {
+<span class="nc" id="L19">    suspend operator fun invoke(</span>
+        macAddress: String,
+<span class="nc" id="L21">        name: String? = null,</span>
+<span class="nc" id="L22">        deviceClass: Int? = null,</span>
+    ): Outcome&lt;Unit, DomainError&gt; {
+<span class="nc bnc" id="L24" title="All 2 branches missed.">        if (macAddress.isBlank()) {</span>
+<span class="nc" id="L25">            return Outcome.Error(DomainError.ValidationError(&quot;MAC address cannot be empty&quot;))</span>
+        }
+
+<span class="nc" id="L28">        val now = timeProvider.epochMillis()</span>
+<span class="nc" id="L29">        val device =</span>
+<span class="nc" id="L30">            PairedDevice(</span>
+<span class="nc" id="L31">                macAddress = macAddress,</span>
+<span class="nc" id="L32">                name = name,</span>
+<span class="nc" id="L33">                deviceClass = deviceClass,</span>
+<span class="nc" id="L34">                alias = null,</span>
+<span class="nc" id="L35">                lastUsedAt = now,</span>
+                // Ignored on SQL OR REPLACE if already exists, typically.
+                // In a real app we might first query to preserve createdAt
+                // but for simplicity we rely on SQL REPlACE here.
+<span class="nc" id="L39">                createdAt = now,</span>
+            )
+<span class="nc" id="L41">        return repository.saveDevice(device)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

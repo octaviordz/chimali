@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AttestationObject.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">AttestationObject.kt</span></div><h1>AttestationObject.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.RelyingParty
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.datetime.Instant
+
+/**
+ * Domain model representing a FIDO2 AttestationObject.
+ * This contains the attestation data returned during credential creation.
+ */
+<span class="fc" id="L12">data class AttestationObject(</span>
+<span class="fc" id="L13">    val fmt: String,</span>
+<span class="fc" id="L14">    val authData: AuthenticatorData,</span>
+<span class="fc" id="L15">    val attStmt: AttestationStatement,</span>
+<span class="fc" id="L16">    val clientData: ClientData,</span>
+) {
+<span class="fc" id="L18">    init {</span>
+<span class="fc" id="L19">        validate()</span>
+<span class="fc" id="L20">    }</span>
+
+    /**
+     * Validates the AttestationObject according to FIDO2 specifications.
+     * Throws IllegalArgumentException if validation fails.
+     */
+    fun validate() {
+        // Validate required fields
+<span class="pc bpc" id="L28" title="2 of 4 branches missed.">        require(fmt.isNotBlank()) { &quot;Format cannot be blank&quot; }</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">        require(fmt in SUPPORTED_FORMATS) {</span>
+<span class="nc" id="L30">            &quot;Format must be one of: ${SUPPORTED_FORMATS.joinToString()}&quot;</span>
+        }
+
+        // Validate auth data
+<span class="fc" id="L34">        authData.validate()</span>
+
+        // Validate attestation statement
+<span class="fc" id="L37">        attStmt.validate()</span>
+
+        // Validate client data
+<span class="fc" id="L40">        clientData.validate()</span>
+<span class="fc" id="L41">    }</span>
+
+    /**
+     * Checks if this attestation is self-attested.
+     */
+<span class="fc" id="L46">    fun isSelfAttested(): Boolean = fmt == FORMAT_NONE</span>
+
+    /**
+     * Checks if this attestation uses packed format.
+     */
+<span class="fc" id="L51">    fun isPacked(): Boolean = fmt == FORMAT_PACKED</span>
+
+    companion object {
+        private const val FORMAT_PACKED = &quot;packed&quot;
+        private const val FORMAT_FIDO_U2F = &quot;fido-u2f&quot;
+        private const val FORMAT_NONE = &quot;none&quot;
+        private const val FORMAT_ANDROID_SAFETYNET = &quot;android-safetynet&quot;
+        private const val FORMAT_ANDROID_KEY = &quot;android-key&quot;
+
+        // T037: AttCA format — required for WebAuthn L3 full attestation compliance
+        private const val FORMAT_ATT_CA = &quot;attCA&quot;
+
+        private val SUPPORTED_FORMATS =
+<span class="fc" id="L64">            setOf(</span>
+<span class="fc" id="L65">                FORMAT_PACKED,</span>
+<span class="fc" id="L66">                FORMAT_FIDO_U2F,</span>
+<span class="fc" id="L67">                FORMAT_NONE,</span>
+<span class="fc" id="L68">                FORMAT_ANDROID_SAFETYNET,</span>
+<span class="fc" id="L69">                FORMAT_ANDROID_KEY,</span>
+<span class="fc" id="L70">                FORMAT_ATT_CA,</span>
+            )
+
+        /**
+         * Creates a new AttestationObject with validation.
+         */
+<span class="nc" id="L76">        fun create(</span>
+<span class="nc" id="L77">            fmt: String = FORMAT_PACKED,</span>
+            authData: AuthenticatorData,
+            attStmt: AttestationStatement,
+            clientData: ClientData,
+        ): AttestationObject =
+<span class="fc" id="L82">            AttestationObject(</span>
+<span class="fc" id="L83">                fmt = fmt,</span>
+<span class="fc" id="L84">                authData = authData,</span>
+<span class="fc" id="L85">                attStmt = attStmt,</span>
+<span class="fc" id="L86">                clientData = clientData,</span>
+<span class="fc" id="L87">            )</span>
+
+        /**
+         * Creates a self-attested object.
+         */
+        fun createSelfAttested(
+            authData: AuthenticatorData,
+            clientData: ClientData,
+        ): AttestationObject =
+<span class="fc" id="L96">            create(</span>
+<span class="fc" id="L97">                fmt = FORMAT_NONE,</span>
+<span class="fc" id="L98">                authData = authData,</span>
+<span class="fc" id="L99">                attStmt = AttestationStatement.createNone(),</span>
+<span class="fc" id="L100">                clientData = clientData,</span>
+<span class="fc" id="L101">            )</span>
+
+        /**
+         * T037: Creates an AttCA (Attestation CA) attested object.
+         * Used for Basic and AttCA attestation types where a certificate chain is present.
+         */
+        fun createAttCa(
+            authData: AuthenticatorData,
+            attStmt: AttestationStatement,
+            clientData: ClientData,
+        ): AttestationObject =
+<span class="fc" id="L112">            create(</span>
+<span class="fc" id="L113">                fmt = FORMAT_ATT_CA,</span>
+<span class="fc" id="L114">                authData = authData,</span>
+<span class="fc" id="L115">                attStmt = attStmt,</span>
+<span class="fc" id="L116">                clientData = clientData,</span>
+<span class="fc" id="L117">            )</span>
+    }
+}
+
+/**
+ * T037: Attestation type classification per WebAuthn L3 §6.5.3.
+ *
+ * - [NONE]  — No attestation statement (&quot;none&quot; format). Privacy-preserving.
+ * - [SELF]  — Self attestation — authenticator signs with its own credential key.
+ * - [BASIC] — Basic attestation — authenticator has a batch attestation key.
+ * - [ATT_CA] — Attestation CA — intermediate CA certificate chain present.
+ */
+enum class AttestationType {
+<span class="fc" id="L130">    NONE,</span>
+<span class="fc" id="L131">    SELF,</span>
+<span class="fc" id="L132">    BASIC,</span>
+<span class="fc" id="L133">    ATT_CA,</span>
+    ;
+
+    /** Human-readable label for logging and UI. */
+    fun getLabel(): String =
+<span class="fc bfc" id="L138" title="All 4 branches covered.">        when (this) {</span>
+<span class="fc" id="L139">            NONE -&gt; &quot;No Attestation&quot;</span>
+<span class="fc" id="L140">            SELF -&gt; &quot;Self Attestation&quot;</span>
+<span class="fc" id="L141">            BASIC -&gt; &quot;Basic Attestation&quot;</span>
+<span class="fc" id="L142">            ATT_CA -&gt; &quot;Attestation CA&quot;</span>
+<span class="fc" id="L143">        }</span>
+}
+
+/**
+ * Domain model representing AuthenticatorData.
+ * This contains the authenticator data from the attestation object.
+ */
+<span class="fc" id="L150">data class AuthenticatorData(</span>
+<span class="fc" id="L151">    val rpIdHash: ByteArray,</span>
+<span class="fc" id="L152">    val flags: ByteArray,</span>
+<span class="fc" id="L153">    val counter: Long,</span>
+<span class="fc" id="L154">    val aaguid: ByteArray,</span>
+<span class="fc" id="L155">    val credentialId: ByteArray,</span>
+<span class="fc" id="L156">    val publicKey: ByteArray,</span>
+) {
+<span class="fc" id="L158">    init {</span>
+<span class="fc" id="L159">        validate()</span>
+<span class="fc" id="L160">    }</span>
+
+    /**
+     * Validates the AuthenticatorData according to FIDO2 specifications.
+     */
+    fun validate() {
+        // Validate required fields
+<span class="pc bpc" id="L167" title="2 of 4 branches missed.">        require(rpIdHash.size == RP_ID_HASH_SIZE) { &quot;RP ID hash must be exactly $RP_ID_HASH_SIZE bytes&quot; }</span>
+<span class="pc bpc" id="L168" title="2 of 4 branches missed.">        require(flags.size == FLAGS_SIZE) { &quot;Flags must be exactly $FLAGS_SIZE byte&quot; }</span>
+<span class="pc bpc" id="L169" title="2 of 4 branches missed.">        require(counter &gt;= 0) { &quot;Counter cannot be negative&quot; }</span>
+<span class="pc bpc" id="L170" title="2 of 4 branches missed.">        require(aaguid.size == AAGUID_SIZE) { &quot;AAGUID must be exactly $AAGUID_SIZE bytes&quot; }</span>
+<span class="pc bpc" id="L171" title="3 of 6 branches missed.">        require(credentialId.isNotEmpty()) { &quot;Credential ID cannot be empty&quot; }</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        require(</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">            credentialId.size &lt;= MAX_CREDENTIAL_ID_SIZE,</span>
+<span class="nc" id="L174">        ) { &quot;Credential ID cannot exceed $MAX_CREDENTIAL_ID_SIZE bytes&quot; }</span>
+<span class="pc bpc" id="L175" title="3 of 6 branches missed.">        require(publicKey.isNotEmpty()) { &quot;Public key cannot be empty&quot; }</span>
+<span class="pc bpc" id="L176" title="2 of 4 branches missed.">        require(publicKey.size &lt;= MAX_PUBLIC_KEY_BYTES) { &quot;Public key cannot exceed $MAX_PUBLIC_KEY_BYTES bytes&quot; }</span>
+<span class="fc" id="L177">    }</span>
+
+    /**
+     * Checks if user verification is required.
+     */
+<span class="nc bnc" id="L182" title="All 8 branches missed.">    fun isUserVerificationRequired(): Boolean = flags.isNotEmpty() &amp;&amp; ((flags[0].toInt() and FLAG_UV_MASK) != 0)</span>
+
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="pc bpc" id="L186" title="1 of 4 branches missed.">        if (javaClass != other?.javaClass) return false</span>
+
+<span class="fc" id="L188">        other as AuthenticatorData</span>
+
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        return rpIdHash.contentEquals(other.rpIdHash) &amp;&amp;</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">            flags.contentEquals(other.flags) &amp;&amp;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">            (counter == other.counter) &amp;&amp;</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            aaguid.contentEquals(other.aaguid) &amp;&amp;</span>
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            credentialId.contentEquals(other.credentialId) &amp;&amp;</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">            publicKey.contentEquals(other.publicKey)</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="fc" id="L199">        var result = rpIdHash.contentHashCode()</span>
+<span class="fc" id="L200">        result = (31 * result) + flags.contentHashCode()</span>
+<span class="fc" id="L201">        result = (31 * result) + counter.hashCode()</span>
+<span class="fc" id="L202">        result = (31 * result) + aaguid.contentHashCode()</span>
+<span class="fc" id="L203">        result = (31 * result) + credentialId.contentHashCode()</span>
+<span class="fc" id="L204">        result = (31 * result) + publicKey.contentHashCode()</span>
+<span class="fc" id="L205">        return result</span>
+    }
+
+    companion object {
+        private const val RP_ID_HASH_SIZE = 32
+        private const val FLAGS_SIZE = 1
+        private const val AAGUID_SIZE = 16
+        private const val MAX_CREDENTIAL_ID_SIZE = 1023
+        private const val FLAG_UV_MASK = 0x04
+
+        /** P-256 uncompressed point in COSE CBOR = ~77 bytes; ML-DSA-65 DER = ~1952 bytes → use 2048 as the cap. */
+        const val MAX_PUBLIC_KEY_BYTES = 2048
+
+        /**
+         * Creates a new AuthenticatorData with validation.
+         */
+<span class="fc" id="L221">        fun create(</span>
+            rpIdHash: ByteArray,
+<span class="fc" id="L223">            flags: ByteArray = byteArrayOf(0x00),</span>
+<span class="fc" id="L224">            counter: Long = 0L,</span>
+            aaguid: ByteArray,
+            credentialId: ByteArray,
+            publicKey: ByteArray,
+        ): AuthenticatorData =
+<span class="fc" id="L229">            AuthenticatorData(</span>
+<span class="fc" id="L230">                rpIdHash = rpIdHash,</span>
+<span class="fc" id="L231">                flags = flags,</span>
+<span class="fc" id="L232">                counter = counter,</span>
+<span class="fc" id="L233">                aaguid = aaguid,</span>
+<span class="fc" id="L234">                credentialId = credentialId,</span>
+<span class="fc" id="L235">                publicKey = publicKey,</span>
+<span class="fc" id="L236">            )</span>
+    }
+}
+
+/**
+ * Domain model representing AttestationStatement.
+ * This contains the attestation statement from the attestation object.
+ */
+<span class="fc" id="L244">data class AttestationStatement(</span>
+<span class="fc" id="L245">    val alg: Any,</span>
+<span class="fc" id="L246">    val fmt: String,</span>
+<span class="fc" id="L247">    val attCert: ByteArray?,</span>
+<span class="fc" id="L248">    val authData: ByteArray?,</span>
+<span class="fc" id="L249">    val x5c: List&lt;ByteArray&gt;?,</span>
+) {
+<span class="fc" id="L251">    init {</span>
+<span class="fc" id="L252">        validate()</span>
+<span class="fc" id="L253">    }</span>
+
+    /**
+     * Validates the AttestationStatement according to FIDO2 specifications.
+     */
+    fun validate() {
+        // Validate required fields
+        // Validate algorithm
+<span class="fc" id="L261">        when (alg) {</span>
+<span class="fc bfc" id="L262" title="All 2 branches covered.">            is String -&gt; {</span>
+<span class="fc bfc" id="L263" title="All 4 branches covered.">                require(alg.isNotBlank()) { &quot;Algorithm cannot be blank&quot; }</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">                require(alg in SUPPORTED_ALGORITHMS) {</span>
+<span class="fc" id="L265">                    &quot;Algorithm must be a valid signature algorithm string&quot;</span>
+                }
+            }
+<span class="pc bpc" id="L268" title="1 of 4 branches missed.">            is Int, is Long -&gt; {</span>
+<span class="fc" id="L269">                val algInt = (alg as Number).toInt()</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">                require(algInt in SUPPORTED_COSE_ALGORITHMS) {</span>
+<span class="fc" id="L271">                    &quot;Algorithm must be a valid COSE algorithm identifier&quot;</span>
+                }
+            }
+<span class="nc" id="L274">            else -&gt; throw IllegalArgumentException(&quot;Algorithm must be a String or Integer&quot;)</span>
+        }
+
+        // Validate format
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        require(fmt in SUPPORTED_FORMATS) {</span>
+<span class="fc" id="L279">            &quot;Format must be one of: ${SUPPORTED_FORMATS.joinToString()}&quot;</span>
+        }
+
+        // Validate optional fields
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        attCert?.let { cert -&gt;</span>
+<span class="fc bfc" id="L284" title="All 6 branches covered.">            require(cert.isNotEmpty()) { &quot;Attestation certificate cannot be empty if provided&quot; }</span>
+<span class="fc bfc" id="L285" title="All 4 branches covered.">            require(cert.size &lt;= MAX_CERT_SIZE) { &quot;Attestation certificate cannot exceed $MAX_CERT_SIZE bytes&quot; }</span>
+<span class="fc" id="L286">        }</span>
+
+<span class="fc bfc" id="L288" title="All 2 branches covered.">        authData?.let { auth -&gt;</span>
+<span class="fc bfc" id="L289" title="All 6 branches covered.">            require(auth.isNotEmpty()) { &quot;Auth data cannot be empty if provided&quot; }</span>
+<span class="fc bfc" id="L290" title="All 4 branches covered.">            require(auth.size &lt;= MAX_AUTH_DATA_BYTES) { &quot;Auth data cannot exceed $MAX_AUTH_DATA_BYTES bytes&quot; }</span>
+<span class="fc" id="L291">        }</span>
+
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        x5c?.let { chain -&gt;</span>
+<span class="fc bfc" id="L294" title="All 4 branches covered.">            require(chain.isNotEmpty()) { &quot;X5C chain cannot be empty if provided&quot; }</span>
+<span class="fc bfc" id="L295" title="All 4 branches covered.">            require(chain.size &lt;= MAX_X5C_CHAIN_SIZE) { &quot;X5C chain cannot exceed $MAX_X5C_CHAIN_SIZE certificates&quot; }</span>
+<span class="fc" id="L296">            chain.forEach { cert -&gt;</span>
+<span class="fc bfc" id="L297" title="All 6 branches covered.">                require(cert.isNotEmpty()) { &quot;Certificate in chain cannot be empty&quot; }</span>
+<span class="fc bfc" id="L298" title="All 4 branches covered.">                require(cert.size &lt;= MAX_CERT_SIZE) { &quot;Certificate in chain cannot exceed $MAX_CERT_SIZE bytes&quot; }</span>
+<span class="fc" id="L299">            }</span>
+<span class="fc" id="L300">        }</span>
+<span class="fc" id="L301">    }</span>
+
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="pc bpc" id="L305" title="2 of 4 branches missed.">        if (javaClass != other?.javaClass) return false</span>
+
+<span class="fc" id="L307">        other as AttestationStatement</span>
+
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        if (alg != other.alg) return false</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">        if (fmt != other.fmt) return false</span>
+<span class="pc bpc" id="L311" title="1 of 2 branches missed.">        if (attCert != null) {</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">            if (other.attCert == null) return false</span>
+<span class="fc bfc" id="L313" title="All 2 branches covered.">            if (!attCert.contentEquals(other.attCert)) return false</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        } else if (other.attCert != null) {</span>
+<span class="nc" id="L315">            return false</span>
+        }
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        if (authData != null) {</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (other.authData == null) return false</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">            if (!authData.contentEquals(other.authData)) return false</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        } else if (other.authData != null) {</span>
+<span class="nc" id="L321">            return false</span>
+        }
+
+<span class="pc bpc" id="L324" title="1 of 2 branches missed.">        if (x5c != null) {</span>
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            if (other.x5c == null) return false</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">            if (x5c.size != other.x5c.size) return false</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">            for (i in x5c.indices) {</span>
+<span class="fc bfc" id="L328" title="All 2 branches covered.">                if (!x5c[i].contentEquals(other.x5c[i])) return false</span>
+            }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        } else if (other.x5c != null) {</span>
+<span class="nc" id="L331">            return false</span>
+        }
+
+<span class="fc" id="L334">        return true</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="fc" id="L338">        var result = alg.hashCode()</span>
+<span class="fc" id="L339">        result = 31 * result + (fmt.hashCode())</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        result = 31 * result + (attCert?.contentHashCode() ?: 0)</span>
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        result = 31 * result + (authData?.contentHashCode() ?: 0)</span>
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">        result = 31 * result + (x5c?.fold(1) { acc, bytes -&gt; 31 * acc + bytes.contentHashCode() } ?: 0)</span>
+<span class="fc" id="L343">        return result</span>
+    }
+
+    companion object {
+        // Standard COSE Signature Algorithms
+        const val COSE_ALG_ES256 = -7
+        const val COSE_ALG_ES384 = -35
+        const val COSE_ALG_ES512 = -36
+        const val COSE_ALG_PS256 = -37
+        const val COSE_ALG_PS384 = -38
+        const val COSE_ALG_PS512 = -39
+        const val COSE_ALG_EDDSA = -8
+        const val COSE_ALG_ED25519 = -19
+        const val COSE_ALG_ML_DSA_65 = -49
+        const val COSE_ALG_RS256 = -257
+
+        private val SUPPORTED_ALGORITHMS =
+<span class="fc" id="L360">            setOf(</span>
+<span class="fc" id="L361">                &quot;ES256&quot;,</span>
+<span class="fc" id="L362">                &quot;RS256&quot;,</span>
+<span class="fc" id="L363">                &quot;RS1&quot;,</span>
+<span class="fc" id="L364">                &quot;ES384&quot;,</span>
+<span class="fc" id="L365">                &quot;RS384&quot;,</span>
+<span class="fc" id="L366">                &quot;ES512&quot;,</span>
+<span class="fc" id="L367">                &quot;RS512&quot;,</span>
+<span class="fc" id="L368">                &quot;EdDSA&quot;,</span>
+<span class="fc" id="L369">                &quot;Ed25519&quot;,</span>
+<span class="fc" id="L370">                &quot;none&quot;,</span>
+            )
+
+        private val SUPPORTED_COSE_ALGORITHMS =
+<span class="fc" id="L374">            setOf(</span>
+<span class="fc" id="L375">                COSE_ALG_ES256,</span>
+<span class="fc" id="L376">                COSE_ALG_ES384,</span>
+<span class="fc" id="L377">                COSE_ALG_ES512,</span>
+<span class="fc" id="L378">                COSE_ALG_PS256,</span>
+<span class="fc" id="L379">                COSE_ALG_PS384,</span>
+<span class="fc" id="L380">                COSE_ALG_PS512,</span>
+<span class="fc" id="L381">                COSE_ALG_EDDSA,</span>
+<span class="fc" id="L382">                COSE_ALG_ED25519,</span>
+<span class="fc" id="L383">                COSE_ALG_ML_DSA_65,</span>
+<span class="fc" id="L384">                COSE_ALG_RS256,</span>
+            )
+
+        private val SUPPORTED_FORMATS =
+<span class="fc" id="L388">            setOf(</span>
+<span class="fc" id="L389">                &quot;packed&quot;,</span>
+<span class="fc" id="L390">                &quot;fido-u2f&quot;,</span>
+<span class="fc" id="L391">                &quot;none&quot;,</span>
+<span class="fc" id="L392">                &quot;android-safetynet&quot;,</span>
+<span class="fc" id="L393">                &quot;android-key&quot;,</span>
+<span class="fc" id="L394">                &quot;attCA&quot;,</span>
+            )
+
+        // ML-DSA-65 signatures are 3309 bytes; 4096 covers all current PQC schemes
+        private const val MAX_CERT_SIZE = 4096
+        private const val MAX_X5C_CHAIN_SIZE = 10
+        const val MAX_AUTH_DATA_BYTES = 4096
+
+        /**
+         * Creates a new AttestationStatement with validation.
+         */
+<span class="fc" id="L405">        fun create(</span>
+<span class="fc" id="L406">            alg: Any = COSE_ALG_ES256,</span>
+<span class="fc" id="L407">            fmt: String = &quot;packed&quot;,</span>
+<span class="fc" id="L408">            attCert: ByteArray? = null,</span>
+<span class="fc" id="L409">            authData: ByteArray? = null,</span>
+<span class="fc" id="L410">            x5c: List&lt;ByteArray&gt;? = null,</span>
+        ): AttestationStatement =
+<span class="fc" id="L412">            AttestationStatement(</span>
+<span class="fc" id="L413">                alg = alg,</span>
+<span class="fc" id="L414">                fmt = fmt,</span>
+<span class="fc" id="L415">                attCert = attCert,</span>
+<span class="fc" id="L416">                authData = authData,</span>
+<span class="fc" id="L417">                x5c = x5c,</span>
+<span class="fc" id="L418">            )</span>
+
+        /**
+         * Creates a &quot;none&quot; attestation statement.
+         */
+        fun createNone(): AttestationStatement =
+<span class="fc" id="L424">            AttestationStatement(</span>
+<span class="fc" id="L425">                alg = &quot;none&quot;,</span>
+<span class="fc" id="L426">                fmt = &quot;none&quot;,</span>
+<span class="fc" id="L427">                attCert = null,</span>
+<span class="fc" id="L428">                authData = null,</span>
+<span class="fc" id="L429">                x5c = null,</span>
+<span class="fc" id="L430">            )</span>
+    }
+}
+
+/**
+ * Domain model representing ClientData.
+ * This contains the client data from the attestation object.
+ */
+<span class="fc" id="L438">class ClientData private constructor(</span>
+<span class="fc" id="L439">    val type: String,</span>
+<span class="fc" id="L440">    val challenge: ByteArray,</span>
+<span class="fc" id="L441">    private val originOwner: SensitiveCredentialText,</span>
+<span class="fc" id="L442">    val isCrossOrigin: Boolean,</span>
+<span class="pc" id="L443">    val timestamp: Instant,</span>
+) {
+    /** Copies a compatibility origin into a mutable owner; production uses createFromText. */
+    constructor(type: String, challenge: ByteArray, origin: String, isCrossOrigin: Boolean, timestamp: Instant) :
+<span class="fc" id="L447">        this(type, challenge, SensitiveCredentialText.copyOf(origin), isCrossOrigin, timestamp)</span>
+
+    /** Creates the minimum compatibility/display origin; internal processing borrows originText. */
+<span class="fc" id="L450">    val origin: String get() = originOwner.toBoundaryString()</span>
+
+    /** Borrows the live result-owned origin until the response owner is released. */
+<span class="fc" id="L453">    internal val originText: CharSequence get() = originOwner</span>
+
+<span class="fc" id="L455">    init {</span>
+<span class="fc" id="L456">        try {</span>
+<span class="fc" id="L457">            validate()</span>
+<span class="nc" id="L458">        } catch (failure: IllegalArgumentException) {</span>
+<span class="nc" id="L459">            originOwner.erase()</span>
+<span class="nc" id="L460">            throw failure</span>
+        }
+<span class="fc" id="L462">    }</span>
+
+    /** Erases the origin owned by this response sidecar; the challenge remains a public binding. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L466">    fun eraseSensitiveText() = originOwner.erase()</span>
+
+    /** Redacts the origin in diagnostic formatting. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L470">    override fun toString(): String = &quot;ClientData([origin redacted])&quot;</span>
+
+    /**
+     * Validates the ClientData according to FIDO2 specifications.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun validate() {
+        // Validate required fields
+<span class="pc bpc" id="L478" title="2 of 4 branches missed.">        require(type.isNotBlank()) { &quot;Type cannot be blank&quot; }</span>
+<span class="pc bpc" id="L479" title="3 of 6 branches missed.">        require(challenge.isNotEmpty()) { &quot;Challenge cannot be empty&quot; }</span>
+<span class="pc bpc" id="L480" title="2 of 4 branches missed.">        require(challenge.size &lt;= MAX_CHALLENGE_SIZE) { &quot;Challenge cannot exceed $MAX_CHALLENGE_SIZE bytes&quot; }</span>
+<span class="pc bpc" id="L481" title="2 of 4 branches missed.">        require(originOwner.isNotBlank()) { &quot;Origin cannot be blank&quot; }</span>
+<span class="pc bpc" id="L482" title="1 of 2 branches missed.">        require(RelyingParty.isValidRpId(originOwner)) {</span>
+<span class="nc" id="L483">            &quot;Origin must be a valid domain or HTTPS origin&quot;</span>
+        }
+
+        // Validate timestamp
+<span class="pc bpc" id="L487" title="1 of 2 branches missed.">        require(</span>
+<span class="pc bpc" id="L488" title="1 of 2 branches missed.">            timestamp &lt;= Instant.fromEpochMilliseconds(System.currentTimeMillis()) + FUTURE_GRACE_PERIOD,</span>
+        ) {
+<span class="nc" id="L490">            &quot;Timestamp cannot be more than $FUTURE_GRACE_PERIOD_SECONDS seconds in the future&quot;</span>
+        }
+<span class="fc" id="L492">    }</span>
+
+    /** Compares the owned origin and public binding fields without plaintext String copies. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean {
+<span class="nc bnc" id="L497" title="All 2 branches missed.">        if (this === other) return true</span>
+<span class="nc bnc" id="L498" title="All 4 branches missed.">        if (javaClass != other?.javaClass) return false</span>
+
+<span class="nc" id="L500">        other as ClientData</span>
+
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        return (type == other.type) &amp;&amp;</span>
+<span class="nc bnc" id="L503" title="All 2 branches missed.">            challenge.contentEquals(other.challenge) &amp;&amp;</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">            (originOwner == other.originOwner) &amp;&amp;</span>
+<span class="nc bnc" id="L505" title="All 2 branches missed.">            (isCrossOrigin == other.isCrossOrigin) &amp;&amp;</span>
+<span class="nc bnc" id="L506" title="All 2 branches missed.">            (timestamp == other.timestamp)</span>
+    }
+
+    /** Hashes the same fields compared by equals without materializing origin text. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun hashCode(): Int {
+<span class="nc" id="L512">        var result = type.hashCode()</span>
+<span class="nc" id="L513">        result = (31 * result) + challenge.contentHashCode()</span>
+<span class="nc" id="L514">        result = (31 * result) + originOwner.hashCode()</span>
+<span class="nc" id="L515">        result = (31 * result) + isCrossOrigin.hashCode()</span>
+<span class="nc" id="L516">        result = (31 * result) + timestamp.hashCode()</span>
+<span class="nc" id="L517">        return result</span>
+    }
+
+    companion object {
+        private const val MAX_CHALLENGE_SIZE = 64
+        private const val FUTURE_GRACE_PERIOD_SECONDS = 60
+<span class="fc" id="L523">        private val FUTURE_GRACE_PERIOD = FUTURE_GRACE_PERIOD_SECONDS.seconds</span>
+        private const val TYPE_CREATE = &quot;webauthn.create&quot;
+
+        /** Copies borrowed RP text into the result owner without constructing immutable application text. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L528">        fun createFromText(</span>
+<span class="nc" id="L529">            type: String = TYPE_CREATE,</span>
+            challenge: ByteArray,
+            origin: CharSequence,
+<span class="fc" id="L532">            isCrossOrigin: Boolean = false,</span>
+        ): ClientData =
+<span class="fc" id="L534">            ClientData(</span>
+<span class="fc" id="L535">                type,</span>
+<span class="fc" id="L536">                challenge,</span>
+<span class="fc" id="L537">                SensitiveCredentialText.copyOf(origin),</span>
+<span class="fc" id="L538">                isCrossOrigin,</span>
+<span class="fc" id="L539">                Instant.fromEpochMilliseconds(System.currentTimeMillis()),</span>
+<span class="fc" id="L540">            )</span>
+
+        /**
+         * Creates a new ClientData with validation.
+         */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L546">        fun create(</span>
+<span class="fc" id="L547">            type: String = TYPE_CREATE,</span>
+            challenge: ByteArray,
+            origin: String,
+<span class="fc" id="L550">            isCrossOrigin: Boolean = false,</span>
+        ): ClientData =
+<span class="fc" id="L552">            ClientData(</span>
+<span class="fc" id="L553">                type = type,</span>
+<span class="fc" id="L554">                challenge = challenge,</span>
+<span class="fc" id="L555">                origin = origin,</span>
+<span class="fc" id="L556">                isCrossOrigin = isCrossOrigin,</span>
+<span class="fc" id="L557">                timestamp = Instant.fromEpochMilliseconds(System.currentTimeMillis()),</span>
+<span class="fc" id="L558">            )</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

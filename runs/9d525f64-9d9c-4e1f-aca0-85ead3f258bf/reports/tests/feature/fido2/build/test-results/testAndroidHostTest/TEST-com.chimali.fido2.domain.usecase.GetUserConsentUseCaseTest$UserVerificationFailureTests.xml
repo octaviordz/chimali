@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$UserVerificationFailureTests" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:43.040Z" hostname="LOQ15IRX10-3" time="0.073">
+  <properties/>
+  <testcase name="should fail when no verification method is available()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$UserVerificationFailureTests" time="0.037"/>
+  <testcase name="should fail when consent storage fails()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$UserVerificationFailureTests" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:57.686Z" hostname="LOQ15IRX10-3" time="1.834">
+  <properties/>
+  <testcase name="[1] verify" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.136"/>
+  <testcase name="[2] cancel" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.086"/>
+  <testcase name="[3] replacement" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.037"/>
+  <testcase name="[4] teardown" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.035"/>
+  <testcase name="duplicate success and stale failure cannot interrupt a processing registration()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.116"/>
+  <testcase name="cancelled pending response cannot authorize registration on immediate dispatch()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.095"/>
+  <testcase name="cancelled request cannot be revived by delayed verification availability()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.095"/>
+  <testcase name="request dispatch and cancellation diagnostics omit RP and account input()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.07"/>
+  <testcase name="cancelled CTAP registration response cancels its ViewModel owner()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.056"/>
+  <testcase name="foreground loss cancels pending verification and completes CTAP without starting registration()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.062"/>
+  <testcase name="external terminal error cancels pending verification ownership()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.05"/>
+  <testcase name="[1] cancel" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.138"/>
+  <testcase name="[2] external-cancel" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.102"/>
+  <testcase name="[3] external-error" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.108"/>
+  <testcase name="retry cannot revive a completed registration request()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.074"/>
+  <testcase name="late verification after wallet fencing cannot enter a new registration owner()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.103"/>
+  <testcase name="stale verification callback cannot authorize replacement registration()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.056"/>
+  <testcase name="successful transport result and UI state own independent credential metadata()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.068"/>
+  <testcase name="obsolete presenter cleanup preserves a waiting successor request()" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.058"/>
+  <testcase name="[1] success" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.119"/>
+  <testcase name="[2] error" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.071"/>
+  <testcase name="[3] verification-failed" classname="com.chimali.fido2.integration.RegistrationOwnerIntegrationTest" time="0.065"/>
+  <system-out><![CDATA[Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: Registration request received
+Debug: Ignoring incoming RegistrationRequested — current state: Cancelled
+Error: Registration process failed
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: Registration request received
+Debug: Ignoring incoming RegistrationRequested — current state: Cancelled
+Error: Registration process failed
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: Registration request received
+Debug: Ignoring incoming RegistrationRequested — current state: Cancelled
+Error: Registration process failed
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Error: Registration process failed
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: Registration request received
+Debug: Ignoring incoming RegistrationRequested — current state: AwaitingUserConsent
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: Pending registration request restored
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: Registration request received
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.model.ConsentSummaryOwnershipTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:36.918Z" hostname="LOQ15IRX10-3" time="0.014">
+  <properties/>
+  <testcase name="summary copies RP ownership without altering public identity on disposal()" classname="com.chimali.core.domain.model.ConsentSummaryOwnershipTest" time="0.007"/>
+  <testcase name="consent owns an independent RP copy and erases it without changing its borrowed input()" classname="com.chimali.core.domain.model.ConsentSummaryOwnershipTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

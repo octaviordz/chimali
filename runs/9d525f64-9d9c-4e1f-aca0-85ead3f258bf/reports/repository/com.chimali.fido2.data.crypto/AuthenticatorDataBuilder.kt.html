@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticatorDataBuilder.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">AuthenticatorDataBuilder.kt</span></div><h1>AuthenticatorDataBuilder.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import co.touchlab.kermit.Logger
+import org.koin.core.annotation.Single
+
+private const val AUTH_DATA_MIN_LENGTH = 37 // rpIdHash(32) + flags(1) + counter(4)
+
+/**
+ * T092 — Builds CTAP2 authenticatorData byte arrays.
+ *
+ * AuthenticatorData layout (FIDO2 spec §6.1):
+ * ```
+ * rpIdHash   [32 bytes]   SHA-256 of the RP ID
+ * flags      [ 1 byte ]   UP | RFU | UV | BE | BS | RFU | AT | ED
+ * signCount  [ 4 bytes]   big-endian uint32
+ * [attestedCredentialData]   present only during MakeCredential (AT flag set)
+ * [extensions]               present only when ED flag set
+ * ```
+ *
+ * Flag bits:
+ * - 0x01 (UP)  User Present
+ * - 0x04 (UV)  User Verified
+ * - 0x08 (BE)  Backup Eligible
+ * - 0x10 (BS)  Backup State
+ * - 0x40 (AT)  Attested Credential Data present (MakeCredential only)
+ * - 0x80 (ED)  Extension Data present
+ */
+<span class="nc" id="L28">@Single</span>
+class AuthenticatorDataBuilder {
+    // ── Assertion (GetAssertion) ───────────────────────────────────────────────
+
+    /**
+     * Builds a 37-byte authenticatorData for GetAssertion responses.
+     *
+     * @param rpId         Relying Party ID — SHA-256'd into rpIdHash.
+     * @param userPresent  True when UP flag should be set (CTAP§6.2: always true for HID).
+     * @param userVerified True when UV flag should be set (biometric/PIN was performed).
+     * @param signCount    Current sign count, incremented before calling this.
+     * @param extensions   Optional CBOR-encoded extension data (not yet wired; reserved).
+     */
+<span class="nc" id="L41">    fun buildAssertionAuthData(</span>
+        rpId: String,
+<span class="nc" id="L43">        userPresent: Boolean = true,</span>
+<span class="nc" id="L44">        userVerified: Boolean = false,</span>
+        signCount: Long,
+<span class="nc" id="L46">        extensions: ByteArray? = null,</span>
+    ): ByteArray {
+<span class="nc" id="L48">        Logger.d { &quot;Building assertion authData for rpId=$rpId signCount=$signCount&quot; }</span>
+<span class="nc" id="L49">        val rpIdHash = rpIdHash(rpId)</span>
+<span class="nc" id="L50">        val flags =</span>
+<span class="nc" id="L51">            assembleFlags(</span>
+<span class="nc" id="L52">                up = userPresent,</span>
+<span class="nc" id="L53">                uv = userVerified,</span>
+<span class="nc" id="L54">                at = false,</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">                ed = extensions != null,</span>
+            )
+<span class="nc" id="L57">        return rpIdHash + byteArrayOf(flags) + encodeCounter(signCount) +</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            (extensions ?: ByteArray(0))</span>
+    }
+
+    // ── Attestation (MakeCredential) ──────────────────────────────────────────
+
+    /**
+     * Builds authenticatorData for MakeCredential responses.
+     * Includes attestedCredentialData (credentialId + COSE public key).
+     *
+     * @param rpId          Relying Party ID.
+     * @param userPresent   UP flag.
+     * @param userVerified  UV flag.
+     * @param signCount     Starts at 0 for new credentials.
+     * @param aaguid        16-byte Authenticator Attestation GUID.
+     * @param credentialId  The credential ID bytes.
+     * @param cosePublicKey CBOR-encoded COSE public key.
+     * @param extensions    Optional CBOR extension data.
+     */
+<span class="nc" id="L76">    fun buildAttestationAuthData(</span>
+        rpId: String,
+<span class="nc" id="L78">        userPresent: Boolean = true,</span>
+<span class="nc" id="L79">        userVerified: Boolean = false,</span>
+<span class="nc" id="L80">        signCount: Long = 0L,</span>
+        aaguid: ByteArray,
+        credentialId: ByteArray,
+        cosePublicKey: ByteArray,
+<span class="nc" id="L84">        extensions: ByteArray? = null,</span>
+    ): ByteArray {
+<span class="nc" id="L86">        Logger.d { &quot;Building attestation authData for rpId=$rpId credLen=${credentialId.size}&quot; }</span>
+<span class="nc bnc" id="L87" title="All 4 branches missed.">        require(aaguid.size == AAGUID_SIZE) { &quot;AAGUID must be $AAGUID_SIZE bytes&quot; }</span>
+
+<span class="nc" id="L89">        val rpIdHash = rpIdHash(rpId)</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        val flags = assembleFlags(up = userPresent, uv = userVerified, at = true, ed = extensions != null)</span>
+<span class="nc" id="L91">        val attestedCredData = buildAttestedCredentialData(aaguid, credentialId, cosePublicKey)</span>
+
+<span class="nc" id="L93">        return rpIdHash + byteArrayOf(flags) + encodeCounter(signCount) +</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            attestedCredData + (extensions ?: ByteArray(0))</span>
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private fun rpIdHash(rpId: String): ByteArray =
+        java.security.MessageDigest
+<span class="nc" id="L101">            .getInstance(&quot;SHA-256&quot;)</span>
+<span class="nc" id="L102">            .digest(rpId.toByteArray(Charsets.UTF_8))</span>
+
+    private fun assembleFlags(
+        up: Boolean,
+        uv: Boolean,
+        at: Boolean,
+        ed: Boolean,
+    ): Byte {
+<span class="nc" id="L110">        var flags = 0</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (up) flags = flags or FLAG_UP</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (uv) flags = flags or FLAG_UV</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (at) flags = flags or FLAG_AT</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (ed) flags = flags or FLAG_ED</span>
+<span class="nc" id="L115">        return flags.toByte()</span>
+    }
+
+    private fun encodeCounter(signCount: Long): ByteArray =
+        byteArrayOf(
+<span class="nc" id="L120">            ((signCount shr SHIFT_24) and MASK_BYTE_LONG).toByte(),</span>
+<span class="nc" id="L121">            ((signCount shr SHIFT_16) and MASK_BYTE_LONG).toByte(),</span>
+<span class="nc" id="L122">            ((signCount shr SHIFT_8) and MASK_BYTE_LONG).toByte(),</span>
+<span class="nc" id="L123">            (signCount and MASK_BYTE_LONG).toByte(),</span>
+<span class="nc" id="L124">        )</span>
+
+    /**
+     * Builds the attestedCredentialData section per FIDO2 §6.5.2:
+     * aaguid (16) | credentialIdLength (2, BE) | credentialId (n) | credentialPublicKey (CBOR)
+     */
+    private fun buildAttestedCredentialData(
+        aaguid: ByteArray,
+        credentialId: ByteArray,
+        cosePublicKey: ByteArray,
+    ): ByteArray {
+<span class="nc" id="L135">        val credIdLen =</span>
+            byteArrayOf(
+<span class="nc" id="L137">                ((credentialId.size shr SHIFT_8) and MASK_BYTE).toByte(),</span>
+<span class="nc" id="L138">                (credentialId.size and MASK_BYTE).toByte(),</span>
+            )
+<span class="nc" id="L140">        return aaguid + credIdLen + credentialId + cosePublicKey</span>
+    }
+
+    companion object {
+        private const val FLAG_UP = 0x01
+        private const val FLAG_UV = 0x04
+        private const val FLAG_AT = 0x40
+        private const val FLAG_ED = 0x80
+
+        private const val MASK_BYTE = 0xFF
+        private const val MASK_BYTE_LONG = 0xFFL
+        private const val SHIFT_24 = 24
+        private const val SHIFT_16 = 16
+        private const val SHIFT_8 = 8
+
+        private const val AAGUID_SIZE = 16
+
+<span class="nc" id="L157">        fun minimumAuthDataLength() = AUTH_DATA_MIN_LENGTH</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

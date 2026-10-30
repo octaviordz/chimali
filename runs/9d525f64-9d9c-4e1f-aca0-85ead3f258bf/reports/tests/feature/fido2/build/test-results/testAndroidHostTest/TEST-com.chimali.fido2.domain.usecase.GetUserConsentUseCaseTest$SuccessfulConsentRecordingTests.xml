@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:42.899Z" hostname="LOQ15IRX10-3" time="0.14">
+  <properties/>
+  <testcase name="should successfully record consent with biometric verification()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" time="0.049"/>
+  <testcase name="should successfully record consent without verification when not required()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" time="0.021"/>
+  <testcase name="should successfully record consent without credential id()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" time="0.018"/>
+  <testcase name="should use custom prompt when provided()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" time="0.019"/>
+  <testcase name="should successfully record consent with pin verification()" classname="com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$SuccessfulConsentRecordingTests" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MainActivity.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.chimali</a> &gt; <span class="el_source">MainActivity.kt</span></div><h1>MainActivity.kt</h1><pre class="source lang-java linenums">package com.chimali
+
+import android.Manifest
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.fragment.app.FragmentActivity
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.navigation.AppNavGraph
+import org.koin.android.ext.android.inject
+
+/** Hosts the wallet UI and owns only foreground reveal/import session access. */
+<span class="fc" id="L19">class MainActivity : FragmentActivity() {</span>
+    companion object {
+        private const val TAG = &quot;Chimali:MainActivity&quot;
+    }
+
+<span class="fc" id="L24">    private val masterSeedProvider: MasterSeedProvider by inject()</span>
+
+    private val requestPermissionLauncher =
+<span class="fc" id="L27">        registerForActivityResult(</span>
+<span class="fc" id="L28">            ActivityResultContracts.RequestMultiplePermissions(),</span>
+<span class="fc" id="L29">        ) { permissions -&gt;</span>
+<span class="nc" id="L30">            val allGranted = permissions.entries.all { it.value }</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">            if (allGranted) {</span>
+<span class="nc" id="L32">                android.util.Log.i(TAG, &quot;All startup permissions granted (Nearby Devices flow).&quot;)</span>
+            } else {
+<span class="nc" id="L34">                android.util.Log.w(TAG, &quot;Some permissions denied at startup: $permissions&quot;)</span>
+            }
+<span class="nc" id="L36">        }</span>
+
+    /**
+     * Requests startup permissions and installs the app navigation content.
+     * @param savedInstanceState Android's restored state, if present.
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+<span class="fc" id="L43">        super.onCreate(savedInstanceState)</span>
+
+        // T191a: Request mandatory permissions for Bluetooth HID functionality at startup.
+        // - Android 13+ (TIRAMISU, API 33): Requires 'Nearby Devices' + 'Notifications' for the foreground service.
+        // - Android 12 (S, API 31): Requires 'Nearby Devices' group only.
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.TIRAMISU) {</span>
+<span class="fc" id="L49">            android.util.Log.d(TAG, &quot;Launching Nearby Devices + Notifications permission request...&quot;)</span>
+<span class="fc" id="L50">            requestPermissionLauncher.launch(</span>
+                arrayOf(
+<span class="fc" id="L52">                    Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+<span class="fc" id="L53">                    Manifest.permission.BLUETOOTH_CONNECT,</span>
+<span class="fc" id="L54">                    Manifest.permission.BLUETOOTH_SCAN,</span>
+<span class="fc" id="L55">                    Manifest.permission.POST_NOTIFICATIONS,</span>
+                ),
+            )
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        } else if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.S) {</span>
+<span class="nc" id="L59">            android.util.Log.d(TAG, &quot;Launching Nearby Devices permission request...&quot;)</span>
+<span class="nc" id="L60">            requestPermissionLauncher.launch(</span>
+                arrayOf(
+<span class="nc" id="L62">                    Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+<span class="nc" id="L63">                    Manifest.permission.BLUETOOTH_CONNECT,</span>
+<span class="nc" id="L64">                    Manifest.permission.BLUETOOTH_SCAN,</span>
+                ),
+            )
+        } else {
+            // Legacy permissions for Bluetooth and Location on older devices
+<span class="nc" id="L69">            android.util.Log.d(TAG, &quot;Requesting legacy Bluetooth/Location permissions...&quot;)</span>
+<span class="nc" id="L70">            requestPermissionLauncher.launch(</span>
+                arrayOf(
+<span class="nc" id="L72">                    Manifest.permission.BLUETOOTH,</span>
+<span class="nc" id="L73">                    Manifest.permission.ACCESS_FINE_LOCATION,</span>
+                ),
+            )
+        }
+
+<span class="fc" id="L78">        setContent {</span>
+<span class="fc" id="L79">            MaterialTheme {</span>
+<span class="fc" id="L80">                Surface(</span>
+<span class="fc" id="L81">                    modifier = Modifier.fillMaxSize(),</span>
+<span class="fc" id="L82">                    color = MaterialTheme.colorScheme.background,</span>
+<span class="fc" id="L83">                ) {</span>
+<span class="fc" id="L84">                    AppNavGraph(modifier = Modifier.fillMaxSize())</span>
+<span class="fc" id="L85">                }</span>
+<span class="fc" id="L86">            }</span>
+<span class="fc" id="L87">        }</span>
+<span class="fc" id="L88">    }</span>
+
+    /** Cancels foreground seed owners when the UI stops; active HID ceremonies retain their own owner. */
+    override fun onStop() {
+        // Foreground reveal/import owners end when the app is no longer visible. Active HID
+        // authenticator owners remain independently bounded to their admitted ceremony.
+<span class="fc" id="L94">        masterSeedProvider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)</span>
+<span class="fc" id="L95">        super.onStop()</span>
+<span class="fc" id="L96">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

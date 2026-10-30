@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EntityMappers.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.mapper</a> &gt; <span class="el_source">EntityMappers.kt</span></div><h1>EntityMappers.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.mapper
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.domain.model.CredentialProtectionPolicy
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.SensitiveText
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.fido2.data.crypto.PublicKeyDecoder
+import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
+import com.chimali.fido2.data.database.Relying_party as RelyingPartyEntity
+import com.chimali.fido2.data.database.User_consent_record as UserConsentRecordEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import com.chimali.fido2.domain.model.decodeSensitiveText
+import com.chimali.fido2.domain.util.matchesCredentialId
+import java.util.Base64
+import kotlinx.coroutines.CancellationException
+import kotlinx.datetime.Instant
+
+/** Reconstructs current records, containing malformed storage as a redacted typed error. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun PasskeyCredentialEntity.toDomainModel(
+    decoder: PublicKeyDecoder,
+    metadataProtectionService: CredentialMetadataProtectionService,
+): Outcome&lt;PasskeyCredential, DomainError.CryptoError&gt; =
+<span class="fc" id="L32">    toDomainModelWithTextDecoder(decoder, metadataProtectionService, SensitiveCredentialText::fromUtf8Bytes)</span>
+
+/** Runs row hydration with the production text decoder, exposed internally for retained-owner verification. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal fun PasskeyCredentialEntity.toDomainModelWithTextDecoder(
+    decoder: PublicKeyDecoder,
+    metadataProtectionService: CredentialMetadataProtectionService,
+    textDecoder: (ByteArray) -&gt; SensitiveCredentialText,
+): Outcome&lt;PasskeyCredential, DomainError.CryptoError&gt; =
+<span class="fc" id="L41">    try {</span>
+<span class="fc" id="L42">        mapCredentialRecord(decoder, metadataProtectionService, textDecoder)</span>
+<span class="fc" id="L43">    } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L44">        throw cancellation</span>
+<span class="fc" id="L45">    } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="fc" id="L46">        malformedCredentialRecord()</span>
+<span class="fc" id="L47">    } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L48">        malformedCredentialRecord()</span>
+<span class="nc" id="L49">    } catch (_: IllegalStateException) {</span>
+<span class="nc" id="L50">        malformedCredentialRecord()</span>
+    } finally {
+<span class="fc" id="L52">        eraseSensitiveMetadata()</span>
+<span class="fc" id="L53">    }</span>
+
+/** Erases the mutable text byte buffers owned by this SQLDelight projection row. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun PasskeyCredentialEntity.eraseSensitiveMetadata() {
+<span class="fc" id="L58">    rp_id.fill(0)</span>
+<span class="fc" id="L59">    rp_name.fill(0)</span>
+<span class="fc" id="L60">    user_display_name.fill(0)</span>
+<span class="fc" id="L61">    user_id.fill(0)</span>
+<span class="fc" id="L62">    user_name.fill(0)</span>
+<span class="fc" id="L63">}</span>
+
+private fun malformedCredentialRecord(): Outcome.Error&lt;DomainError.CryptoError&gt; =
+<span class="fc" id="L66">    Outcome.Error(DomainError.CryptoError(&quot;Malformed credential record&quot;))</span>
+
+private fun requireAuditTimestampOrder(
+    createdAt: Long,
+    updatedAt: Long,
+    priorActivityAt: Long?,
+    recordLabel: String,
+) {
+<span class="fc bfc" id="L74" title="All 6 branches covered.">    if (updatedAt &lt; createdAt || (priorActivityAt != null &amp;&amp; updatedAt &lt; priorActivityAt)) {</span>
+<span class="fc" id="L75">        throw IllegalArgumentException(recordLabel)</span>
+    }
+<span class="fc" id="L77">}</span>
+
+private fun PasskeyCredentialEntity.mapCredentialRecord(
+    decoder: PublicKeyDecoder,
+    metadataProtectionService: CredentialMetadataProtectionService,
+    textDecoder: (ByteArray) -&gt; SensitiveCredentialText,
+): Outcome&lt;PasskeyCredential, DomainError.CryptoError&gt; {
+<span class="fc" id="L84">    requireAuditTimestampOrder(created_at, updated_at, last_used_at, &quot;Malformed credential record&quot;)</span>
+<span class="fc bfc" id="L85" title="All 4 branches covered.">    require(cose_algorithm == cose_algorithm.toInt().toLong()) { &quot;Invalid persisted algorithm value&quot; }</span>
+<span class="fc" id="L86">    val id = CredentialId.fromEncoded(this.id)</span>
+<span class="fc" id="L87">    val credentialId = CredentialId.fromEncoded(credential_id)</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">    require(id.matchesCredentialId(credentialId)) { &quot;Inconsistent stored credential identity&quot; }</span>
+<span class="fc" id="L89">    val descriptor = CredentialKeyDescriptor(credentialId, cose_algorithm.toInt(), derivation_profile)</span>
+<span class="fc" id="L90">    var rpId: SensitiveCredentialText? = null</span>
+<span class="fc" id="L91">    var userId: SensitiveCredentialText? = null</span>
+<span class="fc" id="L92">    var userName: SensitiveCredentialText? = null</span>
+<span class="fc" id="L93">    var userDisplayName: SensitiveCredentialText? = null</span>
+<span class="fc" id="L94">    try {</span>
+<span class="fc" id="L95">        rpId = textDecoder(rp_id)</span>
+<span class="fc" id="L96">        userId = textDecoder(user_id)</span>
+<span class="fc" id="L97">        userName = textDecoder(user_name)</span>
+<span class="fc" id="L98">        userDisplayName = textDecoder(user_display_name)</span>
+<span class="fc" id="L99">        val metadata =</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            this.encrypted_metadata?.let { encrypted -&gt;</span>
+<span class="fc" id="L101">                try {</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">                    metadataProtectionService.decryptCredentialMetadata(encrypted, requireNotNull(rpId))</span>
+<span class="fc" id="L103">                } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L104">                    throw cancellation</span>
+<span class="fc" id="L105">                } catch (_: SecurityException) {</span>
+<span class="fc" id="L106">                    null</span>
+<span class="nc" id="L107">                } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L108">                    null</span>
+<span class="fc" id="L109">                } catch (_: IllegalStateException) {</span>
+<span class="fc" id="L110">                    null</span>
+<span class="nc" id="L111">                } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="pc" id="L112">                    null</span>
+<span class="fc" id="L113">                }</span>
+            }
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        metadata?.let {</span>
+<span class="fc" id="L116">            try {</span>
+<span class="pc bpc" id="L117" title="2 of 6 branches missed.">                require(it.matches(requireNotNull(rpId), requireNotNull(userId))) {</span>
+<span class="fc" id="L118">                    &quot;Inconsistent protected credential metadata&quot;</span>
+                }
+            } finally {
+<span class="fc" id="L121">                it.erase()</span>
+            }
+<span class="fc" id="L123">        }</span>
+
+<span class="fc" id="L125">        val decodedKey =</span>
+<span class="fc" id="L126">            when (val result = decoder.decodePublicKey(public_key, descriptor.coseAlgorithm)) {</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">                is Outcome.Success -&gt; result.data</span>
+<span class="fc" id="L128">                is Outcome.Error -&gt; return malformedCredentialRecord()</span>
+            }
+<span class="fc" id="L130">        val credential =</span>
+<span class="fc" id="L131">            PasskeyCredential(</span>
+<span class="fc" id="L132">                id = id,</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">                rpId = requireNotNull(rpId),</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">                userId = requireNotNull(userId),</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">                userName = requireNotNull(userName),</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">                userDisplayName = requireNotNull(userDisplayName),</span>
+<span class="fc" id="L137">                publicKey = decodedKey,</span>
+<span class="fc" id="L138">                signCount = this.sign_count,</span>
+<span class="fc" id="L139">                createdAt = Instant.fromEpochMilliseconds(this.created_at),</span>
+                lastUsedAt =
+<span class="pc bpc" id="L141" title="2 of 4 branches missed.">                    this.last_used_at?.let { Instant.fromEpochMilliseconds(it) }</span>
+<span class="nc" id="L142">                        ?: Instant.fromEpochMilliseconds(this.created_at),</span>
+<span class="fc" id="L143">                aaguid = Base64.getDecoder().decode(this.aaguid),</span>
+<span class="fc" id="L144">                credentialId = credentialId.toByteArray(),</span>
+<span class="fc" id="L145">                coseAlgorithm = descriptor.coseAlgorithm,</span>
+<span class="fc" id="L146">                derivationProfile = descriptor.derivationProfile,</span>
+<span class="fc" id="L147">                credProtectPolicy = CredentialProtectionPolicy.fromPersisted(this.cred_protect_policy),</span>
+<span class="fc" id="L148">                label = this.label,</span>
+            )
+<span class="fc" id="L150">        rpId = null</span>
+<span class="fc" id="L151">        userId = null</span>
+<span class="fc" id="L152">        userName = null</span>
+<span class="fc" id="L153">        userDisplayName = null</span>
+<span class="fc" id="L154">        return Outcome.Success(credential)</span>
+    } finally {
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        rpId?.erase()</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        userId?.erase()</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        userName?.erase()</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        userDisplayName?.erase()</span>
+    }
+}
+
+/** Consumes the RP projection row's mutable bytes and transfers a validated text owner to its caller. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L165">fun RelyingPartyEntity.toDomainModel(): RelyingParty = toDomainModelWithTextDecoder(::decodeSensitiveText)</span>
+
+/** Consumes RP row bytes, exposing only the decoder seam needed to verify partial-construction cleanup. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal fun RelyingPartyEntity.toDomainModelWithTextDecoder(textDecoder: (ByteArray) -&gt; SensitiveText): RelyingParty {
+<span class="fc" id="L170">    var rpId: SensitiveText? = null</span>
+<span class="fc" id="L171">    var rpName: SensitiveText? = null</span>
+<span class="fc" id="L172">    try {</span>
+<span class="fc" id="L173">        requireAuditTimestampOrder(created_at, updated_at, last_used_at, &quot;Malformed relying-party record&quot;)</span>
+<span class="fc" id="L174">        rpId = textDecoder(id)</span>
+<span class="fc" id="L175">        rpName = textDecoder(name)</span>
+<span class="fc" id="L176">        return RelyingParty</span>
+<span class="fc" id="L177">            .fromOwnedText(</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">                id = requireNotNull(rpId),</span>
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">                name = requireNotNull(rpName),</span>
+<span class="fc" id="L180">                iconUrl = icon_url,</span>
+<span class="fc" id="L181">                credentialCount = credential_count.toInt(),</span>
+<span class="fc" id="L182">                createdAt = Instant.fromEpochMilliseconds(created_at),</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                lastUsedAt = last_used_at?.let { Instant.fromEpochMilliseconds(it) },</span>
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">                isBlocked = is_blocked &gt; 0L,</span>
+<span class="fc" id="L185">            ).also {</span>
+<span class="fc" id="L186">                rpId = null</span>
+<span class="fc" id="L187">                rpName = null</span>
+<span class="fc" id="L188">            }</span>
+<span class="fc" id="L189">    } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="fc" id="L190">        throw IllegalArgumentException(&quot;Malformed relying-party record&quot;)</span>
+    } finally {
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        rpId?.erase()</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        rpName?.erase()</span>
+<span class="fc" id="L194">        eraseSensitiveMetadata()</span>
+    }
+}
+
+/** Erases RP row buffers after hydration, filtering or abandoned batch ownership. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun RelyingPartyEntity.eraseSensitiveMetadata() {
+<span class="fc" id="L201">    id.fill(0)</span>
+<span class="fc" id="L202">    name.fill(0)</span>
+<span class="fc" id="L203">}</span>
+
+/** Consumes consent row bytes and copies the RP into an independently erasable model. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
+<span class="fc" id="L208">    var rpId: SensitiveText? = null</span>
+<span class="fc" id="L209">    try {</span>
+<span class="fc" id="L210">        requireAuditTimestampOrder(created_at, updated_at, timestamp, &quot;Malformed consent record&quot;)</span>
+<span class="fc" id="L211">        val owner = decodeSensitiveText(rp_id)</span>
+<span class="fc" id="L212">        rpId = owner</span>
+<span class="fc" id="L213">        return UserConsentRecord.fromText(</span>
+<span class="fc" id="L214">            id = id,</span>
+<span class="fc" id="L215">            rpId = owner,</span>
+<span class="fc" id="L216">            operationType = ConsentOperationType.valueOf(operation_type),</span>
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">            credentialId = credential_id?.let { CredentialId.fromEncoded(it) },</span>
+<span class="fc" id="L218">            timestamp = Instant.fromEpochMilliseconds(timestamp),</span>
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">            isBiometricUsed = biometric_used &gt; 0L,</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">            isPinUsed = pin_used &gt; 0L,</span>
+        )
+<span class="nc" id="L222">    } catch (_: java.nio.charset.CharacterCodingException) {</span>
+<span class="nc" id="L223">        throw IllegalArgumentException(&quot;Malformed consent record&quot;)</span>
+    } finally {
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        rpId?.erase()</span>
+<span class="fc" id="L226">        eraseSensitiveMetadata()</span>
+    }
+}
+
+/** Erases a consent row's mutable RP association after its last use. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+fun UserConsentRecordEntity.eraseSensitiveMetadata() {
+<span class="fc" id="L233">    rp_id.fill(0)</span>
+<span class="fc" id="L234">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

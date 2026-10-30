@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.impl.AesEncryptionManagerTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:47.141Z" hostname="LOQ15IRX10-3" time="0.05">
+  <properties/>
+  <testcase name="ciphertext should not be equal to plaintext()" classname="com.chimali.core.security.impl.AesEncryptionManagerTest" time="0.018"/>
+  <testcase name="decrypt with wrong key should throw exception()" classname="com.chimali.core.security.impl.AesEncryptionManagerTest" time="0.01"/>
+  <testcase name="encrypt and decrypt should return original plaintext()" classname="com.chimali.core.security.impl.AesEncryptionManagerTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

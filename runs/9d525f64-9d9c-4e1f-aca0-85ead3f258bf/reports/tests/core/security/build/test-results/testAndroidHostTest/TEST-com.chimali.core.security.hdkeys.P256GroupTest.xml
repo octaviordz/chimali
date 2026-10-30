@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.security.hdkeys.P256GroupTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:47.022Z" hostname="LOQ15IRX10-3" time="0.071">
+  <properties/>
+  <testcase name="scalar deserialization rejects zero and the group order()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.002"/>
+  <testcase name="point deserialization rejects compressed and malformed encodings()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.002"/>
+  <testcase name="scalar deserialization requires exactly 32 bytes()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.004"/>
+  <testcase name="point deserialization rejects infinity and invalid coordinates()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.002"/>
+  <testcase name="scalar serialization rejects zero and the group order()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.001"/>
+  <testcase name="scalar multiplication rejects zero and out-of-range scalar()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.001"/>
+  <testcase name="generator uses canonical uncompressed SEC1 encoding()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.02"/>
+  <testcase name="SEC1 point round trip preserves the borrowed encoding()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.003"/>
+  <testcase name="scalar boundaries serialize canonically without truncation()" classname="com.chimali.core.security.hdkeys.P256GroupTest" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:45.143Z" hostname="LOQ15IRX10-3" time="0.875">
+  <properties/>
+  <testcase name="snapshot cancellation after decoding erases retained state owners()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest" time="0.636"/>
+  <testcase name="event replay cancellation after decoding erases retained event owners()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest" time="0.077"/>
+  <testcase name="event replay erases first decoded row plaintext when the next row is malformed()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest" time="0.107"/>
+  <testcase name="event replay failure erases retained sensitive owners from decoded earlier rows()" classname="com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest" time="0.046"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

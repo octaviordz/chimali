@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.ui.theme.LegibilityTypeTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:52.445Z" hostname="LOQ15IRX10-3" time="0.139">
+  <properties/>
+  <testcase name="security text font families are configured and fallback is monospace()" classname="com.chimali.core.ui.theme.LegibilityTypeTest" time="0.123"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

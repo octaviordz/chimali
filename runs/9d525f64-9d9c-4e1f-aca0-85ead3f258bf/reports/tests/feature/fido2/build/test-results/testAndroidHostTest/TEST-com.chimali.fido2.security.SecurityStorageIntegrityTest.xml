@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.security.SecurityStorageIntegrityTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:12.215Z" hostname="LOQ15IRX10-3" time="0.434">
+  <properties/>
+  <testcase name="T148d all expected credential tables exist in schema()" classname="com.chimali.fido2.security.SecurityStorageIntegrityTest" time="0.027"/>
+  <testcase name="T148d plain SQLite driver file has SQLite magic header()" classname="com.chimali.fido2.security.SecurityStorageIntegrityTest" time="0.399"/>
+  <testcase name="T148d production SQLite3MC DB must NOT have plain SQLite magic header (contract)()" classname="com.chimali.fido2.security.SecurityStorageIntegrityTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

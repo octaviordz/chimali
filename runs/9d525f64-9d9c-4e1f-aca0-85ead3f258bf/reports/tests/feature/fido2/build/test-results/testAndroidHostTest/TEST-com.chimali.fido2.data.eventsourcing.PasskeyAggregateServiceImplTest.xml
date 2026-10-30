@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:40.332Z" hostname="LOQ15IRX10-3" time="3.89">
+  <properties/>
+  <testcase name="snapshot cancellation propagates after erasing snapshot metadata()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.475"/>
+  <testcase name="snapshot hydration preserves current key identity and matches full replay()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.256"/>
+  <testcase name="getState with asOf should reconstruct state at specific point in time()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="1.184"/>
+  <testcase name="invalid current Registered event returns a fixed failure and erases event metadata()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.022"/>
+  <testcase name="cancelled registration append erases command and prepared event owners()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.057"/>
+  <testcase name="snapshot failure after append is returned without being mislabeled as invalid command()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.122"/>
+  <testcase name="execute should retry on optimistic concurrency failure()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.034"/>
+  <testcase name="corrupt snapshots fall back to full history with empty and nonempty suffixes()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.081"/>
+  <testcase name="getState should hydrate state from events()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.023"/>
+  <testcase name="append IllegalArgumentException remains a persistence failure()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.051"/>
+  <testcase name="registration erases command and event owners while returning independent state()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.851"/>
+  <testcase name="invalid commands fail before append and leave valid history writable()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.073"/>
+  <testcase name="snapshot cadence remains every twentieth event()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.166"/>
+  <testcase name="getState reconstructs committed deletion history after projection failure()" classname="com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest" time="0.021"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

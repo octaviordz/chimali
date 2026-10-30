@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultPayloadCodec.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.internal.crypto</a> &gt; <span class="el_source">VaultPayloadCodec.kt</span></div><h1>VaultPayloadCodec.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.internal.crypto
+
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.CustomField
+import com.chimali.feature.vault.internal.payload.PasswordPayload
+import com.chimali.feature.vault.internal.payload.SecureNotePayload
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+
+/** FR-VAULT-026/035: legacy JSON strings on the wire, owned erasable arrays in memory. */
+<span class="fc" id="L12">internal class VaultPayloadCodec(</span>
+<span class="fc" id="L13">    private val observeAllocation: (Any) -&gt; Unit = {},</span>
+<span class="fc" id="L14">) {</span>
+    fun encode(payload: PasswordPayload): ByteArray =
+<span class="fc" id="L16">        encode(</span>
+<span class="fc" id="L17">            listOf(</span>
+<span class="fc" id="L18">                TITLE to payload.title,</span>
+<span class="fc" id="L19">                &quot;username&quot; to payload.username,</span>
+<span class="fc" id="L20">                &quot;password&quot; to payload.password,</span>
+<span class="fc" id="L21">                &quot;uri&quot; to payload.uri,</span>
+<span class="fc" id="L22">                NOTES to payload.notes,</span>
+            ),
+<span class="fc" id="L24">            payload.customFields,</span>
+<span class="fc" id="L25">        )</span>
+
+    fun encode(payload: CreditCardPayload): ByteArray =
+<span class="fc" id="L28">        encode(</span>
+<span class="fc" id="L29">            listOf(</span>
+<span class="fc" id="L30">                TITLE to payload.title,</span>
+<span class="fc" id="L31">                &quot;cardholderName&quot; to payload.cardholderName,</span>
+<span class="fc" id="L32">                &quot;cardNumber&quot; to payload.cardNumber,</span>
+<span class="fc" id="L33">                &quot;expirationDate&quot; to payload.expirationDate,</span>
+<span class="fc" id="L34">                &quot;cvv&quot; to payload.cvv,</span>
+<span class="fc" id="L35">                NOTES to payload.notes,</span>
+            ),
+<span class="fc" id="L37">            payload.customFields,</span>
+<span class="fc" id="L38">        )</span>
+
+    fun encode(payload: SecureNotePayload): ByteArray =
+<span class="fc" id="L41">        encode(</span>
+<span class="fc" id="L42">            listOf(TITLE to payload.title, &quot;content&quot; to payload.content),</span>
+<span class="fc" id="L43">            payload.customFields,</span>
+<span class="fc" id="L44">        )</span>
+
+    private fun encode(
+        values: List&lt;Pair&lt;String, CharArray?&gt;&gt;,
+        fields: List&lt;CustomField&gt;?,
+    ): ByteArray {
+<span class="fc" id="L50">        val scope = Buffers(observeAllocation)</span>
+<span class="fc" id="L51">        try {</span>
+<span class="fc" id="L52">            val capacity =</span>
+<span class="fc" id="L53">                JSON_FIXED_SIZE +</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">                    values.sumOf {</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">                        it.first.length + (it.second?.size ?: 0).toLong() * JSON_ESCAPE_SIZE</span>
+                    } +
+                    (
+<span class="fc bfc" id="L58" title="All 4 branches covered.">                        fields?.sumOf {</span>
+<span class="fc" id="L59">                            CUSTOM_FIELD_FIXED_SIZE +</span>
+<span class="fc" id="L60">                                (it.name.size.toLong() + it.value.size) * JSON_ESCAPE_SIZE</span>
+                        }
+<span class="fc" id="L62">                            ?: 0</span>
+                    )
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            require(</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                capacity &lt;= Int.MAX_VALUE / UTF8_MAX_BYTES_PER_CHAR,</span>
+<span class="fc" id="L66">            ) { &quot;Vault payload exceeds addressable buffer size&quot; }</span>
+<span class="fc" id="L67">            val chars = scope.chars(capacity.toInt())</span>
+<span class="fc" id="L68">            val writer = Writer(chars)</span>
+<span class="fc" id="L69">            writer.literal(&quot;{&quot;)</span>
+<span class="fc" id="L70">            values.forEachIndexed { index, (key, value) -&gt;</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">                if (index != 0) writer.literal(&quot;,&quot;)</span>
+<span class="fc" id="L72">                writer.literal(&quot;\&quot;$key\&quot;:&quot;)</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">                if (value == null) writer.literal(&quot;null&quot;) else writer.string(value)</span>
+<span class="fc" id="L74">            }</span>
+<span class="fc" id="L75">            writer.literal(&quot;,\&quot;customFields\&quot;:&quot;)</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            if (fields == null) {</span>
+<span class="fc" id="L77">                writer.literal(&quot;null&quot;)</span>
+            } else {
+<span class="fc" id="L79">                writer.literal(&quot;[&quot;)</span>
+<span class="fc" id="L80">                fields.forEachIndexed { index, field -&gt;</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">                    if (index != 0) writer.literal(&quot;,&quot;)</span>
+<span class="fc" id="L82">                    writer.literal(&quot;{\&quot;name\&quot;:&quot;)</span>
+<span class="fc" id="L83">                    writer.string(field.name)</span>
+<span class="fc" id="L84">                    writer.literal(&quot;,\&quot;value\&quot;:&quot;)</span>
+<span class="fc" id="L85">                    writer.string(field.value)</span>
+<span class="fc" id="L86">                    writer.literal(&quot;,\&quot;isConcealed\&quot;:${field.isConcealed}}&quot;)</span>
+<span class="fc" id="L87">                }</span>
+<span class="fc" id="L88">                writer.literal(&quot;]&quot;)</span>
+            }
+<span class="fc" id="L90">            writer.literal(&quot;}&quot;)</span>
+<span class="fc" id="L91">            val bytes = scope.bytes(writer.position * UTF8_MAX_BYTES_PER_CHAR)</span>
+<span class="fc" id="L92">            val output = ByteBuffer.wrap(bytes)</span>
+<span class="fc" id="L93">            val encoder =</span>
+<span class="fc" id="L94">                Charsets.UTF_8</span>
+<span class="fc" id="L95">                    .newEncoder()</span>
+<span class="fc" id="L96">                    .onMalformedInput(CodingErrorAction.REPLACE)</span>
+<span class="fc" id="L97">                    .onUnmappableCharacter(CodingErrorAction.REPLACE)</span>
+<span class="fc" id="L98">            throwIfCoderError(encoder.encode(CharBuffer.wrap(chars, 0, writer.position), output, true))</span>
+<span class="fc" id="L99">            throwIfCoderError(encoder.flush(output))</span>
+<span class="fc" id="L100">            return bytes.copyOf(output.position())</span>
+        } finally {
+<span class="fc" id="L102">            scope.clear()</span>
+        }
+    }
+
+    fun decodePassword(bytes: ByteArray): PasswordPayload =
+<span class="fc" id="L107">        decode(bytes, setOf(TITLE, &quot;username&quot;, &quot;password&quot;, &quot;uri&quot;, NOTES)) { fields -&gt;</span>
+<span class="fc" id="L108">            PasswordPayload(</span>
+<span class="fc" id="L109">                fields.required(TITLE),</span>
+<span class="fc" id="L110">                fields.required(&quot;username&quot;),</span>
+<span class="fc" id="L111">                fields.required(&quot;password&quot;),</span>
+<span class="fc" id="L112">                fields.required(&quot;uri&quot;),</span>
+<span class="fc" id="L113">                fields.text[NOTES],</span>
+<span class="fc" id="L114">                fields.custom,</span>
+<span class="fc" id="L115">            )</span>
+<span class="fc" id="L116">        }</span>
+
+    fun decodeCreditCard(bytes: ByteArray): CreditCardPayload =
+<span class="fc" id="L119">        decode(bytes, setOf(TITLE, &quot;cardholderName&quot;, &quot;cardNumber&quot;, &quot;expirationDate&quot;, &quot;cvv&quot;, NOTES)) { fields -&gt;</span>
+<span class="fc" id="L120">            CreditCardPayload(</span>
+<span class="fc" id="L121">                fields.required(TITLE),</span>
+<span class="fc" id="L122">                fields.required(&quot;cardholderName&quot;),</span>
+<span class="fc" id="L123">                fields.required(&quot;cardNumber&quot;),</span>
+<span class="fc" id="L124">                fields.required(&quot;expirationDate&quot;),</span>
+<span class="fc" id="L125">                fields.required(&quot;cvv&quot;),</span>
+<span class="fc" id="L126">                fields.text[NOTES],</span>
+<span class="fc" id="L127">                fields.custom,</span>
+<span class="fc" id="L128">            )</span>
+<span class="fc" id="L129">        }</span>
+
+    fun decodeSecureNote(bytes: ByteArray): SecureNotePayload =
+<span class="fc" id="L132">        decode(bytes, setOf(TITLE, &quot;content&quot;)) { fields -&gt;</span>
+<span class="fc" id="L133">            SecureNotePayload(fields.required(TITLE), fields.required(&quot;content&quot;), fields.custom)</span>
+<span class="fc" id="L134">        }</span>
+
+    private fun &lt;T&gt; decode(
+        bytes: ByteArray,
+        names: Set&lt;String&gt;,
+        create: (Fields) -&gt; T,
+    ): T {
+<span class="fc" id="L141">        val scope = Buffers(observeAllocation)</span>
+<span class="fc" id="L142">        try {</span>
+<span class="fc" id="L143">            val chars = scope.chars(bytes.size)</span>
+<span class="fc" id="L144">            val target = CharBuffer.wrap(chars)</span>
+<span class="fc" id="L145">            val decoder =</span>
+<span class="fc" id="L146">                Charsets.UTF_8</span>
+<span class="fc" id="L147">                    .newDecoder()</span>
+<span class="fc" id="L148">                    .onMalformedInput(CodingErrorAction.REPLACE)</span>
+<span class="fc" id="L149">                    .onUnmappableCharacter(CodingErrorAction.REPLACE)</span>
+<span class="fc" id="L150">            throwIfCoderError(decoder.decode(ByteBuffer.wrap(bytes), target, true))</span>
+<span class="fc" id="L151">            throwIfCoderError(decoder.flush(target))</span>
+<span class="fc" id="L152">            val reader = Reader(chars, target.position(), scope)</span>
+<span class="fc" id="L153">            val fields = reader.payload(names)</span>
+<span class="fc" id="L154">            val result = create(fields)</span>
+<span class="fc" id="L155">            reader.end()</span>
+            // Only validated final fields transfer; duplicate/unknown/partial arrays remain owned here.
+<span class="fc" id="L157">            scope.transfer(fields.text.values.toList(), fields.custom)</span>
+<span class="fc" id="L158">            return result</span>
+        } finally {
+<span class="fc" id="L160">            scope.clear()</span>
+        }
+    }
+
+<span class="fc" id="L164">    private class Fields {</span>
+<span class="fc" id="L165">        val text = mutableMapOf&lt;String, CharArray?&gt;()</span>
+<span class="fc" id="L166">        var custom: List&lt;CustomField&gt;? = null</span>
+
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        fun required(key: String): CharArray = text[key] ?: throw invalidPayload()</span>
+    }
+
+<span class="fc" id="L171">    private class Buffers(</span>
+<span class="fc" id="L172">        private val observe: (Any) -&gt; Unit,</span>
+    ) {
+<span class="fc" id="L174">        private val chars = mutableListOf&lt;CharArray&gt;()</span>
+<span class="fc" id="L175">        private val bytes = mutableListOf&lt;ByteArray&gt;()</span>
+
+        fun chars(size: Int): CharArray =
+<span class="fc" id="L178">            CharArray(size).also {</span>
+<span class="fc" id="L179">                chars.add(it)</span>
+<span class="fc" id="L180">                observe(it)</span>
+<span class="fc" id="L181">            }</span>
+
+        fun bytes(size: Int): ByteArray =
+<span class="fc" id="L184">            ByteArray(size).also {</span>
+<span class="fc" id="L185">                bytes.add(it)</span>
+<span class="fc" id="L186">                observe(it)</span>
+<span class="fc" id="L187">            }</span>
+
+        fun transfer(
+            values: List&lt;CharArray?&gt;,
+            fields: List&lt;CustomField&gt;?,
+        ) {
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            values.forEach { value -&gt; chars.removeAll { it === value } }</span>
+<span class="fc bfc" id="L194" title="All 6 branches covered.">            fields?.forEach { field -&gt; chars.removeAll { it === field.name || it === field.value } }</span>
+<span class="fc" id="L195">        }</span>
+
+        fun clear() {
+<span class="fc" id="L198">            chars.forEach { it.fill('\u0000') }</span>
+<span class="fc" id="L199">            bytes.forEach { it.fill(0) }</span>
+<span class="fc" id="L200">        }</span>
+    }
+
+<span class="fc" id="L203">    private class Writer(</span>
+<span class="fc" id="L204">        private val chars: CharArray,</span>
+    ) {
+<span class="fc" id="L206">        var position = 0</span>
+            private set
+
+        fun literal(text: String) {
+<span class="fc" id="L210">            text.forEach { chars[position++] = it }</span>
+<span class="fc" id="L211">        }</span>
+
+        fun string(value: CharArray) {
+<span class="fc" id="L214">            literal(&quot;\&quot;&quot;)</span>
+<span class="fc" id="L215">            value.forEach { c -&gt;</span>
+<span class="fc bfc" id="L216" title="All 8 branches covered.">                when (c) {</span>
+<span class="fc" id="L217">                    '&quot;' -&gt; literal(&quot;\\\&quot;&quot;)</span>
+<span class="fc" id="L218">                    '\\' -&gt; literal(&quot;\\\\&quot;)</span>
+<span class="fc" id="L219">                    '\b' -&gt; literal(&quot;\\b&quot;)</span>
+<span class="fc" id="L220">                    '\u000c' -&gt; literal(&quot;\\f&quot;)</span>
+<span class="fc" id="L221">                    '\n' -&gt; literal(&quot;\\n&quot;)</span>
+<span class="fc" id="L222">                    '\r' -&gt; literal(&quot;\\r&quot;)</span>
+<span class="fc" id="L223">                    '\t' -&gt; literal(&quot;\\t&quot;)</span>
+                    else -&gt;
+<span class="fc bfc" id="L225" title="All 2 branches covered.">                        if (c &lt; ' ') {</span>
+<span class="fc" id="L226">                            literal(&quot;\\u00&quot;)</span>
+<span class="fc" id="L227">                            chars[position++] = HEX[c.code shr NIBBLE_BITS]</span>
+<span class="fc" id="L228">                            chars[position++] = HEX[c.code and NIBBLE_MASK]</span>
+                        } else {
+<span class="fc" id="L230">                            chars[position++] = c</span>
+                        }
+                }
+<span class="fc" id="L233">            }</span>
+<span class="fc" id="L234">            literal(&quot;\&quot;&quot;)</span>
+<span class="fc" id="L235">        }</span>
+    }
+
+<span class="fc" id="L238">    private class Reader(</span>
+<span class="fc" id="L239">        private val input: CharArray,</span>
+<span class="fc" id="L240">        private val length: Int,</span>
+<span class="fc" id="L241">        private val scope: Buffers,</span>
+    ) {
+        private var position = 0
+
+        private fun space() {
+<span class="fc bfc" id="L246" title="All 4 branches covered.">            while (position &lt; length &amp;&amp; input[position] in &quot; \r\n\t&quot;) position++</span>
+<span class="fc" id="L247">        }</span>
+
+        private fun take(c: Char): Boolean {
+<span class="fc" id="L250">            space()</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">            return if (position &lt; length &amp;&amp;</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">                input[position] == c</span>
+            ) {
+<span class="fc" id="L254">                position++</span>
+<span class="fc" id="L255">                true</span>
+            } else {
+<span class="fc" id="L257">                false</span>
+            }
+        }
+
+        private fun expect(c: Char) {
+<span class="fc bfc" id="L262" title="All 2 branches covered.">            if (!take(c)) throw invalidPayload()</span>
+<span class="fc" id="L263">        }</span>
+
+        fun end() {
+<span class="fc" id="L266">            space()</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">            if (position != length) throw invalidPayload()</span>
+<span class="fc" id="L268">        }</span>
+
+        private fun matches(
+            value: CharArray,
+            literal: String,
+<span class="fc bfc" id="L273" title="All 6 branches covered.">        ): Boolean = value.size == literal.length &amp;&amp; value.indices.all { value[it] == literal[it] }</span>
+
+        private fun keyword(value: String) {
+<span class="fc" id="L276">            space()</span>
+<span class="fc bfc" id="L277" title="All 4 branches covered.">            value.forEach { if (position &gt;= length || input[position++] != it) throw invalidPayload() }</span>
+<span class="fc" id="L278">        }</span>
+
+        private fun isNull(): Boolean {
+<span class="fc" id="L281">            space()</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">            return if (position &lt; length &amp;&amp;</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">                input[position] == 'n'</span>
+            ) {
+<span class="fc" id="L285">                keyword(&quot;null&quot;)</span>
+<span class="fc" id="L286">                true</span>
+            } else {
+<span class="fc" id="L288">                false</span>
+            }
+        }
+
+<span class="fc bfc" id="L292" title="All 2 branches covered.">        private fun nullableString(): CharArray? = if (isNull()) null else string()</span>
+
+        private fun string(): CharArray {
+<span class="fc" id="L295">            expect('&quot;')</span>
+<span class="fc" id="L296">            val start = position</span>
+<span class="fc" id="L297">            var scan = position</span>
+<span class="fc bfc" id="L298" title="All 4 branches covered.">            while (scan &lt; length &amp;&amp; input[scan] != '&quot;') {</span>
+<span class="fc bfc" id="L299" title="All 2 branches covered.">                if (input[scan] == '\\') scan++</span>
+<span class="fc" id="L300">                scan++</span>
+            }
+<span class="fc bfc" id="L302" title="All 2 branches covered.">            if (scan &gt;= length) throw invalidPayload()</span>
+<span class="fc" id="L303">            val scratch = scope.chars(scan - start)</span>
+<span class="fc" id="L304">            var count = 0</span>
+<span class="fc bfc" id="L305" title="All 2 branches covered.">            while (position &lt; scan) {</span>
+<span class="fc" id="L306">                val c = input[position++]</span>
+<span class="fc" id="L307">                scratch[count++] =</span>
+<span class="fc" id="L308">                    when {</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">                        c == '\\' -&gt; escaped(scan)</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                        c &lt; ' ' -&gt; throw invalidPayload()</span>
+<span class="fc" id="L311">                        else -&gt; c</span>
+                    }
+            }
+<span class="fc" id="L314">            position++</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">            return if (count == scratch.size) {</span>
+<span class="fc" id="L316">                scratch</span>
+            } else {
+<span class="fc" id="L318">                scope.chars(count).also {</span>
+<span class="fc" id="L319">                    scratch.copyInto(it, endIndex = count)</span>
+<span class="fc" id="L320">                    scratch.fill('\u0000')</span>
+<span class="fc" id="L321">                }</span>
+            }
+        }
+
+        private fun escaped(scan: Int): Char =
+<span class="fc bfc" id="L326" title="All 8 branches covered.">            when (val value = input[position++]) {</span>
+<span class="fc" id="L327">                '&quot;', '\\', '/' -&gt; value</span>
+<span class="fc" id="L328">                'b' -&gt; '\b'</span>
+<span class="fc" id="L329">                'f' -&gt; '\u000c'</span>
+<span class="fc" id="L330">                'n' -&gt; '\n'</span>
+<span class="fc" id="L331">                'r' -&gt; '\r'</span>
+<span class="fc" id="L332">                't' -&gt; '\t'</span>
+<span class="fc" id="L333">                'u' -&gt; unicode(scan)</span>
+<span class="fc" id="L334">                else -&gt; throw invalidPayload()</span>
+<span class="fc" id="L335">            }</span>
+
+        private fun unicode(scan: Int): Char {
+<span class="fc bfc" id="L338" title="All 2 branches covered.">            if (scan - position &lt; UNICODE_DIGITS) throw invalidPayload()</span>
+<span class="fc" id="L339">            var code = 0</span>
+<span class="fc bfc" id="L340" title="All 2 branches covered.">            repeat(UNICODE_DIGITS) {</span>
+<span class="fc" id="L341">                code = code * HEX_RADIX +</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">                    (input[position++].digitToIntOrNull(HEX_RADIX) ?: throw invalidPayload())</span>
+<span class="fc" id="L343">            }</span>
+<span class="fc" id="L344">            return code.toChar()</span>
+        }
+
+        private fun obj(field: (CharArray) -&gt; Unit) {
+<span class="fc" id="L348">            expect('{')</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">            if (take('}')) return</span>
+            do {
+<span class="fc" id="L351">                val name = string()</span>
+<span class="fc" id="L352">                expect(':')</span>
+<span class="fc" id="L353">                try {</span>
+<span class="fc" id="L354">                    field(name)</span>
+                } finally {
+<span class="fc" id="L356">                    name.fill('\u0000')</span>
+                }
+<span class="fc bfc" id="L358" title="All 2 branches covered.">                if (take('}')) return</span>
+<span class="fc" id="L359">                expect(',')</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">            } while (position &lt; length)</span>
+<span class="fc" id="L361">            throw invalidPayload()</span>
+        }
+
+        fun payload(names: Set&lt;String&gt;): Fields {
+<span class="fc" id="L365">            val result = Fields()</span>
+<span class="fc" id="L366">            obj { key -&gt;</span>
+<span class="fc" id="L367">                val known = names.firstOrNull { matches(key, it) }</span>
+<span class="fc" id="L368">                when {</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">                    known != null -&gt; {</span>
+<span class="fc bfc" id="L370" title="All 2 branches covered.">                        result.text[known]?.fill('\u0000')</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">                        result.text[known] = if (known == NOTES) nullableString() else string()</span>
+                    }
+<span class="fc bfc" id="L373" title="All 2 branches covered.">                    matches(key, &quot;customFields&quot;) -&gt; {</span>
+<span class="pc bfc" id="L374" title="All 2 branches covered.">                        result.custom?.forEach { it.clearMemory() }</span>
+<span class="fc" id="L375">                        result.custom = customFields()</span>
+                    }
+<span class="fc" id="L377">                    else -&gt; skip()</span>
+                }
+<span class="fc" id="L379">            }</span>
+<span class="fc" id="L380">            return result</span>
+        }
+
+        private fun customFields(): List&lt;CustomField&gt;? {
+<span class="fc bfc" id="L384" title="All 2 branches covered.">            if (isNull()) return null</span>
+<span class="fc" id="L385">            expect('[')</span>
+<span class="fc" id="L386">            val result = mutableListOf&lt;CustomField&gt;()</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">            if (take(']')) return result</span>
+            do {
+<span class="fc" id="L389">                var name: CharArray? = null</span>
+<span class="fc" id="L390">                var value: CharArray? = null</span>
+<span class="fc" id="L391">                var concealed: Boolean? = null</span>
+<span class="fc" id="L392">                obj { key -&gt;</span>
+<span class="fc" id="L393">                    when {</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">                        matches(key, &quot;name&quot;) -&gt; {</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">                            name?.fill('\u0000')</span>
+<span class="fc" id="L396">                            name = string()</span>
+                        }
+<span class="fc bfc" id="L398" title="All 2 branches covered.">                        matches(key, &quot;value&quot;) -&gt; {</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">                            value?.fill('\u0000')</span>
+<span class="fc" id="L400">                            value = string()</span>
+                        }
+<span class="fc bfc" id="L402" title="All 2 branches covered.">                        matches(key, &quot;isConcealed&quot;) -&gt; concealed = boolean()</span>
+<span class="fc" id="L403">                        else -&gt; skip()</span>
+                    }
+<span class="fc" id="L405">                }</span>
+<span class="fc" id="L406">                val finalName = name</span>
+<span class="fc" id="L407">                val finalValue = value</span>
+<span class="fc" id="L408">                val finalConcealed = concealed</span>
+<span class="fc bfc" id="L409" title="All 6 branches covered.">                if (finalName == null || finalValue == null || finalConcealed == null) throw invalidPayload()</span>
+<span class="fc" id="L410">                result.add(CustomField(finalName, finalValue, finalConcealed))</span>
+<span class="fc bfc" id="L411" title="All 2 branches covered.">                if (take(']')) return result</span>
+<span class="fc" id="L412">                expect(',')</span>
+<span class="fc bfc" id="L413" title="All 2 branches covered.">            } while (position &lt; length)</span>
+<span class="fc" id="L414">            throw invalidPayload()</span>
+        }
+
+        private fun boolean(): Boolean {
+<span class="fc" id="L418">            space()</span>
+<span class="fc bfc" id="L419" title="All 4 branches covered.">            if (position &lt; length &amp;&amp; input[position] == 't') {</span>
+<span class="fc" id="L420">                keyword(&quot;true&quot;)</span>
+<span class="fc" id="L421">                return true</span>
+            }
+<span class="fc" id="L423">            keyword(&quot;false&quot;)</span>
+<span class="fc" id="L424">            return false</span>
+        }
+
+        // Iterative grammar: nesting is bounded by input length, not the call stack.
+        private enum class ContainerState {
+<span class="fc" id="L429">            OBJECT_START,</span>
+<span class="fc" id="L430">            OBJECT_KEY,</span>
+<span class="fc" id="L431">            OBJECT_COLON,</span>
+<span class="fc" id="L432">            OBJECT_VALUE,</span>
+<span class="fc" id="L433">            OBJECT_END,</span>
+<span class="fc" id="L434">            ARRAY_START,</span>
+<span class="fc" id="L435">            ARRAY_VALUE,</span>
+<span class="fc" id="L436">            ARRAY_END,</span>
+        }
+
+        private fun skip() {
+<span class="fc" id="L440">            val states = mutableListOf&lt;ContainerState&gt;()</span>
+
+            fun value() {
+<span class="fc" id="L443">                space()</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">                if (position &gt;= length) throw invalidPayload()</span>
+<span class="fc bfc" id="L445" title="All 6 branches covered.">                when (input[position]) {</span>
+<span class="fc" id="L446">                    '&quot;' -&gt; string().fill('\u0000')</span>
+                    '{' -&gt; {
+<span class="fc" id="L448">                        position++</span>
+<span class="fc" id="L449">                        states.add(ContainerState.OBJECT_START)</span>
+                    }
+                    '[' -&gt; {
+<span class="fc" id="L452">                        position++</span>
+<span class="fc" id="L453">                        states.add(ContainerState.ARRAY_START)</span>
+                    }
+<span class="fc" id="L455">                    'n' -&gt; keyword(&quot;null&quot;)</span>
+<span class="fc" id="L456">                    't', 'f' -&gt; boolean()</span>
+<span class="fc" id="L457">                    else -&gt; number()</span>
+                }
+<span class="fc" id="L459">            }</span>
+<span class="fc" id="L460">            value()</span>
+<span class="fc bfc" id="L461" title="All 4 branches covered.">            while (states.isNotEmpty()) {</span>
+<span class="fc" id="L462">                val last = states.lastIndex</span>
+<span class="fc bfc" id="L463" title="All 8 branches covered.">                when (states[last]) {</span>
+                    ContainerState.OBJECT_START -&gt;
+<span class="fc bfc" id="L465" title="All 2 branches covered.">                        if (take('}')) {</span>
+<span class="fc" id="L466">                            states.removeAt(last)</span>
+                        } else {
+<span class="fc" id="L468">                            string().fill('\u0000')</span>
+<span class="fc" id="L469">                            states[last] = ContainerState.OBJECT_COLON</span>
+                        }
+                    ContainerState.OBJECT_KEY -&gt; {
+<span class="fc" id="L472">                        string().fill('\u0000')</span>
+<span class="fc" id="L473">                        states[last] = ContainerState.OBJECT_COLON</span>
+                    }
+                    ContainerState.OBJECT_COLON -&gt; {
+<span class="fc" id="L476">                        expect(':')</span>
+<span class="fc" id="L477">                        states[last] = ContainerState.OBJECT_VALUE</span>
+                    }
+                    ContainerState.OBJECT_VALUE -&gt; {
+<span class="fc" id="L480">                        states[last] = ContainerState.OBJECT_END</span>
+<span class="fc" id="L481">                        value()</span>
+                    }
+                    ContainerState.OBJECT_END -&gt;
+<span class="fc bfc" id="L484" title="All 2 branches covered.">                        if (take('}')) {</span>
+<span class="fc" id="L485">                            states.removeAt(last)</span>
+                        } else {
+<span class="fc" id="L487">                            expect(',')</span>
+<span class="fc" id="L488">                            states[last] = ContainerState.OBJECT_KEY</span>
+                        }
+                    ContainerState.ARRAY_START -&gt;
+<span class="fc bfc" id="L491" title="All 2 branches covered.">                        if (take(']')) {</span>
+<span class="fc" id="L492">                            states.removeAt(last)</span>
+                        } else {
+<span class="fc" id="L494">                            states[last] = ContainerState.ARRAY_END</span>
+<span class="fc" id="L495">                            value()</span>
+                        }
+                    ContainerState.ARRAY_VALUE -&gt; {
+<span class="fc" id="L498">                        states[last] = ContainerState.ARRAY_END</span>
+<span class="fc" id="L499">                        value()</span>
+                    }
+                    ContainerState.ARRAY_END -&gt;
+<span class="fc bfc" id="L502" title="All 2 branches covered.">                        if (take(']')) {</span>
+<span class="fc" id="L503">                            states.removeAt(last)</span>
+                        } else {
+<span class="fc" id="L505">                            expect(',')</span>
+<span class="fc" id="L506">                            states[last] = ContainerState.ARRAY_VALUE</span>
+                        }
+                }
+            }
+<span class="fc" id="L510">        }</span>
+
+        private fun number() {
+<span class="fc" id="L513">            take('-')</span>
+<span class="fc bfc" id="L514" title="All 2 branches covered.">            if (position &gt;= length) throw invalidPayload()</span>
+<span class="fc bfc" id="L515" title="All 2 branches covered.">            if (input[position] == '0') position++ else digits(true)</span>
+<span class="fc bfc" id="L516" title="All 4 branches covered.">            if (position &lt; length &amp;&amp; input[position] == '.') {</span>
+<span class="fc" id="L517">                position++</span>
+<span class="fc" id="L518">                digits(false)</span>
+            }
+<span class="fc bfc" id="L520" title="All 4 branches covered.">            if (position &lt; length &amp;&amp; input[position] in &quot;eE&quot;) {</span>
+<span class="fc" id="L521">                position++</span>
+<span class="fc bfc" id="L522" title="All 4 branches covered.">                if (position &lt; length &amp;&amp; input[position] in &quot;+-&quot;) position++</span>
+<span class="fc" id="L523">                digits(false)</span>
+            }
+<span class="fc" id="L525">        }</span>
+
+        private fun digits(nonzero: Boolean) {
+<span class="fc" id="L528">            val start = position</span>
+<span class="fc bfc" id="L529" title="All 2 branches covered.">            if (nonzero) requireNonzeroDigit()</span>
+<span class="fc bfc" id="L530" title="All 8 branches covered.">            while (position &lt; length &amp;&amp; input[position] in '0'..'9') position++</span>
+<span class="fc bfc" id="L531" title="All 2 branches covered.">            if (position == start) throw invalidPayload()</span>
+<span class="fc" id="L532">        }</span>
+
+        private fun requireNonzeroDigit() {
+<span class="pc bpc" id="L535" title="1 of 2 branches missed.">            if (position &gt;= length) throw invalidPayload()</span>
+<span class="fc bfc" id="L536" title="All 6 branches covered.">            if (input[position] !in '1'..'9') throw invalidPayload()</span>
+<span class="fc" id="L537">        }</span>
+    }
+
+    private companion object {
+        const val TITLE = &quot;title&quot;
+        const val NOTES = &quot;notes&quot;
+        const val JSON_FIXED_SIZE = 256L
+        const val CUSTOM_FIELD_FIXED_SIZE = 64L
+        const val JSON_ESCAPE_SIZE = 6
+        const val UTF8_MAX_BYTES_PER_CHAR = 3
+        const val NIBBLE_BITS = 4
+        const val NIBBLE_MASK = 15
+        const val UNICODE_DIGITS = 4
+        const val HEX_RADIX = 16
+
+        const val HEX = &quot;0123456789abcdef&quot;
+
+<span class="fc" id="L554">        fun invalidPayload(): IllegalArgumentException = IllegalArgumentException(&quot;Invalid vault payload encoding&quot;)</span>
+    }
+}
+
+/** Kept testable because malformed coder results are otherwise unavailable from fixed UTF-8 mode. */
+internal fun throwIfCoderError(result: java.nio.charset.CoderResult) {
+<span class="fc bfc" id="L560" title="All 2 branches covered.">    if (!result.isError) return</span>
+<span class="fc" id="L561">    throw coderError(result)</span>
+}
+
+/** An error CoderResult is specified to throw CharacterCodingException; retain that exact error. */
+private fun coderError(result: java.nio.charset.CoderResult): java.nio.charset.CharacterCodingException =
+<span class="pc" id="L566">    runCatching { result.throwException() }.exceptionOrNull() as java.nio.charset.CharacterCodingException</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

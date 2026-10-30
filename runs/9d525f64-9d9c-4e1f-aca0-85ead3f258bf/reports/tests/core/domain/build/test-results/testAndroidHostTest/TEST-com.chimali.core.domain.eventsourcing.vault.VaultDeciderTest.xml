@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:36.907Z" hostname="LOQ15IRX10-3" time="0.011">
+  <properties/>
+  <testcase name="Updated event evolves state()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.002"/>
+  <testcase name="Update command emits Updated event()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.001"/>
+  <testcase name="Create command emits Created event()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.001"/>
+  <testcase name="Deleted event evolves state()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.001"/>
+  <testcase name="Created event evolves initial state()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.0"/>
+  <testcase name="Delete command emits Deleted event()" classname="com.chimali.core.domain.eventsourcing.vault.VaultDeciderTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

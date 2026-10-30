@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AesEncryptionManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.impl</a> &gt; <span class="el_source">AesEncryptionManager.kt</span></div><h1>AesEncryptionManager.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.impl
+
+import com.chimali.core.security.api.EncryptionManager
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
+
+<span class="fc" id="L10">@Single</span>
+class AesEncryptionManager : EncryptionManager {
+<span class="fc" id="L12">    private val random = SecureRandom()</span>
+
+    companion object {
+        private const val ALGORITHM = &quot;AES/GCM/NoPadding&quot;
+        private const val TAG_LENGTH = 128
+        private const val IV_LENGTH = 12
+    }
+
+    override fun encrypt(
+        plaintext: ByteArray,
+        key: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L24">        val iv = ByteArray(IV_LENGTH)</span>
+<span class="fc" id="L25">        random.nextBytes(iv)</span>
+<span class="fc" id="L26">        val cipher = Cipher.getInstance(ALGORITHM)</span>
+<span class="fc" id="L27">        val spec = GCMParameterSpec(TAG_LENGTH, iv)</span>
+<span class="fc" id="L28">        val keySpec = SecretKeySpec(key, &quot;AES&quot;)</span>
+
+<span class="fc" id="L30">        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec)</span>
+<span class="fc" id="L31">        val ciphertext = cipher.doFinal(plaintext)</span>
+
+<span class="fc" id="L33">        return iv + ciphertext</span>
+    }
+
+    override fun decrypt(
+        ciphertext: ByteArray,
+        key: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L40">        val iv = ciphertext.sliceArray(0 until IV_LENGTH)</span>
+<span class="fc" id="L41">        val encryptedData = ciphertext.sliceArray(IV_LENGTH until ciphertext.size)</span>
+
+<span class="fc" id="L43">        val cipher = Cipher.getInstance(ALGORITHM)</span>
+<span class="fc" id="L44">        val spec = GCMParameterSpec(TAG_LENGTH, iv)</span>
+<span class="fc" id="L45">        val keySpec = SecretKeySpec(key, &quot;AES&quot;)</span>
+
+<span class="fc" id="L47">        cipher.init(Cipher.DECRYPT_MODE, keySpec, spec)</span>
+<span class="fc" id="L48">        return cipher.doFinal(encryptedData)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

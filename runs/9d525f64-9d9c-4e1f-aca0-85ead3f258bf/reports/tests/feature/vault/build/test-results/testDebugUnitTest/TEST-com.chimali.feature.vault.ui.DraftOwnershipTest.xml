@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.ui.DraftOwnershipTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:28:25.530Z" hostname="LOQ15IRX10-3" time="0.009">
+  <properties/>
+  <testcase name="acceptedHandoffBelongsToReceiverUntilReceiverClearsIt" classname="com.chimali.feature.vault.ui.DraftOwnershipTest" time="0.001"/>
+  <testcase name="detailDisposalAndSubmissionCleanupDoNotEraseEditedCustomFields" classname="com.chimali.feature.vault.ui.DraftOwnershipTest" time="0.004"/>
+  <testcase name="callbackFailureErasesSubmissionButPreservesRetryDraft" classname="com.chimali.feature.vault.ui.DraftOwnershipTest" time="0.002"/>
+  <testcase name="dirtyComparisonHandlesEmptyNullAndChangedContentsWithoutCopies" classname="com.chimali.feature.vault.ui.DraftOwnershipTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

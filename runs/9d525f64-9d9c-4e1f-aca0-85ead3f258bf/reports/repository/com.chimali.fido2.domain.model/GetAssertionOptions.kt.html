@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetAssertionOptions.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.model</a> &gt; <span class="el_source">GetAssertionOptions.kt</span></div><h1>GetAssertionOptions.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.model
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.valueobject.RpId
+
+/** Owned options for one CTAP authenticatorGetAssertion request. */
+<span class="fc" id="L8">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L9">class GetAssertionOptions private constructor(</span>
+<span class="fc" id="L10">    private val rpIdOwner: SensitiveCredentialText,</span>
+<span class="fc" id="L11">    val clientDataHash: ByteArray,</span>
+<span class="fc" id="L12">    val allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;?,</span>
+<span class="fc" id="L13">    val userVerification: UserVerificationRequirement,</span>
+<span class="fc" id="L14">    val extensions: Map&lt;String, Any&gt;?,</span>
+<span class="pc" id="L15">    val timeout: Long?,</span>
+) {
+    /** Copies a compatibility RP-ID value into mutable request ownership. */
+<span class="nc" id="L18">    constructor(</span>
+        rpId: RpId,
+        clientDataHash: ByteArray,
+        allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;?,
+<span class="nc" id="L22">        userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,</span>
+<span class="nc" id="L23">        extensions: Map&lt;String, Any&gt;? = null,</span>
+<span class="nc" id="L24">        timeout: Long? = null,</span>
+    ) :
+<span class="fc" id="L26">        this(</span>
+<span class="fc" id="L27">            SensitiveCredentialText.copyOf(rpId.value),</span>
+<span class="fc" id="L28">            clientDataHash,</span>
+<span class="fc" id="L29">            allowCredentials,</span>
+<span class="fc" id="L30">            userVerification,</span>
+<span class="fc" id="L31">            extensions,</span>
+<span class="fc" id="L32">            timeout,</span>
+<span class="pc" id="L33">        )</span>
+
+    /** Produces the RP-ID value required by existing service APIs. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L37">    val rpId: RpId get() = rpIdOwner.toRpId()</span>
+
+    /** Borrows this request's RP text only for the live request lifetime. */
+<span class="fc" id="L40">    internal val rpIdText: CharSequence get() = rpIdOwner</span>
+
+<span class="fc" id="L42">    init {</span>
+<span class="fc" id="L43">        try {</span>
+<span class="fc" id="L44">            validate()</span>
+<span class="fc" id="L45">        } catch (failure: IllegalArgumentException) {</span>
+            // The private constructor owns this buffer from entry, including when a
+            // caller transferred it through fromSensitiveRpId.
+<span class="fc" id="L48">            rpIdOwner.erase()</span>
+<span class="fc" id="L49">            throw failure</span>
+        }
+<span class="fc" id="L51">    }</span>
+
+    private fun validate() {
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        require(RelyingParty.isValidRpId(rpIdOwner)) {</span>
+<span class="nc" id="L55">            &quot;Invalid RP ID&quot;</span>
+        }
+<span class="fc bfc" id="L57" title="All 4 branches covered.">        require(clientDataHash.size == CLIENT_DATA_HASH_SIZE) {</span>
+<span class="fc" id="L58">            &quot;clientDataHash must be 32 bytes (SHA-256), got ${clientDataHash.size}&quot;</span>
+        }
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        allowCredentials?.let { list -&gt;</span>
+<span class="pc bpc" id="L61" title="2 of 4 branches missed.">            require(list.size &lt;= MAX_ALLOW_CREDENTIALS) { &quot;allowCredentials cannot exceed 32 items&quot; }</span>
+<span class="fc" id="L62">        }</span>
+<span class="fc bfc" id="L63" title="All 6 branches covered.">        timeout?.let { require(it &gt;= 0) { &quot;Timeout cannot be negative&quot; } }</span>
+<span class="fc" id="L64">    }</span>
+
+    /** Returns a safe timeout value. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc bfc" id="L68" title="All 2 branches covered.">    fun getSafeTimeout(): Long = timeout?.coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS) ?: DEFAULT_TIMEOUT_MS</span>
+
+    /** True when no credential ID list is provided. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">    fun isDiscoverableFlow(): Boolean = allowCredentials.isNullOrEmpty()</span>
+
+    /** Erases the request-owned RP identifier. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L76">    fun eraseSensitiveText() = rpIdOwner.erase()</span>
+
+    /** Copies the RP identifier into an independently erasable presenter owner. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L80">    internal fun copyRpIdOwner(): SensitiveCredentialText = rpIdOwner.copyOwner()</span>
+
+    /** Copies option references and creates independent ownership for the sensitive RP ID. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L84">    fun copy(</span>
+<span class="fc" id="L85">        rpId: RpId? = null,</span>
+<span class="fc" id="L86">        clientDataHash: ByteArray = this.clientDataHash,</span>
+<span class="fc" id="L87">        allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = this.allowCredentials,</span>
+<span class="fc" id="L88">        userVerification: UserVerificationRequirement = this.userVerification,</span>
+<span class="fc" id="L89">        extensions: Map&lt;String, Any&gt;? = this.extensions,</span>
+<span class="fc" id="L90">        timeout: Long? = this.timeout,</span>
+    ): GetAssertionOptions =
+<span class="fc" id="L92">        copyWithOwnerFactory(rpId, clientDataHash, allowCredentials, userVerification, extensions, timeout)</span>
+
+    /** Copies through an injectable owner factory so failure cleanup can be retained and verified. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L96">    internal fun copyWithOwnerFactory(</span>
+<span class="fc" id="L97">        rpId: RpId? = null,</span>
+<span class="fc" id="L98">        clientDataHash: ByteArray = this.clientDataHash,</span>
+<span class="fc" id="L99">        allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = this.allowCredentials,</span>
+<span class="fc" id="L100">        userVerification: UserVerificationRequirement = this.userVerification,</span>
+<span class="fc" id="L101">        extensions: Map&lt;String, Any&gt;? = this.extensions,</span>
+<span class="fc" id="L102">        timeout: Long? = this.timeout,</span>
+<span class="fc" id="L103">        ownerFactory: (CharSequence) -&gt; SensitiveCredentialText = SensitiveCredentialText::copyOf,</span>
+<span class="fc" id="L104">        sourceOwnerFactory: (SensitiveCredentialText) -&gt; SensitiveCredentialText = SensitiveCredentialText::copyOwner,</span>
+    ): GetAssertionOptions {
+<span class="fc" id="L106">        var createdOwner: SensitiveCredentialText? = null</span>
+<span class="fc" id="L107">        try {</span>
+<span class="fc bfc" id="L108" title="All 4 branches covered.">            createdOwner = rpId?.let { ownerFactory(it.value) } ?: sourceOwnerFactory(rpIdOwner)</span>
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">            return GetAssertionOptions(</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">                requireNotNull(createdOwner),</span>
+<span class="fc" id="L111">                clientDataHash,</span>
+<span class="fc" id="L112">                allowCredentials,</span>
+<span class="fc" id="L113">                userVerification,</span>
+<span class="fc" id="L114">                extensions,</span>
+<span class="fc" id="L115">                timeout,</span>
+<span class="fc" id="L116">            ).also { createdOwner = null }</span>
+        } finally {
+<span class="fc" id="L118">            createdOwner?.erase()</span>
+        }
+    }
+
+    /** Returns a fixed diagnostic summary without the relying-party identifier. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L124">    override fun toString(): String = &quot;GetAssertionOptions([sensitive request fields redacted])&quot;</span>
+
+    /** Compares owned request text without creating String copies. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean =
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">        other is GetAssertionOptions &amp;&amp;</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            rpIdOwner == other.rpIdOwner &amp;&amp;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            clientDataHash.contentEquals(other.clientDataHash) &amp;&amp;</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            allowCredentials == other.allowCredentials &amp;&amp;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            userVerification == other.userVerification &amp;&amp;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">            extensions == other.extensions &amp;&amp;</span>
+<span class="pc bnc" id="L135" title="All 2 branches missed.">            timeout == other.timeout</span>
+
+    /** Hashes owned request text without creating String copies. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun hashCode(): Int {
+<span class="fc" id="L140">        var result = rpIdOwner.hashCode()</span>
+<span class="fc" id="L141">        result = 31 * result + clientDataHash.contentHashCode()</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        result = 31 * result + (allowCredentials?.hashCode() ?: 0)</span>
+<span class="fc" id="L143">        result = 31 * result + userVerification.hashCode()</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        result = 31 * result + (extensions?.hashCode() ?: 0)</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">        return 31 * result + (timeout?.hashCode() ?: 0)</span>
+    }
+
+    companion object {
+        private const val CLIENT_DATA_HASH_SIZE = 32
+        private const val MAX_ALLOW_CREDENTIALS = 32
+        const val MIN_TIMEOUT_MS = 30000L
+        const val MAX_TIMEOUT_MS = 600000L
+        const val DEFAULT_TIMEOUT_MS = 120000L
+
+        /**
+         * Creates options while transferring an RP-ID owner from a decoded CTAP request.
+         * Ownership transfers on entry; validation failure erases the supplied owner.
+         */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L160">        internal fun fromSensitiveRpId(</span>
+            rpId: SensitiveCredentialText,
+            clientDataHash: ByteArray,
+<span class="fc" id="L163">            allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null,</span>
+<span class="fc" id="L164">            userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,</span>
+<span class="fc" id="L165">            extensions: Map&lt;String, Any&gt;? = null,</span>
+<span class="fc" id="L166">            timeout: Long? = null,</span>
+<span class="fc" id="L167">        ) = GetAssertionOptions(rpId, clientDataHash, allowCredentials, userVerification, extensions, timeout)</span>
+
+        /** Quick factory for tests and internal callers. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L171">        fun create(</span>
+            rpId: RpId,
+            clientDataHash: ByteArray,
+<span class="fc" id="L174">            allowCredentials: List&lt;PublicKeyCredentialDescriptor&gt;? = null,</span>
+<span class="fc" id="L175">            userVerification: UserVerificationRequirement = UserVerificationRequirement.PREFERRED,</span>
+<span class="fc" id="L176">            extensions: Map&lt;String, Any&gt;? = null,</span>
+<span class="fc" id="L177">            timeout: Long? = null,</span>
+<span class="fc" id="L178">        ) = GetAssertionOptions(rpId, clientDataHash, allowCredentials, userVerification, extensions, timeout)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

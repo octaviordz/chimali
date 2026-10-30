@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:59.524Z" hostname="LOQ15IRX10-3" time="0.843">
+  <properties/>
+  <testcase name="[1] required-unavailable" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.14"/>
+  <testcase name="[2] required-failed" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.072"/>
+  <testcase name="[3] required-cancelled" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.065"/>
+  <testcase name="[4] required-success" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.112"/>
+  <testcase name="[5] optional-none" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.049"/>
+  <testcase name="[6] algorithm-rs256-es256" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.08"/>
+  <testcase name="[7] algorithm-es256-rs256" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.062"/>
+  <testcase name="[8] algorithm-ed25519" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.075"/>
+  <testcase name="[9] algorithm-mldsa" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.109"/>
+  <testcase name="[10] algorithm-rs256-only" classname="com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest" time="0.051"/>
+  <system-out><![CDATA[Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Error: Registration process failed
+Debug: Deferred resolved — success=false failed=true
+Error: Registration failed or was cancelled
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Deferred resolved — success=false failed=true
+Error: Registration failed or was cancelled
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Deferred resolved — success=false failed=true
+Error: Registration failed or was cancelled
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Auto-confirming registration (UV capability: NONE)
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-257, -7], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Auto-confirming registration (UV capability: NONE)
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-7, -257], selected COSE alg -7 (ES256)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Auto-confirming registration (UV capability: NONE)
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-8], selected COSE alg -8 (EdDSA)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Auto-confirming registration (UV capability: NONE)
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Info: Algorithm negotiation: RP requested [-49], selected COSE alg -49 (ML-DSA)
+Debug: Dispatching RegistrationRequested event to UI
+Debug: Event dispatched — awaiting user response via deferred
+Debug: Registration request received
+Debug: Auto-confirming registration (UV capability: NONE)
+Debug: Deferred resolved — success=true failed=false
+Debug: Encoding MakeCredential response for credId=32bytes
+Debug: encodeAttestationResponse: fmt=packed authDataLen=88
+Debug: MakeCredential CBOR response: 1 bytes
+Debug: MakeCredential response ready payloadLen=2
+Debug: RegistrationPromptViewModel created — subscribing to event bus
+Debug: No currentRegistrationRequest in cache at init time
+Debug: MakeCredential request admitted
+Error: Algorithm negotiation failed: None of the requested algorithms [-257] have a supported local profile
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

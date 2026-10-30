@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.integration.AuthenticationIntegrationTest" tests="25" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:46.049Z" hostname="LOQ15IRX10-3" time="2.185">
+  <properties/>
+  <testcase name="duplicate success and stale failure cannot interrupt a processing assertion()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.137"/>
+  <testcase name="retry cannot revive a completed authentication request()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.092"/>
+  <testcase name="failed assertion transitions to Error state()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.069"/>
+  <testcase name="external terminal error cancels pending assertion verification ownership()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.062"/>
+  <testcase name="retry during live consent preserves the admitted request()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.033"/>
+  <testcase name="init transitions to AwaitingUserConsent()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.015"/>
+  <testcase name="[1] cancel" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.137"/>
+  <testcase name="[2] external-cancel" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.11"/>
+  <testcase name="[3] external-error" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.395"/>
+  <testcase name="[1] success" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.076"/>
+  <testcase name="[2] cancel" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.037"/>
+  <testcase name="[3] replacement" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.036"/>
+  <testcase name="[4] teardown" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.039"/>
+  <testcase name="late verification after wallet fencing cannot enter a new assertion owner()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.085"/>
+  <testcase name="cancel transitions to Cancelled state()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.04"/>
+  <testcase name="[1] success" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.104"/>
+  <testcase name="[2] error" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.064"/>
+  <testcase name="[3] verification-failed" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.061"/>
+  <testcase name="cancelled pending response cannot authorize assertion on immediate dispatch()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.101"/>
+  <testcase name="cancelled CTAP response cancels the ViewModel signing owner()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.067"/>
+  <testcase name="preferred auto-confirm passes that user verification was not performed()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.129"/>
+  <testcase name="foreground loss cancels pending authentication verification and CTAP response()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.063"/>
+  <testcase name="stale verification callback cannot authorize replacement request()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.066"/>
+  <testcase name="duplicate verification result cannot start two assertions()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.074"/>
+  <testcase name="successful authentication runs inside an authenticator owner()" classname="com.chimali.fido2.integration.AuthenticationIntegrationTest" time="0.054"/>
+  <system-out><![CDATA[Error: Authentication process failed
+Error: Authentication process failed
+Debug: Ignoring incoming AuthenticationRequested — current state: Cancelled
+Error: Authentication process failed
+Debug: Ignoring incoming AuthenticationRequested — current state: Cancelled
+Error: Authentication process failed
+Debug: Ignoring incoming AuthenticationRequested — current state: Cancelled
+Error: Authentication process failed
+Debug: Auto-confirming authentication (UV capability: NONE)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

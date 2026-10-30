@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2WindowsCompatibilityTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:15.834Z" hostname="LOQ15IRX10-3" time="0.095">
+  <properties/>
+  <testcase name="test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings()" classname="com.chimali.fido2.ctap2.Ctap2WindowsCompatibilityTest" time="0.082"/>
+  <system-out><![CDATA[Debug: GetAssertion request admitted: allowCredentials=1
+Debug: GetAssertion: executing headless fast-path (candidates=1)
+Debug: Assertion response ready
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

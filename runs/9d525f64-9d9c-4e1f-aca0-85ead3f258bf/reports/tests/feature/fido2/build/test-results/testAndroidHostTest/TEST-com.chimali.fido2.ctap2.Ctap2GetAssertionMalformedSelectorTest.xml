@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2GetAssertionMalformedSelectorTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:12.857Z" hostname="LOQ15IRX10-3" time="0.145">
+  <properties/>
+  <testcase name="valid absent empty and byte-string selectors preserve their distinct meanings()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionMalformedSelectorTest" time="0.063"/>
+  <testcase name="malformed present allow list and UV option reject before candidate lookup()" classname="com.chimali.fido2.ctap2.Ctap2GetAssertionMalformedSelectorTest" time="0.076"/>
+  <system-out><![CDATA[Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Debug: GetAssertion request admitted: allowCredentials=0
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Debug: GetAssertion request admitted: allowCredentials=1
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Debug: GetAssertion request admitted: allowCredentials=discoverable
+Debug: GetAssertion: no matching credentials found — returning NO_CREDENTIALS
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+Error: GetAssertion failed with a FIDO2 error
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

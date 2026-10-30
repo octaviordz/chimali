@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.ctap2.Ctap2ProtocolTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:15.661Z" hostname="LOQ15IRX10-3" time="0.053">
+  <properties/>
+  <testcase name="hidErrorResponse produces framed 62-byte packet()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.006"/>
+  <testcase name="keepAliveResponse produces correct structure()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.003"/>
+  <testcase name="getInfoResponse success starts with CTAP2_OK()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.011"/>
+  <testcase name="errorResponse produces single packet with status byte()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.002"/>
+  <testcase name="makeCredentialResponse payload includes status plus body()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.002"/>
+  <testcase name="statusDescription returns non-empty for known codes()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.001"/>
+  <testcase name="makeCredentialResponse encodes into 62-byte packets()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.003"/>
+  <testcase name="statusDescription returns UNKNOWN for unrecognised code()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.002"/>
+  <testcase name="makeCredentialResponse success starts with CTAP2_OK()" classname="com.chimali.fido2.ctap2.Ctap2ProtocolTest" time="0.002"/>
+  <system-out><![CDATA[Debug: getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] extensions=[credProtect,hmac-secret,minPinLength] aaguid=16bytes
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

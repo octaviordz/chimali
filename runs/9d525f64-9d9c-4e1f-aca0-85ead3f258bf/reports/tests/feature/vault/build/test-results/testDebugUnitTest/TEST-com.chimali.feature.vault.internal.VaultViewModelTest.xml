@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.internal.VaultViewModelTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:28:22.712Z" hostname="LOQ15IRX10-3" time="0.955">
+  <properties/>
+  <testcase name="decryptItem decrypts password and updates state" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.116"/>
+  <testcase name="password save persists selected labels" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.109"/>
+  <testcase name="retrying an edit preserves the existing identity" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.086"/>
+  <testcase name="savePassword encrypts and saves item" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.069"/>
+  <testcase name="copy password reports failure when clipboard service fails" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.05"/>
+  <testcase name="decryptItem loads existing labels for edit" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.078"/>
+  <testcase name="saveSecureNote and decryptSecureNote work as expected" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.091"/>
+  <testcase name="cancellation during password save is not converted to failure" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.047"/>
+  <testcase name="failed password save retains error state for retry" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.036"/>
+  <testcase name="saveCreditCard and decryptCreditCard work as expected" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.109"/>
+  <testcase name="duplicate password saves are ignored while first save is pending" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.05"/>
+  <testcase name="copy password reports success only after clipboard service succeeds" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.048"/>
+  <testcase name="deleteItem calls vaultService deleteItem and clears selection" classname="com.chimali.feature.vault.internal.VaultViewModelTest" time="0.057"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

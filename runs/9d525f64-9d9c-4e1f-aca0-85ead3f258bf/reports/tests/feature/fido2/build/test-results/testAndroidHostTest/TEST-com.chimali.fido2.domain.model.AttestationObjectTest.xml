@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.AttestationObjectTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:36.840Z" hostname="LOQ15IRX10-3" time="0.03">
+  <properties/>
+  <testcase name="attestationType_covers_NONE()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.004"/>
+  <testcase name="attestationType_covers_SELF()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.001"/>
+  <testcase name="attestationType_covers_BASIC()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.0"/>
+  <testcase name="authData_contains_nonEmpty_credentialId()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.0"/>
+  <testcase name="attestationType_covers_ATT_CA()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.001"/>
+  <testcase name="createAttCa_returns_attCA_format()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.003"/>
+  <testcase name="create_packed_format_succeeds()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.001"/>
+  <testcase name="authData_contains_nonEmpty_aaguid()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.001"/>
+  <testcase name="authData_equality_compares_byte_array_contents_and_scalar_fields()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.001"/>
+  <testcase name="authData_contains_nonEmpty_publicKey()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.002"/>
+  <testcase name="createSelfAttested_returns_none_format()" classname="com.chimali.fido2.domain.model.AttestationObjectTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

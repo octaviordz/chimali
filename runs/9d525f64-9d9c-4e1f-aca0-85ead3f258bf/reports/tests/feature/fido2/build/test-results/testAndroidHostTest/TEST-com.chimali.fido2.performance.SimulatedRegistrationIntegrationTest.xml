@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedRegistrationIntegrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:08.504Z" hostname="LOQ15IRX10-3" time="0.102">
+  <properties/>
+  <testcase name="fake RP verifies real registration use case response()" classname="com.chimali.fido2.performance.SimulatedRegistrationIntegrationTest" time="0.1"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

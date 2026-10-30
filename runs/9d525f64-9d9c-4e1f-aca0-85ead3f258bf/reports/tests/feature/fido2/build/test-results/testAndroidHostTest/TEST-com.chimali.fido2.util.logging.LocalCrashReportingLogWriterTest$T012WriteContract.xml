@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:12.657Z" hostname="LOQ15IRX10-3" time="0.392">
+  <properties/>
+  <testcase name="log entry content is written in expected format()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.26"/>
+  <testcase name="log directory and file are created on first write()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.01"/>
+  <testcase name="debug log forwarding redacts messages and removes throwable causes()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.014"/>
+  <testcase name="throwable stack trace is appended after the message line()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.02"/>
+  <testcase name="Info Warn Error and Assert severities are all written()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.023"/>
+  <testcase name="privacy scrubber is applied — mnemonic is redacted in written content()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.011"/>
+  <testcase name="throwable message and cause are not written to the local log()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.012"/>
+  <testcase name="severity below Info is filtered out and nothing is written()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.007"/>
+  <testcase name="each write appends to the file — size grows monotonically()" classname="com.chimali.fido2.util.logging.LocalCrashReportingLogWriterTest$T012WriteContract" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

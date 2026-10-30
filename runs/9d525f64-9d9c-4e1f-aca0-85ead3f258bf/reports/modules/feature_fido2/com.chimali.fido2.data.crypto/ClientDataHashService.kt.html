@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClientDataHashService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">ClientDataHashService.kt</span></div><h1>ClientDataHashService.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import java.security.MessageDigest
+import org.koin.core.annotation.Single
+
+/**
+ * T059 — Client data hash generation per WebAuthn / CTAP2 spec.
+ *
+ * ### What is the client data hash?
+ * During a FIDO2 ceremony the *client* (browser / app) constructs a JSON object called
+ * `clientDataJSON` containing:
+ * - `type`:        `&quot;webauthn.create&quot;` or `&quot;webauthn.get&quot;`
+ * - `challenge`:   Base64URL-encoded challenge from the relying party
+ * - `origin`:      The origin URL of the requesting party
+ * - `crossOrigin`: Whether cross-origin RP-ID is in use (default `false`)
+ *
+ * The authenticator receives the **SHA-256 hash** of that JSON string as `clientDataHash`.
+ * This binding prevents relay attacks.
+ *
+ * In our BLE/HID transport the host sends clientDataHash directly in the CTAPHID_CBOR
+ * request — however this service is used when the Android side is the &quot;client&quot; (e.g.
+ * during integration testing or when the authenticator drives the full ceremony).
+ */
+<span class="fc" id="L26">@Single</span>
+class ClientDataHashService {
+<span class="fc" id="L28">    fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(data)</span>
+
+    /** Convenience: SHA-256 of a relying party ID string (used for rpIdHash). */
+<span class="nc" id="L31">    fun rpIdHash(rpId: String): ByteArray = sha256(rpId.toByteArray(Charsets.UTF_8))</span>
+
+    /** Hashes borrowed mutable RP text and erases the temporary UTF-8 encoding before return. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun rpIdHash(rpId: SensitiveCredentialText): ByteArray {
+<span class="fc" id="L36">        val encoded = rpId.toUtf8Bytes()</span>
+<span class="fc" id="L37">        return try {</span>
+<span class="fc" id="L38">            sha256(encoded)</span>
+        } finally {
+<span class="fc" id="L40">            encoded.fill(0)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

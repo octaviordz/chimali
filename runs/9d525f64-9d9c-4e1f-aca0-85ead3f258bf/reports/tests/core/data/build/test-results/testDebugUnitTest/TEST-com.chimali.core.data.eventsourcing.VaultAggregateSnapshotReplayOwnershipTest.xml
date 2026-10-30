@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:19:19.622Z" hostname="LOQ15IRX10-3" time="1.535">
+  <properties/>
+  <testcase name="getState preserves snapshot when replay decider returns the same owned instance" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.388"/>
+  <testcase name="getState clears owned state and remaining events when replay fold throws" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.194"/>
+  <testcase name="getState should hydrate from snapshot when available" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.068"/>
+  <testcase name="getState clears snapshot buffers when replay read returns failure" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.057"/>
+  <testcase name="getState preserves snapshot when replay has no later events" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.096"/>
+  <testcase name="getState clears snapshot buffers when replay read throws cancellation" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.073"/>
+  <testcase name="getState clears snapshot and later events when replay contains a non-vault event" classname="com.chimali.core.data.eventsourcing.VaultAggregateSnapshotReplayOwnershipTest" time="0.657"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

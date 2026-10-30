@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.PrfKeyDerivationZeroingTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:28.628Z" hostname="LOQ15IRX10-3" time="0.037">
+  <properties/>
+  <testcase name="PrfExtensionOutput clear() zeros all output buffers()" classname="com.chimali.fido2.data.crypto.PrfKeyDerivationZeroingTest" time="0.035"/>
+  <system-out><![CDATA[Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-cred
+Debug: (PrfKeyDerivation) PRF derive: 32 bytes for credentialId=test-cred
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

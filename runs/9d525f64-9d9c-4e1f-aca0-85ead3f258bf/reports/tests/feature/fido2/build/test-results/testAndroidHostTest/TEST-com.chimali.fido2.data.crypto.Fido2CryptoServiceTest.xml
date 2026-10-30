@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:22.405Z" hostname="LOQ15IRX10-3" time="5.1">
+  <properties/>
+  <testcase name="P-256 signing erases operation-owned secrets when child scalar derivation fails()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.818"/>
+  <testcase name="ML-DSA public key matches the independent frozen fixture()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.202"/>
+  <testcase name="ML-DSA signing erases xi and private encoding when session fencing cancels the result()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="1.452"/>
+  <testcase name="descriptor rejects an algorithm paired with another profile()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.21"/>
+  <testcase name="provider exception details are excluded from crypto error diagnostics()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.199"/>
+  <testcase name="P-256 public key matches independent fixture and signature verifies()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.742"/>
+  <testcase name="sign rejects a valid but mismatched registered P-256 key before returning a signature()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.086"/>
+  <testcase name="Ed25519 signing erases the credential seed when session fencing cancels the result()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.537"/>
+  <testcase name="signing discards output when session generation is fenced during provider work()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.091"/>
+  <testcase name="credential public output is stable for the same descriptor()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.109"/>
+  <testcase name="complete identifier distinguishes values colliding under retired shortened mapping()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.11"/>
+  <testcase name="Ed25519 public key matches independent fixture and signature verifies()" classname="com.chimali.fido2.data.crypto.Fido2CryptoServiceTest" time="0.269"/>
+  <system-out><![CDATA[Error: Credential signing failed
+Error: Credential public-key derivation failed
+Error: Credential signing failed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.domain.model.Fido2DomainModelsTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:26:36.882Z" hostname="LOQ15IRX10-3" time="0.031">
+  <properties/>
+  <testcase name="publicKeyCredentialUserEntity lifecycle and boundary methods()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.004"/>
+  <testcase name="publicKeyCredentialRpEntity lifecycle and validation()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.003"/>
+  <testcase name="publicKeyCredentialUserEntity validation branches()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.002"/>
+  <testcase name="publicKeyCredentialDescriptor property contracts and transports()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.002"/>
+  <testcase name="authenticatorSelectionCriteria property contracts and helpers()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.005"/>
+  <testcase name="assertionObject property contracts, sign-count, and user presence flags()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.003"/>
+  <testcase name="publicKeyCredentialDescriptor validation branches()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.001"/>
+  <testcase name="publicKeyCredentialUserEntity equals and hashCode branches()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.001"/>
+  <testcase name="authenticatorSelectionCriteria validation branches()" classname="com.chimali.fido2.domain.model.Fido2DomainModelsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

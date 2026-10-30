@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PasskeyState.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">domain</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.eventsourcing.passkey</a> &gt; <span class="el_source">PasskeyState.kt</span></div><h1>PasskeyState.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.eventsourcing.passkey
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.eventsourcing.vault.SensitiveCharArraySerializer
+import kotlinx.serialization.Serializable
+
+/**
+ * Materialized state of a PasskeyCredential aggregate.
+ *
+ * @property id Credential aggregate identity.
+ * @property rpId Mutable relying-party identifier retained by this state and erased by [eraseSensitiveMetadata].
+ * @property userId Mutable user identifier retained by this state and erased by [eraseSensitiveMetadata].
+ * @property userName Mutable account name retained by this state and erased by [eraseSensitiveMetadata].
+ * @property userDisplayName Mutable display name retained by this state and erased by [eraseSensitiveMetadata].
+ * @property credentialId Credential identifier bytes used to reconstruct the registered key.
+ * @property publicKey Encoded registered public key.
+ * @property aaguid Authenticator model identifier recorded with registration.
+ * @property signCount Latest authenticator signature counter.
+ * @property isDeleted Whether a deletion event has been applied.
+ * @property sequenceNumber Position of the latest applied event.
+ * @property coseAlgorithm Persisted COSE algorithm identifier for credential reconstruction.
+ * @property derivationProfile Exact local derivation profile identifier paired with the algorithm.
+ */
+<span class="fc" id="L24">@Serializable</span>
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L26">data class PasskeyState(</span>
+<span class="fc" id="L27">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L28">    val id: String = &quot;&quot;,</span>
+<span class="fc" id="L29">    @Serializable(with = SensitiveCharArraySerializer::class)</span>
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L31">    val rpId: CharArray = charArrayOf(),</span>
+<span class="fc" id="L32">    @Serializable(with = SensitiveCharArraySerializer::class)</span>
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L34">    val userId: CharArray = charArrayOf(),</span>
+<span class="fc" id="L35">    @Serializable(with = SensitiveCharArraySerializer::class)</span>
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L37">    val userName: CharArray = charArrayOf(),</span>
+<span class="fc" id="L38">    @Serializable(with = SensitiveCharArraySerializer::class)</span>
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L40">    val userDisplayName: CharArray = charArrayOf(),</span>
+<span class="fc" id="L41">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L42">    val credentialId: ByteArray = byteArrayOf(),</span>
+<span class="fc" id="L43">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="pc" id="L44">    val publicKey: String = &quot;&quot;,</span>
+<span class="fc" id="L45">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="pc" id="L46">    val aaguid: String = &quot;&quot;,</span>
+<span class="fc" id="L47">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L48">    val signCount: Long = 0,</span>
+<span class="fc" id="L49">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L50">    val isDeleted: Boolean = false,</span>
+<span class="fc" id="L51">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L52">    val sequenceNumber: Long = 0,</span>
+<span class="fc" id="L53">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L54">    val coseAlgorithm: Int = 0,</span>
+<span class="fc" id="L55">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L56">    val derivationProfile: String = &quot;&quot;,</span>
+<span class="fc" id="L57">) {</span>
+    /** Overwrites the state's owned mutable account metadata arrays with zero characters. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun eraseSensitiveMetadata() {
+<span class="fc" id="L61">        rpId.fill('\u0000')</span>
+<span class="fc" id="L62">        userId.fill('\u0000')</span>
+<span class="fc" id="L63">        userName.fill('\u0000')</span>
+<span class="fc" id="L64">        userDisplayName.fill('\u0000')</span>
+<span class="fc" id="L65">    }</span>
+
+    /** Compares state fields by value; mutable arrays use content equality. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (other !is PasskeyState) return false</span>
+
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (id != other.id) return false</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (!rpId.contentEquals(other.rpId)) return false</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (!userId.contentEquals(other.userId)) return false</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (!userName.contentEquals(other.userName)) return false</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (!userDisplayName.contentEquals(other.userDisplayName)) return false</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (!credentialId.contentEquals(other.credentialId)) return false</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (publicKey != other.publicKey) return false</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (aaguid != other.aaguid) return false</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (signCount != other.signCount) return false</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (isDeleted != other.isDeleted) return false</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (sequenceNumber != other.sequenceNumber) return false</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (coseAlgorithm != other.coseAlgorithm) return false</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (derivationProfile != other.derivationProfile) return false</span>
+
+<span class="fc" id="L87">        return true</span>
+    }
+
+    /** Returns a hash consistent with [equals], including content hashes for arrays. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun hashCode(): Int {
+<span class="fc" id="L93">        var result = id.hashCode()</span>
+<span class="fc" id="L94">        result = 31 * result + rpId.contentHashCode()</span>
+<span class="fc" id="L95">        result = 31 * result + userId.contentHashCode()</span>
+<span class="fc" id="L96">        result = 31 * result + userName.contentHashCode()</span>
+<span class="fc" id="L97">        result = 31 * result + userDisplayName.contentHashCode()</span>
+<span class="fc" id="L98">        result = 31 * result + credentialId.contentHashCode()</span>
+<span class="fc" id="L99">        result = 31 * result + publicKey.hashCode()</span>
+<span class="fc" id="L100">        result = 31 * result + aaguid.hashCode()</span>
+<span class="fc" id="L101">        result = 31 * result + signCount.hashCode()</span>
+<span class="fc" id="L102">        result = 31 * result + isDeleted.hashCode()</span>
+<span class="fc" id="L103">        result = 31 * result + sequenceNumber.hashCode()</span>
+<span class="fc" id="L104">        result = 31 * result + coseAlgorithm</span>
+<span class="fc" id="L105">        result = 31 * result + derivationProfile.hashCode()</span>
+<span class="fc" id="L106">        return result</span>
+    }
+
+    /** Returns a diagnostic summary that redacts relying-party, account, credential and public-key fields. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun toString(): String =
+<span class="fc" id="L112">        &quot;PasskeyState(id=$id, rpId=[redacted], userId=[redacted], userName=[redacted], &quot; +</span>
+            &quot;userDisplayName=[redacted], credentialId=[redacted], publicKey=[redacted], aaguid=[redacted], &quot; +
+<span class="fc" id="L114">            &quot;signCount=$signCount, isDeleted=$isDeleted, sequenceNumber=$sequenceNumber, &quot; +</span>
+<span class="fc" id="L115">            &quot;coseAlgorithm=$coseAlgorithm, derivationProfile=$derivationProfile)&quot;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

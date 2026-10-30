@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:27:12.122Z" hostname="LOQ15IRX10-3" time="0.087">
+  <properties/>
+  <testcase name="T148c BiometricError LOCKOUT_PERMANENT clears mnemonic and sets error()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests" time="0.025"/>
+  <testcase name="T148c BiometricError LOCKOUT clears mnemonic and sets error()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests" time="0.026"/>
+  <testcase name="T148c BiometricError does not trigger retry or LoadMnemonic()" classname="com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests" time="0.032"/>
+  <system-out><![CDATA[Warn: Biometric error received: code=9
+Warn: Biometric error received: code=7
+Warn: Biometric error received: code=7
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

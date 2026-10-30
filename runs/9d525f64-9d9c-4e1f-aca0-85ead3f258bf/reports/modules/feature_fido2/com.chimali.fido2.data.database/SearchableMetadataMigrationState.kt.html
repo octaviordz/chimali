@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchableMetadataMigrationState.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.database</a> &gt; <span class="el_source">SearchableMetadataMigrationState.kt</span></div><h1>SearchableMetadataMigrationState.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.database
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import java.util.concurrent.atomic.AtomicReference
+
+enum class MigrationStatus {
+<span class="fc" id="L11">    PENDING,</span>
+<span class="fc" id="L12">    RUNNING,</span>
+<span class="fc" id="L13">    SUCCESS,</span>
+<span class="fc" id="L14">    FAILED,</span>
+}
+
+object SearchableMetadataMigrationState {
+    private const val MAX_CONSENT_RECORDS = 1_000_000L
+    private const val MIGRATION_FAILURE_MESSAGE = &quot;Searchable metadata migration failed&quot;
+
+<span class="fc" id="L21">    private val log = Logger.withTag(&quot;SearchableMetadataMigration&quot;)</span>
+<span class="fc" id="L22">    private val _status = AtomicReference(MigrationStatus.PENDING)</span>
+<span class="fc" id="L23">    private val _lastError = AtomicReference&lt;Throwable?&gt;(null)</span>
+
+<span class="fc" id="L25">    val status: MigrationStatus get() = _status.get()</span>
+<span class="fc" id="L26">    val lastError: Throwable? get() = _lastError.get()</span>
+
+    /**
+     * Executes the transactional, retryable searchable-metadata migration. The database owns row byte arrays;
+     * this operation borrows them only during decoding and erases them on every exit. Newly decoded text owners
+     * and lookup-index arrays remain operation-owned and are erased before each row completes. Failures return a
+     * fixed cause-free result so row values and decoder details do not escape through diagnostics.
+     */
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun migrate(
+        database: Fido2Database,
+        protectionService: CredentialMetadataProtectionService,
+<span class="fc" id="L39">    ): Result&lt;Unit&gt; = migrateWithTextDecoder(database, protectionService, SensitiveCredentialText::fromUtf8Bytes)</span>
+
+    /** Testable decoding boundary; the decoder's returned owner transfers to this operation for immediate cleanup. */
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal fun migrateWithTextDecoder(
+        database: Fido2Database,
+        protectionService: CredentialMetadataProtectionService,
+        textDecoder: (ByteArray) -&gt; SensitiveCredentialText,
+    ): Result&lt;Unit&gt; {
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (!_status.compareAndSet(MigrationStatus.PENDING, MigrationStatus.RUNNING) &amp;&amp;</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            !_status.compareAndSet(MigrationStatus.FAILED, MigrationStatus.RUNNING)</span>
+        ) {
+<span class="fc" id="L52">            log.d { &quot;Migration already in state: $status, skipping execution.&quot; }</span>
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">            if (status == MigrationStatus.SUCCESS) {</span>
+<span class="fc" id="L54">                return Result.success(Unit)</span>
+            }
+<span class="nc" id="L56">            return Result.failure(IllegalStateException(&quot;Migration is already running or completed.&quot;))</span>
+        }
+
+<span class="fc" id="L59">        log.i { &quot;Starting searchable metadata migration...&quot; }</span>
+<span class="fc" id="L60">        try {</span>
+<span class="fc" id="L61">            database.transaction {</span>
+                // 1. Migrate passkey credentials
+<span class="fc" id="L63">                val credentials = database.passkeyCredentialQueries.select_all().executeAsList()</span>
+<span class="fc" id="L64">                log.d { &quot;Found ${credentials.size} credentials to inspect for migration.&quot; }</span>
+<span class="fc" id="L65">                try {</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">                    for (cred in credentials) {</span>
+<span class="pc bpc" id="L67" title="2 of 6 branches missed.">                        if (cred.rp_id_index == null || cred.user_id_index == null || cred.encrypted_metadata == null) {</span>
+<span class="fc" id="L68">                            log.i { &quot;Migrating credential metadata.&quot; }</span>
+<span class="fc" id="L69">                            var rpId: SensitiveCredentialText? = null</span>
+<span class="fc" id="L70">                            var userId: SensitiveCredentialText? = null</span>
+<span class="fc" id="L71">                            var rpIdIndex: ByteArray? = null</span>
+<span class="fc" id="L72">                            var userIdIndex: ByteArray? = null</span>
+<span class="fc" id="L73">                            try {</span>
+<span class="fc" id="L74">                                rpId = textDecoder(cred.rp_id)</span>
+<span class="fc" id="L75">                                userId = textDecoder(cred.user_id)</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">                                val rpIdOwner = requireNotNull(rpId)</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                                val userIdOwner = requireNotNull(userId)</span>
+<span class="fc" id="L78">                                rpIdIndex = protectionService.getRpIdIndex(rpIdOwner)</span>
+<span class="fc" id="L79">                                userIdIndex = protectionService.getUserIdIndex(userIdOwner)</span>
+<span class="fc" id="L80">                                val encryptedMetadata =</span>
+<span class="fc" id="L81">                                    protectionService.encryptCredentialMetadata(</span>
+<span class="fc" id="L82">                                        rpIdOwner,</span>
+<span class="fc" id="L83">                                        userIdOwner,</span>
+                                    )
+
+<span class="fc" id="L86">                                database.passkeyCredentialQueries.update_migration_fields(</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">                                    rp_id_index = requireNotNull(rpIdIndex),</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">                                    user_id_index = requireNotNull(userIdIndex),</span>
+<span class="fc" id="L89">                                    encrypted_metadata = encryptedMetadata,</span>
+<span class="fc" id="L90">                                    id = cred.id,</span>
+                                )
+                            } finally {
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">                                rpId?.erase()</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">                                userId?.erase()</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">                                rpIdIndex?.fill(0)</span>
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">                                userIdIndex?.fill(0)</span>
+<span class="fc" id="L97">                            }</span>
+                        }
+                    }
+                } finally {
+<span class="fc" id="L101">                    credentials.forEach { it.eraseSensitiveMetadata() }</span>
+                }
+
+                // 2. Migrate relying parties
+<span class="fc" id="L105">                val relyingParties = database.relyingPartyQueries.select_all().executeAsList()</span>
+<span class="fc" id="L106">                log.d { &quot;Found ${relyingParties.size} relying parties to inspect for migration.&quot; }</span>
+<span class="fc" id="L107">                try {</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">                    for (rp in relyingParties) {</span>
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">                        if (rp.encrypted_metadata == null) {</span>
+<span class="fc" id="L110">                            var rpId: SensitiveCredentialText? = null</span>
+<span class="fc" id="L111">                            var rpName: SensitiveCredentialText? = null</span>
+<span class="fc" id="L112">                            try {</span>
+<span class="fc" id="L113">                                rpId = textDecoder(rp.id)</span>
+<span class="fc" id="L114">                                rpName = textDecoder(rp.name)</span>
+<span class="fc" id="L115">                                val encryptedMetadata =</span>
+<span class="fc" id="L116">                                    protectionService.encryptRelyingPartyMetadata(</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">                                        requireNotNull(rpId),</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">                                        requireNotNull(rpName),</span>
+                                    )
+<span class="fc" id="L120">                                database.relyingPartyQueries.update(</span>
+<span class="fc" id="L121">                                    last_used_at = rp.last_used_at,</span>
+<span class="fc" id="L122">                                    credential_count = rp.credential_count,</span>
+<span class="fc" id="L123">                                    icon_url = rp.icon_url,</span>
+<span class="fc" id="L124">                                    is_blocked = rp.is_blocked,</span>
+<span class="fc" id="L125">                                    name = rp.name,</span>
+<span class="fc" id="L126">                                    encrypted_metadata = encryptedMetadata,</span>
+<span class="fc" id="L127">                                    id = rp.id,</span>
+                                )
+                            } finally {
+<span class="pc bnc" id="L130" title="All 2 branches missed.">                                rpId?.erase()</span>
+<span class="pc bnc" id="L131" title="All 2 branches missed.">                                rpName?.erase()</span>
+<span class="fc" id="L132">                            }</span>
+                        }
+                    }
+                } finally {
+<span class="fc" id="L136">                    relyingParties.forEach { it.eraseSensitiveMetadata() }</span>
+                }
+
+                // 3. Migrate user consent records
+<span class="fc" id="L140">                val consents = database.userConsentRecordQueries.select_all(MAX_CONSENT_RECORDS).executeAsList()</span>
+<span class="fc" id="L141">                log.d { &quot;Found ${consents.size} user consent records to inspect for migration.&quot; }</span>
+<span class="fc" id="L142">                try {</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                    for (consent in consents) {</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">                        if (consent.rp_id_index == null) {</span>
+<span class="fc" id="L145">                            val rpId = textDecoder(consent.rp_id)</span>
+<span class="fc" id="L146">                            var rpIdIndex: ByteArray? = null</span>
+<span class="fc" id="L147">                            try {</span>
+<span class="fc" id="L148">                                rpIdIndex = protectionService.getRpIdIndex(rpId)</span>
+<span class="fc" id="L149">                                database.userConsentRecordQueries.update_rp_id_index(</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">                                    rp_id_index = requireNotNull(rpIdIndex),</span>
+<span class="fc" id="L151">                                    id = consent.id,</span>
+                                )
+                            } finally {
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">                                rpIdIndex?.fill(0)</span>
+<span class="fc" id="L155">                                rpId.erase()</span>
+<span class="fc" id="L156">                            }</span>
+                        }
+                    }
+                } finally {
+<span class="fc" id="L160">                    consents.forEach { it.eraseSensitiveMetadata() }</span>
+                }
+<span class="fc" id="L162">            }</span>
+
+<span class="fc" id="L164">            _status.set(MigrationStatus.SUCCESS)</span>
+<span class="fc" id="L165">            _lastError.set(null)</span>
+<span class="fc" id="L166">            log.i { &quot;Searchable metadata migration completed successfully.&quot; }</span>
+<span class="fc" id="L167">            return Result.success(Unit)</span>
+<span class="fc" id="L168">        } catch (_: Exception) {</span>
+<span class="fc" id="L169">            _status.set(MigrationStatus.FAILED)</span>
+<span class="fc" id="L170">            val redactedFailure = IllegalStateException(MIGRATION_FAILURE_MESSAGE)</span>
+<span class="fc" id="L171">            _lastError.set(redactedFailure)</span>
+<span class="fc" id="L172">            log.e { MIGRATION_FAILURE_MESSAGE }</span>
+<span class="fc" id="L173">            return Result.failure(redactedFailure)</span>
+        }
+    }
+
+    /**
+     * Resets the migration state to PENDING to force a re-run for testing purposes.
+     */
+    fun resetStateForTesting() {
+<span class="fc" id="L181">        _status.set(MigrationStatus.PENDING)</span>
+<span class="fc" id="L182">        _lastError.set(null)</span>
+<span class="fc" id="L183">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

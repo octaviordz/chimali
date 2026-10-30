@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.navigation.AppRoutingTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:18:18.763Z" hostname="LOQ15IRX10-3" time="0.012">
+  <properties/>
+  <testcase name="from maps onboarding and selection flags()" classname="com.chimali.navigation.AppRoutingTest" time="0.008"/>
+  <testcase name="normalizedLastVisitedMainScreen falls back to passkey when both features are enabled()" classname="com.chimali.navigation.AppRoutingTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

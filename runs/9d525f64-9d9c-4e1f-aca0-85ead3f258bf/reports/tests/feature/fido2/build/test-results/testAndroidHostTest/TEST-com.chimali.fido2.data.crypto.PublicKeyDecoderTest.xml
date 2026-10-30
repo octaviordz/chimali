@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-30T10:25:28.668Z" hostname="LOQ15IRX10-3" time="0.449">
+  <properties/>
+  <testcase name="decode fails for unsupported algorithm()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.007"/>
+  <testcase name="decode EdDSA public key successfully()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.033"/>
+  <testcase name="decode EC256 public key successfully()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.375"/>
+  <testcase name="decode fails for invalid base64()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.003"/>
+  <testcase name="decode fails for corrupted key bytes()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.002"/>
+  <testcase name="decode ML-DSA-65 public key successfully()" classname="com.chimali.fido2.data.crypto.PublicKeyDecoderTest" time="0.013"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

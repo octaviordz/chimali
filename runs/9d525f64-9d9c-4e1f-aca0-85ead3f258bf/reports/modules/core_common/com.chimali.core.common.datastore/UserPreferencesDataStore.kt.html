@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserPreferencesDataStore.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">common</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.common.datastore</a> &gt; <span class="el_source">UserPreferencesDataStore.kt</span></div><h1>UserPreferencesDataStore.kt</h1><pre class="source lang-java linenums">package com.chimali.core.common.datastore
+
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.DataStoreFactory
+import androidx.datastore.core.okio.OkioStorage
+import okio.FileSystem
+import okio.Path.Companion.toPath
+
+fun createUserPreferencesDataStore(producePath: () -&gt; String): DataStore&lt;UserPreferences&gt; =
+<span class="fc" id="L10">    DataStoreFactory.create(</span>
+        storage =
+<span class="fc" id="L12">            OkioStorage(</span>
+<span class="fc" id="L13">                fileSystem = FileSystem.SYSTEM,</span>
+<span class="fc" id="L14">                serializer = UserPreferencesSerializer,</span>
+<span class="fc" id="L15">                producePath = { producePath().toPath() },</span>
+            ),
+<span class="fc" id="L17">    )</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

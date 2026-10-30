@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PostQuantumCrypto.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">PostQuantumCrypto.kt</span></div><h1>PostQuantumCrypto.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
+import java.security.KeyFactory
+import java.security.KeyPair
+import java.security.PrivateKey
+import java.security.PublicKey
+import java.security.Signature
+import org.bouncycastle.jcajce.interfaces.MLDSAPrivateKey
+import org.bouncycastle.jcajce.interfaces.MLDSAPublicKey
+import org.bouncycastle.jcajce.spec.MLDSAParameterSpec
+import org.bouncycastle.jcajce.spec.MLDSAPrivateKeySpec
+import org.koin.core.annotation.Single
+
+/** COSE algorithm identifier for ML-DSA-65 (NIST FIPS 204, Level 3). */
+const val COSE_ML_DSA_65 = -49
+
+/** BC 1.80 ML-DSA-65 seed import, signing, verification and public-key encoding. */
+<span class="fc" id="L21">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+@Single
+<span class="fc" id="L23">class PostQuantumCrypto() {</span>
+<span class="fc" id="L24">    private var providerName: String = PROVIDER_NAME</span>
+
+    /** Test-only provider selection for exercising unavailable-provider error handling. */
+<span class="fc" id="L27">    internal constructor(providerName: String) : this() {</span>
+<span class="fc" id="L28">        this.providerName = providerName</span>
+<span class="fc" id="L29">    }</span>
+
+<span class="fc" id="L31">    init {</span>
+<span class="fc" id="L32">        BouncyCastleLoader.ensureRegistered()</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * Returns whether the configured JCA provider supplies ML-DSA-65 key generation; security
+     * errors from the provider produce `false`.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun isMlDsaSupported(): Boolean =
+<span class="fc" id="L41">        try {</span>
+<span class="fc" id="L42">            keyFactory()</span>
+<span class="fc" id="L43">            true</span>
+<span class="fc" id="L44">        } catch (_: java.security.GeneralSecurityException) {</span>
+<span class="fc" id="L45">            Logger.e { &quot;ML-DSA-65 provider is unavailable&quot; }</span>
+<span class="fc" id="L46">            false</span>
+<span class="fc" id="L47">        }</span>
+
+    /**
+     * Imports a borrowed 32-byte FIPS 204 xi seed without a custom randomness adapter.
+     * Copies and clears its working seed and exported private-key encoding; BC/JCA may retain
+     * provider-owned key material. Returns an owned [KeyPair], or null when the provider fails.
+     * Throws [IllegalArgumentException] when [xi] is not exactly 32 bytes.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun generateMlDsaKeyPair(xi: ByteArray): KeyPair? {
+<span class="fc bfc" id="L57" title="All 4 branches covered.">        require(xi.size == MLDSA_SEED_LENGTH) { &quot;ML-DSA-65 xi must be exactly 32 bytes&quot; }</span>
+<span class="fc" id="L58">        val ownedXi = xi.copyOf()</span>
+<span class="fc" id="L59">        var privateKeyEncoding: ByteArray? = null</span>
+<span class="fc" id="L60">        try {</span>
+<span class="fc" id="L61">            val privateKey =</span>
+<span class="fc" id="L62">                keyFactory().generatePrivate(MLDSAPrivateKeySpec(MLDSAParameterSpec.ml_dsa_65, ownedXi))</span>
+                    as MLDSAPrivateKey
+<span class="fc" id="L64">            privateKeyEncoding = privateKey.encoded</span>
+<span class="fc" id="L65">            val publicKey = privateKey.getPublicKey() as MLDSAPublicKey</span>
+<span class="fc" id="L66">            return KeyPair(publicKey, privateKey)</span>
+<span class="fc" id="L67">        } catch (_: java.security.GeneralSecurityException) {</span>
+<span class="fc" id="L68">            Logger.e { &quot;ML-DSA-65 seed import failed&quot; }</span>
+<span class="fc" id="L69">            return null</span>
+        } finally {
+<span class="fc" id="L71">            ownedXi.fill(0)</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            privateKeyEncoding?.fill(0)</span>
+        }
+    }
+
+    /**
+     * Signs borrowed [data] with [privateKey], returning an owned signature or null on JCA failure.
+     * Clears an exported private-key encoding when available; the provider may retain internal copies.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun sign(
+        privateKey: PrivateKey,
+        data: ByteArray,
+    ): ByteArray? {
+<span class="fc" id="L85">        var privateEncoding: ByteArray? = null</span>
+<span class="fc" id="L86">        try {</span>
+<span class="fc" id="L87">            privateEncoding = privateKey.encoded</span>
+<span class="fc" id="L88">            val signer = Signature.getInstance(MLDSA_ALGORITHM, providerName)</span>
+<span class="fc" id="L89">            signer.initSign(privateKey)</span>
+<span class="fc" id="L90">            signer.update(data)</span>
+<span class="fc" id="L91">            return signer.sign()</span>
+<span class="fc" id="L92">        } catch (_: java.security.GeneralSecurityException) {</span>
+<span class="fc" id="L93">            Logger.e { &quot;ML-DSA-65 signing failed&quot; }</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">            return null</span>
+        } finally {
+<span class="fc" id="L96">            privateEncoding?.fill(0)</span>
+        }
+    }
+
+    /**
+     * Verifies borrowed [signature] and [data] with [publicKey]. Returns false when verification
+     * fails or the configured JCA provider reports a security error; inputs remain caller-owned.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun verify(
+        publicKey: PublicKey,
+        data: ByteArray,
+        signature: ByteArray,
+    ): Boolean =
+<span class="fc" id="L110">        try {</span>
+            Signature
+<span class="fc" id="L112">                .getInstance(MLDSA_ALGORITHM, providerName)</span>
+<span class="fc" id="L113">                .apply {</span>
+<span class="fc" id="L114">                    initVerify(publicKey)</span>
+<span class="fc" id="L115">                    update(data)</span>
+<span class="fc" id="L116">                }.verify(signature)</span>
+<span class="nc" id="L117">        } catch (_: java.security.GeneralSecurityException) {</span>
+<span class="nc" id="L118">            Logger.e { &quot;ML-DSA-65 signature verification failed&quot; }</span>
+<span class="pc" id="L119">            false</span>
+<span class="fc" id="L120">        }</span>
+
+    /** Returns an owned copy of the JCA X.509 public-key encoding. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L124">    fun publicKeyBytes(keyPair: KeyPair): ByteArray = keyPair.public.encoded.copyOf()</span>
+
+<span class="fc" id="L126">    private fun keyFactory(): KeyFactory = KeyFactory.getInstance(MLDSA_ALGORITHM, providerName)</span>
+
+    private companion object {
+        const val MLDSA_ALGORITHM = &quot;ML-DSA-65&quot;
+        const val MLDSA_SEED_LENGTH = 32
+        const val PROVIDER_NAME = &quot;BC&quot;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
