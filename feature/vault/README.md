@@ -6,7 +6,7 @@ The Secure Credentials Vault provides a secure, local-first storage for sensitiv
 ## Architecture
 - **MVI (Model-View-Intent)**: Unidirectional Data Flow using `VaultViewModel`, `VaultState`, and `VaultIntent`.
 - **Hybrid Granularity**: 
-  - **Relational (SQLite/SQLCipher)**: Stores top-level metadata and encrypted search indexes.
+  - **Relational (SQLite3MultipleCiphers/SQLDelight)**: Stores top-level metadata and encrypted search indexes through the shared `:core:database` driver.
   - **Document (Loro.dev)**: Each item has its own CRDT document for versioning and merging.
 - **Security**:
   - **AES-256-GCM**: Encryption for all sensitive fields.
