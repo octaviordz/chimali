@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "decision_id": "0e26a3a6-4d8d-4db8-840b-f391e14d8719",
+  "decision": "PROMOTE",
+  "reviewed_at": "2026-10-30T14:17:36Z",
+  "repository": "octaviordz/chimali",
+  "pull_request": {
+    "number": 1,
+    "url": "https://github.com/octaviordz/chimali/pull/1"
+  },
+  "actor": {
+    "authenticated_user": "octaviordz",
+    "acting_agent": "Codex",
+    "authorized_user": "octaviordz",
+    "permission": "admin"
+  },
+  "head": "61f362a42ffb16f86601c86c3319560c969273bc",
+  "base": "bc760834590b43ebb3cf037837cca487de56efe9",
+  "prospective_tree": "3a41f6da4b81d7d16e3d90afad6f1b0c9d881487",
+  "tested_tree": "3a41f6da4b81d7d16e3d90afad6f1b0c9d881487",
+  "assessment_baseline": {
+    "commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+    "tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+    "run_id": "9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+    "bundle_path": "runs/9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+    "bundle_digest": "4835269a4ec74699fdeb08c6ed068ed01866666c99b866e3f303fe789faacbfe",
+    "index_path": "baselines/current.json",
+    "index_digest": "77bbeea1e2a898bf2c111845d7670e91213c72eef129a519a9209657b52efd4a"
+  },
+  "report": {
+    "run_id": "c1b392a9-f830-4283-83f2-44e36ac5d731",
+    "bundle_digest": "d71928160a4ce5f3f9a989f2fff6263d8246d9eb8fbbe8c49c88a0d9f9eabfa1",
+    "link": "https://github.com/octaviordz/chimali/blob/swe/coverage-evidence/runs/c1b392a9-f830-4283-83f2-44e36ac5d731/summary.md"
+  },
+  "trusted_harness_commit": "b4b4569d7efd415703f73ab461263096a700710f",
+  "hosted_check": "Unverified",
+  "github_review_id": "5713621748",
+  "merged_commit": "f1fd56baf8641cea99edc7fafa8725fdda21044c",
+  "integrated_commit": "f1fd56baf8641cea99edc7fafa8725fdda21044c",
+  "integrated_tree": "3a41f6da4b81d7d16e3d90afad6f1b0c9d881487",
+  "main_tip": "f1fd56baf8641cea99edc7fafa8725fdda21044c",
+  "accepted_index": {
+    "tested_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+    "integrated_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+    "target_tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+    "tested_tree": "30c597990a7c746df884fd6f6aafb4427aa0448c",
+    "target_commit": "bc760834590b43ebb3cf037837cca487de56efe9",
+    "initial_target_ref": "lab/or/main",
+    "acceptance_record_path": "assessments/9d525f64-9d9c-4e1f-aca0-85ead3f258bf/initial-baseline-acceptance.json",
+    "acceptance_record_digest": "8ed1f0fe5337e5704715c8c32cccd7125b314938280d8033599f3628db22c0c2",
+    "run_id": "9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+    "archive_branch": "swe/coverage-evidence",
+    "bundle_path": "runs/9d525f64-9d9c-4e1f-aca0-85ead3f258bf",
+    "bundle_digest": "4835269a4ec74699fdeb08c6ed068ed01866666c99b866e3f303fe789faacbfe",
+    "promoted_at": "2026-10-30T10:58:15Z",
+    "provenance": "MeasuredAcceptedTarget"
+  },
+  "accepted_index_digest": "77bbeea1e2a898bf2c111845d7670e91213c72eef129a519a9209657b52efd4a",
+  "expected_old_index_digest": "77bbeea1e2a898bf2c111845d7670e91213c72eef129a519a9209657b52efd4a",
+  "reviewed_by": "octaviordz",
+  "reviewed_head": "61f362a42ffb16f86601c86c3319560c969273bc",
+  "manifest_digest": "90d351f0df41d4caa332f19b38a067df497b700da0f1e93ef4f59ae21ff539f1",
+  "bundle_digest": "d71928160a4ce5f3f9a989f2fff6263d8246d9eb8fbbe8c49c88a0d9f9eabfa1",
+  "run_id": "c1b392a9-f830-4283-83f2-44e36ac5d731"
+}
