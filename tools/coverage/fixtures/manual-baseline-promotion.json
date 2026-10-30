@@ -1,0 +1,21 @@
+{
+  "cases": [
+    { "id": "MANUAL_PROMO_001_AUTHORIZED_APPROVAL_AND_EXACT_MERGE_ACCEPTED", "expected_valid": true },
+    { "id": "MANUAL_PROMO_002_UNAUTHENTICATED_PROMOTER_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_003_GITHUB_APPROVAL_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_004_MERGED_TREE_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_005_CHANGED_ACCEPTED_INDEX_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_006_REVIEWED_BASE_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_007_OWNER_SELF_REVIEW_COMMENT_ACCEPTED", "expected_valid": true },
+    { "id": "MANUAL_PROMO_008_NON_OWNER_COMMENT_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_009_OWNER_COMMENT_BODY_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_010_OWNER_COMMENT_HEAD_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_011_OWNER_COMMENT_WRONG_AUTHOR_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_012_OWNER_COMMENT_ID_MISMATCH_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_013_SEPARATE_CLEAN_VERIFIER_ACCEPTED", "expected_valid": true },
+    { "id": "MANUAL_PROMO_014_DIRTY_VERIFIER_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_015_WRONG_VERIFIER_REVISION_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_016_CANDIDATE_AS_VERIFIER_REJECTED", "expected_valid": false },
+    { "id": "MANUAL_PROMO_017_VERIFIER_CREDENTIAL_ISOLATION", "expected_valid": true }
+  ]
+}

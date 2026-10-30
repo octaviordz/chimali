@@ -546,6 +546,7 @@ $reporterReceipt = [PSCustomObject]@{
     publication_bundle_digest = if ($publicationReceipt) { $publicationReceipt.bundle_digest } else { $null }
     publication_archive_ref = if ($publicationReceipt) { $publicationReceipt.archive_ref } else { $null }
     publication_archive_commit = if ($publicationReceipt) { $publicationReceipt.archive_commit } else { $null }
+    coverage_report_url = if ($publicationReceipt) { $publicationReceipt.report_url } else { $null }
     target_recapture = $targetRecaptureResult
     published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     status = "Published"

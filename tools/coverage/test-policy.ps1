@@ -654,13 +654,14 @@ foreach ($file in $fixtureFiles) {
                         $fixtureExit = $LASTEXITCODE
                         if ($fixtureExit -eq 0) { $casePassed = $true }
                         else { $errorMsg = "Production publisher failure lifecycle ($mode) failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
-                    } elseif ($case.id -in @('PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX', 'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_011_TARGET_PUSH_PROMOTION')) {
+                    } elseif ($case.id -in @('PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX', 'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE', 'PUBLISH_011_TARGET_PUSH_PROMOTION', 'PUBLISH_012_HISTORICAL_ARCHIVE_BYTES_AND_REF_PRESERVED')) {
                         $fixtureScript = Join-Path $FixturesDir 'run-publisher-promotion-fixture.ps1'
                         $mode = switch ($case.id) {
                             'PUBLISH_008_VALID_PROMOTION_ADVANCES_INDEX' { 'success' }
                             'PUBLISH_009_UNSUPPORTED_EVENT_REJECTED_BEFORE_ARCHIVE' { 'unsupported-event' }
                             'PUBLISH_010_STALE_BASE_REJECTED_BEFORE_ARCHIVE' { 'stale-base' }
                             'PUBLISH_011_TARGET_PUSH_PROMOTION' { 'target-push' }
+                            'PUBLISH_012_HISTORICAL_ARCHIVE_BYTES_AND_REF_PRESERVED' { 'success' }
                         }
                         $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) -Mode $mode 2>&1)
                         $fixtureExit = $LASTEXITCODE
@@ -1176,6 +1177,46 @@ foreach ($file in $fixtureFiles) {
                         else { $errorMsg = "Expected compatible=$($case.expected_compatible), got $($compEval.Compatible)" }
                     }
                 }
+                "manual-review.json" {
+                    if ($case.id -in @('MANUAL_REVIEW_TEMP_CLEANUP_READONLY','MANUAL_REVIEW_TEMP_CLEANUP_UNSAFE_PATH_REJECTED')) {
+                        $tempReview = Join-Path ([System.IO.Path]::GetTempPath()) ('chimali-manual-review-' + [guid]::NewGuid().ToString('N') + '.git')
+                        $nested = Join-Path $tempReview 'objects'
+                        New-Item -ItemType Directory -Path $nested -Force | Out-Null
+                        $readOnlyFile = Join-Path $nested 'commit-graph-chain'
+                        [System.IO.File]::WriteAllText($readOnlyFile, 'fixture')
+                        [System.IO.File]::SetAttributes($readOnlyFile, [System.IO.FileAttributes]::ReadOnly)
+                        try {
+                            if ($case.id -eq 'MANUAL_REVIEW_TEMP_CLEANUP_UNSAFE_PATH_REJECTED') {
+                                $rejected = $false
+                                try { Remove-CoverageReviewTemporaryDirectory -Path $nested } catch { $rejected = $true }
+                                if (-not $rejected -or -not (Test-Path -LiteralPath $readOnlyFile)) { throw 'Unsafe cleanup path was not rejected before deletion.' }
+                            }
+                            Remove-CoverageReviewTemporaryDirectory -Path $tempReview
+                            if (Test-Path -LiteralPath $tempReview) { throw 'Read-only Git fixture was not removed.' }
+                            $casePassed = $true
+                        } finally {
+                            if (Test-Path -LiteralPath $tempReview) { Remove-CoverageReviewTemporaryDirectory -Path $tempReview }
+                        }
+                        break
+                    }
+                    if ($case.tree) {
+                        $reviewEval = Test-ManualReviewTreeCase -Case $case
+                    } else {
+                        $reviewEval = Test-ManualReviewEvidenceCase -Case $case
+                    }
+                    if ($reviewEval.IsValid -eq [bool]$case.expected_valid) {
+                        if ($case.expected_error) {
+                            if (@($reviewEval.Errors | Where-Object { $_ -like "*$($case.expected_error)*" }).Count -eq 0) {
+                                $errorMsg = "Expected rejection reason '$($case.expected_error)' was not returned"
+                            } else { $casePassed = $true }
+                        } elseif ($null -ne $case.PSObject.Properties['expected_new_assessment'] -and
+                            [bool]$reviewEval.RequiresNewAssessment -ne [bool]$case.expected_new_assessment) {
+                            $errorMsg = "Changed-tree re-assessment requirement mismatch; expected=$($case.expected_new_assessment), actual=$($reviewEval.RequiresNewAssessment)"
+                        } else { $casePassed = $true }
+                    } else {
+                        $errorMsg = "Manual review evidence validity mismatch; expected=$($case.expected_valid), errors=$($reviewEval.Errors -join '; ')"
+                    }
+                }
                 "publication.json" {
                     $pubEval = Test-PublicationCase -Case $case
                     if ($case.expected_valid) {
@@ -1571,6 +1612,159 @@ foreach ($file in $fixtureFiles) {
                     } else {
                         $errorMsg = "Expected valid=$($case.expected_valid), got valid=$($indexEval.IsValid). Errors: $($indexEval.Errors -join '; ')"
                     }
+                }
+                "initial-baseline.json" {
+                    if ($case.id -eq 'INITIAL_BASE_006_PUBLISHER_REJECTS_UNBOUND_INITIAL_RUN') {
+                        $fixtureScript = Join-Path $FixturesDir 'run-initial-baseline-rejection-fixture.ps1'
+                        $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) 2>&1)
+                        if ($LASTEXITCODE -eq 0) { $casePassed = $true }
+                        else { $errorMsg = "Initial-baseline publisher rejection fixture failed: $($fixtureOutput -join ' ')" }
+                        break
+                    }
+                    $sourceCommit = 'a' * 40
+                    $manifest = [PSCustomObject]@{
+                        run_id = '00000000-0000-4000-8000-000000000061'
+                        purpose = 'Initial'
+                        policy_id = 'chimali-coverage-v1'
+                        git = [PSCustomObject]@{ source_commit = $sourceCommit; source_tree = ('b' * 40); target_commit = $sourceCommit; initial_target_ref = 'lab/or/main' }
+                        suites = @([PSCustomObject]@{ suite_name = 'host-required'; required = $true; tests = 1; skipped = 0; failures = 0; errors = 0 })
+                    }
+                    $decision = [PSCustomObject]@{
+                        run_id = $manifest.run_id; manifest_digest = 'c' * 64; overall_passed = $true
+                        decisions = [PSCustomObject]@{ collection = 'Complete'; tests = 'Passed'; floors = 'Passed' }
+                    }
+                    $decisionMain = $sourceCommit
+                    switch ($case.id) {
+                        'INITIAL_BASE_002_SOURCE_REF_REQUIRED' { $manifest.git.initial_target_ref = 'origin/main' }
+                        'INITIAL_BASE_003_MAIN_MUST_EQUAL_MEASURED_SOURCE' { $decisionMain = 'd' * 40 }
+                        'INITIAL_BASE_004_REQUIRED_SUITES_MUST_PASS' { $manifest.suites[0].failures = 1 }
+                        'INITIAL_BASE_005_REVIEWED_POLICY_REQUIRED' { $manifest.policy_id = 'unreviewed-policy' }
+                    }
+                    $result = Test-InitialBaselineReadiness -Manifest $manifest -Decision $decision `
+                        -ExpectedSourceCommit $sourceCommit -ExpectedMainCommit $decisionMain -ExpectedPolicyId 'chimali-coverage-v1'
+                    if ($result.IsValid -eq $case.expected_valid) { $casePassed = $true }
+                    else { $errorMsg = "Expected initial baseline readiness=$($case.expected_valid), errors=$($result.Errors -join '; ')" }
+                }
+                "manual-baseline-promotion.json" {
+                    if ($case.id -eq 'MANUAL_PROMO_017_VERIFIER_CREDENTIAL_ISOLATION') {
+                        $tempVerifier = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-verifier-fixture-' + [guid]::NewGuid().ToString('N'))
+                        $names = @('CHIMALI_COVERAGE_PUBLISH_TOKEN','GH_TOKEN','GIT_CONFIG_COUNT','GIT_CONFIG_KEY_0','GIT_CONFIG_VALUE_0')
+                        $saved = @{}
+                        foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
+                        New-Item -ItemType Directory -Path $tempVerifier -Force | Out-Null
+                        try {
+                            $script = Join-Path $tempVerifier 'verify.ps1'
+                            $output = Join-Path $tempVerifier 'result.txt'
+                            [System.IO.File]::WriteAllText($script, @'
+param([string]$OutputPath)
+$names = @('CHIMALI_COVERAGE_PUBLISH_TOKEN','GH_TOKEN','GITHUB_TOKEN','GIT_CONFIG_COUNT','GIT_CONFIG_KEY_0','GIT_CONFIG_VALUE_0')
+foreach ($name in $names) { if ([Environment]::GetEnvironmentVariable($name, 'Process')) { exit 1 } }
+[System.IO.File]::WriteAllText($OutputPath, 'isolated')
+exit 0
+'@)
+                            $env:CHIMALI_COVERAGE_PUBLISH_TOKEN = 'fixture-secret'
+                            $env:GH_TOKEN = 'fixture-gh-secret'
+                            $env:GIT_CONFIG_COUNT = '1'; $env:GIT_CONFIG_KEY_0 = 'fixture.test'; $env:GIT_CONFIG_VALUE_0 = 'fixture-header'
+                            $exitCode = Invoke-CoverageVerifierWithoutPublisherCredential -ScriptPath $script -WorkingDirectory $tempVerifier -Arguments @('-OutputPath', $output)
+                            if ($exitCode -ne 0 -or -not (Test-Path -LiteralPath $output) -or
+                                $env:CHIMALI_COVERAGE_PUBLISH_TOKEN -cne 'fixture-secret' -or $env:GH_TOKEN -cne 'fixture-gh-secret' -or
+                                $env:GIT_CONFIG_COUNT -cne '1' -or $env:GIT_CONFIG_VALUE_0 -cne 'fixture-header') {
+                                throw 'Verifier inherited publisher credentials or the parent environment was not restored.'
+                            }
+                            $casePassed = $true
+                        } finally {
+                            foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+                            $canonicalTemp = [System.IO.Path]::GetFullPath($tempVerifier)
+                            $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')
+                            if ([System.IO.Path]::GetDirectoryName($canonicalTemp) -ne $tempRoot -or [System.IO.Path]::GetFileName($canonicalTemp) -notlike 'coverage-verifier-fixture-*') { throw 'Refusing to remove unexpected verifier fixture path.' }
+                            if (Test-Path -LiteralPath $canonicalTemp) { [System.IO.Directory]::Delete($canonicalTemp, $true) }
+                        }
+                        break
+                    }
+                    if ($case.id -match '^MANUAL_PROMO_01[3-6]_') {
+                        $tempHarness = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-verifier-fixture-' + [guid]::NewGuid().ToString('N'))
+                        New-Item -ItemType Directory -Path $tempHarness -Force | Out-Null
+                        try {
+                            & git init --quiet $tempHarness
+                            if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize verifier fixture.' }
+                            & git -C $tempHarness config user.name 'Coverage Fixture'
+                            & git -C $tempHarness config user.email 'coverage-fixture@example.invalid'
+                            [System.IO.File]::WriteAllText((Join-Path $tempHarness 'fixture.txt'), 'trusted')
+                            & git -C $tempHarness add -- fixture.txt
+                            $tree = (& git -C $tempHarness write-tree).Trim()
+                            $commit = ('fixture verifier' | & git -C $tempHarness -c commit.gpgsign=false commit-tree $tree).Trim()
+                            if ($LASTEXITCODE -ne 0) { throw 'Cannot create verifier fixture commit.' }
+                            & git -C $tempHarness update-ref HEAD $commit
+                            $expected = $commit; $candidate = 'a' * 40
+                            switch ($case.id) {
+                                'MANUAL_PROMO_014_DIRTY_VERIFIER_REJECTED' { [System.IO.File]::WriteAllText((Join-Path $tempHarness 'fixture.txt'), 'changed') }
+                                'MANUAL_PROMO_015_WRONG_VERIFIER_REVISION_REJECTED' { $expected = 'b' * 40 }
+                                'MANUAL_PROMO_016_CANDIDATE_AS_VERIFIER_REJECTED' { $candidate = $commit }
+                            }
+                            $harnessResult = Test-ManualVerificationHarness -Root $tempHarness -ExpectedCommit $expected -CandidateCommit $candidate
+                            if ($harnessResult.IsValid -eq [bool]$case.expected_valid) { $casePassed = $true }
+                            else { $errorMsg = "Verification harness validation mismatch: $($harnessResult.Errors -join '; ')" }
+                        } finally {
+                            $canonicalTemp = [System.IO.Path]::GetFullPath($tempHarness)
+                            $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')
+                            if ([System.IO.Path]::GetDirectoryName($canonicalTemp) -ne $tempRoot -or [System.IO.Path]::GetFileName($canonicalTemp) -notlike 'coverage-verifier-fixture-*') { throw 'Refusing to remove unexpected verifier fixture path.' }
+                            if (Test-Path -LiteralPath $canonicalTemp) {
+                                Get-ChildItem -LiteralPath $canonicalTemp -Force -Recurse | ForEach-Object { if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly) { $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly) } }
+                                [System.IO.Directory]::Delete($canonicalTemp, $true)
+                            }
+                        }
+                        break
+                    }
+                    $candidateSha = 'a' * 40; $candidateTree = 'b' * 40; $mergeSha = 'c' * 40
+                    $runId = '00000000-0000-4000-8000-000000000062'
+                    $indexDigest = 'd' * 64; $bundleDigest = 'e' * 64; $manifestDigest = 'f' * 64
+                    $manifest = [PSCustomObject]@{
+                        run_id = $runId; policy_id = 'chimali-coverage-v1'; measurement_fingerprint = 'scope-1'
+                        git = [PSCustomObject]@{ source_commit = $candidateSha; source_tree = $candidateTree }
+                    }
+                    $assessmentRecord = [PSCustomObject]@{
+                        decision = 'PASS'; run = [PSCustomObject]@{ id = $runId; manifest_digest = $manifestDigest; bundle_digest = $bundleDigest }
+                        candidate = [PSCustomObject]@{ commit = $candidateSha; tree = $candidateTree }
+                        policy = [PSCustomObject]@{ id = 'chimali-coverage-v1'; scope_fingerprint = 'scope-1' }
+                    }
+                    $promotion = [PSCustomObject]@{
+                        decision = 'PROMOTE'; repository = 'octaviordz/chimali'; run_id = $runId; bundle_digest = $bundleDigest
+                        manifest_digest = $manifestDigest; actor = [PSCustomObject]@{ authenticated_user = 'reviewer'; permission = 'write' }
+                        reviewed_by = 'reviewer'; reviewed_head = $candidateSha; tested_tree = $candidateTree; github_review_id = '71'
+                        base = '9' * 40
+                        integrated_commit = $mergeSha; integrated_tree = $candidateTree; expected_old_index_digest = $indexDigest
+                        pull_request = [PSCustomObject]@{ number = 17 }
+                    }
+                    $pull = [PSCustomObject]@{ number = 17; state = 'closed'; merged = $true; merge_commit_sha = $mergeSha; base = [PSCustomObject]@{ ref = 'main'; sha = '9' * 40 } }
+                    $githubReview = [PSCustomObject]@{ id = 71; state = 'APPROVED'; user = [PSCustomObject]@{ login = 'reviewer' }; commit_id = $candidateSha }
+                    $actualMergeTree = $candidateTree; $actualIndexDigest = $indexDigest; $authenticatedUser = 'reviewer'
+                    if ($case.id -match '^MANUAL_PROMO_0(07|08|09|10|11|12)_') {
+                        $authenticatedUser = 'octaviordz'
+                        $promotion.actor.authenticated_user = 'octaviordz'
+                        $promotion.reviewed_by = 'octaviordz'
+                        $pull | Add-Member -NotePropertyName user -NotePropertyValue ([PSCustomObject]@{ login = 'octaviordz' })
+                        $githubReview.state = 'COMMENTED'
+                        $githubReview.user.login = 'octaviordz'
+                        $githubReview | Add-Member -NotePropertyName body -NotePropertyValue "Manual coverage review ACCEPT for run $runId; tested tree $candidateTree; prospective tree $candidateTree. Hosted coverage check remains unverified."
+                    }
+                    switch ($case.id) {
+                        'MANUAL_PROMO_002_UNAUTHENTICATED_PROMOTER_REJECTED' { $authenticatedUser = 'intruder' }
+                        'MANUAL_PROMO_003_GITHUB_APPROVAL_MISMATCH_REJECTED' { $githubReview.commit_id = '9' * 40 }
+                        'MANUAL_PROMO_004_MERGED_TREE_MISMATCH_REJECTED' { $actualMergeTree = '8' * 40 }
+                        'MANUAL_PROMO_005_CHANGED_ACCEPTED_INDEX_REJECTED' { $actualIndexDigest = '7' * 64 }
+                        'MANUAL_PROMO_006_REVIEWED_BASE_MISMATCH_REJECTED' { $promotion.base = '8' * 40 }
+                        'MANUAL_PROMO_008_NON_OWNER_COMMENT_REJECTED' { $authenticatedUser = 'reviewer'; $promotion.actor.authenticated_user = 'reviewer'; $promotion.reviewed_by = 'reviewer'; $githubReview.user.login = 'reviewer' }
+                        'MANUAL_PROMO_009_OWNER_COMMENT_BODY_MISMATCH_REJECTED' { $githubReview.body = 'Manual coverage review ACCEPT for another run.' }
+                        'MANUAL_PROMO_010_OWNER_COMMENT_HEAD_MISMATCH_REJECTED' { $githubReview.commit_id = '8' * 40 }
+                        'MANUAL_PROMO_011_OWNER_COMMENT_WRONG_AUTHOR_REJECTED' { $pull.user.login = 'other-author' }
+                        'MANUAL_PROMO_012_OWNER_COMMENT_ID_MISMATCH_REJECTED' { $githubReview.id = 72 }
+                    }
+                    $result = Test-ManualBaselinePromotionReadiness -PromotionRecord $promotion -AssessmentRecord $assessmentRecord `
+                        -Manifest $manifest -PullRequest $pull -GitHubReview $githubReview -ExpectedRepository 'octaviordz/chimali' `
+                        -AuthenticatedUser $authenticatedUser -ActualMergeCommit $mergeSha -ActualMergeTree $actualMergeTree `
+                        -ExpectedOldIndexDigest $indexDigest -ActualOldIndexDigest $actualIndexDigest
+                    if ($result.IsValid -eq $case.expected_valid) { $casePassed = $true }
+                    else { $errorMsg = "Expected manual promotion readiness=$($case.expected_valid), errors=$($result.Errors -join '; ')" }
                 }
                 "changed-paths.json" {
                     if ($case.id -eq 'CHANGED_PATHS_001_COLLECTOR_RECEIPT_AND_OWNER_RESOLUTION') {

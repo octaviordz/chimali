@@ -1,5 +1,7 @@
 # Coverage Workflow Contract
 
+> **Policy update:** Feature 061 supersedes the hosted acceptance and target-freshness procedures below, which are retained as historical design. Its local manual assessment, review, initial-baseline guard and promotion entry points are implemented and fixture-validated. An authorized reviewer assesses trusted evidence against the accepted baseline identified at assessment time. A target advance alone does not require reassessment if the proposed integration tree is unchanged; a changed tree requires renewed verification. The earlier comparison does not prove nonregression against a newer baseline. The hosted rollout remains waived and unverified; fixed CI floors, required suites and evidence integrity remain binding. Active rules protect `main` and the archive, and the initial baseline is accepted; the controlled end-to-end review remains unverified. See [Feature 061 workflow](../../061-manual-coverage-integration/contracts/workflow.md).
+
 **Date**: 2026-10-24  
 **Status**: Planned developer/CI interfaces. The new entry points and hosted configuration described here must be implemented before the commands establish acceptance.
 
@@ -87,7 +89,7 @@ The measurement compatibility policy is stable across compared runs; normal prod
 
 Publish immutable review/baseline bundles to protected `codex/coverage-evidence` using unique `runs/<run_id>/` paths. Capture is sealed before assessment; later immutable decision/publication records reference its digest without modifying it. Human-readable summaries and supporting XML/HTML/test reports remain retrievable while used for review/comparison. Transfer artifacts are not the sole long-term baseline location. Validate digests and reject extraction paths outside the bundle; a hash mismatch is blocking. Archive/index updates must detect races rather than overwrite another run.
 
-A final hosted integration success requires complete current execution, passing applicable tests/floors/regression, compatible accepted-target identity and published accessible artifacts. After integration, promote the baseline only if the actual integrated tree equals the tested tree, recording both commit identities when necessary. Rebase/squash/conflict resolution that changes the tested tree requires new verification. Product evidence and archive commits never assert that a different product revision was tested.
+A final hosted integration success requires complete current execution, passing applicable tests/floors/regression, compatible accepted-target identity and published accessible artifacts. This remains the historical Feature 058 hosted design under the current owner waiver, not an operational status claim. Feature 061 specifies manual review against the accepted assessment-time baseline, preserves `codex/coverage-evidence` on historical receipts, and uses `swe/coverage-evidence` for new reports after its unverified migration. After integration, promote a baseline only if the actual integrated tree equals the tested tree, recording both commit identities when necessary. A changed tested tree requires new verification. Product evidence and archive commits never assert that a different product revision was tested.
 
 ## Behavior-test selection contract
 

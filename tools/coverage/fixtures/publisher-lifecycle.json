@@ -56,6 +56,11 @@
       "id": "PUBLISH_011_TARGET_PUSH_PROMOTION",
       "description": "The trusted publisher promotes an already integrated target-push measurement without requiring an open pull request",
       "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_012_HISTORICAL_ARCHIVE_BYTES_AND_REF_PRESERVED",
+      "description": "Publishing on swe/coverage-evidence preserves exact historical run blobs, receipts, and the original codex archive ref",
+      "expected_valid": true
     }
   ]
 }

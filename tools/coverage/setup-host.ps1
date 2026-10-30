@@ -10,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $profilePath = Join-Path $PSScriptRoot 'host-profile.json'
 $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+$coveragePolicy = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'policy.json') -Raw | ConvertFrom-Json
 
 if ($PSVersionTable.PSVersion.Major -lt $profile.powershell.minimum_major) {
     throw "PowerShell $($profile.powershell.minimum_major)+ is required; found $($PSVersionTable.PSVersion)."
@@ -133,17 +134,41 @@ if ($LASTEXITCODE -ne 0 -or $gradleOutput -notmatch "Gradle $([regex]::Escape($e
 }
 
 if (-not $SkipDeviceCheck) {
-    if (-not $DeviceSerial) { $DeviceSerial = [string]$profile.device.default_serial }
-    if (-not $DeviceSerial) { throw 'Pass -DeviceSerial, or use -SkipDeviceCheck when no Android device is needed.' }
     $adb = Join-Path $AndroidSdkRoot 'platform-tools\adb.exe'
     & $adb start-server | Out-Null
-    $deviceLines = & $adb devices
-    if (-not ($deviceLines | Where-Object { $_ -match "^$([regex]::Escape($DeviceSerial))\s+device$" })) {
+    $deviceLines = @(& $adb devices -l)
+    $readySerials = @($deviceLines | ForEach-Object {
+        if ($_ -match '^([^\s]+)\s+device(?:\s|$)') { $Matches[1] }
+    })
+    $minimumApi = [Math]::Max([int]$profile.device.minimum_api, [int]$coveragePolicy.device_requirements.minimum_api_level)
+    $approvedAbis = @($coveragePolicy.device_requirements.approved_abis)
+    if (-not $DeviceSerial) {
+        $capableSerials = @()
+        foreach ($serial in $readySerials) {
+            $apiText = (& $adb -s $serial shell getprop ro.build.version.sdk).Trim()
+            $abi = (& $adb -s $serial shell getprop ro.product.cpu.abi).Trim()
+            if ($apiText -match '^\d+$' -and [int]$apiText -ge $minimumApi -and $abi -in $approvedAbis) {
+                $capableSerials += $serial
+            }
+        }
+        if ($capableSerials.Count -eq 0) {
+            throw "No online authorized device meets API $minimumApi and ABI $($approvedAbis -join ', '). Attach one or pass -DeviceSerial explicitly. adb devices reported:`n$($deviceLines -join "`n")"
+        }
+        if ($capableSerials.Count -gt 1) {
+            throw "Multiple devices meet API $minimumApi and ABI requirements ($($capableSerials -join ', ')); pass -DeviceSerial explicitly."
+        }
+        $DeviceSerial = $capableSerials[0]
+    }
+    if ($DeviceSerial -notin $readySerials) {
         throw "Android device '$DeviceSerial' is not online and authorized. adb devices reported:`n$($deviceLines -join "`n")"
     }
     $deviceApi = (& $adb -s $DeviceSerial shell getprop ro.build.version.sdk).Trim()
-    if ([int]$deviceApi -lt [int]$profile.device.minimum_api) {
-        throw "Android device API $deviceApi is below required API $($profile.device.minimum_api)."
+    $deviceAbi = (& $adb -s $DeviceSerial shell getprop ro.product.cpu.abi).Trim()
+    if ([int]$deviceApi -lt $minimumApi) {
+        throw "Android device API $deviceApi is below required API $minimumApi."
+    }
+    if ($deviceAbi -notin $approvedAbis) {
+        throw "Android device ABI '$deviceAbi' is not approved; expected one of $($approvedAbis -join ', ')."
     }
 }
 
