@@ -20,6 +20,7 @@ $oldHarnessRoot = $env:COVERAGE_WRAPPER_TEST_HARNESS_ROOT
 $oldRemotePath = $env:COVERAGE_WRAPPER_TEST_REMOTE_PATH
 $oldTargetSha = $env:COVERAGE_WRAPPER_TEST_TARGET_SHA
 $oldCandidateSha = $env:COVERAGE_WRAPPER_TEST_CANDIDATE_SHA
+$oldReadOnlyArtifact = $env:COVERAGE_WRAPPER_TEST_READONLY_ARTIFACT
 
 function Invoke-GitChecked {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
@@ -54,6 +55,12 @@ function New-WrapperFixture {
 param([switch]$NoFix, [switch]$NoConfigurationCache)
 $record = [PSCustomObject]@{ working_directory = (Get-Location).Path; no_fix = [bool]$NoFix; no_configuration_cache = [bool]$NoConfigurationCache }
 $record | ConvertTo-Json -Compress | Set-Content -LiteralPath $env:COVERAGE_WRAPPER_TEST_LOCAL_LOG -Encoding utf8
+if ($env:COVERAGE_WRAPPER_TEST_READONLY_ARTIFACT -eq '1') {
+    $generated = Join-Path (Get-Location).Path 'build/read-only-fixture.txt'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $generated) -Force | Out-Null
+    [System.IO.File]::WriteAllText($generated, 'fixture')
+    [System.IO.File]::SetAttributes($generated, [System.IO.FileAttributes]::ReadOnly)
+}
 exit 0
 '@
         } elseif ($relative -eq 'tools/coverage/capture.ps1') {
@@ -86,7 +93,7 @@ param([string]$RunBundle, [string]$PolicyPath, [string]$OutputDirectory, [string
 $record = [PSCustomObject]@{ run_bundle = $RunBundle; policy_path = $PolicyPath; output_directory = $OutputDirectory; comparison_bundle = $ComparisonBundle; accepted_baseline_index_path = $AcceptedBaselineIndexPath; changed_paths_file = $ChangedPathsFile }
 $record | ConvertTo-Json -Compress | Set-Content -LiteralPath $env:COVERAGE_WRAPPER_TEST_VERIFY_LOG -Encoding utf8
 switch ($env:COVERAGE_WRAPPER_TEST_MUTATE_CANDIDATE) {
-    'candidate-dirty' { Set-Content -LiteralPath (Join-Path $env:COVERAGE_WRAPPER_TEST_CANDIDATE_ROOT 'verification-race.txt') -Value 'changed during verification' }
+    'candidate-dirty' { Set-Content -LiteralPath (Join-Path $env:CHIMALI_CANDIDATE_CHECKOUT 'verification-race.txt') -Value 'changed during verification' }
     'harness-dirty' { Set-Content -LiteralPath (Join-Path $env:COVERAGE_WRAPPER_TEST_HARNESS_ROOT 'verification-race.txt') -Value 'changed during verification' }
     'target-advance' { & git --git-dir $env:COVERAGE_WRAPPER_TEST_REMOTE_PATH update-ref refs/heads/main $env:COVERAGE_WRAPPER_TEST_CANDIDATE_SHA; if ($LASTEXITCODE -ne 0) { exit 3 } }
 }
@@ -148,7 +155,7 @@ function Add-AcceptedBaseline {
 }
 
 function Invoke-WrapperFixture {
-    param($Fixture, [string]$FixtureRoot, [int]$VerifyExit = 0, [switch]$SuccessfulCapture, [switch]$MutateCandidateAfterVerify, [string]$Mutation = '')
+    param($Fixture, [string]$FixtureRoot, [int]$VerifyExit = 0, [switch]$SuccessfulCapture, [switch]$MutateCandidateAfterVerify, [string]$Mutation = '', [string]$EntryPoint = '', [switch]$ReadOnlyArtifact)
     $pwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
     $env:COVERAGE_WRAPPER_TEST_LOCAL_LOG = Join-Path $FixtureRoot 'local-check.json'
     $env:COVERAGE_WRAPPER_TEST_CAPTURE_LOG = Join-Path $FixtureRoot 'capture-call.json'
@@ -161,9 +168,11 @@ function Invoke-WrapperFixture {
     $env:COVERAGE_WRAPPER_TEST_TARGET_SHA = $Fixture.Target
     $env:COVERAGE_WRAPPER_TEST_CANDIDATE_SHA = $Fixture.CandidateSha
     $env:COVERAGE_WRAPPER_TEST_MUTATE_CANDIDATE = if ($Mutation) { $Mutation } elseif ($MutateCandidateAfterVerify) { 'candidate-dirty' } else { '' }
+    $env:COVERAGE_WRAPPER_TEST_READONLY_ARTIFACT = if ($ReadOnlyArtifact) { '1' } else { '' }
     Push-Location $Fixture.Caller
     try {
-        $output = @(& $pwsh -NoProfile -File (Join-Path $Fixture.Harness 'tools/integration-ci.ps1') `
+        $script = if ($EntryPoint) { $EntryPoint } else { Join-Path $Fixture.Harness 'tools/integration-ci.ps1' }
+        $output = @(& $pwsh -NoProfile -File $script `
             -RepositoryRoot $Fixture.Candidate -CandidateRef 'HEAD' -TargetRef 'main' -HarnessRoot $Fixture.Harness `
             -DeviceSerial 'fixture-device' -EvidenceRoot $Fixture.Evidence -RemoteName 'fixture' 2>&1)
         $code = $LASTEXITCODE
@@ -190,10 +199,11 @@ try {
             $fixture = New-WrapperFixture -FixtureRoot $tempRootFull
             $run = Invoke-WrapperFixture -Fixture $fixture -FixtureRoot $tempRootFull
             if ($run.Code -ne 2) { throw "Expected capture's unavailable-evidence exit 2, got $($run.Code): $($run.Output)" }
+            if (-not (Test-Path -LiteralPath (Join-Path $tempRootFull 'local-check.json'))) { throw "Expected local-check invocation was not recorded. Wrapper output: $($run.Output)" }
             $local = Get-Content -LiteralPath (Join-Path $tempRootFull 'local-check.json') -Raw | ConvertFrom-Json
             $capture = Get-Content -LiteralPath (Join-Path $tempRootFull 'capture-call.json') -Raw | ConvertFrom-Json
-            if ($local.working_directory -ne $fixture.Candidate -or -not $local.no_fix -or -not $local.no_configuration_cache) { throw 'Local checks did not run from the candidate root with both required switches.' }
-            if ($capture.repository_root -ne $fixture.Candidate -or $capture.harness_root -ne $fixture.Harness -or $capture.working_directory -ne $fixture.Caller -or $capture.source_revision -ne $fixture.CandidateSha -or $capture.target_revision -ne $fixture.Target -or $capture.output_root -ne $fixture.Evidence) { throw "Capture arguments differed. Expected $($fixture | ConvertTo-Json -Compress); got $($capture | ConvertTo-Json -Compress)" }
+            if ($local.working_directory -ne $capture.repository_root -or $local.working_directory -eq $fixture.Candidate -or -not $local.no_fix -or -not $local.no_configuration_cache) { throw 'Local checks did not run from the isolated candidate root with both required switches.' }
+            if ($capture.repository_root -notlike '*chimali-integration-candidate-*' -or $capture.harness_root -ne $fixture.Harness -or $capture.working_directory -ne $fixture.Caller -or $capture.source_revision -ne $fixture.CandidateSha -or $capture.target_revision -ne $fixture.Target -or $capture.output_root -ne $fixture.Evidence) { throw "Capture arguments differed. Expected isolated candidate from $($fixture | ConvertTo-Json -Compress); got $($capture | ConvertTo-Json -Compress)" }
         }
         'INTEGRATION_WRAPPER_002_MISSING_REQUIRED_LOCAL_CHECK' {
             $fixture = New-WrapperFixture -FixtureRoot $tempRootFull -OmitLocalCi
@@ -219,7 +229,7 @@ try {
             $run = Invoke-WrapperFixture -Fixture $fixture -FixtureRoot $tempRootFull
             if ($run.Code -ne 2) { throw "Expected capture failure to propagate exit 2 for the dirty candidate, got $($run.Code): $($run.Output)" }
             $capture = Get-Content -LiteralPath (Join-Path $tempRootFull 'capture-call.json') -Raw | ConvertFrom-Json
-            if ($capture.repository_root -ne $fixture.Candidate -or $capture.harness_root -ne $fixture.Harness) { throw 'Dirty candidate was not passed with the selected HarnessRoot.' }
+            if ($capture.repository_root -notlike '*chimali-integration-candidate-*' -or $capture.harness_root -ne $fixture.Harness) { throw 'Exact isolated candidate was not passed with the selected HarnessRoot.' }
         }
         'INTEGRATION_WRAPPER_006_VERIFIER_EXIT_CODE_PROPAGATION' {
             foreach ($verifyExit in @(0, 1, 2, 3)) {
@@ -233,6 +243,15 @@ try {
                 $candidateManifestPath = Get-ChildItem -LiteralPath (Join-Path $fixture.Evidence 'runs') -Filter manifest.json -Recurse -File | Select-Object -First 1 -ExpandProperty FullName
                 $candidateManifest = Get-Content -LiteralPath $candidateManifestPath -Raw | ConvertFrom-Json
                 if ($verify.comparison_bundle -ne (Join-Path $fixture.Evidence 'baselines/runs/baseline-run') -or $verify.accepted_baseline_index_path -ne (Join-Path $fixture.Evidence 'baselines/current.json') -or $verify.run_bundle -ne (Split-Path -Parent (Join-Path $fixture.Evidence "runs/$($candidateManifest.run_id)/manifest.json"))) { throw "Verifier did not receive the exact candidate and accepted baseline paths for exit $verifyExit." }
+                $recordPath = Join-Path $fixture.Evidence "assessments/$($candidateManifest.run_id)/assessment-record.json"
+                if (-not (Test-Path -LiteralPath $recordPath -PathType Leaf)) { throw "Integration wrapper did not write an immutable assessment record for verifier exit $verifyExit." }
+                $assessmentRecord = Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json
+                $expectedDecision = if ($verifyExit -eq 0) { 'PASS' } elseif ($verifyExit -eq 1) { 'FAIL' } else { 'INCOMPLETE' }
+                if ($assessmentRecord.decision -cne $expectedDecision -or $assessmentRecord.candidate.commit -cne $fixture.CandidateSha -or
+                    $assessmentRecord.target.commit -cne $fixture.Target -or $assessmentRecord.accepted_baseline.run_id -cne 'baseline-run' -or
+                    $assessmentRecord.hosted_check -cne 'Unverified' -or -not $assessmentRecord.run.bundle_digest -or -not $assessmentRecord.run.manifest_digest) {
+                    throw "Assessment record did not retain the exact candidate, target, baseline, digests, and $expectedDecision decision."
+                }
             }
         }
         'INTEGRATION_WRAPPER_007_REJECTS_CANDIDATE_DIRTYING_DURING_VERIFY' {
@@ -246,6 +265,26 @@ try {
                 if ($mutation -in @('candidate-dirty', 'harness-dirty') -and $run.Output -notlike '*became dirty or changed during integration verification*') { throw "$mutation did not report the final identity/cleanliness rejection: $($run.Output)" }
                 if ($mutation -eq 'target-advance' -and $run.Output -notlike '*advanced during integration verification*') { throw 'Live target advancement did not report the final freshness rejection.' }
             }
+        }
+        'INTEGRATION_WRAPPER_008_DISTINCT_OUTER_USES_MEASUREMENT_HARNESS' {
+            $fixture = New-WrapperFixture -FixtureRoot $tempRootFull
+            $outer = Join-Path $fixture.Caller 'outer-wrapper.ps1'
+            $outerContent = [System.IO.File]::ReadAllText((Join-Path $RepositoryRoot 'tools/integration-ci.ps1'))
+            $marker = 'if (-not $internalTokenValid) {'
+            if (-not $outerContent.Contains($marker)) { throw 'Outer wrapper fixture marker is missing.' }
+            $outerContent = $outerContent.Replace($marker, "if (`$InternalCandidateToken) { throw 'The outer wrapper must not execute measurement.' }`n$marker")
+            Write-TextFile -Path $outer -Content $outerContent
+            $run = Invoke-WrapperFixture -Fixture $fixture -FixtureRoot $tempRootFull -EntryPoint $outer
+            if ($run.Code -ne 2 -or -not (Test-Path -LiteralPath (Join-Path $tempRootFull 'capture-call.json'))) {
+                throw "Separate outer wrapper did not dispatch to the measurement harness: exit $($run.Code); $($run.Output)"
+            }
+        }
+        'INTEGRATION_WRAPPER_009_READONLY_CHECKOUT_CLEANUP' {
+            $fixture = New-WrapperFixture -FixtureRoot $tempRootFull
+            $run = Invoke-WrapperFixture -Fixture $fixture -FixtureRoot $tempRootFull -ReadOnlyArtifact
+            if ($run.Code -ne 2) { throw "Expected capture failure to remain exit 2: $($run.Output)" }
+            $capture = Get-Content -LiteralPath (Join-Path $tempRootFull 'capture-call.json') -Raw | ConvertFrom-Json
+            if (Test-Path -LiteralPath $capture.repository_root) { throw 'Read-only prepared checkout was not removed.' }
         }
         default { throw "Unknown integration wrapper fixture case '$Case'" }
     }
@@ -266,6 +305,7 @@ try {
     $env:COVERAGE_WRAPPER_TEST_REMOTE_PATH = $oldRemotePath
     $env:COVERAGE_WRAPPER_TEST_TARGET_SHA = $oldTargetSha
     $env:COVERAGE_WRAPPER_TEST_CANDIDATE_SHA = $oldCandidateSha
+    $env:COVERAGE_WRAPPER_TEST_READONLY_ARTIFACT = $oldReadOnlyArtifact
     if ([System.IO.Directory]::Exists($tempRootFull)) {
         if (-not $tempRootFull.StartsWith($tempRootPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or [System.IO.Path]::GetFileName($tempRootFull) -notlike 'coverage-integration-wrapper-*') {
             throw "Refusing to remove unexpected integration fixture path: $tempRootFull"

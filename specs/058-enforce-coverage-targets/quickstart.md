@@ -1,5 +1,9 @@
 # Validation Guide: Enforce Coverage Targets
 
+> **Policy update:** The hosted acceptance and target-freshness instructions below retain the historical Feature 058 procedure. Feature 061's local manual PR assessment/review and baseline promotion entry points are implemented and fixture-validated: an authorized reviewer checks trusted evidence against the accepted baseline identified at assessment time, reuses the comparison when the target advances but the proposed tree is unchanged, and requires renewed verification if the tree changes. The earlier comparison does not establish nonregression against a newer baseline. The hosted rollout waiver, constitutional CI floors and required suites remain in force. Active rules protect `main` and the archive, and the initial baseline is accepted; the controlled end-to-end review remains unverified. See [Feature 061 workflow](../061-manual-coverage-integration/contracts/workflow.md).
+
+> Archive references and hosted publication instructions later in this guide are retained as historical Feature 058 design. Feature 061 specifies `swe/coverage-evidence` for new manual-review reports and preserves existing `codex/coverage-evidence` receipt identities. The archive migration and manual publication path have not been verified.
+
 **Date**: 2026-10-24  
 **Status**: Planned implementation validation. New commands below are interfaces to implement, not tools already verified by this planning run. No application tests or coverage baselines were executed while writing these artifacts.
 

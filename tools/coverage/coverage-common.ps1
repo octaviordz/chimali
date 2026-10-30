@@ -2732,6 +2732,198 @@ function Test-AcceptedBaselineIndex {
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
+function Test-InitialBaselineReadiness {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)]$Decision,
+        [Parameter(Mandatory = $true)][string]$ExpectedSourceCommit,
+        [Parameter(Mandatory = $true)][string]$ExpectedMainCommit,
+        [Parameter(Mandatory = $true)][string]$ExpectedPolicyId
+    )
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $sourceCommit = [string]$Manifest.git.source_commit
+    $sourceTree = [string]$Manifest.git.source_tree
+    if ($Manifest.purpose -cne 'Initial') { $errors.Add('Initial baseline run purpose must be Initial') }
+    if ($Manifest.git.initial_target_ref -cne 'lab/or/main') { $errors.Add("Initial baseline must identify the exact source ref 'lab/or/main'") }
+    if ($sourceCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or $sourceCommit -cne $ExpectedSourceCommit -or $sourceCommit -cne $ExpectedMainCommit) {
+        $errors.Add('Initial run, lab/or/main source, and main creation commit must have the same full commit identity')
+    }
+    if ([string]$Manifest.git.target_commit -cne $sourceCommit) { $errors.Add('Initial manifest target_commit must bind the exact source commit') }
+    if ($sourceTree -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') { $errors.Add('Initial baseline source tree must be a full Git tree identity') }
+    if ($Manifest.policy_id -cne $ExpectedPolicyId -or -not $ExpectedPolicyId) { $errors.Add('Initial baseline policy does not match the trusted reviewed policy') }
+    if ($Decision.run_id -cne $Manifest.run_id -or $Decision.manifest_digest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $Decision.overall_passed -ne $true -or $Decision.decisions.collection -cne 'Complete' -or
+        $Decision.decisions.tests -cne 'Passed' -or $Decision.decisions.floors -cne 'Passed') {
+        $errors.Add('Initial baseline requires an independently verified passing decision with complete collection, passing tests, and passing floors')
+    }
+    $requiredSuites = @($Manifest.suites | Where-Object { $_.required -eq $true })
+    if ($requiredSuites.Count -eq 0) { $errors.Add('Initial baseline has no required test suite evidence') }
+    foreach ($suite in $requiredSuites) {
+        $outcome = Test-SuiteOutcome -SuiteResult $suite
+        if ($outcome.Status -ne 'Passed') { $errors.Add("Initial baseline required suite '$($suite.suite_name)' did not pass") }
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = @($errors) }
+}
+
+function Remove-CoverageReviewTemporaryDirectory {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $full = [System.IO.Path]::GetFullPath($Path).TrimEnd('\','/')
+    $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')
+    $name = [System.IO.Path]::GetFileName($full)
+    if (-not [string]::Equals([System.IO.Path]::GetDirectoryName($full), $tempRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $name -notmatch '^chimali-(manual-review-[a-f0-9]{32}\.git|review-archive-[a-f0-9]{32})$') {
+        throw 'Refusing to remove an unexpected review temporary directory.'
+    }
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { return }
+    $rootItem = Get-Item -LiteralPath $full -Force
+    if ($rootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Review temporary directory must not be a reparse point.' }
+    Get-ChildItem -LiteralPath $full -Force -Recurse | ForEach-Object {
+        if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly) {
+            $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
+        }
+    }
+    [System.IO.Directory]::Delete($full, $true)
+}
+
+function Invoke-CoverageVerifierWithoutPublisherCredential {
+    param(
+        [Parameter(Mandatory = $true)][string]$ScriptPath,
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+    $pwsh = (Get-Command pwsh -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    $names = @('CHIMALI_COVERAGE_PUBLISH_TOKEN','GH_TOKEN','GITHUB_TOKEN','GH_ENTERPRISE_TOKEN','GITHUB_ENTERPRISE_TOKEN') +
+        @(Get-ChildItem Env: | Where-Object { $_.Name -match '^GIT_CONFIG_(COUNT|PARAMETERS|KEY_\d+|VALUE_\d+)$' } | ForEach-Object Name)
+    $saved = @{}
+    Push-Location $WorkingDirectory
+    try {
+        foreach ($name in $names) {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+            [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+        }
+        & $pwsh -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @Arguments | ForEach-Object { Write-Host $_ }
+        return $LASTEXITCODE
+    } finally {
+        foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+        Pop-Location
+    }
+}
+
+function Test-ManualVerificationHarness {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$ExpectedCommit,
+        [Parameter(Mandatory = $true)][string]$CandidateCommit
+    )
+    $errors = [System.Collections.Generic.List[string]]::new()
+    if (-not [System.IO.Path]::IsPathRooted($Root) -or -not (Test-Path -LiteralPath $Root -PathType Container)) {
+        return @{ IsValid = $false; Errors = @('Verification harness must be an existing absolute directory') }
+    }
+    $full = [System.IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+    $top = @(& git -C $full rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $top.Count -ne 1 -or
+        -not [string]::Equals([System.IO.Path]::GetFullPath([string]$top[0]).TrimEnd('\','/'), $full, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return @{ IsValid = $false; Errors = @('Verification harness must be a Git checkout root') }
+    }
+    $head = @(& git -C $full rev-parse --verify 'HEAD^{commit}' 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $head.Count -ne 1 -or [string]$head[0] -cne $ExpectedCommit -or $ExpectedCommit -ceq $CandidateCommit) {
+        $errors.Add('Verification harness must identify the independently recorded harness commit, not the candidate')
+    }
+    $status = @(& git -C $full status --porcelain --untracked-files=all 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $status.Count -ne 0) { $errors.Add('Verification harness checkout must be clean') }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = @($errors) }
+}
+
+function Test-ManualGitHubDecisionEvidence {
+    param(
+        [Parameter(Mandatory = $true)]$PullRequest,
+        [Parameter(Mandatory = $true)]$GitHubReview,
+        [Parameter(Mandatory = $true)][string]$Repository,
+        [Parameter(Mandatory = $true)][string]$Reviewer,
+        [Parameter(Mandatory = $true)][string]$Head,
+        [Parameter(Mandatory = $true)][string]$ReviewId,
+        [Parameter(Mandatory = $true)][string]$RunId,
+        [Parameter(Mandatory = $true)][string]$TestedTree
+    )
+    if ([string]$GitHubReview.id -cne $ReviewId -or $GitHubReview.user.login -cne $Reviewer -or
+        $GitHubReview.commit_id -cne $Head) { return $false }
+    if ($GitHubReview.state -ceq 'APPROVED') { return $true }
+    # GitHub rejects approvals of one's own PR. The repository owner may make
+    # the explicitly authorized manual decision as an authenticated review
+    # comment, bound to this run and tested tree; no approval is invented.
+    $owner = ($Repository -split '/', 2)[0]
+    $expectedBody = "Manual coverage review ACCEPT for run $RunId; tested tree $TestedTree; prospective tree $TestedTree. Hosted coverage check remains unverified."
+    return ($GitHubReview.state -ceq 'COMMENTED' -and $Reviewer -ceq $owner -and
+        [string]$PullRequest.user.login -ceq $owner -and [string]$GitHubReview.body -ceq $expectedBody)
+}
+
+function Test-ManualBaselinePromotionReadiness {
+    param(
+        [Parameter(Mandatory = $true)]$PromotionRecord,
+        [Parameter(Mandatory = $true)]$AssessmentRecord,
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)]$PullRequest,
+        [Parameter(Mandatory = $true)]$GitHubReview,
+        [Parameter(Mandatory = $true)][string]$ExpectedRepository,
+        [Parameter(Mandatory = $true)][string]$AuthenticatedUser,
+        [Parameter(Mandatory = $true)][string]$ActualMergeCommit,
+        [Parameter(Mandatory = $true)][string]$ActualMergeTree,
+        [Parameter(Mandatory = $true)][string]$ExpectedOldIndexDigest,
+        [Parameter(Mandatory = $true)][string]$ActualOldIndexDigest
+    )
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $runId = [string]$Manifest.run_id
+    $manifestDigest = [string]$PromotionRecord.manifest_digest
+    $bundleDigest = [string]$PromotionRecord.bundle_digest
+    if ($PromotionRecord.decision -cne 'PROMOTE' -or $PromotionRecord.repository -cne $ExpectedRepository -or
+        [string]$PromotionRecord.actor.authenticated_user -cne $AuthenticatedUser -or
+        [string]$PromotionRecord.actor.permission -notin @('write','maintain','admin')) {
+        $errors.Add('Manual promotion must be recorded by the authenticated repository user with write access')
+    }
+    if ($AssessmentRecord.decision -cne 'PASS' -or $AssessmentRecord.run.id -cne $runId -or
+        $AssessmentRecord.run.manifest_digest -cne $manifestDigest -or $AssessmentRecord.run.bundle_digest -cne $bundleDigest -or
+        $AssessmentRecord.candidate.commit -cne $Manifest.git.source_commit -or
+        $AssessmentRecord.candidate.tree -cne $Manifest.git.source_tree) {
+        $errors.Add('Manual promotion assessment does not bind the passing immutable candidate run and bundle')
+    }
+    if ($PromotionRecord.run_id -cne $runId -or $PromotionRecord.bundle_digest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $PromotionRecord.reviewed_head -cne $Manifest.git.source_commit -or
+        $PromotionRecord.tested_tree -cne $Manifest.git.source_tree -or
+        $PromotionRecord.base -cne [string]$PullRequest.base.sha -or
+        [int]$PromotionRecord.pull_request.number -ne [int]$PullRequest.number -or
+        $PromotionRecord.repository -cne $ExpectedRepository) {
+        $errors.Add('Manual promotion does not bind the assessed run, exact PR head/base and tested tree')
+    }
+    if (-not (Test-ManualGitHubDecisionEvidence -PullRequest $PullRequest -GitHubReview $GitHubReview `
+        -Repository $ExpectedRepository -Reviewer ([string]$PromotionRecord.reviewed_by) `
+        -Head ([string]$PromotionRecord.reviewed_head) -ReviewId ([string]$PromotionRecord.github_review_id) `
+        -RunId $runId -TestedTree ([string]$Manifest.git.source_tree))) {
+        $errors.Add('Manual promotion is missing the exact authenticated GitHub decision for the assessed head')
+    }
+    if ($PullRequest.state -cne 'closed' -or $PullRequest.merged -ne $true -or
+        $PullRequest.base.ref -cne 'main' -or $PullRequest.merge_commit_sha -cne $ActualMergeCommit) {
+        $errors.Add('Manual promotion requires the actual merged PR commit on main')
+    }
+    if ($ActualMergeCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or
+        $ActualMergeTree -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or
+        $ActualMergeTree -cne $Manifest.git.source_tree -or
+        $PromotionRecord.integrated_commit -cne $ActualMergeCommit -or
+        $PromotionRecord.integrated_tree -cne $ActualMergeTree) {
+        $errors.Add('Actual integrated commit/tree differs from the tested candidate identity')
+    }
+    if ($ExpectedOldIndexDigest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $ActualOldIndexDigest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $ExpectedOldIndexDigest -cne $ActualOldIndexDigest -or
+        $PromotionRecord.expected_old_index_digest -cne $ActualOldIndexDigest) {
+        $errors.Add('Accepted baseline changed after the expected-old-index identity was recorded')
+    }
+    if ($AssessmentRecord.policy.id -cne $Manifest.policy_id -or
+        $AssessmentRecord.policy.scope_fingerprint -cne $Manifest.measurement_fingerprint) {
+        $errors.Add('Manual promotion policy or scope differs from the sealed assessment')
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = @($errors) }
+}
+
 function ConvertTo-RemoteTargetRef {
     param(
         [Parameter(Mandatory = $true)][string]$TargetRef,
@@ -3102,6 +3294,88 @@ function Test-PublicationCase {
     }
 }
 
+function Test-ManualReviewEvidenceCase {
+    param([Parameter(Mandatory = $true)]$Case)
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $evidence = $Case.evidence
+    $authority = $Case.authority
+    $permission = [string]$authority.permission
+    if (-not $authority.authenticated_user -or -not $authority.repository) {
+        $errors.Add('Authenticated repository identity is required')
+    }
+    if ($permission -notin @('write','maintain','admin')) {
+        $errors.Add('Reviewer lacks the required repository access')
+    }
+    if ($authority.agent_identity) {
+        if (-not $authority.authorized_user -or $authority.authorized_user -cne $authority.authenticated_user) {
+            $errors.Add('Agent authority is not explicitly bound to the authenticated user')
+        }
+    } elseif ($authority.reviewer -cne $authority.authenticated_user) {
+        $errors.Add('Reviewer does not match the authenticated repository user')
+    }
+    if ($evidence.hosted_check_claim -eq $true) {
+        $errors.Add('Manual review cannot claim a hosted required check')
+    }
+    if ($evidence.publisher_credential_exposed -eq $true) {
+        $errors.Add('Publisher credentials were exposed to candidate execution')
+    }
+    if ($evidence.trusted_harness -ne $true) {
+        $errors.Add('Evidence was not produced by the trusted harness')
+    }
+    if (-not $evidence.bundle_digest -or $evidence.bundle_digest -notmatch '^[0-9a-fA-F]{64}$') {
+        $errors.Add('Sealed bundle digest is missing or invalid')
+    }
+    if (-not $evidence.run_id -or -not $evidence.manifest_digest -or $evidence.manifest_digest -notmatch '^[0-9a-fA-F]{64}$') {
+        $errors.Add('Run ID and sealed manifest digest are required')
+    }
+    if ($evidence.candidate_commit -cne $Case.expected.candidate_commit -or
+        $evidence.candidate_tree -cne $Case.expected.candidate_tree) {
+        $errors.Add('Evidence candidate commit/tree does not match the proposed revision')
+    }
+    if ($evidence.baseline_commit -cne $Case.expected.baseline_commit) {
+        $errors.Add('Evidence does not identify the accepted assessment-time baseline')
+    }
+    if ($evidence.policy_id -cne $Case.expected.policy_id -or -not $evidence.scope_fingerprint) {
+        $errors.Add('Evidence policy or measurement scope is missing or mismatched')
+    }
+    if ($evidence.required_suites_complete -ne $true -or $evidence.assessment_decision -cne 'PASS') {
+        $errors.Add('Required suites and trusted assessment must both pass')
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = @($errors) }
+}
+
+function Test-ManualReviewTreeCase {
+    param([Parameter(Mandatory = $true)]$Case)
+    $tree = $Case.tree
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $head = [string]$tree.head
+    $base = [string]$tree.base
+    $prospective = [string]$tree.prospective_tree
+    $tested = [string]$tree.tested_tree
+    if ($head -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or $base -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+        $errors.Add('Current PR head and base must be full commit identities')
+    }
+    if ($tree.conflict -eq $true) {
+        $errors.Add('Prospective merge has conflicts')
+    } elseif ($prospective -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+        $errors.Add('Prospective merge tree is unavailable')
+    }
+    $sameTree = $prospective -and $tested -and $prospective -ceq $tested
+    if ($tree.expected_new_assessment -eq $false -and -not $sameTree) {
+        $errors.Add('Proposed tree differs from tested evidence and requires a fresh assessment')
+    }
+    if ($tree.expected_new_assessment -eq $true -and $sameTree) {
+        $errors.Add('Changed-tree fixture expected a fresh assessment before acceptance')
+    }
+    $valid = $errors.Count -eq 0
+    return @{
+        IsValid = $valid
+        Errors = @($errors)
+        RequiresNewAssessment = (-not $tree.conflict -and $prospective -and $tested -and $prospective -cne $tested)
+        SameTree = [bool]$sameTree
+    }
+}
+
 function Test-ReportSuccessEligibility {
     param(
         [Parameter(Mandatory = $true)]$Decision,
@@ -3132,8 +3406,13 @@ function Test-ReportSuccessEligibility {
     if ($Receipt.publication_purpose -cne 'Candidate') {
         $errors += 'Publication receipt purpose is not Candidate'
     }
-    if ($Receipt.archive_branch -cne 'codex/coverage-evidence' -or $Receipt.archive_ref -cne 'refs/heads/codex/coverage-evidence') {
+    $legacyArchiveIdentity = $Receipt.archive_branch -ceq 'codex/coverage-evidence' -and $Receipt.archive_ref -ceq 'refs/heads/codex/coverage-evidence'
+    $currentArchiveIdentity = $Receipt.archive_branch -ceq 'swe/coverage-evidence' -and $Receipt.archive_ref -ceq 'refs/heads/swe/coverage-evidence'
+    if (-not $legacyArchiveIdentity -and -not $currentArchiveIdentity) {
         $errors += 'Publication receipt does not identify the trusted coverage evidence branch'
+    }
+    if ($currentArchiveIdentity -and $Receipt.report_url -cnotmatch '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/blob/swe/coverage-evidence/runs/[0-9a-fA-F-]+/summary\.md$') {
+        $errors += 'New archive publication receipt is missing its specific retrievable report URL'
     }
     if ($Receipt.archive_commit -notmatch '^[0-9a-f]{40,64}$' -or $Receipt.read_back_commit -cne $Receipt.archive_commit -or
         $Receipt.archive_ref -cne "refs/heads/$($Receipt.archive_branch)" -or $Receipt.archived_bundle_path -cne "runs/$ExpectedRunId") {

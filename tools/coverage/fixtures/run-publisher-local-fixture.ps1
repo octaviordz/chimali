@@ -68,6 +68,17 @@ try {
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$GitArgs)
 function global:git {
     $Arguments = @($args)
+    if (($Arguments -join ' ') -match 'offline-fixture-token|AUTHORIZATION: basic') {
+        throw 'Publisher exposed its credential in Git command arguments.'
+    }
+    if ($Arguments -contains 'ls-remote') {
+        $expectedHeader = 'AUTHORIZATION: basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('x-access-token:offline-fixture-token'))
+        if ($env:GIT_CONFIG_COUNT -ne '2' -or $env:GIT_CONFIG_KEY_0 -ne 'fixture.preserved' -or
+            $env:GIT_CONFIG_VALUE_0 -ne 'yes' -or $env:GIT_CONFIG_KEY_1 -ne 'http.https://github.com/.extraheader' -or
+            $env:GIT_CONFIG_VALUE_1 -cne $expectedHeader) {
+            throw 'Publisher did not preserve Git configuration and provide its credential through the environment.'
+        }
+    }
     $forward = [System.Collections.Generic.List[string]]::new()
     for ($index = 0; $index -lt $Arguments.Count; $index++) {
         if ($Arguments[$index] -eq '-c') { $index++; continue }
@@ -107,10 +118,21 @@ function global:git {
 '@
     $invoker += @'
 $publisherPath = $env:COVERAGE_TEST_PUBLISHER
+$env:GIT_CONFIG_COUNT = '1'
+$env:GIT_CONFIG_KEY_0 = 'fixture.preserved'
+$env:GIT_CONFIG_VALUE_0 = 'yes'
+$env:GIT_CONFIG_KEY_1 = 'fixture.inactive'
+$env:GIT_CONFIG_VALUE_1 = 'retained'
 Push-Location $env:COVERAGE_TEST_SOURCE_ROOT
 try {
     & $publisherPath -RunBundle $env:COVERAGE_TEST_BUNDLE -EvidenceBranch $env:COVERAGE_TEST_BRANCH -RemoteName origin -OutputReceiptPath $env:COVERAGE_TEST_RECEIPT
-    exit $LASTEXITCODE
+    $publisherExit = $LASTEXITCODE
+    if ($env:GIT_CONFIG_COUNT -ne '1' -or $env:GIT_CONFIG_KEY_0 -ne 'fixture.preserved' -or
+        $env:GIT_CONFIG_VALUE_0 -ne 'yes' -or $env:GIT_CONFIG_KEY_1 -ne 'fixture.inactive' -or
+        $env:GIT_CONFIG_VALUE_1 -ne 'retained') {
+        throw 'Publisher did not restore the original Git environment.'
+    }
+    exit $publisherExit
 } finally { Pop-Location }
 '@
     [System.IO.File]::WriteAllText($invokeScript, $invoker, [System.Text.UTF8Encoding]::new($false))

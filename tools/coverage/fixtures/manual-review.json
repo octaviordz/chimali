@@ -1,0 +1,120 @@
+{
+  "description": "Manual review authority, evidence binding, and acceptance decision cases",
+  "cases": [
+    {
+      "id": "MANUAL_REVIEW_VALID_AUTHORIZED_EVIDENCE",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": true
+    },
+    {
+      "id": "MANUAL_REVIEW_FORGED_REVIEWER_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "forged-user", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Reviewer does not match the authenticated repository user"
+    },
+    {
+      "id": "MANUAL_REVIEW_MISSING_ACCESS_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "read" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Reviewer lacks the required repository access"
+    },
+    {
+      "id": "MANUAL_REVIEW_AGENT_FOR_AUTHORIZED_USER_ACCEPTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "authorized_user": "octaviordz", "agent_identity": "codex-agent", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": true
+    },
+    {
+      "id": "MANUAL_REVIEW_UNAUTHORIZED_AGENT_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "authorized_user": "another-user", "agent_identity": "codex-agent", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Agent authority is not explicitly bound to the authenticated user"
+    },
+    {
+      "id": "MANUAL_REVIEW_EXPOSED_PUBLISHER_CREDENTIAL_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true, "publisher_credential_exposed": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Publisher credentials were exposed to candidate execution"
+    },
+    {
+      "id": "MANUAL_REVIEW_UNTRUSTED_HARNESS_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": false },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Evidence was not produced by the trusted harness"
+    },
+    {
+      "id": "MANUAL_REVIEW_WRONG_CANDIDATE_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "ffffffffffffffffffffffffffffffffffffffff", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Evidence candidate commit/tree does not match the proposed revision"
+    },
+    {
+      "id": "MANUAL_REVIEW_WRONG_BASELINE_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "ffffffffffffffffffffffffffffffffffffffff", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Evidence does not identify the accepted assessment-time baseline"
+    },
+    {
+      "id": "MANUAL_REVIEW_WRONG_POLICY_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "other-policy", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Evidence policy or measurement scope is missing or mismatched"
+    },
+    {
+      "id": "MANUAL_REVIEW_FALSE_HOSTED_SUCCESS_REJECTED",
+      "authority": { "repository": "octaviordz/chimali", "authenticated_user": "octaviordz", "reviewer": "octaviordz", "permission": "write" },
+      "evidence": { "run_id": "fixture-run", "manifest_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bundle_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1", "scope_fingerprint": "fixture-scope", "required_suites_complete": true, "assessment_decision": "PASS", "trusted_harness": true, "hosted_check_claim": true },
+      "expected": { "candidate_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "baseline_commit": "cccccccccccccccccccccccccccccccccccccccc", "policy_id": "chimali-coverage-v1" },
+      "expected_valid": false,
+      "expected_error": "Manual review cannot claim a hosted required check"
+    },
+    {
+      "id": "MANUAL_REVIEW_ADVANCED_BASE_SAME_TREE_REUSES_EVIDENCE",
+      "tree": { "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "base": "ffffffffffffffffffffffffffffffffffffffff", "prospective_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "tested_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "base_advanced": true, "conflict": false, "expected_new_assessment": false },
+      "expected_valid": true
+    },
+    {
+      "id": "MANUAL_REVIEW_CONFLICTING_TREE_REJECTED",
+      "tree": { "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "base": "cccccccccccccccccccccccccccccccccccccccc", "prospective_tree": null, "tested_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "conflict": true, "expected_new_assessment": false },
+      "expected_valid": false,
+      "expected_error": "Prospective merge has conflicts"
+    },
+    {
+      "id": "MANUAL_REVIEW_UNKNOWN_TREE_REJECTED",
+      "tree": { "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "base": "cccccccccccccccccccccccccccccccccccccccc", "prospective_tree": null, "tested_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "conflict": false, "expected_new_assessment": false },
+      "expected_valid": false,
+      "expected_error": "Prospective merge tree is unavailable"
+    },
+    {
+      "id": "MANUAL_REVIEW_CHANGED_TREE_REQUIRES_NEW_ASSESSMENT",
+      "tree": { "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "base": "ffffffffffffffffffffffffffffffffffffffff", "prospective_tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "tested_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "conflict": false, "expected_new_assessment": true },
+      "expected_valid": true
+    },
+    {
+      "id": "MANUAL_REVIEW_FRESH_ASSESSMENT_AFTER_BASE_MERGE_ACCEPTED",
+      "tree": { "head": "ffffffffffffffffffffffffffffffffffffffff", "base": "cccccccccccccccccccccccccccccccccccccccc", "prospective_tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "tested_tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "base_advanced": true, "conflict": false, "expected_new_assessment": false },
+      "expected_valid": true
+    },
+    { "id": "MANUAL_REVIEW_TEMP_CLEANUP_READONLY", "expected_valid": true },
+    { "id": "MANUAL_REVIEW_TEMP_CLEANUP_UNSAFE_PATH_REJECTED", "expected_valid": true }
+  ]
+}

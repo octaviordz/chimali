@@ -21,6 +21,11 @@
     Cannot be located inside the RunBundle.
 .PARAMETER Force
     Allow overwriting an existing decision record in OutputDirectory.
+.PARAMETER RequireInitialBaseline
+    Require exact lab/or/main and main commit identity plus complete initial-run
+    suites, policy floors and trusted verifier outcomes.
+.PARAMETER InitialMainCommit
+    Independently resolved creation commit of the live main branch.
 #>
 [CmdletBinding()]
 param(
@@ -43,7 +48,13 @@ param(
     [string]$OutputDirectory,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Force
+    [switch]$Force,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$RequireInitialBaseline,
+
+    [Parameter(Mandatory = $false)]
+    [string]$InitialMainCommit
 )
 
 $ErrorActionPreference = "Stop"
@@ -986,6 +997,22 @@ $decisionObject = [PSCustomObject]@{
             Reason = $repoEval.Reason
         }
     } else { $null }
+}
+
+if ($RequireInitialBaseline) {
+    if ($InitialMainCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+        $initialErrors = @('Initial baseline requires the exact full commit resolved from live main.')
+    } else {
+        $initialReadiness = Test-InitialBaselineReadiness -Manifest $manifest -Decision $decisionObject `
+            -ExpectedSourceCommit ([string]$manifest.git.source_commit) -ExpectedMainCommit $InitialMainCommit -ExpectedPolicyId ([string]$policy.policy_id)
+        $initialErrors = @($initialReadiness.Errors)
+    }
+    if ($initialErrors.Count -gt 0) {
+        $overallSuccess = $false
+        $decisionObject.overall_passed = $false
+        $decisionObject.decisions.integration = 'Failed'
+        $decisionObject.unmet_reasons = @($decisionObject.unmet_reasons) + $initialErrors
+    }
 }
 
 # Write decision.json
