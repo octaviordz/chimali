@@ -188,7 +188,7 @@ The independent formal security review recorded above is **ACCEPT** for its revi
 
 The earlier supplemental **NO** activation response was conditional on the named test and CI findings. The subsequent remediation evidence above closes AF-UV-01 and AF-UV-02 and completes T072/T075. The review acceptance applies to Chimali's named local profiles and does not establish draft issuance interoperability, hardware-backed signing custody, or an activation event. Current performance convergence is recorded in `implementation-evidence.md`; this summary does not override the separate release decision.
 
-The 2026-10-16 documentation reconciliation (T069/T083) retains that scoped disposition. The user accepted the observed UX and deferred T084's end-to-end measurement investigation to [a future session](../../docs/backlog/fido2-end-to-end-latency-measurement-investigation.md). T085's internal-operation performance work is also deferred to [the later phase](../../docs/backlog/fido2-internal-performance-enhancements.md); SC-007 is partial. No security-review acceptance is being used as a performance-compliance or deployment claim.
+The 2026-10-16 documentation reconciliation (T069/T083) retains that scoped disposition. The user accepted the observed UX and deferred T084's end-to-end measurement investigation to [the superseding Feature 060 assessment](../060-fido2-latency-measurement/spec.md). T085's internal-operation performance work is also deferred to [the later phase](../../docs/backlog/fido2-internal-performance-enhancements.md); SC-007 is partial. No security-review acceptance is being used as a performance-compliance or deployment claim.
 
 ### T095 disposition-scope addendum — 2026-10-16
 

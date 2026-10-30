@@ -21,7 +21,7 @@ verification, credential ID, user-verification result, and signature counter aft
 Restarting the server erases its synthetic state.
 
 **Current disposition (2026-10-16):** The user accepted the observed UX and deferred investigation
-of end-to-end measurement to [the backlog](../../docs/backlog/fido2-end-to-end-latency-measurement-investigation.md).
+of end-to-end measurement to [the superseding Feature 060 assessment](../../specs/060-fido2-latency-measurement/spec.md).
 The adjusted browser value still includes any unmeasured Windows interaction and must not be
 described as system-only processing or post-fingerprint response time. Existing results are
 preserved in the implementation evidence. The procedure below is retained for a future session;
