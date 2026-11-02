@@ -222,7 +222,7 @@ The `core/bluetooth` module appears to be a prototype or dead code. It should be
 
 [`connect()`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BluetoothHidTransportImpl.kt#L226-L248) always calls both `hidWrapper.initialize()` and `hidWrapper.registerApp()`. `initialize()` short-circuits if `hidDevice != null` (single proxy acquisition per process), but `registerApp()` runs unconditionally on every `connect()` call. Each warm iteration therefore executes the full `unregisterApp()` → `registerApp()` → new executor sequence from Issues 1 and 2.
 
-This confirms: **every warm registration attempt creates exactly one new executor thread**. With 5 max retries per `registerApp()` attempt, each warm session can accumulate up to 5 orphaned threads. By warm-08, there are between 8 and 40 orphaned executor threads alive in the process.
+This demonstrates the static mechanism: **every warm registration attempt creates a new executor instance**. In the absence of an explicit `shutdown()` in the wrapper, each warm session can leave up to 5 unmanaged executors (with retries). By warm-08, up to 40 unmanaged executors may have been allocated in the process. Behavioral testing is required to confirm whether this causes worker thread accumulation and process instability under JVM/Android runtimes.
 
 ---
 
@@ -240,13 +240,13 @@ These bounds are per-session (cleared by `onWrapperSessionTransition`), so they 
 
 ## Revised Issue Severity Table
 
-| Issue | Description | Severity | Warm-08 contributor? | Corrected? |
+| Issue | Description | Severity | Hypothesized Warm-08 contributor? | Confirmed by Behavioral Test? |
 |---|---|---|---|---|
-| 1 | Dual `registrationCallback` object, prior callback races new continuation | HIGH | Yes | No |
-| 2 | New `SingleThreadExecutor` per `registerApp()` call, never shut down | HIGH | Yes (primary) | No |
-| 3 | `HidChannelRegistry` stale entries | LOW | No (cleared on each transition) | N/A — revised down |
-| 4 | `registered=false` from async `unregisterApp()` arrives before `registered=true` | MEDIUM | Amplifier | No |
-| 5 | `core/bluetooth` DI module with keyboard descriptor | NONE | No (isolated graph) | N/A — resolved |
+| 1 | Dual `registrationCallback` object, prior callback races new continuation | HIGH | Plausible (shared state) | Pending behavioral test |
+| 2 | New `SingleThreadExecutor` per `registerApp()` call, never shut down | HIGH | Plausible (primary) | Pending behavioral test |
+| 3 | `HidChannelRegistry` stale entries | LOW | Unlikely (cleared on each transition) | Pending verification test |
+| 4 | `registered=false` from async `unregisterApp()` arrives before `registered=true` | MEDIUM | Plausible mechanism | Pending behavioral test |
+| 5 | `core/bluetooth` DI module with keyboard descriptor | NONE | No (isolated graph) | Resolved (isolated) |
 
 ---
 
@@ -256,8 +256,10 @@ Per the backlog item's investigation procedure §5: *"Do not change production b
 
 Based on static analysis:
 
-- **Issues 1 and 2** (executor per attempt + dual callback object) are the strongest candidates for the warm-08 failure. They are directly observable in the source code without device access and produce the exact symptom class described.
-- **Issue 4** (unregister/register callback ordering race) is a secondary amplifier that becomes more likely as executor thread pressure increases.
-- **Issues 3 and 5** are structural risks that do not directly explain the observed failure but warrant remediation.
+- **Issues 1 and 2** (executor per attempt + dual callback object) are consistent with the symptom class described. Whether they are the actual cause requires behavioral test evidence — static analysis establishes plausibility, not causation.
+- **Issue 4** (unregister/register callback ordering race) warrants investigation as a distinct mechanism; it is not confirmed as an amplifier until executor-delivery ordering is demonstrated under test.
+- **Issues 3 and 5** are structural risks that do not directly explain the observed failure.
 
 The two existing runs support a repeated warm-08 failure pattern; this analysis provides a mechanistic hypothesis consistent with the observed evidence. Behavioral tests with deterministic executor and callback-delivery control are needed to confirm before any production change.
+
+Evidence produced by host-side tests applies to the modelled conditions only. A harness finding that executors are non-terminated or stale callbacks affect lifecycle state supports the hypothesis under test; it does not alone establish that this mechanism caused the observed warm-08 device failure, as device-specific Binder scheduling, OS-level HID profile limits, and other unmodelled factors may also contribute.

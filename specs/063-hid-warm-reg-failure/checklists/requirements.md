@@ -31,7 +31,7 @@
 
 ## Notes
 
-- This specification covers the **investigation and evidence-gathering phase only**. No production code changes are permitted until FR-004 and FR-005 are satisfied (behavioral evidence localizes the defect).
+- This specification covers the **investigation and evidence-gathering phase only**. No production code changes are permitted (FR-006). Any corrections identified by the investigation belong to a separate follow-on feature.
 - The analysis document (`analysis.md` in this folder) provides the static analysis basis; the spec's requirements operationalize that analysis into testable obligations.
-- Once SC-001 through SC-006 are satisfied by passing behavioral tests, the feature may proceed to a remediation sub-specification or the backlog item may be closed per its §5 procedure.
-- All checklist items pass. Specification is ready for `/speckit-plan`.
+- Once SC-001 through SC-006 are satisfied by passing behavioral tests and `findings.md` is produced, the backlog item may be closed or escalated per its §5 procedure.
+- All checklist items pass. Specification is ready for `/speckit-tasks`.
