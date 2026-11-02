@@ -1,37 +1,39 @@
-# Investigate repeated warm FIDO2 security-key registration failures
+# Backlog: Investigate repeated warm FIDO2 security-key registration failures
 
-**Status:** Open; cause unknown. Keep separate from the SettingsLookup performance investigation.
+**Status:** Open — failure layer and reproducibility are not established  
+**Created:** 2026-11-01  
+**Related work:** [Feature 062 production-path investigation](../../specs/062-fido2-performance-investigation/spec.md), [T009 task status](../../specs/062-fido2-performance-investigation/tasks.md), and [FIDO2 internal performance backlog](fido2-internal-performance-enhancements.md)
 
-## Observed behavior
+## Observed issue
 
-During synthetic WebAuthn registration attempts on ASUS_AI2302 through the local RP, repeated warm-process attempts have sometimes failed after several successful registrations. Reported Windows messages include “No se puede leer la clave de seguridad. Vuelve a intentarlo.” One earlier attempt also surfaced a browser `NotAllowedError`. These are user-visible outcomes, not a diagnosis of the component that failed.
+Two ASUS_AI2302 / Android 15 synthetic registration runs show the same warm-process sequence. In each run, one uncounted warmup and warm-01 through warm-07 completed successfully in the same app process. The next counted attempt, warm-08, failed. That is eight successful registrations in the warm process before the next attempt failed; warm-08 is the eighth counted warm attempt and the ninth registration after the warm process began.
 
-Evidence has now recurred in three stopped production-path series:
+- **Baseline 02:** warm-08 through warm-11 failed before an app registration operation was captured. The RP reported `NotAllowedError` for the failures. The user reported the Windows message `No se puede leer la clave de seguridad. Vuelve a intentarlo` for warm-11. Two schedule slots remained, which could not produce the ten-sample warm quota. See the [run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-02-run-disposition.md) and [attempt progress](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-02-run-progress.md).
+- **Baseline 03:** warm-08 was canceled after the same Windows message. The trace had no registration markers, operation mapping, or terminal; scheduler, clock and health evidence were complete, with clean raw-file cleanup. Its declaration required stopping on incomplete marker/correlation evidence, so the run stopped at 7/10 eligible warm samples. See the [warm-08 disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-03-warm-08-disposition.md) and [run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-03-run-disposition.md).
 
-- Baseline 02 had seven eligible warm registrations; subsequent warm attempts reported RP `NotAllowedError` and Windows security-key read errors.
-- Baseline 03 had seven eligible warm registrations; warm-08 was canceled after the Windows security-key read error and lacked registration markers, operation mapping, and terminal evidence.
-- Baseline 09 had seven eligible warm registrations; warm-08 was reported with the same Windows message. Its retained result has `rp_outcome=not_verified`, zero registration markers/mappings/terminal events, zero nonzero health counters, and verified raw-trace cleanup.
+This is a repeated association in two runs, not evidence of a fixed eight-registration limit or a known cause. The tests used the same device, host/browser and local RP path; they are not broad independent replications. Because the failed traces contain no app registration markers or operation mapping, the records do not establish that the request reached Chimali's registration code. The RP error and Windows message also do not, by themselves, distinguish a Windows security-key broker, browser WebAuthn/CTAP path, authenticator transport, RP ceremony state, timeout, cancellation, or other cause.
 
-The repeat at warm-08 is a useful investigation signal, not proof of a threshold at eight registrations. The available attempts do not identify whether the source is Windows/browser, the authenticator transport, the app/service, user cancellation, or another transient condition. Trace health being clean does not establish where the WebAuthn ceremony failed.
+## Investigation goal
+
+Determine whether the failure is reproducibly associated with warm-process attempt count and identify the failing layer or retain an explicit inconclusive result. Record both the counted attempt number and total successful registrations in that process, including the uncounted warmup. Do not treat this issue as a settings-lookup performance result or use it to infer the cause of the measured lookup duration.
 
 ## Investigation procedure
 
-1. Review the exact stopped-run declarations, runner results, and operator messages before proposing another device series. Preserve each failed attempt and its original schedule slot; do not retry or replace it.
-2. Form a hypothesis that can be distinguished using non-secret diagnostics. Prefer a short, separately declared synthetic diagnostic with explicit stop rules over another full baseline.
-3. Capture timestamped RP/browser outcome, Android app/service state, and permitted transport/system diagnostics around each single request. Keep the local RP, app build, device identity, and process condition fixed for the diagnostic.
-4. Determine whether the failure occurs before dispatch, during the authenticator ceremony, or after a response reaches the RP. Do not infer this boundary from the Windows message alone.
-5. Compare successful and failed attempts only when their event sources and correlation are complete. Report missing evidence and competing explanations; do not turn a diagnostic into baseline data.
-6. Obtain a fresh explicit approval before any new on-device registration or biometric prompt.
+1. Review all retained Baseline 02 and Baseline 03 attempts, RP outcomes, operator-reported Windows messages, app markers, mappings, process IDs, connection state and trace-health evidence. Keep operator reports distinct from machine observations.
+2. Before any new device registration, predeclare the synthetic origin, build/device identity, process-state sequence, attempt cap, evidence to retain, eligibility rules, failure dispositions and stop rules. Capture one operation at a time. Obtain owner approval for the exact declaration; existing Baseline 02/03 approval does not authorize another series.
+3. For each attempt, retain the warm attempt number, number of successful operations already completed in that process, RP result, exact user-reported Windows outcome, Android app/connection state, operation markers, correlation, trace-health, and cleanup result. A missing app marker is evidence of missing app-path observation, not proof of a particular external cause.
+4. If comparing cold and warm behavior, change only the predeclared process-state condition. Do not clear app data, remove stored credentials, reset the RP, or change the origin to manufacture a passing run. Stop on identity drift, ambiguous app dispatch/correlation, instrumentation or health failure, or cleanup failure.
+5. Do not change production behavior until evidence localizes the failure and a bounded correction has a clear preservation requirement for credentials, user data, authentication security and cancellation behavior.
 
-## Current references
+Coordinate device work with Feature 062 T009 so reliability evidence and performance samples remain separately labeled. A diagnostic reliability attempt cannot silently satisfy the T009 quota. Baseline 04 was approved and then stopped at cold-04 after an incomplete capture timeout. It collected three eligible cold samples and no warm samples; it does not assess or resolve this warm-specific reliability pattern. Any further capture needs a fresh reviewed declaration and renewed owner approval. See the [Baseline 04 run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-04-run-disposition.md).
 
-- [Baseline 02 run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-02-run-disposition.md)
-- [Baseline 03 run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-03-run-disposition.md)
-- [Baseline 09 run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-09-run-disposition.md)
-- [Baseline 09 warm-08 evidence](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-09-warm-08-disposition.md)
+## Completion criteria
 
-This item is a separate reliability investigation from the cold settings lookup performance follow-up. Its closure requires a defensible failure-boundary finding or an explicit decision that the cause cannot be isolated with available instrumentation; recurrence alone is not closure.
+- Preserve an attempt-by-attempt record for every declared run, including failures, cancellations, missing markers and any stopped/incomplete result.
+- Determine whether the same attempt-count pattern recurs under the declared conditions, or state why the available data cannot resolve it.
+- Attribute the failure to a component/layer only when supported by direct evidence; otherwise list the unresolved candidates and the additional evidence needed without assigning blame.
+- Record a decision to fix, monitor, or leave the behavior unresolved. Any production change requires configured behavior tests and verification appropriate to its scope.
 
-## Performance-sampling response (2026-11-01)
+## Current disposition
 
-Feature 062 now limits future warm performance samples to seven counted attempts per process after an uncounted warmup, with the original ten-eligible-warm quota preserved across prospectively declared sessions. This avoids deliberately repeating the observed warm-08 position during performance sampling. It does not identify the registration failure boundary or cause and does not close this reliability investigation. See the [sampling amendment](../../specs/062-fido2-performance-investigation/artifacts/f062-warm-session-sampling-amendment-2026-11-01.md).
+The two existing runs support a repeated warning at warm-08 after eight successful warm-process registrations, but do not establish a causal threshold. Baseline 03 remains stopped and incomplete. No new reliability-only capture is authorized by this backlog item.
