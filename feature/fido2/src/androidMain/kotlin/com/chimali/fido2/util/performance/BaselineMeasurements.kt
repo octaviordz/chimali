@@ -4,6 +4,7 @@ import android.os.Build
 import android.os.Trace
 import android.util.Log
 import com.chimali.core.common.annotation.Req
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -21,6 +22,7 @@ object BaselineMeasurements {
     private val sequence = AtomicInteger()
     private val operations = ConcurrentHashMap<String, Operation>()
     private val reports = ConcurrentHashMap<ByteArray, Response>()
+    private val processSession = UUID.randomUUID().toString()
 
     private class Operation(
         val name: String,
@@ -57,6 +59,14 @@ object BaselineMeasurements {
     @Req("NFR-PERF-030", "FR-VAL-030")
     fun start(name: String) {
         operations.put(name, Operation(name))?.closeTrace()
+    }
+
+    /** Returns a process-scoped diagnostic identity for the active MakeCredential operation. */
+    @Req("NFR-PERF-030", "TR-AUTH-031")
+    internal fun traceContext(name: String): Fido2OperationTraceContext? {
+        if (name != "MakeCredential") return null
+        val operation = operations[name] ?: return null
+        return if (operation.traced) Fido2OperationTraceContext(processSession, operation.cookie) else null
     }
 
     @Req("NFR-PERF-030", "FR-VAL-030")

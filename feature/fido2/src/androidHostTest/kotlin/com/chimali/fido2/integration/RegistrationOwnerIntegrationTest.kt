@@ -27,6 +27,7 @@ import com.chimali.fido2.presentation.viewmodel.RegistrationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.RegistrationState
 import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.testCredentialIdFromLabel
+import com.chimali.fido2.util.performance.Fido2OperationTraceContext
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -393,6 +394,31 @@ class RegistrationOwnerIntegrationTest {
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `registration carries its request trace identity into the use case`() =
+        runTest {
+            val expected = Fido2OperationTraceContext("synthetic-session", 7)
+            val observed = CompletableDeferred<Fido2OperationTraceContext?>()
+            coEvery { registerCredentialUseCase(any(), true) } coAnswers {
+                observed.complete(currentCoroutineContext()[Fido2OperationTraceContext])
+                awaitCancellation()
+            }
+            val response = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
+            val event = Fido2UiEvent.RegistrationRequested(createOptions(), response)
+            event.traceContext = expected
+            uiEventBus.dispatch(event)
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.ConfirmRegistration)
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess(1L))
+            advanceUntilIdle()
+
+            assertSame(expected, observed.await())
+            response.cancel()
+            advanceUntilIdle()
+            assertTrue(ownerReleased)
+        }
+
     @Test
     fun `duplicate success and stale failure cannot interrupt a processing registration`() =
         runTest {

@@ -9,6 +9,9 @@ plugins {
 }
 
 private val androidMainImplementationName = "androidMainImplementation"
+private val f062Exploration07TestApplicationId =
+    providers.gradleProperty("f062OverheadExplore07TestApplicationId").orNull
+f062Exploration07TestApplicationId?.let { logger.lifecycle("Using Exploration 07 test application ID: $it") }
 
 sqldelight {
     databases {
@@ -35,6 +38,7 @@ dependencies {
 kotlin {
     android {
         namespace = "com.chimali.fido2"
+        f062Exploration07TestApplicationId?.let { testNamespace = it }
         androidResources {
             enable = true
         }
@@ -54,6 +58,9 @@ kotlin {
         withHostTest {}
         withDeviceTest {
             enableCoverage = true
+            if (f062Exploration07TestApplicationId != null) {
+                applicationId = f062Exploration07TestApplicationId
+            }
         }
 
         @Suppress("UnstableApiUsage")
@@ -177,6 +184,7 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.runner)
+                implementation(libs.androidx.test.monitor)
                 implementation(libs.androidx.test.espresso.core)
                 implementation("io.mockk:mockk-android:${libs.versions.mockk.get()}") {
                     exclude(group = "org.junit.jupiter")

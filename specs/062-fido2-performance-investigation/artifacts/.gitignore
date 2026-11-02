@@ -1,0 +1,26 @@
+# Exact original CSVs retained in verified .7z archives; see f062-session-observations-archives.json.
+# Restore with restore-f062-session-observations.ps1. Other evidence remains eligible for Git.
+/f062-asus35-calibration-06-raw-session-observations.csv
+/f062-asus35-calibration-08-raw-session-observations.csv
+/f062-asus35-calibration-09-raw-session-observations.csv
+/f062-asus35-calibration-10-raw-session-observations.csv
+/f062-asus35-calibration-12-raw-session-observations.csv
+/f062-asus35-calibration-13-raw-session-observations.csv
+/f062-asus35-calibration-14-raw-session-observations.csv
+/f062-asus35-calibration-15-raw-session-observations.csv
+/f062-asus35-calibration-17-raw-session-observations.csv
+/f062-asus35-calibration-18-raw-session-observations.csv
+/f062-asus35-calibration-19-raw-session-observations.csv
+/f062-asus35-calibration-21-raw-session-observations.csv
+/f062-asus35-calibration-22-raw-session-observations.csv
+/f062-asus35-calibration-23-raw-session-observations.csv
+/f062-asus35-calibration-24-raw-session-observations.csv
+/f062-asus35-calibration-25-raw-session-observations.csv
+/f062-asus35-calibration-26-raw-session-observations.csv
+/f062-asus35-calibration-27-raw-session-observations.csv
+/f062-asus35-instrument-diagnostic-v3-raw-session-observations.csv
+/f062-asus35-instrument-diagnostic-v4-raw-session-observations.csv
+/f062-asus35-instrument-diagnostic-v5-raw-session-observations.csv
+/f062-asus35-instrument-diagnostic-v6-raw-session-observations.csv
+/f062-asus35-parser-attribution-raw-session-observations.csv
+/f062-asus35-parser-attribution-v2-raw-session-observations.csv

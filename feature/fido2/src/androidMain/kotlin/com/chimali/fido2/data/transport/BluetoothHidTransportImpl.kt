@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.annotation.Single
@@ -506,6 +507,7 @@ class BluetoothHidTransportImpl(
             }
         // NFR-PERF-030: Start timing the request through outbound HID response handoff.
         LatencyProfiler.start(operationLabel)
+        if (operationLabel == "MakeCredential") BaselineMeasurements.start(operationLabel)
         Logger.d {
             "CTAP2 command=0x${ctapCommand.toString(HEX_RADIX)} on CID=${cid.toHex()}"
         }
@@ -552,11 +554,19 @@ class BluetoothHidTransportImpl(
                             when (ctapCommand) {
                                 CMD_MAKE_CREDENTIAL -> {
                                     // authenticatorMakeCredential — CTAP2 registration
-                                    val resp =
+                                    val operationTraceContext = BaselineMeasurements.traceContext(operationLabel)
+                                    val dispatch: suspend () -> List<ByteArray> = {
                                         masterSeedProvider.withSessionOwner(
                                             ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,
                                         ) {
                                             ownResponse(makeCredentialHandler.handle(message))
+                                        }
+                                    }
+                                    val resp =
+                                        if (operationTraceContext != null) {
+                                            withContext(operationTraceContext) { dispatch() }
+                                        } else {
+                                            dispatch()
                                         }
                                     publishSuccessEvent()
                                     resp

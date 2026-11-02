@@ -18,7 +18,9 @@ import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.Fido2OperationTraceContext
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -190,6 +192,7 @@ class RegistrationPromptViewModel(
     private var requestWalletGeneration = 0L
     private var requestGeneration = 0L
     private var pendingRequestJob: CompletableJob? = null
+    private var pendingTraceContext: Fido2OperationTraceContext? = null
 
     init {
         Logger.d { "RegistrationPromptViewModel created — subscribing to event bus" }
@@ -209,13 +212,13 @@ class RegistrationPromptViewModel(
                     return@onEach
                 }
                 uiEventBus.clearRegistrationRequest(event.deferred)
-                initRegistration(event.options, event.deferred, event.userInteractionCompleted)
+                initRegistration(event.options, event.deferred, event.userInteractionCompleted, event.traceContext)
             }.launchIn(viewModelScope)
 
         // Also consume any event stored before this ViewModel was created (replay backup).
         uiEventBus.currentRegistrationRequest?.let { event ->
             Logger.d { "Pending registration request restored" }
-            initRegistration(event.options, event.deferred, event.userInteractionCompleted)
+            initRegistration(event.options, event.deferred, event.userInteractionCompleted, event.traceContext)
             uiEventBus.clearRegistrationRequest(event.deferred)
         } ?: Logger.d { "No currentRegistrationRequest in cache at init time" }
     }
@@ -265,6 +268,7 @@ class RegistrationPromptViewModel(
         options: MakeCredentialOptions,
         response: CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>? = null,
         userInteraction: CompletableDeferred<Unit>? = null,
+        traceContext: Fido2OperationTraceContext? = null,
     ) {
         val previousResponse = pendingDeferred
         val previousJob = pendingRequestJob
@@ -278,6 +282,7 @@ class RegistrationPromptViewModel(
         pendingOptions = options
         pendingDeferred = response
         pendingUserInteractionCompleted = userInteraction
+        pendingTraceContext = traceContext
         setState(RegistrationState.Idle)
         previousJob?.cancel(CancellationException("Registration request was replaced"))
         if (previousResponse !== response) previousResponse?.cancel()
@@ -392,7 +397,7 @@ class RegistrationPromptViewModel(
         val next = uiEventBus.currentRegistrationRequest
         if (next != null && next.deferred.isActive) {
             uiEventBus.clearRegistrationRequest(next.deferred)
-            initRegistration(next.options, next.deferred, next.userInteractionCompleted)
+            initRegistration(next.options, next.deferred, next.userInteractionCompleted, next.traceContext)
         } else {
             pendingOptions = null
             setState(RegistrationState.Error("Start a new request to try again", false))
@@ -411,8 +416,11 @@ class RegistrationPromptViewModel(
         finishPendingForegroundPrompt(authorized = true)
         setState(RegistrationState.Processing)
         val responseDeferred = pendingDeferred
+        val traceContext = pendingTraceContext ?: EmptyCoroutineContext
         val operation =
-            CoroutineScope(viewModelScope.coroutineContext + request).launch(start = CoroutineStart.LAZY) {
+            CoroutineScope(
+                viewModelScope.coroutineContext + request + traceContext,
+            ).launch(start = CoroutineStart.LAZY) {
                 currentCoroutineContext().ensureActive()
                 if (!isLiveRequest(generation)) return@launch
                 requireCurrentWallet(admittedWalletGeneration)

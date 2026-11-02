@@ -30,7 +30,7 @@ The repeat at warm-08 is a useful investigation signal, not proof of a threshold
 - [Baseline 09 run disposition](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-09-run-disposition.md)
 - [Baseline 09 warm-08 evidence](../../specs/062-fido2-performance-investigation/artifacts/f062-asus35-baseline-09-warm-08-disposition.md)
 
-This item is independent of the performance backlog at [fido2-internal-performance-enhancements.md](fido2-internal-performance-enhancements.md). Its closure requires a defensible failure-boundary finding or an explicit decision that the cause cannot be isolated with available instrumentation; recurrence alone is not closure.
+This item is a separate reliability investigation from the cold settings lookup performance follow-up. Its closure requires a defensible failure-boundary finding or an explicit decision that the cause cannot be isolated with available instrumentation; recurrence alone is not closure.
 
 ## Performance-sampling response (2026-11-01)
 

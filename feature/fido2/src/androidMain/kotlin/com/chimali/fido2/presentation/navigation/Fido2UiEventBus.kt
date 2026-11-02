@@ -6,6 +6,7 @@ import com.chimali.core.common.result.Outcome
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
+import com.chimali.fido2.util.performance.Fido2OperationTraceContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,7 +83,9 @@ sealed interface Fido2UiEvent {
         val options: MakeCredentialOptions,
         val deferred: CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>,
         val userInteractionCompleted: CompletableDeferred<Unit> = CompletableDeferred(),
-    ) : Fido2UiEvent
+    ) : Fido2UiEvent {
+        internal var traceContext: Fido2OperationTraceContext? = null
+    }
 
     data class AuthenticationRequested(
         val options: com.chimali.fido2.domain.model.GetAssertionOptions,

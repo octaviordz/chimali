@@ -163,7 +163,10 @@ class RegisterCredentialUseCase(
                 PerformanceTrace.section("Fido2.Registration.Statistics") {
                     passkeyCredentialRepository.getCredentialStatistics()
                 }
-            val limit = settingsRepository.getMaxCredentialCount()
+            val limit =
+                PerformanceTrace.section("Fido2.Registration.SettingsLookup") {
+                    settingsRepository.getMaxCredentialCount()
+                }
             if (stats.totalCredentials >= limit) {
                 return Outcome.Error(
                     DomainError.StorageError(

@@ -25,8 +25,10 @@ import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.Fido2OperationTraceContext
 import com.chimali.fido2.util.performance.LatencyProfiler
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
 import org.koin.core.annotation.Single
 
 /**
@@ -356,7 +358,9 @@ class Ctap2MakeCredentialHandler(
         Logger.d("Dispatching RegistrationRequested event to UI")
         LatencyProfiler.startUserInteraction("MakeCredential")
         uiEventBus.dispatch(
-            Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred, userInteractionCompleted),
+            Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred, userInteractionCompleted).also {
+                it.traceContext = currentCoroutineContext()[Fido2OperationTraceContext]
+            },
         )
         Logger.d("Event dispatched — awaiting user response via deferred")
 
