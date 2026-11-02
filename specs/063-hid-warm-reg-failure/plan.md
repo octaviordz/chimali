@@ -87,9 +87,11 @@ specs/063-hid-warm-reg-failure/
 ```text
 feature/fido2/src/
 └── androidHostTest/kotlin/com/chimali/fido2/
-    └── bluetooth/
-        ├── BluetoothHidWarmRegistrationStressTest.kt   # [NEW] Multi-iteration thread boundedness harness (FR-001, FR-002)
-        └── BluetoothHidCallbackCoordinatorTest.kt      # [EXTEND] Asynchronous unregister race test cases (FR-003)
+    ├── bluetooth/
+    │   ├── BluetoothHidWarmRegistrationStressTest.kt   # [NEW] Multi-iteration thread boundedness harness (FR-001, FR-002)
+    │   └── BluetoothHidCallbackCoordinatorTest.kt      # [EXTEND] Asynchronous unregister race test cases (FR-003)
+    └── data/transport/
+        └── BluetoothHidTransportLifecycleTest.kt       # [EXISTING] Regression test suite (US3, SC-005)
 ```
 
 *(Note: FR-007 channel registry verification and FR-008 core/bluetooth audit are explicitly deferred to follow-on features per spec and do not generate tasks in this feature).*
