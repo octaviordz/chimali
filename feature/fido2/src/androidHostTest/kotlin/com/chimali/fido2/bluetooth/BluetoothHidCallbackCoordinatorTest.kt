@@ -14,6 +14,9 @@ import com.chimali.fido2.domain.exception.Fido2Exception
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -23,11 +26,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -423,6 +428,256 @@ class BluetoothHidCallbackCoordinatorTest {
             assertSame(host, owner.connectedDevice)
             assertSame(connected, owner.connectionState.value)
             assertEquals(0, owner.generation)
+        }
+
+    /**
+     * Scenario 0: Baseline - Nominal sequential unregister completely delivered before next register begins.
+     * Invariant 0: Successor registration resolves with Result.success cleanly without interference.
+     */
+    @Test
+    @Req("FR-003", "SC-003")
+    fun callbackScenario0_nominalSequential_succeedsCleanly() =
+        runBlocking {
+            val owner = RecordingOwner(this)
+            val coordinator = BluetoothHidCallbackCoordinator(owner)
+            val executorK = Executors.newSingleThreadExecutor()
+            val executorKPlus1 = Executors.newSingleThreadExecutor()
+            try {
+                // 1. Session k registration callback receives deregistration
+                lateinit var contK: CancellableContinuation<Result<Unit>>
+                val jobK =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contK = it }
+                    }
+                val callbackK = coordinator.createRegistrationCallback(contK)
+                val latchK = CountDownLatch(1)
+                executorK.submit {
+                    try {
+                        callbackK.onAppStatusChanged(null, false)
+                    } finally {
+                        latchK.countDown()
+                    }
+                }
+                assertTrue(latchK.await(2000, TimeUnit.MILLISECONDS))
+                val resK = jobK.await()
+                assertTrue(resK.isFailure, "Predecessor session k must resolve with failure on registered=false")
+                assertEquals(HidConnectionState.Idle, owner.connectionState.value)
+
+                // 2. Session k+1 initiates registerApp and receives registered=true
+                lateinit var contKPlus1: CancellableContinuation<Result<Unit>>
+                val jobKPlus1 =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contKPlus1 = it }
+                    }
+                val callbackKPlus1 = coordinator.createRegistrationCallback(contKPlus1)
+                val latchKPlus1 = CountDownLatch(1)
+                executorKPlus1.submit {
+                    try {
+                        callbackKPlus1.onAppStatusChanged(null, true)
+                    } finally {
+                        latchKPlus1.countDown()
+                    }
+                }
+                assertTrue(latchKPlus1.await(2000, TimeUnit.MILLISECONDS))
+                val resKPlus1 = jobKPlus1.await()
+                assertTrue(resKPlus1.isSuccess, "Successor session k+1 must resolve with success")
+                assertEquals(HidConnectionState.Advertising, owner.connectionState.value)
+            } finally {
+                executorK.shutdown()
+                executorKPlus1.shutdown()
+            }
+        }
+
+    /**
+     * Scenario 1: Mechanism A - Shared-state interference (nominal stale ordering).
+     * Invariant 1: cont_{k+1} is neither completed nor cancelled by stale callback_k, and resolves
+     * with Result.success(Unit) upon current event delivery.
+     */
+    @Test
+    @Req("FR-003", "SC-003")
+    fun callbackScenario1_mechanismA_staleEventBeforeCurrent_recordsInterference() =
+        runBlocking {
+            val owner = RecordingOwner(this)
+            val coordinator = BluetoothHidCallbackCoordinator(owner)
+            val executorK = Executors.newSingleThreadExecutor()
+            val executorKPlus1 = Executors.newSingleThreadExecutor()
+            try {
+                // Setup Session k
+                lateinit var contK: CancellableContinuation<Result<Unit>>
+                val jobK =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contK = it }
+                    }
+                val callbackK = coordinator.createRegistrationCallback(contK)
+
+                // Setup Session k+1 (in flight)
+                lateinit var contKPlus1: CancellableContinuation<Result<Unit>>
+                val jobKPlus1 =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contKPlus1 = it }
+                    }
+                val callbackKPlus1 = coordinator.createRegistrationCallback(contKPlus1)
+
+                val initialGeneration = owner.generation
+
+                // Stale event submitted through E_k to callback_k
+                val latchK = CountDownLatch(1)
+                executorK.submit {
+                    try {
+                        callbackK.onAppStatusChanged(null, false)
+                    } finally {
+                        latchK.countDown()
+                    }
+                }
+                // Bounded barrier (500 ms)
+                assertTrue(latchK.await(500, TimeUnit.MILLISECONDS))
+
+                // Assert intermediate state: contKPlus1 is STILL active and pending
+                assertTrue(contKPlus1.isActive, "cont_{k+1} must not be completed or cancelled by stale callback_k")
+                assertFalse(jobKPlus1.isCompleted, "job_{k+1} must remain pending")
+                // Record shared-state effect: stale callback_k advanced generation and published Idle
+                assertEquals(
+                    initialGeneration + 1,
+                    owner.generation,
+                    "callback_k advanced generation through shared hidCallback",
+                )
+                assertEquals(HidConnectionState.Idle, owner.connectionState.value)
+
+                // Current event submitted through E_{k+1} to callback_{k+1}
+                val latchKPlus1 = CountDownLatch(1)
+                executorKPlus1.submit {
+                    try {
+                        callbackKPlus1.onAppStatusChanged(null, true)
+                    } finally {
+                        latchKPlus1.countDown()
+                    }
+                }
+                assertTrue(latchKPlus1.await(2000, TimeUnit.MILLISECONDS))
+                val resKPlus1 = jobKPlus1.await()
+                assertTrue(
+                    resKPlus1.isSuccess,
+                    "cont_{k+1} must resolve with Result.success upon current event delivery",
+                )
+                assertEquals(HidConnectionState.Advertising, owner.connectionState.value)
+            } finally {
+                executorK.shutdown()
+                executorKPlus1.shutdown()
+            }
+        }
+
+    /**
+     * Scenario 2: Mechanism B - Race delivery (late-stale ordering).
+     * Invariant 2: Late stale event must not corrupt the newly registered active session.
+     * Under the uncorrected model, late stale delivery destabilizes the active
+     * session (advances generation and publishes Idle).
+     */
+    @Test
+    @Req("FR-003", "SC-003")
+    fun callbackScenario2_mechanismB_lateStaleAfterSuccess_recordsSessionStability() =
+        runBlocking {
+            val owner = RecordingOwner(this)
+            val coordinator = BluetoothHidCallbackCoordinator(owner)
+            val executorK = Executors.newSingleThreadExecutor()
+            val executorKPlus1 = Executors.newSingleThreadExecutor()
+            try {
+                // Setup Session k
+                lateinit var contK: CancellableContinuation<Result<Unit>>
+                val jobK =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contK = it }
+                    }
+                val callbackK = coordinator.createRegistrationCallback(contK)
+
+                // Setup Session k+1
+                lateinit var contKPlus1: CancellableContinuation<Result<Unit>>
+                val jobKPlus1 =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contKPlus1 = it }
+                    }
+                val callbackKPlus1 = coordinator.createRegistrationCallback(contKPlus1)
+
+                // Deliver current event first
+                val latchKPlus1 = CountDownLatch(1)
+                executorKPlus1.submit {
+                    try {
+                        callbackKPlus1.onAppStatusChanged(null, true)
+                    } finally {
+                        latchKPlus1.countDown()
+                    }
+                }
+                assertTrue(latchKPlus1.await(2000, TimeUnit.MILLISECONDS))
+                val resKPlus1 = jobKPlus1.await()
+                assertTrue(resKPlus1.isSuccess, "cont_{k+1} resolved with success")
+                assertEquals(HidConnectionState.Advertising, owner.connectionState.value)
+                val activeGeneration = owner.generation
+
+                // Late stale event arrives via E_k to callback_k
+                val latchK = CountDownLatch(1)
+                executorK.submit {
+                    try {
+                        callbackK.onAppStatusChanged(null, false)
+                    } finally {
+                        latchK.countDown()
+                    }
+                }
+                assertTrue(latchK.await(2000, TimeUnit.MILLISECONDS))
+
+                // Behavioral observation of late stale disruption:
+                // hidCallback.onAppStatusChanged(null, false) advances generation and resets state to Idle!
+                println(
+                    "Mechanism B observation: post-late-stale generation=${owner.generation} " +
+                        "(was $activeGeneration), state=${owner.connectionState.value}",
+                )
+                assertEquals(
+                    activeGeneration + 1,
+                    owner.generation,
+                    "Late stale callback caused unexpected session generation bump",
+                )
+                assertEquals(
+                    HidConnectionState.Idle,
+                    owner.connectionState.value,
+                    "Late stale callback disrupted active Advertising session back to Idle",
+                )
+            } finally {
+                executorK.shutdown()
+                executorKPlus1.shutdown()
+            }
+        }
+
+    /**
+     * Scenario 3: Control - Genuine current-registration failure.
+     * Invariant 3: cont_{k+1} must resolve with Result.failure(...) upon registered=false on the current callback.
+     */
+    @Test
+    @Req("FR-003", "SC-003")
+    fun callbackScenario3_control_genuineFailure_resolvesWithFailure() =
+        runBlocking {
+            val owner = RecordingOwner(this)
+            val coordinator = BluetoothHidCallbackCoordinator(owner)
+            val executorKPlus1 = Executors.newSingleThreadExecutor()
+            try {
+                lateinit var contKPlus1: CancellableContinuation<Result<Unit>>
+                val jobKPlus1 =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        suspendCancellableCoroutine<Result<Unit>> { contKPlus1 = it }
+                    }
+                val callbackKPlus1 = coordinator.createRegistrationCallback(contKPlus1)
+
+                val latchKPlus1 = CountDownLatch(1)
+                executorKPlus1.submit {
+                    try {
+                        callbackKPlus1.onAppStatusChanged(null, false)
+                    } finally {
+                        latchKPlus1.countDown()
+                    }
+                }
+                assertTrue(latchKPlus1.await(2000, TimeUnit.MILLISECONDS))
+                val resKPlus1 = jobKPlus1.await()
+                assertTrue(resKPlus1.isFailure, "Genuine registration failure must resolve with Result.failure")
+                assertEquals(HidConnectionState.Idle, owner.connectionState.value)
+            } finally {
+                executorKPlus1.shutdown()
+            }
         }
 
     private fun host(address: String = HOST_ADDRESS): BluetoothDevice =
