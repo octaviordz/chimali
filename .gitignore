@@ -83,3 +83,4 @@ secrets.properties
 *.log
 .env*
 .playwright-mcp/
+.specify/extensions/.cache/
