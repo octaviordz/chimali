@@ -8,6 +8,8 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -35,7 +37,7 @@ class AndroidFidoBleGattServerHost(
     GattResponseSender {
     private var gattServer: BluetoothGattServer? = null
     private var registered = false
-    private var serviceRegistration: CompletableDeferred<Int>? = null
+    private val serviceRegistrations = ConcurrentHashMap<UUID, CompletableDeferred<Int>>()
     private var notificationSentListener: (BluetoothDevice, Int) -> Unit = { _, _ -> }
     private var connectionStateListener: (BluetoothDevice, Int, Int) -> Unit = { _, _, _ -> }
     private var authenticationFailureListener: (BluetoothDevice) -> Unit = {}
@@ -43,7 +45,9 @@ class AndroidFidoBleGattServerHost(
         FidoBleGattServer(
             sessionOwner = sessionOwner,
             responseSender = this,
-            onServiceAdded = { status -> serviceRegistration?.complete(status) },
+            onGattServiceAdded = { uuid, status ->
+                serviceRegistrations[uuid]?.complete(status)
+            },
             onNotificationSent = { device, status -> notificationSentListener(device, status) },
             onConnectionStateChanged = { device, status, state -> connectionStateListener(device, status, state) },
             onConnectionRejected = { device -> gattServer?.cancelConnection(device) },
@@ -54,6 +58,7 @@ class AndroidFidoBleGattServerHost(
         )
     }
     private val service by lazy { callback.buildFidoGattService() }
+    private val deviceInformationService by lazy { callback.buildDeviceInformationService() }
     val statusCharacteristic: BluetoothGattCharacteristic
         get() {
             service
@@ -69,8 +74,6 @@ class AndroidFidoBleGattServerHost(
         if (registered && gattServer != null) return Result.success(Unit)
 
         return try {
-            val serviceReady = CompletableDeferred<Int>()
-            serviceRegistration = serviceReady
             notificationSentListener = onNotificationSent
             connectionStateListener = onConnectionStateChanged
             authenticationFailureListener = onAuthenticationFailure
@@ -80,15 +83,8 @@ class AndroidFidoBleGattServerHost(
                 manager.openGattServer(context, callback)
                     ?: error("Android did not provide a Bluetooth GATT server")
             gattServer = server
-            check(server.addService(service)) {
-                "Android rejected FIDO GATT service registration"
-            }
-            val status =
-                withTimeoutOrNull(SERVICE_REGISTRATION_TIMEOUT_MS) { serviceReady.await() }
-                    ?: throw TimeoutException("FIDO GATT service registration timed out")
-            check(status == BluetoothGatt.GATT_SUCCESS) {
-                "FIDO GATT service registration failed with status $status"
-            }
+            registerService(server, service)
+            registerService(server, deviceInformationService)
             registered = true
             Result.success(Unit)
         } catch (failure: CancellationException) {
@@ -100,6 +96,29 @@ class AndroidFidoBleGattServerHost(
             startupFailure(failure)
         } catch (failure: IllegalStateException) {
             startupFailure(failure)
+        }
+    }
+
+    private suspend fun registerService(
+        server: BluetoothGattServer,
+        service: android.bluetooth.BluetoothGattService,
+    ) {
+        val serviceReady = CompletableDeferred<Int>()
+        check(serviceRegistrations.putIfAbsent(service.uuid, serviceReady) == null) {
+            "GATT service registration is already pending for ${service.uuid}"
+        }
+        try {
+            check(server.addService(service)) {
+                "Android rejected GATT service registration for ${service.uuid}"
+            }
+            val status =
+                withTimeoutOrNull(SERVICE_REGISTRATION_TIMEOUT_MS) { serviceReady.await() }
+                    ?: throw TimeoutException("GATT service registration timed out for ${service.uuid}")
+            check(status == BluetoothGatt.GATT_SUCCESS) {
+                "GATT service registration failed for ${service.uuid} with status $status"
+            }
+        } finally {
+            serviceRegistrations.remove(service.uuid, serviceReady)
         }
     }
 
@@ -134,8 +153,8 @@ class AndroidFidoBleGattServerHost(
         val server = gattServer
         gattServer = null
         registered = false
-        serviceRegistration?.cancel()
-        serviceRegistration = null
+        serviceRegistrations.values.forEach { it.cancel() }
+        serviceRegistrations.clear()
         notificationSentListener = { _, _ -> }
         connectionStateListener = { _, _, _ -> }
         try {

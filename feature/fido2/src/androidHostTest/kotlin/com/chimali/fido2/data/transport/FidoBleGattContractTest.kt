@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattService
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
 import io.mockk.mockk
+import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -140,6 +141,76 @@ class FidoBleGattContractTest {
                 BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED_MITM,
             rev.permissions,
         )
+    }
+
+    @Test
+    @Req("FR-BLE-010", "TR-BLE-010")
+    fun `device information service uses generic non-identifying product values`() {
+        val createdCharacteristics = mutableListOf<BluetoothGattCharacteristic>()
+        val values = mutableMapOf<UUID, ByteArray>()
+        val mockService = mockk<BluetoothGattService>(relaxed = true)
+        every { mockService.uuid } returns FidoBleGattServer.UUID_DEVICE_INFORMATION_SERVICE
+        every { mockService.type } returns BluetoothGattService.SERVICE_TYPE_PRIMARY
+        every { mockService.addCharacteristic(any()) } answers {
+            createdCharacteristics.add(firstArg())
+            true
+        }
+
+        val service =
+            gattServer.buildDeviceInformationService(
+                serviceFactory = { _, _ -> mockService },
+                characteristicFactory = { uuid, properties, permissions ->
+                    val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+                    every { characteristic.uuid } returns uuid
+                    every { characteristic.properties } returns properties
+                    every { characteristic.permissions } returns permissions
+                    every { characteristic.setValue(any<ByteArray>()) } answers {
+                        values[uuid] = firstArg()
+                        true
+                    }
+                    characteristic
+                },
+            )
+
+        assertEquals(BluetoothGattService.SERVICE_TYPE_PRIMARY, service.type)
+        assertEquals(FidoBleGattServer.UUID_DEVICE_INFORMATION_SERVICE, service.uuid)
+        assertEquals(
+            setOf(
+                FidoBleGattServer.UUID_MANUFACTURER_NAME_STRING,
+                FidoBleGattServer.UUID_MODEL_NUMBER_STRING,
+                FidoBleGattServer.UUID_FIRMWARE_REVISION_STRING,
+            ),
+            createdCharacteristics.map { it.uuid }.toSet(),
+        )
+        assertTrue(createdCharacteristics.all { it.properties == BluetoothGattCharacteristic.PROPERTY_READ })
+        assertTrue(createdCharacteristics.all { it.permissions == BluetoothGattCharacteristic.PERMISSION_READ })
+        assertEquals("Chimali", values[FidoBleGattServer.UUID_MANUFACTURER_NAME_STRING]?.decodeToString())
+        assertEquals("Chimali Authenticator", values[FidoBleGattServer.UUID_MODEL_NUMBER_STRING]?.decodeToString())
+        assertEquals("1.0", values[FidoBleGattServer.UUID_FIRMWARE_REVISION_STRING]?.decodeToString())
+    }
+
+    @Test
+    @Req("FR-BLE-010", "TR-BLE-010")
+    fun `device information reads are available to active unbonded host with offsets`() {
+        val unbondedServer =
+            FidoBleGattServer(
+                sessionOwner = sessionOwner,
+                responseSender = fakeSender,
+                isDeviceAuthenticated = { false },
+            )
+        val manufacturer = mockk<BluetoothGattCharacteristic>()
+        every { manufacturer.uuid } returns FidoBleGattServer.UUID_MANUFACTURER_NAME_STRING
+
+        unbondedServer.onCharacteristicReadRequest(testDevice, 1, 0, manufacturer)
+        assertEquals(BluetoothGatt.GATT_SUCCESS, fakeSender.responses.last().status)
+        assertContentEquals("Chimali".toByteArray(), fakeSender.responses.last().value)
+
+        unbondedServer.onCharacteristicReadRequest(testDevice, 2, 2, manufacturer)
+        assertEquals(BluetoothGatt.GATT_SUCCESS, fakeSender.responses.last().status)
+        assertContentEquals("imali".toByteArray(), fakeSender.responses.last().value)
+
+        unbondedServer.onCharacteristicReadRequest(testDevice, 3, 8, manufacturer)
+        assertEquals(BluetoothGatt.GATT_INVALID_OFFSET, fakeSender.responses.last().status)
     }
 
     @Test

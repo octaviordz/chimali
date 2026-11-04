@@ -1,14 +1,19 @@
 package com.chimali.fido2.data.transport
 
+import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -56,6 +61,58 @@ class FidoBleSecurityDeviceTest {
         )
         assertTrue(service.type == BluetoothGattService.SERVICE_TYPE_PRIMARY)
     }
+
+    @Test
+    fun deviceInformationServiceExposesGenericReadableProductCharacteristics() {
+        val service = FidoBleGattServer(BleSessionOwner(), RecordingSender()).buildDeviceInformationService()
+
+        assertEquals(FidoBleGattServer.UUID_DEVICE_INFORMATION_SERVICE, service.uuid)
+        assertEquals(BluetoothGattService.SERVICE_TYPE_PRIMARY, service.type)
+        val expectedValues =
+            mapOf(
+                FidoBleGattServer.UUID_MANUFACTURER_NAME_STRING to "Chimali",
+                FidoBleGattServer.UUID_MODEL_NUMBER_STRING to "Chimali Authenticator",
+                FidoBleGattServer.UUID_FIRMWARE_REVISION_STRING to "1.0",
+            )
+        expectedValues.forEach { (uuid, expectedValue) ->
+            val characteristic = service.getCharacteristic(uuid)
+            assertEquals(BluetoothGattCharacteristic.PROPERTY_READ, characteristic.properties)
+            assertEquals(BluetoothGattCharacteristic.PERMISSION_READ, characteristic.permissions)
+            @Suppress("DEPRECATION")
+            assertArrayEquals(expectedValue.toByteArray(), characteristic.value)
+        }
+    }
+
+    @Test
+    fun androidGattHostRegistersBothServicesBeforeReportingReady() =
+        runBlocking {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val context = instrumentation.targetContext
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                instrumentation.uiAutomation.grantRuntimePermission(
+                    context.packageName,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                )
+            }
+            val host = AndroidFidoBleGattServerHost(context, BleSessionOwner())
+
+            try {
+                val result =
+                    host.start(
+                        onPacketReceived = {},
+                        onNotificationSent = { _, _ -> },
+                        onConnectionStateChanged = { _, _, _ -> },
+                        onAuthenticationFailure = {},
+                    )
+
+                assertTrue(
+                    "GATT host failed to register its required services: ${result.exceptionOrNull()}",
+                    result.isSuccess,
+                )
+            } finally {
+                host.stop()
+            }
+        }
 
     @Test
     fun pairingFailureRejectsControlPointWriteBeforePacketAdmission() {

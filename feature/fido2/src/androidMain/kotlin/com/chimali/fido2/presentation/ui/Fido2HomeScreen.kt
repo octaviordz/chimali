@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.BluetoothAudio
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
@@ -570,7 +571,7 @@ private fun launchDiscoverability(
 }
 
 /**
- * A button that starts or stops the Bluetooth HID transport service.
+ * A button that starts, stops or retries the selected Bluetooth transport.
  */
 @Composable
 fun TransportToggleButton(
@@ -607,10 +608,22 @@ fun TransportToggleButton(
             label = "TransportToggle",
         ) { running ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (running) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)
+                Icon(
+                    imageVector =
+                        when {
+                            connectionState is Fido2ConnectionState.Error -> Icons.Default.Refresh
+                            running -> Icons.Default.Stop
+                            else -> Icons.Default.PlayArrow
+                        },
+                    contentDescription = null,
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (running) "Stop Authenticator" else "Start Authenticator",
+                    when {
+                        connectionState is Fido2ConnectionState.Error -> "Retry Authenticator"
+                        running -> "Stop Authenticator"
+                        else -> "Start Authenticator"
+                    },
                     style = MaterialTheme.typography.labelLarge,
                 )
             }

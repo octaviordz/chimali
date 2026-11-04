@@ -7,6 +7,8 @@ Related: [spec](../spec.md), [state model](../data-model.md), [parent contract](
 
 Primary service 0xFFFD plus required GAP and Device Information services. Avoid duplicate Android-owned GAP service registration; verify required characteristics actually exist.
 
+Device Information is registered after the FIDO service and exposes read-only Manufacturer Name (`0x2A29`), Model Number (`0x2A24`), and Firmware Revision (`0x2A26`) with generic Chimali product values. Do not expose a unique device identifier. GAP remains Android-stack-owned and must not be registered as an app service.
+
 | Attribute | UUID suffix/prefix | Contract |
 |---|---|---|
 | Control Point | F1D0FFF1-DEAA-ECEE-B42F-C9BA7ED623BB | Write / ATT Write Request; validate admission before acknowledgement |

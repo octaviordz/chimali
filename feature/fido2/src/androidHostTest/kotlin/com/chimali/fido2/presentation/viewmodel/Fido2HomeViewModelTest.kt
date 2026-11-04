@@ -25,6 +25,13 @@ class Fido2HomeViewModelTest {
                 TransportAvailability.Unavailable(TransportUnavailableReason.BluetoothOff),
             ),
         )
+        assertEquals(
+            TransportToggleAction.Retry,
+            transportToggleAction(
+                Fido2ConnectionState.Error("BLE advertising stopped unexpectedly"),
+                TransportAvailability.Ready,
+            ),
+        )
     }
 
     @Test
