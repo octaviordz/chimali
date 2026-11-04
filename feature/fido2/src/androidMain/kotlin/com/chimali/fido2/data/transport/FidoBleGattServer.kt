@@ -85,11 +85,11 @@ class FidoBleGattServer(
     private val sessionOwner: BleSessionOwner,
     private val responseSender: GattResponseSender,
     private val isDeviceAuthenticated: (BluetoothDevice) -> Boolean = { it.bondState == BluetoothDevice.BOND_BONDED },
-    private val onServiceAdded: (Int) -> Unit = {},
     private val onNotificationSent: (BluetoothDevice, Int) -> Unit = { _, _ -> },
     private val onConnectionStateChanged: (BluetoothDevice, Int, Int) -> Unit = { _, _, _ -> },
     private val onConnectionRejected: (BluetoothDevice) -> Unit = {},
     private val onAuthenticationFailure: (BluetoothDevice) -> Unit = {},
+    private val onGattServiceAdded: (UUID, Int) -> Unit = { _, _ -> },
 ) : BluetoothGattServerCallback() {
     var statusCharacteristic =
         BluetoothGattCharacteristic(
@@ -111,6 +111,14 @@ class FidoBleGattServer(
         val UUID_FIDO_CONTROL_POINT_LENGTH: UUID = UUID.fromString("F1D0FFF3-DEAA-ECEE-B42F-C9BA7ED623BB")
         val UUID_FIDO_SERVICE_REVISION_BITFIELD: UUID = UUID.fromString("F1D0FFF4-DEAA-ECEE-B42F-C9BA7ED623BB")
         val UUID_CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
+        val UUID_DEVICE_INFORMATION_SERVICE: UUID = UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")
+        val UUID_MANUFACTURER_NAME_STRING: UUID = UUID.fromString("00002A29-0000-1000-8000-00805F9B34FB")
+        val UUID_MODEL_NUMBER_STRING: UUID = UUID.fromString("00002A24-0000-1000-8000-00805F9B34FB")
+        val UUID_FIRMWARE_REVISION_STRING: UUID = UUID.fromString("00002A26-0000-1000-8000-00805F9B34FB")
+
+        private const val MANUFACTURER_NAME = "Chimali"
+        private const val MODEL_NUMBER = "Chimali Authenticator"
+        private const val FIRMWARE_REVISION = "1.0"
     }
 
     /**
@@ -174,6 +182,30 @@ class FidoBleGattServer(
         return service
     }
 
+    /** Builds the standard Device Information Service with generic values that do not identify a device. */
+    fun buildDeviceInformationService(
+        serviceFactory: (UUID, Int) -> BluetoothGattService = { uuid, type -> BluetoothGattService(uuid, type) },
+        characteristicFactory: (UUID, Int, Int) -> BluetoothGattCharacteristic = { uuid, prop, perm ->
+            BluetoothGattCharacteristic(uuid, prop, perm)
+        },
+    ): BluetoothGattService {
+        val service = serviceFactory(UUID_DEVICE_INFORMATION_SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)
+        listOf(
+            UUID_MANUFACTURER_NAME_STRING to MANUFACTURER_NAME,
+            UUID_MODEL_NUMBER_STRING to MODEL_NUMBER,
+            UUID_FIRMWARE_REVISION_STRING to FIRMWARE_REVISION,
+        ).forEach { (uuid, value) ->
+            val characteristic =
+                characteristicFactory(
+                    uuid,
+                    BluetoothGattCharacteristic.PROPERTY_READ,
+                    BluetoothGattCharacteristic.PERMISSION_READ,
+                ).also { it.setValue(value.toByteArray(Charsets.UTF_8)) }
+            service.addCharacteristic(characteristic)
+        }
+        return service
+    }
+
     override fun onConnectionStateChange(
         device: BluetoothDevice,
         status: Int,
@@ -201,7 +233,7 @@ class FidoBleGattServer(
         status: Int,
         service: BluetoothGattService,
     ) {
-        if (service.uuid == UUID_FIDO_SERVICE) onServiceAdded(status)
+        onGattServiceAdded(service.uuid, status)
     }
 
     override fun onNotificationSent(
@@ -219,6 +251,28 @@ class FidoBleGattServer(
     ) {
         if (!isActiveHost(device)) {
             responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION, offset, null)
+            return
+        }
+        val deviceInformationValue =
+            when (characteristic.uuid) {
+                UUID_MANUFACTURER_NAME_STRING -> MANUFACTURER_NAME
+                UUID_MODEL_NUMBER_STRING -> MODEL_NUMBER
+                UUID_FIRMWARE_REVISION_STRING -> FIRMWARE_REVISION
+                else -> null
+            }
+        if (deviceInformationValue != null) {
+            val bytes = deviceInformationValue.toByteArray(Charsets.UTF_8)
+            if (offset > bytes.size) {
+                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)
+            } else {
+                responseSender.sendResponse(
+                    device,
+                    requestId,
+                    BluetoothGatt.GATT_SUCCESS,
+                    offset,
+                    bytes.copyOfRange(offset, bytes.size),
+                )
+            }
             return
         }
         if (!isDeviceAuthenticated(device)) {

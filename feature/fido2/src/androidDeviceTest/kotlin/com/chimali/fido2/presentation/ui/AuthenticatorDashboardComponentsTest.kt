@@ -24,6 +24,7 @@ class AuthenticatorDashboardComponentsTest {
         const val TEST_TIMESTAMP = 1L
         const val BLUETOOTH_CLASS_WEARABLE = 0x0700
         const val BLUETOOTH_CLASS_COMPUTER = 0x0500
+        const val EXPECTED_TOGGLE_COUNT_AFTER_RETRY = 3
     }
 
     @get:Rule
@@ -224,7 +225,9 @@ class AuthenticatorDashboardComponentsTest {
         composeTestRule.runOnIdle { assertEquals(2, toggleCount) }
 
         composeTestRule.runOnIdle { state.value = Fido2ConnectionState.Error("offline") }
-        composeTestRule.onNodeWithText("Start Authenticator").assertExists()
+        composeTestRule.onNodeWithText("Retry Authenticator").assertExists()
+        composeTestRule.onNodeWithText("Retry Authenticator").performClick()
+        composeTestRule.runOnIdle { assertEquals(EXPECTED_TOGGLE_COUNT_AFTER_RETRY, toggleCount) }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

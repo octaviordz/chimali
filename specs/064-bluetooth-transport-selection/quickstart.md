@@ -1,6 +1,6 @@
 # Validation Guide: Transport Selection
 
-**Status**: Implementation and host checks are recorded in [implementation-evidence.md](implementation-evidence.md). Device pairing, physical ceremonies, accessibility inspection, coverage integration and target nonregression remain unverified.
+**Status (2026-11-04)**: Focused Nordic advertiser startup and remote Android FIDO-service discovery passed on ASUS/API35 and Mi/API29 (Records 046–047). A current read-only snapshot shows Chimali's foreground transport service and advertiser registered on both phones (BLE Record 070); it does not establish a remote connection or ceremony. The latest configured run passed common/FIDO2 host checks, settings unit tests and settings instrumentation 12/12 on both devices. The earlier full FIDO2 suite passed 50/55 on ASUS/API35 and 47/52 on Mi/API29. The corrected package-filtered non-research suite passed 50/50 on ASUS and 47/47 on Mi; the five controlled trace procedures remain unverified (parent Record 051; BLE Record 069). BLE GATT security tests passed 4/4 per device, including both registered services. Runtime errors now display “Retry Authenticator” and route to Retry even when process availability is Ready; host and device UI checks passed (parent Records 052–053; BLE Records 071–072). Physical retry after interruption remains unverified. Windows Bluetooth Settings did not list the ASUS, and integrated-browser WebAuthn registration timed out without a credential response (Records 044–045); the user canceled the Windows dialog for this attempt. Device pairing, Windows ceremonies, accessibility inspection and complete lifecycle acceptance remain unverified; coverage integration and target nonregression remain deferred by owner direction.
 
 ## Prerequisites
 
@@ -56,14 +56,16 @@ Install using the normal repository build workflow. Match package to variant: sh
 ```powershell
 adb devices
 adb shell am force-stop com.chimali.shrunk
-adb shell monkey -p com.chimali.shrunk -c android.intent.category.LAUNCHER 1
+adb shell am start -n com.chimali.shrunk/com.chimali.MainActivity
 ```
+
+Launch the activity explicitly for lifecycle checks. The package also contains LeakCanary launcher components, so `monkey -p ... -c LAUNCHER` can select its diagnostic launcher instead of Chimali's MainActivity.
 
 1. **Default**: Start a clean isolated test installation without visiting settings. Use the prerequisite's BLE pairing/connection procedure. Complete Windows registration and assertion from a test relying party, independently verify signatures/credential metadata, and confirm real BLE evidence and UI active state. Clean-install preparation may erase only synthetic test data.
 2. **Switch to Classic**: Save Classic while BLE is active. Observe pending Classic and active BLE. Force-stop/relaunch, confirm Classic is selected and not started, start the authenticator, confirm Classic becomes active, and complete physical registration/assertion. Preserve credentials across restart.
 3. **Switch back**: Save BLE and repeat full process restart and physical ceremonies. Do not clear app data between switches. Re-pair only if required by the transport contract, documenting it.
 4. **Pending cancellation**: Select alternative then process mode; pending clears without reconnect.
-5. **Persistence**: Verify both choices across force-stop, OS process death and reboot separately: after each cold launch, confirm the saved mode is selected and not started, then start the authenticator and confirm that mode becomes active. Service/Activity recreation must not apply a pending choice. Use `adb reboot`, wait for boot/unlock and relaunch to verify reboot retention.
+5. **Persistence**: Verify both choices across force-stop, Android-managed process death and reboot separately. After force-stop or reboot, confirm the saved mode is selected and not started until explicit Start. For process death while the foreground service is active, record the exit reason and whether Android restarts the sticky service; verify the new process resolves the persisted selection before constructing a transport, and that only the resolved transport becomes active after successful startup. Relaunch MainActivity and confirm its selected and active status match the service. A saved alternative applies after process restart; Activity/service recreation within the same process must not apply it. Use `adb reboot`, wait for boot/unlock and relaunch to verify reboot retention.
 6. **In-flight change**: Hold registration/assertion at confirmation, save alternative, then complete confirmation. Verify original transport response, committed event consistency and no disconnect. Only full process restart applies the new mode.
 7. **Unavailable**: Use unsupported profile or controlled startup failure. Confirm no fallback advertisement/connection and reachable settings. Save alternative and restart to recover. Separately test permission/Bluetooth-off recovery using the same process choice.
 8. **Accessibility**: Validate TalkBack focus/announcements, contrast and 200% scaling for saved/active/pending/error states. Semantics tests do not establish physical TalkBack/contrast compliance.

@@ -20,6 +20,7 @@ import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStar
 import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStopped
 import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingConfig
 import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingData
+import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingSettings
 
 @Req("FR-BLE-010", "TR-BLE-010")
 class NordicBleAdvertiserController(
@@ -44,6 +45,12 @@ class NordicBleAdvertiserController(
             advertiser = adv
             val config =
                 BleAdvertisingConfig(
+                    settings =
+                        BleAdvertisingSettings(
+                            connectable = true,
+                            legacyMode = true,
+                            scannable = true,
+                        ),
                     advertiseData =
                         BleAdvertisingData(
                             serviceUuid = ParcelUuid(serviceUuid),

@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -37,6 +38,9 @@ class PerformanceTraceDeviceTest {
             }
 
             assertTrue(operation.correlation.hasLookupMapping())
+            withTimeout(CORRELATION_COMPLETION_TIMEOUT_MS) {
+                while (!operation.correlation.isComplete()) delay(1)
+            }
             assertTrue(operation.correlation.isComplete())
         }
 
@@ -44,5 +48,6 @@ class PerformanceTraceDeviceTest {
         const val LOOKUP_SECTION = "Fido2.Registration.SettingsLookup"
         const val SYNTHETIC_OPERATION_COOKIE = 840062
         const val SUSPENSION_DELAY_MILLIS = 5L
+        const val CORRELATION_COMPLETION_TIMEOUT_MS = 5_000L
     }
 }

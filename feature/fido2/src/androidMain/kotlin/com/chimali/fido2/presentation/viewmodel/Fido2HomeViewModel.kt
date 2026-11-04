@@ -153,14 +153,13 @@ internal fun transportToggleAction(
     availability: TransportAvailability,
 ): TransportToggleAction =
     when (connectionState) {
-        Fido2ConnectionState.Idle,
-        is Fido2ConnectionState.Error,
-        -> {
+        Fido2ConnectionState.Idle -> {
             if (availability is TransportAvailability.Unavailable) {
                 TransportToggleAction.Retry
             } else {
                 TransportToggleAction.Start
             }
         }
+        is Fido2ConnectionState.Error -> TransportToggleAction.Retry
         else -> TransportToggleAction.Stop
     }

@@ -1,5 +1,6 @@
 package com.chimali.fido2.service
 
+import android.Manifest
 import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 
 private const val CHANNEL_ID = "fido2_transport_channel"
@@ -113,7 +115,17 @@ class Fido2TransportService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        if (action != ACTION_STOP && !hasForegroundServicePrerequisites()) {
+            Logger.w {
+                "Bluetooth permissions are unavailable; stopping transport service without a foreground restart"
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
+        when (action) {
             ACTION_START -> startTransport()
             ACTION_STOP -> stopTransport()
             ACTION_RETRY -> retryTransport()
@@ -182,10 +194,13 @@ class Fido2TransportService : Service() {
     }
 
     private fun retryTransport() {
-        promoteToForeground()
         scope.launch {
             startJob?.cancelAndJoin()
             lifecycleMutex.withLock {
+                // A failed start can remove its foreground notification after this retry intent
+                // arrives. Promote only after that attempt has fully completed so its cleanup
+                // cannot leave a successfully retried transport running without foreground state.
+                withContext(Dispatchers.Main.immediate) { promoteToForeground() }
                 val disconnectResult = transport.disconnect()
                 if (disconnectResult.isFailure) {
                     Logger.w(disconnectResult.exceptionOrNull()) { "Transport cleanup before retry failed" }
@@ -226,6 +241,28 @@ class Fido2TransportService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+    }
+
+    private fun hasForegroundServicePrerequisites(): Boolean {
+        val sdkInt = Build.VERSION.SDK_INT
+        val hasConnectedDeviceForegroundPermission =
+            sdkInt < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasBluetoothRuntimePermission =
+            sdkInt < Build.VERSION_CODES.S ||
+                listOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                ).any { permission ->
+                    checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                }
+        return hasConnectedDeviceForegroundServicePrerequisites(
+            sdkInt = sdkInt,
+            foregroundServicePermissionGranted = hasConnectedDeviceForegroundPermission,
+            bluetoothRuntimePermissionGranted = hasBluetoothRuntimePermission,
+        )
     }
 
     // ── Notification ──────────────────────────────────────────────────────────
@@ -322,3 +359,11 @@ class Fido2TransportService : Service() {
         nm.notify(AUTH_REQUEST_NOTIF_ID, notification)
     }
 }
+
+internal fun hasConnectedDeviceForegroundServicePrerequisites(
+    sdkInt: Int,
+    foregroundServicePermissionGranted: Boolean,
+    bluetoothRuntimePermissionGranted: Boolean,
+): Boolean =
+    (sdkInt < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || foregroundServicePermissionGranted) &&
+        (sdkInt < Build.VERSION_CODES.S || bluetoothRuntimePermissionGranted)

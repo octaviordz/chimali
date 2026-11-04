@@ -4,6 +4,7 @@ import android.content.Context
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -14,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import no.nordicsemi.android.kotlin.ble.advertiser.BleAdvertiser
 import no.nordicsemi.android.kotlin.ble.advertiser.callback.BleAdvertisingStatus
 import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStarted
+import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingConfig
 
 @Req("FR-BLE-010", "FR-BLE-060", "TR-BLE-010")
 class NordicBleAdvertiserControllerTest {
@@ -22,7 +24,8 @@ class NordicBleAdvertiserControllerTest {
         runTest {
             var collected = false
             val advertiser = mockk<BleAdvertiser>()
-            every { advertiser.advertise(any()) } returns
+            val config = slot<BleAdvertisingConfig>()
+            every { advertiser.advertise(capture(config)) } returns
                 flow {
                     collected = true
                     emit(startedEvent(BleAdvertisingStatus.ADVERTISE_SUCCESS))
@@ -34,6 +37,9 @@ class NordicBleAdvertiserControllerTest {
 
             assertTrue(result.isSuccess)
             assertTrue(collected)
+            assertTrue(config.captured.settings.connectable)
+            assertTrue(config.captured.settings.legacyMode)
+            assertTrue(config.captured.settings.scannable == true)
             controller.stopAdvertising()
         }
 
