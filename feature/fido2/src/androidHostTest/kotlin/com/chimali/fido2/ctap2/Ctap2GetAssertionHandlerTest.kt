@@ -457,25 +457,18 @@ class Ctap2GetAssertionHandlerTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
-    fun `handle clears PRF and assertion buffers when response framing throws`() =
+    fun `handle clears PRF and assertion buffers when raw response encoding throws`() =
         runTest {
             val firstOutput = ByteArray(32) { 0x14 }
             val secondOutput = ByteArray(32) { 0x27 }
             val authData = ByteArray(37) { 0x35 }
             val signature = ByteArray(64) { 0x48 }
             configurePrfResponse(firstOutput, secondOutput, authData, signature)
-            var firstFrame = true
-            every { hidReportParser.encodeResponse(any()) } answers {
-                val payload = firstArg<com.chimali.fido2.bluetooth.CtapHidMessage>().payload
-                if (firstFrame) {
-                    firstFrame = false
-                    error("synthetic frame failure")
-                }
-                listOf(payload.copyOf())
-            }
+            every { cborCodec.encodeToFido2Format(any()) } throws IllegalStateException("synthetic encoding failure")
 
-            handler.handle(cid, requestBytes)
+            val response = handler.handleRaw(requestBytes)
 
+            assertContentEquals(byteArrayOf(0x7F), response.responseBytes)
             assertTrue(firstOutput.all { it == 0.toByte() })
             assertTrue(secondOutput.all { it == 0.toByte() })
             assertTrue(authData.all { it == 0.toByte() })

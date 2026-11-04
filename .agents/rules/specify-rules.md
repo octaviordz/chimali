@@ -23,6 +23,8 @@ tests/
 Kotlin 2.x (Kotlin Multiplatform): Follow standard conventions and engineering standards below.
 
 ## Recent Changes
+- 064-bluetooth-transport-selection: Transport selection architecture, single gated Fido2Transport handle, preference snapshot, process restart enforcement (FR-BT-SEL-010..060, TR-BT-SEL-010..040)
+- 064-fido-ble-transport: FIDO BLE GATT service 0xFFFD, Nordic advertiser 1.3.1 with native Android GATT server, numeric comparison pairing, bounded reassembly, keepalive/cancellation (FR-BLE-010..080, TR-BLE-010..040)
 - 046-kmp-expect-class-migration: Added Kotlin 2.x (Kotlin Multiplatform), AGP KMP library + Android application + Koin (DI), Android Bluetooth / PackageManager, `ReentrantLock` / `NSRecursiveLock`, project `tools/local-ci.ps1`
 - 046-kmp-expect-class-migration: Added Kotlin 2.x (Kotlin Multiplatform) + Android Bluetooth APIs (HID capability check), `java.util.concurrent.locks.ReentrantLock` (Android lock), `NSRecursiveLock` (iOS lock)
 

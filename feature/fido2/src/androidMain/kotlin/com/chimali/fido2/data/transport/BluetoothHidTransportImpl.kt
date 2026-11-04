@@ -38,14 +38,16 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import org.koin.core.annotation.Single
 
 /**
  * Central FIDO2 HID transport layer (T053 + T054).
@@ -64,7 +66,6 @@ import org.koin.core.annotation.Single
  * CTAPHID_INIT. The broadcast CID (0xFFFFFFFF) is used only for INIT.
  * Each connected host gets its own CID tracked in [channelRegistry].
  */
-@Single
 class BluetoothHidTransportImpl(
     private val hidWrapper: BluetoothHidDeviceWrapper,
     private val hidReportParser: HidReportParser,
@@ -733,5 +734,21 @@ class BluetoothHidTransportImpl(
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     /** Expose connection state for observing by the presentation layer. */
-    override val connectionState: StateFlow<HidConnectionState> = hidWrapper.connectionState
+    override val connectionState: StateFlow<Fido2ConnectionState> =
+        hidWrapper.connectionState
+            .map { it.toFido2ConnectionState() }
+            .stateIn(
+                scope = scope,
+                started = SharingStarted.Eagerly,
+                initialValue = hidWrapper.connectionState.value.toFido2ConnectionState(),
+            )
 }
+
+internal fun HidConnectionState.toFido2ConnectionState(): Fido2ConnectionState =
+    when (this) {
+        is HidConnectionState.Idle -> Fido2ConnectionState.Idle
+        is HidConnectionState.Advertising -> Fido2ConnectionState.Advertising
+        is HidConnectionState.Connecting -> Fido2ConnectionState.Connecting(device)
+        is HidConnectionState.Connected -> Fido2ConnectionState.Connected(device)
+        is HidConnectionState.Error -> Fido2ConnectionState.Error(message)
+    }

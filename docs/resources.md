@@ -22,6 +22,7 @@ This file contains links, tools, and research materials that are useful for the 
 ## Bluetooth & HID
 - **USBHIDTerminal**: [GitHub Repository](https://github.com/452/USBHIDTerminal) - Useful for testing HID communications and understanding endpoint interactions.
 - **HidPeripheral**: [GitHub Repository](https://github.com/LiangLuDev/HidPeripheral) - Android app demo for Bluetooth HID peripheral emulation (Mouse/Keyboard).
+- **Nordic Kotlin BLE Library advertiser (v1.3.1)**: [GitHub release](https://github.com/nordicsemi/Kotlin-BLE-Library/releases/tag/1.3.1) - Chimali pins only `no.nordicsemi.android.kotlin.ble:advertiser:1.3.1` for peripheral advertising. FIDO GATT service admission, ATT responses, MITM permissions and notification ownership use Chimali's narrow public Android `BluetoothGattServerCallback` implementation; the Nordic high-level server and mock artifacts are excluded. See the [FIDO BLE research](../specs/064-fido-ble-transport/research.md) for the tagged API limitations and decision.
 
 ## Security Frameworks & Hardware
 - **Trussed TOTP Tutorial**: [GitHub Repository](https://github.com/trussed-dev/trussed-totp-pc-tutorial) - A comprehensive tutorial for building Trussed-based security applications, with an example implementation of TOTP. Useful for understanding modular security architectures.

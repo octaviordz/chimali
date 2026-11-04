@@ -1,5 +1,6 @@
 package com.chimali.core.common.datastore
 
+import com.chimali.core.common.annotation.Req
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -23,4 +24,10 @@ data class UserPreferences(
     val passkeyAuthenticatorFeatureEnabled: Boolean = false,
     @ProtoNumber(8)
     val lastVisitedMainScreen: String = "",
+    @ProtoNumber(9)
+    @Req("FR-BT-SEL-010", "TR-BT-SEL-010")
+    val bluetoothTransport: String = "fido_ble",
+    @ProtoNumber(10)
+    @Req("FR-BT-SEL-010", "TR-BT-SEL-010")
+    val bluetoothTransportSelectedAtEpochMillis: Long = 0L,
 )
