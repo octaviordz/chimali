@@ -1,0 +1,32 @@
+<resources>
+    <string name="bluetooth_transport_heading">Bluetooth transport</string>
+    <string name="bluetooth_transport_intro">Choose how the Passkey Authenticator connects. Changes take effect after the next app process start.</string>
+    <string name="bluetooth_transport_ble">FIDO Bluetooth LE (default)</string>
+    <string name="bluetooth_transport_classic">Bluetooth HID (Classic)</string>
+    <string name="bluetooth_transport_loading">Loading transport settings…</string>
+    <string name="bluetooth_transport_active_prefix">Active in this process: %1$s</string>
+    <string name="bluetooth_transport_selected_prefix">Selected for this process: %1$s</string>
+    <string name="bluetooth_transport_restart_required">A restart is required to use the saved choice.</string>
+    <string name="bluetooth_transport_cancel_pending">Cancel pending change</string>
+    <string name="bluetooth_transport_retry">Retry</string>
+    <string name="bluetooth_transport_saving">Saving transport choice…</string>
+    <string name="bluetooth_transport_process_unresolved">Process transport: Not resolved</string>
+    <string name="bluetooth_transport_active_ble">FIDO Bluetooth LE</string>
+    <string name="bluetooth_transport_active_classic">Bluetooth HID (Classic)</string>
+    <string name="bluetooth_transport_active_unknown">Unknown</string>
+    <string name="bluetooth_transport_status_loading">Checking availability</string>
+    <string name="bluetooth_transport_status_selected_not_started">Selected; not started</string>
+    <string name="bluetooth_transport_status_starting">Starting</string>
+    <string name="bluetooth_transport_status_ready">Active</string>
+    <string name="bluetooth_transport_status_read_failed">Settings could not be read</string>
+    <string name="bluetooth_transport_status_invalid">Saved choice is invalid</string>
+    <string name="bluetooth_transport_status_timeout">Startup timed out</string>
+    <string name="bluetooth_transport_status_unsupported">Not supported on this device</string>
+    <string name="bluetooth_transport_status_permission">Bluetooth permissions are required</string>
+    <string name="bluetooth_transport_status_off">Bluetooth is off</string>
+    <string name="bluetooth_transport_status_start_failed">Could not start the selected transport</string>
+    <string name="bluetooth_transport_read_error">Transport settings could not be read. Retry. If the problem continues, restart the app or contact support. This read attempt did not change your saved settings; do not clear app data.</string>
+    <string name="bluetooth_transport_invalid_error">The saved transport choice is not recognized. Contact support; saved data was kept.</string>
+    <string name="bluetooth_transport_write_error">The choice could not be saved. The active transport is unchanged; retry when ready.</string>
+    <string name="bluetooth_transport_input_error">That transport choice is not supported.</string>
+</resources>

@@ -32,15 +32,25 @@ import kotlinx.coroutines.currentCoroutineContext
 import org.koin.core.annotation.Single
 
 /**
+
  * Handles CTAP2 `authenticatorMakeCredential` (0x01) commands arriving from
+
  * [BluetoothHidTransportImpl].
+
  *
+
  * Responsibilities:
+
  * - Decode CBOR-encoded MakeCredential request
+
  * - Validate parameters per CTAP2 spec §6.1
+
  * - Delegate credential creation to UI/Service layer via event bus
+
  * - Encode the success / error CTAP2 response back as a [CtapHidMessage]
+
  */
+
 @Single
 class Ctap2MakeCredentialHandler(
     private val cborCodec: CborCodec,
@@ -49,109 +59,196 @@ class Ctap2MakeCredentialHandler(
     private val ceremonyLock: CeremonyLock,
 ) {
     /** Test-only observer for fallback text owners created during request parsing. */
+
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal var onTemporaryRequestOwnerCreatedForTest: ((SensitiveCredentialText) -> Unit)? = null
 
     companion object {
         // CTAPHID command codes
+
         private const val CTAPHID_CBOR: Byte = 0x10
 
         // CTAP2 command codes (first byte of CBOR payload)
+
         private const val CMD_MAKE_CREDENTIAL: Byte = 0x01
 
         // CTAP2 status codes
+
         private const val CTAP2_OK: Byte = 0x00
+
         private const val CTAP2_ERR_INVALID_CBOR: Byte = 0x12.toByte()
+
         private const val CTAP2_ERR_MISSING_PARAMETER: Byte = 0x14.toByte()
+
         private const val CTAP2_ERR_UNSUPPORTED_ALGORITHM: Byte = 0x26.toByte()
+
         private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x27.toByte()
+
         private const val CTAP2_ERR_KEY_STORE_FULL: Byte = 0x28.toByte()
+
         private const val CTAP2_ERR_NOT_ALLOWED: Byte = 0x36.toByte()
+
         private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
+
         private const val CTAP2_ERR_CHANNEL_BUSY: Byte = 0x06.toByte()
 
         // COSE algorithm IDs (accepted)
+
         private const val COSE_ES256 = -7 // ECDSA with SHA-256 / P-256
+
         private const val COSE_ML_DSA_65 = -49 // ML-DSA-65 (Dilithium)
 
         // COSE algorithm IDs (deprecated — NOT RECOMMENDED per WebAuthn L3, must be rejected)
+
         private const val COSE_DEPRECATED_9 = -9
+
         private const val COSE_DEPRECATED_19 = -19 // Old Ed25519 identifier; -8 is correct
+
         private const val COSE_DEPRECATED_51 = -51
+
         private const val COSE_DEPRECATED_52 = -52
 
         // AuthData flags
+
         private const val FLAG_UP: Int = 0x01 // User Present
+
         private const val FLAG_AT: Int = 0x40 // Attested Credential Data included
 
         // Request Map Keys (§6.1)
+
         private const val REQ_CLIENT_DATA_HASH = "1"
+
         private const val REQ_RP = "2"
+
         private const val REQ_USER = "3"
+
         private const val REQ_PUB_KEY_PARAMS = "4"
+
         private const val REQ_OPTIONS = "7"
+
         private const val REQ_EXTENSIONS = "6"
 
         // Response Map Keys (§6.1)
+
         private const val RESP_FMT = "1"
+
         private const val RESP_AUTH_DATA = "2"
+
         private const val RESP_ATT_STMT = "3"
 
         // Bitwise offsets
+
         private const val SHIFT_24 = 24
+
         private const val SHIFT_16 = 16
+
         private const val SHIFT_8 = 8
+
         private const val BYTE_MASK = 0xFF
+
         private const val COMMAND_MASK = 0x7F
     }
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
     /**
-     * Handles an incoming CTAPHID_CBOR message whose first payload byte is
-     * [CMD_MAKE_CREDENTIAL] (0x01).
-     *
-     * @param message  The fully-reassembled CTAPHID message from the host.
-     * @return A list of 62-byte HID packets to send back to the host.
-     */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend fun handle(message: CtapHidMessage): List<ByteArray> {
-        val cid = message.channelId
-        val payload = message.payload
 
+     * Handles an incoming raw CTAP2 MakeCredential payload (starting with command byte 0x01).
+
+     *
+
+     * @param payload CTAP2 request payload starting with 0x01.
+
+     * @param onKeepalive Optional callback to report keepalive status (e.g. UPNEEDED).
+
+     * @return [com.chimali.fido2.data.transport.RawCtapResult] containing status byte + CBOR
+     * attestation object, or an error status byte.
+
+     */
+
+    @Req("FR-BLE-080", "TR-BLE-030", "NFR-SEC-041", "TR-AUTH-031")
+    suspend fun handleRaw(
+        payload: ByteArray,
+        onKeepalive: ((Byte) -> Unit)? = null,
+    ): com.chimali.fido2.data.transport.RawCtapResult {
         // payload[0] = command byte (0x01), rest = CBOR map
+
         if (payload.isEmpty() || payload[0] != CMD_MAKE_CREDENTIAL) {
-            return errorPackets(cid, CTAP2_ERR_INVALID_CBOR)
+            return com.chimali.fido2.data.transport
+                .RawCtapResult(byteArrayOf(CTAP2_ERR_INVALID_CBOR))
         }
 
         // Fix A: Reject concurrent requests immediately across ALL ceremonies.
+
         if (!ceremonyLock.tryLock()) {
             Logger.w { "MakeCredential: Authenticator is busy with another ceremony — returning CHANNEL_BUSY" }
-            return errorPackets(cid, CTAP2_ERR_CHANNEL_BUSY)
+
+            return com.chimali.fido2.data.transport
+                .RawCtapResult(byteArrayOf(CTAP2_ERR_CHANNEL_BUSY))
         }
 
         var cborData: ByteArray? = null
+
         var params: MakeCredentialRequest? = null
+
         var decodedFields: Map<String, Any>? = null
+
         return try {
             val requestBytes = payload.copyOfRange(1, payload.size)
+
             cborData = requestBytes
+
             decodedFields = cborCodec.decodeSensitiveRequest(requestBytes)
+
             val request = decodeMakeCredentialRequest(decodedFields.orEmpty())
+
             params = request
-            handleMakeCredential(cid, request)
+
+            handleMakeCredentialRaw(request, onKeepalive)
         } catch (e: Fido2Exception) {
             Logger.e { "MakeCredential failed with a FIDO2 error" }
-            errorPackets(cid, mapExceptionToStatus(e))
+
+            com.chimali.fido2.data.transport
+                .RawCtapResult(byteArrayOf(mapExceptionToStatus(e)))
         } catch (e: IllegalArgumentException) {
             Logger.e { "MakeCredential rejected an invalid argument" }
-            errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
+
+            com.chimali.fido2.data.transport
+                .RawCtapResult(byteArrayOf(CTAP2_ERR_NOT_ALLOWED))
         } finally {
             params?.eraseOwnedBuffers()
+
             cborCodec.eraseDecodedRequestValues(decodedFields)
+
             cborData?.fill(0)
+
             ceremonyLock.unlock()
         }
+    }
+
+    /**
+
+     * Handles an incoming CTAPHID_CBOR message whose first payload byte is
+
+     * [CMD_MAKE_CREDENTIAL] (0x01).
+
+     *
+
+     * @param message  The fully-reassembled CTAPHID message from the host.
+
+     * @return A list of 62-byte HID packets to send back to the host.
+
+     */
+
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun handle(message: CtapHidMessage): List<ByteArray> {
+        val cid = message.channelId
+
+        val rawResult = handleRaw(message.payload)
+
+        val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and COMMAND_MASK, rawResult.responseBytes)
+
+        return hidReportParser.encodeResponse(responseMsg)
     }
 
     // ── Request decoding ──────────────────────────────────────────────────────
@@ -163,7 +260,9 @@ class Ctap2MakeCredentialHandler(
 
         fun ownTemporary(owner: SensitiveCredentialText): SensitiveCredentialText {
             temporaryOwners += owner
+
             onTemporaryRequestOwnerCreatedForTest?.invoke(owner)
+
             return owner
         }
 
@@ -171,65 +270,101 @@ class Ctap2MakeCredentialHandler(
             if (map.isEmpty()) throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
 
             // 0x01: clientDataHash (required)
+
             val clientDataHash =
+
                 (map[REQ_CLIENT_DATA_HASH] ?: map["clientDataHash"]) as? ByteArray
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing clientDataHash (key 0x01)")
 
             // 0x02: rp (required)
+
             @Suppress("UNCHECKED_CAST")
             val rpMap =
+
                 (map[REQ_RP] ?: map["rp"]) as? Map<*, *>
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing rp entity (key 0x02)")
+
             val rpId =
+
                 sensitiveText(rpMap["id"])
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing rp.id")
+
             val rpName = sensitiveText(rpMap["name"]) ?: ownTemporary(rpId.copyOwner())
 
             // 0x03: user (required)
+
             @Suppress("UNCHECKED_CAST")
             val userMap =
+
                 (map[REQ_USER] ?: map["user"]) as? Map<*, *>
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing user entity (key 0x03)")
+
             val userId =
+
                 userMap["id"] as? ByteArray
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing user.id")
+
             val userName = sensitiveText(userMap["name"]) ?: ownTemporary(SensitiveCredentialText.copyOf(""))
+
             val userDisplayName = sensitiveText(userMap["displayName"]) ?: ownTemporary(userName.copyOwner())
 
             // 0x04: pubKeyCredParams (required)
+
             @Suppress("UNCHECKED_CAST")
             val rawParams =
+
                 (map[REQ_PUB_KEY_PARAMS] ?: map["pubKeyCredParams"]) as? List<*>
+
                     ?: throw Fido2Exception.InvalidFormatException("Missing pubKeyCredParams (key 0x04)")
+
             val algorithms =
+
                 rawParams.mapNotNull { entry ->
+
                     val parameters = entry as? Map<*, *> ?: return@mapNotNull null
+
                     val algorithm = parameters["alg"] ?: return@mapNotNull null
+
                     when (algorithm) {
                         is Int -> algorithm
+
                         is Long -> {
                             if (algorithm !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
                                 throw Fido2Exception.InvalidParameter("Invalid COSE algorithm value")
                             }
+
                             algorithm.toInt()
                         }
+
                         else -> throw Fido2Exception.InvalidParameter("Invalid COSE algorithm value")
                     }
                 }
+
             if (algorithms.isEmpty()) {
                 throw Fido2Exception.MissingParameterException("pubKeyCredParams contains no valid algorithms")
             }
 
             // 0x07: options (optional). Presence with a malformed shape/value is not omission.
+
             val (isUvRequired, isRkRequired) = decodeRegistrationOptions(map)
 
             // 0x06 / "extensions": optional FIDO2.1 extension map. Key 0x0A is enterpriseAttestation.
+
             val rawExtensions = map[REQ_EXTENSIONS] ?: map["extensions"]
+
             if ((map.containsKey(REQ_EXTENSIONS) || map.containsKey("extensions")) && rawExtensions !is Map<*, *>) {
                 throw Fido2Exception.InvalidParameter("Invalid MakeCredential extensions")
             }
+
             val extensions = rawExtensions as? Map<*, *>
+
             val credProtectPolicy =
+
                 try {
                     CredentialProtectionPolicy.fromExtensions(extensions)
                 } catch (_: IllegalArgumentException) {
@@ -237,6 +372,7 @@ class Ctap2MakeCredentialHandler(
                 }
 
             val request =
+
                 MakeCredentialRequest(
                     clientDataHash = clientDataHash,
                     rpId = rpId,
@@ -249,7 +385,9 @@ class Ctap2MakeCredentialHandler(
                     isRkRequired = isRkRequired,
                     credProtectPolicy = credProtectPolicy,
                 )
+
             temporaryOwners.clear()
+
             return request
         } finally {
             temporaryOwners.forEach(SensitiveCredentialText::erase)
@@ -257,48 +395,67 @@ class Ctap2MakeCredentialHandler(
     }
 
     private fun sensitiveText(value: Any?): SensitiveCredentialText? =
+
         when (value) {
             is SensitiveCredentialText -> value
+
             is String -> SensitiveCredentialText.copyOf(value)
+
             else -> null
         }
 
     /** Parses the supported registration booleans while distinguishing absent from malformed options. */
+
     @Req("NFR-SEC-041", "TR-AUTH-031")
     private fun decodeRegistrationOptions(map: Map<String, Any>): Pair<Boolean, Boolean> {
         val optionsPresent = map.containsKey(REQ_OPTIONS) || map.containsKey("options")
+
         if (!optionsPresent) return false to false
+
         val rawOptions = if (map.containsKey(REQ_OPTIONS)) map[REQ_OPTIONS] else map["options"]
+
         val options =
+
             rawOptions as? Map<*, *>
+
                 ?: throw Fido2Exception.InvalidFormatException("Invalid MakeCredential options")
 
         fun flag(name: String): Boolean =
+
             if (!options.containsKey(name)) {
                 false
             } else {
                 options[name] as? Boolean
+
                     ?: throw Fido2Exception.InvalidFormatException("Invalid MakeCredential $name option")
             }
+
         return flag("uv") to flag("rk")
     }
 
     // ── Core handler ──────────────────────────────────────────────────────────
 
     /**
+
      * Builds registration options from owned request fields. Registration consumes `credProtect`;
+
      * hmac-secret salts have no registration result consumer and remain in the decoded request map,
+
      * whose owner erases every byte-string value when this CTAP request terminates.
+
      */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    private suspend fun handleMakeCredential(
-        cid: ByteArray,
+
+    @Req("FR-BLE-080", "TR-BLE-030", "NFR-SEC-041", "TR-AUTH-031")
+    private suspend fun handleMakeCredentialRaw(
         req: MakeCredentialRequest,
-    ): List<ByteArray> {
+        onKeepalive: ((Byte) -> Unit)? = null,
+    ): com.chimali.fido2.data.transport.RawCtapResult {
         Logger.d { "MakeCredential request admitted" }
 
         val rp = PublicKeyCredentialRpEntity.fromSensitiveOwners(req.rpId, req.rpName)
+
         val user =
+
             PublicKeyCredentialUserEntity.fromSensitiveOwners(
                 req.userId,
                 req.userName,
@@ -306,24 +463,34 @@ class Ctap2MakeCredentialHandler(
             )
 
         // Select the first RP-offered algorithm for which this build has a local derivation profile.
+
         // Deprecated identifiers -9, -19, -51 and -52 remain unsupported.
+
         val negotiatedAlgorithm = MakeCredentialAlgorithmNegotiator.select(req.algorithms)
+
         val (selectedAlgId, pubKeyCredParams) =
+
             negotiatedAlgorithm ?: run {
                 Logger.e {
                     "Algorithm negotiation failed: None of the requested algorithms " +
+
                         "${req.algorithms} have a supported local profile"
                 }
-                return errorPackets(cid, CTAP2_ERR_UNSUPPORTED_ALGORITHM)
+
+                return com.chimali.fido2.data.transport
+                    .RawCtapResult(byteArrayOf(CTAP2_ERR_UNSUPPORTED_ALGORITHM))
             }
 
         Logger.i {
             "Algorithm negotiation: RP requested ${req.algorithms}, " +
+
                 "selected COSE alg $selectedAlgId (${pubKeyCredParams.algorithm})"
         }
 
         // T056a: Log credProtect policy for auditability. Policy enforcement (blocking
+
         // GetAssertion without UV when policy == 3) is handled in GetAssertionHandler.
+
         if (req.credProtectPolicy != null) {
             Logger.i {
                 "MakeCredential: credProtect policy=${req.credProtectPolicy} (1=optional,2=uvOptional,3=uvRequired)"
@@ -331,17 +498,20 @@ class Ctap2MakeCredentialHandler(
         }
 
         val extensionsMap =
+
             buildMap<String, Any> {
                 req.credProtectPolicy?.let { put("credProtect", it) }
             }.ifEmpty { null }
 
         val makeCredentialOptions =
+
             MakeCredentialOptions.create(
                 rp = rp,
                 user = user,
                 challenge = req.clientDataHash,
                 pubKeyCredParams = pubKeyCredParams,
                 authenticatorSelection =
+
                     if (req.isUvRequired) {
                         AuthenticatorSelectionCriteria.create(
                             userVerification = UserVerificationRequirement.REQUIRED,
@@ -354,18 +524,27 @@ class Ctap2MakeCredentialHandler(
             )
 
         val deferred = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
+
         val userInteractionCompleted = CompletableDeferred<Unit>()
+
         Logger.d("Dispatching RegistrationRequested event to UI")
+
         LatencyProfiler.startUserInteraction("MakeCredential")
+
         uiEventBus.dispatch(
             Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred, userInteractionCompleted).also {
                 it.traceContext = currentCoroutineContext()[Fido2OperationTraceContext]
             },
         )
+
+        onKeepalive?.invoke(0x02.toByte())
+
         Logger.d("Event dispatched — awaiting user response via deferred")
 
         // NFR-PERF-030: close the user window at prompt confirmation, before application work resumes.
+
         val makeCredentialResult =
+
             try {
                 LatencyProfiler.untilUserInteractionCompletes("MakeCredential", userInteractionCompleted) {
                     kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
@@ -374,41 +553,60 @@ class Ctap2MakeCredentialHandler(
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 Logger.e { "MakeCredential timed out after ${makeCredentialOptions.getSafeTimeout()}ms" }
+
                 deferred.cancel(e)
-                return hidReportParser.encodeResponse(
-                    CtapHidMessage(cid, CTAPHID_CBOR.toInt(), byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT)),
-                )
+
+                return com.chimali.fido2.data.transport
+                    .RawCtapResult(byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT))
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 deferred.cancel(cancellation)
+
                 throw cancellation
             }
+
         Logger.d {
             "Deferred resolved — success=${makeCredentialResult.isSuccess} " +
+
                 "failed=${makeCredentialResult is Outcome.Error}"
         }
 
         if (makeCredentialResult is Outcome.Error) {
             val err = makeCredentialResult.error
+
             Logger.e { "Registration failed or was cancelled" }
+
             return when (err) {
                 is DomainError.DatabaseError, is DomainError.StorageError ->
-                    errorPackets(cid, CTAP2_ERR_KEY_STORE_FULL)
+
+                    com.chimali.fido2.data.transport
+                        .RawCtapResult(byteArrayOf(CTAP2_ERR_KEY_STORE_FULL))
+
                 is DomainError.OperationDenied ->
-                    errorPackets(cid, CTAP2_ERR_OPERATION_DENIED)
-                else -> errorPackets(cid, CTAP2_ERR_NOT_ALLOWED)
+
+                    com.chimali.fido2.data.transport
+                        .RawCtapResult(byteArrayOf(CTAP2_ERR_OPERATION_DENIED))
+
+                else ->
+                    com.chimali.fido2.data.transport
+                        .RawCtapResult(byteArrayOf(CTAP2_ERR_NOT_ALLOWED))
             }
         }
 
         val result = (makeCredentialResult as Outcome.Success).data
-        try {
+
+        return try {
             val attestation = result.attestationObject
+
             Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
+
             val responseCbor = encodeAttestationResponse(attestation)
+
             val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
-            // Command byte for CTAPHID_CBOR response = 0x10 (no masking needed)
-            val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt(), responsePayload)
+
             Logger.d { "MakeCredential response ready payloadLen=${responsePayload.size}" }
-            return hidReportParser.encodeResponse(responseMsg)
+
+            com.chimali.fido2.data.transport
+                .RawCtapResult(responsePayload, presenceRequired = true)
         } finally {
             result.eraseSensitiveText()
         }
@@ -417,27 +615,44 @@ class Ctap2MakeCredentialHandler(
     // ── CBOR response encoding ────────────────────────────────────────────────
 
     /**
+
      * Encodes the AttestationObject as a CTAP2 authenticatorMakeCredential response.
+
      * Per CTAP2 spec §6.1, keys MUST be integers:
+
      *   0x01 = fmt, 0x02 = authData, 0x03 = attStmt
+
      *
+
      * CRITICAL: For packed self-attestation the server verifies `sig` over
+
      * `authData_bytes || clientDataHash`. The `authData_bytes` we transmit here MUST be
+
      * byte-for-byte identical to the bytes that were signed in RegisterCredentialUseCase.
+
      * [AttestationStatement.authData] stores exactly those signed bytes; use them directly
+
      * instead of re-serializing from AuthenticatorData fields (which risks divergence).
+
      */
 
     private fun encodeAttestationResponse(attestation: AttestationObject): ByteArray {
         // Use the pre-built, pre-signed authData bytes when available (packed attestation).
+
         // Fall back to re-serialization only for none-attestation (where no sig exists).
+
         val authDataBytes =
+
             attestation.attStmt.authData
+
                 ?.takeIf { it.isNotEmpty() }
+
                 ?: buildAuthenticatorData(attestation.authData)
 
         // Integer keys — not string keys — per CTAP2 §6.1
+
         val responseMap: Map<String, Any> =
+
             mapOf(
                 // fmt
                 RESP_FMT to attestation.fmt,
@@ -445,115 +660,166 @@ class Ctap2MakeCredentialHandler(
                 RESP_AUTH_DATA to authDataBytes,
                 RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt),
             )
+
         Logger.d { "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}" }
+
         val encoded = cborCodec.encodeToFido2Format(responseMap)
+
         Logger.d { "MakeCredential CBOR response: ${encoded.size} bytes" }
+
         return encoded
     }
 
     /**
+
      * Serialises [AuthenticatorData] per CTAP2 / WebAuthn spec:
+
      *   rpIdHash(32) + flags(1) + signCount(4 BE) + AAGUID(16) + credIdLen(2 BE) + credId + cose key
+
      */
 
     private fun buildAuthenticatorData(authData: AuthenticatorData): ByteArray {
         val result = mutableListOf<Byte>()
+
         result.addAll(authData.rpIdHash.toList()) // 32 bytes
+
         // Force AT (0x40) + UP (0x01) flags; preserve UV (0x04) if set.
+
         // AT MUST be set when attested credential data follows the counter.
+
         val rawFlags = if (authData.flags.isNotEmpty()) authData.flags[0].toInt() else 0
+
         val flags = (rawFlags or FLAG_AT or FLAG_UP).toByte()
+
         result.add(flags) // 1 byte
+
         // signCount as 4-byte big-endian
+
         val cnt = authData.counter
+
         result.add(((cnt shr SHIFT_24) and BYTE_MASK.toLong()).toByte())
+
         result.add(((cnt shr SHIFT_16) and BYTE_MASK.toLong()).toByte())
+
         result.add(((cnt shr SHIFT_8) and BYTE_MASK.toLong()).toByte())
+
         result.add((cnt and BYTE_MASK.toLong()).toByte())
+
         // Attested credential data
+
         result.addAll(authData.aaguid.toList()) // 16 bytes
+
         val credIdLen = authData.credentialId.size
+
         result.add(((credIdLen shr SHIFT_8) and BYTE_MASK).toByte())
+
         result.add((credIdLen and BYTE_MASK).toByte())
+
         result.addAll(authData.credentialId.toList())
+
         result.addAll(authData.publicKey.toList())
+
         return result.toByteArray()
     }
 
     private fun buildAttestationStatementMap(stmt: AttestationStatement): Map<Any, Any> =
+
         when (stmt.fmt) {
             "none" -> emptyMap()
+
             "packed" ->
+
                 buildMap {
                     put("alg", stmt.alg)
+
                     stmt.attCert?.let { put("sig", it) }
+
                     stmt.x5c?.let { put("x5c", it) }
                 }
+
             // T036: AttCA — same wire format as packed; x5c carries the intermediate CA chain
+
             "attCA" ->
+
                 buildMap {
                     put("alg", stmt.alg)
+
                     stmt.attCert?.let { put("sig", it) }
+
                     stmt.x5c?.let { put("x5c", it) }
                 }
+
             else -> emptyMap()
         }
 
-    // ── Error helpers ─────────────────────────────────────────────────────────
-
-    private fun errorPackets(
-        cid: ByteArray,
-        statusCode: Byte,
-    ): List<ByteArray> {
-        val payload = byteArrayOf(statusCode)
-        val msg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and COMMAND_MASK, payload)
-        return hidReportParser.encodeResponse(msg)
-    }
-
     private fun mapExceptionToStatus(e: Fido2Exception): Byte =
+
         when (e) {
             is Fido2Exception.InvalidFormatException -> CTAP2_ERR_INVALID_CBOR
+
             is Fido2Exception.MissingParameterException -> CTAP2_ERR_MISSING_PARAMETER
+
             is Fido2Exception.UnsupportedAlgorithmException -> CTAP2_ERR_UNSUPPORTED_ALGORITHM
+
             is Fido2Exception.UserVerificationException -> CTAP2_ERR_OPERATION_DENIED
+
             is Fido2Exception.TooManyCredentials -> CTAP2_ERR_KEY_STORE_FULL // T115a (FR-HID-022)
+
             is Fido2Exception.CredentialException -> CTAP2_ERR_KEY_STORE_FULL
+
             else -> CTAP2_ERR_NOT_ALLOWED
         }
 }
 
 /** Negotiates in RP offer order and returns only algorithms with an implemented local key profile. */
+
 @Req("NFR-SEC-041", "TR-AUTH-031")
 internal object MakeCredentialAlgorithmNegotiator {
     private const val COSE_ES256 = -7
+
     private const val COSE_EDDSA = -8
+
     private const val COSE_ML_DSA_65 = -49
+
     private const val COSE_DEPRECATED_9 = -9
+
     private const val COSE_DEPRECATED_19 = -19
+
     private const val COSE_DEPRECATED_51 = -51
+
     private const val COSE_DEPRECATED_52 = -52
 
     /** Selects the first supported COSE algorithm in RP order; returns null when none is supported. */
+
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun select(algorithmsInRpOrder: List<Int>): Pair<Int, PublicKeyCredentialParameters>? =
+
         algorithmsInRpOrder.firstNotNullOfOrNull { algorithm ->
+
             when (algorithm) {
                 COSE_ES256 -> COSE_ES256 to PublicKeyCredentialParameters.createES256P256()
+
                 COSE_EDDSA -> COSE_EDDSA to PublicKeyCredentialParameters.createEdDsa()
+
                 COSE_ML_DSA_65 -> COSE_ML_DSA_65 to PublicKeyCredentialParameters.createMlDsa65()
+
                 COSE_DEPRECATED_9, COSE_DEPRECATED_19, COSE_DEPRECATED_51, COSE_DEPRECATED_52 -> {
                     Logger.w {
                         "Algorithm negotiation: ignoring deprecated COSE alg $algorithm " +
+
                             "(NOT RECOMMENDED per WebAuthn L3 §5.4)"
                     }
+
                     null
                 }
+
                 else -> null
             }
         }
 }
 
 /** Internal parsed MakeCredential request. */
+
 private data class MakeCredentialRequest(
     val clientDataHash: ByteArray,
     val rpId: SensitiveCredentialText,
@@ -565,44 +831,68 @@ private data class MakeCredentialRequest(
     val isUvRequired: Boolean,
     val isRkRequired: Boolean,
     /**
+
      * T056a — FIDO2.1 credProtect policy from the extensions map carried at MakeCredential key 0x06.
+
      *   1 = credProtectOptional (default if absent)
+
      *   2 = credProtectOptionalWithCredentialIdList
+
      *   3 = credProtectRequired — GetAssertion MUST fail without user verification
+
      * Null means the RP did not specify a policy.
+
      */
+
     val credProtectPolicy: Int? = null,
 ) {
     /** Erases the owned request byte buffers after the complete ceremony has consumed them. */
+
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun eraseOwnedBuffers() {
         clientDataHash.fill(0)
+
         userId.fill(0)
+
         rpId.erase()
+
         rpName.erase()
+
         userName.erase()
+
         userDisplayName.erase()
     }
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun toString(): String =
         "MakeCredentialRequest([sensitive request fields redacted], algorithms=$algorithms, " +
+
             "isUvRequired=$isUvRequired, isRkRequired=$isRkRequired, credProtectPolicy=$credProtectPolicy)"
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
+
         if (other !is MakeCredentialRequest) return false
 
         if (!clientDataHash.contentEquals(other.clientDataHash)) return false
+
         if (rpId != other.rpId) return false
+
         if (rpName != other.rpName) return false
+
         if (!userId.contentEquals(other.userId)) return false
+
         if (userName != other.userName) return false
+
         if (userDisplayName != other.userDisplayName) return false
+
         if (algorithms != other.algorithms) return false
+
         if (isUvRequired != other.isUvRequired) return false
+
         if (isRkRequired != other.isRkRequired) return false
+
         if (credProtectPolicy != other.credProtectPolicy) return false
 
         return true
@@ -611,15 +901,25 @@ private data class MakeCredentialRequest(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun hashCode(): Int {
         var result = clientDataHash.contentHashCode()
+
         result = 31 * result + rpId.hashCode()
+
         result = 31 * result + rpName.hashCode()
+
         result = 31 * result + userId.contentHashCode()
+
         result = 31 * result + userName.hashCode()
+
         result = 31 * result + userDisplayName.hashCode()
+
         result = 31 * result + algorithms.hashCode()
+
         result = 31 * result + isUvRequired.hashCode()
+
         result = 31 * result + isRkRequired.hashCode()
+
         result = 31 * result + (credProtectPolicy ?: 0)
+
         return result
     }
 }

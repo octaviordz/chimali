@@ -4,16 +4,21 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chimali.core.common.annotation.Req
-import com.chimali.fido2.bluetooth.HidConnectionState
+import com.chimali.fido2.data.transport.Fido2ConnectionState
 import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.data.transport.ProcessTransportSelection
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.service.Fido2TransportService
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -32,11 +37,15 @@ import org.koin.android.annotation.KoinViewModel
 class Fido2HomeViewModel(
     private val context: Context,
     private val fido2Transport: Fido2Transport,
+    private val processTransportSelection: ProcessTransportSelection,
     private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,
     private val uiEventBus: Fido2UiEventBus,
 ) : ViewModel() {
-    val connectionState: StateFlow<HidConnectionState> = fido2Transport.connectionState
+    val connectionState: StateFlow<Fido2ConnectionState> = fido2Transport.connectionState
+    val processTransportState = processTransportSelection.state
     val uiEvents: SharedFlow<Fido2UiEvent> = uiEventBus.events
+    private val _outboundBleUnsupported = MutableStateFlow(false)
+    val outboundBleUnsupported = _outboundBleUnsupported.asStateFlow()
 
     /**
      * Resolves the display name for the connected host, prioritizing user-defined aliases.
@@ -47,13 +56,14 @@ class Fido2HomeViewModel(
             repository.getAllPairedDevices(),
         ) { state, devices ->
             when (state) {
-                is HidConnectionState.Connected -> {
-                    val match = devices.find { it.macAddress == state.device.address }
-                    match?.alias ?: state.device.name ?: "Unknown PC"
+                is Fido2ConnectionState.Connected -> {
+                    val address = state.device?.address
+                    val match = address?.let { targetAddress -> devices.find { it.macAddress == targetAddress } }
+                    match?.alias ?: state.device?.name ?: "Connected Host"
                 }
 
-                is HidConnectionState.Connecting -> {
-                    state.device.name ?: "Connecting..."
+                is Fido2ConnectionState.Connecting -> {
+                    state.device?.name ?: "Connecting..."
                 }
 
                 else -> {
@@ -74,11 +84,10 @@ class Fido2HomeViewModel(
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun toggleTransport() {
-        val currentState = connectionState.value
-        if (currentState is HidConnectionState.Idle || currentState is HidConnectionState.Error) {
-            context.startForegroundService(Fido2TransportService.startIntent(context))
-        } else {
-            context.startService(Fido2TransportService.stopIntent(context))
+        when (transportToggleAction(connectionState.value, processTransportState.value.availability)) {
+            TransportToggleAction.Start -> context.startForegroundService(Fido2TransportService.startIntent(context))
+            TransportToggleAction.Retry -> retryTransport()
+            TransportToggleAction.Stop -> context.startService(Fido2TransportService.stopIntent(context))
         }
     }
 
@@ -89,17 +98,30 @@ class Fido2HomeViewModel(
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun connectDevice(macAddress: String) {
+        if (processTransportSelection.state.value.processChoice == BluetoothTransportMode.FIDO_BLE) {
+            _outboundBleUnsupported.value = true
+            return
+        }
         val currentState = connectionState.value
         viewModelScope.launch {
-            if (currentState is HidConnectionState.Idle || currentState is HidConnectionState.Error) {
+            if (currentState is Fido2ConnectionState.Idle || currentState is Fido2ConnectionState.Error) {
                 context.startForegroundService(Fido2TransportService.startIntent(context))
                 // Wait for the transport service to initialize and start advertising
                 withTimeoutOrNull(SERVICE_STARTUP_TIMEOUT_MS) {
-                    connectionState.first { it is HidConnectionState.Advertising }
+                    connectionState.first { it is Fido2ConnectionState.Advertising }
                 }
             }
             fido2Transport.connectDevice(macAddress)
         }
+    }
+
+    fun dismissOutboundBleUnsupported() {
+        _outboundBleUnsupported.value = false
+    }
+
+    @Req("FR-BLE-070", "TR-BLE-040")
+    fun retryTransport() {
+        context.startForegroundService(Fido2TransportService.retryIntent(context))
     }
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -119,3 +141,26 @@ class Fido2HomeViewModel(
         private const val SERVICE_STARTUP_TIMEOUT_MS = 10_000L
     }
 }
+
+internal enum class TransportToggleAction {
+    Start,
+    Retry,
+    Stop,
+}
+
+internal fun transportToggleAction(
+    connectionState: Fido2ConnectionState,
+    availability: TransportAvailability,
+): TransportToggleAction =
+    when (connectionState) {
+        Fido2ConnectionState.Idle,
+        is Fido2ConnectionState.Error,
+        -> {
+            if (availability is TransportAvailability.Unavailable) {
+                TransportToggleAction.Retry
+            } else {
+                TransportToggleAction.Start
+            }
+        }
+        else -> TransportToggleAction.Stop
+    }

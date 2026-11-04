@@ -31,6 +31,7 @@ import java.security.Signature
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -234,20 +235,37 @@ class CredentialPersistenceCeremonyTest {
         message: ByteArray,
         signature: ByteArray,
     ) {
-        val verifier =
+        val platformProvider =
             if (algorithm == "ML-DSA-65") {
-                Signature.getInstance(algorithm, "BC")
+                null
             } else {
-                val platformProvider =
-                    Security
-                        .getProviders()
-                        .firstOrNull { provider ->
-                            provider.name != "BC" && provider.getService("Signature", algorithm) != null
-                        } ?: error("No non-BC platform verifier is available for $algorithm")
-                Signature.getInstance(algorithm, platformProvider)
+                Security
+                    .getProviders()
+                    .firstOrNull { provider ->
+                        provider.name != "BC" && provider.getService("Signature", algorithm) != null
+                    }
+            }
+        val verifier =
+            when {
+                algorithm == "ML-DSA-65" -> Signature.getInstance(algorithm, "BC")
+                platformProvider != null -> Signature.getInstance(algorithm, platformProvider)
+                algorithm == "Ed25519" -> Signature.getInstance(algorithm, BouncyCastleProvider())
+                else -> error("No non-BC platform verifier is available for $algorithm")
             }
         if (algorithm != "ML-DSA-65") {
-            assertNotEquals("P-256 and Ed25519 use the platform verification provider", "BC", verifier.provider.name)
+            if (platformProvider != null) {
+                assertNotEquals(
+                    "Platform verification is independent from the production BC signer",
+                    "BC",
+                    verifier.provider.name,
+                )
+            } else {
+                assertEquals(
+                    "Ed25519 uses the test-only BC JCA fallback when Android has no platform verifier",
+                    "BC",
+                    verifier.provider.name,
+                )
+            }
         }
         verifier.initVerify(publicKey)
         verifier.update(message)

@@ -15,14 +15,78 @@ import com.chimali.feature.settings.di.settingsModule
 import com.chimali.feature.vault.internal.vaultModule
 import com.chimali.fido2.Fido2Initializer
 import com.chimali.fido2.data.crypto.WalletSessionMemoryPressure
+import com.chimali.fido2.data.transport.AndroidBluetoothCapabilityChecker
+import com.chimali.fido2.data.transport.AndroidFidoBleGattServerHost
+import com.chimali.fido2.data.transport.BleGattTransport
+import com.chimali.fido2.data.transport.BleSessionOwner
+import com.chimali.fido2.data.transport.BluetoothCapabilityChecker
+import com.chimali.fido2.data.transport.BluetoothHidTransportImpl
+import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.data.transport.NordicBleAdvertiserController
+import com.chimali.fido2.data.transport.ProcessTransportSelection
+import com.chimali.fido2.data.transport.RawCtapOperation
 import com.chimali.fido2.di.Fido2Module
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
 import java.security.Security
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import org.koin.dsl.module
 import org.koin.ksp.generated.module
+
+private val transportModule =
+    module {
+        single<BluetoothCapabilityChecker> {
+            AndroidBluetoothCapabilityChecker(androidContext())
+        }
+        single<ProcessTransportSelection> {
+            val context = androidContext()
+            val repository: Fido2SettingsRepository = get()
+            val capabilityChecker: BluetoothCapabilityChecker = get()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+            ProcessTransportSelection(
+                settingsRepository = repository,
+                capabilityChecker = capabilityChecker,
+                coroutineScope = scope,
+                bleTransportFactory = {
+                    val rawCtap: RawCtapOperation = get()
+                    val sessionOwner = BleSessionOwner()
+                    val gattHost = AndroidFidoBleGattServerHost(context, sessionOwner)
+                    val advertiser = NordicBleAdvertiserController(context, scope)
+                    BleGattTransport(
+                        rawCtapOperation = rawCtap,
+                        sessionOwner = sessionOwner,
+                        advertiserController = advertiser,
+                        responseSender = gattHost,
+                        coroutineScope = scope,
+                        gattServerHost = gattHost,
+                        statusCharacteristic = gattHost.statusCharacteristic,
+                    )
+                },
+                classicTransportFactory = {
+                    BluetoothHidTransportImpl(
+                        hidWrapper = get(),
+                        hidReportParser = get(),
+                        makeCredentialHandler = get(),
+                        getAssertionHandler = get(),
+                        responseBuilder = get(),
+                        authenticatorInfoProvider = get(),
+                        fido2EventBus = get(),
+                        pairedDeviceEventCoordinator = get(),
+                        userVerificationService = get(),
+                        masterSeedProvider = get(),
+                    )
+                },
+            )
+        }
+        single<Fido2Transport> { get<ProcessTransportSelection>() }
+    }
 
 /** Initializes process-wide crypto, dependency injection, and FIDO2 services. */
 class ChimaliApplication : Application() {
@@ -60,8 +124,14 @@ class ChimaliApplication : Application() {
                 onboardingModule,
                 settingsModule,
                 vaultModule,
+                // Process-scoped gated transport selection module (T014, BLE:T028)
+                transportModule,
             )
         }
+
+        // Start transport preference snapshot asynchronously after DI (T014)
+        val processTransportSelection = GlobalContext.get().get<ProcessTransportSelection>()
+        processTransportSelection.startSnapshot()
 
         // Initialize Timber logging and local crash reporting parameters.
         // We use BuildConfig's debug status from the app module.

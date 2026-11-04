@@ -141,6 +141,32 @@ Event Sourcing serves as the primary persistence and audit mechanism for core ag
   - **Mnemonic-to-Seed Stretching**: BIP-39 PBKDF2(HMAC-SHA512, 2048 iterations).
   - **Current derivation (TR-AUTH-031)**: Use the 64-byte BIP39 seed as HKDF-SHA256 input to the named local profile and retain its 32-byte PRK as the derivation root. The P-256 branch binds the complete decoded credential ID, derives the deterministic P-256 parent with RFC 9180 §7.1.3, and adapts the scalar mapping and child-key relation in Section 7 of `draft-dijkhuis-hdk-00` at local index zero, substituting a local RFC 5869 credential secret for the draft's per-issuance X25519 shared secret. This is custom local composition, not the draft's issuance flow or an interoperability claim. Ed25519 and ML-DSA use separate 32-byte HKDF seed labels. Persist the explicit supported profile with the credential's algorithm; reject unknown pairs. Store no derived private key or seed. Parent signing is software-based and requires the existing authorization policy; encrypted recovery storage does not make the parent non-exportable. Recovery requires the mnemonic and credential metadata.
 
+### 4.5 Bluetooth Transport Selection Architecture
+#### [TR-BT-SEL-010] Transport Preference Persistence
+- **Technical Detail**: Extend `UserPreferences` with `bluetoothTransport` (string, default `fido_ble`) and `bluetoothTransportSelectedAtEpochMillis` (int64, default 0). Persist atomically in `Fido2SettingsRepositoryImpl` copying fields 1–8 to prevent corruption. Unknown values result in typed configuration failure without fallback.
+
+#### [TR-BT-SEL-020] Process Transport Selection Controller
+- **Technical Detail**: Implement `ProcessTransportSelection` managing immutable process-scoped mode and typed availability states (`Loading`, `SelectedNotStarted`, `Starting`, `Ready`, `Unavailable(reason)`). Impose 5s snapshot deadline and independent 5s lazy activation deadline. Share concurrent activation attempts and fence late callbacks.
+
+#### [TR-BT-SEL-030] App Composition Root & Gated Injection
+- **Technical Detail**: Bind a single unqualified `Fido2Transport` handle in `ChimaliApplication`. Service shell creation is permitted, but transport construction, Bluetooth initialization, and preference mutations are gated until process choice is resolved.
+
+#### [TR-BT-SEL-040] Selection UI, Accessibility & Safety
+- **Technical Detail**: Settings screen at Settings > Passkey Authenticator > Bluetooth HID exposing radio options with accessible names, roles, and status. Support TalkBack announcements, WCAG high contrast, and 200% dynamic font scaling. Guarantee that in-flight ceremonies complete uninterrupted if settings are modified.
+
+### 4.6 FIDO BLE Transport Technical Specification
+#### [TR-BLE-010] Nordic Advertiser & Android GATT Server Boundary
+- **Technical Detail**: Pin `no.nordicsemi.android.kotlin.ble:advertiser:1.3.1` for peripheral advertising. Use native `BluetoothGattServerCallback` for protocol-critical Control Point write admissions, explicit ATT error codes, CCCD notifications, and MITM characteristic permissions (`PERMISSION_WRITE_ENCRYPTED_MITM`).
+
+#### [TR-BLE-020] Bounded Framing & Notification Ownership
+- **Technical Detail**: Implement `BleSessionOwner` and `BleNotificationWriter`. Control Point single-write capacity bounded within 20–512 bytes (`min(512, ATT_MTU - 3)`). Request assembly capped at `maxMsgSize` with a 3-second receive timeout from the last accepted fragment. Exactly one notification in flight with a 5-second completion deadline.
+
+#### [TR-BLE-030] Shared Raw CTAP Operation Boundary
+- **Technical Detail**: Extract `RawCtapOperation` returning owned mutable status/CBOR bytes, shared between Classic HID and BLE transports without synthetic HID CIDs. Connect existing core handlers (`Ctap2MakeCredentialHandler`, `Ctap2GetAssertionHandler`) preserving credential authorization, UV, and append-only event logging.
+
+#### [TR-BLE-040] Cancellation, Keepalive & Recovery Protocol
+- **Technical Detail**: Periodic `CMD_KEEPALIVE` (`0x82`) emitted <=500ms carrying `STATUS_PROCESSING` (`0x01`) or `STATUS_UPNEEDED` (`0x02`). `CMD_CANCEL` (`0xBE`) cancels active coroutines and dismisses UI, returning `CTAP2_ERR_KEEPALIVE_CANCEL` for the original request without closing the BLE link. An active-host authentication failure is rejected before CTAP dispatch, clears the session owner, cancels the GATT link, moves the transport to Error, and exposes system pairing recovery with Retry; a failed GATT disconnect also surfaces pairing guidance. Chimali does not infer that every generic Bluetooth error proves a stale bond or use hidden bond-repair APIs; physical stale-bond recovery remains an acceptance check.
+
 ## 5. Non-Functional Requirements (Technical Standards)
 ### 5.1 Encryption Standards (NFR-SEC-010)
 - **Classical**: AES-256-GCM (Hardware accelerated) for payloads and encrypted metadata values.

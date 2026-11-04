@@ -116,68 +116,65 @@ class Ctap2ResponseBuilder(
 
     // ── GetInfo response ──────────────────────────────────────────────────────
 
-    /**
-     * Encodes `authenticatorGetInfo` from borrowed [cid] and [info] per CTAP2 §6.4.
-     * Returns owned HID report arrays; encoding failures propagate.
-     * @param cid Borrowed channel identifier; caller retains ownership.
-     * @param info Borrowed authenticator capability data.
-     * @return Owned 62-byte HID reports containing CTAP2 success and CBOR data.
-     */
+    /** Builds unframed raw bytes for GetInfo response: status byte (0x00) + CBOR payload. */
+    @Req("FR-BLE-080", "TR-BLE-030", "FR-HID-020", "FR-VAL-020")
+    fun buildGetInfoRawPayload(
+        info: AuthenticatorInfo,
+        transport: String = "usb",
+    ): ByteArray {
+        val responseMap = buildGetInfoResponseMap(info, transport)
+        val encoded = cborCodec.encodeToFido2Format(responseMap)
+        return byteArrayOf(CTAP2_OK) + encoded
+    }
+
+    /** Builds the authenticatorGetInfo response map per CTAP2 §6.4. */
+    @Req("FR-BLE-080", "TR-BLE-030", "FR-HID-020", "FR-VAL-020")
+    fun buildGetInfoResponseMap(
+        info: AuthenticatorInfo,
+        transport: String = "usb",
+    ): Map<String, Any> =
+        mapOf(
+            // versions — include FIDO_2_1 for CTAP2.1 clients
+            KEY_VERSIONS to listOf("FIDO_2_0", "FIDO_2_1"),
+            // extensions (FIDO2.1)
+            KEY_EXTENSIONS to listOf("credProtect", "hmac-secret", "minPinLength"),
+            // aaguid: raw ByteArray (16 bytes)
+            KEY_AAGUID to info.aaguid,
+            KEY_OPTIONS to
+                // options
+                mapOf(
+                    "rk" to info.isResidentKeySupported,
+                    "up" to true,
+                    // device has internal UV (biometric)
+                    "uv" to true,
+                    // PIN capability advertised (FIDO2.1)
+                    "clientPin" to true,
+                    // credProtect extension supported (FIDO2.1)
+                    "credProtect" to true,
+                    // not platform-bound
+                    "plat" to false,
+                ),
+            // maxMsgSize
+            KEY_MAX_MSG_SIZE to MAX_MSG_SIZE,
+            // maxCredentialIdLength
+            KEY_MAX_CRED_ID_LEN to MAX_CRED_ID_LEN,
+            // transports — Windows treats HID as USB-like
+            KEY_TRANSPORTS to listOf(transport),
+            KEY_ALGORITHMS to
+                // algorithms
+                listOf(
+                    mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(), "type" to "public-key"),
+                    mapOf("alg" to PasskeyCredential.COSE_EDSA.toLong(), "type" to "public-key"),
+                    mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
+                ),
+        )
+
     @Req("FR-HID-020", "FR-VAL-020")
     fun getInfoResponse(
         cid: ByteArray,
         info: AuthenticatorInfo,
     ): List<ByteArray> {
-        // CTAP2 §6.4 authenticatorGetInfo response — keys MUST be integers:
-        //   1 = versions, 2 = extensions, 3 = aaguid, 4 = options,
-        //   5 = maxMsgSize, 6 = pinUvAuthProtocols, 7 = maxCredentialCountInList,
-        //   8 = maxCredentialIdLength, 9 = transports
-        //
-        // Windows (CtapGetPluginAuthenticatorList) requires:
-        //   - "U2F_V2" in versions (even for CTAP2-only authenticators)
-        //   - key 9 (transports) listing the transport, e.g. ["bluetooth"]
-        //     Without this, Windows 0x80090011 "Object not found" error occurs.
-        //
-        // T056b (FIDO2.1): extensions key (0x02) and updated options announce
-        //   credProtect, minPinLength, and hmac-secret support per FR-HID-020.
-        //   clientPin=true is advertised so clients know PIN is available.
-        //   Out-of-scope: enterprise attestation, largeBlobKey.
-        val responseMap: Map<String, Any> =
-            mapOf(
-                // versions — include FIDO_2_1 for CTAP2.1 clients
-                KEY_VERSIONS to listOf("FIDO_2_0", "FIDO_2_1"),
-                // extensions (FIDO2.1)
-                KEY_EXTENSIONS to listOf("credProtect", "hmac-secret", "minPinLength"),
-                // aaguid: raw ByteArray (16 bytes)
-                KEY_AAGUID to info.aaguid,
-                KEY_OPTIONS to
-                    // options
-                    mapOf(
-                        "rk" to info.isResidentKeySupported,
-                        "up" to true,
-                        // device has internal UV (biometric)
-                        "uv" to true,
-                        // PIN capability advertised (FIDO2.1)
-                        "clientPin" to true,
-                        // credProtect extension supported (FIDO2.1)
-                        "credProtect" to true,
-                        // not platform-bound
-                        "plat" to false,
-                    ),
-                // maxMsgSize
-                KEY_MAX_MSG_SIZE to MAX_MSG_SIZE,
-                // maxCredentialIdLength
-                KEY_MAX_CRED_ID_LEN to MAX_CRED_ID_LEN,
-                // transports — Windows treats HID as USB-like
-                KEY_TRANSPORTS to listOf("usb"),
-                KEY_ALGORITHMS to
-                    // algorithms
-                    listOf(
-                        mapOf("alg" to PasskeyCredential.COSE_ES256.toLong(), "type" to "public-key"),
-                        mapOf("alg" to PasskeyCredential.COSE_EDSA.toLong(), "type" to "public-key"),
-                        mapOf("alg" to PasskeyCredential.COSE_ML_DSA_65.toLong(), "type" to "public-key"),
-                    ),
-            )
+        val responseMap = buildGetInfoResponseMap(info, "usb")
         Logger.d {
             "getInfoResponse: versions=[FIDO_2_0,FIDO_2_1] " +
                 "extensions=[credProtect,hmac-secret,minPinLength] aaguid=${info.aaguid.size}bytes"

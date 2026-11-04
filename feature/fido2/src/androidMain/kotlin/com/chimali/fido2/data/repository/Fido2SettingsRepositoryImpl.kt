@@ -6,10 +6,20 @@ import androidx.core.content.edit
 import androidx.datastore.core.DataStore
 import androidx.security.crypto.EncryptedSharedPreferences
 import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
+import com.chimali.fido2.domain.repository.TransportPreference
+import com.chimali.fido2.domain.repository.TransportPreferenceResult
+import com.chimali.fido2.domain.repository.TransportSaveResult
 import com.chimali.fido2.util.performance.PerformanceTrace
+import java.io.IOException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.koin.core.annotation.Single
@@ -151,6 +161,78 @@ class Fido2SettingsRepositoryImpl(
     override suspend fun setMaxCredentialCount(count: Int) {
         dataStore.updateData { prefs ->
             prefs.copy(maxCredentialCount = count)
+        }
+    }
+
+    private val transportSaveMutex = Mutex()
+
+    @Req("FR-BT-SEL-010", "TR-BT-SEL-010")
+    override fun observeTransportPreference(): Flow<TransportPreferenceResult> =
+        dataStore.data
+            .map { prefs ->
+                mapPrefsToTransportPreferenceResult(prefs)
+            }.catch { error ->
+                emit(TransportPreferenceResult.ReadError(error))
+            }
+
+    @Req("FR-BT-SEL-010", "TR-BT-SEL-010")
+    override suspend fun getTransportPreference(): TransportPreferenceResult =
+        try {
+            val prefs = dataStore.data.first()
+            mapPrefsToTransportPreferenceResult(prefs)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            TransportPreferenceResult.ReadError(e)
+        }
+
+    private fun mapPrefsToTransportPreferenceResult(prefs: UserPreferences): TransportPreferenceResult {
+        val raw = prefs.bluetoothTransport
+        val mode =
+            BluetoothTransportMode.fromWire(raw)
+                ?: return TransportPreferenceResult.InvalidPreference(raw)
+        val timestamp = maxOf(0L, prefs.bluetoothTransportSelectedAtEpochMillis)
+        return TransportPreferenceResult.Success(TransportPreference(mode, timestamp))
+    }
+
+    @Req("FR-BT-SEL-020", "TR-BT-SEL-010")
+    override suspend fun saveTransportPreference(
+        transportCode: String,
+        epochMillis: Long,
+    ): TransportSaveResult {
+        val mode =
+            BluetoothTransportMode.fromWire(transportCode)
+                ?: return TransportSaveResult.InvalidInput(transportCode)
+
+        val validTimestamp = maxOf(0L, epochMillis)
+
+        return transportSaveMutex.withLock {
+            try {
+                val currentPrefs = dataStore.data.first()
+                if (currentPrefs.bluetoothTransport == transportCode) {
+                    val currentTimestamp = maxOf(0L, currentPrefs.bluetoothTransportSelectedAtEpochMillis)
+                    return@withLock TransportSaveResult.Success(
+                        preference = TransportPreference(mode, currentTimestamp),
+                        isNoOp = true,
+                    )
+                }
+
+                dataStore.updateData { existing ->
+                    existing.copy(
+                        bluetoothTransport = transportCode,
+                        bluetoothTransportSelectedAtEpochMillis = validTimestamp,
+                    )
+                }
+                TransportSaveResult.Success(
+                    preference = TransportPreference(mode, validTimestamp),
+                    isNoOp = false,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                Logger.e(e) { "Failed to update transport preference to $transportCode" }
+                TransportSaveResult.WriteError(e)
+            }
         }
     }
 

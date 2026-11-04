@@ -1,7 +1,9 @@
 package com.chimali.fido2.util.performance
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -182,11 +184,17 @@ class CoroutineTraceLifecycleTest {
             second.close()
         }
 
+        val terminalReady = CountDownLatch(1)
+        val terminalResult = operation.correlation.recordTerminal { terminalReady.countDown() }
+        assertFalse(terminalResult == LookupTraceCorrelation.TerminalResult.REJECTED)
+        if (terminalResult == LookupTraceCorrelation.TerminalResult.IMMEDIATE) {
+            terminalReady.countDown()
+        }
+        assertTrue(terminalReady.await(5, TimeUnit.SECONDS), "Lifecycle restore callbacks did not drain")
+
         assertEquals(resumed.map { it.first }.toSet(), suspended.map { it.first }.toSet())
         assertTrue(resumed.size >= 3)
         assertTrue(resumed.map { it.second }.toSet().size >= 2)
-        assertFalse(operation.correlation.isComplete())
-        assertEquals(LookupTraceCorrelation.TerminalResult.IMMEDIATE, operation.correlation.recordTerminal())
         assertTrue(operation.correlation.isComplete())
     }
 

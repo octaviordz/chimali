@@ -28,13 +28,19 @@ import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.feature.onboarding.presentation.navigation.OnboardingNavGraph
+import com.chimali.feature.settings.ui.BluetoothTransportSettingsUiState
 import com.chimali.feature.settings.ui.SettingsScreen
 import com.chimali.feature.vault.ui.navigation.VaultNavGraph
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportUnavailableReason
 import com.chimali.fido2.presentation.navigation.Fido2Destinations
 import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
+import com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 private enum class AppScreen {
     Loading,
@@ -107,9 +113,46 @@ fun AppNavGraph(
         }
 
         AppScreen.Settings -> {
+            val transportSettingsViewModel: TransportSettingsViewModel = koinViewModel()
+            val transportSettings by transportSettingsViewModel.state.collectAsState()
+            val processTransport = transportSettings.processState
+            val availabilityCode =
+                when (val availability = processTransport.availability) {
+                    TransportAvailability.Loading -> "loading"
+                    TransportAvailability.SelectedNotStarted -> "selected_not_started"
+                    TransportAvailability.Starting -> "starting"
+                    TransportAvailability.Ready -> "ready"
+                    is TransportAvailability.Unavailable ->
+                        when (availability.reason) {
+                            TransportUnavailableReason.PreferenceReadFailed -> "preference_read_failed"
+                            TransportUnavailableReason.InvalidPreference -> "invalid_preference"
+                            TransportUnavailableReason.InitializationTimeout -> "initialization_timeout"
+                            TransportUnavailableReason.Unsupported -> "unsupported"
+                            TransportUnavailableReason.PermissionRequired -> "permission_required"
+                            TransportUnavailableReason.BluetoothOff -> "bluetooth_off"
+                            TransportUnavailableReason.StartupFailed -> "startup_failed"
+                        }
+                }
+            val transportUiState =
+                BluetoothTransportSettingsUiState(
+                    savedTransportCode = transportSettings.savedChoice?.wireValue,
+                    processTransportCode = processTransport.processChoice?.wireValue,
+                    availabilityCode = availabilityCode,
+                    isLoading = transportSettings.isReading,
+                    isSaving = transportSettings.isSaving,
+                    readError = transportSettings.readError,
+                    saveError = transportSettings.saveError,
+                    restartRequired = transportSettings.restartRequired,
+                )
             SettingsScreen(
                 vaultEnabled = routingState?.vaultEnabled ?: false,
                 passkeyEnabled = routingState?.passkeyEnabled ?: false,
+                bluetoothTransportSettings = transportUiState,
+                onSelectTransport = { code ->
+                    BluetoothTransportMode.fromWire(code)?.let(transportSettingsViewModel::select)
+                },
+                onRetryTransportSettings = transportSettingsViewModel::retryRead,
+                onCancelPendingTransportChange = transportSettingsViewModel::cancelPendingChange,
                 onRetakeOnboarding = {
                     onboardingReturnScreen = AppScreen.Settings
                     screenOverride = AppScreen.Onboarding

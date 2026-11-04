@@ -10,7 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.chimali.fido2.bluetooth.HidConnectionState
+import com.chimali.fido2.data.transport.Fido2ConnectionState
 import com.chimali.fido2.domain.model.PairedDevice
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
@@ -32,7 +32,7 @@ class AuthenticatorDashboardComponentsTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun statusIndicatorRendersEveryConnectionStateAndAdvertisingMode() {
-        val state = mutableStateOf<HidConnectionState>(HidConnectionState.Idle)
+        val state = mutableStateOf<Fido2ConnectionState>(Fido2ConnectionState.Idle)
         val displayName = mutableStateOf<String?>(null)
         val hasPairedDevices = mutableStateOf(false)
         composeTestRule.setContent {
@@ -44,7 +44,7 @@ class AuthenticatorDashboardComponentsTest {
         composeTestRule.onNodeWithText("Tap 'Start Authenticator' to begin").assertExists()
 
         composeTestRule.runOnIdle {
-            state.value = HidConnectionState.Advertising
+            state.value = Fido2ConnectionState.Advertising
         }
         composeTestRule.onNodeWithText("Advertising...").assertExists()
         composeTestRule.onNodeWithText("Ready to pair with a new host PC").assertExists()
@@ -59,13 +59,13 @@ class AuthenticatorDashboardComponentsTest {
         val device = adapter.getRemoteDevice("02:00:00:00:00:01")
         composeTestRule.runOnIdle {
             hasPairedDevices.value = false
-            state.value = HidConnectionState.Connecting(device)
+            state.value = Fido2ConnectionState.Connecting(device)
         }
         composeTestRule.onNodeWithText("Connecting...").assertExists()
         composeTestRule.onNodeWithText("Establishing Bluetooth HID connection").assertExists()
 
         composeTestRule.runOnIdle {
-            state.value = HidConnectionState.Connected(device)
+            state.value = Fido2ConnectionState.Connected(device)
             displayName.value = "Test host"
         }
         composeTestRule.onNodeWithText("Test host").assertExists()
@@ -77,7 +77,7 @@ class AuthenticatorDashboardComponentsTest {
         composeTestRule.onNodeWithText("Connected").assertExists()
 
         composeTestRule.runOnIdle {
-            state.value = HidConnectionState.Error("Bluetooth unavailable")
+            state.value = Fido2ConnectionState.Error("Bluetooth unavailable")
         }
         composeTestRule.onNodeWithText("Error Occurred").assertExists()
         composeTestRule.onNodeWithText("Bluetooth unavailable").assertExists()
@@ -207,7 +207,7 @@ class AuthenticatorDashboardComponentsTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun transportButtonUsesStartAndStopLabelsAndInvokesToggle() {
-        val state = mutableStateOf<HidConnectionState>(HidConnectionState.Idle)
+        val state = mutableStateOf<Fido2ConnectionState>(Fido2ConnectionState.Idle)
         var toggleCount = 0
         composeTestRule.setContent {
             MaterialTheme {
@@ -218,12 +218,12 @@ class AuthenticatorDashboardComponentsTest {
         composeTestRule.onNodeWithText("Start Authenticator").performClick()
         composeTestRule.runOnIdle { assertEquals(1, toggleCount) }
 
-        composeTestRule.runOnIdle { state.value = HidConnectionState.Advertising }
+        composeTestRule.runOnIdle { state.value = Fido2ConnectionState.Advertising }
         composeTestRule.onNodeWithText("Stop Authenticator").assertExists()
         composeTestRule.onNodeWithText("Stop Authenticator").performClick()
         composeTestRule.runOnIdle { assertEquals(2, toggleCount) }
 
-        composeTestRule.runOnIdle { state.value = HidConnectionState.Error("offline") }
+        composeTestRule.runOnIdle { state.value = Fido2ConnectionState.Error("offline") }
         composeTestRule.onNodeWithText("Start Authenticator").assertExists()
     }
 

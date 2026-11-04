@@ -70,11 +70,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
-import com.chimali.fido2.bluetooth.HidConnectionState
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.R
+import com.chimali.fido2.data.transport.Fido2ConnectionState
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
@@ -105,6 +109,7 @@ private val COLOR_CONNECTED = Color(COLOR_CONNECTED_VAL)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Req("FR-BLE-070", "FR-BT-SEL-050")
 fun Fido2HomeScreen(
     onManageCredentials: () -> Unit,
     onRegisterRequest: () -> Unit,
@@ -117,7 +122,11 @@ fun Fido2HomeScreen(
 ) {
     val context = LocalContext.current
     val connectionState by viewModel.connectionState.collectAsState()
+    val processState by viewModel.processTransportState.collectAsState()
+    val outboundBleUnsupported by viewModel.outboundBleUnsupported.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
+    val showPairingHelp = remember { mutableStateOf(false) }
+    val selectedMode = processState.processChoice ?: BluetoothTransportMode.FIDO_BLE
 
     Fido2EventObserver(
         uiEvents = viewModel.uiEvents,
@@ -146,7 +155,11 @@ fun Fido2HomeScreen(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
             if (permissions.values.all { it }) {
-                launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
+                if (selectedMode == BluetoothTransportMode.CLASSIC_HID) {
+                    launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
+                } else {
+                    viewModel.toggleTransport()
+                }
             } else {
                 showBluetoothError.value = true
             }
@@ -154,16 +167,18 @@ fun Fido2HomeScreen(
 
     val handleToggle = {
         val isRunning =
-            connectionState !is HidConnectionState.Idle &&
-                connectionState !is HidConnectionState.Error
+            connectionState !is Fido2ConnectionState.Idle &&
+                connectionState !is Fido2ConnectionState.Error
         if (isRunning) {
             viewModel.toggleTransport()
         } else {
             val required = getRequiredPermissions()
             if (required.isNotEmpty() && !hasPermissions(context, required)) {
                 bluetoothPermissionLauncher.launch(required)
-            } else {
+            } else if (selectedMode == BluetoothTransportMode.CLASSIC_HID) {
                 launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
+            } else {
+                viewModel.toggleTransport()
             }
         }
     }
@@ -172,6 +187,40 @@ fun Fido2HomeScreen(
         BluetoothErrorDialog(
             onDismiss = { showBluetoothError.value = false },
             onRetry = handleToggle,
+        )
+    }
+
+    if (showPairingHelp.value) {
+        AlertDialog(
+            onDismissRequest = { showPairingHelp.value = false },
+            title = { Text(stringResource(R.string.fido_ble_pairing_help_title)) },
+            text = { Text(stringResource(R.string.fido_ble_pairing_help_body)) },
+            dismissButton = {
+                TextButton(onClick = { showPairingHelp.value = false }) {
+                    Text(stringResource(R.string.fido_ble_pairing_help_dismiss))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPairingHelp.value = false
+                    viewModel.retryTransport()
+                }) {
+                    Text(stringResource(R.string.fido_ble_pairing_help_retry))
+                }
+            },
+        )
+    }
+
+    if (outboundBleUnsupported) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissOutboundBleUnsupported,
+            title = { Text(stringResource(R.string.fido_ble_outbound_unsupported_title)) },
+            text = { Text(stringResource(R.string.fido_ble_outbound_unsupported_body)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissOutboundBleUnsupported) {
+                    Text(stringResource(R.string.fido_ble_pairing_help_dismiss))
+                }
+            },
         )
     }
 
@@ -217,6 +266,12 @@ fun Fido2HomeScreen(
                 hasPairedDevices = pairedDevices.isNotEmpty(),
             )
 
+            if (selectedMode == BluetoothTransportMode.FIDO_BLE && connectionState is Fido2ConnectionState.Error) {
+                TextButton(onClick = { showPairingHelp.value = true }) {
+                    Text(stringResource(R.string.fido_ble_pairing_help_button))
+                }
+            }
+
             PairedDevicesSection(
                 modifier = Modifier.weight(1f),
                 onEditDevice = onEditDevice,
@@ -243,7 +298,12 @@ fun Fido2HomeScreen(
             }
 
             Text(
-                text = "FIDO2 / WebAuthn over Bluetooth HID",
+                text =
+                    if (selectedMode == BluetoothTransportMode.FIDO_BLE) {
+                        stringResource(R.string.fido_transport_ble)
+                    } else {
+                        stringResource(R.string.fido_transport_classic_hid)
+                    },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -256,7 +316,7 @@ fun Fido2HomeScreen(
  */
 @Composable
 fun StatusIndicator(
-    state: HidConnectionState,
+    state: Fido2ConnectionState,
     displayName: String?,
     modifier: Modifier = Modifier,
     hasPairedDevices: Boolean = false,
@@ -267,14 +327,14 @@ fun StatusIndicator(
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 
     when (state) {
-        is HidConnectionState.Idle -> {
+        is Fido2ConnectionState.Idle -> {
             title = "Ready to Start"
             subtitle = "Tap 'Start Authenticator' to begin"
             color = MaterialTheme.colorScheme.outline
             icon = Icons.Default.Bluetooth
         }
 
-        is HidConnectionState.Advertising -> {
+        is Fido2ConnectionState.Advertising -> {
             if (hasPairedDevices) {
                 title = "Ready for Authentication"
                 subtitle = "Waiting for request from PC"
@@ -286,21 +346,21 @@ fun StatusIndicator(
             icon = Icons.AutoMirrored.Filled.BluetoothSearching
         }
 
-        is HidConnectionState.Connecting -> {
+        is Fido2ConnectionState.Connecting -> {
             title = "Connecting..."
             subtitle = "Establishing Bluetooth HID connection"
             color = COLOR_CONNECTING
             icon = Icons.Default.BluetoothAudio
         }
 
-        is HidConnectionState.Connected -> {
+        is Fido2ConnectionState.Connected -> {
             title = displayName ?: "Connected"
             subtitle = "Connected to PC"
             color = COLOR_CONNECTED
             icon = Icons.Default.Devices
         }
 
-        is HidConnectionState.Error -> {
+        is Fido2ConnectionState.Error -> {
             title = "Error Occurred"
             subtitle = state.message
             color = MaterialTheme.colorScheme.error
@@ -326,7 +386,7 @@ fun StatusIndicator(
                         .background(color.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center,
             ) {
-                if (state is HidConnectionState.Advertising || state is HidConnectionState.Connecting) {
+                if (state is Fido2ConnectionState.Advertising || state is Fido2ConnectionState.Connecting) {
                     PulseAnimation(color = color)
                 }
                 Icon(
@@ -347,7 +407,7 @@ fun StatusIndicator(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color =
-                        if (state is HidConnectionState.Error) {
+                        if (state is Fido2ConnectionState.Error) {
                             MaterialTheme.colorScheme.error
                         } else {
                             color.copy(alpha = 0.8f)
@@ -437,7 +497,7 @@ private fun BluetoothErrorDialog(
         text = {
             Text(
                 "Chimali Authenticator requires Bluetooth and \"Nearby Devices\" permissions " +
-                    "to act as a security key. Please allow discoverability and permissions to continue.",
+                    "to act as a security key. Allow the requested permissions to continue.",
             )
         },
         dismissButton = {
@@ -469,7 +529,6 @@ private fun getRequiredPermissions(): Array<String> =
             arrayOf(
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.POST_NOTIFICATIONS,
             )
         }
@@ -478,7 +537,6 @@ private fun getRequiredPermissions(): Array<String> =
             arrayOf(
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.BLUETOOTH_SCAN,
             )
         }
 
@@ -516,13 +574,13 @@ private fun launchDiscoverability(
  */
 @Composable
 fun TransportToggleButton(
-    connectionState: HidConnectionState,
+    connectionState: Fido2ConnectionState,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isRunning =
-        connectionState !is HidConnectionState.Idle &&
-            connectionState !is HidConnectionState.Error
+        connectionState !is Fido2ConnectionState.Idle &&
+            connectionState !is Fido2ConnectionState.Error
 
     ChimaliButton(
         onClick = onToggle,

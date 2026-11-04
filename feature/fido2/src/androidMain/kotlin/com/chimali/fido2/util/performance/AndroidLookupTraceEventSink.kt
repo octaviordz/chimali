@@ -2,13 +2,14 @@ package com.chimali.fido2.util.performance
 
 import android.os.Build
 import android.os.Trace
-import android.util.Log
+import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 
 /** Android trace/logcat sink for secret-free, process-local lookup correlation. */
 internal object AndroidLookupTraceEventSink : CoroutineTraceEventSink {
     private const val TAG = "ChimaliT062"
     private const val SEGMENT_NAME = "Fido2.Registration.SettingsLookup.Coroutine"
+    private val logger = Logger.withTag(TAG)
 
     @Req("NFR-PERF-030", "TR-AUTH-031")
     fun mapping(
@@ -86,6 +87,6 @@ internal object AndroidLookupTraceEventSink : CoroutineTraceEventSink {
     }
 
     private fun emit(message: String) {
-        runCatching { Log.println(Log.INFO, TAG, message) }
+        runCatching { logger.i { message } }
     }
 }

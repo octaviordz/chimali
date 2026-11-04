@@ -145,6 +145,7 @@ kotlin {
             implementation(libs.compose.animation.graphics)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.guava)
+            implementation(libs.nordic.ble.advertiser)
         }
 
         // iosMain: Placeholder — no functional code (T192). actual implementations added in T191+.
