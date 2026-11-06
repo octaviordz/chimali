@@ -9,6 +9,10 @@ import io.mockk.mockk
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 
 @Req("FR-BLE-060", "FR-BLE-080", "TR-BLE-010", "TR-BLE-030")
@@ -276,6 +280,118 @@ class FidoBleAssertionTest {
             assertEquals(CMD_BLE_MSG, fakeSender.sentNotifications[2][0])
             assertEquals(CTAP2_OK, fakeSender.sentNotifications[2][3])
 
+            transport.disconnect()
+        }
+
+    @Test
+    @Req("FR-BLE-060", "TR-BLE-020")
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `keepalive cadence continues through processing and user presence then stops before response`() =
+        runTest {
+            val result = RawCtapResult(responseBytes = byteArrayOf(CTAP2_OK, 0x01))
+            val finishUserPresence = CompletableDeferred<Unit>()
+            val notificationTimes = mutableListOf<Long>()
+
+            coEvery { rawCtapOperation.handle(any(), any()) } coAnswers {
+                val onKeepalive = secondArg<(Byte) -> Unit>()
+                delay(700L)
+                onKeepalive(0x02)
+                finishUserPresence.await()
+                result
+            }
+
+            transport =
+                BleGattTransport(
+                    rawCtapOperation = rawCtapOperation,
+                    sessionOwner = sessionOwner,
+                    advertiserController = fakeAdvertiser,
+                    responseSender = fakeSender,
+                    coroutineScope = this,
+                    deviceLookup = { _ -> testDevice },
+                )
+            fakeSender.onNotificationSentCallback = {
+                if (fakeSender.sentNotifications.lastOrNull()?.firstOrNull() == CMD_BLE_KEEPALIVE) {
+                    notificationTimes += testScheduler.currentTime
+                }
+                transport.onNotificationSent(true)
+            }
+            transport.connect()
+
+            val packet =
+                FidoBleFraming.frameResponse(
+                    CMD_BLE_MSG,
+                    byteArrayOf(CMD_GET_ASSERTION, 0x00),
+                    sessionOwner.writeCapacity,
+                )[0]
+            transport.onPacketReceived(packet)
+
+            testScheduler.advanceTimeBy(750L)
+            testScheduler.runCurrent()
+            val processingPackets =
+                fakeSender.sentNotifications.filter { it[0] == CMD_BLE_KEEPALIVE && it[3] == 0x01.toByte() }
+            assertEquals(3, processingPackets.size)
+
+            testScheduler.advanceTimeBy(500L)
+            testScheduler.runCurrent()
+            val allKeepalives = fakeSender.sentNotifications.filter { it[0] == CMD_BLE_KEEPALIVE }
+            assertEquals(6, allKeepalives.size)
+            assertEquals(3, allKeepalives.count { it[3] == 0x02.toByte() })
+            assertTrue(notificationTimes.zipWithNext().all { (first, second) -> second - first <= 500L })
+
+            finishUserPresence.complete(Unit)
+            testScheduler.runCurrent()
+            val keepaliveCountAtResponse = fakeSender.sentNotifications.count { it[0] == CMD_BLE_KEEPALIVE }
+            assertEquals(CMD_BLE_MSG, fakeSender.sentNotifications.last()[0])
+
+            testScheduler.advanceTimeBy(1000L)
+            testScheduler.runCurrent()
+            assertEquals(
+                keepaliveCountAtResponse,
+                fakeSender.sentNotifications.count { it[0] == CMD_BLE_KEEPALIVE },
+            )
+            transport.disconnect()
+        }
+
+    @Test
+    @Req("FR-BLE-060", "TR-BLE-040")
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `keepalives resume for the next request after terminal response delivery`() =
+        runTest {
+            coEvery { rawCtapOperation.handle(any(), any()) } coAnswers {
+                delay(300L)
+                RawCtapResult(responseBytes = byteArrayOf(CTAP2_OK))
+            }
+
+            transport =
+                BleGattTransport(
+                    rawCtapOperation = rawCtapOperation,
+                    sessionOwner = sessionOwner,
+                    advertiserController = fakeAdvertiser,
+                    responseSender = fakeSender,
+                    coroutineScope = this,
+                    deviceLookup = { _ -> testDevice },
+                )
+            fakeSender.onNotificationSentCallback = { transport.onNotificationSent(true) }
+            transport.connect()
+
+            val request =
+                FidoBleFraming.frameResponse(
+                    CMD_BLE_MSG,
+                    byteArrayOf(CMD_GET_ASSERTION, 0x00),
+                    sessionOwner.writeCapacity,
+                )[0]
+
+            transport.onPacketReceived(request)
+            testScheduler.advanceTimeBy(300L)
+            testScheduler.runCurrent()
+            assertEquals(1, fakeSender.sentNotifications.count { it[0] == CMD_BLE_MSG })
+
+            transport.onPacketReceived(request)
+            testScheduler.advanceTimeBy(300L)
+            testScheduler.runCurrent()
+
+            assertEquals(2, fakeSender.sentNotifications.count { it[0] == CMD_BLE_MSG })
+            assertTrue(fakeSender.sentNotifications.any { it[0] == CMD_BLE_KEEPALIVE })
             transport.disconnect()
         }
 }

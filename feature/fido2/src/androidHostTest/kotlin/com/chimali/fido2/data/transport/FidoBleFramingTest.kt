@@ -63,6 +63,9 @@ class FidoBleFramingTest {
         assertEquals(20, FidoBleFraming.calculateNotifyCapacity(23, maxPlatformCapacity = 512))
         assertEquals(100, FidoBleFraming.calculateNotifyCapacity(103, maxPlatformCapacity = 512))
         assertEquals(244, FidoBleFraming.calculateNotifyCapacity(512, maxPlatformCapacity = 244))
+        assertFailsWith<IllegalArgumentException> {
+            FidoBleFraming.calculateNotifyCapacity(23, maxPlatformCapacity = 3)
+        }
     }
 
     @Test
@@ -174,12 +177,13 @@ class FidoBleFramingTest {
     }
 
     @Test
-    fun `encodeErrorFrame produces exactly 3 bytes with command 0xBF`() {
+    fun `encodeErrorFrame produces a valid four-byte response`() {
         val errorFrame = FidoBleFraming.encodeErrorFrame(ERR_REQ_TIMEOUT)
-        assertEquals(3, errorFrame.size)
+        assertEquals(4, errorFrame.size)
         assertEquals(CMD_ERROR, errorFrame[0])
         assertEquals(0x00.toByte(), errorFrame[1])
-        assertEquals(ERR_REQ_TIMEOUT, errorFrame[2])
+        assertEquals(0x01.toByte(), errorFrame[2])
+        assertEquals(ERR_REQ_TIMEOUT, errorFrame[3])
     }
 
     @Test

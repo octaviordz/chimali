@@ -30,6 +30,25 @@ data class FidoBleMessage(
     }
 }
 
+/** Outcome of admitting one Control Point packet into the current FIDO BLE request. */
+sealed interface BleIncomingWriteResult {
+    data class Complete(
+        val message: FidoBleMessage,
+    ) : BleIncomingWriteResult
+
+    data class InProgress(
+        val sessionGeneration: Long,
+        val timeoutToken: Long,
+    ) : BleIncomingWriteResult
+
+    data object NotReady : BleIncomingWriteResult
+
+    data class Error(
+        val errorCode: Byte,
+        val sessionGeneration: Long,
+    ) : BleIncomingWriteResult
+}
+
 /**
  * Owns run, session, connection generation, and multi-packet assembly state for FIDO BLE.
  *
@@ -55,14 +74,23 @@ class BleSessionOwner(
         const val MAX_WRITE_CAPACITY = 512
         const val RECEIVE_TIMEOUT_NANOS = 3_000_000_000L // 3 seconds
         private const val ATT_HEADER_OVERHEAD = 3
-        private const val INIT_FRAME_HEADER_SIZE = 3
+        private const val BLE_ERROR_FRAME_SIZE = 4
         private const val MAX_WIRE_LENGTH = 65535
         private const val CMD_FLAG_MASK = 0x80
-        private const val SEQ_MODULO = 128
-        private const val SEQUENCE_MASK = 0x7F
         private const val BYTE_MASK = 0xFF
-        private const val SHIFT_8 = 8
         private const val HEX_RADIX = 16
+    }
+
+    init {
+        require(maxMsgSize in 1..MAX_WIRE_LENGTH) {
+            "maxMsgSize must be positive and <= $MAX_WIRE_LENGTH, but was $maxMsgSize"
+        }
+        require(supportedAndroidWriteCapacity >= MIN_CAPACITY) {
+            "Supported Android write capacity must be at least $MIN_CAPACITY, but was $supportedAndroidWriteCapacity"
+        }
+        require(supportedAndroidNotificationCapacity >= BLE_ERROR_FRAME_SIZE) {
+            "Supported Android notification capacity must fit a BLE error response"
+        }
     }
 
     private val lock = Any()
@@ -86,16 +114,13 @@ class BleSessionOwner(
     val writeCapacity: Int
         get() =
             synchronized(lock) {
-                maxOf(
-                    MIN_CAPACITY,
-                    minOf(MAX_WRITE_CAPACITY, attMtu - ATT_HEADER_OVERHEAD, supportedAndroidWriteCapacity),
-                )
+                minOf(MAX_WRITE_CAPACITY, attMtu - ATT_HEADER_OVERHEAD, supportedAndroidWriteCapacity)
             }
 
     val notifyCapacity: Int
         get() =
             synchronized(lock) {
-                maxOf(MIN_CAPACITY, minOf(attMtu - ATT_HEADER_OVERHEAD, supportedAndroidNotificationCapacity))
+                minOf(attMtu - ATT_HEADER_OVERHEAD, supportedAndroidNotificationCapacity)
             }
 
     val isCommandReady: Boolean
@@ -106,13 +131,11 @@ class BleSessionOwner(
                     isNotificationsEnabled
             }
 
-    // Assembly state
-    private var assemblyCommand: Byte = 0
-    private var declaredLength: Int = 0
-    private var receivedBytes: Int = 0
-    private var nextExpectedSequence: Int = 0
-    private var assemblyBuffer: ByteArray? = null
-    private var lastActivityNanos: Long = 0L
+    // Reuse the bounded framer; this owner adds the per-session receive deadline.
+    private val requestAssembler = FidoBleFraming.RequestAssembler(maxMsgSize)
+    private var lastActivityNanos: Long? = null
+    private var assemblyTimeoutToken = 0L
+    private var activeAssemblyTimeoutToken: Long? = null
 
     /**
      * Connects a new host if no other host is active.
@@ -186,6 +209,7 @@ class BleSessionOwner(
     fun setNotificationsEnabled(enabled: Boolean) =
         synchronized(lock) {
             isNotificationsEnabled = enabled
+            if (!enabled) resetAssembly()
             Logger.d { "BleSessionOwner: Notifications enabled=$enabled" }
         }
 
@@ -213,112 +237,79 @@ class BleSessionOwner(
     /**
      * Processes an incoming write packet for multi-packet reassembly.
      *
-     * @return [FidoBleMessage] if reassembly is complete, or null if awaiting more fragments / timed out / invalid.
+     * Invalid frames return a typed error so the transport can send the required CMD_ERROR response.
      */
     @Req("FR-BLE-050", "TR-BLE-020")
-    fun processIncomingWrite(packet: ByteArray): FidoBleMessage? =
+    fun processIncomingWrite(packet: ByteArray): BleIncomingWriteResult =
         synchronized(lock) {
             if (!isCommandReady) {
                 Logger.w { "BleSessionOwner: Command rejected; revision 0x20 and notifications must be active first" }
-                return null
-            }
-            if (packet.isEmpty()) return null
-
-            val now = monotonicNanos()
-            val firstByte = packet[0].toInt() and BYTE_MASK
-
-            // Check if initialization packet (bit 7 set)
-            if (firstByte and CMD_FLAG_MASK != 0) {
-                if (packet.size < INIT_FRAME_HEADER_SIZE) {
-                    Logger.w { "BleSessionOwner: Initial packet too short (${packet.size} bytes)" }
-                    resetAssembly()
-                    return null
-                }
-
-                val cmd = packet[0]
-                val bcntH = packet[1].toInt() and BYTE_MASK
-                val bcntL = packet[2].toInt() and BYTE_MASK
-                val totalLength = (bcntH shl SHIFT_8) or bcntL
-
-                if (totalLength > maxMsgSize || totalLength > MAX_WIRE_LENGTH) {
-                    Logger.w { "BleSessionOwner: Declared length $totalLength exceeds maxMsgSize $maxMsgSize" }
-                    resetAssembly()
-                    return null
-                }
-
-                assemblyCommand = cmd
-                declaredLength = totalLength
-                assemblyBuffer = ByteArray(totalLength)
-                receivedBytes = 0
-                nextExpectedSequence = 0
-                lastActivityNanos = now
-
-                val dataOffset = INIT_FRAME_HEADER_SIZE
-                val dataInInit = minOf(packet.size - dataOffset, totalLength)
-                if (dataInInit > 0) {
-                    System.arraycopy(packet, dataOffset, assemblyBuffer!!, 0, dataInInit)
-                    receivedBytes += dataInInit
-                }
-
-                if (receivedBytes >= declaredLength) {
-                    val complete = FidoBleMessage(assemblyCommand, assemblyBuffer!!, currentSessionGeneration)
-                    assemblyBuffer = null
-                    resetAssembly()
-                    return complete
-                }
-
-                return null
+                BleIncomingWriteResult.NotReady
+            } else if (packet.isEmpty()) {
+                resetAssembly()
+                incomingWriteError(FidoBleFraming.ERR_INVALID_PAR)
             } else {
-                // Continuation packet (bit 7 clear)
-                if (assemblyBuffer == null) {
-                    Logger.w { "BleSessionOwner: Unexpected continuation packet without prior initialization" }
-                    return null
-                }
-
-                // Check 3-second receive timeout
-                if (now - lastActivityNanos > RECEIVE_TIMEOUT_NANOS) {
+                val now = monotonicNanos()
+                val firstByte = packet[0].toInt() and BYTE_MASK
+                val isInitialization = firstByte and CMD_FLAG_MASK != 0
+                if (isInitialization) {
+                    resetAssembly()
+                } else if (requestAssembler.isAssembling && isReceiveTimedOut(now)) {
                     Logger.w { "BleSessionOwner: Multi-packet assembly timed out after 3 seconds" }
                     resetAssembly()
-                    return null
+                    return incomingWriteError(FidoBleFraming.ERR_REQ_TIMEOUT)
                 }
 
-                val seq = packet[0].toInt() and SEQUENCE_MASK
-                if (seq != nextExpectedSequence) {
-                    Logger.w { "BleSessionOwner: Sequence mismatch (expected $nextExpectedSequence, got $seq)" }
-                    resetAssembly()
-                    return null
+                when (val result = requestAssembler.feed(packet)) {
+                    is FidoBleFraming.FeedResult.Complete -> {
+                        lastActivityNanos = null
+                        activeAssemblyTimeoutToken = null
+                        assemblyTimeoutToken++
+                        BleIncomingWriteResult.Complete(
+                            FidoBleMessage(result.command, result.payload, currentSessionGeneration),
+                        )
+                    }
+                    is FidoBleFraming.FeedResult.InProgress -> {
+                        lastActivityNanos = now
+                        assemblyTimeoutToken++
+                        activeAssemblyTimeoutToken = assemblyTimeoutToken
+                        BleIncomingWriteResult.InProgress(currentSessionGeneration, assemblyTimeoutToken)
+                    }
+                    is FidoBleFraming.FeedResult.Error -> {
+                        resetAssembly()
+                        incomingWriteError(result.errorCode)
+                    }
                 }
-
-                lastActivityNanos = now
-                nextExpectedSequence = (nextExpectedSequence + 1) % SEQ_MODULO
-
-                val dataOffset = 1
-                val remainingExpected = declaredLength - receivedBytes
-                val dataInCont = minOf(packet.size - dataOffset, remainingExpected)
-
-                if (dataInCont > 0) {
-                    System.arraycopy(packet, dataOffset, assemblyBuffer!!, receivedBytes, dataInCont)
-                    receivedBytes += dataInCont
-                }
-
-                if (receivedBytes >= declaredLength) {
-                    val complete = FidoBleMessage(assemblyCommand, assemblyBuffer!!, currentSessionGeneration)
-                    assemblyBuffer = null
-                    resetAssembly()
-                    return complete
-                }
-
-                return null
             }
         }
 
+    /** Expires only the matching incomplete request; stale timer callbacks are harmless. */
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun expireIncompleteRequest(
+        generation: Long,
+        timeoutToken: Long,
+    ): BleIncomingWriteResult.Error? =
+        synchronized(lock) {
+            if (generation != currentSessionGeneration ||
+                activeAssemblyTimeoutToken != timeoutToken ||
+                !requestAssembler.isAssembling
+            ) {
+                return null
+            }
+            resetAssembly()
+            incomingWriteError(FidoBleFraming.ERR_REQ_TIMEOUT)
+        }
+
+    private fun isReceiveTimedOut(nowNanos: Long): Boolean =
+        lastActivityNanos?.let { nowNanos - it >= RECEIVE_TIMEOUT_NANOS } ?: false
+
+    private fun incomingWriteError(errorCode: Byte): BleIncomingWriteResult.Error =
+        BleIncomingWriteResult.Error(errorCode, currentSessionGeneration)
+
     private fun resetAssembly() {
-        assemblyBuffer?.fill(0)
-        assemblyBuffer = null
-        assemblyCommand = 0
-        declaredLength = 0
-        receivedBytes = 0
-        nextExpectedSequence = 0
-        lastActivityNanos = 0L
+        requestAssembler.reset()
+        lastActivityNanos = null
+        activeAssemblyTimeoutToken = null
+        assemblyTimeoutToken++
     }
 }

@@ -28,7 +28,9 @@ Initialization: one command byte with high bit set, two-byte big-endian total le
 - MSG 0x83 carries CTAP command plus CBOR request, or CTAP status plus CBOR response under CTAP section8. No HID CIDs, HID INIT or HID framing appears on BLE.
 - KEEPALIVE 0x82 carries PROCESSING 0x01 or UP_NEEDED 0x02 at intervals <=500ms while the accepted command is processing or waiting for user presence. Processing ends when the operation produces its terminal response, fails, or is cancelled; stop and remove pending keepalives before starting terminal-response delivery.
 - CANCEL 0xbe has zero payload and no response itself; a cancelled original MSG completes with CTAP2_ERR_KEEPALIVE_CANCEL. Valid secured CANCEL bypasses ordinary competing-request BUSY admission during reception, processing and user verification. During incomplete reception it discards the partial request; during cancellable processing it follows the original-request cancellation contract. Malformed CANCEL is rejected independently and must not cancel a different transaction.
-- ERROR 0xbf carries the applicable BLE framing error: invalid command/parameter/length/sequence, timeout 0x05, or busy 0x06.
+- ERROR 0xbf carries the applicable BLE framing error: invalid parameter 0x02 for an empty frame, invalid length 0x03 for a short header/oversize declaration/extra payload, invalid sequence 0x04 for an unexpected continuation or sequence, timeout 0x05 for an expired partial request, or busy 0x06 for an overlapping CTAP command. Invalid transport frames never reach credential handling.
+
+Every response, including ERROR, uses the response frame layout: status byte, two-byte big-endian payload length, then payload. An ERROR frame therefore contains a one-byte payload with the error code.
 
 ATT errors describe access/admission/offset failures; BLE ERROR describes transport framing; CTAP statuses describe accepted command outcomes. Do not conflate them. A malformed or oversized packet must not reach credential handling.
 

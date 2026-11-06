@@ -11,6 +11,7 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -18,6 +19,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
@@ -156,6 +158,44 @@ class FidoBleLifecycleTest {
             assertEquals(1, fakeAdvertiser.startCount)
             assertEquals(Fido2ConnectionState.Advertising, transport.connectionState.value)
 
+            transport.disconnect()
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `incomplete request autonomously sends timeout error after three seconds`() =
+        runTest {
+            val host = mockk<BluetoothDevice>()
+            val address = "11:22:33:44:55:66"
+            every { host.address } returns address
+            transport =
+                BleGattTransport(
+                    rawCtapOperation = rawCtapOperation,
+                    sessionOwner = sessionOwner,
+                    advertiserController = fakeAdvertiser,
+                    responseSender = fakeSender,
+                    coroutineScope = this,
+                    deviceLookup = { host },
+                )
+            assertTrue(transport.connect().isSuccess)
+            assertTrue(sessionOwner.connectHost(address))
+            assertTrue(sessionOwner.selectRevision(BleSessionOwner.REVISION_FIDO2_0x20))
+            sessionOwner.setNotificationsEnabled(true)
+
+            transport.onPacketReceived(byteArrayOf(BleGattTransport.CMD_MSG, 0x00, 30) + ByteArray(17))
+            advanceTimeBy(BleSessionOwner.RECEIVE_TIMEOUT_NANOS / 1_000_000L)
+            runCurrent()
+
+            assertEquals(1, fakeSender.sentNotifications.size)
+            assertContentEquals(
+                byteArrayOf(
+                    BleGattTransport.CMD_ERROR,
+                    0x00,
+                    0x01,
+                    FidoBleFraming.ERR_REQ_TIMEOUT,
+                ),
+                fakeSender.sentNotifications.single(),
+            )
             transport.disconnect()
         }
 

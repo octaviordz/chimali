@@ -9,6 +9,8 @@ import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 
 /** Pending-request retention and successor isolation. @see NFR-SEC-041 and TR-AUTH-031 */
 class Fido2UiEventBusTest {
@@ -37,6 +39,21 @@ class Fido2UiEventBusTest {
         assertSame(registration, bus.currentRegistrationRequest)
         registration.deferred.cancel()
     }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `pending request state flow retains requests for late presenters and clears on completion`() =
+        runTest {
+            val bus = Fido2UiEventBus()
+            val response = CompletableDeferred<Outcome<AssertionObject, DomainError>>()
+            val event = Fido2UiEvent.AuthenticationRequested(mockk(), response)
+
+            bus.dispatch(event)
+
+            assertSame(event, bus.pendingAuthenticationRequest.first { it != null })
+            response.complete(Outcome.Error(DomainError.OperationDenied("synthetic denial")))
+            assertNull(bus.pendingAuthenticationRequest.value)
+        }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test

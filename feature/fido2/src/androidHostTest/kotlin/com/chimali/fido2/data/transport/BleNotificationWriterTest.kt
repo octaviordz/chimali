@@ -6,6 +6,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -74,6 +75,52 @@ class BleNotificationWriterTest {
         }
 
     @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `terminal notification callback reports GATT acknowledgement`() =
+        runTest {
+            val writer = createWriter(this)
+            val deliveryResults = mutableListOf<Boolean>()
+
+            assertTrue(
+                writer.enqueue(
+                    byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x00),
+                    isKeepalive = false,
+                    sessionGeneration = 1L,
+                    onDeliveryResult = deliveryResults::add,
+                ),
+            )
+            runCurrent()
+
+            assertTrue(deliveryResults.isEmpty())
+            writer.onNotificationSent(success = true)
+
+            assertEquals(listOf(true), deliveryResults)
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `terminal notification callback reports failure when queued response is cleared`() =
+        runTest {
+            val writer = createWriter(this)
+            val deliveryResults = mutableListOf<Boolean>()
+
+            assertTrue(writer.enqueue(byteArrayOf(0x01), isKeepalive = false, sessionGeneration = 1L))
+            assertTrue(
+                writer.enqueue(
+                    byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x00),
+                    isKeepalive = false,
+                    sessionGeneration = 1L,
+                    onDeliveryResult = deliveryResults::add,
+                ),
+            )
+            runCurrent()
+
+            writer.clear()
+
+            assertEquals(listOf(false), deliveryResults)
+        }
+
+    @Test
     @Req("FR-BLE-060", "TR-BLE-040")
     fun `keepalive notifications are coalesced when already pending`() =
         runTest {
@@ -123,7 +170,7 @@ class BleNotificationWriterTest {
 
     @Test
     @Req("FR-BLE-050", "TR-BLE-020")
-    fun `queue capacity bounds exceed check rejects excess without silent drop`() =
+    fun `queue capacity overflow rejects packet and aborts session`() =
         runTest {
             val maxMsg = 50 // smaller for test
             val writer = createWriter(this, maxMsgSize = maxMsg)
@@ -134,7 +181,27 @@ class BleNotificationWriterTest {
                 writer.enqueue(largePayload, isKeepalive = false, sessionGeneration = 1L),
                 "Excess payload must be rejected",
             )
-            assertFalse(sessionStalledCalled)
+            assertTrue(sessionStalledCalled, "Overflow must abort rather than leave a dropped response ambiguous")
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `queue capacity includes the notification currently owned by the sender`() =
+        runTest {
+            val maxMsg = 50
+            val writer = createWriter(this, maxMsgSize = maxMsg)
+            val capacityLimit = 2 * maxMsg + 1024
+            val inFlightPacket = ByteArray(capacityLimit - 100) { 0x01 }
+            val excessPacket = ByteArray(101) { 0x02 }
+
+            assertTrue(writer.enqueue(inFlightPacket, isKeepalive = false, sessionGeneration = 1L))
+            runCurrent()
+            assertEquals(1, sentPackets.size)
+            assertFalse(
+                writer.enqueue(excessPacket, isKeepalive = false, sessionGeneration = 1L),
+                "The in-flight bytes and queued bytes together must stay within capacity",
+            )
+            assertTrue(sessionStalledCalled)
         }
 
     @Test
@@ -198,6 +265,39 @@ class BleNotificationWriterTest {
             runCurrent()
 
             assertFalse(sessionStalledCalled, "A delayed send from the old session must not stall its successor")
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `in-flight packet is erased only after notification sender releases its borrowed buffer`() =
+        runTest {
+            val original = byteArrayOf(0x83.toByte(), 0x01, 0x02)
+            val sendStarted = CompletableDeferred<ByteArray>()
+            var sendCancelled = false
+            val writer =
+                BleNotificationWriter(
+                    scope = this,
+                    sendGattNotification = { _, borrowed ->
+                        sendStarted.complete(borrowed)
+                        try {
+                            kotlinx.coroutines.awaitCancellation()
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            sendCancelled = true
+                            throw cancelled
+                        }
+                    },
+                    onSessionStalled = { sessionStalledCalled = true },
+                )
+
+            assertTrue(writer.enqueue(original, isKeepalive = false, sessionGeneration = 1L))
+            runCurrent()
+            val borrowed = sendStarted.await()
+
+            writer.clear()
+            runCurrent()
+            assertTrue(sendCancelled, "Clearing the writer must cancel an in-flight send operation")
+            assertContentEquals(ByteArray(original.size), borrowed, "The sender-owned buffer must be erased on release")
+            assertFalse(sessionStalledCalled)
         }
 
     @Test

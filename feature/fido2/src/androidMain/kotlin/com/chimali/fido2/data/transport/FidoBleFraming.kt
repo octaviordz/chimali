@@ -85,7 +85,9 @@ internal object FidoBleFraming {
         maxPlatformCapacity: Int = MAX_WRITE_CAPACITY,
     ): Int {
         require(attMtu >= MIN_ATT_MTU) { "ATT MTU must be at least $MIN_ATT_MTU, but was $attMtu" }
-        return minOf(attMtu - ATT_HEADER_OVERHEAD, maxPlatformCapacity)
+        val capacity = minOf(attMtu - ATT_HEADER_OVERHEAD, maxPlatformCapacity)
+        require(capacity >= INIT_HEADER_SIZE + 1) { "Notification capacity $capacity cannot fit a BLE error response" }
+        return capacity
     }
 
     /**
@@ -130,10 +132,10 @@ internal object FidoBleFraming {
     }
 
     /**
-     * Encodes an error response frame (Command 0xBF, 0x00, ErrorCode).
+     * Encodes a single-packet error response (Command 0xBF, length 1, error code).
      */
     @Req("FR-BLE-050", "TR-BLE-020")
-    fun encodeErrorFrame(errorCode: Byte): ByteArray = byteArrayOf(CMD_ERROR, 0x00.toByte(), errorCode)
+    fun encodeErrorFrame(errorCode: Byte): ByteArray = byteArrayOf(CMD_ERROR, 0x00.toByte(), 0x01.toByte(), errorCode)
 
     /**
      * Encodes a periodic keepalive frame (Command 0x82, 0x00, 0x01, Status).

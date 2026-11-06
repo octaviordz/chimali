@@ -1,5 +1,7 @@
 package com.chimali.fido2.domain.service.impl
 
+import android.app.KeyguardManager
+import android.os.Build
 import androidx.biometric.BiometricManager
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
@@ -22,6 +24,7 @@ import org.koin.core.annotation.Single
 @Single
 class UserVerificationServiceImpl(
     private val biometricManager: BiometricManager,
+    private val keyguardManager: KeyguardManager,
     private val timeProvider: TimeProvider,
 ) : UserVerificationService {
     companion object {
@@ -92,10 +95,7 @@ class UserVerificationServiceImpl(
             biometricManager.canAuthenticate(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG,
             ) == BiometricManager.BIOMETRIC_SUCCESS
-        val pinAvailable =
-            biometricManager.canAuthenticate(
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-            ) == BiometricManager.BIOMETRIC_SUCCESS
+        val pinAvailable = isDeviceCredentialAvailable()
 
         val result =
             UserVerificationAvailability(
@@ -131,10 +131,18 @@ class UserVerificationServiceImpl(
             BiometricManager.Authenticators.BIOMETRIC_STRONG,
         ) == BiometricManager.BIOMETRIC_SUCCESS
 
-    override suspend fun isPinAvailable(): Boolean =
-        biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-        ) == BiometricManager.BIOMETRIC_SUCCESS
+    override suspend fun isPinAvailable(): Boolean = isDeviceCredentialAvailable()
+
+    private fun isDeviceCredentialAvailable(): Boolean =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            // Android 10 and earlier do not support DEVICE_CREDENTIAL in canAuthenticate().
+            // KeyguardManager recognizes PIN, pattern, and password on those releases.
+            keyguardManager.isDeviceSecure
+        } else {
+            biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+        }
 
     override suspend fun getBiometricEnrollmentStatus(): BiometricEnrollmentStatus {
         val canAuth =

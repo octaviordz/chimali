@@ -5,8 +5,9 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -127,6 +128,23 @@ class BleSessionOwnerTest {
         assertEquals(300, customOwner.writeCapacity)
         // min(517-3, 200) = 200
         assertEquals(200, customOwner.notifyCapacity)
+
+        val notificationLimitedOwner = BleSessionOwner(supportedAndroidNotificationCapacity = 10)
+        notificationLimitedOwner.updateMtu(517)
+        assertEquals(10, notificationLimitedOwner.notifyCapacity)
+
+        assertFailsWith<IllegalArgumentException> {
+            BleSessionOwner(supportedAndroidWriteCapacity = BleSessionOwner.MIN_CAPACITY - 1)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BleSessionOwner(supportedAndroidNotificationCapacity = 3)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BleSessionOwner(maxMsgSize = 0)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BleSessionOwner(maxMsgSize = 65_536)
+        }
     }
 
     @Test
@@ -136,17 +154,17 @@ class BleSessionOwnerTest {
         val packet = byteArrayOf(0x81.toByte(), 0x00, 0x01, 0x42)
 
         // Case 1: Neither revision nor notifications set
-        assertNull(sessionOwner.processIncomingWrite(packet))
+        assertEquals(BleIncomingWriteResult.NotReady, sessionOwner.processIncomingWrite(packet))
 
         // Case 2: Only revision set
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
-        assertNull(sessionOwner.processIncomingWrite(packet))
+        assertEquals(BleIncomingWriteResult.NotReady, sessionOwner.processIncomingWrite(packet))
 
         // Case 3: Both set -> ready
         sessionOwner.setNotificationsEnabled(true)
         val result = sessionOwner.processIncomingWrite(packet)
-        assertNotNull(result)
-        assertEquals(0x81.toByte(), result.command)
+        val message = (result as BleIncomingWriteResult.Complete).message
+        assertEquals(0x81.toByte(), message.command)
     }
 
     @Test
@@ -159,7 +177,7 @@ class BleSessionOwnerTest {
         // Init packet: CMD_MSG (0x83), length 5 (0x00, 0x05), data 3 bytes
         val initPacket = byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03)
         val assembly1 = sessionOwner.processIncomingWrite(initPacket)
-        assertNull(assembly1, "Message incomplete — waiting for continuation")
+        assertIs<BleIncomingWriteResult.InProgress>(assembly1, "Message incomplete — waiting for continuation")
 
         // Advance 2 seconds (within 3s limit)
         virtualTimeNanos += 2 * NANOS_PER_SECOND
@@ -168,9 +186,9 @@ class BleSessionOwnerTest {
         val contPacket = byteArrayOf(0x00, 0x04, 0x05)
         val completeMessage = sessionOwner.processIncomingWrite(contPacket)
 
-        assertNotNull(completeMessage)
-        assertEquals(0x83.toByte(), completeMessage.command)
-        assertContentEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05), completeMessage.data)
+        val message = (completeMessage as BleIncomingWriteResult.Complete).message
+        assertEquals(0x83.toByte(), message.command)
+        assertContentEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05), message.data)
     }
 
     @Test
@@ -183,13 +201,13 @@ class BleSessionOwnerTest {
         val initPacket = byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03)
         sessionOwner.processIncomingWrite(initPacket)
 
-        // Advance exactly 3.001 seconds
-        virtualTimeNanos += 3 * NANOS_PER_SECOND + 1_000_000L
+        // Advance exactly 3 seconds to the receive deadline
+        virtualTimeNanos += 3 * NANOS_PER_SECOND
 
         // Next continuation arrives after timeout
         val contPacket = byteArrayOf(0x00, 0x04, 0x05)
         val result = sessionOwner.processIncomingWrite(contPacket)
-        assertNull(result, "Expired assembly must be discarded")
+        assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, (result as BleIncomingWriteResult.Error).errorCode)
     }
 
     @Test
@@ -205,6 +223,47 @@ class BleSessionOwnerTest {
         // Expected SEQ 0, but sending SEQ 1
         val invalidSeqPacket = byteArrayOf(0x01, 0x04, 0x05)
         val result = sessionOwner.processIncomingWrite(invalidSeqPacket)
-        assertNull(result, "Out of order sequence must discard assembly")
+        assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (result as BleIncomingWriteResult.Error).errorCode)
+    }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `malformed initialization length and oversized continuation return typed errors`() {
+        sessionOwner.connectHost(DEVICE_A)
+        sessionOwner.selectRevision(REVISION_FIDO2_0x20)
+        sessionOwner.setNotificationsEnabled(true)
+
+        val emptyFrame = sessionOwner.processIncomingWrite(byteArrayOf())
+        assertEquals(FidoBleFraming.ERR_INVALID_PAR, (emptyFrame as BleIncomingWriteResult.Error).errorCode)
+
+        val shortHeader = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00))
+        assertEquals(FidoBleFraming.ERR_INVALID_LEN, (shortHeader as BleIncomingWriteResult.Error).errorCode)
+
+        val oversizeDeclaration = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x04, 0xB1.toByte()))
+        assertEquals(FidoBleFraming.ERR_INVALID_LEN, (oversizeDeclaration as BleIncomingWriteResult.Error).errorCode)
+
+        val extraInitPayload = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x11, 0x22))
+        assertEquals(FidoBleFraming.ERR_INVALID_LEN, (extraInitPayload as BleIncomingWriteResult.Error).errorCode)
+
+        sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x12) + ByteArray(17))
+        val extraContinuation = sessionOwner.processIncomingWrite(byteArrayOf(0x00) + ByteArray(2))
+        assertEquals(FidoBleFraming.ERR_INVALID_LEN, (extraContinuation as BleIncomingWriteResult.Error).errorCode)
+    }
+
+    @Test
+    @Req("FR-BLE-020", "FR-BLE-050", "TR-BLE-020")
+    fun `disabling notifications erases partial request assembly`() {
+        sessionOwner.connectHost(DEVICE_A)
+        sessionOwner.selectRevision(REVISION_FIDO2_0x20)
+        sessionOwner.setNotificationsEnabled(true)
+
+        val partial = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01))
+        assertIs<BleIncomingWriteResult.InProgress>(partial)
+
+        sessionOwner.setNotificationsEnabled(false)
+        sessionOwner.setNotificationsEnabled(true)
+
+        val staleContinuation = sessionOwner.processIncomingWrite(byteArrayOf(0x00, 0x02, 0x03))
+        assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (staleContinuation as BleIncomingWriteResult.Error).errorCode)
     }
 }

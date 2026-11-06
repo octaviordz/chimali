@@ -189,6 +189,14 @@ class FidoBleCancellationTest {
             assertEquals(0xBF.toByte(), errResponse[0]) // CMD_ERROR
             assertEquals(0x03.toByte(), errResponse[3]) // ERR_INVALID_LEN
 
+            // A malformed transport header must also produce a BLE framing error.
+            transport.onPacketReceived(byteArrayOf(0x83.toByte(), 0x00))
+            runCurrent()
+            assertEquals(2, fakeSender.sentNotifications.size)
+            val framingError = fakeSender.sentNotifications[1]
+            assertEquals(0xBF.toByte(), framingError[0])
+            assertEquals(FidoBleFraming.ERR_INVALID_LEN, framingError[3])
+
             transport.disconnect()
         }
 
@@ -210,13 +218,13 @@ class FidoBleCancellationTest {
             val accepted1 = writer.enqueue(largePayload1, isKeepalive = false, sessionGeneration = 1L)
             assertTrue(accepted1)
 
-            // Second packet is retained in queue (1000 bytes queued <= 1224 max capacity)
-            val largePayload2 = ByteArray(1000) { 0x02 }
+            // Second packet is retained (1000 in-flight + 200 queued <= 1224 max capacity)
+            val largePayload2 = ByteArray(200) { 0x02 }
             val accepted2 = writer.enqueue(largePayload2, isKeepalive = false, sessionGeneration = 1L)
             assertTrue(accepted2)
 
-            // Third packet would push queued bytes to 1000 + 500 = 1500 > 1224 bytes
-            val largePayload3 = ByteArray(500) { 0x03 }
+            // Third packet would push outstanding bytes to 1000 + 200 + 50 > 1224 bytes
+            val largePayload3 = ByteArray(50) { 0x03 }
             val accepted3 = writer.enqueue(largePayload3, isKeepalive = false, sessionGeneration = 1L)
             assertFalse(accepted3, "Enqueueing past maximum capacity must be rejected")
         }

@@ -2,7 +2,6 @@ package com.chimali.fido2.presentation.ui
 
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -124,10 +123,8 @@ fun RegistrationPromptScreen(
                                 .Builder()
                                 .setTitle(effect.promptTitle)
                                 .setSubtitle(effect.promptSubtitle)
-                                .setAllowedAuthenticators(
-                                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                                ).build()
+                                .allowFidoUserVerification()
+                                .build()
 
                         val biometricPrompt =
                             BiometricPrompt(

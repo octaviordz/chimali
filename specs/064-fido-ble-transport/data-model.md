@@ -16,7 +16,7 @@ No persistent schema is added. Android owns bond records; existing credentials/e
 
 maxMsgSize is the existing core's truthful advertised limit, validated as positive and <=65535. Establish it before allocating reusable run-owned buffers. Allocation of scratch pools happens at activation, not per hot-path fragment. Request and response payloads may contain sensitive data and retain explicit mutable owners.
 
-Write capacity is min(512, ATT_MTU-3, supported Android write capacity), with a valid minimum of 20. Reject unsupported configurations rather than reporting impossible values. Notify capacity is min(ATT_MTU-3, supported Android notification capacity); track it separately. Re-readable characteristic values reflect actual current support.
+Write capacity is min(512, ATT_MTU-3, supported Android write capacity), with a valid minimum of 20. Reject unsupported configurations rather than reporting impossible values. Notify capacity is min(ATT_MTU-3, supported Android notification capacity); track it separately and reject a configuration too small to carry the four-byte BLE error response. Re-readable characteristic values reflect actual current support.
 
 ## State Transitions
 
@@ -26,6 +26,7 @@ Write capacity is min(512, ATT_MTU-3, supported Android write capacity), with a 
 | Start duplicated | Share current attempt/collector; do not construct another transport |
 | Secure host connection | Stop advertising; create new session generation; reject additional hosts |
 | Revision selection + notifications + authenticated access | Session becomes command-ready; restored valid CCCD counts |
+| Notifications disabled | Erase any partial request assembly; a later subscription cannot resume stale fragments |
 | Valid initialization | Ready -> Receiving; validate bounds; start monotonic 3s receive timer |
 | Valid continuation | Append within bounds; sequence modulo128; refresh deadline |
 | Complete message | Stop receive timer; Receiving -> Processing or WaitingForPresence |
@@ -42,4 +43,4 @@ Write capacity is min(512, ATT_MTU-3, supported Android write capacity), with a 
 
 Callbacks carry run generation, session generation and transaction identity. Stale callbacks cannot alter readiness, enqueue data, dismiss a newer prompt or release reused buffers. Never erase memory concurrently with handler or Android notification use; join or await ownership release first. Failed startup closes partially acquired resources even when no ready callback arrives.
 
-A bounded event/admission queue rejects work before ATT acknowledgement when it cannot retain it. Queue pressure must never silently discard a valid frame. Each notification has a five-second completion deadline; failure or expiry aborts the session and performs owned cleanup. This is a delivery-stall policy, distinct from the parent's activation deadline and the three-second receive timeout. Keepalive scheduling cannot create an infinite queue. A healthy waiting-for-presence operation uses periodic coalesced keepalive signals, not an unbounded retry loop.
+A bounded event/admission queue rejects work before ATT acknowledgement when it cannot retain it. Queue pressure must never silently discard a valid frame. The notification byte limit covers both the in-flight packet and queued packets together (at most `2 * maxMsgSize + 1024` bytes); failure to retain a packet aborts the affected session. Each notification has a five-second completion deadline; failure or expiry aborts the session and performs owned cleanup. This is a delivery-stall policy, distinct from the parent's activation deadline and the three-second receive timeout. Keepalive scheduling cannot create an infinite queue. A healthy waiting-for-presence operation uses periodic coalesced keepalive signals, not an unbounded retry loop.

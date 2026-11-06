@@ -11,7 +11,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.koin.core.annotation.Single
 
 /**
@@ -27,6 +29,14 @@ class Fido2UiEventBus {
 
     private val registrationRequest = MutableStateFlow<Fido2UiEvent.RegistrationRequested?>(null)
     private val authenticationRequest = MutableStateFlow<Fido2UiEvent.AuthenticationRequested?>(null)
+
+    /** Observable pending requests let presenters recover requests dispatched during navigation. */
+    val pendingRegistrationRequest: StateFlow<Fido2UiEvent.RegistrationRequested?> =
+        registrationRequest.asStateFlow()
+
+    /** Observable assertion requests let presenters recover requests dispatched during navigation. */
+    val pendingAuthenticationRequest: StateFlow<Fido2UiEvent.AuthenticationRequested?> =
+        authenticationRequest.asStateFlow()
 
     /** Pending request available before its presenter subscribes; terminal requests are removed. */
     val currentRegistrationRequest: Fido2UiEvent.RegistrationRequested? get() = registrationRequest.value

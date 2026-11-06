@@ -5,7 +5,9 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.Build
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 import java.util.UUID
@@ -41,6 +43,8 @@ class AndroidFidoBleGattServerHost(
     private var notificationSentListener: (BluetoothDevice, Int) -> Unit = { _, _ -> }
     private var connectionStateListener: (BluetoothDevice, Int, Int) -> Unit = { _, _, _ -> }
     private var authenticationFailureListener: (BluetoothDevice) -> Unit = {}
+    private val legacyNotificationLock = Any()
+    private var legacyNotificationValue: Pair<BluetoothGattCharacteristic, ByteArray>? = null
     private val callback by lazy {
         FidoBleGattServer(
             sessionOwner = sessionOwner,
@@ -48,7 +52,10 @@ class AndroidFidoBleGattServerHost(
             onGattServiceAdded = { uuid, status ->
                 serviceRegistrations[uuid]?.complete(status)
             },
-            onNotificationSent = { device, status -> notificationSentListener(device, status) },
+            notificationSentListener = { device, status ->
+                releaseLegacyNotificationValue()
+                notificationSentListener(device, status)
+            },
             onConnectionStateChanged = { device, status, state -> connectionStateListener(device, status, state) },
             onConnectionRejected = { device -> gattServer?.cancelConnection(device) },
             onAuthenticationFailure = { device ->
@@ -141,13 +148,53 @@ class AndroidFidoBleGattServerHost(
         characteristic: BluetoothGattCharacteristic,
         confirm: Boolean,
         value: ByteArray,
-    ): Boolean =
-        gattServer?.let {
-            AndroidGattResponseSender(
-                it,
-            ).notifyCharacteristicChanged(device, characteristic, confirm, value)
+    ): Boolean {
+        val server = gattServer ?: return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return server.notifyCharacteristicChanged(device, characteristic, confirm, value) ==
+                BluetoothStatusCodes.SUCCESS
         }
-            ?: false
+
+        val ownedValue = value.copyOf()
+        synchronized(legacyNotificationLock) {
+            if (legacyNotificationValue != null) {
+                ownedValue.fill(0)
+                return false
+            }
+            legacyNotificationValue = characteristic to ownedValue
+            @Suppress("DEPRECATION")
+            characteristic.value = ownedValue
+        }
+
+        var initiated = false
+        try {
+            @Suppress("DEPRECATION")
+            initiated = server.notifyCharacteristicChanged(device, characteristic, confirm)
+            return initiated
+        } finally {
+            if (!initiated) releaseLegacyNotificationValue(characteristic, ownedValue)
+        }
+    }
+
+    private fun releaseLegacyNotificationValue(
+        expectedCharacteristic: BluetoothGattCharacteristic? = null,
+        expectedValue: ByteArray? = null,
+    ) {
+        val retained =
+            synchronized(legacyNotificationLock) {
+                val pending = legacyNotificationValue ?: return
+                if ((expectedCharacteristic != null && pending.first !== expectedCharacteristic) ||
+                    (expectedValue != null && pending.second !== expectedValue)
+                ) {
+                    return
+                }
+                legacyNotificationValue = null
+                pending
+            }
+        retained.second.fill(0)
+        @Suppress("DEPRECATION")
+        retained.first.value = null
+    }
 
     override fun stop() {
         val server = gattServer
@@ -162,6 +209,8 @@ class AndroidFidoBleGattServerHost(
             server?.close()
         } catch (failure: SecurityException) {
             Logger.w(failure) { "AndroidFidoBleGattServerHost: Permission lost during GATT cleanup" }
+        } finally {
+            releaseLegacyNotificationValue()
         }
     }
 

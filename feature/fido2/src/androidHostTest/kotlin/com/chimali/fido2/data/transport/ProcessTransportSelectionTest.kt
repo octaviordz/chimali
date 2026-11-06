@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.transport
 
+import android.os.Build
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
@@ -29,6 +30,14 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProcessTransportSelectionTest {
+    @Test
+    @Req("FR-BT-SEL-050", "TR-BT-SEL-020")
+    fun classicHidCapabilityIsUnknownWhenAndroidCannotPreflightOemProfileBinding() {
+        assertEquals(CapabilityCheckResult.Unsupported, classicHidCapabilityForApi(Build.VERSION_CODES.O))
+        assertEquals(CapabilityCheckResult.Unknown, classicHidCapabilityForApi(Build.VERSION_CODES.P))
+        assertEquals(CapabilityCheckResult.Unknown, classicHidCapabilityForApi(Build.VERSION_CODES.Q))
+    }
+
     private class FakeSettingsRepository(
         var preferenceResult: TransportPreferenceResult =
             TransportPreferenceResult.Success(TransportPreference(BluetoothTransportMode.FIDO_BLE, 0L)),
